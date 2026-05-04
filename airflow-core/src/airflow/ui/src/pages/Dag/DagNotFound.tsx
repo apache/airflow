@@ -20,7 +20,7 @@ import { Box, Button, Container, Heading, HStack, Text, VStack } from "@chakra-u
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-import { AirflowPin } from "src/assets/AirflowPin";
+import { Logo } from "src/components/Logo";
 
 type DagNotFoundProps = {
   readonly dagId: string;
@@ -34,7 +34,7 @@ export const DagNotFound = ({ dagId }: DagNotFoundProps) => {
     <Box alignItems="center" display="flex" justifyContent="center" pt={36} px={4}>
       <Container maxW="lg">
         <VStack gap={8} textAlign="center">
-          <AirflowPin height="50px" width="50px" />
+          <Logo height="50px" width="50px" />
 
           <VStack gap={4}>
             <Heading>404</Heading>

@@ -87,7 +87,7 @@ class TestValidateExecutorFields:
         _validate_executor_fields(dag, bundle_name="some_bundle")
 
         # Should call ExecutorLoader without team_name (defaults to None)
-        mock_lookup.assert_called_once_with("test.executor", team_name=None)
+        mock_lookup.assert_called_once_with("test.executor", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -107,7 +107,7 @@ class TestValidateExecutorFields:
             _validate_executor_fields(dag, bundle_name="test_bundle")
 
         # Should call ExecutorLoader with team from bundle config
-        mock_lookup.assert_called_once_with("team.executor", team_name="test_team")
+        mock_lookup.assert_called_once_with("team.executor", team_name="test_team", validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -125,7 +125,7 @@ class TestValidateExecutorFields:
         with conf_vars({("core", "multi_team"): "True"}):
             _validate_executor_fields(dag, bundle_name="test_bundle")
 
-        mock_lookup.assert_called_once_with("test.executor", team_name=None)
+        mock_lookup.assert_called_once_with("test.executor", team_name=None, validate_teams=False)
 
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_multiple_tasks_with_executors(self, mock_lookup):
@@ -140,8 +140,8 @@ class TestValidateExecutorFields:
 
         # Should be called for each task with executor
         assert mock_lookup.call_count == 2
-        mock_lookup.assert_any_call("executor1", team_name=None)
-        mock_lookup.assert_any_call("executor2", team_name=None)
+        mock_lookup.assert_any_call("executor1", team_name=None, validate_teams=False)
+        mock_lookup.assert_any_call("executor2", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -213,8 +213,8 @@ class TestValidateExecutorFields:
 
         # Should call lookup twice: first for team, then for global
         assert mock_lookup.call_count == 2
-        mock_lookup.assert_any_call("global.executor", team_name="test_team")
-        mock_lookup.assert_any_call("global.executor", team_name=None)
+        mock_lookup.assert_any_call("global.executor", team_name="test_team", validate_teams=False)
+        mock_lookup.assert_any_call("global.executor", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -247,8 +247,8 @@ class TestValidateExecutorFields:
 
         # Should call lookup twice: first for team, then for global fallback
         assert mock_lookup.call_count == 2
-        mock_lookup.assert_any_call("unknown.executor", team_name="test_team")
-        mock_lookup.assert_any_call("unknown.executor", team_name=None)
+        mock_lookup.assert_any_call("unknown.executor", team_name="test_team", validate_teams=False)
+        mock_lookup.assert_any_call("unknown.executor", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -270,7 +270,38 @@ class TestValidateExecutorFields:
             _validate_executor_fields(dag, bundle_name="test_bundle")
 
         # Should only call lookup once for team-specific executor
-        mock_lookup.assert_called_once_with("team.executor", team_name="test_team")
+        mock_lookup.assert_called_once_with("team.executor", team_name="test_team", validate_teams=False)
+
+    @pytest.mark.usefixtures("clean_executor_loader")
+    def test_validate_executor_fields_does_not_access_database(self):
+        """Regression test: executor validation during DAG parsing must not access the database.
+
+        In Airflow 3, DAG parsing happens in isolated subprocesses where database access
+        is blocked via block_orm_access(). The _validate_executor_fields function must
+        validate executors using only local config (validate_teams=False), without querying
+        the database to verify team names exist. If validate_teams were True, the call chain
+        would reach Team.get_all_team_names() which does a DB query, raising RuntimeError
+        in the parsing subprocess.
+        """
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="LocalExecutor")
+
+        with conf_vars(
+            {
+                ("core", "executor"): "LocalExecutor;team1=CeleryExecutor",
+                ("core", "multi_team"): "True",
+            }
+        ):
+            # Patch _validate_teams_exist_in_database to raise RuntimeError,
+            # simulating what happens in the DAG parsing subprocess where DB is blocked.
+            # If the fix is correct, this should never be called.
+            with patch.object(
+                ExecutorLoader,
+                "_validate_teams_exist_in_database",
+                side_effect=RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0"),
+            ):
+                # Should succeed without hitting the database
+                _validate_executor_fields(dag)
 
 
 def test_validate_executor_field_executor_not_configured():

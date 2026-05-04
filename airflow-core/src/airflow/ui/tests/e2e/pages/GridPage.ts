@@ -22,13 +22,13 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 export class GridPage extends BasePage {
   public readonly gridCells: Locator;
   public readonly gridViewButton: Locator;
-  public readonly taskNameLinks: Locator;
+  public readonly taskNameRows: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.gridViewButton = page.getByTestId("grid-view-button");
-    this.gridCells = page.locator('a[id^="grid-"]');
-    this.taskNameLinks = page.locator('a[href*="/tasks/"]');
+    this.gridCells = page.getByTestId(/^grid-(?!view-button).+/);
+    this.taskNameRows = page.getByTestId(/^task-(?!state-badge).+/);
   }
 
   public async clickGridCellAndVerifyDetails(): Promise<void> {
@@ -38,41 +38,34 @@ export class GridPage extends BasePage {
 
     await expect(firstCell).toBeVisible();
     await firstCell.click();
-    await this.page.waitForURL(/.*\/tasks\/.*/, { timeout: 15_000 });
-    await expect(this.page.getByTestId("virtualized-list")).toBeVisible({ timeout: 10_000 });
-  }
-
-  public async getGridCellCount(): Promise<number> {
-    await this.waitForGridToLoad();
-
-    return this.gridCells.count();
-  }
-
-  public async getTaskNames(): Promise<Array<string>> {
-    await this.waitForGridToLoad();
-
-    const names = await this.taskNameLinks.allTextContents();
-    const uniqueNames = [...new Set(names.map((name) => name.trim()).filter((name) => name !== ""))];
-
-    return uniqueNames;
+    await expect(this.page).toHaveURL(/.*\/tasks\/.*/, { timeout: 15_000 });
+    await expect(this.page.getByTestId("virtualized-list")).toBeVisible();
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}`);
-    await this.page.waitForURL(`**/dags/${dagId}**`, { timeout: 15_000 });
-    await expect(this.gridViewButton).toBeVisible({ timeout: 10_000 });
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}`);
+      await expect(this.page).toHaveURL(new RegExp(`/dags/${dagId}`), { timeout: 5000 });
+      await expect(this.gridViewButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async switchToGridView(): Promise<void> {
-    await expect(this.gridViewButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.gridViewButton).toBeVisible();
     await this.gridViewButton.click();
     await this.waitForGridToLoad();
   }
 
+  public async verifyGridHasTaskInstances(): Promise<void> {
+    await this.waitForGridToLoad();
+    await expect(this.taskNameRows).not.toHaveCount(0);
+    await expect(this.gridCells).not.toHaveCount(0);
+  }
+
   public async verifyGridViewIsActive(): Promise<void> {
-    await expect(this.gridViewButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.gridViewButton).toBeVisible();
     await expect(this.gridCells.first()).toBeVisible({ timeout: 15_000 });
-    await expect(this.taskNameLinks.first()).toBeVisible({ timeout: 10_000 });
+    await expect(this.taskNameRows.first()).toBeVisible({ timeout: 20_000 });
   }
 
   public async verifyTaskStatesAreColorCoded(): Promise<void> {
@@ -85,12 +78,7 @@ export class GridPage extends BasePage {
     const badge = firstCell.getByTestId("task-state-badge");
 
     await expect(badge).toBeVisible();
-
-    const bgColor = await badge.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-
-    const isTransparent = !bgColor || bgColor === "transparent" || bgColor === "rgba(0, 0, 0, 0)";
-
-    expect(isTransparent).toBe(false);
+    await expect(badge).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   }
 
   public async verifyTaskTooltipOnHover(): Promise<void> {
@@ -99,15 +87,17 @@ export class GridPage extends BasePage {
     const firstCell = this.gridCells.first();
 
     await expect(firstCell).toBeVisible();
-    await firstCell.hover();
 
-    const tooltip = this.page.locator('[role="tooltip"], [data-scope="tooltip"]');
-
-    await expect(tooltip.first()).toBeVisible({ timeout: 10_000 });
+    // Firefox may not trigger the tooltip on the first hover attempt.
+    await expect(async () => {
+      await this.page.mouse.move(0, 0);
+      await firstCell.hover();
+      await expect(this.page.getByRole("tooltip").first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [1000, 2000], timeout: 15_000 });
   }
 
   public async waitForGridToLoad(): Promise<void> {
     await expect(this.gridCells.first()).toBeVisible({ timeout: 20_000 });
-    await expect(this.taskNameLinks.first()).toBeVisible({ timeout: 10_000 });
+    await expect(this.taskNameRows.first()).toBeVisible();
   }
 }

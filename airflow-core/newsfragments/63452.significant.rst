@@ -1,0 +1,7 @@
+Remove legacy OTel Trace metaclass and shared tracer wrappers
+
+The interfaces and functions located in ``airflow.traces`` were
+internal code that provided a standard way to manage spans in
+internal Airflow code. They were not intended as user-facing code
+and were never documented. They are no longer needed so we
+remove them in 3.2.

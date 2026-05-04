@@ -161,14 +161,12 @@ class ContinuousTimetable(_TrivialTimetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        if restriction.earliest is None:  # No start date, won't run.
-            return None
-
         current_time = timezone.coerce_datetime(timezone.utcnow())
+        start_date = restriction.earliest or current_time
 
         if last_automated_data_interval is not None:  # has already run once
             if last_automated_data_interval.end > current_time:  # start date is future
-                start = restriction.earliest
+                start = start_date
                 elapsed = last_automated_data_interval.end - last_automated_data_interval.start
 
                 end = start + elapsed.as_timedelta()
@@ -176,8 +174,8 @@ class ContinuousTimetable(_TrivialTimetable):
                 start = last_automated_data_interval.end
                 end = current_time
         else:  # first run
-            start = restriction.earliest
-            end = max(restriction.earliest, current_time)
+            start = start_date
+            end = max(start_date, current_time)
 
         if restriction.latest is not None and end > restriction.latest:
             return None
@@ -252,6 +250,8 @@ DEFAULT_PARTITION_MAPPER = IdentityMapper()
 
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
+
+    partitioned = True
 
     @property
     def summary(self) -> str:

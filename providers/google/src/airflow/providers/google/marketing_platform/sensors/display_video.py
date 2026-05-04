@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sensor for detecting the completion of DV360 reports."""
+"""Sensor for detecting the completion of DV360 SDF operations."""
 
 from __future__ import annotations
 

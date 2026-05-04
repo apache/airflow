@@ -45,6 +45,8 @@ if __name__ == "__main__":
 
     for file in [DOCKERFILE_FILE, DOCKERFILE_CI_FILE]:
         for script in SCRIPTS_DOCKER_DIR.iterdir():
+            if not script.is_file():
+                continue
             script_content = script.read_text().splitlines(keepends=True)
             no_comments_script_content = [
                 line for line in script_content if not line.startswith("#") or line.startswith("#!")

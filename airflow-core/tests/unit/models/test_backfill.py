@@ -32,14 +32,21 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
+    DagNonPeriodicScheduleException,
+    InvalidBackfillConf,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     ReprocessBehavior,
     _create_backfill,
+    _do_dry_run,
+    _get_latest_dag_run_row_query,
 )
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import Asset
 from airflow.ti_deps.dep_context import DepContext
+from airflow.timetables.base import DagRunInfo
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
@@ -78,7 +85,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
     if dep_on_past:
         cm = pytest.raises(
             InvalidBackfillDirection,
-            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
+            match="Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True.",
         )
     b = None
     with cm:
@@ -221,6 +228,76 @@ def test_create_backfill_clear_existing_bundle_version(dag_maker, session, run_o
     assert [x.bundle_version for x in dag_runs] == expected
 
 
+@pytest.mark.parametrize("reverse", [True, False])
+@pytest.mark.parametrize(
+    "existing",
+    [
+        ["2026-02-22T16:00:00", "2026-02-23T16:00:00"],
+        [],
+    ],
+)
+@pytest.mark.parametrize(
+    "start_date",
+    [
+        None,
+        pendulum.parse("2026-02-20"),
+    ],
+)
+def test_create_backfill_partitioned(reverse, existing, start_date, dag_maker, session):
+    """Verify partitioned backfill creates new runs per partition."""
+    from airflow.sdk import CronPartitionTimetable
+
+    with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei")) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    for date in existing:
+        dag_maker.create_dagrun(
+            start_date=start_date,
+            run_id=f"scheduled_{date}",
+            logical_date=None,
+            partition_key=date,
+            session=session,
+        )
+        session.commit()
+
+    expected_run_conf = {"param1": "valABC"}
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2026-02-15"),
+        to_date=pendulum.parse("2026-02-24"),
+        max_active_runs=2,
+        reverse=reverse,
+        triggering_user_name="pytest",
+        dag_run_conf=expected_run_conf,
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    partition_keys = [str(datetime.fromisoformat(x.partition_key).date()) for x in dag_runs]
+    expected_dates = [f"2026-02-{d}" for d in range(15, 22 if existing else 24)]
+    if reverse:
+        expected_dates = list(reversed(expected_dates))
+
+    assert partition_keys == expected_dates
+    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
+    assert all(x.conf == expected_run_conf for x in dag_runs)
+    # Calendar view filters partitioned Dags by partition_date, so the backfill
+    # path must populate it alongside partition_key. Verify that backfill copies
+    # info.partition_date faithfully — i.e. the stored value matches what the
+    # timetable computed for each partition_key.
+    expected_partition_date_by_key = {
+        info.partition_key: info.partition_date
+        for info in dag.iter_dagrun_infos_between(pendulum.parse("2026-02-15"), pendulum.parse("2026-02-24"))
+    }
+    assert [x.partition_date for x in dag_runs] == [
+        expected_partition_date_by_key[x.partition_key] for x in dag_runs
+    ]
+
+
 @pytest.mark.parametrize(
     ("reprocess_behavior", "num_in_b", "exc_reasons"),
     [
@@ -324,6 +401,155 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     assert all(x.state == DagRunState.QUEUED for x in dag_runs_in_b)
 
 
+@pytest.mark.parametrize(
+    "reprocess_behavior",
+    [ReprocessBehavior.FAILED, ReprocessBehavior.COMPLETED],
+)
+def test_backfill_conf_overrides_existing_dag_run(reprocess_behavior, dag_maker, session):
+    """When reprocessing an existing DagRun, the backfill's dag_run_conf should override the existing conf."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    existing_date = "2021-01-03"
+    dag_maker.create_dagrun(
+        run_id=f"scheduled_{existing_date}",
+        logical_date=timezone.parse(existing_date),
+        session=session,
+        state=DagRunState.FAILED,
+        conf={"old_key": "old_value"},
+    )
+    session.commit()
+
+    new_conf = {"new_key": "new_value"}
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=new_conf,
+        reprocess_behavior=reprocess_behavior,
+    )
+
+    session.expunge_all()
+
+    # The reprocessed existing run should have the new conf
+    reprocessed_dr = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.logical_date == timezone.parse(existing_date),
+        )
+    )
+    assert reprocessed_dr.conf == new_conf
+
+    # New runs created by the backfill should also have the new conf
+    all_backfill_runs = session.scalars(
+        select(DagRun).join(BackfillDagRun.dag_run).where(BackfillDagRun.backfill_id == b.id)
+    ).all()
+    assert all(x.conf == new_conf for x in all_backfill_runs)
+
+
+def test_backfill_none_conf_preserves_existing_dag_run_conf(dag_maker, session):
+    """When backfill dag_run_conf is None, existing DagRun conf should be preserved."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    existing_date = "2021-01-03"
+    original_conf = {"keep": "this"}
+    dag_maker.create_dagrun(
+        run_id=f"scheduled_{existing_date}",
+        logical_date=timezone.parse(existing_date),
+        session=session,
+        state=DagRunState.FAILED,
+        conf=original_conf,
+    )
+    session.commit()
+
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+
+    session.expunge_all()
+
+    reprocessed_dr = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.logical_date == timezone.parse(existing_date),
+        )
+    )
+    assert reprocessed_dr.conf == original_conf
+
+
+def test_backfill_empty_conf_overrides_existing_dag_run(dag_maker, session):
+    """When backfill dag_run_conf is {}, existing DagRun conf should be updated to {}."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    existing_date = "2021-01-03"
+    dag_maker.create_dagrun(
+        run_id=f"scheduled_{existing_date}",
+        logical_date=timezone.parse(existing_date),
+        session=session,
+        state=DagRunState.FAILED,
+        conf={"old_key": "old_value"},
+    )
+    session.commit()
+
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+
+    session.expunge_all()
+
+    reprocessed_dr = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.logical_date == timezone.parse(existing_date),
+        )
+    )
+    assert reprocessed_dr.conf == {}
+
+
+def test_backfill_rejects_invalid_conf(dag_maker, session):
+    """Backfill with invalid conf should fail validation before creating any runs."""
+    from airflow.sdk import Param
+
+    with dag_maker(
+        schedule="@daily",
+        params={"validated_number": Param(1, type="integer", minimum=1, maximum=10)},
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param validated_number"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=10,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={"validated_number": 99},
+        )
+
+    # No runs should have been created
+    assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
+
+
 def test_params_stored_correctly(dag_maker, session):
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
@@ -363,7 +589,7 @@ def test_active_dag_run(dag_maker, session):
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for dag"):
+    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for Dag"):
         _create_backfill(
             dag_id=dag.dag_id,
             from_date=pendulum.parse("2021-02-01"),
@@ -487,7 +713,7 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
         )
     raises_cm = pytest.raises(
         InvalidReprocessBehavior,
-        match="DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
+        match="Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
     )
     null_cm = nullcontext()
     cm = null_cm
@@ -503,4 +729,88 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             dag_run_conf={},
             triggering_user_name="pytest",
             reprocess_behavior=behavior,
+        )
+
+
+def test_get_latest_dag_run_row_partitioned(session: Session):
+    partition_key = "2026-02-22T16:00:00"
+    for start_date in [timezone.parse("2025-05-12"), None, timezone.parse("2026-02-23")]:
+        session.add(
+            DagRun(
+                dag_id="test_dag_id",
+                run_id=f"test_run_id_{get_random_string()}",
+                start_date=start_date,
+                run_type="manual",
+                state=DagRunState.SUCCESS,
+                partition_key=partition_key,
+            )
+        )
+        session.commit()
+    info = DagRunInfo(
+        run_after=pendulum.now(),
+        data_interval=None,
+        partition_date=pendulum.DateTime.fromisoformat(partition_key),
+        partition_key=partition_key,
+    )
+    stmt = _get_latest_dag_run_row_query(dag_id="test_dag_id", info=info)
+
+    dr = session.scalar(stmt)
+    assert dr is not None
+    assert dr.start_date == timezone.parse("2026-02-23")
+
+
+@pytest.mark.parametrize(
+    ("schedule", "dag_kwargs"),
+    [
+        pytest.param(None, {}, id="no-schedule"),
+        pytest.param("@once", {}, id="once"),
+        pytest.param("@continuous", {"max_active_runs": 1}, id="continuous"),
+        pytest.param([Asset(uri="test://asset", name="test-asset")], {}, id="asset-scheduled"),
+    ],
+)
+def test_create_backfill_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_maker, session):
+    with dag_maker(schedule=schedule, **dag_kwargs) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    with pytest.raises(
+        DagNonPeriodicScheduleException,
+        match="has a non-periodic schedule that does not support backfills",
+    ):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf={},
+        )
+
+
+@pytest.mark.parametrize(
+    ("schedule", "dag_kwargs"),
+    [
+        pytest.param(None, {}, id="no-schedule"),
+        pytest.param("@once", {}, id="once"),
+        pytest.param("@continuous", {"max_active_runs": 1}, id="continuous"),
+        pytest.param([Asset(uri="test://asset", name="test-asset")], {}, id="asset-scheduled"),
+    ],
+)
+def test_do_dry_run_non_periodic_schedule_rejected(schedule, dag_kwargs, dag_maker, session):
+    with dag_maker(schedule=schedule, **dag_kwargs) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    with pytest.raises(
+        DagNonPeriodicScheduleException,
+        match="has a non-periodic schedule that does not support backfills",
+    ):
+        list(
+            _do_dry_run(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                reverse=False,
+                reprocess_behavior=ReprocessBehavior.NONE,
+                session=session,
+            )
         )

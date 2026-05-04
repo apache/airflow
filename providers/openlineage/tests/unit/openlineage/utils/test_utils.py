@@ -36,8 +36,10 @@ from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _MAX_DOC_BYTES,
+    AssetInfo,
     DagInfo,
     DagRunInfo,
+    InfoJsonEncodable,
     TaskGroupInfo,
     TaskInfo,
     TaskInfoComplete,
@@ -50,24 +52,30 @@ from airflow.providers.openlineage.utils.utils import (
     _get_tasks_details,
     _truncate_string_to_byte_size,
     build_dag_run_ol_run_id,
+    build_task_event_job_facets,
+    build_task_event_run_facets,
     build_task_instance_ol_run_id,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
+    get_airflow_run_facet,
     get_airflow_state_run_facet,
     get_dag_documentation,
     get_dag_job_dependency_facet,
     get_dag_parent_run_facet,
+    get_dag_run_dag_and_task_from_ti,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
     get_operator_provider_version,
     get_parent_information_from_dagrun_conf,
     get_root_information_from_dagrun_conf,
+    get_runtime_outlet_assets,
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
     is_valid_uuid,
+    translate_airflow_asset,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.events import EventsTimetable
@@ -80,10 +88,39 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_3_PLUS,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
+_UTILS = "airflow.providers.openlineage.utils.utils"
+
+
+def _asset_alias_event_supports_dest_asset_extra() -> bool:
+    """
+    ``AssetAliasEvent.dest_asset_extra`` was added in Airflow 3.1.4 (and 3.2+).
+
+    Earlier 3.0.x / 3.1.0-3.1.3 builds only expose ``extra`` on the event. The merge-behavior
+    tests below are skipped on those versions; ``get_runtime_outlet_assets`` uses ``getattr``
+    with a ``{}`` fallback in production, so the runtime code still works there — it just
+    doesn't have per-asset extras to merge.
+    """
+    if not AIRFLOW_V_3_0_PLUS:
+        return False
+    try:
+        import attrs
+
+        from airflow.sdk.definitions.asset import AssetAliasEvent
+
+        return "dest_asset_extra" in attrs.fields_dict(AssetAliasEvent)
+    except Exception:
+        return False
+
+
+_ALIAS_EVENT_HAS_DEST_ASSET_EXTRA = _asset_alias_event_supports_dest_asset_extra()
 
 
 class CustomOperatorForTest(BashOperator):
@@ -185,6 +222,9 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.end_date = datetime.datetime(2024, 6, 1, 1, 2, 14, 34172, tzinfo=datetime.timezone.utc)
     dagrun_mock.triggering_user_name = "user1"
     dagrun_mock.triggered_by = "something"
+    dagrun_mock.note = "note"
+    dagrun_mock.partition_key = "some_partition_key"
+    dagrun_mock.partition_date = datetime.datetime(2024, 6, 1, 2, 3, 34, tzinfo=datetime.timezone.utc)
     dagrun_mock.dag_versions = [
         MagicMock(
             bundle_name="bundle_name",
@@ -193,6 +233,7 @@ def test_get_airflow_dag_run_facet():
             version_number="version_number",
         )
     ]
+    dagrun_mock.deadlines = []
 
     result = get_airflow_dag_run_facet(dagrun_mock)
 
@@ -209,6 +250,9 @@ def test_get_airflow_dag_run_facet():
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"
+    note: str | None = None
+    if AIRFLOW_V_3_2_PLUS:
+        note = "note"
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
             dag=expected_dag_info,
@@ -224,6 +268,7 @@ def test_get_airflow_dag_run_facet():
                 "start_date": "2024-06-01T01:02:04+00:00",
                 "end_date": "2024-06-01T01:02:14.034172+00:00",
                 "duration": 10.034172,
+                "deadlines": None,
                 "execution_date": "2024-06-01T01:02:04+00:00",
                 "logical_date": "2024-06-01T01:02:04+00:00",
                 "run_after": "2024-06-01T01:02:04+00:00",
@@ -232,7 +277,10 @@ def test_get_airflow_dag_run_facet():
                 "dag_version_id": "version_id",
                 "dag_version_number": "version_number",
                 "triggering_user_name": "user1",
+                "partition_key": "some_partition_key",
+                "partition_date": "2024-06-01T02:03:34+00:00",
                 "triggered_by": "something",
+                "note": note,
             },
         )
     }
@@ -2651,6 +2699,220 @@ class TestDagInfoAirflow3:
         }
 
 
+class TestDagRunInfoDeadlines:
+    """Tests for deadline state and alert definitions in DagRunInfo."""
+
+    def test_dagrun_no_deadlines_attribute(self):
+        dagrun = MagicMock(spec=[])
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_empty_deadlines(self):
+        dagrun = MagicMock()
+        dagrun.deadlines = []
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_with_deadline_and_alert(self):
+        alert = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert.name = "SLA Alert"
+        alert.description = "Must finish within 1 hour"
+        alert.reference = {"reference_type": "DagRunLogicalDateDeadline"}
+        alert.interval = 3600.0
+        alert.callback_def = {"path": "my_module.on_deadline_missed", "kwargs": {}}
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = False
+        deadline.deadline_alert = alert
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": False,
+                    "name": "SLA Alert",
+                    "description": "Must finish within 1 hour",
+                    "reference": {"reference_type": "DagRunLogicalDateDeadline"},
+                    "interval": 3600.0,
+                    "callback_def": {"path": "my_module.on_deadline_missed", "kwargs": {}},
+                },
+            ],
+        }
+
+    def test_dagrun_with_multiple_deadlines(self):
+        alert1 = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert1.name = None
+        alert1.description = None
+        alert1.reference = {"reference_type": "DagRunLogicalDateDeadline"}
+        alert1.interval = 3600.0
+        alert1.callback_def = {"path": "mod.cb1", "kwargs": {}}
+
+        alert2 = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert2.name = "Queued Deadline"
+        alert2.description = None
+        alert2.reference = {"reference_type": "DagRunQueuedAtDeadline"}
+        alert2.interval = 7200.0
+        alert2.callback_def = {"path": "mod.cb2", "kwargs": {"notify": True}}
+
+        d1 = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        d1.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        d1.missed = True
+        d1.deadline_alert = alert1
+
+        d2 = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        d2.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        d2.missed = False
+        d2.deadline_alert = alert2
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [d1, d2]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": True,
+                    "reference": {"reference_type": "DagRunLogicalDateDeadline"},
+                    "interval": 3600.0,
+                    "callback_def": {"path": "mod.cb1", "kwargs": {}},
+                },
+                {
+                    "deadline_time": "2025-06-01T14:00:00+00:00",
+                    "missed": False,
+                    "name": "Queued Deadline",
+                    "reference": {"reference_type": "DagRunQueuedAtDeadline"},
+                    "interval": 7200.0,
+                    "callback_def": {"path": "mod.cb2", "kwargs": {"notify": True}},
+                },
+            ],
+        }
+
+    def test_dagrun_deadline_alert_access_fails(self):
+        """When the alert relationship can't be loaded, execution details still appear."""
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = False
+        type(deadline).deadline_alert = PropertyMock(side_effect=Exception("DB not available"))
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": False,
+                },
+            ],
+        }
+
+    def test_dagrun_deadline_none_alert_fields_excluded(self):
+        """None-valued alert fields are excluded from the output."""
+        alert = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert.name = None
+        alert.description = None
+        alert.reference = {"reference_type": "DagRunLogicalDateDeadline"}
+        alert.interval = 3600.0
+        alert.callback_def = None
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = True
+        deadline.deadline_alert = alert
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        result = DagRunInfo.deadlines(dagrun)
+        assert result == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": True,
+                    "reference": {"reference_type": "DagRunLogicalDateDeadline"},
+                    "interval": 3600.0,
+                },
+            ],
+        }
+        assert "name" not in result["alerts"][0]
+        assert "description" not in result["alerts"][0]
+        assert "callback_def" not in result["alerts"][0]
+
+    def test_dagrun_deadlines_property_raises(self):
+        """When accessing dagrun.deadlines itself raises, return None."""
+        dagrun = MagicMock()
+        type(dagrun).deadlines = PropertyMock(side_effect=Exception("Session closed"))
+
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_deadline_time_isoformat_raises(self):
+        """When deadline_time.isoformat() raises, that deadline is skipped."""
+        bad_time = MagicMock()
+        bad_time.isoformat.side_effect = AttributeError("not a datetime")
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = bad_time
+        deadline.missed = False
+        deadline.deadline_alert = None
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        assert DagRunInfo.deadlines(dagrun) is None
+
+    def test_dagrun_bad_deadline_skipped_others_preserved(self):
+        """A failing deadline is skipped; valid siblings still appear."""
+        bad_deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        bad_time = MagicMock()
+        bad_time.isoformat.side_effect = TypeError("broken")
+        bad_deadline.deadline_time = bad_time
+        bad_deadline.missed = False
+        bad_deadline.deadline_alert = None
+
+        good_deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        good_deadline.deadline_time = datetime.datetime(2025, 6, 1, 14, 0, 0, tzinfo=datetime.timezone.utc)
+        good_deadline.missed = True
+        good_deadline.deadline_alert = None
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [bad_deadline, good_deadline]
+
+        assert DagRunInfo.deadlines(dagrun) == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T14:00:00+00:00",
+                    "missed": True,
+                },
+            ],
+        }
+
+    def test_dagrun_alert_attribute_access_raises(self):
+        """When reading an attribute on the alert object raises, execution details still appear."""
+        alert = MagicMock(spec=["name", "description", "reference", "interval", "callback_def"])
+        alert.name = "Good Name"
+        type(alert).reference = PropertyMock(side_effect=Exception("Column error"))
+
+        deadline = MagicMock(spec=["deadline_time", "missed", "deadline_alert"])
+        deadline.deadline_time = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        deadline.missed = False
+        deadline.deadline_alert = alert
+
+        dagrun = MagicMock()
+        dagrun.deadlines = [deadline]
+
+        result = DagRunInfo.deadlines(dagrun)
+        assert result == {
+            "alerts": [
+                {
+                    "deadline_time": "2025-06-01T12:00:00+00:00",
+                    "missed": False,
+                },
+            ],
+        }
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
 @patch.object(DagRun, "dag_versions", new_callable=PropertyMock)
 def test_dagrun_info_af3(mocked_dag_versions):
@@ -2664,6 +2926,12 @@ def test_dagrun_info_af3(mocked_dag_versions):
     dv2.version_number = "version_number"
     dv2.bundle_name = "bundle_name"
     dv2.bundle_version = "bundle_version"
+
+    optional_args = {}
+    if AIRFLOW_V_3_2_PLUS:
+        optional_args["note"] = "note"
+        optional_args["partition_key"] = "some_partition_key"
+        optional_args["partition_date"] = date
 
     mocked_dag_versions.return_value = [dv1, dv2]
     dagrun = DagRun(
@@ -2681,10 +2949,16 @@ def test_dagrun_info_af3(mocked_dag_versions):
         triggered_by=DagRunTriggeredByType.UI,
         backfill_id=999,
         bundle_version="bundle_version",
+        **optional_args,
     )
     assert dagrun.dag_versions == [dv1, dv2]
     dagrun.end_date = date + datetime.timedelta(seconds=74, microseconds=546)
     dagrun.triggering_user_name = "my_user"
+
+    optional_result = {}
+    if AIRFLOW_V_3_2_PLUS:
+        optional_result["partition_key"] = "some_partition_key"
+        optional_result["partition_date"] = "2024-06-01T00:00:00+00:00"
 
     result = DagRunInfo(dagrun)
     assert dict(result) == {
@@ -2694,6 +2968,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,
+        "deadlines": None,
         "end_date": "2024-06-01T00:01:14.000546+00:00",
         "run_id": "dag_run__run_id",
         "run_type": DagRunType.MANUAL,
@@ -2706,6 +2981,8 @@ def test_dagrun_info_af3(mocked_dag_versions):
         "dag_version_number": "version_number",
         "triggered_by": DagRunTriggeredByType.UI,
         "triggering_user_name": "my_user",
+        "note": optional_args.get("note"),
+        **optional_result,
     }
 
 
@@ -2737,6 +3014,7 @@ def test_dagrun_info_af2():
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,
+        "deadlines": None,
         "end_date": "2024-06-01T00:01:14.000546+00:00",
         "run_id": "dag_run__run_id",
         "run_type": DagRunType.MANUAL,
@@ -2748,6 +3026,7 @@ def test_dagrun_info_af2():
         "dag_bundle_version": None,
         "dag_version_id": None,
         "dag_version_number": None,
+        "note": None,
     }
 
 
@@ -2789,10 +3068,21 @@ def test_taskinstance_info_af3():
     assert dict(TaskInstanceInfo(runtime_ti)) == {
         "log_url": runtime_ti.log_url,
         "map_index": 2,
+        "rendered_map_index": None,
         "try_number": 1,
         "dag_bundle_version": "bundle_version",
         "dag_bundle_name": "bundle_name",
     }
+
+    runtime_ti.rendered_map_index = "country=PL"
+    assert dict(TaskInstanceInfo(runtime_ti))["rendered_map_index"] == "country=PL"
+
+    # Should only be included if task is mapped
+    runtime_ti.map_index = -1
+    runtime_ti.rendered_map_index = None
+    result = dict(TaskInstanceInfo(runtime_ti))
+    assert result["map_index"] is None
+    assert result["rendered_map_index"] is None
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
@@ -2809,6 +3099,7 @@ def test_taskinstance_info_af2():
     assert dict(TaskInstanceInfo(ti)) == {
         "duration": 12.345,
         "map_index": 2,
+        "rendered_map_index": None,
         "pool": "default_pool",
         "try_number": 0,
         "queued_dttm": "2024-06-01T00:00:00+00:00",
@@ -2816,6 +3107,19 @@ def test_taskinstance_info_af2():
         "dag_bundle_name": None,
         "dag_bundle_version": None,
     }
+
+    # Also tested manually that it works well on AF2, hard to test hybrid property so just mocking it here
+    with patch.object(TaskInstance, "rendered_map_index", "country=PL"):
+        assert dict(TaskInstanceInfo(ti))["rendered_map_index"] == "country=PL"
+
+    ti_unmapped = TaskInstance(
+        task=task_obj, run_id="task_instance_run_id", state=TaskInstanceState.RUNNING, map_index=-1
+    )
+    # Should only be included if task is mapped
+    with patch.object(TaskInstance, "rendered_map_index", "should-not-be-emitted"):
+        result = dict(TaskInstanceInfo(ti_unmapped))
+    assert result["map_index"] is None
+    assert result["rendered_map_index"] is None
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
@@ -2852,6 +3156,7 @@ def test_task_info_af3():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.note = "note"  # TriggerDagRunOperator
             self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
@@ -2893,16 +3198,17 @@ def test_task_info_af3():
         "executor_config": {},
         "hitl_summary": "hitl_summary",
         "ignore_first_depends_on_past": False,
-        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}, 'type': 'asset'}]",
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
         "max_retry_delay": None,
         "multiple_outputs": False,
+        "note": "note",
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
         "operator_provider_version": None,  # Custom operator doesn't have provider version
-        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
+        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}, 'type': 'asset'}, {'uri': 'uri3', 'extra': {'c': 3}, 'type': 'asset'}]",
         "owner": "airflow",
         "priority_weight": 1,
         "queue": "default",
@@ -2979,6 +3285,7 @@ def test_task_info_af2():
             self.tol = "tol"  # SQLValueCheckOperator
             self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
             self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
+            self.note = "note"  # TriggerDagRunOperator
             self.hitl_summary = "hitl_summary"  # HITLOperator
             super().__init__(*args, **kwargs)
 
@@ -3023,7 +3330,7 @@ def test_task_info_af2():
         "is_setup": False,
         "is_teardown": False,
         "sla": None,
-        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}, 'type': 'asset'}]",
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -3032,7 +3339,7 @@ def test_task_info_af2():
         "operator_class": "CustomOperator",
         "operator_class_path": get_fully_qualified_class_name(task_10),
         "operator_provider_version": None,  # Custom operator doesn't have provider version
-        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}}, {'uri': 'uri3', 'extra': {'c': 3}}]",
+        "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}, 'type': 'asset'}, {'uri': 'uri3', 'extra': {'c': 3}, 'type': 'asset'}]",
         "owner": "airflow",
         "priority_weight": 1,
         "queue": "default",
@@ -3063,6 +3370,7 @@ def test_task_info_af2():
         "max_threshold": "max_threshold",
         "metrics_thresholds": "metrics_thresholds",
         "min_threshold": "min_threshold",
+        "note": "note",
         "parameters": "parameters",
         "pass_value": "pass_value",
         "postoperator": "postoperator",
@@ -3928,3 +4236,720 @@ class TestGetDagJobDependencyFacet:
                 "partition_key": None,
             },
         ]
+
+
+def test_get_dag_run_dag_and_task_from_ti_af3():
+    ti = MagicMock()
+    ti.get_template_context.return_value = {
+        "dag_run": mock.sentinel.dr,
+        "dag": mock.sentinel.dag,
+        "task": mock.sentinel.task,
+    }
+    with patch(f"{_UTILS}.AIRFLOW_V_3_0_PLUS", True):
+        assert get_dag_run_dag_and_task_from_ti(ti) == (
+            mock.sentinel.dr,
+            mock.sentinel.dag,
+            mock.sentinel.task,
+        )
+
+
+def test_get_dag_run_dag_and_task_from_ti_af2():
+    ti = MagicMock()
+    ti.dag_run = mock.sentinel.dr
+    ti.task = MagicMock(dag=mock.sentinel.dag)
+    expected_task = ti.task
+    with patch(f"{_UTILS}.AIRFLOW_V_3_0_PLUS", False):
+        assert get_dag_run_dag_and_task_from_ti(ti) == (
+            mock.sentinel.dr,
+            mock.sentinel.dag,
+            expected_task,
+        )
+    ti.get_template_context.assert_not_called()
+
+
+@patch(f"{_UTILS}.get_processing_engine_facet", return_value={"processing_engine": "pe"})
+@patch(f"{_UTILS}.get_airflow_debug_facet", return_value={"debug": "d"})
+@patch(f"{_UTILS}.get_airflow_run_facet", return_value={"airflow": "af"})
+@patch(f"{_UTILS}.get_task_parent_run_facet", return_value={"parent": "p"})
+@patch(f"{_UTILS}.get_user_provided_run_facets", return_value={"user": "u"})
+def test_build_task_event_run_facets_composes_all_sections(
+    mock_user, mock_parent, mock_airflow, mock_debug, mock_pe
+):
+    dag = MagicMock(dag_id="my_dag")
+    dag_run = MagicMock(
+        conf={"k": "v"},
+        data_interval_start=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+        data_interval_end=datetime.datetime(2024, 1, 2, tzinfo=datetime.timezone.utc),
+    )
+    facets = build_task_event_run_facets(
+        task_instance=MagicMock(),
+        dag_run=dag_run,
+        dag=dag,
+        task=MagicMock(),
+        task_uuid="uuid",
+        ti_state=TaskInstanceState.RUNNING,
+        parent_run_id="pid",
+    )
+    assert set(facets) == {"user", "parent", "airflow", "debug", "processing_engine", "nominalTime"}
+    # defaults flow through to downstream helpers
+    mock_parent.assert_called_once_with(parent_run_id="pid", parent_job_name="my_dag", dr_conf={"k": "v"})
+    assert facets["nominalTime"].nominalStartTime == "2024-01-01T00:00:00+00:00"
+    assert facets["nominalTime"].nominalEndTime == "2024-01-02T00:00:00+00:00"
+
+
+@patch(f"{_UTILS}.get_processing_engine_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_debug_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_run_facet", return_value={})
+@patch(f"{_UTILS}.get_task_parent_run_facet", return_value={})
+@patch(f"{_UTILS}.get_user_provided_run_facets", return_value={})
+def test_build_task_event_run_facets_omits_nominal_time_when_missing(*_):
+    dag_run = MagicMock(conf={}, data_interval_start=None, data_interval_end=None)
+    facets = build_task_event_run_facets(
+        task_instance=MagicMock(),
+        dag_run=dag_run,
+        dag=MagicMock(dag_id="d"),
+        task=MagicMock(),
+        task_uuid="uuid",
+        ti_state=TaskInstanceState.RUNNING,
+        parent_run_id="pid",
+    )
+    assert "nominalTime" not in facets
+
+
+@patch(f"{_UTILS}.get_processing_engine_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_debug_facet", return_value={})
+@patch(f"{_UTILS}.get_airflow_run_facet", return_value={})
+@patch(f"{_UTILS}.get_task_parent_run_facet", return_value={"parent": "internal"})
+@patch(f"{_UTILS}.get_user_provided_run_facets", return_value={})
+def test_build_task_event_run_facets_internals_win_over_additional(*_):
+    facets = build_task_event_run_facets(
+        task_instance=MagicMock(),
+        dag_run=MagicMock(conf={}, data_interval_start=None),
+        dag=MagicMock(dag_id="d"),
+        task=MagicMock(),
+        task_uuid="uuid",
+        ti_state=TaskInstanceState.RUNNING,
+        parent_run_id="pid",
+        additional_run_facets={"parent": "malicious", "custom": "ok"},
+    )
+    assert facets["parent"] == "internal"
+    assert facets["custom"] == "ok"
+
+
+def _job_task(**kw):
+    defaults = dict(owner="alice", doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None)
+    defaults.update(kw)
+    return MagicMock(**defaults)
+
+
+def _job_dag(**kw):
+    defaults = dict(owner="dag_owner", tags=[], doc_md=None, description=None)
+    defaults.update(kw)
+    return MagicMock(**defaults)
+
+
+def test_build_task_event_job_facets_prefers_task_doc_over_dag_doc():
+    facets = build_task_event_job_facets(
+        task=_job_task(doc_md="task-doc"),
+        dag=_job_dag(doc_md="dag-doc"),
+    )
+    assert facets["documentation"].description == "task-doc"
+    assert facets["documentation"].contentType == "text/markdown"
+
+
+def test_build_task_event_job_facets_owner_falls_back_to_dag_for_default_task_owner():
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(owner="dag_owner"),
+    )
+    assert {o.name for o in facets["ownership"].owners} == {"dag_owner"}
+
+
+def test_build_task_event_job_facets_tags_sorted_from_dag():
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(owner="", tags=["b", "a"]),
+    )
+    assert [t.key for t in facets["tags"].tags] == ["a", "b"]
+
+
+def test_build_task_event_job_facets_minimal_when_nothing_set():
+    # task.owner=="airflow" triggers dag fallback; dag.owner empty -> no ownership facet
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(owner=""),
+    )
+    assert set(facets) == {"jobType"}
+    assert facets["jobType"].jobType == "TASK"
+
+
+def test_build_task_event_job_facets_internals_win_over_additional():
+    facets = build_task_event_job_facets(
+        task=_job_task(),
+        dag=_job_dag(),
+        additional_job_facets={"jobType": "malicious", "custom": "ok"},
+    )
+    assert facets["jobType"] != "malicious"
+    assert facets["jobType"].jobType == "TASK"
+    assert facets["custom"] == "ok"
+
+
+class TestInfoJsonEncodableExtendFields:
+    """Exercise the ``_extend_fields`` subclass hook on ``InfoJsonEncodable``."""
+
+    def test_base_hook_is_noop(self):
+        """Base class hook does nothing, so a plain subclass round-trips only obj fields."""
+
+        class _Obj:
+            def __init__(self):
+                self.a = 1
+                self.b = 2
+
+        class _PlainInfo(InfoJsonEncodable):
+            includes = ["a", "b"]
+
+        assert dict(_PlainInfo(_Obj())) == {"a": 1, "b": 2}
+
+    def test_hook_can_add_fields_from_init_args(self):
+        """Values passed into __init__ can be registered and surface in the final dict."""
+
+        class _Obj:
+            def __init__(self):
+                self.a = 1
+
+        class _WithExtra(InfoJsonEncodable):
+            includes = ["a"]
+
+            def __init__(self, obj, tag):
+                self._tag = tag
+                super().__init__(obj)
+
+            def _extend_fields(self):
+                self.tag = self._tag
+                self._fields.append("tag")
+
+        assert dict(_WithExtra(_Obj(), tag="hello")) == {"a": 1, "tag": "hello"}
+
+    def test_hook_runs_after_include_cast_rename(self):
+        """The hook sees fields already set by casts/renames/includes."""
+
+        class _Obj:
+            def __init__(self):
+                self.existing = "base"
+
+        seen: dict = {}
+
+        class _Tracked(InfoJsonEncodable):
+            includes = ["existing"]
+
+            def _extend_fields(self):
+                # Field set by _include_fields before us must be visible here.
+                seen["existing_visible"] = hasattr(self, "existing")
+                seen["existing_value"] = getattr(self, "existing", None)
+                self.derived = f"wrapped:{self.existing}"
+                self._fields.append("derived")
+
+        assert dict(_Tracked(_Obj())) == {"existing": "base", "derived": "wrapped:base"}
+        assert seen == {"existing_visible": True, "existing_value": "base"}
+
+    def test_hook_fields_get_basic_type_cast(self):
+        """Values registered in _extend_fields still run through _cast_basic_types."""
+
+        class _Obj:
+            pass
+
+        class _WithList(InfoJsonEncodable):
+            def _extend_fields(self):
+                self.items = [1, 2, 3]
+                self._fields.append("items")
+
+        # _cast_basic_types turns list into a repr string.
+        assert dict(_WithList(_Obj())) == {"items": "[1, 2, 3]"}
+
+    def test_instance_attrs_not_in_fields_are_not_serialized(self):
+        """Attributes set on self but not appended to _fields must NOT show up in the dict."""
+
+        class _Obj:
+            pass
+
+        class _HiddenAttrs(InfoJsonEncodable):
+            def __init__(self, obj):
+                self._private = "should-not-leak"
+                super().__init__(obj)
+
+            def _extend_fields(self):
+                self.public = "visible"
+                self._fields.append("public")
+
+        result = _HiddenAttrs(_Obj())
+        assert dict(result) == {"public": "visible"}
+        assert "_private" not in result
+        assert "_private" not in dict(result)
+
+
+class TestAssetInfo:
+    """Output-shape tests for the consolidated ``AssetInfo`` encoder."""
+
+    def test_default_static_asset(self):
+        asset = Asset(uri="s3://bucket/static.txt", extra={"row_count": 5})
+        assert dict(AssetInfo(asset)) == {
+            "uri": "s3://bucket/static.txt",
+            "extra": {"row_count": 5},
+            "type": "asset",
+        }
+
+    def test_dynamic_asset_event(self):
+        asset = Asset(uri="s3://bucket/dyn.txt", extra={"row_count": 1})
+        assert dict(AssetInfo(asset, asset_type="asset_event")) == {
+            "uri": "s3://bucket/dyn.txt",
+            "extra": {"row_count": 1},
+            "type": "asset_event",
+        }
+
+    def test_alias_resolved_asset_carries_source_alias(self):
+        asset = Asset(uri="s3://bucket/aliased.txt", extra={"k": "v"})
+        result = AssetInfo(asset, asset_type="asset_event_from_alias", source_alias="my-alias")
+        assert dict(result) == {
+            "uri": "s3://bucket/aliased.txt",
+            "extra": {"k": "v"},
+            "type": "asset_event_from_alias",
+            "source_alias": "my-alias",
+        }
+
+    def test_source_alias_omitted_when_none(self):
+        """``source_alias`` is only registered when actually supplied."""
+        asset = Asset(uri="s3://bucket/x.txt", extra={})
+        result = dict(AssetInfo(asset, asset_type="asset_event"))
+        assert "source_alias" not in result
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Runtime outlet accessors exist only on AF3")
+class TestGetRuntimeOutletAssets:
+    """Cover the worker-only collector behind ``get_runtime_outlet_assets``."""
+
+    @staticmethod
+    def _make_runtime_ti(outlet_events):
+        """
+        Build a fake RuntimeTaskInstance with a patched template context.
+
+        ``outlet_events`` is either ``None`` (meaning "omit from context") or an iterable
+        of ``(key, accessor)`` pairs. We deliberately avoid building a real ``dict`` here —
+        on Airflow 3.0 / 3.1 ``Asset`` and ``AssetAlias`` are not hashable (``Asset.__hash__``
+        tries to hash ``self.extra`` which is a dict), so a literal mapping would blow up
+        at test setup time. The production code only needs iteration + ``__getitem__``, both
+        of which our tiny wrapper supports.
+        """
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        class _FakeRuntimeTI(RuntimeTaskInstance):
+            pass
+
+        class _FakeOutletEvents:
+            """Minimal ``for key in m`` + ``m[key]`` support over unhashable keys."""
+
+            def __init__(self, pairs):
+                self._pairs = list(pairs)
+
+            def __iter__(self):
+                return (k for k, _ in self._pairs)
+
+            def __getitem__(self, key):
+                for k, v in self._pairs:
+                    if k is key:
+                        return v
+                raise KeyError(key)
+
+        ti = MagicMock(spec=_FakeRuntimeTI)
+        if outlet_events is None:
+            ctx = {}
+        else:
+            ctx = {"outlet_events": _FakeOutletEvents(outlet_events)}
+        ti.get_template_context = MagicMock(return_value=ctx)
+        return ti, _FakeRuntimeTI
+
+    def test_returns_empty_on_non_runtime_task_instance(self):
+        """Scheduler / API-server TaskInstance must short-circuit to []."""
+        from airflow.models.taskinstance import TaskInstance as DBTaskInstance
+
+        db_ti = MagicMock(spec=DBTaskInstance)
+        # Don't spec on RuntimeTaskInstance — this simulates the scheduler path.
+        assert get_runtime_outlet_assets(db_ti) == []
+
+    def test_returns_empty_on_af2(self):
+        """When the version gate is off the function must bail before any imports."""
+        with mock.patch("airflow.providers.openlineage.utils.utils.AIRFLOW_V_3_0_PLUS", False):
+            assert get_runtime_outlet_assets(MagicMock()) == []
+
+    def test_returns_empty_when_outlet_events_missing_from_context(self):
+        ti, fake_cls = self._make_runtime_ti(outlet_events=None)
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            assert get_runtime_outlet_assets(ti) == []
+
+    @pytest.mark.skipif(
+        not _ALIAS_EVENT_HAS_DEST_ASSET_EXTRA,
+        reason="AssetAliasEvent.dest_asset_extra is only available on Airflow 3.1.4+ / 3.2+.",
+    )
+    def test_collects_asset_alias_resolutions(self):
+        """``outlet_events[AssetAlias].add(asset, ...)`` → ``(Asset, alias)`` pairs."""
+        from airflow.providers.common.compat.assets import AssetAlias
+        from airflow.sdk.definitions.asset import AssetAliasEvent, AssetUniqueKey
+
+        alias = AssetAlias("my-alias")
+        accessor = MagicMock()
+        accessor.asset_alias_events = [
+            AssetAliasEvent(
+                source_alias_name="my-alias",
+                dest_asset_key=AssetUniqueKey(name="s3://bucket/a.txt", uri="s3://bucket/a.txt"),
+                dest_asset_extra={"base": 1},
+                extra={"per_event": 2},
+            )
+        ]
+        ti, fake_cls = self._make_runtime_ti(outlet_events=[(alias, accessor)])
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            result = get_runtime_outlet_assets(ti)
+
+        assert len(result) == 1
+        asset, returned_alias = result[0]
+        assert returned_alias is alias
+        assert asset.uri == "s3://bucket/a.txt"
+        # Per-event extra wins over the asset-level dest_asset_extra.
+        assert asset.extra == {"base": 1, "per_event": 2}
+
+    @pytest.mark.skipif(
+        not _ALIAS_EVENT_HAS_DEST_ASSET_EXTRA,
+        reason="AssetAliasEvent.dest_asset_extra is only available on Airflow 3.1.4+ / 3.2+.",
+    )
+    def test_per_event_extra_overrides_dest_asset_extra(self):
+        """When both extras define the same key, per-event wins (merge order)."""
+        from airflow.providers.common.compat.assets import AssetAlias
+        from airflow.sdk.definitions.asset import AssetAliasEvent, AssetUniqueKey
+
+        alias = AssetAlias("collision")
+        accessor = MagicMock()
+        accessor.asset_alias_events = [
+            AssetAliasEvent(
+                source_alias_name="collision",
+                dest_asset_key=AssetUniqueKey(name="s3://b/c.txt", uri="s3://b/c.txt"),
+                dest_asset_extra={"k": "from-dest"},
+                extra={"k": "from-event"},
+            )
+        ]
+        ti, fake_cls = self._make_runtime_ti(outlet_events=[(alias, accessor)])
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            result = get_runtime_outlet_assets(ti)
+        assert result[0][0].extra == {"k": "from-event"}
+
+    def test_collects_dynamic_asset_event(self):
+        """``outlet_events[Asset].extra = {...}`` → ``(Asset, None)`` pair."""
+        asset_key = Asset(uri="s3://bucket/dyn.txt")
+        accessor = MagicMock()
+        accessor.extra = {"row_count": 42}
+        # No asset_alias_events path for a non-alias accessor.
+        accessor.asset_alias_events = []
+
+        ti, fake_cls = self._make_runtime_ti(outlet_events=[(asset_key, accessor)])
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            result = get_runtime_outlet_assets(ti)
+
+        assert len(result) == 1
+        asset, alias = result[0]
+        assert alias is None
+        assert asset.uri == "s3://bucket/dyn.txt"
+        assert asset.extra == {"row_count": 42}
+
+    def test_skips_asset_keys_without_extra(self):
+        """Static outlets with no runtime-emitted extra must not appear as dynamic events."""
+        asset_key = Asset(uri="s3://bucket/static.txt")
+        accessor = MagicMock()
+        accessor.extra = {}
+        accessor.asset_alias_events = []
+
+        ti, fake_cls = self._make_runtime_ti(outlet_events=[(asset_key, accessor)])
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            assert get_runtime_outlet_assets(ti) == []
+
+    def test_static_asset_extra_does_not_leak_into_runtime_events(self):
+        """
+        An ``Asset`` declared on ``task.outlets`` with its own ``extra`` must NOT be
+        re-emitted as a runtime event when the user never writes to the accessor.
+
+        ``Asset.extra`` lives on the Asset object (static, DAG-parse-time). The
+        matching ``OutletEventAccessor.extra`` is initialized to ``{}`` by
+        ``OutletEventAccessors.__getitem__`` and only changes when the user writes
+        ``outlet_events[asset].extra = {...}`` at runtime. This test guards the
+        invariant: a static Asset carrying its own declaration-time extra, with an
+        untouched accessor, produces no ``(asset, None)`` pair.
+        """
+        # Static outlet declares its own extra at DAG definition time.
+        asset_key = Asset(uri="s3://bucket/static.txt", extra={"static_key": "static_value"})
+        # Accessor mirrors production behavior: `extra={}` at construction, unchanged.
+        accessor = MagicMock()
+        accessor.extra = {}
+        accessor.asset_alias_events = []
+
+        ti, fake_cls = self._make_runtime_ti(outlet_events=[(asset_key, accessor)])
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            assert get_runtime_outlet_assets(ti) == []
+
+    def test_mixed_alias_and_dynamic_events(self):
+        """Multiple accessor kinds co-exist and both surface, in ``outlet_events`` iteration order."""
+        from airflow.providers.common.compat.assets import AssetAlias
+        from airflow.sdk.definitions.asset import AssetAliasEvent, AssetUniqueKey
+
+        alias = AssetAlias("my-alias")
+        alias_accessor = MagicMock()
+        # ``dest_asset_extra`` is required on 3.1.4+ / 3.2+ and doesn't exist at all on
+        # older 3.x — build the kwargs conditionally so the test works across versions.
+        event_kwargs: dict = {
+            "source_alias_name": "my-alias",
+            "dest_asset_key": AssetUniqueKey(name="s3://b/alias.txt", uri="s3://b/alias.txt"),
+            "extra": {"x": 1},
+        }
+        if _ALIAS_EVENT_HAS_DEST_ASSET_EXTRA:
+            event_kwargs["dest_asset_extra"] = {}
+        alias_accessor.asset_alias_events = [AssetAliasEvent(**event_kwargs)]
+        asset_key = Asset(uri="s3://b/dyn.txt")
+        dyn_accessor = MagicMock()
+        dyn_accessor.extra = {"y": 2}
+        dyn_accessor.asset_alias_events = []
+
+        ti, fake_cls = self._make_runtime_ti(
+            outlet_events=[(alias, alias_accessor), (asset_key, dyn_accessor)]
+        )
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner.RuntimeTaskInstance",
+            fake_cls,
+        ):
+            result = get_runtime_outlet_assets(ti)
+
+        assert result == [
+            (Asset(name="s3://b/alias.txt", uri="s3://b/alias.txt", extra={"x": 1}), alias),
+            (Asset(name="s3://b/dyn.txt", uri="s3://b/dyn.txt", extra={"y": 2}), None),
+        ]
+
+
+class TestTaskInfoRuntimeAssets:
+    """Integration of ``get_runtime_outlet_assets`` output with ``TaskInfo`` outlets."""
+
+    def test_no_runtime_assets_leaves_outlets_untouched(self):
+        task = BashOperator(
+            task_id="t",
+            bash_command="echo 1",
+            outlets=[Asset(uri="s3://bucket/static.txt", extra={"x": 1})],
+        )
+        info = TaskInfo(task)
+        # Exactly one outlet, the static one.
+        assert info["outlets"] == "[{'uri': 's3://bucket/static.txt', 'extra': {'x': 1}, 'type': 'asset'}]"
+
+    def test_runtime_assets_appended_as_asset_event(self):
+        task = BashOperator(
+            task_id="t",
+            bash_command="echo 1",
+            outlets=[Asset(uri="s3://bucket/static.txt", extra={"x": 1})],
+        )
+        dyn = Asset(uri="s3://bucket/dyn.txt", extra={"row_count": 3})
+        info = TaskInfo(task, runtime_assets=[(dyn, None)])
+        assert info["outlets"] == (
+            "[{'uri': 's3://bucket/static.txt', 'extra': {'x': 1}, 'type': 'asset'}, "
+            "{'uri': 's3://bucket/dyn.txt', 'extra': {'row_count': 3}, 'type': 'asset_event'}]"
+        )
+
+    def test_runtime_alias_resolution_carries_source_alias(self):
+        from airflow.providers.common.compat.assets import AssetAlias
+
+        task = BashOperator(task_id="t", bash_command="echo 1", outlets=[])
+        resolved = Asset(uri="s3://bucket/from_alias.txt", extra={"k": "v"})
+        info = TaskInfo(task, runtime_assets=[(resolved, AssetAlias("my-alias"))])
+        assert info["outlets"] == (
+            "[{'uri': 's3://bucket/from_alias.txt', 'extra': {'k': 'v'}, "
+            "'type': 'asset_event_from_alias', 'source_alias': 'my-alias'}]"
+        )
+
+    def test_runtime_assets_not_exposed_in_dict(self):
+        """``_runtime_assets`` is a private constructor kwarg — it must not serialize."""
+        task = BashOperator(task_id="t", bash_command="echo 1", outlets=[])
+        info = TaskInfo(task, runtime_assets=[(Asset(uri="s3://x/y.txt", extra={"a": 1}), None)])
+        result = dict(info)
+        assert "_runtime_assets" not in result
+        # The runtime asset itself should still appear in the outlets list, just not the kwarg.
+        assert result["outlets"] == "[{'uri': 's3://x/y.txt', 'extra': {'a': 1}, 'type': 'asset_event'}]"
+
+
+@patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_get_airflow_run_facet_plumbs_runtime_assets(mock_include_full, mock_get_runtime):
+    """``get_airflow_run_facet`` must pipe runtime outlets into TaskInfo's outlets."""
+    mock_include_full.return_value = False
+    dyn = Asset(uri="s3://bucket/dynamic.txt", extra={"row_count": 7})
+    mock_get_runtime.return_value = [(dyn, None)]
+
+    task = BashOperator(task_id="t", bash_command="echo 1", outlets=[])
+    ti = MagicMock()
+
+    facet = get_airflow_run_facet(MagicMock(), MagicMock(), ti, task, MagicMock())
+
+    mock_get_runtime.assert_called_once_with(ti)
+    assert facet["airflow"].task["outlets"] == (
+        "[{'uri': 's3://bucket/dynamic.txt', 'extra': {'row_count': 7}, 'type': 'asset_event'}]"
+    )
+
+
+@patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_get_airflow_run_facet_plumbs_runtime_assets_full(mock_include_full, mock_get_runtime):
+    """Same plumbing must work for TaskInfoComplete when include_full_task_info=True."""
+    mock_include_full.return_value = True
+    dyn = Asset(uri="s3://bucket/dynamic.txt", extra={"x": 1})
+    mock_get_runtime.return_value = [(dyn, None)]
+
+    task = BashOperator(task_id="t", bash_command="echo 1", outlets=[])
+    facet = get_airflow_run_facet(MagicMock(), MagicMock(), MagicMock(), task, MagicMock())
+    assert facet["airflow"].task["outlets"] == (
+        "[{'uri': 's3://bucket/dynamic.txt', 'extra': {'x': 1}, 'type': 'asset_event'}]"
+    )
+
+
+class TestTranslateAirflowAsset:
+    """Guard the behavior of ``translate_airflow_asset``, esp. the added try/except + early returns."""
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS,
+        reason=(
+            "AF2 path returns None when ``airflow.datasets._get_normalized_scheme`` is absent "
+            "(older 2.x), which is the correct behavior — the happy path isn't meaningful there."
+        ),
+    )
+    def test_known_scheme_returns_ol_dataset(self):
+        """Happy path — a registered converter is found for the scheme and its output is returned."""
+        from openlineage.client.event_v2 import Dataset
+
+        expected = Dataset(namespace="s3://bucket", name="dir/file.txt")
+        fake_pm = MagicMock()
+        fake_pm.asset_to_openlineage_converters = {"s3": lambda asset, ctx: expected}
+
+        # Use a mocked asset so we don't depend on an ``s3`` URI normalizer being registered.
+        asset = MagicMock()
+        asset.normalized_uri = "s3://bucket/dir/file.txt"
+        asset.extra = {}
+
+        with mock.patch(
+            "airflow.providers.openlineage.utils.utils._get_providers_manager_instance",
+            return_value=fake_pm,
+        ):
+            result = translate_airflow_asset(asset, None)
+        assert result == expected
+
+    def test_none_when_normalized_uri_empty(self):
+        asset = MagicMock()
+        asset.normalized_uri = None
+        assert translate_airflow_asset(asset, None) is None
+
+    def test_none_when_normalized_uri_missing(self):
+        asset = MagicMock(spec=[])  # No normalized_uri attribute at all.
+        assert translate_airflow_asset(asset, None) is None
+
+    def test_none_when_scheme_has_no_converter(self):
+        """URI that normalizes cleanly but whose scheme isn't registered → None, no raise."""
+        # "no-such-scheme" is not a registered OL converter scheme.
+        asset = Asset(uri="no-such-scheme://host/path", extra={})
+        assert translate_airflow_asset(asset, None) is None
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS,
+        reason="AF2 returns None via the import-guard branch before reaching the converter call.",
+    )
+    def test_converter_exception_is_swallowed(self):
+        """New try/except around the converter call must return None instead of bubbling."""
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("converter blew up")
+
+        fake_pm = MagicMock()
+        fake_pm.asset_to_openlineage_converters = {"s3": _boom}
+
+        # Mocked asset — see note in ``test_known_scheme_returns_ol_dataset``.
+        asset = MagicMock()
+        asset.normalized_uri = "s3://bucket/key"
+        asset.extra = {}
+
+        with mock.patch(
+            "airflow.providers.openlineage.utils.utils._get_providers_manager_instance",
+            return_value=fake_pm,
+        ):
+            assert translate_airflow_asset(asset, None) is None
+
+
+class TestNextQueryCounterFromContext:
+    def test_increments_counter_in_context_dict(self):
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        fake_context: dict = {}
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with mock.patch(context_path, return_value=fake_context):
+            assert next_query_counter_from_context() == "1"
+            assert next_query_counter_from_context() == "2"
+            assert next_query_counter_from_context() == "3"
+        # The helper persists state in the caller-supplied dict.
+        assert fake_context["_openlineage_manual_query_counter"] == 3
+
+    def test_isolated_per_context(self):
+        """Two separate contexts do not share the counter."""
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        ctx_a: dict = {}
+        ctx_b: dict = {}
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with mock.patch(context_path, return_value=ctx_a):
+            assert next_query_counter_from_context() == "1"
+            assert next_query_counter_from_context() == "2"
+        with mock.patch(context_path, return_value=ctx_b):
+            assert next_query_counter_from_context() == "1"
+
+    def test_returns_random_suffix_and_warns_when_no_context(self, caplog):
+        """When `get_current_context` raises (no active task), return a random suffix + log warning."""
+        import logging
+
+        from airflow.providers.openlineage.utils.utils import next_query_counter_from_context
+
+        context_path = (
+            "airflow.sdk.get_current_context"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.operators.python.get_current_context"
+        )
+        with (
+            mock.patch(context_path, side_effect=RuntimeError("no context")),
+            caplog.at_level(logging.INFO),
+        ):
+            first = next_query_counter_from_context()
+            second = next_query_counter_from_context()
+
+        assert len(first) == 8
+        assert len(second) == 8
+        assert first != second  # random per call
+        assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text

@@ -18,7 +18,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class PartitionMapper(ABC):
@@ -29,7 +32,7 @@ class PartitionMapper(ABC):
     """
 
     @abstractmethod
-    def to_downstream(self, key: str) -> str:
+    def to_downstream(self, key: str) -> str | Iterable[str]:
         """Return the target key that the given source partition key maps to."""
 
     def serialize(self) -> dict[str, Any]:

@@ -63,12 +63,12 @@ from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
 from packaging.version import Version
-from sqlalchemy import delete, func, inspect, or_, select
-from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy import delete, exists, func, inspect, or_, select
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -77,6 +77,7 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
+    assoc_permission_role,
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
@@ -395,7 +396,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_authentik_jwks(self, jwks_url) -> dict:
         import requests
 
-        resp = requests.get(jwks_url)
+        resp = requests.get(jwks_url, timeout=30)
         if resp.status_code == 200:
             return resp.json()
         return {}
@@ -548,6 +549,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(current_app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
+    def _hash_password(self, password: str) -> str:
+        method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
+        return generate_password_hash(password, method=method)
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -560,7 +565,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = generate_password_hash(password)
+        user.password = self._hash_password(password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -1298,6 +1303,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_ROLE, name)
                 return role
+            except IntegrityError:
+                self.session.rollback()
+                role = self.find_role(name)
+                if role is not None:
+                    log.info("Role '%s' was created by a concurrent worker, using existing record", name)
+                    return role
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_ROLE, e)
                 self.session.rollback()
@@ -1396,7 +1408,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if hashed_password:
                 user.password = hashed_password
             else:
-                user.password = generate_password_hash(password)
+                user.password = self._hash_password(password)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
 
@@ -1440,7 +1452,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if hashed_password:
             register_user.password = hashed_password
         else:
-            register_user.password = generate_password_hash(password)
+            register_user.password = self._hash_password(password)
         register_user.registration_hash = str(uuid.uuid1())
         try:
             self.session.add(register_user)
@@ -1479,14 +1491,28 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_user(self, user: User) -> bool:
         try:
-            self.session.merge(user)
+            existing_user = self.session.get(self.user_model, user.id)
+            if existing_user:
+                existing_role_ids = {r.id for r in existing_user.roles}
+                existing_group_ids = {grp.id for grp in existing_user.groups}
+                new_role_ids = {r.id for r in user.roles}
+                new_group_ids = {grp.id for grp in user.groups}
+                if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
+                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
+            merged_user = self.session.merge(user)
             self.session.commit()
+            self._reset_user_permissions_cache(merged_user)
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
         return True
+
+    @staticmethod
+    def _reset_user_permissions_cache(user: User) -> None:
+        """Invalidate cached permissions to avoid stale auth checks after role updates."""
+        user._perms = None
 
     def del_register_user(self, register_user) -> bool:
         """
@@ -1561,6 +1587,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.add(action)
                 self.session.commit()
                 return action
+            except IntegrityError:
+                self.session.rollback()
+                action = self.get_action(name)
+                if action is not None:
+                    log.info("Action '%s' was created by a concurrent worker, using existing record", name)
+                    return action
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION, e)
                 self.session.rollback()
@@ -1619,6 +1652,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.add(resource)
                 self.session.commit()
                 return resource
+            except IntegrityError:
+                self.session.rollback()
+                resource = self.get_resource(name)
+                if resource is not None:
+                    log.info("Resource '%s' was created by a concurrent worker, using existing record", name)
+                    return resource
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU, e)
                 self.session.rollback()
@@ -1689,6 +1729,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW, perm)
             return perm
+        except IntegrityError:
+            self.session.rollback()
+            existing = self.get_permission(action_name, resource_name)
+            if existing is not None:
+                log.info(
+                    "Permission '%s'->'%s' was created by a concurrent worker, using existing record",
+                    action_name,
+                    resource_name,
+                )
+                return existing
+            raise
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, e)
             self.session.rollback()
@@ -1739,9 +1790,33 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.merge(role)
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
+            except IntegrityError as e:
+                self.session.rollback()
+                if self._is_permission_assigned_to_role(role_id=role.id, permission_view_id=permission.id):
+                    log.info("Permission '%s' already assigned to role '%s'", permission, role.name)
+                else:
+                    log.error(
+                        const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+                        f"Failed to add '{permission}' permission to the '{role}' role Error: {e}",
+                    )
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
                 self.session.rollback()
+
+    def _is_permission_assigned_to_role(self, role_id: int | None, permission_view_id: int | None) -> bool:
+        """Check if the permission is already assigned to the role."""
+        if role_id is None or permission_view_id is None:
+            return False
+        return bool(
+            self.session.scalar(
+                select(
+                    exists().where(
+                        assoc_permission_role.c.role_id == role_id,
+                        assoc_permission_role.c.permission_view_id == permission_view_id,
+                    )
+                )
+            )
+        )
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """
@@ -1921,6 +1996,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             # Sync the user's roles
             if user and user_attributes and self.auth_roles_sync_at_login:
                 user.roles = self._ldap_calculate_user_roles(user_attributes)
+                self._reset_user_permissions_cache(user)
                 log.debug("Calculated new roles for user=%r as: %s", user_dn, user.roles)
 
             # If the user is new, register them
@@ -1948,6 +2024,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 if rotate_session_id:
                     self._rotate_session_id()
                 self.update_user_auth_stat(user)
+                self.session.expire(user, ["roles", "groups"])
+                self._reset_user_permissions_cache(user)
                 return user
             return None
 
@@ -2293,7 +2371,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
         import requests
 
-        return requests.get(MICROSOFT_KEY_SET_URL).json()
+        return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)

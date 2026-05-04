@@ -30,6 +30,7 @@ from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
+    expand_env_var,
 )
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
@@ -99,7 +100,7 @@ def get_sdk_expansion_variables() -> dict[str, Any]:
     SDK only needs AIRFLOW_HOME for expansion. Core specific variables
     (FERNET_KEY, JWT_SECRET_KEY, etc.) are not needed in the SDK.
     """
-    airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+    airflow_home = expand_env_var(os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow")))
     return {
         "AIRFLOW_HOME": airflow_home,
     }
@@ -107,8 +108,11 @@ def get_sdk_expansion_variables() -> dict[str, Any]:
 
 def get_airflow_config() -> str:
     """Get path to airflow.cfg file."""
-    airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
-    return os.path.join(airflow_home, "airflow.cfg")
+    airflow_config_var = os.environ.get("AIRFLOW_CONFIG")
+    if airflow_config_var is None:
+        airflow_home: str = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        return os.path.join(expand_env_var(airflow_home), "airflow.cfg")
+    return expand_env_var(airflow_config_var)
 
 
 class AirflowSDKConfigParser(_SharedAirflowConfigParser):
@@ -125,12 +129,24 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         *args,
         **kwargs,
     ):
+        # Imported lazily to preserve the module-level lazy ``conf`` initialization and avoid a
+        # configuration/providers_manager_runtime import cycle.
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
         # Read Core's config.yml (Phase 1: shared config.yml)
-        configuration_description = retrieve_configuration_description()
+        _configuration_description = retrieve_configuration_description()
         # Create default values parser
-        _default_values = create_default_config_parser(configuration_description)
-        super().__init__(configuration_description, _default_values, *args, **kwargs)
-        self.configuration_description = configuration_description
+        _default_values = create_default_config_parser(_configuration_description)
+        super().__init__(
+            _configuration_description,
+            _default_values,
+            ProvidersManagerTaskRuntime,
+            create_default_config_parser,
+            _default_config_file_path("provider_config_fallback_defaults.cfg"),
+            *args,
+            **kwargs,
+        )
+        self._configuration_description = _configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
 
@@ -144,6 +160,11 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
 
         if default_config is not None:
             self._update_defaults_from_string(default_config)
+
+    def _get_custom_secret_backend(self, worker_mode: bool | None = None) -> Any | None:
+        return super()._get_custom_secret_backend(
+            worker_mode=worker_mode if worker_mode is not None else True
+        )
 
     def expand_all_configuration_values(self):
         """Expand all configuration values using SDK-specific expansion variables."""
@@ -227,11 +248,18 @@ def initialize_secrets_backends(
     custom_secret_backend = get_custom_secret_backend(worker_mode)
 
     if custom_secret_backend is not None:
+        from airflow.sdk.definitions.connection import Connection
+
+        custom_secret_backend._set_connection_class(Connection)
         backend_list.append(custom_secret_backend)
 
     for class_name in default_backends:
+        from airflow.sdk.definitions.connection import Connection
+
         secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+        backend = secrets_backend_cls()
+        backend._set_connection_class(Connection)
+        backend_list.append(backend)
 
     return backend_list
 

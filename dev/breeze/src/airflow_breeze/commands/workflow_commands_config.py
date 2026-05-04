@@ -47,5 +47,11 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-write-to-stable-folder",
             ],
         },
+        {
+            "name": "Inventory handling",
+            "options": [
+                "--ignore-missing-inventories",
+            ],
+        },
     ],
 }

@@ -25,10 +25,9 @@ import re
 import ssl
 from typing import Any
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +57,13 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
     if "visibility_timeout" not in broker_transport_options:
         if _broker_supports_visibility_timeout(broker_url):
             broker_transport_options["visibility_timeout"] = 86400
+            log.warning(
+                "No visibility_timeout configured in [celery_broker_transport_options]. "
+                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
+                "will be redelivered by the broker, which terminates the original task. "
+                "If you have long-running tasks, increase this value in your Airflow configuration: "
+                "[celery_broker_transport_options] visibility_timeout = <seconds>"
+            )
 
     if "sentinel_kwargs" in broker_transport_options:
         try:
@@ -72,7 +78,11 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
         result_backend = team_conf.get_mandatory_value("celery", "RESULT_BACKEND")
     else:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-        result_backend = f"db+{team_conf.get('database', 'SQL_ALCHEMY_CONN')}"
+        sql_alchemy_conn = team_conf.get("database", "SQL_ALCHEMY_CONN")
+        # In SQLAlchemy 2.1 the default PostgreSQL driver changed from psycopg2 to psycopg (v3).
+        # To maintain existing behavior, we explicitly specify psycopg2 for driverless PostgreSQL URLs.
+        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", "postgresql+psycopg2://", 1)
+        result_backend = f"db+{sql_alchemy_conn}"
 
     # Handle result backend transport options (for Redis Sentinel support)
     result_backend_transport_options: dict = (
@@ -131,36 +141,54 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     try:
         if celery_ssl_active:
-            if broker_url and "amqp://" in broker_url:
-                broker_use_ssl = {
-                    "keyfile": team_conf.get("celery", "SSL_KEY"),
-                    "certfile": team_conf.get("celery", "SSL_CERT"),
-                    "ca_certs": team_conf.get("celery", "SSL_CACERT"),
-                    "cert_reqs": ssl.CERT_REQUIRED,
-                }
+            ssl_mutual_tls = team_conf.getboolean("celery", "SSL_MUTUAL_TLS", fallback=True)
+            ssl_key = team_conf.get("celery", "SSL_KEY")
+            ssl_cert = team_conf.get("celery", "SSL_CERT")
+            ssl_cacert = team_conf.get("celery", "SSL_CACERT")
+
+            if ssl_mutual_tls and (not ssl_key or not ssl_cert):
+                raise ValueError(
+                    "SSL_MUTUAL_TLS is True (default) but SSL_KEY and/or SSL_CERT are not set. "
+                    "Set both for mutual TLS, or set SSL_MUTUAL_TLS=False for one-way TLS."
+                )
+
+            if not ssl_cacert:
+                log.info("SSL_CACERT is not set. Using system CA certificates for server verification.")
+
+            if not ssl_mutual_tls and (ssl_key or ssl_cert):
+                log.warning(
+                    "SSL_MUTUAL_TLS is False but SSL_KEY/SSL_CERT are configured. "
+                    "Client certificates will not be used. "
+                    "Set SSL_MUTUAL_TLS=True if you intend to use mutual TLS."
+                )
+
+            if broker_url and re.search(r"amqps?://", broker_url):
+                broker_use_ssl = {"cert_reqs": ssl.CERT_REQUIRED}
+                if ssl_cacert:
+                    broker_use_ssl["ca_certs"] = ssl_cacert
+                if ssl_mutual_tls:
+                    broker_use_ssl["keyfile"] = ssl_key
+                    broker_use_ssl["certfile"] = ssl_cert
             elif broker_url and re.search("rediss?://|sentinel://", broker_url):
-                broker_use_ssl = {
-                    "ssl_keyfile": team_conf.get("celery", "SSL_KEY"),
-                    "ssl_certfile": team_conf.get("celery", "SSL_CERT"),
-                    "ssl_ca_certs": team_conf.get("celery", "SSL_CACERT"),
-                    "ssl_cert_reqs": ssl.CERT_REQUIRED,
-                }
+                broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+                if ssl_cacert:
+                    broker_use_ssl["ssl_ca_certs"] = ssl_cacert
+                if ssl_mutual_tls:
+                    broker_use_ssl["ssl_keyfile"] = ssl_key
+                    broker_use_ssl["ssl_certfile"] = ssl_cert
             else:
-                raise AirflowException(
+                raise ValueError(
                     "The broker you configured does not support SSL_ACTIVE to be True. "
                     "Please use RabbitMQ or Redis if you would like to use SSL for broker."
                 )
 
             config["broker_use_ssl"] = broker_use_ssl
-    except AirflowConfigException:
-        raise AirflowException(
-            "AirflowConfigException: SSL_ACTIVE is True, please ensure SSL_KEY, SSL_CERT and SSL_CACERT are set"
-        )
+    except ValueError:
+        raise
     except Exception as e:
-        raise AirflowException(
-            f"Exception: There was an unknown Celery SSL Error. Please ensure you want to use SSL and/or have "
-            f"all necessary certs and key ({e})."
-        )
+        raise RuntimeError(
+            f"Unknown Celery SSL error. Please ensure you want to use SSL and have all necessary certs and key ({e})."
+        ) from e
 
     # Warning for not recommended backends
     match_not_recommended_backend = re.search("rediss?://|amqp://|rpc://", result_backend)

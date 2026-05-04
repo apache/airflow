@@ -34,7 +34,7 @@ class TaskGroup:
     """Task group type for tests."""
 
     node_id: str = attrs.field(init=False, default="test_group_id")
-    prefix_group_id: str
+    prefix_group_id: bool
 
 
 class Dag:
@@ -46,8 +46,8 @@ class Dag:
 class ConcreteDAGNode(GenericDAGNode[Dag, Task, TaskGroup]):
     """Concrete DAGNode variant for tests."""
 
-    dag = None
-    task_group = None
+    dag: Dag | None = None
+    task_group: TaskGroup | None = None
 
     @property
     def node_id(self) -> str:

@@ -240,6 +240,97 @@ def test_incorrect_params_wrong_format():
         )
 
 
+@pytest.mark.parametrize(
+    "table_name",
+    [
+        "safe; DROP TABLE x",
+        "safe table",
+        "safe-table",
+        "safe()",
+        "safe--comment",
+        "1invalid",
+        ".table",
+        "schema.",
+    ],
+)
+def test_invalid_table_identifier_rejected(table_name):
+    op = DatabricksCopyIntoOperator(
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name=table_name,
+        task_id=TASK_ID,
+    )
+
+    with pytest.raises(ValueError, match="Invalid table identifier"):
+        op._create_sql_query()
+
+
+@pytest.mark.parametrize(
+    "table_name",
+    [
+        "table",
+        "schema.table",
+        "catalog.schema.table",
+        "_table",
+        "table_123",
+    ],
+)
+def test_valid_table_identifier_allowed(table_name):
+    op = DatabricksCopyIntoOperator(
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name=table_name,
+        task_id=TASK_ID,
+    )
+
+    sql = op._create_sql_query()
+    assert f"COPY INTO {table_name}" in sql
+
+
+@pytest.mark.parametrize(
+    "expression_list",
+    [
+        "col1; DROP TABLE x",
+        "col1 -- comment",
+        "col1 /* comment */",
+    ],
+)
+def test_expression_list_rejects_multi_statement(expression_list):
+    op = DatabricksCopyIntoOperator(
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+        task_id=TASK_ID,
+        expression_list=expression_list,
+    )
+
+    with pytest.raises(ValueError, match="expression_list"):
+        op._create_sql_query()
+
+
+@pytest.mark.parametrize(
+    "expression_list",
+    [
+        "*",
+        "col1",
+        "col1, col2",
+        "upper(col1) as col1",
+        "cast(_c0 as int) as id",
+    ],
+)
+def test_valid_expression_list_allowed(expression_list):
+    op = DatabricksCopyIntoOperator(
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+        task_id=TASK_ID,
+        expression_list=expression_list,
+    )
+
+    sql = op._create_sql_query()
+    assert f"SELECT {expression_list}" in sql
+
+
 @pytest.mark.db_test
 def test_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(

@@ -1,0 +1,239 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Helpers for printing local reproduction instructions in CI logs."""
+
+from __future__ import annotations
+
+import os
+import shlex
+from dataclasses import dataclass
+
+import click
+from click.core import ParameterSource
+from rich.markup import escape
+
+from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
+from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.run_utils import commit_sha
+
+# Options that are side-effect-only or not meaningful for reproduction (safety net;
+# expose_value=False options like --verbose/--dry-run/--answer are already excluded
+# automatically because they don't appear in ctx.params).
+_EXCLUDED_PARAMS: frozenset[str] = frozenset(
+    {
+        "verbose",
+        "dry_run",
+        "answer",
+        "include_success_outputs",
+        "debug_resources",
+    }
+)
+
+# These sources represent values explicitly provided by the user or CI.
+_EXPLICIT_SOURCES: frozenset[ParameterSource] = frozenset(
+    {
+        ParameterSource.COMMANDLINE,
+        ParameterSource.ENVIRONMENT,
+        ParameterSource.PROMPT,
+    }
+)
+
+
+@dataclass
+class ReproductionCommand:
+    argv: list[str]
+    comment: str | None = None
+
+
+def build_reproduction_command_from_context(
+    ctx: click.Context,
+    *,
+    comment: str = "Run the same Breeze command locally",
+) -> ReproductionCommand:
+    """Reconstruct the CLI invocation from the current click Context.
+
+    Iterates over every parameter defined on the command, uses
+    ``ctx.get_parameter_source()`` to identify explicitly-provided values
+    (COMMANDLINE / ENVIRONMENT / PROMPT), and emits only those.  DEFAULT
+    and DEFAULT_MAP values are omitted to keep the output concise.
+
+    This removes the need for per-command builder functions.
+    """
+    argv: list[str] = ctx.command_path.split()
+
+    for param in ctx.command.params:
+        if not getattr(param, "expose_value", True):
+            continue
+        if param.name is None or param.name in _EXCLUDED_PARAMS:
+            continue
+
+        value = ctx.params.get(param.name)
+        source = ctx.get_parameter_source(param.name)
+
+        if isinstance(param, click.Argument):
+            continue  # collected after options
+
+        if not isinstance(param, click.Option):
+            continue
+
+        # Flag pair (e.g. --force-sa-warnings/--no-force-sa-warnings):
+        # emit the appropriate side only when explicitly provided.
+        if param.is_flag and param.secondary_opts:
+            if source in _EXPLICIT_SOURCES:
+                # Prefer long-form alias for both sides of the flag pair.
+                flag = param.opts[-1] if value else param.secondary_opts[-1]
+                argv.append(flag)
+            continue
+
+        # Simple boolean flag (no secondary_opts)
+        if param.is_flag:
+            if value and source in _EXPLICIT_SOURCES:
+                argv.append(param.opts[-1])
+            continue
+
+        # Non-flag option: only emit explicitly-provided values
+        if source not in _EXPLICIT_SOURCES:
+            continue
+        if value is None:
+            continue
+
+        flag = param.opts[-1]  # prefer long form
+
+        # Multiple option (e.g. --package-filter repeated)
+        if param.multiple:
+            for item in value:
+                argv.extend([flag, str(item)])
+            continue
+
+        argv.extend([flag, str(value)])
+
+    # Append positional arguments at the end
+    for param in ctx.command.params:
+        if isinstance(param, click.Argument) and param.name is not None:
+            value = ctx.params.get(param.name)
+            if value is not None:
+                if isinstance(value, (list, tuple)):
+                    argv.extend(str(v) for v in value)
+                else:
+                    argv.append(str(value))
+
+    return ReproductionCommand(argv=argv, comment=comment)
+
+
+def build_checkout_reproduction_commands(github_repository: str) -> list[ReproductionCommand]:
+    """Build git commands needed to reproduce the current CI checkout locally."""
+    current_commit_sha = os.environ.get("GITHUB_SHA") or os.environ.get("COMMIT_SHA") or commit_sha()
+    github_ref = os.environ.get("GITHUB_REF", "")
+    github_ref_parts = github_ref.split("/")
+    if len(github_ref_parts) == 4 and github_ref_parts[:2] == ["refs", "pull"]:
+        pull_request_number = github_ref_parts[2]
+        pull_request_ref_kind = github_ref_parts[3]
+        return [
+            ReproductionCommand(
+                argv=[
+                    "git",
+                    "fetch",
+                    f"https://github.com/{github_repository}.git",
+                    github_ref,
+                ],
+                comment=f"Fetch the same code as CI (pull request {pull_request_ref_kind} ref)"
+                f" — or: gh pr checkout {pull_request_number}",
+            ),
+            ReproductionCommand(
+                argv=["git", "checkout", current_commit_sha],
+            ),
+        ]
+
+    if not current_commit_sha or current_commit_sha == "COMMIT_SHA_NOT_FOUND":
+        return []
+    return [
+        ReproductionCommand(
+            argv=["git", "checkout", current_commit_sha],
+            comment="Check out the same commit",
+        )
+    ]
+
+
+def build_ci_image_reproduction_command(
+    *,
+    github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    platform: str = "linux/amd64",
+    python: str = "",
+) -> ReproductionCommand:
+    """Build the CI image preparation command for local reproduction."""
+    if not python:
+        from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+
+        python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    command = ["breeze", "ci-image", "build"]
+    if github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+        command.extend(["--github-repository", github_repository])
+    command.extend(["--platform", platform, "--python", python])
+    return ReproductionCommand(
+        argv=command,
+        comment="Build the CI image locally",
+    )
+
+
+def should_print_local_reproduction() -> bool:
+    """Return True when local reproduction instructions should be printed."""
+    return (
+        os.environ.get("CI", "").lower() == "true" and os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+    )
+
+
+def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
+    """Print local reproduction commands in CI logs."""
+    if not should_print_local_reproduction() or not commands:
+        return
+    lines: list[str] = []
+    step_number = 0
+    for command in commands:
+        if command.comment:
+            if lines:
+                lines.append("")
+            step_number += 1
+            lines.append(f"# {step_number}. {command.comment}")
+        lines.append(shlex.join(command.argv))
+    rendered = "\n".join(lines)
+    ruler = "─" * 80
+    console = get_console()
+    console.print(f"\n[warning]{ruler}[/]")
+    console.print("[warning]HOW TO REPRODUCE LOCALLY[/]\n")
+    console.print(f"[info]{escape(rendered)}[/]\n", soft_wrap=True)
+    console.print(f"[warning]{ruler}[/]\n")
+
+
+def maybe_print_reproduction(ctx: click.Context) -> None:
+    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI."""
+    if not should_print_local_reproduction():
+        return
+
+    github_repository = ctx.params.get("github_repository", APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    commands = build_checkout_reproduction_commands(github_repository)
+    # Skip CI image prelude for image build commands themselves — it would be redundant.
+    command_path = ctx.command_path
+    if not command_path.startswith(("breeze ci-image", "breeze prod-image")):
+        commands.append(
+            build_ci_image_reproduction_command(
+                github_repository=github_repository,
+                python=ctx.params.get("python", ""),
+                platform=ctx.params.get("platform", "linux/amd64"),
+            )
+        )
+    commands.append(build_reproduction_command_from_context(ctx))
+    print_local_reproduction(commands)

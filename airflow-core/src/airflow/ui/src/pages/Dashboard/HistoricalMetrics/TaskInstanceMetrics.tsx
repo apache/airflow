@@ -20,18 +20,14 @@ import { Box, Separator, Heading, HStack, Stack } from "@chakra-ui/react";
 import type { TaskInstanceState, TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
-import { Link as RouterLink } from "react-router-dom";
-
-import { StateBadge } from "src/components/StateBadge";
-import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { MetricSection } from "./MetricSection";
 
 type TaskInstanceMetricsProps = {
   readonly endDate?: string;
   readonly startDate: string;
+  readonly stateCountLimit: number;
   readonly taskInstanceStates: TaskInstanceStateCount;
-  readonly total: number;
 };
 
 const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
@@ -53,23 +49,17 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
 export const TaskInstanceMetrics = ({
   endDate,
   startDate,
+  stateCountLimit,
   taskInstanceStates,
-  total,
 }: TaskInstanceMetricsProps) => {
   const { t: translate } = useTranslation();
+  const total = Object.values(taskInstanceStates).reduce((sum, count) => sum + count, 0);
 
   return (
     <Box borderRadius={5} borderWidth={1} mt={2} p={4}>
       <HStack>
-        <RouterLink
-          to={`/task_instances?${SearchParamsKeys.START_DATE}=${startDate}${endDate === undefined ? "" : `&${SearchParamsKeys.END_DATE}=${endDate}`}`}
-        >
-          <StateBadge colorPalette="brand" fontSize="md" variant="solid">
-            <MdOutlineTask />
-            {total}
-          </StateBadge>
-        </RouterLink>
-        <Heading size="md">{translate("taskInstance", { count: total })}</Heading>
+        <MdOutlineTask />
+        <Heading size="md">{translate("taskInstance", { count: 2 })}</Heading>
       </HStack>
       <Separator my={3} />
       <Stack gap={4}>
@@ -78,6 +68,7 @@ export const TaskInstanceMetrics = ({
         ).map((state) =>
           taskInstanceStates[state] > 0 ? (
             <MetricSection
+              capped={taskInstanceStates[state] >= stateCountLimit}
               endDate={endDate}
               key={state}
               kind="task_instances"

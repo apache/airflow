@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 class ComprehendBaseOperator(AwsBaseOperator[ComprehendHook]):
     """
-    This is the base operator for Comprehend Service operators (not supposed to be used directly in DAGs).
+    This is the base operator for Comprehend Service operators (not supposed to be used directly in Dags).
 
     :param input_data_config: The input properties for a PII entities detection job. (templated)
     :param output_data_config: Provides `conﬁguration` parameters for the output of PII entity detection

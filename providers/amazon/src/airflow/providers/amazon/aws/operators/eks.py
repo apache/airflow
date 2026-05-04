@@ -18,7 +18,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
+import stat
 import warnings
 from ast import literal_eval
 from collections.abc import Sequence
@@ -37,6 +40,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteClusterTrigger,
     EksDeleteFargateProfileTrigger,
     EksDeleteNodegroupTrigger,
+    EksPodTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -97,6 +101,10 @@ def _create_compute(
         # this is to satisfy mypy
         subnets = subnets or []
         create_nodegroup_kwargs = create_nodegroup_kwargs or {}
+        if nodegroup_role_arn is None:
+            raise ValueError(
+                MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement="nodegroup_role_arn")
+            )
 
         eks_hook.create_nodegroup(
             clusterName=cluster_name,
@@ -152,6 +160,12 @@ def _create_compute(
         # this is to satisfy mypy
         create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         fargate_selectors = fargate_selectors or []
+        if fargate_pod_execution_role_arn is None:
+            raise ValueError(
+                MISSING_ARN_MSG.format(
+                    compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
+                )
+            )
 
         eks_hook.create_fargate_profile(
             clusterName=cluster_name,
@@ -1093,6 +1107,8 @@ class EksPodOperator(KubernetesPodOperator):
         self.pod_name = pod_name
         self.aws_conn_id = aws_conn_id
         self.region = region
+        # Track credentials file path for credential refresh during long-running tasks
+        self._credentials_file_path: str | None = None
         super().__init__(
             in_cluster=self.in_cluster,
             namespace=self.namespace,
@@ -1105,16 +1121,100 @@ class EksPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
+    def invoke_defer_method(self, last_log_time=None, context=None) -> None:
+        """Override to use EksPodTrigger which regenerates kubeconfig with fresh credentials."""
+        import datetime
+
+        from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState
+        from airflow.providers.common.compat.sdk import AirflowNotFoundException
+
+        self.convert_config_file_to_dict()
+
+        connection_extras = None
+        if self.kubernetes_conn_id:
+            try:
+                try:
+                    from airflow.sdk import BaseHook
+                except ImportError:
+                    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined, no-redef]
+
+                conn = BaseHook.get_connection(self.kubernetes_conn_id)
+            except AirflowNotFoundException:
+                self.log.warning(
+                    "Could not resolve connection extras for deferral: connection `%s` not found. "
+                    "Triggerer will try to resolve it from its own environment.",
+                    self.kubernetes_conn_id,
+                )
+            else:
+                connection_extras = conn.extra_dejson
+                self.log.info("Successfully resolved connection extras for deferral.")
+
+        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        if self.pod is None or self.pod.metadata is None:
+            raise RuntimeError("Pod must be created with metadata before deferring")
+
+        trigger = EksPodTrigger(
+            eks_cluster_name=self.cluster_name,
+            aws_conn_id=self.aws_conn_id,
+            region=self.region,
+            pod_name=self.pod.metadata.name,
+            pod_namespace=self.pod.metadata.namespace,
+            trigger_start_time=trigger_start_time,
+            kubernetes_conn_id=self.kubernetes_conn_id,
+            connection_extras=connection_extras,
+            cluster_context=self.cluster_context,
+            config_dict=self._config_dict,
+            in_cluster=self.in_cluster,
+            poll_interval=self.poll_interval,
+            get_logs=self.get_logs,
+            startup_timeout=self.startup_timeout_seconds,
+            startup_check_interval=self.startup_check_interval_seconds,
+            schedule_timeout=self.schedule_timeout_seconds,
+            base_container_name=self.base_container_name,
+            on_finish_action=self.on_finish_action.value,
+            on_kill_action=self.on_kill_action.value,
+            termination_grace_period=self.termination_grace_period,
+            last_log_time=last_log_time,
+            logging_interval=self.logging_interval,
+            trigger_kwargs=self.trigger_kwargs,
+        )
+        container_state = trigger.define_container_state(self.pod) if self.pod else None
+        if context and (
+            container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
+        ):
+            self.log.info("Skipping deferral as pod is already in a terminal state")
+            self.trigger_reentry(
+                context=context,
+                event={
+                    "status": "success" if container_state == ContainerState.TERMINATED else "failed",
+                    "namespace": self.pod.metadata.namespace,
+                    "name": self.pod.metadata.name,
+                    "last_log_time": last_log_time,
+                    **(self.trigger_kwargs or {}),
+                },
+            )
+        else:
+            self.defer(trigger=trigger, method_name="trigger_reentry")
+
     def execute(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
         session = eks_hook.get_session()
-        credentials = session.get_credentials().get_frozen_credentials()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise AirflowException(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
         with eks_hook._secure_credential_context(
             credentials.access_key, credentials.secret_key, credentials.token
         ) as credentials_file:
+            # Store credentials file path for potential refresh during long-running tasks
+            self._credentials_file_path = credentials_file
             with eks_hook.generate_config_file(
                 eks_cluster_name=self.cluster_name,
                 pod_namespace=self.namespace,
@@ -1130,13 +1230,101 @@ class EksPodOperator(KubernetesPodOperator):
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
         session = eks_hook.get_session()
-        credentials = session.get_credentials().get_frozen_credentials()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise AirflowException(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
         with eks_hook._secure_credential_context(
             credentials.access_key, credentials.secret_key, credentials.token
         ) as credentials_file:
+            # Store credentials file path for potential refresh during long-running tasks
+            self._credentials_file_path = credentials_file
             with eks_hook.generate_config_file(
                 eks_cluster_name=eks_cluster_name,
                 pod_namespace=pod_namespace,
                 credentials_file=credentials_file,
             ) as self.config_file:
                 return super().trigger_reentry(context, event)
+
+    def _write_credentials_to_file(
+        self, credentials_file_path: str, access_key: str, secret_key: str, session_token: str | None
+    ) -> None:
+        """
+        Write AWS credentials to an existing credentials file.
+
+        This overwrites the contents of the credentials file with fresh credentials,
+        which allows the kubeconfig exec credential plugin to use new credentials
+        without regenerating the entire kubeconfig.
+
+        The file was originally created by EksHook._secure_credential_context with
+        restrictive permissions (0600 - owner read/write only). This method preserves
+        those permissions by using os.open with the same mode flags.
+
+        :param credentials_file_path: Path to the credentials file to update
+        :param access_key: AWS access key ID
+        :param secret_key: AWS secret access key
+        :param session_token: AWS session token (optional)
+        """
+        # Open with same restrictive permissions as _secure_credential_context (0600)
+        fd = os.open(credentials_file_path, os.O_WRONLY | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(f"export AWS_ACCESS_KEY_ID='{access_key}'\n")
+                f.write(f"export AWS_SECRET_ACCESS_KEY='{secret_key}'\n")
+                if session_token:
+                    f.write(f"export AWS_SESSION_TOKEN='{session_token}'\n")
+        except Exception:
+            # If fdopen fails, we need to close the file descriptor manually
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            raise
+
+    def _refresh_cached_properties(self) -> None:
+        """
+        Refresh cached properties including AWS credentials.
+
+        This method is called by KubernetesPodOperator._handle_api_exception (in
+        providers/cncf/kubernetes/operators/pod.py) when a 401 Unauthorized error
+        is received from the Kubernetes API. The 401 error indicates that the
+        credentials used to authenticate with EKS have expired.
+
+        The call chain is:
+        1. KubernetesPodOperator._await_pod_completion catches ApiException with status 401
+        2. _handle_api_exception is called, which logs a warning and calls _refresh_cached_properties
+        3. This override refreshes the AWS credentials file that the kubeconfig exec
+           credential plugin reads from (see EksHook._secure_credential_context)
+        4. The parent class deletes cached hook/client/pod_manager so they are recreated
+           with fresh credentials on next access
+
+        Without this refresh, the kubeconfig would continue to reference stale
+        credentials in the temp file, causing repeated authentication failures.
+        """
+        if self._credentials_file_path:
+            self.log.info("Refreshing AWS credentials for EKS authentication")
+            try:
+                eks_hook = EksHook(
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region,
+                )
+                session = eks_hook.get_session()
+                credentials_obj = session.get_credentials()
+                if credentials_obj is None:
+                    raise AirflowException(
+                        "Unable to retrieve fresh AWS credentials during refresh. "
+                        "Credentials may have expired or the AWS connection may be misconfigured."
+                    )
+                credentials = credentials_obj.get_frozen_credentials()
+                self._write_credentials_to_file(
+                    self._credentials_file_path,
+                    credentials.access_key,
+                    credentials.secret_key,
+                    credentials.token,
+                )
+                self.log.info("Successfully refreshed AWS credentials for EKS")
+            except Exception:
+                self.log.exception("Failed to refresh AWS credentials.")
+                raise
+        super()._refresh_cached_properties()

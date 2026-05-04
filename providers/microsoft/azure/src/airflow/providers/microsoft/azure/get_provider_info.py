@@ -35,6 +35,13 @@ def get_provider_info():
                 "tags": ["azure"],
             },
             {
+                "integration-name": "Microsoft Azure Compute",
+                "external-doc-url": "https://azure.microsoft.com/en-us/products/virtual-machines/",
+                "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/compute.rst"],
+                "logo": "/docs/integration-logos/Microsoft-Azure.png",
+                "tags": ["azure"],
+            },
+            {
                 "integration-name": "Microsoft Azure Blob Storage",
                 "external-doc-url": "https://azure.microsoft.com/en-us/services/storage/blobs/",
                 "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/sensors/wasb_sensors.rst"],
@@ -136,6 +143,10 @@ def get_provider_info():
         ],
         "operators": [
             {
+                "integration-name": "Microsoft Azure Compute",
+                "python-modules": ["airflow.providers.microsoft.azure.operators.compute"],
+            },
+            {
                 "integration-name": "Microsoft Azure Data Lake Storage",
                 "python-modules": ["airflow.providers.microsoft.azure.operators.adls"],
             },
@@ -182,6 +193,10 @@ def get_provider_info():
         ],
         "sensors": [
             {
+                "integration-name": "Microsoft Azure Compute",
+                "python-modules": ["airflow.providers.microsoft.azure.sensors.compute"],
+            },
+            {
                 "integration-name": "Microsoft Azure Cosmos DB",
                 "python-modules": ["airflow.providers.microsoft.azure.sensors.cosmos"],
             },
@@ -203,6 +218,10 @@ def get_provider_info():
             "airflow.providers.microsoft.azure.fs.msgraph",
         ],
         "hooks": [
+            {
+                "integration-name": "Microsoft Azure Compute",
+                "python-modules": ["airflow.providers.microsoft.azure.hooks.compute"],
+            },
             {
                 "integration-name": "Microsoft Azure Container Instances",
                 "python-modules": [
@@ -266,6 +285,10 @@ def get_provider_info():
         ],
         "triggers": [
             {
+                "integration-name": "Microsoft Azure Compute",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.compute"],
+            },
+            {
                 "integration-name": "Microsoft Azure Data Factory",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.data_factory"],
             },
@@ -284,6 +307,10 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Azure Service Bus",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.message_bus"],
+            },
+            {
+                "integration-name": "Microsoft Azure Synapse",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.synapse"],
             },
         ],
         "queues": ["airflow.providers.microsoft.azure.queues.asb.AzureServiceBusMessageQueueProvider"],
@@ -321,6 +348,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook",
+                "hook-name": "Azure",
                 "connection-type": "azure",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host"],
@@ -350,7 +378,39 @@ def get_provider_info():
                 },
             },
             {
+                "hook-class-name": "airflow.providers.microsoft.azure.hooks.compute.AzureComputeHook",
+                "hook-name": "Azure Compute",
+                "connection-type": "azure_compute",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "host"],
+                    "relabeling": {"login": "Client ID", "password": "Client Secret"},
+                    "placeholders": {
+                        "extra": '{"key_path": "path to json file for auth", "key_json": "specifies json dict for auth"}',
+                        "login": "client_id (token credentials auth)",
+                        "password": "secret (token credentials auth)",
+                        "tenantId": "tenantId (token credentials auth)",
+                        "subscriptionId": "subscriptionId (token credentials auth)",
+                    },
+                },
+                "conn-fields": {
+                    "tenantId": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
+                    "subscriptionId": {
+                        "label": "Azure Subscription ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "managed_identity_client_id": {
+                        "label": "Managed Identity Client ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_tenant_id": {
+                        "label": "Workload Identity Tenant ID",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook",
+                "hook-name": "Azure Data Explorer",
                 "connection-type": "azure_data_explorer",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "extra"],
@@ -387,6 +447,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook",
+                "hook-name": "Azure Batch Service",
                 "connection-type": "azure_batch",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],
@@ -407,6 +468,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook",
+                "hook-name": "Azure CosmosDB",
                 "connection-type": "azure_cosmos",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],
@@ -449,6 +511,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook",
+                "hook-name": "Azure Data Lake",
                 "connection-type": "azure_data_lake",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],
@@ -478,6 +541,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook",
+                "hook-name": "Azure FileShare",
                 "connection-type": "azure_fileshare",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],
@@ -513,6 +577,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook",
+                "hook-name": "Azure Container Volume",
                 "connection-type": "azure_container_volume",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],
@@ -550,10 +615,12 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook",
+                "hook-name": "Azure Container Instance",
                 "connection-type": "azure_container_instance",
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
+                "hook-name": "Azure Blob Storage",
                 "connection-type": "wasb",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port"],
@@ -602,6 +669,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook",
+                "hook-name": "Azure Data Factory",
                 "connection-type": "azure_data_factory",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],
@@ -628,6 +696,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook",
+                "hook-name": "Azure Container Registry",
                 "connection-type": "azure_container_registry",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "extra"],
@@ -665,6 +734,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook",
+                "hook-name": "Azure Service Bus",
                 "connection-type": "azure_service_bus",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "host", "extra", "login", "password"],
@@ -696,6 +766,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.synapse.BaseAzureSynapseHook",
+                "hook-name": "Azure Synapse",
                 "connection-type": "azure_synapse",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "extra"],
@@ -721,6 +792,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook",
+                "hook-name": "Azure Data Lake Storage V2",
                 "connection-type": "adls",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port"],
@@ -759,6 +831,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook",
+                "hook-name": "Microsoft Graph API",
                 "connection-type": "msgraph",
                 "ui-field-behaviour": {
                     "hidden-fields": ["extra"],
@@ -798,6 +871,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook",
+                "hook-name": "Power BI",
                 "connection-type": "powerbi",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "host", "extra"],

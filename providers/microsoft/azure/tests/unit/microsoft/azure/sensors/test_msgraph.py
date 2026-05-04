@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from os.path import dirname
+from unittest.mock import patch
 
 import pytest
 
@@ -141,3 +142,18 @@ class TestMSGraphSensor:
 
         for template_field in MSGraphSensor.template_fields:
             getattr(sensor, template_field)
+
+    def test_execute_complete_passes_timeout_to_defer(self):
+        sensor = MSGraphSensor(
+            task_id="check_timeout",
+            conn_id="powerbi",
+            url="myorg/admin/workspaces/scanStatus/{scanId}",
+            timeout=10,
+        )
+
+        with patch.object(sensor, "defer") as mock_defer:
+            sensor.execute_complete(
+                context={}, event={"status": "success", "response": json.dumps({"status": "running"})}
+            )
+            mock_defer.assert_called_once()
+            assert mock_defer.call_args.kwargs["timeout"] == timedelta(seconds=10)

@@ -35,6 +35,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
+    VariableBodyPartial,
 )
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.variable import Variable
@@ -65,10 +66,17 @@ def update_orm_from_pydantic(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
 
-    try:
-        VariableBody(**patch_body.model_dump())
-    except ValidationError as e:
-        raise RequestValidationError(errors=e.errors())
+    if update_mask:
+        fields_to_update = patch_body.model_fields_set & set(update_mask)
+        try:
+            VariableBodyPartial(**patch_body.model_dump(include=fields_to_update))
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+    else:
+        try:
+            VariableBody(**patch_body.model_dump())
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
     non_update_fields = {"key"}
 
     if patch_body.key != old_variable.key:

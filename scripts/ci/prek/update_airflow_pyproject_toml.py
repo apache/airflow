@@ -22,6 +22,7 @@
 #   "packaging>=25",
 #   "rich>=13.6.0",
 #   "tomli>=2.0.1",
+#   "pyyaml",
 # ]
 # ///
 """
@@ -36,10 +37,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from packaging.version import Version, parse as parse_version
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, console, get_all_provider_ids, insert_documentation
+from packaging.version import Version, parse as parse_version
 
 AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -68,17 +67,29 @@ START_PROVIDER_WORKSPACE_MEMBERS = (
 )
 END_PROVIDER_WORKSPACE_MEMBERS = "    # End of automatically generated provider workspace members"
 
+START_EXCLUDE_NEWER_PACKAGE = (
+    "# Automatically generated exclude-newer-package entries (update_airflow_pyproject_toml.py)"
+)
+END_EXCLUDE_NEWER_PACKAGE = "# End of automatically generated exclude-newer-package entries"
+
+START_EXCLUDE_NEWER_PACKAGE_PIP = (
+    "# Automatically generated exclude-newer-package-pip entries (update_airflow_pyproject_toml.py)"
+)
+END_EXCLUDE_NEWER_PACKAGE_PIP = "# End of automatically generated exclude-newer-package-pip entries"
+
 CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
+
 
 # Temporary override for providers that are not yet included in constraints or when they need
 # minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "amazon": parse_version("2.1.3"),
-    "fab": parse_version("2.2.0"),
+    "fab": parse_version("3.6.0"),
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
-    "informatica": parse_version("0.1.0"),
+    "elasticsearch": parse_version("6.5.0"),
+    "opensearch": parse_version("1.9.0"),
 }
 
 
@@ -86,7 +97,7 @@ def get_optional_dependencies(pyproject_toml_path: Path) -> list[str]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     airflow_core_toml_dict = tomllib.loads(pyproject_toml_path.read_text())
     return airflow_core_toml_dict["project"]["optional-dependencies"].keys()
 
@@ -113,8 +124,17 @@ def _read_toml(path: Path) -> dict[str, Any]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(path.read_text())
+
+
+def get_all_workspace_component_names() -> list[str]:
+    """Get all workspace component names from [tool.uv.sources] in pyproject.toml."""
+    toml_dict = _read_toml(AIRFLOW_PYPROJECT_TOML_FILE)
+    sources = toml_dict.get("tool", {}).get("uv", {}).get("sources", {})
+    return sorted(
+        name for name, value in sources.items() if isinstance(value, dict) and value.get("workspace")
+    )
 
 
 def get_local_provider_version(provider_id: str) -> Version | None:
@@ -146,7 +166,10 @@ def _fallback_provider_version(
             f"[yellow]Provider id {provider_id} min version fallback:[/] "
             f"local provider pyproject.toml -> {local_version}"
         )
-        return local_version, " # Set from local provider pyproject.toml"
+        # No trailing comment: a local-fallback version flips to a real PyPI release
+        # without any other change to the pin, and a stale comment would then trigger
+        # the update-pyproject-toml prek hook on unrelated PRs / on main.
+        return local_version, ""
     return None, ""
 
 
@@ -235,7 +258,7 @@ if __name__ == "__main__":
             all_optional_dependencies.append(f'"{optional}" = [\n    "apache-airflow-core[{optional}]"\n]\n')
     optional_airflow_task_sdk_dependencies = get_optional_dependencies(AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE)
     all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
-    all_providers = sorted(get_all_provider_ids())
+    all_providers = sorted(get_all_provider_ids(exclude_suspended_providers=True))
     all_provider_lines = []
     for provider_id in all_providers:
         distribution_name = provider_distribution_name(provider_id)
@@ -300,4 +323,24 @@ if __name__ == "__main__":
         END_PROVIDER_WORKSPACE_MEMBERS,
         False,
         "provider workspace members",
+    )
+    all_workspace_components = get_all_workspace_component_names()
+    exclude_newer_entries = []
+    for component in all_workspace_components:
+        exclude_newer_entries.append(f"{component} = false\n")
+    insert_documentation(
+        AIRFLOW_PYPROJECT_TOML_FILE,
+        exclude_newer_entries,
+        START_EXCLUDE_NEWER_PACKAGE,
+        END_EXCLUDE_NEWER_PACKAGE,
+        False,
+        "exclude-newer-package entries",
+    )
+    insert_documentation(
+        AIRFLOW_PYPROJECT_TOML_FILE,
+        exclude_newer_entries,
+        START_EXCLUDE_NEWER_PACKAGE_PIP,
+        END_EXCLUDE_NEWER_PACKAGE_PIP,
+        False,
+        "exclude-newer-package-pip entries",
     )

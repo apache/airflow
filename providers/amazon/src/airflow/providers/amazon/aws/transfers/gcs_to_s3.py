@@ -98,6 +98,7 @@ class GCSToS3Operator(BaseOperator):
         "dest_s3_key",
         "google_impersonation_chain",
         "gcp_user_project",
+        "match_glob",
     )
     ui_color = "#f0eee4"
 

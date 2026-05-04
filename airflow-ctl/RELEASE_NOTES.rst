@@ -15,6 +15,125 @@
     specific language governing permissions and limitations
     under the License.
 
+airflowctl 0.1.4 (2026-04-18)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add YAML-based help texts for auto-generated airflowctl commands (#65073)
+- Added plugins command to airflowctl (#64935)
+- Allow direct execution from airflowctl via ``uvx`` (#64406)
+- Python 3.14 support (#63520)
+
+Bug Fixes
+^^^^^^^^^
+
+- Declare ``pyyaml`` as a runtime dependency so ``airflowctl`` starts without crashing on ``ModuleNotFoundError``
+- Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl (#64618)
+- Fix ``is_alive`` default in ``airflowctl jobs list`` to show all jobs (#65065)
+- Fix CLI error handling and exit codes for failed commands (#65052)
+- Fix list-envs auth status for env names containing ``.json`` (#64677)
+- Fix infinite loop for ``limit<0`` in airflowctl list operations (#64582)
+- Fix ``airflowctl dagrun list`` limit handling (#64071)
+- Fix incorrect fallback logic in airflowctl API client (#64586)
+- Fix ``airflowctl connections import`` to return non-zero exit code on failure (#64416)
+- Fix ``airflowctl variables import`` to correctly handle falsy values (#64362)
+- Fix ``airflowctl version`` command prompting for keyring credentials (#63772)
+- Fix ``airflowctl`` boolean flags on Python 3.14 (#63587)
+
+Improvements
+^^^^^^^^^^^^
+
+- Support cursor-based pagination for ``get_task_instances`` in airflowctl ``datamodels`` (#64845)
+- Expose ``is_backfillable`` property on DAG responses in airflowctl ``datamodels`` (#64644)
+- Add ``operator`` value to ``DagRunType`` in airflowctl ``datamodels`` (#63733)
+- Support clear / mark success / mark fail / delete for multiple task instances (#64141)
+- Use DAG form when materializing assets in airflowctl (#64211)
+- Allow ``null`` ``dag_run_conf`` in ``BackfillResponse`` serialization (#63259)
+- Mention Python 3.14 support in docs (#63950)
+
+
+airflowctl 0.1.3 (2026-03-09)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add airflowctl auth token command to print JWT access tokens (#62843)
+- Add ``--action-on-existing-key`` to ``pools import`` and ``connections import`` (#62702)
+- Add retry mechanism to airflowctl and remove flaky integration mark (#63016)
+- airflowctl auth login: prompt for credentials interactively when none are provided (#62549)
+- feat(airflowctl): support on headless environments (#62217)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix ``airflowctl pools export`` ignoring ``--output`` table/yaml/plain (#62665)
+- Fix ``airflowctl connections import`` failure when JSON omits ``extra`` field (#62662)
+- Amend compatibility issues for airflowctl (#63388)
+
+Improvements
+^^^^^^^^^^^^
+
+- Send ``limit`` parameter in ``execute_list`` server requests (#63048)
+- Run test coverage when airflowctl command has any change (#63216)
+- airflow-ctl: add coverage tests for console formatting output (#62627)
+- Clean up stale Python 3.9 workaround in airflow-ctl CLI config parser (#62206)
+- Expose ``timetable_partitioned`` in UI API (#62777)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- CI: upgrade important CI environment (#62610)
+- Fix all build-system requirements including transitive dependencies (#62570)
+- Add DagRunType for asset materializations (#62276)
+
+
+airflowctl 0.1.2 (2026-02-20)
+-----------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Add XCom CLI commands to airflowctl (#61021)
+- Add auth list-envs command to list CLI environments and their auth status (#61426)
+- Add allowed_run_types to whitelist specific dag run types (#61833)
+- Default logical_date to now in airflowctl dagrun trigger to match UI behavior (#61047)
+
+Bug Fixes
+^^^^^^^^^
+
+- Allow listing dag runs without specifying dag_id (#61525)
+- Fix infinite password retry loop in airflowctl EncryptedKeyring initialization (#61329)
+- Fix airflowctl auth login reporting success when keyring backend is unavailable (#61296)
+- Fix airflowctl crash when incorrect keyring password is entered (#61042)
+- Strip api-url for airflowctl auth login which fails with trailing slash (#61245)
+- Fix ``airflow-ctl-tests`` files not triggering pre-commit integration tests (#61023)
+
+Improvements
+^^^^^^^^^^^^
+
+- Print debug mode warning to stderr to avoid polluting stdout JSON output (#61302)
+- Refactor ``datamodel`` defaulting logic into dedicated method (#61236)
+- Alias run_after for XComResponse (#61443)
+- Add test for sensitive config masking in airflowctl (#60361)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Update keyring>=25.7.0 (#61529)
+- Upgrade fastapi and conform openapi schema changes (#61476)
+- Use SQLA's native Uuid/JSON instead of sqlalchemy-utils' types (#61532)
+- Fix slots negative infinity (#61140)
+- Pool API improve slots validation (#61071)
+- Add ``team_name`` to Pool APIs (#60952)
+- Add partition_key to DagRunAssetReference (#61725)
+- Promote release_notes.rst into documentation that replace changelog.rst (#60482)
+- Add HITLDetailHistory UI (#56760)
+- Add static checker for preventing to increase dag version (#59430)
+
+
 airflowctl 0.1.1 (2026-01-09)
 -----------------------------
 

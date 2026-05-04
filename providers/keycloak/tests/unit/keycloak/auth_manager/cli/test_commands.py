@@ -485,7 +485,7 @@ class TestCommands:
             permission_name="ReadOnly-team-a",
             policy_name="Allow-Viewer-team-a",
             scope_names=["GET", "LIST"],
-            resource_names=["Dag:team-a"],
+            resource_names=["Dag:team-a", "Team:team-a"],
             _dry_run=False,
         )
         mock_attach_policy.assert_any_call(
@@ -498,6 +498,7 @@ class TestCommands:
                 "Connection:team-a",
                 "Dag:team-a",
                 "Pool:team-a",
+                "Team:team-a",
                 "Variable:team-a",
             ],
             _dry_run=False,
@@ -552,6 +553,7 @@ class TestCommands:
                 "Connection:team-a",
                 "Dag:team-a",
                 "Pool:team-a",
+                "Team:team-a",
                 "Variable:team-a",
             ],
             _dry_run=False,

@@ -25,7 +25,9 @@ external services. A system test tries to look as close to a regular Dag as poss
 System tests need to communicate with external services/systems that are available
 if you have appropriate credentials configured for your tests.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Purpose of System Tests
 -----------------------
@@ -112,7 +114,7 @@ There are multiple ways of running system tests. Each system test is a self-cont
 other Dag. Some tests may require access to external services, enabled APIs or specific permissions. Make sure to
 prepare your  environment correctly, depending on the system tests you want to run - some may require additional
 configuration which should be documented by the relevant providers in their subdirectory
-``tests/system/<provider_name>/README.md``.
+``providers/<provider_name>/tests/system/<provider_name>/README.md``.
 
 Running as Airflow Dags
 .......................
@@ -123,8 +125,8 @@ your Airflow instance as Dags and they will be automatically triggered. If the s
 how to set up the environment is documented in each provider's system tests directory. Make sure that all resource
 required by the tests are also imported.
 
-Running via Pytest + Breezee
-............................
+Running via Pytest + Breeze
+...........................
 
 Running system tests with pytest is the easiest with `Breeze <https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst>`_.
 Breeze makes sure that the environment is pre-configured, and all additional required services are started,

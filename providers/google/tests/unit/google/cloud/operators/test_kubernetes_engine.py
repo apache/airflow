@@ -22,7 +22,7 @@ from unittest import mock
 from unittest.mock import PropertyMock, call
 
 import pytest
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, FailedPrecondition, PermissionDenied
 from google.cloud.container_v1.types import Cluster, NodePool
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -521,6 +521,140 @@ class TestGKECreateClusterOperator:
         )
         mock_log.info.assert_called_once_with("Assuming Success: %s", expected_error_message)
         assert result == TEST_SELF_LINK
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
+    def test_execute_cleanup_on_permission_denied(
+        self,
+        mock_link,
+        mock_cluster_hook,
+    ):
+
+        # Simulate cluster creation success.
+        mock_create_cluster = mock_cluster_hook.return_value.create_cluster
+
+        mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster
+
+        permission_error = PermissionDenied("Missing container.operations.get")
+        mock_create_cluster.side_effect = permission_error
+
+        operator = GKECreateClusterOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            body=GKE_CLUSTER_CREATE_BODY_DICT,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=False,
+            delete_cluster_on_failure=True,
+        )
+
+        with pytest.raises(PermissionDenied):
+            operator.execute({})
+
+        # Cluster creation attempted.
+        mock_create_cluster.assert_called_once_with(
+            cluster=GKE_CLUSTER_CREATE_BODY_DICT,
+            project_id=TEST_PROJECT_ID,
+            wait_to_complete=True,
+        )
+
+        # Cleanup attempted.
+        mock_delete_cluster.assert_called_once_with(
+            name=GKE_CLUSTER_NAME,
+            project_id=TEST_PROJECT_ID,
+            wait_to_complete=False,
+        )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
+    def test_execute_cleanup_failure_does_not_mask_original_error(
+        self,
+        mock_link,
+        mock_cluster_hook,
+    ):
+
+        # Simulate cluster creation success.
+        mock_create_cluster = mock_cluster_hook.return_value.create_cluster
+
+        mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster
+
+        # Simulate wait failure due to missing operations.get and clusters.delete.
+        permission_error = PermissionDenied("Missing container.operations.get")
+        cleanup_error = PermissionDenied("Missing container.clusters.delete")
+
+        mock_create_cluster.side_effect = permission_error
+        mock_delete_cluster.side_effect = cleanup_error
+
+        operator = GKECreateClusterOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            body=GKE_CLUSTER_CREATE_BODY_DICT,
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=False,
+            delete_cluster_on_failure=True,
+        )
+
+        with pytest.raises(PermissionDenied) as exc:
+            operator.execute({})
+
+        # Original exception preserved.
+        assert exc.value is permission_error
+
+        # Creation attempted.
+        mock_create_cluster.assert_called_once()
+
+        # Cleanup attempted despite failure.
+        mock_delete_cluster.assert_called_once_with(
+            name=GKE_CLUSTER_NAME,
+            project_id=TEST_PROJECT_ID,
+            wait_to_complete=False,
+        )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("time.sleep"), return_value=None)
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
+    def test_execute_cleanup_retries_on_active_operation(self, mock_link, mock_cluster_hook, mock_sleep):
+
+        # Simulate cluster creation success.
+        mock_create_cluster = mock_cluster_hook.return_value.create_cluster
+        mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster
+
+        # Simulate wait failure due to missing operations.get.
+        permission_error = PermissionDenied("Missing container.operations.get")
+        mock_create_cluster.side_effect = permission_error
+
+        # First delete attempt on active operation leads to FailedPrecondition,
+        active_op_error = FailedPrecondition(
+            message="Cluster is running incompatible operation.",
+            errors={
+                "reason": "CLUSTER_ALREADY_HAS_OPERATION",
+            },
+        )
+
+        # Second delete attempt is successful.
+        mock_delete_cluster.side_effect = [
+            active_op_error,
+            None,
+        ]
+
+        operator = GKECreateClusterOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            body=GKE_CLUSTER_CREATE_BODY_DICT,
+            delete_cluster_on_failure=True,
+            cleanup_timeout_seconds=120,
+        )
+
+        # Simulate PermissionDenied during execution.
+        with pytest.raises(PermissionDenied):
+            operator.execute({})
+
+        # Should retry once.
+        assert mock_delete_cluster.call_count == 2
 
     @mock.patch(GKE_OPERATORS_PATH.format("GKEOperationTrigger"))
     @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))

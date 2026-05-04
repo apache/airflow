@@ -18,7 +18,9 @@
 Contribution Workflow
 =====================
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
@@ -163,15 +165,18 @@ Step 4: Prepare PR
      `How to sync your fork <10_working_with_git.rst#how-to-sync-your-fork>`_ for details.
 
    * Create a local branch for your development. Make sure to use latest
-     ``apache/main`` as base for the branch. See `How to Rebase PR </contributing-docs/10_working_with_git.rst#how-to-rebase-pr>`_ for some details
-     on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
-     ``main`` branches - this is OK and you can make PR from your main to ``apache/main`` but we
+     ``upstream/main`` as base for the branch. See `How to Rebase PR </contributing-docs/10_working_with_git.rst#how-to-rebase-pr>`_ for details
+     on setting up the ``upstream`` remote (Airflow standardises on ``upstream`` →
+     ``apache/airflow`` and ``origin`` → your fork — see
+     `Git remote naming conventions </contributing-docs/10_working_with_git.rst#git-remote-naming-conventions>`_).
+     Note, some people develop their changes directly in their own
+     ``main`` branches - this is OK and you can make PR from your main to ``upstream/main`` but we
      recommend to always create a local branch for your development. This allows you to easily compare
      changes, have several changes that you work on at the same time and many more.
-     If you have ``apache`` set as remote then you can make sure that you have latest changes in your main
-     by ``git pull apache main`` when you are in the local ``main`` branch. If you have conflicts and
+     With ``upstream`` configured you can make sure that you have the latest changes in your main
+     by ``git pull upstream main`` when you are in the local ``main`` branch. If you have conflicts and
      want to override your locally changed main you can override your local changes with
-     ``git fetch apache; git reset --hard apache/main``.
+     ``git fetch upstream; git reset --hard upstream/main``.
 
    * Modify the class and add necessary code and unit tests.
 
@@ -198,6 +203,10 @@ Step 4: Prepare PR
 
      In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
      One thing to note here is that a ``significant`` newsfragment doesn't have to be a breaking change, it can be something that is notable but not breaking.
+
+     A CI check validates that newsfragment filenames use the correct PR number. If you need to skip
+     this check (e.g. when cherry-picking a newsfragment from another PR), add the
+     ``skip newsfragment check`` label to your PR.
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <10_working_with_git.rst#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to

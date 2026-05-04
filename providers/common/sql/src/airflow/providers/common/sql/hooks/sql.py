@@ -336,7 +336,7 @@ class DbApiHook(BaseHook):
         self.log.debug("engine_kwargs: %s", engine_kwargs)
         return create_engine(url=url, **engine_kwargs)
 
-    @property
+    @cached_property
     def inspector(self) -> Inspector:
         if inspect is None:
             raise AirflowOptionalProviderFeatureException(
@@ -344,6 +344,17 @@ class DbApiHook(BaseHook):
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
         return inspect(self.get_sqlalchemy_engine())
+
+    def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
+        """
+        Return column names and types for a table using SQLAlchemy Inspector.
+
+        :param table_name: Name of the table.
+        :param schema: Optional schema/namespace name.
+        :return: List of dicts with ``name`` and ``type`` keys.
+        """
+        columns = self.inspector.get_columns(table_name, schema=schema)
+        return [{"name": col["name"], "type": str(col["type"])} for col in columns]
 
     @cached_property
     def dialect_name(self) -> str:

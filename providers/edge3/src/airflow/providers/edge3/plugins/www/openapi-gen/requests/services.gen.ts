@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerData, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerData, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse, SetWorkerConcurrencyLimitData, SetWorkerConcurrencyLimitResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -472,5 +472,29 @@ export class UiService {
             }
         });
     }
-    
+
+    /**
+     * Set Worker Concurrency Limit
+     * Set the concurrency limit for an edge worker.
+     * @param data The data for the request.
+     * @param data.workerName
+     * @param data.requestBody
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static setWorkerConcurrencyLimit(data: SetWorkerConcurrencyLimitData): CancelablePromise<SetWorkerConcurrencyLimitResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/edge_worker/ui/worker/{worker_name}/concurrency',
+            path: {
+                worker_name: data.workerName
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+
 }

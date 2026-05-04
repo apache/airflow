@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import pathlib
 from collections.abc import Callable, MutableMapping
 from dataclasses import dataclass
@@ -29,12 +30,11 @@ from importlib.resources import files as resource_files
 from time import perf_counter
 from typing import Any, NamedTuple, ParamSpec, Protocol, cast
 
-import structlog
 from packaging.utils import canonicalize_name
 
 from ..module_loading import entry_points_with_dist
 
-log = structlog.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 PS = ParamSpec("PS")

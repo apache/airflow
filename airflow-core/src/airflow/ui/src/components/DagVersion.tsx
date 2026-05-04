@@ -33,7 +33,9 @@ export const DagVersion = ({ version }: { readonly version: DagVersionResponse |
 
   return (
     <Tooltip content={<Time datetime={version.created_at} />}>
-      <Text as="span">{translate("versionSelect.versionCode", { versionCode: version.version_number })}</Text>
+      <Text as="span" data-testid="dag-version">
+        {translate("versionSelect.versionCode", { versionCode: version.version_number })}
+      </Text>
     </Tooltip>
   );
 };

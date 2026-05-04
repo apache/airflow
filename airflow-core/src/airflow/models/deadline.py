@@ -29,13 +29,18 @@ from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, in
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.models.callback import Callback, CallbackDefinitionProtocol
+from airflow.models.callback import (
+    Callback,
+    ExecutorCallback,
+    TriggererCallback,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
+from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -112,7 +117,10 @@ class Deadline(Base):
     )
     deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
-    __table_args__ = (Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),)
+    __table_args__ = (
+        Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),
+        Index("deadline_callback_id_idx", callback_id, unique=False),
+    )
 
     def __init__(
         self,
@@ -189,7 +197,7 @@ class Deadline(Base):
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
-                Stats.incr(
+                stats.incr(
                     "deadline_alerts.deadline_not_missed",
                     tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
                 )
@@ -224,11 +232,38 @@ class Deadline(Base):
                 "deadline": {"id": self.id, "deadline_time": self.deadline_time},
             }
 
-        self.callback.data["kwargs"] = self.callback.data["kwargs"] | {"context": get_simple_context()}
+        if isinstance(self.callback, TriggererCallback):
+            # Update the callback with context before queuing
+            if "kwargs" not in self.callback.data:
+                self.callback.data["kwargs"] = {}
+            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
+                "context": get_simple_context()
+            }
+
+            self.callback.queue()
+            session.add(self.callback)
+            session.flush()
+
+        elif isinstance(self.callback, ExecutorCallback):
+            if "kwargs" not in self.callback.data:
+                self.callback.data["kwargs"] = {}
+            self.callback.data["kwargs"] = (self.callback.data.get("kwargs") or {}) | {
+                "context": get_simple_context()
+            }
+            self.callback.data["deadline_id"] = str(self.id)
+            self.callback.data["dag_run_id"] = str(self.dagrun.id)
+            self.callback.data["dag_id"] = self.dagrun.dag_id
+
+            self.callback.state = CallbackState.PENDING
+            session.add(self.callback)
+            session.flush()
+
+        else:
+            raise TypeError(f"Unknown Callback type: {type(self.callback).__name__}")
+
         self.missed = True
-        self.callback.queue()
         session.add(self)
-        Stats.incr(
+        stats.incr(
             "deadline_alerts.deadline_missed",
             tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
         )
@@ -282,7 +317,11 @@ class ReferenceModels:
                 )
 
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
-                self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
+                self.log.debug(
+                    "%s ignoring unexpected parameters: %s",
+                    self.reference_name,
+                    ", ".join(extra_kwargs),
+                )
 
             base_time = self._evaluate_with(session=session, **filtered_kwargs)
             return base_time + interval if base_time is not None else None

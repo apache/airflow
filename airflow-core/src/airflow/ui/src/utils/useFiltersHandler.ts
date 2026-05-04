@@ -58,7 +58,9 @@ const handleDateRangeChange = (
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
+  | SearchParamsKeys.BUNDLE_VERSION
   | SearchParamsKeys.CONF_CONTAINS
+  | SearchParamsKeys.CONSUMING_ASSET_PATTERN
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
@@ -143,6 +145,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
   const handleFiltersChange = (filters: Record<string, FilterValue>) => {
     setTableURLState({
+      cursor: undefined,
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
@@ -165,6 +168,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
       });
 
       newParams.delete(SearchParamsKeys.OFFSET);
+      newParams.delete(SearchParamsKeys.CURSOR);
 
       return newParams;
     });

@@ -49,7 +49,7 @@ class TestGoogleAdsToGcsOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             api_version=api_version,
         )
-        op.execute({})
+        result = op.execute({})
         mock_ads_hook.assert_called_once_with(
             gcp_conn_id=gcp_conn_id,
             google_ads_conn_id=google_ads_conn_id,
@@ -63,3 +63,39 @@ class TestGoogleAdsToGcsOperator:
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
         )
+        assert result == [f"gs://{BUCKET}/{GCS_OBJ_PATH}"]
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    @mock.patch("airflow.providers.google.ads.transfers.ads_to_gcs.GoogleAdsHook")
+    @mock.patch("airflow.providers.google.ads.transfers.ads_to_gcs.GCSHook")
+    def test_execute_with_unwrap_single(self, mock_gcs_hook, mock_ads_hook):
+        op = GoogleAdsToGcsOperator(
+            gcp_conn_id=gcp_conn_id,
+            google_ads_conn_id=google_ads_conn_id,
+            client_ids=CLIENT_IDS,
+            query=QUERY,
+            attributes=FIELDS_TO_EXTRACT,
+            obj=GCS_OBJ_PATH,
+            bucket=BUCKET,
+            task_id="run_operator",
+            impersonation_chain=IMPERSONATION_CHAIN,
+            api_version=api_version,
+            unwrap_single=True,
+        )
+        result = op.execute({})
+        mock_ads_hook.assert_called_once_with(
+            gcp_conn_id=gcp_conn_id,
+            google_ads_conn_id=google_ads_conn_id,
+            api_version=api_version,
+        )
+        mock_ads_hook.return_value.search.assert_called_once_with(client_ids=CLIENT_IDS, query=QUERY)
+        mock_gcs_hook.assert_called_once_with(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_gcs_hook.return_value.upload.assert_called_once_with(
+            bucket_name=BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
+        )
+        assert result == f"gs://{BUCKET}/{GCS_OBJ_PATH}"
+        assert isinstance(result, str)

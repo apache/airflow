@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 # revision identifiers, used by Alembic.
 revision = "9d34dfc2de06"
@@ -71,7 +72,11 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", "try_number"),
         if_not_exists=True,
     )
-    op.create_index("rj_order", "edge_job", ["state", "queued_dttm", "queue"], if_not_exists=True)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("edge_job")}
+    if "rj_order" not in existing_indexes:
+        op.create_index("rj_order", "edge_job", ["state", "queued_dttm", "queue"])
     op.create_table(
         "edge_logs",
         sa.Column("dag_id", sa.String(length=250), nullable=False),
@@ -80,7 +85,7 @@ def upgrade() -> None:
         sa.Column("map_index", sa.Integer(), server_default=sa.text("-1"), nullable=False),
         sa.Column("try_number", sa.Integer(), nullable=False),
         sa.Column("log_chunk_time", sa.DateTime(), nullable=False),
-        sa.Column("log_chunk_data", sa.Text(), nullable=False),
+        sa.Column("log_chunk_data", sa.Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False),
         sa.PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", "try_number", "log_chunk_time"),
         if_not_exists=True,
     )

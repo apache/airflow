@@ -26,78 +26,137 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { renderDuration, sortStateEntries } from "src/utils";
+import { getDuration, renderDuration, sortStateEntries } from "src/utils";
+
+/** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
+type LightGridTaskInstanceSummaryWithWhen = {
+  readonly queued_when?: string | null;
+  readonly scheduled_when?: string | null;
+} & LightGridTaskInstanceSummary;
 
 type Props = {
-  readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly runId?: string | null;
+  readonly taskInstance?:
+    | LightGridTaskInstanceSummaryWithWhen
+    | TaskInstanceHistoryResponse
+    | TaskInstanceResponse;
+  readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) => {
+const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
   const { t: translate } = useTranslation("common");
+
+  const hasTooltip = tooltip !== undefined && tooltip !== null;
 
   const childEntries =
     taskInstance !== undefined && "child_states" in taskInstance && taskInstance.child_states !== null
       ? sortStateEntries(taskInstance.child_states)
       : [];
 
-  return taskInstance === undefined ? (
+  return taskInstance === undefined && !hasTooltip ? (
     children
   ) : (
     <Tooltip
       {...rest}
       content={
-        <Box>
-          <Text>
-            {translate("state")}:{" "}
-            {taskInstance.state
-              ? translate(`common:states.${taskInstance.state}`)
-              : translate("common:states.no_status")}
-          </Text>
-          {childEntries.length > 0 ? (
-            <VStack align="start" gap={1} mt={1}>
-              {childEntries.map(([state, count]) => (
-                <HStack gap={2} key={state}>
-                  <Box
-                    bg={`${state}.solid`}
-                    border="1px solid"
-                    borderColor="border.emphasized"
-                    borderRadius="2px"
-                    height="10px"
-                    width="10px"
-                  />
-                  <Text fontSize="xs">
-                    {count} {translate(`common:states.${state}`)}
-                  </Text>
-                </HStack>
-              ))}
-            </VStack>
-          ) : undefined}
-          {"dag_run_id" in taskInstance ? (
-            <Text>
-              {translate("runId")}: {taskInstance.dag_run_id}
-            </Text>
-          ) : undefined}
-          {"start_date" in taskInstance ? (
+        <VStack align="start" gap={1}>
+          {hasTooltip ? <Text fontWeight="bold">{tooltip}</Text> : undefined}
+          {taskInstance ? (
             <>
-              {taskInstance.try_number > 1 && (
+              <Text>
+                {translate("taskId")}: {taskInstance.task_id}
+              </Text>
+              <Text>
+                {translate("state")}:{" "}
+                {taskInstance.state
+                  ? translate(`common:states.${taskInstance.state}`)
+                  : translate("common:states.no_status")}
+              </Text>
+              {"dag_run_id" in taskInstance || (runId !== undefined && runId !== null && runId !== "") ? (
                 <Text>
-                  {translate("tryNumber")}: {taskInstance.try_number}
+                  {translate("runId")}: {"dag_run_id" in taskInstance ? taskInstance.dag_run_id : runId}
                 </Text>
-              )}
-              <Text>
-                {translate("startDate")}: <Time datetime={taskInstance.start_date} />
-              </Text>
-              <Text>
-                {translate("endDate")}: <Time datetime={taskInstance.end_date} />
-              </Text>
-              <Text>
-                {translate("duration")}: {renderDuration(taskInstance.duration)}
-              </Text>
+              ) : undefined}
+              {"scheduled_when" in taskInstance &&
+              taskInstance.scheduled_when !== null &&
+              taskInstance.scheduled_when !== "" ? (
+                <Text>
+                  {translate("taskInstance.scheduledWhen")}: <Time datetime={taskInstance.scheduled_when} />
+                </Text>
+              ) : undefined}
+              {"queued_when" in taskInstance &&
+              taskInstance.queued_when !== null &&
+              taskInstance.queued_when !== "" ? (
+                <Text>
+                  {translate("taskInstance.queuedWhen")}: <Time datetime={taskInstance.queued_when} />
+                </Text>
+              ) : undefined}
+              {"start_date" in taskInstance ? (
+                <>
+                  {taskInstance.try_number > 1 && (
+                    <Text>
+                      {translate("tryNumber")}: {taskInstance.try_number}
+                    </Text>
+                  )}
+                  <Text>
+                    {translate("startDate")}: <Time datetime={taskInstance.start_date} />
+                  </Text>
+                  <Text>
+                    {translate("endDate")}: <Time datetime={taskInstance.end_date} />
+                  </Text>
+                  <Text>
+                    {translate("duration")}:{" "}
+                    {taskInstance.state === "running" || taskInstance.state === "deferred"
+                      ? getDuration(
+                          taskInstance.start_date,
+                          taskInstance.end_date ?? new Date().toISOString(),
+                        )
+                      : renderDuration(taskInstance.duration)}
+                  </Text>
+                </>
+              ) : undefined}
+              {"min_start_date" in taskInstance && taskInstance.min_start_date !== null ? (
+                <>
+                  <Text>
+                    {translate("startDate")}: <Time datetime={taskInstance.min_start_date} />
+                  </Text>
+                  {taskInstance.max_end_date !== null && (
+                    <>
+                      <Text>
+                        {translate("endDate")}: <Time datetime={taskInstance.max_end_date} />
+                      </Text>
+                      <Text>
+                        {translate("duration")}:{" "}
+                        {getDuration(taskInstance.min_start_date, taskInstance.max_end_date, false)}
+                      </Text>
+                    </>
+                  )}
+                </>
+              ) : undefined}
+              {childEntries.length > 0 ? (
+                <VStack align="start" gap={1} ps={2}>
+                  {childEntries.map(([state, count]) => (
+                    <HStack gap={2} key={state}>
+                      <Box
+                        bg={`${state}.solid`}
+                        border="1px solid"
+                        borderColor="border.emphasized"
+                        borderRadius="2px"
+                        height="10px"
+                        width="10px"
+                      />
+                      <Text fontSize="xs">
+                        {count} {translate(`common:states.${state}`)}
+                      </Text>
+                    </HStack>
+                  ))}
+                </VStack>
+              ) : undefined}
             </>
           ) : undefined}
-        </Box>
+        </VStack>
       }
-      key={taskInstance.task_id}
+      key={taskInstance?.task_id}
       portalled
       positioning={{
         offset: {

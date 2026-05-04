@@ -24,6 +24,19 @@ import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
 
+// ELK creates a Worker at module-load time, which is not available in
+// happy-dom. Mock useGraphLayout so the Worker is never constructed. Any
+// test that specifically exercises graph layout should override this mock.
+vi.mock("src/components/Graph/useGraphLayout", () => ({
+  directionOptions: () => ({ items: [] }),
+  useGraphLayout: vi.fn().mockReturnValue({ data: undefined, isPending: false }),
+}));
+
+// Render nothing for the two graph-rendering components so tests that render
+// full pages don't need to stub layout data.
+vi.mock("src/layouts/Details/Graph/Graph", () => ({ Graph: () => null }));
+vi.mock("src/pages/Asset/AssetGraph", () => ({ AssetGraph: () => null }));
+
 // Mock Chart.js to prevent DOM access errors during test cleanup
 vi.mock("react-chartjs-2", () => ({
   Bar: vi.fn(() => {

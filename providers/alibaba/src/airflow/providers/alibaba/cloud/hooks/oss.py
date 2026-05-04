@@ -23,8 +23,8 @@ from inspect import signature
 from typing import TYPE_CHECKING, TypeVar, cast
 from urllib.parse import urlsplit
 
-import oss2
-from oss2.exceptions import ClientError
+import alibabacloud_oss_v2 as oss
+from alibabacloud_oss_v2 import exceptions as oss_exceptions
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -77,7 +77,7 @@ def unify_bucket_name_and_key(func: T) -> T:
 
 
 class OSSHook(BaseHook):
-    """Interact with Alibaba Cloud OSS, using the oss2 library."""
+    """Interact with Alibaba Cloud OSS, using the Alibaba Cloud OSS SDK v2."""
 
     conn_name_attr = "oss_conn_id"
     default_conn_name = "oss_default"
@@ -93,6 +93,13 @@ class OSSHook(BaseHook):
     def get_conn(self) -> Connection:
         """Return connection for the hook."""
         return self.oss_conn
+
+    def _get_client(self) -> oss.Client:
+        config = oss.config.load_default()
+        config.region = self.region
+        config.endpoint = f"oss-{self.region}.aliyuncs.com"
+        config.credentials_provider = self.get_credential()
+        return oss.Client(config)
 
     @staticmethod
     def parse_oss_url(ossurl: str) -> tuple:
@@ -112,6 +119,10 @@ class OSSHook(BaseHook):
 
         return bucket_name, key
 
+    def _head_object(self, bucket_name: str, key: str) -> oss.HeadObjectResult:
+        request = oss.HeadObjectRequest(bucket=bucket_name, key=key)
+        return self._get_client().head_object(request)
+
     @provide_bucket_name
     @unify_bucket_name_and_key
     def object_exists(self, key: str, bucket_name: str | None = None) -> bool:
@@ -123,21 +134,20 @@ class OSSHook(BaseHook):
         :return: True if it exists and False if not.
         """
         try:
-            return self.get_bucket(bucket_name).object_exists(key)
-        except ClientError as e:
-            self.log.error(e.message)
+            return self._get_client().is_object_exist(bucket=bucket_name, key=key)
+        except oss_exceptions.BaseError as e:
+            self.log.error(e)
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: str | None = None) -> oss2.api.Bucket:
+    def get_bucket(self, bucket_name: str | None = None) -> oss.Client:
         """
-        Return a oss2.Bucket object.
+        Return the OSS SDK v2 client.
 
         :param bucket_name: the name of the bucket
-        :return: the bucket object to the bucket name.
+        :return: the OSS client.
         """
-        auth = self.get_credential()
-        return oss2.Bucket(auth, f"https://oss-{self.region}.aliyuncs.com", bucket_name)
+        return self._get_client()
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -150,8 +160,9 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         """
         try:
-            self.get_bucket(bucket_name).put_object(key, content)
-        except Exception as e:
+            request = oss.PutObjectRequest(bucket=bucket_name, key=key, body=content.encode("utf-8"))
+            self._get_client().put_object(request)
+        except oss_exceptions.BaseError as e:
             raise AirflowException(f"Errors: {e}")
 
     @provide_bucket_name
@@ -170,8 +181,9 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         """
         try:
-            self.get_bucket(bucket_name).put_object_from_file(key, file)
-        except Exception as e:
+            request = oss.PutObjectRequest(bucket=bucket_name, key=key)
+            self._get_client().uploader().upload_file(request, file)
+        except oss_exceptions.BaseError as e:
             raise AirflowException(f"Errors when upload file: {e}")
 
     @provide_bucket_name
@@ -191,8 +203,9 @@ class OSSHook(BaseHook):
         :return: the file name.
         """
         try:
-            self.get_bucket(bucket_name).get_object_to_file(key, local_file)
-        except Exception as e:
+            request = oss.GetObjectRequest(bucket=bucket_name, key=key)
+            self._get_client().downloader().download_file(request, local_file)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             return None
         return local_file
@@ -211,8 +224,9 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         """
         try:
-            self.get_bucket(bucket_name).delete_object(key)
-        except Exception as e:
+            request = oss.DeleteObjectRequest(bucket=bucket_name, key=key)
+            self._get_client().delete_object(request)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when deleting: {key}")
 
@@ -230,8 +244,12 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         """
         try:
-            self.get_bucket(bucket_name).batch_delete_objects(key)
-        except Exception as e:
+            request = oss.DeleteMultipleObjectsRequest(
+                bucket=bucket_name,
+                objects=[oss.DeleteObject(key=object_key) for object_key in key],
+            )
+            self._get_client().delete_multiple_objects(request)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when deleting: {key}")
 
@@ -246,8 +264,9 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         """
         try:
-            self.get_bucket(bucket_name).delete_bucket()
-        except Exception as e:
+            request = oss.DeleteBucketRequest(bucket=bucket_name)
+            self._get_client().delete_bucket(request)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when deleting: {bucket_name}")
 
@@ -262,8 +281,9 @@ class OSSHook(BaseHook):
         :param bucket_name: the name of the bucket
         """
         try:
-            self.get_bucket(bucket_name).create_bucket()
-        except Exception as e:
+            request = oss.PutBucketRequest(bucket=bucket_name)
+            self._get_client().put_bucket(request)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when create bucket: {bucket_name}")
 
@@ -280,8 +300,14 @@ class OSSHook(BaseHook):
         """
         self.log.info("Write oss bucket. key: %s, pos: %s", key, pos)
         try:
-            self.get_bucket(bucket_name).append_object(key, pos, content)
-        except Exception as e:
+            request = oss.AppendObjectRequest(
+                bucket=bucket_name,
+                key=key,
+                position=pos,
+                body=content.encode("utf-8"),
+            )
+            self._get_client().append_object(request)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when append string for object: {key}")
 
@@ -296,14 +322,16 @@ class OSSHook(BaseHook):
         """
         self.log.info("Read oss key: %s", key)
         try:
-            return self.get_bucket(bucket_name).get_object(key).read().decode("utf-8")
-        except Exception as e:
+            request = oss.GetObjectRequest(bucket=bucket_name, key=key)
+            result = self._get_client().get_object(request)
+            return getattr(result, "body", result).read().decode("utf-8")
+        except (oss_exceptions.BaseError, UnicodeDecodeError, AttributeError) as e:
             self.log.error(e)
             raise AirflowException(f"Errors when read bucket object: {key}")
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def head_key(self, bucket_name: str | None, key: str) -> oss2.models.HeadObjectResult:
+    def head_key(self, bucket_name: str | None, key: str) -> oss.HeadObjectResult:
         """
         Get meta info of the specified remote object.
 
@@ -312,8 +340,10 @@ class OSSHook(BaseHook):
         """
         self.log.info("Head Object oss key: %s", key)
         try:
-            return self.get_bucket(bucket_name).head_object(key)
-        except Exception as e:
+            if bucket_name is None:
+                raise ValueError("Missing bucket_name parameter!")
+            return self._head_object(bucket_name, key)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when head bucket object: {key}")
 
@@ -329,12 +359,12 @@ class OSSHook(BaseHook):
         # full_path = None
         self.log.info("Looking up oss bucket %s for bucket key %s ...", bucket_name, key)
         try:
-            return self.get_bucket(bucket_name).object_exists(key)
-        except Exception as e:
+            return self._get_client().is_object_exist(bucket=bucket_name, key=key)
+        except oss_exceptions.BaseError as e:
             self.log.error(e)
             raise AirflowException(f"Errors when check bucket object existence: {key}")
 
-    def get_credential(self) -> oss2.auth.Auth:
+    def get_credential(self) -> oss.credentials.StaticCredentialsProvider:
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)
         if not auth_type:
@@ -350,7 +380,7 @@ class OSSHook(BaseHook):
         if not oss_access_key_secret:
             raise ValueError(f"No access_key_secret is specified for connection: {self.oss_conn_id}")
 
-        return oss2.Auth(oss_access_key_id, oss_access_key_secret)
+        return oss.credentials.StaticCredentialsProvider(oss_access_key_id, oss_access_key_secret)
 
     def get_default_region(self) -> str:
         extra_config = self.oss_conn.extra_dejson

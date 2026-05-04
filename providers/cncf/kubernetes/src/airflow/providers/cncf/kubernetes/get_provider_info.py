@@ -75,9 +75,13 @@ def get_provider_info():
                 ],
             }
         ],
+        "secrets-backends": [
+            "airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend"
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook",
+                "hook-name": "Kubernetes Cluster Connection",
                 "connection-type": "kubernetes",
                 "conn-fields": {
                     "in_cluster": {
@@ -308,6 +312,9 @@ def get_provider_info():
                 },
             },
         },
-        "executors": ["airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor"],
+        "executors": [
+            "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+            "airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor.LocalKubernetesExecutor",
+        ],
         "cli": ["airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands"],
     }

@@ -30,7 +30,17 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
-from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.serialization import (
+    CLASSNAME,
+    DATA,
+    OLD_DATA,
+    OLD_DICT,
+    OLD_TYPE,
+    OLD_TYPE_TO_FULL_QUALNAME,
+    SCHEMA_ID,
+    VERSION,
+)
 from airflow.sdk.configuration import conf
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde.typing import is_pydantic_model
@@ -42,16 +52,6 @@ log = logging.getLogger(__name__)
 
 MAX_RECURSION_DEPTH = sys.getrecursionlimit() - 1
 
-CLASSNAME = "__classname__"
-VERSION = "__version__"
-DATA = "__data__"
-SCHEMA_ID = "__id__"
-CACHE = "__cache__"
-
-OLD_TYPE = "__type"
-OLD_SOURCE = "__source"
-OLD_DATA = "__var"
-OLD_DICT = "dict"
 PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
@@ -308,7 +308,11 @@ def _convert(old: dict) -> dict:
         # Return old style dicts directly as they do not need wrapping
         if old[OLD_TYPE] == OLD_DICT:
             return old[OLD_DATA]
-        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
+        return {
+            CLASSNAME: OLD_TYPE_TO_FULL_QUALNAME.get(old[OLD_TYPE], old[OLD_TYPE]),
+            VERSION: DEFAULT_VERSION,
+            DATA: old[OLD_DATA],
+        }
 
     return old
 
@@ -371,10 +375,12 @@ def _register():
     _deserializers.clear()
     _stringifiers.clear()
 
-    stats_factory = stats_utils.get_stats_factory(Stats)
-    Stats.initialize(factory=stats_factory)
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
 
-    with Stats.timer("serde.load_serializers") as timer:
+    with stats.timer("serde.load_serializers") as timer:
         serializers_module = import_module("airflow.sdk.serde.serializers")
         for _, module_name, _ in iter_namespace(serializers_module):
             module = import_module(module_name)

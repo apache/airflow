@@ -39,6 +39,8 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 AIRFLOW_V_3_1_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 1)
+AIRFLOW_V_3_1_8_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 8)
+AIRFLOW_V_3_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 3, 0)
 
 try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -56,6 +58,8 @@ __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_1_PLUS",
     "AIRFLOW_V_3_1_1_PLUS",
+    "AIRFLOW_V_3_1_8_PLUS",
+    "AIRFLOW_V_3_3_PLUS",
     "NOTSET",
     "ArgNotSet",
     "is_arg_set",

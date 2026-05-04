@@ -22,12 +22,19 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
-from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    PartitionedAssetKeyLog,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.db import clear_db_apdr, clear_db_dags, clear_db_pakl, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -36,6 +43,8 @@ pytestmark = pytest.mark.db_test
 def cleanup():
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_apdr()
+    clear_db_pakl()
 
 
 class TestNextRunAssets:
@@ -162,3 +171,54 @@ class TestNextRunAssets:
         ev = resp.json()["events"][0]
         assert ev["lastUpdate"] is not None
         assert "queued" not in ev
+
+    @pytest.mark.parametrize(
+        ("fulfilled", "expect_last_update"),
+        [(False, True), (True, False)],
+        ids=["pending", "fulfilled"],
+    )
+    def test_partitioned_dag_last_update(
+        self, test_client, dag_maker, session, fulfilled, expect_last_update
+    ):
+        asset = Asset(uri="s3://bucket/part", name="part")
+        with dag_maker(
+            dag_id="part_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset_model = session.scalars(select(AssetModel).where(AssetModel.uri == "s3://bucket/part")).one()
+        event = AssetEvent(
+            asset_id=asset_model.id, timestamp=(dr.logical_date or pendulum.now()).add(minutes=5)
+        )
+        session.add(event)
+        session.flush()
+
+        pdr = AssetPartitionDagRun(
+            target_dag_id="part_dag",
+            partition_key="2024-01-01",
+            created_dag_run_id=dr.id if fulfilled else None,
+        )
+        session.add(pdr)
+        session.flush()
+
+        session.add(
+            PartitionedAssetKeyLog(
+                asset_id=asset_model.id,
+                asset_event_id=event.id,
+                asset_partition_dag_run_id=pdr.id,
+                source_partition_key="2024-01-01",
+                target_dag_id="part_dag",
+                target_partition_key="2024-01-01",
+            )
+        )
+        session.commit()
+
+        resp = test_client.get("/next_run_assets/part_dag")
+        assert resp.status_code == 200
+        ev = resp.json()["events"][0]
+        assert (ev["lastUpdate"] is not None) == expect_last_update

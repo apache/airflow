@@ -25,5 +25,264 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-common-ai",
         "name": "Common AI",
-        "description": "``Common AI Provider``\n",
+        "description": "AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.\n",
+        "integrations": [
+            {
+                "integration-name": "Common AI",
+                "external-doc-url": "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst",
+                ],
+                "tags": ["ai"],
+            },
+            {
+                "integration-name": "Pydantic AI",
+                "external-doc-url": "https://ai.pydantic.dev/",
+                "tags": ["ai"],
+            },
+            {
+                "integration-name": "MCP Server",
+                "external-doc-url": "https://modelcontextprotocol.io/",
+                "tags": ["ai"],
+            },
+        ],
+        "hooks": [
+            {
+                "integration-name": "Pydantic AI",
+                "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
+            },
+            {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
+        ],
+        "plugins": [
+            {
+                "name": "hitl_review",
+                "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
+            }
+        ],
+        "config": {
+            "common.ai": {
+                "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
+                "options": {
+                    "durable_cache_path": {
+                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True``. Each task\nexecution writes a single JSON file under this path containing its\ncached model responses and tool results, so that on retry the agent\ncan replay completed steps instead of re-issuing LLM calls and tool\ninvocations. The file is deleted on successful task completion.\n\nRequired when ``durable=True`` is used. Any scheme supported by\n``airflow.sdk.ObjectStoragePath`` is accepted (``file://``, ``s3://``,\n``gs://``, ``azure://``, ...).\n",
+                        "version_added": "0.1.0",
+                        "type": "string",
+                        "example": "file:///tmp/airflow_durable_cache",
+                        "default": "",
+                    }
+                },
+            }
+        },
+        "connection-types": [
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
+                "hook-name": "Pydantic AI",
+                "connection-type": "pydanticai",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {"host": "https://api.openai.com/v1 (optional, for custom endpoints)"},
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-4-20250514, openai:gpt-5)",
+                        "schema": {"type": ["string", "null"]},
+                    }
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
+                "hook-name": "Pydantic AI (Azure OpenAI)",
+                "connection-type": "pydanticai-azure",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
+                    "placeholders": {"host": "https://<resource>.openai.azure.com"},
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Azure model identifier (e.g. azure:gpt-4o)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "api_version": {
+                        "label": "API Version",
+                        "description": "Azure OpenAI API version (e.g. 2024-07-01-preview). Falls back to OPENAI_API_VERSION.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
+                "hook-name": "Pydantic AI (AWS Bedrock)",
+                "connection-type": "pydanticai-bedrock",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Bedrock model identifier (e.g. bedrock:us.anthropic.claude-opus-4-5)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "region_name": {
+                        "label": "AWS Region",
+                        "description": "AWS region (e.g. us-east-1). Falls back to AWS_DEFAULT_REGION env var.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "aws_access_key_id": {
+                        "label": "AWS Access Key ID",
+                        "description": "IAM access key. Leave empty to use instance role / environment credential chain.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "aws_secret_access_key": {
+                        "label": "AWS Secret Access Key",
+                        "description": "IAM secret key.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "aws_session_token": {
+                        "label": "AWS Session Token",
+                        "description": "Temporary session token (optional).",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "profile_name": {
+                        "label": "AWS Profile Name",
+                        "description": "Named AWS credentials profile (optional).",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "api_key": {
+                        "label": "Bearer Token",
+                        "description": "AWS bearer token (alt. to IAM key/secret). Falls back to AWS_BEARER_TOKEN_BEDROCK.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "base_url": {
+                        "label": "Custom Endpoint URL",
+                        "description": "Override the Bedrock runtime endpoint URL (optional).",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "aws_read_timeout": {
+                        "label": "Read Timeout (s)",
+                        "description": "boto3 read timeout in seconds (float, optional).",
+                        "schema": {"type": ["number", "null"]},
+                    },
+                    "aws_connect_timeout": {
+                        "label": "Connect Timeout (s)",
+                        "description": "boto3 connect timeout in seconds (float, optional).",
+                        "schema": {"type": ["number", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
+                "hook-name": "Pydantic AI (Google Vertex AI)",
+                "connection-type": "pydanticai-vertex",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Google model identifier (e.g. google-vertex:gemini-2.0-flash)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "project": {
+                        "label": "GCP Project",
+                        "description": "Google Cloud project ID. Falls back to GOOGLE_CLOUD_PROJECT env var.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "location": {
+                        "label": "Location / Region",
+                        "description": "Vertex AI region (e.g. us-central1). Falls back to GOOGLE_CLOUD_LOCATION env var.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "vertexai": {
+                        "label": "Force Vertex AI Mode",
+                        "description": "Force Vertex AI mode. Auto-detected when project/location/credentials are set.",
+                        "schema": {"type": ["boolean", "null"]},
+                    },
+                    "api_key": {
+                        "label": "API Key",
+                        "description": "Google API key for Gen Language API or Vertex AI. Falls back to GOOGLE_API_KEY.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "service_account_info": {
+                        "label": "Service Account Info",
+                        "description": "Service account key as inline dict (JSON with type, project_id, private_key, etc.).",
+                        "schema": {"type": ["object", "null"]},
+                    },
+                    "base_url": {
+                        "label": "Custom Endpoint URL",
+                        "description": "Override the Google API base URL (optional).",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",
+                "hook-name": "MCP Server",
+                "connection-type": "mcp",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "Auth Token"},
+                    "placeholders": {"host": "http://localhost:3001/mcp (for HTTP/SSE transport)"},
+                },
+                "conn-fields": {
+                    "transport": {
+                        "label": "Transport",
+                        "description": "Transport type: http (default), sse, or stdio",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "command": {
+                        "label": "Command",
+                        "description": "Command to run for stdio transport (e.g. uvx, python)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "args": {
+                        "label": "Arguments",
+                        "description": 'JSON array of arguments for stdio command (e.g. ["mcp-run-python"])',
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+        ],
+        "operators": [
+            {
+                "integration-name": "Common AI",
+                "python-modules": [
+                    "airflow.providers.common.ai.operators.agent",
+                    "airflow.providers.common.ai.operators.llm",
+                    "airflow.providers.common.ai.operators.llm_file_analysis",
+                    "airflow.providers.common.ai.operators.llm_branch",
+                    "airflow.providers.common.ai.operators.llm_sql",
+                    "airflow.providers.common.ai.operators.llm_schema_compare",
+                ],
+            }
+        ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.common.ai.decorators.agent.agent_task", "name": "agent"},
+            {"class-name": "airflow.providers.common.ai.decorators.llm.llm_task", "name": "llm"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task",
+                "name": "llm_file_analysis",
+            },
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_branch.llm_branch_task",
+                "name": "llm_branch",
+            },
+            {"class-name": "airflow.providers.common.ai.decorators.llm_sql.llm_sql_task", "name": "llm_sql"},
+            {
+                "class-name": "airflow.providers.common.ai.decorators.llm_schema_compare.llm_schema_compare_task",
+                "name": "llm_schema_compare",
+            },
+        ],
     }

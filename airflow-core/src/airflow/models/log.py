@@ -39,7 +39,7 @@ class Log(Base):
     __tablename__ = "log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    dttm: Mapped[datetime] = mapped_column(UtcDateTime)
+    dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -63,7 +63,7 @@ class Log(Base):
         viewonly=True,
         foreign_keys=[dag_id, task_id, run_id, map_index],
         primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.map_index)",
-        lazy="noload",
+        lazy="raise",
     )
 
     __table_args__ = (

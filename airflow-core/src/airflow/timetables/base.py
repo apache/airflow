@@ -211,6 +211,13 @@ class Timetable(Protocol):
     asset_condition: SerializedAssetBase = _NullAsset()
     """The asset condition that triggers a DAG using this timetable."""
 
+    partitioned: bool = False
+    """Whether this timetable considers asset partitions.
+
+    This is *True* for timetables that switch scheduling to use partitions
+    instead of the traditional logic based on logical dates and data intervals.
+    """
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         """
@@ -355,28 +362,24 @@ class Timetable(Protocol):
             restriction=restriction,
         )
 
-    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo:
+    def next_run_info_from_dag_model(self, *, dag_model: DagModel) -> DagRunInfo | None:
         from airflow.models.dag import get_next_data_interval
 
-        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
-        if TYPE_CHECKING:
-            assert run_after is not None
-        data_interval = get_next_data_interval(self, dag_model)
+        if (run_after := timezone.coerce_datetime(dag_model.next_dagrun_create_after)) is None:
+            return None
         return DagRunInfo(
             run_after=run_after,
-            data_interval=data_interval,
-            partition_date=None,
-            partition_key=None,
+            data_interval=get_next_data_interval(self, dag_model),
+            partition_date=timezone.coerce_datetime(dag_model.next_dagrun_partition_date),
+            partition_key=dag_model.next_dagrun_partition_key,
         )
 
     def run_info_from_dag_run(self, *, dag_run: DagRun) -> DagRunInfo:
         from airflow.models.dag import get_run_data_interval
 
-        run_after = timezone.coerce_datetime(dag_run.run_after)
-        interval = get_run_data_interval(self, dag_run)
         return DagRunInfo(
-            run_after=run_after,
-            data_interval=interval,
-            partition_date=None,
-            partition_key=None,
+            run_after=timezone.coerce_datetime(dag_run.run_after),
+            data_interval=get_run_data_interval(self, dag_run),
+            partition_date=timezone.coerce_datetime(dag_run.partition_date),
+            partition_key=dag_run.partition_key,
         )

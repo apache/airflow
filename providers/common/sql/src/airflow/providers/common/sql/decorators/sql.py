@@ -25,10 +25,10 @@ from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
     context_merge,
+    determine_kwargs,
     task_decorator_factory,
 )
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.utils.operator_helpers import determine_kwargs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION

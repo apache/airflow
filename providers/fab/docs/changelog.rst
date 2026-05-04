@@ -20,6 +20,169 @@
 Changelog
 ---------
 
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLite migration 02ca36b0235b to use naming_convention for batch_alter_table (#65540)``
+* ``Invalidate cached user permissions after LDAP role sync to prevent intermittent 403 errors (#64539)``
+* ``Lazily initialize flask_app in FastAPI routes (#64908)``
+* ``Fix duplicate Date headers in Flask WSGI responses (#64726)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#65567)``
+* ``Bump stylelint (#65380)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#65234)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#65145)``
+* ``Bump eslint (#65681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add authlib as optional oauth extra in fab provider (#64457)``
+* ``Prevent AppBuilder re-initialization race in FastAPI login (#64151) (#64418)``
+
+Misc
+~~~~
+
+* ``Remove dependabot alarms in fab provider npm dependencies (#64789)``
+* ``Add 4-day cooldown for pnpm dependency resolution (#64337)``
+* ``Fix dependabot alarms in FAB provider (#64369)``
+* ``Fix NPM security issues in FAB provider (#64308)``
+* ``chore(deps-dev): bump eslint (#64171)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64451)``
+   * ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+   * ``[main] Upgrade important CI environment (#64239)``
+   * ``Add 4-day cooldown for uv dependency resolution (#64249)``
+
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add order_by parameter to GET /permissions for pagination consistency (#63418)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 403 from roles endpoint despite admin rights (#64097)``
+* ``Fix dependabot alarms for Flatted in Fab (#63956)``
+* ``Fix race condition in FabAuthManager when workers concurrently create permissions, roles, and resources (#63842)``
+* ``Pass role name string to delete_role instead of Role object (#63337)``
+* ``Recover from first idle MySQL disconnect in token auth (#62919)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Remove various upper version bounds in the FAB provider (#63868)``
+* ``Bump webpack-cli (#63892)``
+* ``Add marshmallow to fab provider dependencies (#63896)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#63743)``
+* ``Re-introducing '--use-migration-files' and fix inconsistences between ORM/migration files (#62234)``
+* ``Fix dependabot warning regarding flatten lib - providers (#63586)``
+* ``Bump eslint (#63361)``
+* ``Bump babel-loader (#63283)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#64111)``
+* ``UpdateConfImports (#64165)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate ERD diagrams at doc build time instead of committing them (#63402)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Replace connexion with FastAPI for FAB provider (#62664)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add missing HTTP timeout to FAB JWKS fetching (#63058)``
+* ``Fix race condition in auth manager initialization (#62431)``
+* ``Fix/FabAuthManager race condition on startup with multiple workers (#62737)``
+* ``Scope session token in cookie to base_url (#62771)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore(deps-dev): bump the fab-ui-package-updates group across 1 directory with 3 updates (#63067)``
+   * ``chore(deps-dev): bump copy-webpack-plugin (#63004)``
+   * ``Upgrade 'sgvo' (#62941)``
+   * ``chore(deps-dev): bump the fab-ui-package-updates group across 1 directory with 3 updates (#62719)``
+   * ``Update dependencies for TS code in Fab Provider (#62679)``
+   * ``CI: Upgrade important CI environment (#62610)``
+   * ``Fix all build-system/requires including transitive dependencies (#62570)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Auto-discover DB managers from provider.yaml (#62308)``
+* ``Feature/enable dynamic build of fab UI assets (#61959)``
+* ``feat(fab): Add configurable role key for Azure OAuth groups (#61585)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``providers-fab: Handle database errors in cleanup_session_middleware Session.remove() (#62336)``
+* ``Fix 500 Error in FAB API Users endpoint by allowing naive datetimes i… (#62327)``
+* ``fix(providers/fab): restore OAuth callback route exposure (#62151)``
+* ``fix: fab deserialize issue (#62153)``
+* ``Fix FAB auth_manager load_user causing PendingRollbackError and Inter… (#61943)``
+* ``fix(api): unify get_permissions pagination with other list endpoints (#61726)``
+
+Misc
+~~~~
+
+* ``chore(deps-dev): bump eslint (#62418)``
+* ``Remove unused dependencies from FAB provider (#62382)``
+* ``Bump css-loader (#62235)``
+* ``fab: centralize FastAPI auth manager routing (#61647)``
+* ``Change FAB asset compilation from yarn to pnpm (#61958)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#62039)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#61779)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Fix race condition in auth manager initialization (#62214)" (#62404)``
+   * ``Fix race condition in auth manager initialization (#62214)``
+   * ``Add comment to remove 'get_db_manager' method from FAB provider (#62361)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Remove duplicated import in roles.py (#61896)``
+   * ``YAML first discovery for connection form metadata (#60410)``
+
 3.3.0
 .....
 

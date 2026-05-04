@@ -475,13 +475,42 @@ class TestFileTaskLogHandler:
         assert extract_events(log_handler_output_stream) == ["the log"]
         assert metadata == {"end_of_log": True, "log_pos": 1}
 
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
+    def test__read_when_local_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
+        path = Path(
+            "dag_id=dag_for_testing_local_log_read/run_id=scheduled__2016-01-01T00:00:00+00:00/task_id=task_for_testing_local_log_read/attempt=1.log"
+        )
+        mock_read_local.return_value = (
+            ["the messages"],
+            [convert_list_to_stream(["line 1", "line 2", "line 3"])],
+        )
+        local_log_file_read = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        fth = FileTaskHandler("")
+
+        log_handler_output_stream, metadata = fth._read(
+            ti=local_log_file_read,
+            try_number=1,
+            metadata={"log_pos": 2},
+        )
+
+        mock_read_local.assert_called_with(path)
+
+        # Should resume from the third line only.
+        assert extract_events(log_handler_output_stream) == ["line 3"]
+        assert metadata == {"end_of_log": True, "log_pos": 3}
+
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
         path1 = tmp_path / "hello1.log"
         path2 = tmp_path / "hello1.log.suffix.log"
         path1.write_text("file1 content\nfile1 content2")
         path2.write_text("file2 content\nfile2 content2")
-        fth = FileTaskHandler("")
+        fth = FileTaskHandler(str(tmp_path))
         log_source_info, log_streams = fth._read_from_local(path1)
         assert log_source_info == [str(path1), str(path2)]
         assert len(log_streams) == 2

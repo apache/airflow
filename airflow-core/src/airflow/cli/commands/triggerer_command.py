@@ -23,7 +23,6 @@ from contextlib import contextmanager
 from functools import partial
 from multiprocessing import Process
 
-from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -68,7 +67,7 @@ def triggerer(args):
 
     SecretsMasker.enable_log_masking()
 
-    print(settings.HEADER)
+    cli_utils.print_banner()
     if args.queues and not conf.getboolean("triggerer", "queues_enabled", fallback=False):
         raise AirflowConfigException(
             "--queues option may only be used when triggerer.queues_enabled is `True`."

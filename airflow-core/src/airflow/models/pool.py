@@ -78,7 +78,7 @@ class Pool(Base):
     __tablename__ = "slot_pool"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    pool: Mapped[str] = mapped_column(String(256), unique=True)
+    pool: Mapped[str | None] = mapped_column(String(256), unique=True, nullable=True)
     # -1 for infinite
     slots: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

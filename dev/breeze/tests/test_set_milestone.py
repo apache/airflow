@@ -446,6 +446,8 @@ class TestSetMilestoneCommand:
                 "testuser",
                 "--github-token",
                 "fake-token",
+                "--github-repository",
+                "apache/airflow",
             ],
         )
 
@@ -550,6 +552,8 @@ If this milestone is not correct, please update it to the appropriate milestone.
                 "testuser",
                 "--github-token",
                 "fake-token",
+                "--github-repository",
+                "apache/airflow",
             ],
         )
 

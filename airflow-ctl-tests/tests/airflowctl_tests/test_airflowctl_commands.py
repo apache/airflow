@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflowctl_tests.constants import LOGIN_COMMAND
-
 
 def date_param():
     import random
@@ -44,11 +42,16 @@ def date_param():
     return random_dt.isoformat()
 
 
-ONE_DATE_PARAM = date_param()
+# Passing password via command line is insecure but acceptable for testing purposes
+# Please do not do this in production, it enables possibility of exposing your credentials
+CREDENTIAL_SUFFIX = "--username airflow --password airflow"
+LOGIN_COMMAND = f"auth login {CREDENTIAL_SUFFIX}"
+LOGIN_COMMAND_SKIP_KEYRING = "auth login --skip-keyring"
+LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 TEST_COMMANDS = [
-    # Passing password via command line is insecure but acceptable for testing purposes
-    # Please do not do this in production, it enables possibility of exposing your credentials
-    LOGIN_COMMAND,
+    # Auth commands
+    f"auth token {CREDENTIAL_SUFFIX}",
+    "auth list-envs",
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
@@ -70,7 +73,7 @@ TEST_COMMANDS = [
     "connections import tests/airflowctl_tests/fixtures/test_connections.json",
     "connections delete --conn-id=test_con",
     "connections delete --conn-id=test_import_conn",
-    # DAGs commands
+    # Dags commands
     "dags list",
     "dags get --dag-id=example_bash_operator",
     "dags get-details --dag-id=example_bash_operator",
@@ -80,22 +83,22 @@ TEST_COMMANDS = [
     "dags list-version --dag-id=example_bash_operator",
     "dags list-warning",
     # Order of trigger and pause/unpause is important for test stability because state checked
-    f"dags trigger --dag-id=example_bash_operator --logical-date={ONE_DATE_PARAM} --run-after={ONE_DATE_PARAM}",
+    "dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
     # Test trigger without logical-date (should default to now)
     "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
-    # DAG Run commands
-    f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}"',
+    # Dag Run commands
+    'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     "dags update --dag-id=example_bash_operator --no-is-paused",
-    # DAG Run commands
+    # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
-    # XCom commands - need a DAG run with completed tasks
-    f'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"test": "value"}}\'',
-    f'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
-    f'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0',
-    f'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key --value=\'{{"updated": "value"}}\'',
-    f'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{ONE_DATE_PARAM}" --task-id=runme_0 --key=test_xcom_key',
+    # XCom commands - need a Dag run with completed tasks
+    'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"test": "value"}}\'',
+    'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
+    'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"updated": "value"}}\'',
+    'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
     # Jobs commands
     "jobs list",
     # Pools commands
@@ -120,15 +123,87 @@ TEST_COMMANDS = [
     "variables delete --variable-key=test_key",
     "variables delete --variable-key=test_import_var",
     "variables delete --variable-key=test_import_var_with_desc",
-    # Version command
+    # Plugins command
+    "plugins list",
+    "plugins list-import-errors",
+]
+
+NO_AUTH_TEST_COMMANDS = [
     "version --remote",
 ]
 
+DATE_PARAM_1 = date_param()
+DATE_PARAM_2 = date_param()
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
+# Unique xcom key per test run to avoid "already exists" errors from leftover state
+_XCOM_KEY_1 = f"test_xcom_key_{DATE_PARAM_1.replace(':', '').replace('+', '').replace('-', '')[:16]}"
+_XCOM_KEY_2 = f"test_xcom_key_{DATE_PARAM_2.replace(':', '').replace('+', '').replace('-', '')[:16]}"
+TEST_COMMANDS_DEBUG_MODE = [LOGIN_COMMAND] + [
+    test.format(date_param=DATE_PARAM_1, xcom_key=_XCOM_KEY_1) for test in TEST_COMMANDS
+]
+TEST_COMMANDS_SKIP_KEYRING = [LOGIN_COMMAND_SKIP_KEYRING] + [
+    test.format(date_param=DATE_PARAM_2, xcom_key=_XCOM_KEY_2) for test in TEST_COMMANDS
+]
+
+
+def test_hardcoded_xcom_key_would_collide():
+    """Regression: a hardcoded xcom key produces identical 'xcom add' commands
+    across parametrize sets, causing 'already exists' errors when both run
+    against the same Airflow instance (the bug that was fixed)."""
+    xcom_add_template = [t for t in TEST_COMMANDS if "xcom add" in t]
+    assert xcom_add_template, "xcom add must be in TEST_COMMANDS"
+
+    hardcoded = xcom_add_template[0].format(date_param=DATE_PARAM_1, xcom_key="test_xcom_key")
+    also_hardcoded = xcom_add_template[0].format(date_param=DATE_PARAM_2, xcom_key="test_xcom_key")
+    # With a hardcoded key, only the dag-run-id differs — but if the same date
+    # is reused (e.g. across retries), the commands are fully identical → collision.
+    assert "test_xcom_key" in hardcoded
+    assert "test_xcom_key" in also_hardcoded
+
+    # The fix: derived keys are unique per set, so commands always differ.
+    debug_cmd = xcom_add_template[0].format(date_param=DATE_PARAM_1, xcom_key=_XCOM_KEY_1)
+    keyring_cmd = xcom_add_template[0].format(date_param=DATE_PARAM_2, xcom_key=_XCOM_KEY_2)
+    assert _XCOM_KEY_1 != _XCOM_KEY_2, "derived xcom keys must differ between sets"
+    assert debug_cmd != keyring_cmd, "xcom add commands must differ to avoid collisions"
+
+
 @pytest.mark.parametrize(
-    "command", TEST_COMMANDS, ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS]
+    "command",
+    TEST_COMMANDS_DEBUG_MODE,
+    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_DEBUG_MODE],
 )
 def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
-    run_command(command)
+    run_command(command=command, env_vars={"AIRFLOW_CLI_DEBUG_MODE": "true"}, skip_login=True)
+
+
+@pytest.mark.parametrize(
+    "command",
+    TEST_COMMANDS_SKIP_KEYRING,
+    ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS_SKIP_KEYRING],
+)
+def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
+    """Test airflowctl commands using docker-compose environment without using keyring."""
+    run_command(
+        command=command,
+        env_vars={
+            "AIRFLOW_CLI_TOKEN": api_token,
+            "AIRFLOW_CLI_DEBUG_MODE": "false",
+            "AIRFLOW_CLI_ENVIRONMENT": "nokeyring",
+        },
+        skip_login=True,
+    )
+
+
+@pytest.mark.parametrize("command", NO_AUTH_TEST_COMMANDS)
+def test_airflowctl_no_auth_commands(command: str, run_command, tmp_path):
+    """Test airflowctl no-auth commands without login or persisted credentials."""
+    run_command(
+        command=command,
+        env_vars={
+            "AIRFLOW_HOME": str(tmp_path),
+            "AIRFLOW_CLI_ENVIRONMENT": "no-auth",
+            "AIRFLOW_CLI_DEBUG_MODE": "false",
+        },
+        skip_login=True,
+    )

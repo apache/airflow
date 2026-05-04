@@ -85,6 +85,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook",
+                "hook-name": "Snowflake",
                 "connection-type": "snowflake",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "host"],

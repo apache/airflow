@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Container, Sequence
 from datetime import timedelta
 from functools import cached_property
 from time import sleep
@@ -39,7 +39,7 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -394,6 +394,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure. Can be an int or a container of ints.
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     :param stop_task_on_failure: If True, attempt to stop the ECS task if the Airflow task fails
@@ -461,6 +464,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        skip_on_exit_code: int | Container[int] | None = None,
         stop_task_on_failure: bool = True,
         **kwargs,
     ):
@@ -500,6 +504,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code is not None
+            else []
+        )
         self.stop_task_on_failure = stop_task_on_failure
 
         if self._aws_logs_enabled() and not self.wait_for_completion:
@@ -763,15 +774,21 @@ class EcsRunTaskOperator(EcsBaseOperator):
             containers = task["containers"]
             for container in containers:
                 if container.get("lastStatus") == "STOPPED" and container.get("exitCode", 1) != 0:
+                    exit_code = container.get("exitCode", 1)
+                    if exit_code in self.skip_on_exit_code:
+                        exception_cls: type[AirflowException] = AirflowSkipException
+                    else:
+                        exception_cls = AirflowException
+
                     if self.task_log_fetcher:
                         last_logs = "\n".join(
                             self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
                         )
-                        raise AirflowException(
+                        raise exception_cls(
                             f"This task is not in success state - last {self.number_logs_exception} "
                             f"logs from Cloudwatch:\n{last_logs}"
                         )
-                    raise AirflowException(f"This task is not in success state {task}")
+                    raise exception_cls(f"This task is not in success state {task}")
                 if container.get("lastStatus") == "PENDING":
                     raise AirflowException(f"This task is still pending {task}")
                 if "error" in container.get("reason", "").lower():

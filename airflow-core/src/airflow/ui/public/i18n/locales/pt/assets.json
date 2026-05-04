@@ -1,5 +1,11 @@
 {
+  "additional_data": "Dados Adicionais",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "asset_zero": "Nenhum asset",
   "consumingDags": "Consumindo Dags",
+  "consumingTasks": "Tarefas Consumidoras",
   "createEvent": {
     "button": "Criar Evento",
     "manual": {
@@ -21,10 +27,13 @@
     },
     "title": "Criar Evento de Asset para {{name}}"
   },
+  "extra": "Extra",
   "group": "Grupo",
   "lastAssetEvent": "Último Evento de Asset",
   "name": "Nome",
   "producingTasks": "Produzindo Tarefas",
   "scheduledDags": "Dags Programados",
-  "searchPlaceholder": "Pesquisar Assets"
+  "scheduling": "Agendamento",
+  "searchPlaceholder": "Pesquisar Assets",
+  "taskDependencies": "Dependências de Tarefas"
 }

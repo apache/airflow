@@ -528,21 +528,26 @@ class TestGCSHook:
 
     @mock.patch("google.cloud.storage.Bucket")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
-    def test_delete(self, mock_service, mock_bucket):
+    def test_delete(self, mock_service, mock_bucket, caplog):
         test_bucket = "test_bucket"
         test_object = "test_object"
         blob_to_be_deleted = storage.Blob(name=test_object, bucket=mock_bucket)
 
-        get_bucket_method = mock_service.return_value.get_bucket
-        get_blob_method = get_bucket_method.return_value.get_blob
-        delete_method = get_blob_method.return_value.delete
+        bucket_method = mock_service.return_value.bucket
+        blob = bucket_method.return_value.blob
+        delete_method = blob.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
-        assert response is None
+        with caplog.at_level(logging.INFO):
+            self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
+
+        bucket_method.assert_called_once_with(test_bucket)
+        blob.assert_called_once_with(blob_name=test_object)
+        delete_method.assert_called_once()
+        assert "Blob test_object deleted" in caplog.text
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
-    def test_delete_nonexisting_object(self, mock_service):
+    def test_delete_nonexisting_object(self, mock_service, caplog):
         test_bucket = "test_bucket"
         test_object = "test_object"
 
@@ -551,8 +556,31 @@ class TestGCSHook:
         delete_method = blob.return_value.delete
         delete_method.side_effect = NotFound(message="Not Found")
 
-        with pytest.raises(NotFound):
+        with pytest.raises(NotFound), caplog.at_level(logging.INFO):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
+
+        bucket_method.assert_called_once_with(test_bucket)
+        blob.assert_called_once_with(blob_name=test_object)
+        delete_method.assert_called_once()
+        assert "does not exist" in caplog.text
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_delete_nonexisting_object_ignore_error(self, mock_service, caplog):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        bucket_method = mock_service.return_value.bucket
+        blob = bucket_method.return_value.blob
+        delete_method = blob.return_value.delete
+        delete_method.side_effect = NotFound(message="Not Found")
+
+        with caplog.at_level(logging.INFO):
+            self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object, ignore_error=True)
+
+        bucket_method.assert_called_once_with(test_bucket)
+        blob.assert_called_once_with(blob_name=test_object)
+        delete_method.assert_called_once()
+        assert "does not exist" in caplog.text
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_exposes_lineage(self, mock_service, hook_lineage_collector):

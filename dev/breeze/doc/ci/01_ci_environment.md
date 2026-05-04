@@ -36,7 +36,7 @@ robust and stable. We run a lot of tests for every pull request,
 for `canary` runs from `main` and `v*-\*-test` branches
 regularly as scheduled jobs.
 
-Our execution environment for CI is [GitHub Actions](https://github.com/features/actions). GitHub Actions.
+Our execution environment for CI is [GitHub Actions](https://github.com/features/actions).
 
 However. part of the philosophy we have is that we are not tightly
 coupled with any of the CI environments we use. Most of our CI jobs are

@@ -115,6 +115,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag_processing.callback_only_count"
+    description: "Number of DAG file processing runs that processed callbacks only, without full DAG parsing"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dag_processing.file_path_queue_update_count"
     description: "Number of times we've scanned the filesystem and queued all existing Dags"
     type: "counter"
@@ -252,7 +258,7 @@ metrics:
   - name: "asset.orphaned"
     description: "Number of assets marked as orphans because they are no longer referenced
     in Dag schedule parameters or task outlets"
-    type: "counter"
+    type: "gauge"
     legacy_name: "-"
     name_variables: []
 
@@ -262,11 +268,59 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.deadline_created"
+    description: "Number of deadline alerts created for a Dag run"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "deadline_alerts.deadline_missed"
+    description: "Number of deadline alerts that fired because a Dag run missed its deadline"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "deadline_alerts.deadline_not_missed"
+    description: "Number of deadline records deleted because the Dag run finished before the deadline"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "ol.emit.failed"
+    description: "Number of failed OpenLineage event emit attempts"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the API server"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Gauges
   # ==========
   - name: "dagbag_size"
     description: "Number of Dags found when the scheduler ran a scan based on its configuration"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api_server.dag_bag.cache_size"
+    description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -414,6 +468,18 @@ metrics:
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
+  - name: "ol.event.size"
+    description: "Size in bytes of an OpenLineage event by event type and operator."
+    type: "gauge"
+    legacy_name: "ol.event.size.{event_type}.{operator_name}"
+    name_variables: ["event_type", "operator_name"]
+
+  - name: "edge_worker.status"
+    description: "Edge worker status (expressed as Python logging level)."
+    type: "gauge"
+    legacy_name: "edge_worker.status.{worker_name}"
+    name_variables: ["worker_name"]
+
   - name: "edge_worker.connected"
     description: "Edge worker in state connected."
     type: "gauge"
@@ -452,9 +518,21 @@ metrics:
 
   - name: "edge_worker.heartbeat_count"
     description: "Number heartbeats in an edge worker."
-    type: "gauge"
+    type: "counter"
     legacy_name: "edge_worker.heartbeat_count.{worker_name}"
     name_variables: ["worker_name"]
+
+  - name: "edge_worker.ti.start"
+    description: "Number of task instances started on an edge worker."
+    type: "counter"
+    legacy_name: "edge_worker.ti.start.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "edge_worker.ti.finish"
+    description: "Number of task instances finished on an edge worker."
+    type: "counter"
+    legacy_name: "edge_worker.ti.finish.{queue}.{state}.{dag_id}.{task_id}"
+    name_variables: ["queue", "state", "dag_id", "task_id"]
 
   # ==========
   # Timers
@@ -486,8 +564,8 @@ metrics:
   - name: "dag_processing.last_duration"
     description: "Milliseconds taken to load the given Dag file"
     type: "timer"
-    legacy_name: "dag_processing.last_duration.{dag_file}"
-    name_variables: ["dag_file"]
+    legacy_name: "dag_processing.last_duration.{bundle_name}.{file_name}"
+    name_variables: ["bundle_name", "file_name"]
 
   - name: "dagrun.duration.success"
     description: "Milliseconds taken for a DagRun to reach success state"
@@ -550,8 +628,50 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "batch_executor.adopt_task_instances.duration"
+    description: "Milliseconds taken to adopt the task instances in the AWS Batch Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "ecs_executor.adopt_task_instances.duration"
+    description: "Milliseconds taken to adopt the task instances in the AWS ECS Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "lambda_executor.adopt_task_instances.duration"
+    description: "Milliseconds taken to adopt the task instances in the AWS Lambda Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "edge_executor.sync.duration"
+    description: "Milliseconds taken for one sync heartbeat of the Edge Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ol.emit.attempts"
     description: "Milliseconds taken by an attempt to emit an OpenLineage event."
     type: "timer"
     legacy_name: "ol.emit.attempts.{event_type}.{transport_type}"
     name_variables: ["event_type", "transport_type"]
+
+  - name: "ol.extract"
+    description: "Milliseconds taken to extract an OpenLineage event by event type and operator."
+    type: "timer"
+    legacy_name: "ol.extract.{event_type}.{operator_name}"
+    name_variables: ["event_type", "operator_name"]
+
+  - name: "airflow.io.load_filesystems"
+    description: "Milliseconds taken to load filesystem implementations from providers"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "serde.load_serializers"
+    description: "Milliseconds taken to load all serializer modules"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []

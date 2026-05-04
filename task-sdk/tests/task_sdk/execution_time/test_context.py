@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
-from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse, DagRun
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -158,6 +158,20 @@ class TestAirflowContextHelpers:
             "AIRFLOW_CTX_DAG_OWNER": "owner1,owner2",
             "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
         }
+
+    def test_context_to_airflow_vars_team_name(self, create_runtime_ti):
+        """``team_name`` on dag_run surfaces as AIRFLOW_CTX_TEAM_NAME when set; omitted when None."""
+        task = BaseOperator(task_id="task")
+        rti = create_runtime_ti(task=task)
+        context = rti.get_template_context()
+
+        # Default (team_name is None) -> key not present
+        assert "AIRFLOW_CTX_TEAM_NAME" not in context_to_airflow_vars(context, in_env_var_format=True)
+
+        context["dag_run"].team_name = "team-a"
+        env_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        assert env_vars["AIRFLOW_CTX_TEAM_NAME"] == "team-a"
+        assert context_to_airflow_vars(context)["airflow.ctx.team_name"] == "team-a"
 
     def test_context_to_airflow_vars_from_policy(self):
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
@@ -860,6 +874,34 @@ class TestInletEventAccessor:
                 ),
             )
         ]
+
+
+class TestDagRunStartDateNullable:
+    """Test that DagRun and TIRunContext accept start_date=None (queued runs that haven't started)."""
+
+    def test_dag_run_model_accepts_null_start_date(self):
+        """DagRun datamodel should accept start_date=None for runs that haven't started yet."""
+        dag_run = DagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2024-12-01T01:00:00Z",
+            data_interval_start="2024-12-01T00:00:00Z",
+            data_interval_end="2024-12-01T01:00:00Z",
+            start_date=None,
+            run_after="2024-12-01T01:00:00Z",
+            run_type="manual",
+            state="queued",
+            conf=None,
+            consumed_asset_events=[],
+        )
+
+        assert dag_run.start_date is None
+
+    def test_ti_run_context_with_null_start_date(self, make_ti_context):
+        """TIRunContext should be constructable when the DagRun has start_date=None."""
+        ti_context = make_ti_context(start_date=None)
+
+        assert ti_context.dag_run.start_date is None
 
 
 class TestAsyncGetConnection:

@@ -31,11 +31,11 @@ export const AssetExpression = ({
   expression,
 }: {
   readonly events?: Array<NextRunEvent>;
-  readonly expression: ExpressionType | null;
+  readonly expression: ExpressionType | undefined;
 }) => {
   const { t: translate } = useTranslation("common");
 
-  if (expression === null) {
+  if (expression === undefined) {
     return undefined;
   }
 

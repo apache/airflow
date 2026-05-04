@@ -31,7 +31,6 @@ jaraco-classes
 jaraco-context
 jaraco-functools
 jeepney
-joserfc
 jsondiff
 jsonpatch
 jsonpointer

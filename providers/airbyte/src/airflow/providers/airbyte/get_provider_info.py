@@ -50,7 +50,18 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.airbyte.hooks.airbyte.AirbyteHook",
+                "hook-name": "Airbyte",
                 "connection-type": "airbyte",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["extra", "port"],
+                    "relabeling": {
+                        "host": "Server URL",
+                        "login": "Client ID",
+                        "password": "Client Secret",
+                        "schema": "Token URL",
+                    },
+                    "placeholders": {},
+                },
             }
         ],
     }

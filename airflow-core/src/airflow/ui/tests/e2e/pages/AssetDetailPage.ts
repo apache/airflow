@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -30,53 +30,54 @@ export class AssetDetailPage extends BasePage {
   }
 
   public async clickOnAsset(name: string): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (res) => /\/api\/v2\/assets\/\d+(\?|$)/.test(res.url()) && res.ok(),
+      { timeout: 15_000 },
+    );
+
     await this.page.getByRole("link", { exact: true, name }).click();
+    await responsePromise;
+  }
+
+  public getHeading(name: string): Locator {
+    return this.page.getByRole("heading", { name });
   }
 
   public async goto(): Promise<void> {
     await this.navigateTo(AssetDetailPage.url);
   }
 
-  public async verifyAssetDetails(name: string): Promise<void> {
-    await expect(this.page.getByRole("heading", { name })).toBeVisible();
+  public async verifyProducingTasks(): Promise<void> {
+    await this.verifyStatSection("Producing Tasks");
   }
 
-  public async verifyProducingTasks(minCount: number): Promise<void> {
-    await this.verifyStatSection("Producing Tasks", minCount);
-  }
-
-  public async verifyScheduledDags(minCount: number): Promise<void> {
-    await this.verifyStatSection("Scheduled Dags", minCount);
+  public async verifyScheduledDags(): Promise<void> {
+    await this.verifyStatSection("Scheduled Dags");
   }
 
   /**
    * Common helper to verify stat sections (Producing Tasks, Scheduled Dags)
    * Uses stable selectors based on text content and ARIA roles
    */
-  private async verifyStatSection(labelText: string, minCount: number): Promise<void> {
-    const label = this.page.getByText(labelText, { exact: true });
+  private async verifyStatSection(labelText: string): Promise<void> {
+    const statContainer = this.page.getByTestId("stat").filter({ hasText: labelText });
 
-    await expect(label).toBeVisible();
-
-    // Find the button that follows the label in the same stat section
-    // Navigate to the label's parent container and find the first button within it
-    const statContainer = label.locator("xpath=./parent::*");
+    await expect(statContainer).toBeVisible();
     const button = statContainer.getByRole("button").first();
 
     await expect(button).toBeVisible();
+    await expect(button).toBeEnabled();
+    await expect(button).toHaveText(/^[1-9]/);
+
     const text = await button.textContent();
     const count = parseInt(text?.split(" ")[0] ?? "0", 10);
 
-    expect(count).toBeGreaterThanOrEqual(minCount);
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
+    const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
 
-    if (count > 0) {
-      await button.click();
-      await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 5000 });
-      const popoverLinks = this.page.getByRole("dialog").last().getByRole("link");
-
-      await expect(popoverLinks).toHaveCount(count);
-      await button.click();
-      await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
-    }
+    await expect(popoverLinks).toHaveCount(count);
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
   }
 }

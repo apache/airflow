@@ -45,12 +45,15 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
+import { LogSearchInput, type LogSearchInputProps } from "./LogSearchInput";
+
 export type TaskLogHeaderProps = {
   readonly downloadLogs?: () => void;
   readonly expanded?: boolean;
   readonly getLogString: () => string;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly search: LogSearchInputProps;
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
@@ -70,6 +73,7 @@ export const TaskLogHeader = ({
   getLogString,
   isFullscreen = false,
   onSelectTryNumber,
+  search,
   showSource,
   showTimestamp,
   sourceOptions,
@@ -88,10 +92,10 @@ export const TaskLogHeader = ({
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
 
-  // Have select zIndex greater than modal zIndex in fullscreen so that
-  // select options are displayed.
+  // Have select zIndex greater than dialog zIndex in fullscreen so that
+  // select options are displayed. Dialog uses zIndex.popover since Chakra 3.34.0.
   const zIndex = isFullscreen
-    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
+    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("popover")?.value ?? 1500) + 1
     : undefined;
 
   const sourceOptionList = createListCollection<{
@@ -141,7 +145,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between">
+      <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"
@@ -192,7 +196,7 @@ export const TaskLogHeader = ({
             <Select.Trigger clearable>
               <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
-            <Select.Content>
+            <Select.Content zIndex={zIndex}>
               {sourceOptionList.items.map((option) => (
                 <Select.Item item={option} key={option.label}>
                   {option.label}
@@ -201,6 +205,7 @@ export const TaskLogHeader = ({
             </Select.Content>
           </Select.Root>
         ) : undefined}
+        <LogSearchInput {...search} />
         <HStack gap={1}>
           <Menu.Root>
             <Menu.Trigger asChild>

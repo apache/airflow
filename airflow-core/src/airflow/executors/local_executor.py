@@ -35,9 +35,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from airflow.executors import workloads
-from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.state import TaskInstanceState
+from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -48,15 +46,24 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger as Logger
+    from airflow.executors.workloads import ExecutorWorkload
+    from airflow.executors.workloads.types import WorkloadResultType
 
-    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
+
+def _get_executor_process_title_prefix(team_name: str | None) -> str:
+    """
+    Build the process title prefix for LocalExecutor workers.
+
+    :param team_name: Team name from executor configuration
+    """
+    team_suffix = f" [{team_name}]" if team_name else ""
+    return f"airflow worker -- LocalExecutor{team_suffix}:"
 
 
 def _run_worker(
     logger_name: str,
-    input: SimpleQueue[workloads.All | None],
-    output: Queue[TaskInstanceStateType],
+    input: SimpleQueue[ExecutorWorkload | None],
+    output: Queue[WorkloadResultType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
 ):
@@ -68,11 +75,8 @@ def _run_worker(
     log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
 
-    # Create team suffix for process title
-    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
-
     while True:
-        setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: <idle>", log)
+        setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} <idle>", log)
         try:
             workload = input.get()
         except EOFError:
@@ -87,58 +91,24 @@ def _run_worker(
             # Received poison pill, no more tasks to run
             return
 
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
-
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:
             unread_messages.value -= 1
-        key = None
-        if ti := getattr(workload, "ti", None):
-            key = ti.key
-        else:
-            raise TypeError(f"Don't know how to get ti key from {type(workload).__name__}")
+
+        if workload.running_state is not None:
+            output.put((workload.key, workload.running_state, None))
 
         try:
-            _execute_work(log, workload, team_conf)
-
-            output.put((key, TaskInstanceState.SUCCESS, None))
+            BaseExecutor.run_workload(
+                workload,
+                server=get_execution_api_server_url(team_conf),
+                proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
+                subprocess_logs_to_stdout=True,
+            )
+            output.put((workload.key, workload.success_state, None))
         except Exception as e:
-            log.exception("uhoh")
-            output.put((key, TaskInstanceState.FAILED, e))
-
-
-def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> None:
-    """
-    Execute command received and stores result state in queue.
-
-    :param log: Logger instance
-    :param workload: The workload to execute
-    :param team_conf: Team-specific executor configuration
-    """
-    from airflow.sdk.execution_time.supervisor import supervise
-
-    # Create team suffix for process title
-    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
-    setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: {workload.ti.id}", log)
-
-    base_url = team_conf.get("api", "base_url", fallback="/")
-    # If it's a relative URL, use localhost:8080 as the default
-    if base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-
-    # This will return the exit code of the task process, but we don't care about that, just if the
-    # _supervisor_ had an error reporting the state back (which will result in an exception.)
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+            log.exception("Workload execution failed.", workload_type=type(workload).__name__)
+            output.put((workload.key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):
@@ -155,9 +125,10 @@ class LocalExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
     serve_logs: bool = True
+    supports_callbacks: bool = True
 
-    activity_queue: SimpleQueue[workloads.All | None]
-    result_queue: SimpleQueue[TaskInstanceStateType]
+    activity_queue: SimpleQueue[ExecutorWorkload | None]
+    result_queue: SimpleQueue[WorkloadResultType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
@@ -185,6 +156,7 @@ class LocalExecutor(BaseExecutor):
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
+
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)
 
         if self.is_mp_using_fork:
@@ -300,10 +272,16 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def _process_workloads(self, workloads):
-        for workload in workloads:
+    def _process_workloads(self, workload_list):
+        for workload in workload_list:
             self.activity_queue.put(workload)
-            del self.queued_tasks[workload.ti.key]
+            # A valid workload will exist in exactly one of these dicts.
+            # One pop will succeed, the other will return None gracefully.
+            removed = self.queued_tasks.pop(workload.key, None) or self.queued_callbacks.pop(
+                workload.key, None
+            )
+            if not removed:
+                raise KeyError(f"Workload {workload.key} was not found in any queue")
         with self._unread_messages:
-            self._unread_messages.value += len(workloads)
+            self._unread_messages.value += len(workload_list)
         self._check_workers()

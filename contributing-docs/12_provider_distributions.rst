@@ -25,7 +25,9 @@ Airflow is split into core and providers. They are delivered as separate distrib
 * ``apache-airflow-task-sdk`` - task-sdk distribution that are imported by the providers
 * ``apache-airflow-providers-*`` - More than 90 providers to communicate with external services
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Where providers are kept in our repository
 ------------------------------------------
@@ -295,7 +297,7 @@ You can see for example ``google`` provider which has very comprehensive documen
 * `Documentation <../../providers/google/docs>`_
 * `System tests/Example Dags <../providers/google/tests/system/google/>`_
 
-Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
+Part of the documentation are example dags (placed in the ``providers/<provider>/tests/system`` folder). The reason why
 they are in ``tests/system`` is because we are using the example dags for various purposes:
 
 * showing real examples of how your provider classes (Operators/Sensors/Transfers) can be used

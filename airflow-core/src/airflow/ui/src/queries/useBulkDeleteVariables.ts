@@ -54,7 +54,9 @@ export const useBulkDeleteVariables = ({ clearSelections, onSuccessConfirm }: Pr
             keys: success.join(", "),
             resourceName: translate("admin:variables.variable_other"),
           }),
-          title: translate("toaster.bulkDelete.success.title"),
+          title: translate("toaster.bulkDelete.success.title", {
+            resourceName: translate("admin:variables.variable_other"),
+          }),
           type: "success",
         });
         clearSelections();

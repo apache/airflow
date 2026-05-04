@@ -37,6 +37,7 @@ try:
         AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
         AirflowRescheduleException as AirflowRescheduleException,
         AirflowTimetableInvalid as AirflowTimetableInvalid,
+        NodeNotFound as NodeNotFound,
         TaskNotFound as TaskNotFound,
     )
 except ModuleNotFoundError:
@@ -53,6 +54,12 @@ except ModuleNotFoundError:
 
     class TaskNotFound(AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
+
+    class NodeNotFound(TaskNotFound, KeyError):  # type: ignore[no-redef]
+        """Raise when attempting to access an invalid node (task or task group) using [] notation."""
+
+        def __str__(self) -> str:
+            return str(self.args[0]) if self.args else ""
 
     class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
         """
@@ -179,7 +186,7 @@ class FileSyntaxError(NamedTuple):
     message: str
 
     def __str__(self):
-        return f"{self.message}. Line number: s{str(self.line_no)},"
+        return f"{self.message}. Line number: {str(self.line_no)},"
 
 
 class AirflowFileParseException(AirflowException):
@@ -295,6 +302,10 @@ class DeserializationError(Exception):
             super().__init__("Missing Dag ID in serialized Dag")
         else:
             super().__init__(f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'")
+
+
+class DagRunTypeNotAllowed(AirflowException):
+    """Raised when a Dag does not allow the requested run type."""
 
 
 class AirflowClearRunningTaskException(AirflowException):

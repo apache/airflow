@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from functools import partial
 from typing import Any
@@ -34,6 +35,8 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
+log = logging.getLogger(__name__)
+
 
 class AwaitMessageTrigger(BaseEventTrigger):
     """
@@ -41,10 +44,14 @@ class AwaitMessageTrigger(BaseEventTrigger):
 
     The behavior of the consumer of this trigger is as follows:
     - poll the Kafka topics for a message, if no message returned, sleep
-    - process the message with provided callable and commit the message offset:
+    - process the message with provided callable:
 
         - if callable is provided and returns any data, raise a TriggerEvent with the return data
         - else raise a TriggerEvent with the original message
+
+    - by default, the message offset is committed after processing. This can be
+      disabled by setting ``commit_offset=False``, allowing manual offset management
+      in downstream tasks.
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: The topic (or topic regex) that should be searched for messages
@@ -57,6 +64,10 @@ class AwaitMessageTrigger(BaseEventTrigger):
         Kafka (seconds), defaults to 1
     :param poll_interval: How long the trigger should sleep after reaching the end of the Kafka log
         (seconds), defaults to 5
+    :param commit_offset: Whether to commit the message offset after poll.
+        If set to False, the offset is not committed automatically, allowing
+        downstream tasks to handle offset committing manually (e.g., after
+        successful processing). Defaults to True.
 
     """
 
@@ -69,6 +80,7 @@ class AwaitMessageTrigger(BaseEventTrigger):
         apply_function_kwargs: dict[Any, Any] | None = None,
         poll_timeout: float = 1,
         poll_interval: float = 5,
+        commit_offset: bool = True,
     ) -> None:
         self.topics = topics
         self.apply_function = apply_function
@@ -77,6 +89,8 @@ class AwaitMessageTrigger(BaseEventTrigger):
         self.kafka_config_id = kafka_config_id
         self.poll_timeout = poll_timeout
         self.poll_interval = poll_interval
+        self.commit_offset = commit_offset
+        self._consumer = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -89,6 +103,7 @@ class AwaitMessageTrigger(BaseEventTrigger):
                 "kafka_config_id": self.kafka_config_id,
                 "poll_timeout": self.poll_timeout,
                 "poll_interval": self.poll_interval,
+                "commit_offset": self.commit_offset,
             },
         )
 
@@ -96,10 +111,10 @@ class AwaitMessageTrigger(BaseEventTrigger):
         consumer_hook = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
 
         async_get_consumer = sync_to_async(consumer_hook.get_consumer)
-        consumer = await async_get_consumer()
+        self._consumer = await async_get_consumer()
 
-        async_poll = sync_to_async(consumer.poll)
-        async_commit = sync_to_async(consumer.commit)
+        async_poll = sync_to_async(self._consumer.poll)
+        async_commit = sync_to_async(self._consumer.commit)
 
         async_message_process = None
         if self.apply_function:
@@ -122,9 +137,20 @@ class AwaitMessageTrigger(BaseEventTrigger):
                     else message.value().decode("utf-8")
                 )
                 if event:
-                    await async_commit(message=message, asynchronous=False)
+                    if self.commit_offset:
+                        await async_commit(message=message, asynchronous=False)
                     yield TriggerEvent(event)
                     break
                 else:
-                    await async_commit(message=message, asynchronous=False)
+                    if self.commit_offset:
+                        await async_commit(message=message, asynchronous=False)
                     await asyncio.sleep(self.poll_interval)
+
+    async def cleanup(self) -> None:
+        consumer = self._consumer
+        if consumer is not None:
+            self._consumer = None
+            try:
+                await sync_to_async(consumer.close)()
+            except Exception:
+                log.warning("Failed to close Kafka consumer", exc_info=True)

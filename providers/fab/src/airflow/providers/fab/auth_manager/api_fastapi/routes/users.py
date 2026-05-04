@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from fastapi import Depends, Path, Query, status
 
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserBody,
@@ -27,15 +26,14 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.parameters import get_effective_limit
+from airflow.providers.fab.auth_manager.api_fastapi.routes.router import fab_router
 from airflow.providers.fab.auth_manager.api_fastapi.security import requires_fab_custom_view
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
 
-users_router = AirflowRouter(prefix="/fab/v1", tags=["FabAuthManager"])
 
-
-@users_router.post(
+@fab_router.post(
     "/users",
     responses=create_openapi_http_exception_doc(
         [
@@ -53,7 +51,7 @@ def create_user(body: UserBody) -> UserResponse:
         return FABAuthManagerUsers.create_user(body=body)
 
 
-@users_router.get(
+@fab_router.get(
     "/users",
     response_model=UserCollectionResponse,
     responses=create_openapi_http_exception_doc(
@@ -75,7 +73,7 @@ def get_users(
         return FABAuthManagerUsers.get_users(order_by=order_by, limit=limit, offset=offset)
 
 
-@users_router.get(
+@fab_router.get(
     "/users/{username}",
     responses=create_openapi_http_exception_doc(
         [
@@ -92,7 +90,7 @@ def get_user(username: str = Path(..., min_length=1)) -> UserResponse:
         return FABAuthManagerUsers.get_user(username=username)
 
 
-@users_router.patch(
+@fab_router.patch(
     "/users/{username}",
     responses=create_openapi_http_exception_doc(
         [
@@ -115,7 +113,7 @@ def update_user(
         return FABAuthManagerUsers.update_user(username=username, body=body, update_mask=update_mask)
 
 
-@users_router.delete(
+@fab_router.delete(
     "/users/{username}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(

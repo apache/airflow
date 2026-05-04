@@ -34,7 +34,7 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                14,
+                15,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
@@ -42,6 +42,7 @@ class TestGetPlugins:
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
                     "edge_executor",
+                    "hitl_review",
                     "hive",
                     "plugin-a",
                     "plugin-b",
@@ -54,10 +55,10 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 3},
-                14,
+                15,
                 ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
             ),
-            ({"limit": 1}, 14, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 15, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -147,17 +148,17 @@ class TestGetPlugins:
         # Verify warning was logged
         assert any("Skipping invalid plugin due to error" in rec.message for rec in caplog.records)
 
-        response = test_client.get("/plugins", params={"limit": 6, "offset": 9})
+        response = test_client.get("/plugins", params={"limit": 7, "offset": 9})
         assert response.status_code == 200
 
         body = response.json()
         plugins_page = body["plugins"]
 
-        # Even though limit=6, only 5 valid plugins should come back
-        assert len(plugins_page) == 5
+        # Even though limit=7, only 6 valid plugins should come back
+        assert len(plugins_page) == 6
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 14
+        assert body["total_entries"] == 15
 
 
 @skip_if_force_lowest_dependencies_marker

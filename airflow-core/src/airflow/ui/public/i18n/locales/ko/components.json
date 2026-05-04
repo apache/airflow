@@ -10,9 +10,11 @@
     "maxRuns": "최대 활성 실행 수",
     "missingAndErroredRuns": "누락되었거나 오류가 발생한 실행",
     "missingRuns": "누락된 실행",
-    "permissionDenied": "드라이 런 실패 : 백필 생성 권한이 없습니다. ",
+    "overrideExistingParams": "기존 실행의 매개변수 덮어쓰기",
+    "permissionDenied": "드라이 런 실패: 백필 생성 권한이 없습니다.",
     "reprocessBehavior": "재처리 동작",
     "run": "백필 실행",
+    "scheduleNotBackfillable": "이 Dag의 스케줄은 백필을 지원하지 않습니다.",
     "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
     "selectLabel": "백필",
     "title": "백필 실행",
@@ -22,7 +24,6 @@
         "title": "백필 생성됨"
       }
     },
-    "tooltip": "백필에는 일정이 필요합니다.",
     "unpause": "트리거 시 {{dag_display_name}} 일시 중지 해제",
     "validation": {
       "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",
@@ -91,7 +92,8 @@
     "otherDagRuns": "+다른 Dag 실행",
     "taskCount_one": "{{count}}개 작업",
     "taskCount_other": "{{count}}개 작업",
-    "taskGroup": "작업 그룹"
+    "taskGroup": "작업 그룹",
+    "zoomToTask": "선택된 작업으로 확대"
   },
   "limitedList": "+{{count}}개 더 보기",
   "limitedList.allItems": "모든 {{count}}개 항목:",
@@ -130,6 +132,7 @@
     "intervalStart": "시작",
     "loading": "Dag 정보 로드 중...",
     "loadingFailed": "Dag 정보를 로드하지 못했습니다. 다시 시도해주세요.",
+    "manualRunDenied": "이 Dag는 수동으로 실행할 수 없습니다.",
     "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
     "selectDescription": "이 Dag을(를) 단일 실행 트리거",
     "selectLabel": "단일 실행",

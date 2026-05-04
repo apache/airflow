@@ -36,7 +36,7 @@ from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
 )
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.github import (
     download_constraints_file,
     download_file_from_github,
@@ -71,11 +71,11 @@ def start_cdxgen_servers(application_root_path: Path, run_in_parallel: bool, par
         for i in range(parallelism):
             fork_cdxgen_server(application_root_path, port=8080 + i)
     time.sleep(1)
-    get_console().print("[info]Waiting for cdxgen server(s) to start")
+    console_print("[info]Waiting for cdxgen server(s) to start")
     time.sleep(3)
     if os.environ.get("CI", "false") == "true":
         # In CI we wait longer for the server to start
-        get_console().print("[info]Waiting longer for cdxgen server(s) to start in CI")
+        console_print("[info]Waiting longer for cdxgen server(s) to start in CI")
         time.sleep(5)
         print("::endgroup::")
 
@@ -157,9 +157,7 @@ def list_providers_from_providers_requirements(
         provider_version_documentation_directory = provider_documentation_directory / provider_version
 
         if not provider_version_documentation_directory.exists():
-            get_console().print(
-                f"[warning]The {provider_version_documentation_directory} does not exist. Skipping"
-            )
+            console_print(f"[warning]The {provider_version_documentation_directory} does not exist. Skipping")
             continue
 
         yield (node_name, provider_id, provider_version, provider_version_documentation_directory)
@@ -348,6 +346,7 @@ class SbomCoreJob(SbomApplicationJob):
     include_provider_dependencies: bool
     include_python: bool
     include_npm: bool
+    constraints_reference: str | None = None
 
     def get_job_name(self) -> str:
         name = f"{self.airflow_version}"
@@ -393,8 +392,9 @@ class SbomCoreJob(SbomApplicationJob):
         else:
             source_dir_with_file.unlink(missing_ok=True)
         if self.include_python:
+            constraints_reference = self.constraints_reference or f"constraints-{self.airflow_version}"
             if not download_constraints_file(
-                constraints_reference=f"constraints-{self.airflow_version}",
+                constraints_reference=constraints_reference,
                 python_version=self.python_version,
                 airflow_constraints_mode="constraints"
                 if self.include_provider_dependencies

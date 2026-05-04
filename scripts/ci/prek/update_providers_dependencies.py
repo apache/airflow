@@ -33,8 +33,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -71,7 +69,7 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(pyproject_toml_file_path.read_text())
 
 

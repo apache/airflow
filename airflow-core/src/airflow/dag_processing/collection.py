@@ -53,6 +53,7 @@ from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -63,7 +64,6 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
-from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -76,6 +76,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.typing_compat import Self, Unpack
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
@@ -85,12 +86,17 @@ log = structlog.get_logger(__name__)
 
 def _create_orm_dags(
     bundle_name: str,
+    bundle_version: str | None,
     dags: Iterable[LazyDeserializedDAG],
     *,
     session: Session,
 ) -> Iterator[DagModel]:
     for dag in dags:
-        orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
+        )
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
         log.info("Creating ORM DAG for %s", dag.dag_id)
@@ -132,7 +138,6 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
 
 def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
     """Build a select statement to retrieve the last partitioned run for each Dag."""
-    # todo: AIP-76 we should add a partition date field
     latest_run_id = (
         select(DagRun.id)
         .where(
@@ -145,7 +150,11 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
             ),
             DagRun.partition_key.is_not(None),
         )
-        .order_by(DagRun.id.desc())  # todo: AIP-76 add partition date and sort by it here
+        .order_by(
+            DagRun.partition_date.is_(None),
+            DagRun.partition_date.desc(),
+            DagRun.run_after.desc(),
+        )
         .limit(1)
         .scalar_subquery()
     )
@@ -174,17 +183,15 @@ class _RunInfo(NamedTuple):
 
         :param dags: dict of dags to query
         """
-        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        # Skip these queries entirely if no Dags can be scheduled to save time.
         if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
-        # todo: AIP-76 what's a more general way to detect?
-        #  https://github.com/apache/airflow/issues/61086
-        if isinstance(dag.timetable, CronPartitionTimetable):
-            log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
+        if dag.timetable.partitioned:
+            log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("getting latest run for non-partitioned dag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
@@ -251,7 +258,11 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 
 
 def _serialize_dag_capturing_errors(
-    dag: LazyDeserializedDAG, bundle_name, session: Session, bundle_version: str | None
+    dag: LazyDeserializedDAG,
+    bundle_name,
+    session: Session,
+    bundle_version: str | None,
+    _prefetched: DagWriteMetadata | None = None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -259,7 +270,6 @@ def _serialize_dag_capturing_errors(
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
     from airflow.models.dagcode import DagCode
-    from airflow.models.serialized_dag import SerializedDagModel
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
     MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
@@ -274,10 +284,11 @@ def _serialize_dag_capturing_errors(
             bundle_version=bundle_version,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
+            _prefetched=_prefetched,
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc)
+            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
         if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
@@ -405,6 +416,7 @@ def _update_import_errors(
             update(DagModel)
             .where(
                 DagModel.relative_fileloc == relative_fileloc,
+                DagModel.bundle_name == bundle_name_,
             )
             .values(
                 has_import_errors=True,
@@ -467,6 +479,13 @@ def update_dag_parsing_results_in_db(
                 SerializedDAG.bulk_write_to_db(
                     bundle_name, bundle_version, dags, parse_duration, session=session
                 )
+                # Bulk prefetch metadata for all DAGs to avoid the standard per-DAG
+                # metadata lookups in write_dag. This replaces the update-interval,
+                # hash, and version queries with 2 bulk queries total; DAGs with
+                # deadlines may still do an additional lookup for deadline UUID reuse.
+                prefetched_metadata = SerializedDagModel._prefetch_dag_write_metadata(
+                    [dag.dag_id for dag in dags], session=session
+                )
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
@@ -475,6 +494,7 @@ def update_dag_parsing_results_in_db(
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
                             session=session,
+                            _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
                     )
             except OperationalError:
@@ -520,6 +540,7 @@ class DagModelOperation(NamedTuple):
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
+                .options(joinedload(DagModel.dag_owner_links))
             ),
             of=DagModel,
             session=session,
@@ -532,6 +553,7 @@ class DagModelOperation(NamedTuple):
             (model.dag_id, model)
             for model in _create_orm_dags(
                 bundle_name=self.bundle_name,
+                bundle_version=self.bundle_version,
                 dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
                 session=session,
             )
@@ -595,10 +617,18 @@ class DagModelOperation(NamedTuple):
                     t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
                     for t in dag.tasks
                 )
-            dm.timetable_summary = dag.timetable.summary
             dm.timetable_type = dag.timetable.type_name
+            dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
+            dm.timetable_partitioned = dag.timetable.partitioned
+            dm.timetable_periodic = dag.timetable.periodic
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
+
+            allowed_types = dag.allowed_run_types
+            if allowed_types:
+                dm.allowed_run_types = sorted(allowed_types)
+            else:
+                dm.allowed_run_types = None
 
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version
@@ -1087,7 +1117,8 @@ class AssetModelOperation(NamedTuple):
                 asset_model.watchers = [
                     watcher
                     for watcher in asset_model.watchers
-                    if BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                    if watcher.trigger is not None
+                    and BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
                     not in trigger_hashes
                 ]
 

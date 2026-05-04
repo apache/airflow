@@ -62,9 +62,12 @@ the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
-the same configuration and Dags. Airflow sends simple instructions such as "execute task X of Dag Y", but
-does not send any Dag files or configuration. You can use a simple cronjob or any other mechanism to sync
-Dags and configs across your nodes, e.g., checkout Dags from git repo every 5 minutes on all nodes.
+the Dags and configuration appropriate for its role. Airflow sends simple instructions such as
+"execute task X of Dag Y", but does not send any Dag files or configuration. For synchronization of Dags
+we recommend the Dag Bundle mechanism (including ``GitDagBundle``), which allows you to make use of
+DAG versioning. For security-sensitive deployments, restrict sensitive configuration (JWT signing keys,
+database credentials, Fernet keys) to only the components that need them rather than sharing all
+configuration across all nodes — see :doc:`/security/security_model` for guidance.
 
 
 Logging
@@ -240,13 +243,13 @@ If you are using Kubernetes Engine, you can use
 `Workload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity>`__ to assign
 an identity to individual pods.
 
-For more information about service accounts in the Airflow, see :ref:`howto/connection:gcp`
+For more information about service accounts in the Airflow, see :ref:`howto/connection:google_cloud_platform`
 
 Impersonate Service Accounts
 ----------------------------
 
 If you need access to other service accounts, you can
-:ref:`impersonate other service accounts <howto/connection:gcp:impersonation>` to exchange the token with
+:ref:`impersonate other service accounts <howto/connection:google_cloud_platform:impersonation>` to exchange the token with
 the default identity to another service account. Thus, the account keys are still managed by Google
 and cannot be read by your workload.
 

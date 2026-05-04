@@ -65,7 +65,7 @@ def set_state(
     :param downstream: Mark all siblings (downstream tasks) of task_id
     :param future: Mark all future tasks on the interval of the dag up until
         last logical date.
-    :param past: Retroactively mark all tasks starting from start_date of the DAG
+    :param past: Retroactively mark all tasks starting from start_date of the Dag
     :param state: State to which the tasks need to be set
     :param commit: Commit tasks to be altered to the database
     :param session: database session
@@ -82,10 +82,10 @@ def set_state(
         for dag in (task[0].dag if isinstance(task, tuple) else task.dag for task in tasks)
     }
     if len(task_dags) > 1:
-        raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
+        raise ValueError(f"Received tasks from multiple Dags: {task_dags}")
     dag = next(iter(task_dags.values()))
     if dag is None:
-        raise ValueError("Received tasks with no DAG")
+        raise ValueError("Received tasks with no Dag")
     if not run_id:
         raise ValueError("Received tasks with no run_id")
 
@@ -145,7 +145,7 @@ def find_task_relatives(
 
 @provide_session
 def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
-    """Return DAG executions' run_ids."""
+    """Return Dag executions' run_ids."""
     current_logical_date = session.scalar(
         select(DagRun.logical_date).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
     )
@@ -168,11 +168,11 @@ def get_run_ids(dag: SerializedDAG, run_id: str, future: bool, past: bool, sessi
         .limit(1)
     )
 
-    # determine run_id range of dag runs and tasks to consider
+    # determine run_id range of Dag runs and tasks to consider
     end_date = last_logical_date if future else current_logical_date
     start_date = current_logical_date if not past else first_logical_date
     if not dag.timetable.can_be_scheduled:
-        # If the DAG never schedules, need to look at existing DagRun if the
+        # If the Dag never schedules, need to look at existing DagRun if the
         # user wants future or past runs.
         dag_runs = session.scalars(
             select(DagRun).where(
@@ -224,9 +224,9 @@ def set_dag_run_state_to_success(
 
     Set for a specific logical date and its task instances to success.
 
-    :param dag: the DAG of which to alter state
+    :param dag: the Dag of which to alter state
     :param run_id: the run_id to start looking from
-    :param commit: commit DAG and tasks to be altered to the database
+    :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -283,9 +283,9 @@ def set_dag_run_state_to_failed(
 
     Set for a specific logical date and its task instances to failed.
 
-    :param dag: the DAG of which to alter state
-    :param run_id: the DAG run_id to start looking from
-    :param commit: commit DAG and tasks to be altered to the database
+    :param dag: the Dag of which to alter state
+    :param run_id: the Dag run_id to start looking from
+    :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
@@ -371,9 +371,9 @@ def __set_dag_run_state_to_running_or_queued(
     """
     Set the dag run for a specific logical date to running.
 
-    :param dag: the DAG of which to alter state
+    :param dag: the Dag of which to alter state
     :param run_id: the id of the DagRun
-    :param commit: commit DAG and tasks to be altered to the database
+    :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated

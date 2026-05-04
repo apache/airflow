@@ -16,8 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-# Re export for compat
-from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
+from airflow._shared.secrets_backend.base import BaseSecretsBackend as _BaseSecretsBackend
+
+
+class BaseSecretsBackend(_BaseSecretsBackend):
+    """Base class for secrets backend with Core Connection as default."""
+
+    def _get_connection_class(self) -> type:
+        conn_class = getattr(self, "_connection_class", None)
+        if conn_class is None:
+            from airflow.models import Connection
+
+            self._connection_class = Connection
+            return Connection
+        return conn_class
+
 
 # Server side default secrets backend search path used by server components (scheduler, API server)
 DEFAULT_SECRETS_SEARCH_PATH = [

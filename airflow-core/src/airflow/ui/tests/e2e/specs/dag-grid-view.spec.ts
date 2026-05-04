@@ -16,78 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { GridPage } from "tests/e2e/pages/GridPage";
+import { test } from "tests/e2e/fixtures";
 
-test.describe("DAG Grid View", () => {
-  let gridPage: GridPage;
-  const testDagId = testConfig.testDag.id;
+test.describe("Dag Grid View", () => {
+  test.setTimeout(60_000);
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupDagsPage = new DagsPage(page);
-
-    const dagRunId = await setupDagsPage.triggerDag(testDagId);
-
-    if (dagRunId !== null) {
-      await setupDagsPage.verifyDagRunStatus(testDagId, dagRunId);
-    }
-
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    gridPage = new GridPage(page);
-  });
-
-  test("navigate to DAG detail page and display grid view", async () => {
-    test.setTimeout(60_000);
-
-    await gridPage.navigateToDag(testDagId);
+  test("navigate to Dag detail page and display grid view", async ({ executedDagRun, gridPage }) => {
+    await gridPage.navigateToDag(executedDagRun.dagId);
     await gridPage.switchToGridView();
     await gridPage.verifyGridViewIsActive();
   });
 
-  test("render grid with task instances", async () => {
-    test.setTimeout(60_000);
-
-    await gridPage.navigateToDag(testDagId);
+  test("render grid with task instances", async ({ executedDagRun, gridPage }) => {
+    await gridPage.navigateToDag(executedDagRun.dagId);
     await gridPage.switchToGridView();
-    await gridPage.waitForGridToLoad();
-
-    const taskNames = await gridPage.getTaskNames();
-
-    expect(taskNames.length).toBeGreaterThan(0);
-
-    const cellCount = await gridPage.getGridCellCount();
-
-    expect(cellCount).toBeGreaterThan(0);
+    await gridPage.verifyGridHasTaskInstances();
   });
 
-  test("display task states with color coding", async () => {
-    test.setTimeout(60_000);
-
-    await gridPage.navigateToDag(testDagId);
+  test("display task states with color coding", async ({ executedDagRun, gridPage }) => {
+    await gridPage.navigateToDag(executedDagRun.dagId);
     await gridPage.switchToGridView();
     await gridPage.verifyTaskStatesAreColorCoded();
   });
 
-  test("show task details when clicking a grid cell", async () => {
-    test.setTimeout(60_000);
-
-    await gridPage.navigateToDag(testDagId);
+  test("show task details when clicking a grid cell", async ({ executedDagRun, gridPage }) => {
+    await gridPage.navigateToDag(executedDagRun.dagId);
     await gridPage.switchToGridView();
     await gridPage.clickGridCellAndVerifyDetails();
   });
 
-  test("show tooltip on grid cell hover", async () => {
-    test.setTimeout(60_000);
-
-    await gridPage.navigateToDag(testDagId);
+  test("show tooltip on grid cell hover", async ({ executedDagRun, gridPage }) => {
+    await gridPage.navigateToDag(executedDagRun.dagId);
     await gridPage.switchToGridView();
     await gridPage.verifyTaskTooltipOnHover();
   });

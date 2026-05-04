@@ -264,7 +264,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=REGION,
         data_scan_id=DATA_SCAN_ID,
-        job_id="{{ task_instance.xcom_pull('run_data_scan_async') }}",
+        job_id=run_data_scan_async.output,
     )
     # [END howto_dataplex_data_scan_job_state_sensor]
     # [START howto_dataplex_get_data_quality_job_operator]
@@ -381,5 +381,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

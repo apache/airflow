@@ -129,8 +129,6 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 class JWTReissueMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        from airflow.configuration import conf
-
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
@@ -142,9 +140,15 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                     validator: JWTValidator = await services.aget(JWTValidator)
                     claims = await validator.avalidated_claims(token, {})
 
+                    # Workload tokens are long-lived and meant to survive queue
+                    # wait times so avoid refreshing them. If avalidated_claims
+                    # raises for a workload token, the outer except handles it.
+                    if claims.get("scope") == "workload":
+                        return response
+
                     now = int(time.time())
-                    validity = conf.getint("execution_api", "jwt_expiration_time")
-                    refresh_when_less_than = max(int(validity * 0.20), 30)
+                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
                     valid_left = int(claims.get("exp", 0)) - now
                     if valid_left <= refresh_when_less_than:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
@@ -219,6 +223,15 @@ class CadwynWithOpenAPICustomization(Cadwyn):
                 # this produces better results in the code generator
                 if prop.get("type") == "string" and (const := prop.pop("const", None)):
                     prop["enum"] = [const]
+
+        # Remove internal x-airflow-* extension fields from OpenAPI spec
+        # These are used for runtime validation but shouldn't be exposed in the public API
+        for path_item in openapi_schema.get("paths", {}).values():
+            for operation in path_item.values():
+                if isinstance(operation, dict):
+                    keys_to_remove = [key for key in operation.keys() if key.startswith("x-airflow-")]
+                    for key in keys_to_remove:
+                        del operation[key]
 
         return openapi_schema
 
@@ -303,24 +316,27 @@ class InProcessExecutionAPI:
     def app(self):
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
-            from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.deps import (
-                JWTBearerDep,
-                JWTBearerTIPathDep,
-            )
+            from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+            from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
             self._app = create_task_execution_api_app()
 
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
-            async def always_allow(): ...
+            async def always_allow(request: Request):
+                from uuid import UUID
 
-            self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
+                ti_id = UUID(
+                    request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
+                )
+                claims = TIClaims(scope="execution")
+                return TIToken(id=ti_id, claims=claims)
+
+            self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

@@ -40,6 +40,8 @@ class SFTPToS3Operator(BaseOperator):
 
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
+    :param sftp_remote_host: The remote host of the SFTP server. Overrides host in
+        Connection.
     :param sftp_path: The sftp remote path. This is the specified file path
         for downloading the file from the SFTP server.
     :param s3_conn_id: The s3 connection id. The name or identifier for
@@ -63,6 +65,7 @@ class SFTPToS3Operator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
+        sftp_remote_host: str = "",
         s3_conn_id: str = "aws_default",
         use_temp_file: bool = True,
         fail_on_file_not_exist: bool = True,
@@ -71,6 +74,7 @@ class SFTPToS3Operator(BaseOperator):
         super().__init__(**kwargs)
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
+        self.sftp_remote_host = sftp_remote_host
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.s3_conn_id = s3_conn_id
@@ -85,7 +89,9 @@ class SFTPToS3Operator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
-        ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
+
+        # SSHHook will handle a None/"" sftp_remote_host
+        ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id, remote_host=self.sftp_remote_host)
         s3_hook = S3Hook(self.s3_conn_id)
 
         sftp_client = ssh_hook.get_conn().open_sftp()

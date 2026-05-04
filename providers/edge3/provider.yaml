@@ -34,7 +34,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1770751670
+source-date-epoch: 1776778872
 build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
@@ -42,6 +42,11 @@ build-system: hatchling
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.5.0
+  - 3.4.0
+  - 3.3.0
+  - 3.2.0
+  - 3.1.0
   - 3.0.2
   - 3.0.1
   - 3.0.0
@@ -69,6 +74,9 @@ cli:
 
 executors:
   - airflow.providers.edge3.executors.EdgeExecutor
+
+db-managers:
+  - airflow.providers.edge3.models.db.EdgeDBManager
 
 config:
   edge:
@@ -107,6 +115,25 @@ config:
         version_added: ~
         type: integer
         example: "10"
+        default: "30"
+      drain_timeout_sec:
+        description: |
+          Maximum seconds the worker waits for running jobs to finish after entering drain
+          (shutdown requested via SIGINT / SIGTERM / SHUTDOWN_REQUEST / version mismatch).
+          Once this timeout elapses the worker sends SIGTERM to each running job, then SIGKILL
+          after ``drain_kill_grace_sec``, and exits regardless of remaining jobs.
+          Set to 0 (the default) to wait indefinitely and preserve legacy behavior.
+        version_added: 3.6.0
+        type: integer
+        example: "3600"
+        default: "0"
+      drain_kill_grace_sec:
+        description: |
+          Grace period in seconds after SIGTERM before the worker escalates to SIGKILL and exits.
+          Only used when ``drain_timeout_sec`` is greater than 0.
+        version_added: 3.6.0
+        type: integer
+        example: "30"
         default: "30"
       worker_concurrency:
         description: |
@@ -165,3 +192,59 @@ config:
         type: string
         default: ~
         example: ~
+      minimum_acceptable_core_version_for_workers:
+        description: |
+          The minimum acceptable version of the central Airflow site and edge worker to work with.
+
+          This is used to make sure that the central Airflow site and edge workers are compatible with each
+          other. When an edge worker connects to the central site, it reports its installed airflow
+          core version. If the version is lower than the minimum acceptable version, the central site will
+          notify the worker during heartbeat and raise an alert. The worker will gracefully terminate and
+          drain jobs and shut down.
+
+          If you know your workers are still compatible with older versions of the central site, you can set
+          this to a lower version to avoid having to update all workers at the same time as the central site.
+          Default is to force matching versions, so relaxing is optional to be configured.
+
+          If the airflow core version between edge worker and central site is not matchning, the worker will
+          report warning status.
+        version_added: 3.6.0
+        type: string
+        default: ~
+        example: "3.2.1"
+      minimum_acceptable_edge_version_for_workers:
+        description: |
+          The minimum acceptable version of the edge worker to work with the central site.
+
+          This is used to make sure that the central Airflow site and edge workers are compatible with each
+          other. When an edge worker connects to the central site, it reports its edge version. If the
+          version is lower than the minimum acceptable version, the central site will notify the worker
+          during heartbeat and raise an alert. The worker will gracefully terminate and drain jobs and shut
+          down.
+
+          If you know your edge workers are still compatible with older versions of the central site, you
+          can set this to a lower version to avoid having to update all workers at the same time as the
+          central site. Default is to force matching versions, so relaxing is optional to be configured.
+
+          If the edge version between edge worker and central site is not matchning, the worker will report
+          warning status.
+        version_added: 3.6.0
+        type: string
+        default: ~
+        example: "3.5.0"
+      extended_system_info_function:
+        description: |
+          The function to call to get extended system information for the worker.
+
+          The function must be async and return a ``dict[str, str | int | float | datetime]``.
+          The information will be sent to the central site with each heartbeat and can be used for monitoring
+          and debugging purposes. All int and float values will also be published to metric collection systems
+          like statsd or otel.
+
+          Function must be provided as a string with the full path to the function. See
+          https://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/cli/example_extended_sysinfo.py
+          for an example implementation.
+        version_added: 3.5.0
+        type: string
+        default: ~
+        example: airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo

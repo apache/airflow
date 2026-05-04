@@ -35,19 +35,49 @@ that is used by Airflow developers to effortlessly setup and maintain consistent
 for Airflow Development.
 
 This package should never be installed in "production" mode. The `breeze` entrypoint will actually
-fail if you do so. It is supposed to be installed only in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode)
-directly from Airflow sources using `uv tool` or `pipx` - usually with `--force` flag to account
-for re-installation  that might often be needed if dependencies change during development.
+fail if you do so. It is supposed to be run directly against the Airflow sources you have checked
+out, in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode).
+
+The recommended way to make `breeze` available is to install a small **shim script** at
+`~/.local/bin/breeze` that runs breeze from the `dev/breeze` folder of the *current* git
+worktree via `uvx`. This avoids a single global install and means each git worktree
+(including ephemeral worktrees used by coding agents) gets its own breeze, tied to that
+worktree's sources. Because the shim is a real file on `PATH`, subprocesses (pre-commit
+hooks, CI scripts, dev tools) see it just like a `uv tool`-installed binary. See
+[ADR 0017](doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md) for the rationale.
+
+The `scripts/tools/setup_breeze` script installs the shim for you. If you previously
+installed breeze globally via `uv tool install -e ./dev/breeze` or `pipx install -e ./dev/breeze`,
+remove that install first — both write to `~/.local/bin/breeze` and would conflict:
 
 ```shell
-uv tool install -e ./dev/breeze --force
+uv tool uninstall apache-airflow-breeze   # or: pipx uninstall apache-airflow-breeze
 ```
 
-or
+To install the shim manually, write this file to `~/.local/bin/breeze` and `chmod +x` it:
 
 ```shell
-pipx install -e ./dev/breeze --force
+#!/usr/bin/env bash
+# Apache Airflow breeze shim — managed by scripts/tools/setup_breeze (ADR 0017).
+set -e
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+    echo "breeze: not inside a git repository — cd into an Airflow worktree first" >&2
+    exit 1
+}
+if [ ! -d "${repo_root}/dev/breeze" ]; then
+    echo "breeze: ${repo_root} is not an Airflow worktree (no dev/breeze)" >&2
+    exit 1
+fi
+exec env AIRFLOW_ROOT_PATH="${repo_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
+    uvx --from "${repo_root}/dev/breeze" --quiet breeze "$@"
 ```
+
+Then `breeze` invoked from any Airflow checkout uses that checkout's source. The first call in
+a fresh worktree pays a one-time `uvx` resolve/install; subsequent calls hit the cache.
+
+The legacy global-install path (`uv tool install -e ./dev/breeze --force` or
+`pipx install -e ./dev/breeze --force`) still works for users who explicitly want a single
+shared install, but it is no longer the recommended approach.
 
 You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
 

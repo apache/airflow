@@ -17,10 +17,21 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
+from flask_appbuilder import const
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from airflow.providers.fab.auth_manager.models import (
+    Action,
+    Group,
+    Permission,
+    Resource,
+    Role,
+    User,
+)
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
@@ -32,6 +43,115 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class TestFabAirflowSecurityManagerOverride:
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=1, name="test_admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        sm._is_permission_assigned_to_role = Mock(return_value=True)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        assert mock_session.rollback.mock_calls == [call()]
+        assert sm._is_permission_assigned_to_role.mock_calls == [call(role_id=1, permission_view_id=2)]
+        assert mock_log.error.mock_calls == []
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_logs_error_when_duplicate_not_persisted(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=1, name="Admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
+
+        mock_session = Mock(spec=Session)
+        mock_error = IntegrityError("stmt", {}, Exception("duplicate key"))
+        mock_session.commit.side_effect = mock_error
+
+        sm._is_permission_assigned_to_role = Mock(return_value=False)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        mock_session.rollback.assert_called_once_with()
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
+        mock_log.error.assert_called_once_with(
+            const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+            f"Failed to add '{permission}' permission to the '{role}' role Error: {mock_error}",
+        )
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_role_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_role = Mock(spec=Role, name="Admin")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        sm.find_role = Mock(side_effect=[None, existing_role])
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.add_role("Admin")
+
+        assert result is existing_role
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_create_action_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_action = Mock(spec=Action, name="can_read")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        sm.get_action = Mock(side_effect=[None, existing_action])
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.create_action("can_read")
+
+        assert result is existing_action
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_create_resource_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_resource = Mock(spec=Resource, name="Connections")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        sm.get_resource = Mock(side_effect=[None, existing_resource])
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.create_resource("Connections")
+
+        assert result is existing_resource
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_create_permission_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_perm = Mock(spec=Permission)
+        existing_resource = Mock(spec=Resource, id=10)
+        existing_action = Mock(spec=Action, id=20)
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        sm.get_permission = Mock(side_effect=[None, existing_perm])
+        sm.create_resource = Mock(return_value=existing_resource)
+        sm.create_action = Mock(return_value=existing_action)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.create_permission("can_read", "Connections")
+
+        assert result is existing_perm
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
     def test_load_user(self):
         sm = EmptySecurityManager()
         sm.get_user_by_id = Mock()
@@ -74,6 +194,28 @@ class TestFabAirflowSecurityManagerOverride:
         sm.find_user = Mock(return_value=mock_user)
         check_password.return_value = False
         assert not sm.check_password("test_user", "test_password")
+
+    def test_update_user_clears_cached_permissions(self):
+        sm = EmptySecurityManager()
+        user = Mock(
+            spec=User,
+            id=1,
+            roles=[Mock(spec=Role, id=2)],
+            groups=[Mock(spec=Group, id=3)],
+            _perms={("can_read", "DAG")},
+        )
+        existing_user = Mock(spec=User, roles=[Mock(spec=Role, id=4)], groups=[Mock(spec=Group, id=5)])
+        mock_merged_user = Mock(spec=User, _perms={("can_edit", "DAG")})
+        mock_session = Mock(spec=Session)
+        mock_session.get.return_value = existing_user
+        mock_session.merge.return_value = mock_merged_user
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            assert sm.update_user(user)
+
+        assert user._perms == {("can_read", "DAG")}
+        assert mock_merged_user._perms is None
+        mock_session.commit.assert_called_once_with()
 
     @pytest.mark.parametrize(
         ("provider", "resp", "user_info"),

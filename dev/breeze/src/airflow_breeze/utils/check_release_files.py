@@ -22,12 +22,23 @@ from pathlib import Path
 
 from airflow_breeze.utils.console import get_console
 
-PROVIDERS_DOCKER = """\
+# Must satisfy the `[tool.uv] required-version` floor in the root pyproject.toml
+# that gets COPY'd into the PMC image. Kept in lockstep with that floor by the
+# `sync-uv-min-version-markers` prek hook.
+_PROVIDERS_DOCKER_UV_MIN_VERSION = "0.11.8"  # sync-uv-min-version
+
+PROVIDERS_DOCKER = f"""\
 FROM ghcr.io/apache/airflow/main/ci/python3.10
 RUN cd airflow-core; uv sync --no-sources
 
-# Install providers
-{}
+# Install providers with providers pre-releases allowed
+COPY pyproject.toml .
+# The CI image may ship an older uv than the copied pyproject.toml's
+# `[tool.uv] required-version` floor; `uv pip install` would then refuse with
+# a version-pin error. Upgrade uv first so the install step works regardless
+# of when the CI image was last rebuilt.
+RUN pip install --upgrade 'uv>={_PROVIDERS_DOCKER_UV_MIN_VERSION}'
+{{}}
 """
 
 AIRFLOW_DOCKER = """\
@@ -89,11 +100,15 @@ def create_docker(txt: str, output_file: Path, release_type: str):
 
     console = get_console()
     console.print("\n[bold]To check installation run:[/bold]")
-    command = (
-        '--entrypoint "airflow" local/airflow info'
-        if release_type != "python-client"
-        else '--entrypoint "bash" local/airflow "-c" "python -c \'import airflow_client.client; print(airflow_client.client.__version__)\'"'
-    )
+    if release_type == "python-client":
+        command = (
+            '--entrypoint "bash" local/airflow "-c" "python -c '
+            "'import airflow_client.client; print(airflow_client.client.__version__)'\""
+        )
+    elif release_type == "airflow-ctl":
+        command = '--entrypoint "airflowctl" local/airflow --help'
+    else:
+        command = '--entrypoint "airflow" local/airflow info'
     console.print(
         f"""\
         docker build -f {output_file} --tag local/airflow .

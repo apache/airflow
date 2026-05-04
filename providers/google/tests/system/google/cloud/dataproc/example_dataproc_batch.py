@@ -140,7 +140,8 @@ with DAG(
         task_id="cancel_operation",
         project_id=PROJECT_ID,
         region=REGION,
-        operation_name="{{ task_instance.xcom_pull('create_batch_4')['operation'] }}",
+        # verbose form: "{{ task_instance.xcom_pull('create_batch_4')['operation'] }}"
+        operation_name=create_batch_4.output["operation"],
     )
     # [END how_to_cloud_dataproc_cancel_operation_operator]
 
@@ -189,5 +190,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

@@ -22,7 +22,7 @@ from pendulum import local_timezone
 
 import airflow
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 

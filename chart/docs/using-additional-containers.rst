@@ -22,43 +22,47 @@ Sidecar Containers
 ------------------
 
 If you want to deploy your own sidecar container, you can add it through the ``extraContainers`` parameter.
-You can define different containers for the scheduler, webserver, worker, triggerer, Dag processor, flower, create user Job and migrate database Job Pods.
+You can define different containers for the scheduler, api-server, Kubernetes/Celery workers, triggerer, dag processor, flower, create user job and migrate database job pods.
 
-For example, sidecars that sync Dags from object storage.
+For example, sidecars that sync Dags from object storage:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-  scheduler:
-    extraContainers:
-      - name: s3-sync
-        image: my-company/s3-sync:latest
-        imagePullPolicy: Always
-  workers:
-    extraContainers:
-      - name: s3-sync
-        image: my-company/s3-sync:latest
-        imagePullPolicy: Always
+   scheduler:
+     extraContainers:
+       - name: s3-sync
+         image: my-company/s3-sync:latest
+         imagePullPolicy: Always
+
+   workers:
+     kubernetes:
+       extraContainers:
+         - name: s3-sync
+           image: my-company/s3-sync:latest
+           imagePullPolicy: Always
 
 .. note::
 
-   If you use ``workers.extraContainers`` with ``KubernetesExecutor``, you are responsible for signaling
-   sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!
+   If you use ``workers.kubernetes.extraContainers`` (dedicated for ``KubernetesExecutor``), you are responsible for signaling
+   sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process.
 
 
 Init Containers
 ---------------
 
 You can also deploy extra init containers through the ``extraInitContainers`` parameter.
-You can define different containers for the scheduler, webserver, worker, triggerer, Dag processor, create user Job and migrate database Job pods.
+You can define different containers for the scheduler, api-server, Celery/Kubernetes workers, triggerer, dag processor, create user job and migrate database job pods.
 
 For example, an init container that just says hello:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-  scheduler:
-    extraInitContainers:
-      - name: hello
-        image: debian
-        args:
-          - echo
-          - hello
+   scheduler:
+     extraInitContainers:
+       - name: hello
+         image: debian
+         args:
+           - echo
+           - hello

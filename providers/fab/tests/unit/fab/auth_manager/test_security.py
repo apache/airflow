@@ -26,11 +26,25 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
-from flask_appbuilder import Model, expose, has_access
+from flask_appbuilder import expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Date, Float, Integer, String, delete
-from sqlalchemy.orm import Mapped
+
+try:
+    from sqlalchemy.orm import DeclarativeBase, Mapped
+
+    class _TestBase(DeclarativeBase):
+        pass
+
+except ImportError:
+    # SQLAlchemy < 2.0 (e.g. 1.4): declarative_base() returns the base class directly.
+    from typing import Any
+
+    from sqlalchemy.orm import declarative_base
+
+    _TestBase = declarative_base()  # type: ignore[assignment,misc]
+    Mapped = Any  # type: ignore[assignment,misc]
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.models import DagModel
@@ -52,7 +66,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from unit.fab.auth_manager.test_utils import (
     create_user,
     create_user_scope,
     delete_role,
@@ -92,7 +106,7 @@ class MockSecurityManager(FabAirflowSecurityManagerOverride):
     }
 
 
-class SomeModel(Model):
+class SomeModel(_TestBase):
     __tablename__ = "some_model"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -221,8 +235,15 @@ def app():
     ):
         _app = application.create_app(enable_plugins=False)
         _app.config["WTF_CSRF_ENABLED"] = False
-        with _app.app_context():
-            yield _app
+        try:
+            with _app.app_context():
+                yield _app
+        finally:
+            # Dispose the flask_sqlalchemy per-app engine so its pooled
+            # connections don't survive the module in long CI runs.
+            with _app.app_context():
+                for fab_engine in _app.extensions["sqlalchemy"].engines.values():
+                    fab_engine.dispose()
 
 
 @pytest.fixture(scope="module")
@@ -1194,3 +1215,61 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     assert len(users) == 1 + prior_user_count
     delete_user(app, "Test_cbf")
     assert "Error adding new user to database" in caplog.text
+
+
+OVERRIDE_STRING = "airflow.providers.fab.auth_manager.security_manager.override.{}"
+
+
+@mock.patch(OVERRIDE_STRING.format("generate_password_hash"))
+def test_hash_password_uses_fab_password_hash_method(mock_hash, app, security_manager):
+    """_hash_password must forward FAB_PASSWORD_HASH_METHOD from app config to generate_password_hash."""
+    with app.test_request_context():
+        with mock.patch.dict(app.config, {"FAB_PASSWORD_HASH_METHOD": "pbkdf2:sha256"}):
+            security_manager._hash_password("mypassword")
+            mock_hash.assert_called_once_with("mypassword", method="pbkdf2:sha256")
+
+
+@mock.patch(OVERRIDE_STRING.format("generate_password_hash"))
+def test_hash_password_defaults_to_scrypt_when_config_absent(mock_hash, app, security_manager):
+    """_hash_password falls back to scrypt when FAB_PASSWORD_HASH_METHOD is not in config."""
+    with app.test_request_context():
+        with mock.patch.dict(app.config, {}, clear=False) as cfg:
+            cfg.pop("FAB_PASSWORD_HASH_METHOD", None)
+            security_manager._hash_password("mypassword")
+            mock_hash.assert_called_once_with("mypassword", method="scrypt")
+
+
+def test_reset_password_uses_configured_hash_method(app, security_manager):
+    """reset_password must use FAB_PASSWORD_HASH_METHOD, not werkzeug's default."""
+    try:
+        user = create_user(app, "hash_method_reset_test")
+        with app.test_request_context():
+            with mock.patch.dict(app.config, {"FAB_PASSWORD_HASH_METHOD": "pbkdf2:sha256"}):
+                with mock.patch(
+                    OVERRIDE_STRING.format("generate_password_hash"), return_value="hashed_pw"
+                ) as mock_hash:
+                    security_manager.reset_password(user.id, "newpassword")
+                mock_hash.assert_called_with("newpassword", method="pbkdf2:sha256")
+    finally:
+        delete_user(app, "hash_method_reset_test")
+
+
+@mock.patch(OVERRIDE_STRING.format("generate_password_hash"))
+def test_add_user_uses_configured_hash_method(mock_hash, app, security_manager):
+    """add_user must use FAB_PASSWORD_HASH_METHOD, not werkzeug's default."""
+    mock_hash.return_value = "hashed_pw"
+    with app.test_request_context():
+        with mock.patch.dict(app.config, {"FAB_PASSWORD_HASH_METHOD": "pbkdf2:sha256"}):
+            role = security_manager.find_role("Admin")
+            try:
+                security_manager.add_user(
+                    username="hash_method_add_test",
+                    first_name="Hash",
+                    last_name="Test",
+                    email="hash_method_add_test@example.com",
+                    role=role,
+                    password="plaintext",
+                )
+                mock_hash.assert_called_with("plaintext", method="pbkdf2:sha256")
+            finally:
+                delete_user(app, "hash_method_add_test")

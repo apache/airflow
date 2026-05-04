@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+import msgspec
 import pendulum
 import pytest
 import time_machine
@@ -35,13 +36,16 @@ from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseOperator, task
+from airflow.sdk import DAG, BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
+from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
@@ -152,47 +156,82 @@ class TestCliDags:
     @pytest.mark.parametrize(
         ("dag_id", "delta", "schedule", "catchup", "first", "second"),
         [
-            (
+            pytest.param(
                 "future_schedule_daily",
                 "timedelta(days=5)",
                 "'0 0 * * *'",
                 "True",
                 jan_6.isoformat(),
                 jan_6.isoformat() + os.linesep + (jan_6 + timedelta(days=1)).isoformat(),
+                id="future_schedule_daily",
             ),
-            (
+            pytest.param(
                 "future_schedule_every_4_hours",
                 "timedelta(days=5)",
                 "timedelta(hours=4)",
                 "True",
                 jan_6.isoformat(),
                 jan_6.isoformat() + os.linesep + (jan_6 + timedelta(hours=4)).isoformat(),
+                id="future_schedule_every_4_hours",
             ),
-            (
+            pytest.param(
                 "future_schedule_once",
                 "timedelta(days=5)",
                 "'@once'",
                 "True",
                 jan_6.isoformat(),
                 jan_6.isoformat() + os.linesep + "None",
+                id="future_schedule_once",
             ),
-            ("future_schedule_none", "timedelta(days=5)", "None", "True", "None", "None"),
-            ("past_schedule_once", "timedelta(days=-5)", "'@once'", "True", dec_27.isoformat(), "None"),
-            (
+            pytest.param(
+                "future_schedule_none",
+                "timedelta(days=5)",
+                "None",
+                "True",
+                "None",
+                "None",
+                id="future_schedule_none",
+            ),
+            pytest.param(
+                "past_schedule_once",
+                "timedelta(days=-5)",
+                "'@once'",
+                "True",
+                dec_27.isoformat(),
+                "None",
+                id="past_schedule_once",
+            ),
+            pytest.param(
                 "past_schedule_daily",
                 "timedelta(days=-5)",
                 "'0 0 * * *'",
                 "True",
                 dec_27.isoformat(),
                 dec_27.isoformat() + os.linesep + (dec_27 + timedelta(days=1)).isoformat(),
+                id="past_schedule_daily",
             ),
-            (
+            pytest.param(
                 "past_schedule_daily_catchup_false",
                 "timedelta(days=-5)",
                 "'0 0 * * *'",
                 "False",
                 (jan_1 - timedelta(days=1)).isoformat(),
                 (jan_1 - timedelta(days=1)).isoformat() + os.linesep + jan_1.isoformat(),
+                id="past_schedule_daily_catchup_false",
+            ),
+            pytest.param(
+                "partition_key",
+                "timedelta(days=-5)",
+                "CronPartitionTimetable('0 0 * * *', timezone='UTC')",
+                "False",
+                jan_1.strftime(r"%Y-%m-%dT%H:%M:%S"),
+                os.linesep.join(
+                    [
+                        jan_1.strftime(r"%Y-%m-%dT%H:%M:%S"),
+                        (jan_1 + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
+                    ],
+                ),
+                id="partitioned",
             ),
         ],
     )
@@ -201,6 +240,7 @@ class TestCliDags:
             [
                 "from airflow import DAG",
                 "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from airflow.timetables.trigger import CronPartitionTimetable",
                 "from datetime import timedelta; from pendulum import today",
                 f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + {delta}, schedule={schedule}, catchup={catchup})",
                 "task = EmptyOperator(task_id='empty_task',dag=dag)",
@@ -1034,3 +1074,62 @@ class TestCliDagsReserialize:
 
         serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
         assert serialized_dag_ids == {"test_example_bash_operator", "test_sensor"}
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_make_equal_hash_with_dag_processor(self, configure_dag_bundles, session):
+        bundles = {"bundle_reserialize": TEST_DAGS_FOLDER / "test_dag_reserialize.py"}
+        with configure_dag_bundles(bundles):
+            dag_command.dag_reserialize(
+                self.parser.parse_args(["dags", "reserialize", "--bundle-name", "bundle_reserialize"])
+            )
+
+        dagbag = DagBag(bundles["bundle_reserialize"], bundle_path=bundles["bundle_reserialize"])
+        dag_parsing_result = DagFileParsingResult(
+            fileloc=bundles["bundle_reserialize"].name,
+            serialized_dags=[
+                LazyDeserializedDAG(data=DagSerialization.to_dict(dag)) for dag in dagbag.dags.values()
+            ],
+        )
+
+        frame = _ResponseFrame(id=0, body=dag_parsing_result.model_dump()).as_bytes()
+        request_frame = msgspec.msgpack.Decoder[_RequestFrame](_RequestFrame).decode(frame[4:])
+        dag_processor_parsing_result = DagFileProcessorProcess.decoder.validate_python(request_frame.body)
+
+        serialized_dag_hash = list(session.execute(select(SerializedDagModel.dag_hash)).scalars())
+
+        assert len(dag_processor_parsing_result.serialized_dags) == 1
+        assert len(serialized_dag_hash) == 1
+        assert dag_processor_parsing_result.serialized_dags[0].hash == serialized_dag_hash[0]
+
+
+class TestDagDetailsIsBackfillable:
+    """Tests for the is_backfillable computation in _get_dagbag_dag_details."""
+
+    @pytest.mark.parametrize(
+        ("schedule", "allowed_run_types", "expected"),
+        [
+            pytest.param("@daily", None, True, id="periodic-allowed-none"),
+            pytest.param(
+                "@daily",
+                [DagRunType.SCHEDULED, DagRunType.MANUAL, DagRunType.BACKFILL_JOB],
+                True,
+                id="periodic-backfill-included",
+            ),
+            pytest.param(
+                "@daily",
+                [DagRunType.SCHEDULED, DagRunType.MANUAL],
+                False,
+                id="periodic-backfill-excluded",
+            ),
+            pytest.param(None, None, False, id="non-periodic-null-schedule"),
+            pytest.param("@once", None, False, id="non-periodic-once-schedule"),
+        ],
+    )
+    def test_is_backfillable(self, schedule, allowed_run_types, expected):
+        dag = DAG(
+            dag_id="test_is_backfillable",
+            schedule=schedule,
+            allowed_run_types=allowed_run_types,
+        )
+        dag_details = dag_command._get_dagbag_dag_details(dag)
+        assert dag_details["is_backfillable"] is expected

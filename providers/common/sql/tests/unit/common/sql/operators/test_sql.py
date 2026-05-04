@@ -605,6 +605,21 @@ class TestTableCheckOperator:
         finally:
             hook.run(["DROP TABLE employees"])
 
+    def test_sql_check_accept_none_true(self, monkeypatch):
+        """Validate that empty table does not fail when accept_none=True."""
+        records = []
+        operator = self._construct_operator(monkeypatch, self.checks, records)
+        operator.accept_none = True
+        operator.execute(context=MagicMock())
+
+    def test_sql_check_accept_none_false(self, monkeypatch):
+        """Validate that empty table throws an exception when accept_none=False."""
+        records = []
+        operator = self._construct_operator(monkeypatch, self.checks, records)
+        operator.accept_none = False  # This is default, technically
+        with pytest.raises(AirflowException):
+            operator.execute(context=MagicMock())
+
     def test_pass_all_checks_check(self, monkeypatch):
         records = [("row_count_check", 1), ("column_sum_check", "y")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
@@ -1655,13 +1670,15 @@ class TestSQLInsertRowsOperator:
             conn_id="default_conn",
             schema="hollywood",
             table_name="actors",
-            rows=[
-                {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": 78},
-                {"index": 2, "name": "Statham", "firstname": "Jason", "age": 57},
-                {"index": 3, "name": "Li", "firstname": "Jet", "age": 61},
-                {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": 66},
-                {"index": 5, "name": "Norris", "firstname": "Chuck", "age": 84},
-            ],
+            rows=iter(
+                [
+                    {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": 78},
+                    {"index": 2, "name": "Statham", "firstname": "Jason", "age": 57},
+                    {"index": 3, "name": "Li", "firstname": "Jet", "age": 61},
+                    {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": 66},
+                    {"index": 5, "name": "Norris", "firstname": "Chuck", "age": 84},
+                ]
+            ),
             rows_processor=lambda rows, **context: [tuple(row.values()) for row in rows],
         )
 

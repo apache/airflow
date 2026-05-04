@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
@@ -36,7 +37,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryBundleNameFilter,
     QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
+    QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
+    QueryDagIdPrefixPatternSearch,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -52,7 +55,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
@@ -78,6 +81,9 @@ dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
     response_model_exclude_none=True,
     dependencies=[
         Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
     operation_id="get_dags_ui",
 )
@@ -91,7 +97,9 @@ def get_dags(
         Depends(filter_param_factory(DagModel.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
     ],
     dag_id_pattern: QueryDagIdPatternSearch,
+    dag_id_prefix_pattern: QueryDagIdPrefixPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
+    dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     has_import_errors: QueryHasImportErrorsFilter,
@@ -117,8 +125,8 @@ def get_dags(
     user: GetUserDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
-    """Get DAGs with recent DagRun."""
-    # Fetch DAGs with their latest DagRun and apply filters
+    """Get Dags with recent DagRun."""
+    # Fetch Dags with their latest DagRun and apply filters
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
             last_dag_run_state,
@@ -134,8 +142,10 @@ def get_dags(
             paused,
             has_import_errors,
             dag_id_pattern,
+            dag_id_prefix_pattern,
             dag_ids,
             dag_display_name_pattern,
+            dag_display_name_prefix_pattern,
             tags,
             owners,
             last_dag_run_state,
@@ -155,14 +165,14 @@ def get_dags(
 
     dags = [dag for dag in session.scalars(dags_select)]
 
-    # Fetch favorite status for each DAG for the current user
+    # Fetch favorite status for each Dag for the current user
     user_id = str(user.get_id())
     favorites_select = select(DagFavorite.dag_id).where(
         DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
     )
     favorite_dag_ids = set(session.scalars(favorites_select))
 
-    # Populate the last 'dag_runs_limit' DagRuns for each DAG
+    # Populate the last 'dag_runs_limit' DagRuns for each Dag
     recent_runs_subquery = (
         select(
             DagRun.dag_id,
@@ -219,6 +229,9 @@ def get_dags(
                 HITLDetail,
             )
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
+            .options(
+                defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
+            )
             .where(
                 HITLDetail.responded_at.is_(None),
                 TaskInstance.state == TaskInstanceState.DEFERRED,
@@ -234,18 +247,25 @@ def get_dags(
             pending_actions_by_dag_id[dag_id].append(hitl_detail)
 
     # aggregate rows by dag_id
-    dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {
-        dag.dag_id: DAGWithLatestDagRunsResponse.model_validate(
+    # Build the dict dynamically from DAGResponse.model_fields so that new fields
+    # added to DAGResponse are picked up automatically without code changes here.
+    dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {}
+    for dag in dags:
+        dag_data = {
+            DAG_ALIAS_MAPPING.get(field_name, field_name): getattr(
+                dag, DAG_ALIAS_MAPPING.get(field_name, field_name)
+            )
+            for field_name in DAGResponse.model_fields
+        }
+        dag_data.update(
             {
-                **DAGResponse.model_validate(dag).model_dump(),
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
             }
         )
-        for dag in dags
-    }
+        dag_runs_by_dag_id[dag.dag_id] = DAGWithLatestDagRunsResponse.model_validate(dag_data)
 
     for row in recent_dag_runs:
         dag_run_response = DAGRunLightResponse.model_validate(row)

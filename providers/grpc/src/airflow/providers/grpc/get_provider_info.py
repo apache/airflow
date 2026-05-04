@@ -27,7 +27,12 @@ def get_provider_info():
         "name": "gRPC",
         "description": "`gRPC <https://grpc.io/>`__\n",
         "integrations": [
-            {"integration-name": "gRPC", "external-doc-url": "https://grpc.io/", "tags": ["protocol"]}
+            {
+                "integration-name": "gRPC",
+                "external-doc-url": "https://grpc.io/",
+                "logo": "/docs/integration-logos/gRPC.png",
+                "tags": ["protocol"],
+            }
         ],
         "operators": [
             {"integration-name": "gRPC", "python-modules": ["airflow.providers.grpc.operators.grpc"]}
@@ -36,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.grpc.hooks.grpc.GrpcHook",
+                "hook-name": "GRPC Connection",
                 "connection-type": "grpc",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "password", "schema", "extra"],

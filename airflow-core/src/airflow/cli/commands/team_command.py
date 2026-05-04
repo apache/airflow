@@ -61,7 +61,7 @@ def _extract_team_name(args):
 @providers_configuration_loaded
 @provide_session
 def team_create(args, session=NEW_SESSION):
-    """Create a new team."""
+    """Create a new team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores."""
     team_name = _extract_team_name(args)
 
     # Check if team with this name already exists

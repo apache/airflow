@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -42,16 +42,12 @@ export class AssetListPage extends BasePage {
     this.emptyState = page.getByText(/no items/i);
   }
 
-  public async assetCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async assetNames(): Promise<Array<string>> {
-    return this.rows.locator("td a").allTextContents();
-  }
-
   public async navigate(): Promise<void> {
-    await this.navigateTo("/assets");
+    await expect(async () => {
+      await this.navigateTo("/assets");
+      await this.page.waitForURL(/.*assets/, { timeout: 10_000 });
+      await this.waitForLoad();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async openFirstAsset(): Promise<string> {
@@ -71,31 +67,11 @@ export class AssetListPage extends BasePage {
 
   public async search(value: string): Promise<void> {
     await this.searchInput.fill(value);
-    await this.waitForTableData();
+    await this.waitForLoad();
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  private async waitForTableData(): Promise<void> {
-    // Wait for actual data links to appear (not skeleton loaders)
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        // Check for actual links in tbody (real data, not skeleton)
-        const links = table.querySelectorAll("tbody tr td a");
-
-        return links.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.locator("td a").first()).toBeVisible();
   }
 }

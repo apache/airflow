@@ -33,7 +33,7 @@ import psutil
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.edge3.cli.dataclasses import MaintenanceMarker, WorkerStatus
 from airflow.providers.edge3.cli.signalling import (
     EDGE_WORKER_PROCESS_NAME,
@@ -95,9 +95,8 @@ def _launch_worker(args):
         hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
-        job_poll_interval=conf.getint("edge", "job_poll_interval"),
-        heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
         daemon=args.daemon,
+        team_name=getattr(args, "team_name", None),
     )
     asyncio.run(edge_worker.start())
 
@@ -423,6 +422,30 @@ def remove_worker_queues(args) -> None:
         remove_worker_queues(args.edge_hostname, queues)
         logger.info(
             "Removed queues %s from Edge Worker host %s by %s.", queues, args.edge_hostname, getuser()
+        )
+    except TypeError as e:
+        logger.error(str(e))
+        raise SystemExit
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def set_remote_worker_concurrency(args) -> None:
+    """Set the concurrency of a remote edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import set_worker_concurrency
+
+    if args.concurrency <= 0:
+        raise SystemExit("Error: Concurrency must be a positive integer.")
+
+    try:
+        set_worker_concurrency(args.edge_hostname, args.concurrency)
+        logger.info(
+            "Concurrency set to %d for Edge Worker host %s by %s.",
+            args.concurrency,
+            args.edge_hostname,
+            getuser(),
         )
     except TypeError as e:
         logger.error(str(e))

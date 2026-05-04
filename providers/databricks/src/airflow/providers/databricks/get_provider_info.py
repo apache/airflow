@@ -117,6 +117,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.databricks.hooks.databricks.DatabricksHook",
+                "hook-name": "Databricks",
                 "connection-type": "databricks",
             }
         ],

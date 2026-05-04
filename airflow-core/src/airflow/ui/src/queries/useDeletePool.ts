@@ -21,19 +21,21 @@ import { useTranslation } from "react-i18next";
 
 import { usePoolServiceDeletePool, usePoolServiceGetPoolsKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 export const useDeletePool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation(["common", "admin"]);
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.delete.error", {
-        resourceName: translate("admin:pools.pool_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("admin:pools.pool_one") },
+        titleKey: "toaster.delete.error",
+      },
+      translate,
+    );
   };
 
   const onSuccess = async () => {

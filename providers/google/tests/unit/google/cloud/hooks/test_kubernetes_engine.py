@@ -529,7 +529,10 @@ class TestGKEKubernetesAsyncHook:
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
     async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         caplog.set_level(logging.INFO)
-        self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
+        # As logs are read in raw mode, need to mock the response object plus read method
+        response_mock = mock.AsyncMock()
+        response_mock.read.return_value = b"Test string #1\nTest string #2\n"
+        self.make_mock_awaitable(read_namespaced_pod_log, result=response_mock)
 
         logs = await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
@@ -539,8 +542,7 @@ class TestGKEKubernetesAsyncHook:
             namespace=POD_NAMESPACE,
             follow=False,
             timestamps=True,
-            container=None,
-            since_seconds=None,
+            _preload_content=False,
         )
         assert "Test string #1" in logs
         assert "Test string #2" in logs

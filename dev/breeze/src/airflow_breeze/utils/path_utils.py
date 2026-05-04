@@ -30,7 +30,7 @@ import tempfile
 from pathlib import Path
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.reinstall import inform_about_self_upgrade, reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
@@ -131,17 +131,19 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-
-    res = subprocess.run(
-        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
-        cwd=MY_BREEZE_ROOT_PATH,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    if "Modified" in res.stderr:
-        inform_about_self_upgrade()
-        return True
+    try:
+        res = subprocess.run(
+            ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+            cwd=MY_BREEZE_ROOT_PATH,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if res.returncode == 0 and "Modified" in res.stderr:
+            inform_about_self_upgrade()
+            return True
+    except FileNotFoundError:
+        pass
     return False
 
 
@@ -210,7 +212,7 @@ def find_airflow_root_path_to_operate_on() -> Path:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
-        get_console().print(
+        console_print(
             "\n[error]Breeze should only be installed with --editable flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
@@ -227,13 +229,13 @@ def find_airflow_root_path_to_operate_on() -> Path:
     os.chdir(airflow_sources.as_posix())
     airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
     if airflow_sources.resolve() == airflow_home_dir.resolve():
-        get_console().print(
+        console_print(
             f"\n[error]Your Airflow sources are checked out in {airflow_home_dir} which "
             f"is your also your AIRFLOW_HOME where airflow writes logs and database. \n"
             f"This is a bad idea because Airflow might override and cleanup your checked out "
             f"sources and .git repository.[/]\n"
         )
-        get_console().print("\nPlease check out your Airflow code elsewhere.\n")
+        console_print("\nPlease check out your Airflow code elsewhere.\n")
         sys.exit(1)
     return airflow_sources
 
@@ -259,6 +261,10 @@ TASK_SDK_SOURCES_PATH = TASK_SDK_ROOT_PATH / "src"
 AIRFLOW_CTL_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-ctl"
 AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
 AIRFLOW_CTL_DIST_PATH = AIRFLOW_CTL_ROOT_PATH / "dist"
+
+MYPY_ROOT_PATH = AIRFLOW_ROOT_PATH / "dev" / "mypy"
+MYPY_SOURCES_PATH = MYPY_ROOT_PATH / "src"
+MYPY_DIST_PATH = MYPY_ROOT_PATH / "dist"
 
 # Same here - do not remove those this is used for past commit retrieval
 PREVIOUS_AIRFLOW_PROVIDERS_SOURCES_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "src"
@@ -304,6 +310,23 @@ FAB_AUTH_MANAGER_WWW_PATH = (
 FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH = FAB_AUTH_MANAGER_WWW_PATH / "node_modules"
 FAB_AUTH_MANAGER_WWW_DIST_PATH = FAB_AUTH_MANAGER_WWW_PATH / "static" / "dist"
 FAB_AUTH_MANAGER_WWW_PREK_HOOK = "compile-fab-assets"
+
+COMMON_AI_PLUGIN_PATH = (
+    AIRFLOW_PROVIDERS_ROOT_PATH
+    / "common"
+    / "ai"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "common"
+    / "ai"
+    / "plugins"
+    / "www"
+)
+COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH = COMMON_AI_PLUGIN_PATH / "node_modules"
+COMMON_AI_UI_PLUGIN_DIST_PATH = COMMON_AI_PLUGIN_PATH / "dist"
+COMMON_AI_PLUGIN_PREK_HOOK = "compile-common-ai-provider-assets"
+
 
 DAGS_PATH = AIRFLOW_ROOT_PATH / "dags"
 FILES_PATH = AIRFLOW_ROOT_PATH / "files"
@@ -369,7 +392,7 @@ def create_volume_if_missing(volume_name: str):
             capture_output=True,
         )
         if result.returncode != 0:
-            get_console().print(
+            console_print(
                 "[warning]\nMypy Cache volume could not be created. Continuing, but you "
                 "should make sure your docker works.\n\n"
                 f"Error: {result.stdout}\n"
@@ -399,29 +422,33 @@ def create_directories_and_files() -> None:
 
 def cleanup_python_generated_files():
     if get_verbose():
-        get_console().print("[info]Cleaning .pyc and __pycache__")
+        console_print("[info]Cleaning .pyc and __pycache__")
     permission_errors = []
-    for path in AIRFLOW_ROOT_PATH.rglob("*.pyc"):
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            # File has been removed in the meantime.
-            pass
-        except PermissionError:
-            permission_errors.append(path)
-    for path in AIRFLOW_ROOT_PATH.rglob("__pycache__"):
-        try:
-            shutil.rmtree(path)
-        except FileNotFoundError:
-            # File has been removed in the meantime.
-            pass
-        except PermissionError:
-            permission_errors.append(path)
+    for dirpath, dirnames, filenames in os.walk(AIRFLOW_ROOT_PATH):
+        # Skip node_modules and hidden directories (.*) — modify in place to prune os.walk
+        dirnames[:] = [d for d in dirnames if d != "node_modules" and not d.startswith(".")]
+        for filename in filenames:
+            if filename.endswith(".pyc"):
+                path = Path(dirpath) / filename
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+                except PermissionError:
+                    permission_errors.append(path)
+        if Path(dirpath).name == "__pycache__":
+            try:
+                shutil.rmtree(dirpath)
+            except FileNotFoundError:
+                pass
+            except PermissionError:
+                permission_errors.append(Path(dirpath))
+            dirnames.clear()
     if permission_errors:
         if platform.uname().system.lower() == "linux":
-            get_console().print("[warning]There were files that you could not clean-up:\n")
-            get_console().print(permission_errors)
-            get_console().print(
+            console_print("[warning]There were files that you could not clean-up:\n")
+            console_print(permission_errors)
+            console_print(
                 "Please run at earliest convenience:\n"
                 "[warning]breeze ci fix-ownership[/]\n\n"
                 "If you have sudo you can use:\n"
@@ -430,8 +457,34 @@ def cleanup_python_generated_files():
                 "You can also remove those files manually using sudo."
             )
         else:
-            get_console().print("[warnings]There were files that you could not clean-up:\n")
-            get_console().print(permission_errors)
-            get_console().print("You can also remove those files manually using sudo.")
+            console_print("[warnings]There were files that you could not clean-up:\n")
+            console_print(permission_errors)
+            console_print("You can also remove those files manually using sudo.")
     if get_verbose():
-        get_console().print("[info]Cleaned")
+        console_print("[info]Cleaned")
+
+
+def get_main_git_dir_for_worktree() -> Path | None:
+    """
+    Detect if we are in a git worktree and return the main repository's .git directory.
+
+    Git worktrees store a ``.git`` *file* (not a directory) containing a ``gitdir:`` reference
+    pointing to ``<main-repo>/.git/worktrees/<name>``.  This helper resolves that reference
+    (handling both absolute and relative paths) and returns the main ``.git`` directory
+    (i.e. the grandparent of the ``gitdir`` path).
+
+    :return: Absolute path to the main repository's ``.git`` directory, or ``None``
+             if the current checkout is not a worktree.
+    """
+    git_path = AIRFLOW_ROOT_PATH / ".git"
+    if git_path.is_file():
+        git_content = git_path.read_text().strip()
+        if git_content.startswith("gitdir:"):
+            gitdir = Path(git_content.removeprefix("gitdir:").strip())
+            if not gitdir.is_absolute():
+                gitdir = (AIRFLOW_ROOT_PATH / gitdir).resolve()
+            # gitdir points to <main-repo>/.git/worktrees/<name>
+            # .parent.parent gives us <main-repo>/.git
+            main_git_dir = gitdir.parent.parent
+            return main_git_dir if main_git_dir.is_dir() else None
+    return None

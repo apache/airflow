@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import enum
 import functools
 import itertools
 import json
@@ -39,10 +40,10 @@ import jinja2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
-from airflow.sdk import TaskInstanceState, TriggerRule
+from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
-from airflow.sdk.definitions._internal.node import validate_key
+from airflow.sdk.definitions._internal.node import DAGNode, validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
@@ -54,6 +55,7 @@ from airflow.sdk.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
     FailFastDagInvalidTriggerRule,
+    NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
     TaskNotFound,
@@ -61,12 +63,13 @@ from airflow.sdk.exceptions import (
 
 if TYPE_CHECKING:
     from re import Pattern
-    from typing import TypeAlias
+    from typing import TypeAlias, TypeVar
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from typing_extensions import Self, TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk.api.datamodels._generated import DagRunType
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -75,6 +78,8 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
 
     Operator: TypeAlias = BaseOperator | MappedOperator
+
+    X = TypeVar("X", bound=XComArg)
 
 log = logging.getLogger(__name__)
 
@@ -204,6 +209,19 @@ def _convert_access_control(access_control):
         else:
             updated_access_control[role] = perms
     return updated_access_control
+
+
+def _convert_allowed_run_types(
+    val: DagRunType | Collection[DagRunType] | None,
+) -> frozenset[DagRunType] | None:
+    """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
+    if val is None:
+        return None
+    from airflow.sdk.api.datamodels._generated import DagRunType
+
+    if isinstance(val, enum.Enum):
+        val = [val]
+    return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
 
 def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
@@ -347,7 +365,7 @@ class DAG:
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :param max_active_tasks: the number of task instances allowed to run
-        concurrently
+        concurrently per Dag run. Note that in Airflow 2 this was a global limit on the Dag, since Airflow 3 it is per run.
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
@@ -396,6 +414,8 @@ class DAG:
     :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param allowed_run_types: An optional list or single DagRunType specifying which run types are
+        permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
     """
 
@@ -503,6 +523,9 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
+    allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
+        default=None, converter=_convert_allowed_run_types
+    )
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
@@ -589,6 +612,29 @@ class DAG:
     def _validate_tags(self, _, tags: Collection[str]):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+
+    @allowed_run_types.validator
+    def _validate_allowed_run_types(self, _, allowed_run_types):
+        if not allowed_run_types:
+            return
+        from airflow.sdk.api.datamodels._generated import DagRunType
+
+        if isinstance(self.timetable, AssetTriggeredTimetable):
+            if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
+                )
+        elif self.timetable.can_be_scheduled:
+            if DagRunType.SCHEDULED not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include SCHEDULED when the Dag has a schedule defined"
+                )
+        else:
+            if DagRunType.MANUAL not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include MANUAL when the Dag "
+                    "has no schedule defined (schedule=None)"
+                )
 
     @max_active_runs.validator
     def _validate_max_active_runs(self, _, max_active_runs):
@@ -987,6 +1033,14 @@ class DAG:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
 
+    def __getitem__(self, node_id: str) -> DAGNode:
+        """Return a task or task group by its fully-qualified ID."""
+        if (node := self.task_dict.get(node_id)) is not None:
+            return node
+        if (tg := self.task_group_dict.get(node_id)) is not None:
+            return tg
+        raise NodeNotFound(f"Task or group {node_id!r} not found")
+
     @property
     def task(self) -> TaskDecoratorCollection:
         from airflow.sdk.definitions.decorators import task
@@ -1054,6 +1108,16 @@ class DAG:
         tg = getattr(task, "task_group", None)
         if tg:
             tg._remove(task)
+
+    def add_result(self, xcom_arg: X) -> X:
+        from airflow.sdk.bases.xcom import BaseXCom
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
+
+        if not isinstance(xcom_arg, PlainXComArg) or xcom_arg.key != BaseXCom.XCOM_RETURN_KEY:
+            raise ValueError("Only plain return value can be used as dag result")
+
+        xcom_arg.operator.returns_dag_result = True
+        return xcom_arg
 
     def check_cycle(self) -> None:
         """
@@ -1225,34 +1289,54 @@ class DAG:
             else:
                 timetable = coerce_to_core_timetable(self.timetable)
                 data_interval = timetable.infer_manual_data_interval(run_after=logical_date)
+            # These imports are intentionally lazy: this Task SDK module must not
+            # pull in airflow-core at import time (worker isolation).
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+            from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
+            from airflow.models.dag import DagModel
             from airflow.models.dag_version import DagVersion
 
-            version = DagVersion.get_version(self.dag_id)
-            if not version:
-                from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
-                from airflow.sdk.definitions._internal.dag_parsing_context import (
-                    _airflow_parsing_context_manager,
-                )
+            manager = DagBundlesManager()
+            manager.sync_bundles_to_db(session=session)
+            session.commit()
 
-                manager = DagBundlesManager()
-                manager.sync_bundles_to_db(session=session)
-                session.commit()
-                # sync all bundles? or use the dags-folder bundle?
-                # What if the test dag is in a different bundle?
-                for bundle in manager.get_all_dag_bundles():
-                    if not bundle.is_initialized:
-                        bundle.initialize()
-                    with _airflow_parsing_context_manager(dag_id=self.dag_id):
-                        dagbag = BundleDagBag(
-                            dag_folder=bundle.path,
-                            bundle_path=bundle.path,
-                            bundle_name=bundle.name,
-                        )
-                        sync_bag_to_db(dagbag, bundle.name, bundle.version)
-                    version = DagVersion.get_version(self.dag_id)
-                    if version:
-                        break
+            # Re-sync the bundle that owns ``self`` so sibling DAGs (e.g. targets of
+            # TriggerDagRunOperator) are written to the metadata DB on every call,
+            # not just the first one (apache/airflow#64884). When we can identify
+            # ``self``'s bundle from a prior sync we walk only that bundle; otherwise
+            # we walk every configured bundle until we find it. ``sync_bag_to_db``
+            # is idempotent at the per-DAG hash level.
+            #
+            # Note: we deliberately do NOT use ``_airflow_parsing_context_manager``
+            # here. Setting ``_AIRFLOW_PARSING_CONTEXT_DAG_ID`` to ``self.dag_id``
+            # would cause DAG files that follow the documented dynamic-DAG
+            # optimization (early-return when the parsing context dag_id doesn't
+            # match) to omit sibling DAGs from the bag, defeating the whole point
+            # of this re-sync.
+            all_bundles = list(manager.get_all_dag_bundles())
+            existing_dm = DagModel.get_current(self.dag_id, session=session)
+            existing_bundle_name = existing_dm.bundle_name if existing_dm else None
+            owning = (
+                [b for b in all_bundles if b.name == existing_bundle_name]
+                if existing_bundle_name is not None
+                else []
+            )
+            # If the recorded bundle is no longer in the configured bundle list
+            # (renamed / removed), fall back to walking all bundles so the sync
+            # doesn't silently skip.
+            bundles_to_sync = owning if owning else all_bundles
+
+            for bundle in bundles_to_sync:
+                if not bundle.is_initialized:
+                    bundle.initialize()
+                dagbag = BundleDagBag(
+                    dag_folder=bundle.path,
+                    bundle_path=bundle.path,
+                    bundle_name=bundle.name,
+                )
+                sync_bag_to_db(dagbag, bundle.name, bundle.version)
+                if DagVersion.get_version(self.dag_id):
+                    break
 
             # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
@@ -1281,10 +1365,6 @@ class DAG:
                 triggered_by=DagRunTriggeredByType.TEST,
                 triggering_user_name="dag_test",
             )
-            # Start a mock span so that one is present and not started downstream. We
-            # don't care about otel in dag.test and starting the span during dagrun update
-            # is not functioning properly in this context anyway.
-            dr.start_dr_spans_if_needed(tis=[])
 
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
@@ -1526,6 +1606,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
+        allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:

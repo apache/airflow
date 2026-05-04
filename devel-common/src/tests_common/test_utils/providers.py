@@ -18,6 +18,9 @@
 from __future__ import annotations
 
 import semver
+import yaml
+
+from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH
 
 
 def object_exists(path: str):
@@ -62,3 +65,20 @@ def get_provider_min_airflow_version(provider_name: str) -> tuple[int, ...]:
             f"The provider should have `apache-airflow>=` in their dependencies: {provider_name}"
         )
     return Version(airflow_dep.split(">=")[1]).release
+
+
+# Ignore module import errors for any suspended provider paths used in example dags
+IGNORE_MODULE_IMPORT_ERRORS: list[str] = ["airflow.providers.apache.beam"]
+
+
+def get_suspended_providers_folders() -> list[str]:
+    """
+    Returns a list of suspended providers folders that should be
+    skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
+    """
+    suspended_providers = []
+    for provider_path in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        provider_yaml = yaml.safe_load(provider_path.read_text())
+        if provider_yaml["state"] == "suspended":
+            suspended_providers.append(provider_path.parent.resolve().as_posix())
+    return suspended_providers

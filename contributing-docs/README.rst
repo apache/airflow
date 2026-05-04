@@ -128,3 +128,11 @@ You can also dive deeper into more specific areas that are important for contrib
 
 * `Debugging Airflow Components <20_debugging_airflow_components.rst>`__ describes how to debug
   Airflow components using Breeze with debugpy and VSCode integration.
+
+Maintainer Tools
+.................
+
+* `Maintainer PR Triage and Review <25_maintainer_pr_triage.md>`__ describes the agentic
+  ``pr-triage`` and ``pr-stats`` skills that maintainers invoke from Claude Code to sweep the
+  open Pull Request queue (run deterministic quality checks, propose actions under explicit
+  per-batch confirmation) and to surface backlog statistics by ``area:*`` label.

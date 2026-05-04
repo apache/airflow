@@ -48,10 +48,10 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.1.7"
+ARG AIRFLOW_VERSION="3.2.1"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.12.12"
+ARG AIRFLOW_PYTHON_VERSION="3.13.13"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
 #
@@ -71,9 +71,9 @@ ARG PYTHON_LTO="true"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.0.1
+ARG AIRFLOW_PIP_VERSION=26.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.4
+ARG AIRFLOW_UV_VERSION=0.11.8
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -122,6 +122,9 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
+COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
@@ -345,6 +348,26 @@ function install_debian_runtime_dependencies() {
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
+function install_cosign() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A cosign_sha256s=(
+        # https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign_checksums.txt
+        [amd64]="db15cc99e6e4837daabab023742aaddc3841ce57f193d11b7c3e06c8003642b2"
+        [arm64]="d098f3168ae4b3aa70b4ca78947329b953272b487727d1722cb3cb098a1a20ab"
+    )
+    local cosign_sha256="${cosign_sha256s[${arch}]}"
+    if [[ -z "${cosign_sha256}" ]]; then
+        echo "Unsupported architecture for cosign: ${arch}"
+        exit 1
+    fi
+    curl -fsSL \
+        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
+        -o /tmp/cosign
+    echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
+    chmod +x /tmp/cosign
+}
+
 function install_python() {
     # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
     # to fail and make sure that it is not there, because there can be strange interactions if we install
@@ -368,33 +391,58 @@ function install_python() {
         echo
     fi
     wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
-    wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
-    declare -A keys=(
-        # gpg: key B26995E310250568: public key "\xc5\x81ukasz Langa (GPG langa.pl) <lukasz@langa.pl>" imported
-        # https://peps.python.org/pep-0596/#release-manager-and-crew
-        [3.9]="E3FF2839C048B25C084DEBE9B26995E310250568"
-        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
-        # https://peps.python.org/pep-0619/#release-manager-and-crew
-        [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
-        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
-        # https://peps.python.org/pep-0664/#release-manager-and-crew
-        [3.11]="A035C8C19219BA821ECEA86B64E628F8D684696D"
-        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
-        # https://peps.python.org/pep-0693/#release-manager-and-crew
-        [3.12]="7169605F62C751356D054A26A821E680E5FA6305"
-        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
-        # https://peps.python.org/pep-0719/#release-manager-and-crew
-        [3.13]="7169605F62C751356D054A26A821E680E5FA6305"
-    )
+    local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    local major minor
+    major="${major_minor_version%.*}"
+    minor="${major_minor_version#*.}"
     echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
-    GNUPGHOME="$(mktemp -d)"; export GNUPGHOME;
-    gpg_key="${keys[${major_minor_version}]}"
-    echo "Using GPG key ${gpg_key}"
-    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
-    gpg --batch --verify python.tar.xz.asc python.tar.xz;
-    gpgconf --kill all
-    rm -rf "$GNUPGHOME" python.tar.xz.asc
+    if [[ "${major}" -gt 3 ]] || [[ "${major}" -eq 3 && "${minor}" -ge 11 ]]; then
+        # Sigstore verification for Python >= 3.11 (PEP 761)
+        declare -A sigstore_identities=(
+            # https://peps.python.org/pep-0664/#release-manager-and-crew
+            [3.11]="pablogsal@python.org"
+            # https://peps.python.org/pep-0693/#release-manager-and-crew
+            [3.12]="thomas@python.org"
+            # https://peps.python.org/pep-0719/#release-manager-and-crew
+            [3.13]="thomas@python.org"
+            # https://peps.python.org/pep-0745/#release-manager-and-crew
+            [3.14]="hugo@python.org"
+        )
+        declare -A sigstore_issuers=(
+            [3.11]="https://accounts.google.com"
+            [3.12]="https://accounts.google.com"
+            [3.13]="https://accounts.google.com"
+            [3.14]="https://github.com/login/oauth"
+        )
+        wget -O python.tar.xz.sigstore \
+            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
+        install_cosign
+        local identity="${sigstore_identities[${major_minor_version}]}"
+        local issuer="${sigstore_issuers[${major_minor_version}]}"
+        /tmp/cosign verify-blob \
+            --bundle python.tar.xz.sigstore \
+            --certificate-identity "${identity}" \
+            --certificate-oidc-issuer "${issuer}" \
+            python.tar.xz
+        rm -f python.tar.xz.sigstore /tmp/cosign
+    else
+        # PGP verification for Python 3.10
+        declare -A keys=(
+            # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+            # https://peps.python.org/pep-0619/#release-manager-and-crew
+            [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        )
+        wget -O python.tar.xz.asc \
+            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
+        GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
+        local gpg_key="${keys[${major_minor_version}]}"
+        echo "Using GPG key ${gpg_key}"
+        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
+        gpg --batch --verify python.tar.xz.asc python.tar.xz
+        gpgconf --kill all
+        rm -rf "${GNUPGHOME}" python.tar.xz.asc
+    fi
     mkdir -p /usr/src/python
     tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
     rm python.tar.xz
@@ -413,12 +461,25 @@ function install_python() {
     if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
         lto_option="--with-lto"
     fi
-    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
-        --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared ${lto_option}
-    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
-        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
-    make -s -j "$(nproc)" install
+    local build_log
+    build_log=$(mktemp)
+    echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
+    if ! (
+        ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+            --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+                --enable-shared ${lto_option} && \
+        make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+            "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
+        make -s -j "$(nproc)" install
+    ) > "${build_log}" 2>&1; then
+        echo
+        echo "ERROR! Python build failed. Build output:"
+        echo
+        cat "${build_log}"
+        rm -f "${build_log}"
+        exit 1
+    fi
+    rm -f "${build_log}"
     cd /
     rm -rf /usr/src/python
     find /usr/python -depth \
@@ -432,6 +493,33 @@ function install_python() {
 function install_golang() {
     curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function install_rustup() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
+    local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init
 }
 
 function apt_clean() {
@@ -449,6 +537,7 @@ else
     install_debian_dev_dependencies
     install_python
     install_additional_dev_dependencies
+    install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
     fi
@@ -734,6 +823,16 @@ function common::get_airflow_version_specification() {
 }
 
 function common::get_constraints_location() {
+    # When installing from sources without upgrade, generate constraints from uv.lock
+    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -z "${UPGRADE_RANDOM_INDICATOR_STRING=}" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing from sources with uv.lock - generating constraints from uv.lock${COLOR_RESET}"
+        echo
+        uv export --frozen --no-hashes --no-emit-project --no-editable --no-header \
+            --no-annotate > "${HOME}/constraints.txt" 2>/dev/null || true
+        return
+    fi
+
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
@@ -754,7 +853,15 @@ function common::get_constraints_location() {
         echo
         echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
         echo
-        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+        if ! curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"; then
+            echo
+            echo "${COLOR_YELLOW}Constraints file not found at ${AIRFLOW_CONSTRAINTS_LOCATION} (new Python version being bootstrapped?).${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            AIRFLOW_CONSTRAINTS_LOCATION=""
+            # Create an empty constraints file so --constraint flag still works
+            touch "${HOME}/constraints.txt"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
@@ -851,29 +958,10 @@ function common::import_trusted_gpg() {
 
     local key=${1:?${COLOR_RED}First argument expects OpenPGP Key ID${COLOR_RESET}}
     local name=${2:?${COLOR_RED}Second argument expected trust storage name${COLOR_RESET}}
-    # Please note that not all servers could be used for retrieve keys
-    #  sks-keyservers.net: Unmaintained and DNS taken down due to GDPR requests.
-    #  keys.openpgp.org: User ID Mandatory, not suitable for APT repositories
-    #  keyring.debian.org: Only accept keys in Debian keyring.
-    #  pgp.mit.edu: High response time.
-    local keyservers=(
-        "hkps://keyserver.ubuntu.com"
-        "hkps://pgp.surf.nl"
-    )
+    local key_file="/scripts/docker/keys/${name}.asc"
 
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e "${keyservers[@]}"); do
-        echo "${COLOR_BLUE}Try to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-        echo "${COLOR_YELLOW}Unable to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
+    echo "${COLOR_BLUE}Installing GPG public key ${key} from ${key_file}${COLOR_RESET}"
+    gpg --dearmor < "${key_file}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
 }
 EOF
 
@@ -918,7 +1006,11 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     # This is needed to get distribution names for local context distributions
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+    if [[ -f "${HOME}/constraints.txt" ]]; then
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+    else
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} packaging
+    fi
 
     if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
         AIRFLOW_EXTRAS_TO_INSTALL="[${AIRFLOW_EXTRAS}]"
@@ -991,10 +1083,28 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+    if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         "${flags[@]}" \
-        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
+        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"; then
+        set +x
+        if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+        echo
+        echo "${COLOR_YELLOW}Likely there are new dependencies conflicting with constraints.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+        echo
+        set -x
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" \
+                "${airflow_distributions[@]}"
+    fi
     set +x
     common::install_packaging_tools
     # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
@@ -1036,14 +1146,34 @@ from __future__ import annotations
 
 import os
 import sys
+import zipfile
+from email.parser import HeaderParser
 from pathlib import Path
 
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import (
     InvalidSdistFilename,
     InvalidWheelFilename,
     parse_sdist_filename,
     parse_wheel_filename,
 )
+
+_CURRENT_PYTHON = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
+def _compatible_with_current_python(wheel_path: str) -> bool:
+    """Return False if the wheel's Requires-Python excludes the running interpreter."""
+    try:
+        with zipfile.ZipFile(wheel_path) as zf:
+            for name in zf.namelist():
+                if name.endswith(".dist-info/METADATA"):
+                    requires = HeaderParser().parsestr(zf.read(name).decode("utf-8")).get("Requires-Python")
+                    if requires:
+                        return _CURRENT_PYTHON in SpecifierSet(requires)
+                    return True
+    except (zipfile.BadZipFile, InvalidSpecifier, KeyError) as exc:
+        print(f"Warning: could not check Requires-Python for {wheel_path}: {exc}", file=sys.stderr)
+    return True
 
 
 def print_package_specs(extras: str = "") -> None:
@@ -1056,6 +1186,12 @@ def print_package_specs(extras: str = "") -> None:
             except InvalidSdistFilename:
                 print(f"Could not parse package name from {package_path}", file=sys.stderr)
                 continue
+        if package_path.endswith(".whl") and not _compatible_with_current_python(package_path):
+            print(
+                f"Skipping {package} (Requires-Python not satisfied by {_CURRENT_PYTHON})",
+                file=sys.stderr,
+            )
+            continue
         print(f"{package}{extras} @ file://{package_path}")
 
 
@@ -1071,9 +1207,6 @@ COPY <<"EOF" /install_airflow_when_building_images.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_from_sources() {
-    local installation_command_flags
-    local fallback_no_constraints_installation
-    fallback_no_constraints_installation="false"
     local extra_sync_flags
     extra_sync_flags=""
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
@@ -1099,69 +1232,30 @@ function install_from_sources() {
             --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
-        # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
-        # do not use ``uv sync`` because we are not committing and using uv.lock yet.
-        # Once we switch to uv.lock (with the workflow that dependabot will update it
-        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here)
-        # So for now when we are installing with constraints we need to install airflow distributions first and
-        # separately each provider that has some extra development dependencies - otherwise `dev`
-        # dependency groups will not be installed  because ``uv pip install --editable .`` only installs dev
-        # dependencies for the "top level" pyproject.toml
         set +x
         echo
+        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
         echo
-        echo "${COLOR_BLUE}Installing first airflow distribution with constraints.${COLOR_RESET}"
-        echo
-        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
-              --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
-              --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
-              --editable ./task-sdk-integration-tests \
-              --editable ./airflow-ctl-tests \
-              --editable ./airflow-e2e-tests \
-              --editable ./devel-common[all] --editable ./dev \
-              --group dev --group docs --group docs-gen --group leveldb"
-        local -a projects_with_devel_dependencies
-        while IFS= read -r -d '' pyproject_toml_file; do
-             project_folder=$(dirname ${pyproject_toml_file})
-             echo "${COLOR_BLUE}Checking provider ${project_folder} for development dependencies ${COLOR_RESET}"
-             first_line_of_devel_deps=$(grep -A 1 "# Additional devel dependencies (do not remove this line and add extra development dependencies)" ${project_folder}/pyproject.toml | tail -n 1)
-             if [[ "$first_line_of_devel_deps" != "]" ]]; then
-                projects_with_devel_dependencies+=("${project_folder}")
-             fi
-             installation_command_flags+=" --editable ${project_folder}"
-        done < <(find "providers" -name "pyproject.toml" -print0 | sort -z)
+        # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
+        # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
+        # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
+        # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
-            fallback_no_constraints_installation="true"
-        else
-            # For production image, we do not add devel dependencies in prod image
-            if [[ ${AIRFLOW_IMAGE_TYPE=} == "ci" ]]; then
-                set +x
+        if ! uv sync --all-packages --frozen --group dev --group docs --group docs-gen \
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python; then
+            set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
-                echo "${COLOR_BLUE}Installing all providers with development dependencies.${COLOR_RESET}"
+                echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
                 echo
-                for project_folder in "${projects_with_devel_dependencies[@]}"; do
-                    echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
-                    set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" \
-                        --constraint "${HOME}/constraints.txt" --group dev \
-                        --no-python-downloads --no-managed-python; then
-                            fallback_no_constraints_installation="true"
-                    fi
-                    set +x
-                done
+                exit 1
             fi
-        fi
-        set +x
-        if [[ ${fallback_no_constraints_installation} == "true" ]]; then
             echo
-            echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies not reflected in uv.lock.${COLOR_RESET}"
             echo
-            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv sync without --frozen).${COLOR_RESET}"
             echo
-            # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
-            # (binary lxml embeds its own libxml2, while xmlsec uses system one).
-            # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
                 --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
@@ -1177,7 +1271,7 @@ function install_from_external_spec() {
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     else
         echo
-        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo "${COLOR_RED}The '${AIRFLOW_INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
@@ -1203,6 +1297,12 @@ function install_from_external_spec() {
         set -x
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
+            if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because constraints installation failed and fallback is disabled.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
@@ -1328,6 +1428,14 @@ EOF
 COPY <<"EOF" /entrypoint_prod.sh
 #!/usr/bin/env bash
 AIRFLOW_COMMAND="${1:-}"
+AIRFLOW_COMMAND_TO_RUN="${AIRFLOW_COMMAND}"
+if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${2:-}"
+elif [[ "${AIRFLOW_COMMAND}" =~ ^(bash|sh)$ ]] \
+    && [[ "${2:-}" == "-c" ]] \
+    && [[ "${3:-}" =~ (^|[[:space:]])(exec[[:space:]]+)?airflow[[:space:]]+(scheduler|dag-processor|triggerer|api-server)([[:space:]]|$) ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${BASH_REMATCH[3]}"
+fi
 
 set -euo pipefail
 
@@ -1579,7 +1687,8 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]] \
+    && [[ ${AIRFLOW_COMMAND_TO_RUN} =~ ^(scheduler|dag-processor|triggerer|api-server)$ ]]; then
     wait_for_airflow_db
 fi
 
@@ -1640,7 +1749,8 @@ COPY <<"EOF" /clean-logs.sh
 set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_DAYS="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION_MINUTES="${AIRFLOW__LOG_RETENTION_MINUTES:-0}"
 readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 readonly MAX_PERCENT="${AIRFLOW__LOG_MAX_SIZE_PERCENT:-0}"
 
@@ -1662,13 +1772,15 @@ if [[ "$MAX_SIZE_BYTES" -gt 0 ]]; then
   echo "Max log size limit: $MAX_SIZE_BYTES bytes"
 fi
 
-retention_days="${RETENTION}"
+retention_days="${RETENTION_DAYS}"
 
 while true; do
-  echo "Trimming airflow logs to ${retention_days} days."
+  total_retention_minutes=$(( (retention_days * 1440) + RETENTION_MINUTES ))
+  echo "Trimming airflow logs older than ${total_retention_minutes} minutes."
+
   find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
-    -type f -mtime +"${retention_days}" -name '*.log' -print0 | \
+    -type f -mmin +"${total_retention_minutes}" -name '*.log' -print0 | \
     xargs -0 rm -f || true
 
   if [[ "$MAX_SIZE_BYTES" -gt 0 && "$retention_days" -ge 0 ]]; then
@@ -1684,7 +1796,7 @@ while true; do
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
 
-  retention_days="${RETENTION}"
+  retention_days="${RETENTION_DAYS}"
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
@@ -1742,8 +1854,12 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
 
 ARG PYTHON_LTO
 
+ENV RUSTUP_HOME="/usr/local/rustup"
+ENV CARGO_HOME="/home/airflow/.cargo"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
@@ -1798,6 +1914,8 @@ ARG AIRFLOW_CONSTRAINTS_MODE="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
+# By default do not fallback to installation without constraints because it can hide problems with constraints
+ARG AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION="false"
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
@@ -1850,6 +1968,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE} \
     AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
     AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
+    AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION=${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} \
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
     PATH=${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
@@ -1937,6 +2056,11 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install -r /docker-context-files/requirements.txt; \
+        find "${AIRFLOW_USER_HOME_DIR}/.local/" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
+        find "${AIRFLOW_USER_HOME_DIR}/.local/" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ; \
+        # make sure that all directories and files in .local are also group accessible
+        find "${AIRFLOW_USER_HOME_DIR}/.local" -executable ! -type l -print0 | xargs --null chmod g+x; \
+        find "${AIRFLOW_USER_HOME_DIR}/.local" ! -type l -print0 | xargs --null chmod g+rw; \
     fi
 
 ##############################################################################################
@@ -2012,6 +2136,8 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
 
 COPY --from=scripts common.sh /scripts/docker/
 
+COPY scripts/docker/keys/ /scripts/docker/keys/
+
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
@@ -2031,6 +2157,8 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && mkdir -pv "${AIRFLOW_HOME}/logs" \
     && chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
     && chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
+    && find "${AIRFLOW_USER_HOME_DIR}" -name '*.pyc' -print0 | xargs -0 rm -f || true \
+    && find "${AIRFLOW_USER_HOME_DIR}" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true \
     && find "${AIRFLOW_HOME}" -executable ! -type l -print0 | xargs --null chmod g+x \
     && find "${AIRFLOW_USER_HOME_DIR}" -executable ! -type l -print0 | xargs --null chmod g+x
 

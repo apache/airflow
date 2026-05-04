@@ -1,0 +1,13 @@
+---
+pagination:
+  data: providers.providers
+  size: 1
+  alias: provider
+permalink: "/api/providers/{{ provider.id }}/versions.json"
+eleventyExcludeFromCollections: true
+---
+{%- if providerVersionPayloads[provider.id] -%}
+{{ providerVersionPayloads[provider.id] | dump | safe }}
+{%- else -%}
+{{ { "latest": provider.version, "versions": [provider.version] } | dump | safe }}
+{%- endif -%}

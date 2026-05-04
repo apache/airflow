@@ -325,7 +325,7 @@ By default, ``catchup`` is set to ``False``. This prevents running unnecessary D
 - If you create a new Dag with a start date in the past, and don't want to run Dags for the past. If ``catchup`` is ``True``, Airflow runs all Dags that would have run in that time interval.
 - If you pause an existing Dag, and then restart it at a later date, ``catchup`` being ``False`` means that Airflow does not run the Dags that would have run during the paused period.
 
-In these scenarios, the ``logical_date`` in the ``run_id`` are based on how how the timetable handles the data
+In these scenarios, the ``logical_date`` in the ``run_id`` are based on how the timetable handles the data
 interval.
 
 You can change the default ``catchup`` behavior using the Airflow config ``[scheduler] catchup_by_default``.

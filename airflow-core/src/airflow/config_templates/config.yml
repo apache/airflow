@@ -439,6 +439,16 @@ core:
       example: ~
       default: "1024"
 
+    allow_double_dot_in_ids:
+      description: |
+        Allow ``..`` (consecutive dots) in DAG IDs and run IDs. By default, ``..`` is blocked to prevent
+        path traversal attacks. Set to ``True`` only if you have existing DAGs or runs whose IDs contain
+        ``..`` and cannot be renamed.
+      version_added: 3.3.0
+      type: boolean
+      example: ~
+      default: "False"
+
     daemon_umask:
       description: |
         The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
@@ -687,9 +697,9 @@ database:
       default: "True"
     external_db_managers:
       description: |
-        List of DB managers to use to migrate external tables in airflow database. The managers must inherit
-        from BaseDBManager. If ``FabAuthManager`` is configured in the environment,
-        ``airflow.providers.fab.auth_manager.models.db.FABDBManager`` is automatically added.
+        Additional DB managers to include when migrating external tables in the Airflow
+        database, beyond those automatically discovered from installed providers.
+        The managers must inherit from BaseDBManager.
       version_added: 3.0.0
       type: string
       example: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
@@ -832,6 +842,16 @@ logging:
       type: string
       example: ~
       default: "WARNING"
+    json_logs:
+      description: |
+        Enable JSON-structured logging for all output. When ``True``, every log line emitted by
+        the process is a single-line JSON object (including HTTP access logs from the API server).
+        Recommended for production / cloud-native deployments where logs are collected by a log
+        aggregator.
+      version_added: "3.2.0"
+      type: boolean
+      example: "True"
+      default: "False"
     uvicorn_logging_level:
       description: |
         Logging level for uvicorn (API server and serve-logs).
@@ -917,11 +937,24 @@ logging:
       description: |
         Determines the formatter class used by Airflow for structuring its log messages
         The default formatter class is timezone-aware, which means that timestamps attached to log entries
-        will be adjusted to reflect the local timezone of the Airflow instance
+        will be adjusted to reflect the local timezone of the Airflow instance.
+        Note: This setting does NOT affect component logs (scheduler, api-server, triggerer, etc.) since
+        those use structlog directly. Use ``log_timestamp_format`` to control timestamps for those logs.
       version_added: 2.3.4
       type: string
       example: ~
       default: "airflow.utils.log.timezone_aware.TimezoneAware"
+    log_timestamp_format:
+      description: |
+        Timestamp format for component logs (scheduler, api-server, triggerer, etc.).
+        Use ``iso`` for ISO 8601 format (default), or a Python strftime format string
+        such as ``%Y-%m-%d %H:%M:%S``.
+        Note: This setting only applies to component logs rendered via structlog.
+        Task/DAG logs use ``log_format`` instead.
+      version_added: 3.0.4
+      type: string
+      example: "%Y-%m-%d %H:%M:%S"
+      default: "iso"
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
@@ -1414,9 +1447,21 @@ traces:
       description: |
         If True, then traces from Airflow internal methods are exported. Defaults to False.
       version_added: 3.1.0
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        This parameter is no longer used.
       type: string
       example: ~
       default: "False"
+    task_runner_flush_timeout_milliseconds:
+      description: |
+        Timeout in milliseconds to wait for the OpenTelemetry span exporter to flush pending spans
+        when a task runner process exits. If the exporter does not finish within this time, any
+        buffered spans may be dropped.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "30000"
 secrets:
   description: ~
   options:
@@ -1435,6 +1480,10 @@ secrets:
 
         Example for AWS Systems Manager ParameterStore:
         ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
+
+        You can also set individual kwargs via ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>=value``
+        environment variables. Per-key variables override the same key in this JSON setting.
+        Values are raw strings (not JSON-parsed).
       version_added: 1.10.10
       type: string
       sensitive: true
@@ -1480,7 +1529,9 @@ api:
     theme:
       description: |
         JSON config to customize the Chakra UI theme.
-        Currently only supports ``brand`` color customization and ``globalCss``.
+        Supports ``brand`` color customization, ``globalCss``, and optional navigation icons ``icon``
+        (for light mode) and ``icon_dark_mode`` (for dark mode). Icons must be SVG files and can be
+        either absolute http(s) URLs or app-relative paths starting with ``/``.
 
         Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
 
@@ -1555,6 +1606,31 @@ api:
       type: string
       example: ~
       default: "False"
+    dag_cache_size:
+      description: |
+        Size of the LRU cache for SerializedDAG objects in the API server.
+        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        The cache is keyed by Dag version ID, so lookups by Dag ID
+        (e.g., viewing a Dag's details) always query the database for the latest
+        version, but the deserialized result is cached for subsequent
+        version-specific lookups.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "64"
+    dag_cache_ttl:
+      description: |
+        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
+        After this time, cached DAGs will be re-fetched from the database on next access.
+        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+
+        Note: After a DAG is updated, the API server may serve the previous version
+        until the cached entry expires. Lower values reduce staleness but increase
+        database load.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "3600"
     base_url:
       description: |
         The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
@@ -1649,6 +1725,14 @@ api:
       type: string
       example: path/to/logging_config.yaml
       default: ~
+    log_stream_buffer_size:
+      description: |
+        Number of log lines to buffer before flushing to the client when streaming task logs
+        in NDJSON format. Larger values reduce HTTP overhead but increase time-to-first-byte.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "500"
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
@@ -1793,6 +1877,10 @@ workers:
 
         Example for AWS Systems Manager ParameterStore:
         ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
+
+        You can also set individual kwargs via ``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>=value``
+        environment variables. Per-key variables override the same key in this JSON setting.
+        Values are raw strings (not JSON-parsed).
       version_added: 3.0.0
       type: string
       sensitive: true
@@ -1924,8 +2012,14 @@ api_auth:
       description: |
         Secret key used to encode and decode JWTs to authenticate to public and private APIs.
 
-        It should be as random as possible. However, when running more than 1 instances of API services,
-        make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
+        It should be as random as possible. This key must be consistent across all components that
+        generate or validate JWT tokens (Scheduler, API Server). For improved security, consider
+        using asymmetric keys (``jwt_private_key_path``) instead, which allow you to restrict the
+        signing key to only the components that need to generate tokens.
+
+        For security-sensitive deployments, pass this value via environment variable
+        (``AIRFLOW__API_AUTH__JWT_SECRET``) rather than storing it in a configuration file, and
+        restrict it to only the components that need it.
 
         Mutually exclusive with ``jwt_private_key_path``.
       version_added: 3.0.0
@@ -2041,13 +2135,6 @@ execution_api:
 lineage:
   description: ~
   options:
-    backend:
-      description: |
-        what lineage backend to use
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     max_assets_per_collector:
       description: |
         Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector
@@ -2317,6 +2404,14 @@ scheduler:
       type: integer
       example: ~
       default: "-1"
+    only_idle:
+      description: |
+        Only count scheduler runs where the scheduler was idle (no tasks queued or finished)
+        toward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "false"
     scheduler_idle_sleep_time:
       description: |
         Controls how long the scheduler will sleep between loops, but if there was nothing to do
@@ -2491,6 +2586,10 @@ scheduler:
     task_queued_timeout:
       description: |
         Amount of time a task can be in the queued state before being retried or set to failed.
+
+        This value also sets the lifetime of the workload JWT token that is sent with the task
+        to an executor queue, so a task waiting in the queue can still authenticate to the
+        Execution API until its queue-starvation deadline.
       version_added: 2.6.0
       type: float
       example: ~
@@ -2525,6 +2624,10 @@ scheduler:
         Notably, for **CronTriggerTimetable**, the logical date is the same as the time the DAG Run will
         try to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of
         the data interval, but the DAG Run will try to schedule at the end of the data interval.
+
+        When a DAG is switched from **CronTriggerTimetable** to **CronDataIntervalTimetable** (for example,
+        by flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past
+        the most recent **CronTriggerTimetable** run to avoid colliding with its logical date.
       version_added: 2.9.0
       type: boolean
       example: ~
@@ -2586,6 +2689,15 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    blocked_main_thread_warning_threshold:
+      description: |
+        Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.
+        Increase this value if your deployment can tolerate longer delays in the Triggerer's async
+        loop before logging a warning.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "0.2"
     max_trigger_to_select_per_loop:
       description: |
         Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``
@@ -2595,6 +2707,15 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    on_kill_timeout:
+      description: |
+        Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
+        before giving up and logging a warning. Prevents a slow or hung external API call from
+        blocking the triggerer indefinitely when a deferred task is killed by a user.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "30"
     queues_enabled:
       description: |
         When set to True, deferred tasks will register triggers with the task queue they originated from,
@@ -2879,6 +3000,20 @@ dag_processor:
       type: string
       example: ~
       default: "warning"
+
+state_store:
+  description: |
+    Configuration for task and asset state storage backend.
+  options:
+    backend:
+      description: |
+        Full dotted path to the class that implements state storage for tasks and assets.
+        The class must be a subclass of ``BaseStateBackend``.
+        The default implementation persists state in the Airflow metadata database.
+      version_added: 3.3.0
+      type: string
+      example: "mypackage.state.CustomStateBackend"
+      default: "airflow.state.metastore.MetastoreStateBackend"
 
 profiling:
   description: |

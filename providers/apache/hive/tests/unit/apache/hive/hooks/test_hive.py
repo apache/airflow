@@ -35,7 +35,7 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,
@@ -99,6 +99,7 @@ class TestHiveCliHook:
             "airflow.ctx.dag_owner=airflow",
             "-hiveconf",
             "airflow.ctx.dag_email=test@airflow.com",
+            *(["-hiveconf", "airflow.ctx.team_name="] if AIRFLOW_V_3_3_PLUS else []),
             "-hiveconf",
             "mapreduce.job.queuename=airflow",
             "-hiveconf",
@@ -677,6 +678,47 @@ class TestHiveServer2Hook:
                 database="default",
             )
 
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_plain(self, mock_connect):
+        conn_id = "conn_plain_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://login:password@localhost:10000/default?auth_mechanism=PLAIN"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="PLAIN",
+                kerberos_service_name=None,
+                username="login",
+                password="password",
+                database="default",
+            )
+
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_none_auth(self, mock_connect):
+        """Test that password is passed through even when auth_mechanism is NONE."""
+        conn_id = "conn_none_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://user:mypassword@localhost:10000/default"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="NONE",
+                kerberos_service_name=None,
+                username="user",
+                password="mypassword",
+                database="default",
+            )
+
     @pytest.mark.parametrize(
         ("host", "port", "schema", "message"),
         [
@@ -1003,18 +1045,22 @@ class TestHiveCli:
         [
             (
                 {"high_availability": "true"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
             (
                 {"high_availability": "false"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
-            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            (
+                {"high_availability": "true", "ssl": "false", "zoo_keeper_namespace": "custom_hive_server"},
+                "serviceDiscoveryMode=zooKeeper;ssl=false;zooKeeperNamespace=custom_hive_server",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2"),
             # with proxy user
             (
                 {"proxy_user": "a_user_proxy", "high_availability": "true"},
                 "hive.server2.proxy.user=a_user_proxy;"
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
         ],
     )

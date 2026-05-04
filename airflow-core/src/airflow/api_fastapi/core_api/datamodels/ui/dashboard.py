@@ -19,15 +19,6 @@ from __future__ import annotations
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class DAGRunTypes(BaseModel):
-    """DAG Run Types for responses."""
-
-    backfill: int
-    scheduled: int
-    manual: int
-    asset_triggered: int
-
-
 class DAGRunStates(BaseModel):
     """DAG Run States for responses."""
 
@@ -58,9 +49,9 @@ class TaskInstanceStateCount(BaseModel):
 class HistoricalMetricDataResponse(BaseModel):
     """Historical Metric Data serializer for responses."""
 
-    dag_run_types: DAGRunTypes
     dag_run_states: DAGRunStates
     task_instance_states: TaskInstanceStateCount
+    state_count_limit: int
 
 
 class DashboardDagStatsResponse(BaseModel):

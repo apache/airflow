@@ -30,8 +30,8 @@ def _create_edge_tables():
         yield
         return
 
-    from airflow.providers.edge3.models.db import _edge_metadata
+    from airflow.providers.edge3.models.edge_base import edge_metadata
 
-    _edge_metadata.create_all(settings.engine)
+    edge_metadata.create_all(settings.engine)
     yield
-    _edge_metadata.drop_all(settings.engine)
+    edge_metadata.drop_all(settings.engine)

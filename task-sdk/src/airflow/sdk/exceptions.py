@@ -241,6 +241,7 @@ class DagRunTriggerException(AirflowException):
         dag_run_id: str,
         conf: dict | None,
         logical_date=None,
+        run_after=None,
         reset_dag_run: bool,
         skip_when_already_exists: bool,
         wait_for_completion: bool,
@@ -248,12 +249,14 @@ class DagRunTriggerException(AirflowException):
         failed_states: list[str],
         poke_interval: int,
         deferrable: bool,
+        note: str | None = None,
     ):
         super().__init__()
         self.trigger_dag_id = trigger_dag_id
         self.dag_run_id = dag_run_id
         self.conf = conf
         self.logical_date = logical_date
+        self.run_after = run_after
         self.reset_dag_run = reset_dag_run
         self.skip_when_already_exists = skip_when_already_exists
         self.wait_for_completion = wait_for_completion
@@ -261,6 +264,7 @@ class DagRunTriggerException(AirflowException):
         self.failed_states = failed_states
         self.poke_interval = poke_interval
         self.deferrable = deferrable
+        self.note = note
 
 
 class DownstreamTasksSkipped(AirflowException):
@@ -326,6 +330,17 @@ class TaskAlreadyInTaskGroup(AirflowException):
 
 class TaskNotFound(AirflowException):
     """Raise when a Task is not available in the system."""
+
+
+class NodeNotFound(TaskNotFound, KeyError):
+    """Raise when attempting to access an invalid node (task or task group) using [] notation."""
+
+    def __str__(self) -> str:
+        return str(self.args[0]) if self.args else ""
+
+
+class TaskAlreadyRunningError(AirflowException):
+    """Raised when a task is already running on another worker."""
 
 
 class FailFastDagInvalidTriggerRule(AirflowException):

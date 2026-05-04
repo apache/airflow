@@ -115,9 +115,7 @@ with DAG(
 
     # [START howto_operator_databricks_run_now]
     # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
-    run_now = DatabricksRunNowOperator(
-        task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}"
-    )
+    run_now = DatabricksRunNowOperator(task_id="run_now", job_id=jobs_create_named.output)
 
     jobs_create_named >> run_now
     # [END howto_operator_databricks_run_now]
@@ -257,5 +255,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

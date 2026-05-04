@@ -38,15 +38,15 @@ def _exists_no_permission_error(p: str) -> bool:
 
 
 def message_on_wsl1_detected(release_name: str | None, kernel_version: tuple[int, ...] | None):
-    from airflow_breeze.utils.console import get_console
+    from airflow_breeze.utils.console import console_print
 
-    get_console().print("[error]You are running WSL1 - Breeze requires WSL2! Quitting.\n")
-    get_console().print("[warning]It can also be that our detection mechanism is wrong:[/]\n\n")
+    console_print("[error]You are running WSL1 - Breeze requires WSL2! Quitting.\n")
+    console_print("[warning]It can also be that our detection mechanism is wrong:[/]\n\n")
     if release_name:
-        get_console().print(f"[info]We based our WSL1 detection on the release name: `{release_name}`\n")
+        console_print(f"[info]We based our WSL1 detection on the release name: `{release_name}`\n")
     elif kernel_version:
-        get_console().print(f"[info]We based our WSL1 detection on the kernel version: `{kernel_version}`\n")
-    get_console().print(
+        console_print(f"[info]We based our WSL1 detection on the kernel version: `{kernel_version}`\n")
+    console_print(
         "[info]If you are running WSL2, please report this issue to the maintainers\n"
         "of Airflow, so we can improve the detection mechanism.\n"
         "You can also try to run the command with `--uv-http-timeout 900` or "

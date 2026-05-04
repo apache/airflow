@@ -50,25 +50,25 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{- define "airflow.tplDict" -}}
+  {{- $rendered := dict -}}
+  {{- range $key, $value := .values }}
+    {{- $_ := set $rendered $key (tpl (toString $value) $.context) -}}
+  {{- end }}
+  {{- toYaml $rendered -}}
+{{- end }}
+
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
+  - name: AIRFLOW_HOME
+    value: {{ .Values.airflowHome }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__FERNET_KEY }}
   - name: AIRFLOW__CORE__FERNET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
-  {{- end }}
-  - name: AIRFLOW_HOME
-    value: {{ .Values.airflowHome }}
-  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__SQL_ALCHEMY_CONN }}
-  - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_metadata_secret" . }}
-        key: connection
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
@@ -84,86 +84,62 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- if and .Values.workers.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer))) }}
+  {{- $kedaEnabled := .Values.workers.keda.enabled }}
+  {{- $kedaUsePgBouncer := .Values.workers.keda.usePgbouncer }}
+  {{- if hasKey .Values.workers "celery" }}
+    {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
+    {{- $kedaUsePgBouncer = or .Values.workers.celery.keda.usePgbouncer (and (not (has .Values.workers.celery.keda.usePgbouncer (list true false))) .Values.workers.keda.usePgbouncer) }}
+  {{- end }}
+  {{- if and $kedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not $kedaUsePgBouncer))) }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: kedaConnection
   {{- end }}
-  {{- if and (semverCompare "<3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
-  - name: AIRFLOW__WEBSERVER__SECRET_KEY
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "webserver_secret_key_secret" . }}
-        key: webserver-secret-key
-  {{- end }}
-  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
+  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
   - name: AIRFLOW__API__SECRET_KEY
     valueFrom:
       secretKeyRef:
         name: {{ template "api_secret_key_secret" . }}
         key: api-secret-key
   {{- end }}
-  {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
+  {{- if and .IncludeJwtSecret .Values.enableBuiltInSecretEnvVars.AIRFLOW__API_AUTH__JWT_SECRET }}
   - name: AIRFLOW__API_AUTH__JWT_SECRET
     valueFrom:
       secretKeyRef:
         name: {{ template "jwt_secret" . }}
         key: jwt-secret
   {{- end }}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
-    {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
-  # (Airflow 1.10.* variant)
-  - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_result_backend_secret" . }}
-        key: connection
-    {{- end }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
+  {{- if contains "CeleryExecutor" .Values.executor }}
+    {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND (or .Values.data.resultBackendSecretName .Values.data.resultBackendConnection) }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
     {{- end }}
-    {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
+        name: {{ template "airflow_broker_url_secret" . }}
         key: connection
     {{- end }}
   {{- end }}
-  {{- if .Values.elasticsearch.enabled }}
-  # The elasticsearch variables were updated to the shorter names in v1.10.4
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
+  {{- if and .Values.elasticsearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
-    {{- end }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST }}
-  # This is the older format for these variable names, kept here for backward compatibility
-  - name: AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "elasticsearch_secret" . }}
-        key: connection
-    {{- end }}
   {{- end }}
-  {{- if .Values.opensearch.enabled }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
+  {{- if and .Values.opensearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
   - name: AIRFLOW__OPENSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "opensearch_secret" . }}
         key: connection
-    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -173,10 +149,6 @@ If release name contains chart name it will be used as a full name.
   {{- range $i, $config := .Values.env }}
   - name: {{ $config.name }}
     value: {{ $config.value | quote }}
-    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
   {{- end }}
   # Dynamically created secret envs
   {{- range $i, $config := .Values.secret }}
@@ -186,12 +158,6 @@ If release name contains chart name it will be used as a full name.
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-  {{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-    {{- range $i, $config := .Values.secret }}
-  - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
-    value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
-    {{- end }}
-  {{ end }}
   # Extra env
   {{- $Global := . }}
   {{- with .Values.extraEnv }}
@@ -215,7 +181,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
-{{/*  Git ssh key volume */}}
+{{/* Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
 - name: git-sync-ssh-key
   secret:
@@ -223,7 +189,7 @@ If release name contains chart name it will be used as a full name.
     defaultMode: 288
 {{- end }}
 
-{{/*  Git sync container */}}
+{{/* Git sync container */}}
 {{- define "git_sync_container" }}
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
@@ -231,6 +197,38 @@ If release name contains chart name it will be used as a full name.
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
   envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
+    - name: GIT_SYNC_REV
+      value: {{ .Values.dags.gitSync.rev | quote }}
+    - name: GITSYNC_REF
+      value: {{ .Values.dags.gitSync.ref | quote }}
+    - name: GIT_SYNC_BRANCH
+      value: {{ .Values.dags.gitSync.branch | quote }}
+    - name: GIT_SYNC_REPO
+      value: {{ .Values.dags.gitSync.repo | quote }}
+    - name: GITSYNC_REPO
+      value: {{ .Values.dags.gitSync.repo | quote }}
+    - name: GIT_SYNC_DEPTH
+      value: {{ .Values.dags.gitSync.depth | quote }}
+    - name: GITSYNC_DEPTH
+      value: {{ .Values.dags.gitSync.depth | quote }}
+    - name: GIT_SYNC_ROOT
+      value: "/git"
+    - name: GITSYNC_ROOT
+      value: "/git"
+    - name: GIT_SYNC_DEST
+      value: "repo"
+    - name: GITSYNC_LINK
+      value: "repo"
+    - name: GIT_SYNC_ADD_USER
+      value: "true"
+    - name: GITSYNC_ADD_USER
+      value: "true"
+    - name: GITSYNC_PERIOD
+      value: {{ .Values.dags.gitSync.period | quote }}
+    - name: GIT_SYNC_MAX_SYNC_FAILURES
+      value: {{ .Values.dags.gitSync.maxFailures | quote }}
+    - name: GITSYNC_MAX_FAILURES
+      value: {{ .Values.dags.gitSync.maxFailures | quote }}
     {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
@@ -277,57 +275,51 @@ If release name contains chart name it will be used as a full name.
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
-    - name: GIT_SYNC_REV
-      value: {{ .Values.dags.gitSync.rev | quote }}
-    - name: GITSYNC_REF
-      value: {{ .Values.dags.gitSync.ref | quote }}
-    - name: GIT_SYNC_BRANCH
-      value: {{ .Values.dags.gitSync.branch | quote }}
-    - name: GIT_SYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
-    - name: GITSYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
-    - name: GIT_SYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
-    - name: GITSYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
-    - name: GIT_SYNC_ROOT
-      value: "/git"
-    - name: GITSYNC_ROOT
-      value: "/git"
-    - name: GIT_SYNC_DEST
-      value: "repo"
-    - name: GITSYNC_LINK
-      value: "repo"
-    - name: GIT_SYNC_ADD_USER
-      value: "true"
-    - name: GITSYNC_ADD_USER
-      value: "true"
     {{- if .Values.dags.gitSync.wait }}
     - name: GIT_SYNC_WAIT
       value: {{ .Values.dags.gitSync.wait | quote }}
     {{- end }}
-    - name: GITSYNC_PERIOD
-      value: {{ .Values.dags.gitSync.period | quote }}
-    - name: GIT_SYNC_MAX_SYNC_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
-    - name: GITSYNC_MAX_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
     {{- if .is_init }}
     - name: GIT_SYNC_ONE_TIME
       value: "true"
     - name: GITSYNC_ONE_TIME
       value: "true"
+    {{- else }}
+    - name: GIT_SYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.httpPort }}"
+    - name: GITSYNC_HTTP_BIND
+      value: ":{{ .Values.dags.gitSync.httpPort }}"
     {{- end }}
     {{- with .Values.dags.gitSync.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
-  {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
+  {{- if not .is_init }}
+  {{- if .Values.dags.gitSync.startupProbe.enabled }}
+  startupProbe:
+    httpGet:
+      path: /
+      port: {{ .Values.dags.gitSync.httpPort }}
+    timeoutSeconds: {{ .Values.dags.gitSync.startupProbe.timeoutSeconds }}
+    initialDelaySeconds: {{ .Values.dags.gitSync.startupProbe.initialDelaySeconds }}
+    periodSeconds: {{ .Values.dags.gitSync.startupProbe.periodSeconds }}
+    failureThreshold: {{ .Values.dags.gitSync.startupProbe.failureThreshold }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.recommendedProbeSetting (hasKey .Values.dags.gitSync.livenessProbe "enabled") .Values.dags.gitSync.livenessProbe.enabled }}
+  livenessProbe:
+    httpGet:
+      path: /
+      port: {{ .Values.dags.gitSync.httpPort }}
+    timeoutSeconds: {{ .Values.dags.gitSync.livenessProbe.timeoutSeconds | default 1 }}
+    initialDelaySeconds: {{ .Values.dags.gitSync.livenessProbe.initialDelaySeconds | default 0 }}
+    periodSeconds: {{ .Values.dags.gitSync.livenessProbe.periodSeconds | default 5 }}
+    failureThreshold: {{ .Values.dags.gitSync.livenessProbe.failureThreshold | default 10 }}
+  {{- else if .Values.dags.gitSync.livenessProbe }}
   livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .Values.dags.gitSync.recommendedProbeSetting) }}
   readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
+  {{- end }}
   {{- end }}
   volumeMounts:
   - name: dags
@@ -420,16 +412,16 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-jwt-secret" (include "airflow.fullname" .)) .Values.jwtSecretName }}
 {{- end }}
 
-{{- define "webserver_secret_key_secret" -}}
-  {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
-{{- end }}
-
 {{- define "api_secret_key_secret" -}}
   {{- default (printf "%s-api-secret-key" (include "airflow.fullname" .)) .Values.apiSecretKeySecretName }}
 {{- end }}
 
 {{- define "redis_password_secret" -}}
   {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
+{{- end }}
+
+{{- define "airflow_broker_url_secret" -}}
+  {{- default (printf "%s-broker-url" (include "airflow.fullname" .)) .Values.data.brokerUrlSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
@@ -457,9 +449,9 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "image_pull_secrets" -}}
-  {{- $secrets := (default (list .Values.registry.secretName) .Values.imagePullSecrets) -}}
+  {{- $secrets := default (list .Values.registry.secretName) .Values.imagePullSecrets -}}
   {{- $secrets = ($secrets | compact | uniq) -}}
-  {{- if and (not $secrets) (or .Values.registry.connection) -}}
+  {{- if and (not $secrets) .Values.registry.connection -}}
     {{- $secrets = append $secrets (printf "%s-registry" (include "airflow.fullname" .)) -}}
   {{- end -}}
   {{- $out := list -}}
@@ -498,11 +490,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "celery_executor_namespace" -}}
-  {{- if semverCompare ">=2.7.0" .Values.airflowVersion }}
-    {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
-  {{- else }}
-    {{- print "airflow.executors.celery_executor.app" -}}
-  {{- end }}
+  {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
 {{- end }}
 
 {{- define "pgbouncer_config" -}}
@@ -510,8 +498,8 @@ If release name contains chart name it will be used as a full name.
 {{ $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 {{ $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 [databases]
-{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
-{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
+{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ tpl .Values.data.metadataConnection.db . }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
+{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ tpl $resultBackendConnection.db . }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
 
 [pgbouncer]
 pool_mode = transaction
@@ -519,7 +507,7 @@ listen_port = {{ .Values.ports.pgbouncer }}
 listen_addr = *
 auth_type = {{ .Values.pgbouncer.auth_type }}
 auth_file = {{ .Values.pgbouncer.auth_file }}
-stats_users = {{ .Values.data.metadataConnection.user }}
+stats_users = {{ tpl .Values.data.metadataConnection.user . }}
 ignore_startup_parameters = extra_float_digits
 max_client_conn = {{ .Values.pgbouncer.maxClientConn }}
 verbose = {{ .Values.pgbouncer.verbose }}
@@ -546,8 +534,8 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{ define "pgbouncer_users" }}
 {{- $resultBackendConnection := .Values.data.resultBackendConnection | default .Values.data.metadataConnection }}
-{{ .Values.data.metadataConnection.user | quote }} {{ .Values.data.metadataConnection.pass | quote }}
-{{ $resultBackendConnection.user | quote }} {{ $resultBackendConnection.pass | quote }}
+{{ tpl .Values.data.metadataConnection.user . | quote }} {{ .Values.data.metadataConnection.pass | quote }}
+{{ tpl $resultBackendConnection.user . | quote }} {{ $resultBackendConnection.pass | quote }}
 {{- end }}
 
 {{- define "airflow_logs" -}}
@@ -611,19 +599,12 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- printf "%s/webserver_config.py" .Values.airflowHome | quote }}
 {{- end }}
 
-{{- define "airflow_webserver_config_configmap_name" -}}
-  {{- default (printf "%s-webserver-config" (include "airflow.fullname" .)) .Values.webserver.webserverConfigConfigMapName }}
-{{- end }}
-
-{{- define "airflow_webserver_config_mount" -}}
-- name: webserver-config
-  mountPath: {{ template "airflow_webserver_config_path" . }}
-  subPath: webserver_config.py
-  readOnly: True
-{{- end }}
-
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" (include "airflow.fullname" .)) .Values.apiServer.apiServerConfigConfigMapName }}
+  {{- if .Values.apiServer.apiServerConfigConfigMapName }}
+    {{- tpl .Values.apiServer.apiServerConfigConfigMapName . }}
+  {{- else }}
+    {{- printf "%s-api-server-config" (include "airflow.fullname" .) }}
+  {{- end }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}
@@ -654,21 +635,25 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{/* Helper to generate service account name respecting .Values.$section.serviceAccount flags */}}
-{{- define "_serviceAccountName" -}}
-  {{- $sa := get (get .Values .key) "serviceAccount" }}
-  {{- if $sa.create }}
-    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) $sa.name | quote }}
+{{/* Helper for service account name generation */}}
+{{- define "_serviceAccountNameGen" -}}
+  {{- if .sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix)) .sa.name | quote }}
   {{- else }}
-    {{- default "default" $sa.name | quote }}
+    {{- default "default" .sa.name | quote }}
   {{- end }}
 {{- end }}
 
-{{/* Create the name of the webserver service account to use */}}
-{{- define "webserver.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "webserver") .) -}}
+{{/* Helper to generate service account name respecting .Values.$section.serviceAccount or .Values.$section.$subSection.serviceAccount flags */}}
+{{- define "_serviceAccountName" -}}
+  {{- if .subKey }}
+    {{- $sa := get (get (get .Values .key) .subKey) "serviceAccount" -}}
+    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+  {{- else }}
+    {{- $sa := get (get .Values .key) "serviceAccount" }}
+    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+  {{- end }}
 {{- end }}
-
 
 {{/* Create the name of the API server service account to use */}}
 {{- define "apiServer.serviceAccountName" -}}
@@ -714,6 +699,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+{{/* Create the name of the worker kubernetes service account to use */}}
+{{- define "worker.kubernetes.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "kubernetes" "nameSuffix" "worker-kubernetes") .) -}}
+{{- end }}
+
 {{/* Create the name of the triggerer service account to use */}}
 {{- define "triggerer.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "triggerer") .) -}}
@@ -745,155 +735,47 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
 {{- end }}
 
-{{- define "wait-for-migrations-command" -}}
-  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+{{- define "wait-for-migrations-command" }}
   - airflow
   - db
   - check-migrations
   - --migration-wait-timeout={{ .Values.images.migrationsWaitTimeout }}
-  {{- else }}
-  - python
-  - -c
-  - |
-        import airflow
-        import logging
-        import os
-        import time
-
-        from alembic.config import Config
-        from alembic.runtime.migration import MigrationContext
-        from alembic.script import ScriptDirectory
-
-        from airflow import settings
-
-        package_dir = os.path.abspath(os.path.dirname(airflow.__file__))
-        directory = os.path.join(package_dir, 'migrations')
-        config = Config(os.path.join(package_dir, 'alembic.ini'))
-        config.set_main_option('script_location', directory)
-        config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
-        script_ = ScriptDirectory.from_config(config)
-
-        timeout=60
-
-        with settings.engine.connect() as connection:
-            context = MigrationContext.configure(connection)
-            ticker = 0
-            while True:
-                source_heads = set(script_.get_heads())
-
-                db_heads = set(context.get_current_heads())
-                if source_heads == db_heads:
-                    break
-
-                if ticker >= timeout:
-                    raise TimeoutError("There are still unapplied migrations after {} seconds.".format(ticker))
-                ticker += 1
-                time.sleep(1)
-                logging.info('Waiting for migrations... %s second(s)', ticker)
-  {{- end }}
 {{- end }}
 
 {{- define "scheduler_liveness_check_command" }}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
-  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
-  {{- else }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-    from airflow.jobs.scheduler_job import SchedulerJob
-    from airflow.utils.db import create_session
-    from airflow.utils.net import get_hostname
-    import sys
-    with create_session() as session:
-        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
-    sys.exit(0 if job.is_alive() else 1)"
-  {{- end }}
 {{- end }}
 
 
 {{- define  "scheduler_startup_check_command" }}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type SchedulerJob --local
-  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
-  {{- else }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
-    import os
-    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
-    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
-    from airflow.jobs.scheduler_job import SchedulerJob
-    from airflow.utils.db import create_session
-    from airflow.utils.net import get_hostname
-    import sys
-    with create_session() as session:
-        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
-            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
-    sys.exit(0 if job.is_alive() else 1)"
-  {{- end }}
 {{- end }}
 
 {{- define "triggerer_liveness_check_command" }}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --job-type TriggererJob --local
-  {{- else }}
-  - sh
-  - -c
-  - |
-    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob --hostname $(hostname)
-  {{- end }}
 {{- end }}
 
 {{- define "dag_processor_liveness_check_command" }}
-  {{- $commandArgs := (list) -}}
-  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
-    {{- $commandArgs = append $commandArgs "--local" -}}
-    {{- if semverCompare ">=2.5.2" .Values.airflowVersion }}
-      {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") -}}
-    {{- end }}
-  {{- else }}
-    {{- $commandArgs = concat $commandArgs (list "--hostname" "$(hostname)") -}}
-  {{- end }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check {{ join " " $commandArgs }}
+    airflow jobs check --local --job-type DagProcessorJob
 {{- end }}
 
 {{- define "registry_docker_config" }}
-  {{- $host := .Values.registry.connection.host }}
-  {{- $email := .Values.registry.connection.email }}
   {{- $user := .Values.registry.connection.user }}
   {{- $pass := .Values.registry.connection.pass }}
 
@@ -902,9 +784,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- $data := dict }}
   {{- $_ := set $data "username" $user }}
   {{- $_ := set $data "password" $pass }}
-  {{- $_ := set $data "email" $email }}
+  {{- $_ := set $data "email" .Values.registry.connection.email }}
   {{- $_ := set $data "auth" (printf "%v:%v" $user $pass | b64enc) }}
-  {{- $_ := set $auth $host $data }}
+  {{- $_ := set $auth .Values.registry.connection.host $data }}
   {{- $_ := set $config "auths" $auth }}
   {{ $config | toJson | print }}
 {{- end }}
@@ -951,9 +833,9 @@ fsGroup: {{ $.gid }}
 Set the default value for pod securityContext
 If no value is passed for <node>.securityContexts.pod or <node>.securityContext, defaults to UID in the local node.
 
-    +-----------------------------+      +------------------------+      +-------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid  |
-    +-----------------------------+      +------------------------+      +-------------+
+    +-----------------------------+      +------------------------+      +------------+
+    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid |
+    +-----------------------------+      +------------------------+      +------------+
 
 The template can be called like so:
   include "localPodSecurityContext" (list . .Values.schedule)
@@ -974,9 +856,9 @@ runAsUser: {{ .uid }}
 Set the default value for container securityContext
 If no value is passed for <node>.securityContexts.container or <node>.securityContext, defaults to UID in the local node.
 
-    +-----------------------------------+      +------------------------+      +-------------+
-    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid  |
-    +-----------------------------------+      +------------------------+      +-------------+
+    +-----------------------------------+      +------------------------+      +------------+
+    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid |
+    +-----------------------------------+      +------------------------+      +------------+
 
 The template can be called like so:
   include "localContainerSecurityContext" .Values.statsd
@@ -1019,8 +901,6 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
       {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}
       {{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
-    {{- else if $.Values.securityContext -}}
-      {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else -}}
 {{ $.Values.uid }}:{{ $.Values.gid }}
     {{- end -}}
@@ -1029,11 +909,11 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
 
 {{/*
 Set the default value for container securityContext
-If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+If no value is passed for securityContexts.container or <node>.securityContexts.container, defaults to deny privileges escalation and dropping all POSIX capabilities.
 
-    +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
-    | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-    +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
+    +-----------------------------------+      +-----------------------------+      +------------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL] |
+    +-----------------------------------+      +-----------------------------+      +------------------------------------------------------------+
 
 The template can be called like so:
    include "containerSecurityContext" (list .Values.webserver .Values)
@@ -1064,11 +944,11 @@ capabilities:
 
 {{/*
 Set the default value for external container securityContext(redis and statsd).
-If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+If no value is passed for <node>.securityContexts.container, defaults to deny privileges escalation and dropping all POSIX capabilities.
 
-    +-----------------------------------+      +-----------------------------------------------------------+
-    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-    +-----------------------------------+      +-----------------------------------------------------------+
+    +-----------------------------------+      +------------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL] |
+    +-----------------------------------+      +------------------------------------------------------------+
 
 The template can be called like so:
   include "externalContainerSecurityContext" .Values.statsd
@@ -1103,23 +983,6 @@ capabilities:
         key: {{ $config.valueFrom.configMapKeyRef.key }}
       {{- end }}
     {{- end }}
-    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    {{- if $config.value }}
-    value: {{ $config.value | quote }}
-    {{- else if $config.valueFrom }}
-    valueFrom:
-      {{- if $config.valueFrom.secretKeyRef }}
-      secretKeyRef:
-        name: {{ $config.valueFrom.secretKeyRef.name }}
-        key: {{ $config.valueFrom.secretKeyRef.key }}
-      {{- else if $config.valueFrom.configMapKeyRef }}
-      configMapKeyRef:
-        name: {{ $config.valueFrom.configMapKeyRef.name }}
-        key: {{ $config.valueFrom.configMapKeyRef.key }}
-      {{- end }}
-    {{- end }}
-    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -1143,7 +1006,7 @@ Check if the current executor launches pods
 This helper function returns true if the executor can launch pods (Kubernetes-based executors)
 */}}
 {{- define "airflow.podLaunchingExecutor" -}}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) -}}
     {{- print "true" -}}
   {{- end -}}
 {{- end -}}
@@ -1158,27 +1021,13 @@ Usage:
 */}}
 {{- define "airflow.revisionHistoryLimit" -}}
   {{- $result := "" -}}
-  {{- $found := false -}}
   {{- range . -}}
-    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
+    {{- if and (not (kindIs "invalid" .)) -}}
       {{- $result = . -}}
-      {{- $found = true -}}
+      {{- break -}}
     {{- end -}}
   {{- end -}}
   {{- $result -}}
-{{- end -}}
-
-{{/*
-Determine if the create-user job should be enabled.
-When webserver.defaultUser is set (deprecated), it takes precedence to preserve
-backwards compatibility. Otherwise, fall back to createUserJob.enabled.
-*/}}
-{{- define "createUserJob.isEnabled" -}}
-  {{- if .Values.webserver.defaultUser -}}
-    {{- .Values.webserver.defaultUser.enabled -}}
-  {{- else -}}
-    {{- .Values.createUserJob.enabled -}}
-  {{- end -}}
 {{- end -}}
 
 {{/*
