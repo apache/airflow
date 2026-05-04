@@ -137,7 +137,7 @@ export const transformGanttData = ({
                 items.push({
                   isGroup: false,
                   isMapped: tryInstance.is_mapped,
-                  state: "scheduled" as TaskInstanceState,
+                  state: "scheduled",
                   taskId: tryInstance.task_id,
                   tryNumber: tryInstance.try_number,
                   x: [dayjs(tryInstance.scheduled_dttm).toISOString(), dayjs(scheduledEnd).toISOString()],
@@ -150,7 +150,7 @@ export const transformGanttData = ({
                 items.push({
                   isGroup: false,
                   isMapped: tryInstance.is_mapped,
-                  state: "queued" as TaskInstanceState,
+                  state: "queued",
                   taskId: tryInstance.task_id,
                   tryNumber: tryInstance.try_number,
                   x: [
