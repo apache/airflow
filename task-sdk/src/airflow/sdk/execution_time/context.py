@@ -24,6 +24,7 @@ from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
+from uuid import UUID
 
 import attrs
 import structlog
@@ -45,8 +46,6 @@ from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError
 from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from pydantic.types import JsonValue
     from typing_extensions import Self
 
@@ -404,6 +403,137 @@ class VariableAccessor:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND:
                 return default
             raise
+
+
+class TaskStateAccessor:
+    """Accessor for task state scoped to the current task instance. Available as ``context['task_state']`` at task execution time."""
+
+    def __init__(self, ti_id: UUID) -> None:
+        self._ti_id = ti_id
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TaskStateAccessor):
+            return False
+        return self._ti_id == other._ti_id
+
+    def __hash__(self) -> int:
+        return hash(self._ti_id)
+
+    def __repr__(self) -> str:
+        return f"<TaskStateAccessor ti_id={self._ti_id}>"
+
+    # TODO: ``__getattr__`` for jinja template access like ``{{ task_state.job_id }}``
+    # is not implemented yet cos it's unclear whether task state values will be
+    # used in templates.
+
+    def get(self, key: str) -> str | None:
+        """Return the stored value, or ``None`` if the key does not exist."""
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import GetTaskState, TaskStateResult
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.API_SERVER_ERROR and isinstance(e.error.detail, dict):
+                if e.error.detail.get("status_code") == 404:
+                    return None
+            raise
+        if isinstance(resp, TaskStateResult):
+            return resp.value
+        return None
+
+    def set(self, key: str, value: str) -> None:
+        """Write or overwrite the value for the given key."""
+        from airflow.sdk.execution_time.comms import SetTaskState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value))
+
+    def delete(self, key: str) -> None:
+        """Delete a single key. No-op if the key does not exist."""
+        from airflow.sdk.execution_time.comms import DeleteTaskState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(DeleteTaskState(ti_id=self._ti_id, key=key))
+
+    def clear(self, all_map_indices: bool = False) -> None:
+        """
+        Delete all keys for this task instance.
+
+        Pass ``all_map_indices=True`` to wipe state across every mapped
+        instance of the task (fleet-wide reset). Defaults to clearing only
+        this task instance's own state.
+        """
+        from airflow.sdk.execution_time.comms import ClearTaskState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(ClearTaskState(ti_id=self._ti_id, all_map_indices=all_map_indices))
+
+
+class AssetStateAccessor:
+    """
+    Accessor for asset state scoped to an asset.
+
+    Available as ``context['asset_state']`` when the task has exactly one inlet
+    asset - asset watcher pattern. The accessor is bound to that Asset at context construction time.
+    """
+
+    # TODO: When the task has zero or more than one inlet — the key
+    # will not be present in ``context`` in those cases. Multi-inlet support
+    # ie: ``context['asset_state'][MY_ASSET].get(...)`` can be developed as needed.
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AssetStateAccessor):
+            return False
+        return self._name == other._name
+
+    def __hash__(self) -> int:
+        return hash(self._name)
+
+    def __repr__(self) -> str:
+        return f"<AssetStateAccessor name={self._name!r}>"
+
+    def get(self, key: str) -> str | None:
+        """Return the stored value, or ``None`` if the key does not exist."""
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import AssetStateResult, GetAssetState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            resp = SUPERVISOR_COMMS.send(GetAssetState(name=self._name, key=key))
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.API_SERVER_ERROR and isinstance(e.error.detail, dict):
+                if e.error.detail.get("status_code") == 404:
+                    return None
+            raise
+        if isinstance(resp, AssetStateResult):
+            return resp.value
+        return None
+
+    def set(self, key: str, value: str) -> None:
+        """Write or overwrite the value for the given key."""
+        from airflow.sdk.execution_time.comms import SetAssetState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(SetAssetState(name=self._name, key=key, value=value))
+
+    def delete(self, key: str) -> None:
+        """Delete a single key. No-op if the key does not exist."""
+        from airflow.sdk.execution_time.comms import DeleteAssetState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(DeleteAssetState(name=self._name, key=key))
+
+    def clear(self) -> None:
+        """Delete all state keys for this asset."""
+        from airflow.sdk.execution_time.comms import ClearAssetState
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(ClearAssetState(name=self._name))
 
 
 class MacrosAccessor:

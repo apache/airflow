@@ -69,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
+    AssetStateResponse,
     BundleInfo,
     ConnectionResponse,
     DagResponse,
@@ -81,6 +82,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskBreadcrumbsResponse,
     TaskInstance,
     TaskInstanceState,
+    TaskStateResponse,
     TaskStatesResponse,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
@@ -545,6 +547,26 @@ class VariableResult(VariableResponse):
         return cls(**variable_response.model_dump(exclude_defaults=True), type="VariableResult")
 
 
+class TaskStateResult(TaskStateResponse):
+    """Response to GetTaskState; wraps the generated API response for supervisor to worker comms."""
+
+    type: Literal["TaskStateResult"] = "TaskStateResult"
+
+    @classmethod
+    def from_task_state_response(cls, resp: TaskStateResponse) -> TaskStateResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="TaskStateResult")
+
+
+class AssetStateResult(AssetStateResponse):
+    """Response to GetAssetState; wraps the generated API response for supervisor to worker comms."""
+
+    type: Literal["AssetStateResult"] = "AssetStateResult"
+
+    @classmethod
+    def from_asset_state_response(cls, resp: AssetStateResponse) -> AssetStateResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="AssetStateResult")
+
+
 class DagRunResult(DagRun):
     type: Literal["DagRunResult"] = "DagRunResult"
 
@@ -713,6 +735,7 @@ class DagResult(DagResponse):
 ToTask = Annotated[
     AssetResult
     | AssetEventsResult
+    | AssetStateResult
     | ConnectionResult
     | DagRunResult
     | DagRunStateResult
@@ -724,6 +747,7 @@ ToTask = Annotated[
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
+    | TaskStateResult
     | TICount
     | TaskBreadcrumbsResult
     | TaskStatesResult
@@ -850,6 +874,55 @@ class DeleteXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     type: Literal["DeleteXCom"] = "DeleteXCom"
+
+
+class GetTaskState(BaseModel):
+    ti_id: UUID
+    key: str
+    type: Literal["GetTaskState"] = "GetTaskState"
+
+
+class SetTaskState(BaseModel):
+    ti_id: UUID
+    key: str
+    value: str
+    type: Literal["SetTaskState"] = "SetTaskState"
+
+
+class DeleteTaskState(BaseModel):
+    ti_id: UUID
+    key: str
+    type: Literal["DeleteTaskState"] = "DeleteTaskState"
+
+
+class ClearTaskState(BaseModel):
+    ti_id: UUID
+    all_map_indices: bool = False
+    type: Literal["ClearTaskState"] = "ClearTaskState"
+
+
+class GetAssetState(BaseModel):
+    name: str
+    key: str
+    type: Literal["GetAssetState"] = "GetAssetState"
+
+
+class SetAssetState(BaseModel):
+    name: str
+    key: str
+    value: str
+    type: Literal["SetAssetState"] = "SetAssetState"
+
+
+class DeleteAssetState(BaseModel):
+    name: str
+    key: str
+    type: Literal["DeleteAssetState"] = "DeleteAssetState"
+
+
+class ClearAssetState(BaseModel):
+    name: str
+    type: Literal["ClearAssetState"] = "ClearAssetState"
 
 
 class GetConnection(BaseModel):
@@ -1042,12 +1115,17 @@ class GetDag(BaseModel):
 
 
 ToSupervisor = Annotated[
-    DeferTask
+    ClearAssetState
+    | ClearTaskState
+    | DeferTask
+    | DeleteAssetState
+    | DeleteTaskState
     | DeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
+    | GetAssetState
     | GetConnection
     | GetDagRun
     | GetDagRunState
@@ -1057,6 +1135,7 @@ ToSupervisor = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetTaskRescheduleStartDate
+    | GetTaskState
     | GetTICount
     | GetTaskBreadcrumbs
     | GetTaskStates
@@ -1068,8 +1147,10 @@ ToSupervisor = Annotated[
     | PutVariable
     | RescheduleTask
     | RetryTask
+    | SetAssetState
     | SetRenderedFields
     | SetRenderedMapIndex
+    | SetTaskState
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask

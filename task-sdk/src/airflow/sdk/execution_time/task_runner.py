@@ -111,10 +111,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    AssetStateAccessor,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -249,7 +251,14 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
+                "task_state": TaskStateAccessor(ti_id=self.id),
             }
+            # TODO: right now, asset_state is only provided for single-inlet tasks.
+            # Multi-inlet support is deferred — see AssetStateAccessor docstring.
+            if len(self.task.inlets) == 1:
+                self._cached_template_context["asset_state"] = AssetStateAccessor(
+                    name=self.task.inlets[0].name
+                )
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

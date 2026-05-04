@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 
@@ -34,29 +35,42 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
     AssetEventSourceTaskInstance,
     AssetEventsResult,
     AssetResult,
+    AssetStateResult,
+    ClearAssetState,
+    ClearTaskState,
     ConnectionResult,
     DagRunResult,
+    DeleteAssetState,
+    DeleteTaskState,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetAssetState,
     GetDagRun,
+    GetTaskState,
     GetXCom,
+    OKResponse,
+    SetAssetState,
+    SetTaskState,
+    TaskStateResult,
     VariableResult,
     XComResult,
 )
 from airflow.sdk.execution_time.context import (
+    AssetStateAccessor,
     ConnectionAccessor,
     InletEventsAccessors,
     OutletEventAccessor,
     OutletEventAccessors,
+    TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
@@ -1032,3 +1046,132 @@ class TestSecretsBackend:
 
             with pytest.raises(AirflowNotFoundException, match="isn't defined"):
                 _get_connection("nonexistent_conn")
+
+
+class TestTaskStateAccessor:
+    TI_ID = UUID("01900000-0000-0000-0000-000000000001")
+
+    def test_get_returns_value(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = TaskStateResult(value="app_001")
+
+        result = TaskStateAccessor(ti_id=self.TI_ID).get("job_id")
+
+        assert result == "app_001"
+        mock_supervisor_comms.send.assert_called_once_with(GetTaskState(ti_id=self.TI_ID, key="job_id"))
+
+    def test_get_returns_none_on_404(self, mock_supervisor_comms):
+
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 404, "message": "not found"}
+            )
+        )
+
+        result = TaskStateAccessor(ti_id=self.TI_ID).get("missing_key")
+
+        assert result is None
+
+    def test_get_raises_on_error(self, mock_supervisor_comms):
+
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 500, "message": "server error"}
+            )
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            TaskStateAccessor(ti_id=self.TI_ID).get("some_key")
+
+    def test_set_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001")
+        )
+
+    def test_delete_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).delete("job_id")
+
+        mock_supervisor_comms.send.assert_called_once_with(DeleteTaskState(ti_id=self.TI_ID, key="job_id"))
+
+    def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            ClearTaskState(ti_id=self.TI_ID, all_map_indices=False)
+        )
+
+    def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).clear(all_map_indices=True)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            ClearTaskState(ti_id=self.TI_ID, all_map_indices=True)
+        )
+
+
+class TestAssetStateAccessor:
+    ASSET_NAME = "debug_watcher_asset"
+
+    def test_get_returns_value(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+
+        assert result == "2026-04-30T00:00:00Z"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetState(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_get_returns_none_on_404(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 404, "message": "not found"}
+            )
+        )
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get("missing_key")
+
+        assert result is None
+
+    def test_get_raises_on_error(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR, detail={"status_code": 500, "message": "server error"}
+            )
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            AssetStateAccessor(name=self.ASSET_NAME).get("some_key")
+
+    def test_set_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-04-30T00:00:00Z")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetState(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
+        )
+
+    def test_delete_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).delete("watermark")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            DeleteAssetState(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_clear_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetState(name=self.ASSET_NAME))

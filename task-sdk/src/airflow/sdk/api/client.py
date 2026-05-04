@@ -44,6 +44,8 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
+    AssetStatePutBody,
+    AssetStateResponse,
     ConnectionResponse,
     DagResponse,
     DagRun,
@@ -56,6 +58,8 @@ from airflow.sdk.api.datamodels._generated import (
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
+    TaskStatePutBody,
+    TaskStateResponse,
     TaskStatesResponse,
     TerminalStateNonSuccess,
     TIDeferredStatePayload,
@@ -639,6 +643,63 @@ class XComOperations:
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
+class TaskStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse:
+        """Get a task state value from the API server."""
+        resp = self.client.get(f"state/ti/{ti_id}/{key}")
+        return TaskStateResponse.model_validate_json(resp.read())
+
+    def set(self, ti_id: uuid.UUID, key: str, value: str) -> OKResponse:
+        """Set a task state value via the API server."""
+        body = TaskStatePutBody(value=value)
+        self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
+        return OKResponse(ok=True)
+
+    def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
+        """Delete a single task state key via the API server."""
+        self.client.delete(f"state/ti/{ti_id}/{key}")
+        return OKResponse(ok=True)
+
+    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
+        """Clear all task state keys for a task instance via the API server."""
+        params = {"all_map_indices": "true"} if all_map_indices else {}
+        self.client.delete(f"state/ti/{ti_id}", params=params)
+        return OKResponse(ok=True)
+
+
+class AssetStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, name: str, key: str) -> AssetStateResponse:
+        """Get an asset state value from the API server."""
+        resp = self.client.get(f"state/asset/{name}/{key}")
+        return AssetStateResponse.model_validate_json(resp.read())
+
+    def set(self, name: str, key: str, value: str) -> OKResponse:
+        """Set an asset state value via the API server."""
+        body = AssetStatePutBody(value=value)
+        self.client.put(f"state/asset/{name}/{key}", content=body.model_dump_json())
+        return OKResponse(ok=True)
+
+    def delete(self, name: str, key: str) -> OKResponse:
+        """Delete a single asset state key via the API server."""
+        self.client.delete(f"state/asset/{name}/{key}")
+        return OKResponse(ok=True)
+
+    def clear(self, name: str) -> OKResponse:
+        """Clear all state keys for an asset via the API server."""
+        self.client.delete(f"state/asset/{name}")
+        return OKResponse(ok=True)
+
+
 class AssetOperations:
     __slots__ = ("client",)
 
@@ -1051,6 +1112,18 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def task_state(self) -> TaskStateOperations:
+        """Operations related to task state."""
+        return TaskStateOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def asset_state(self) -> AssetStateOperations:
+        """Operations related to asset state."""
+        return AssetStateOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
