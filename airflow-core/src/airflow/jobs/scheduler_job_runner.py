@@ -3036,16 +3036,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ~exists(
                     select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
                 ),
-                ~exists(
-                    select(Callback.trigger_id).where(
-                        Callback.trigger_id == Trigger.id, Callback.trigger_id.is_not(None)
-                    )
-                ),
-                ~exists(
-                    select(TaskInstance.trigger_id).where(
-                        TaskInstance.trigger_id == Trigger.id, TaskInstance.trigger_id.is_not(None)
-                    )
-                ),
+                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
+                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
             )
             .execution_options(synchronize_session="fetch")
         )
