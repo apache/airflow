@@ -215,6 +215,7 @@ export const Variables = () => {
           <ExpandCollapseButtons
             collapseLabel={translate("common:expand.collapse")}
             expandLabel={translate("common:expand.expand")}
+            isExpanded={open}
             onCollapse={onClose}
             onExpand={onOpen}
           />
