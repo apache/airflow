@@ -2623,7 +2623,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
     ("files", "expected_outputs"),
     [
         pytest.param(
-            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            ("chart/tests/helm_tests/random_helm_test.py",),
             {
                 "ci-image-build": "true",
                 "prod-image-build": "true",
@@ -3700,7 +3700,7 @@ dependencies = [
     ("files", "pr_labels", "expected_outputs"),
     [
         pytest.param(
-            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            ("chart/tests/helm_tests/random_helm_test.py",),
             (),
             {
                 "helm-test-kubernetes-versions": DEFAULT_HELM_K8S_VERSIONS_JSON,
@@ -3708,7 +3708,7 @@ dependencies = [
             id="Default K8s version when no all-versions label",
         ),
         pytest.param(
-            ("helm-tests/tests/helm_tests/random_helm_test.py",),
+            ("chart/tests/helm_tests/random_helm_test.py",),
             ("all versions",),
             {
                 "helm-test-kubernetes-versions": ALL_HELM_K8S_VERSIONS_JSON,
