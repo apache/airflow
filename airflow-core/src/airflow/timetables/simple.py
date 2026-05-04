@@ -93,6 +93,7 @@ class NullTimetable(_TrivialTimetable):
     """
 
     can_be_scheduled = False  # TODO (GH-52141): Find a way to keep this and one in Core in sync.
+    partitioned_at_runtime = False
     description: str = "Never, external triggers only"
 
     @property

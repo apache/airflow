@@ -43,11 +43,14 @@ if TYPE_CHECKING:
 class _AssetSelfProxy:
     """Proxy for ``self`` in ``@asset`` functions; intercepts ``partition_keys`` writes and forwards them to the outlet event accessor."""
 
+    _asset: Asset
+    _outlet_events: OutletEventAccessorsProtocol
+
     def __init__(self, asset: Asset, outlet_events: OutletEventAccessorsProtocol) -> None:
         object.__setattr__(self, "_asset", asset)
         object.__setattr__(self, "_outlet_events", outlet_events)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> list[str]:
         if name == "partition_keys":
             return self._outlet_events[self._asset].partition_keys
         return getattr(object.__getattribute__(self, "_asset"), name)

@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from airflow.sdk import Context, Label, TaskGroup
+from airflow.sdk import Context, Label, PartitionAtRuntime, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
@@ -437,12 +437,18 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
-    def test_partition_at_runtime_schedule(self):
-        from airflow.sdk import PartitionAtRuntime
-
-        dag = DAG("part-at-runtime", schedule=PartitionAtRuntime())
-        assert isinstance(dag.timetable, PartitionAtRuntime)
-        assert dag.timetable.can_be_scheduled is False
+    @pytest.mark.parametrize(
+        ("schedule", "expected"),
+        [
+            (PartitionAtRuntime(), True),
+            (None, False),
+            ("@continuous", False),
+            ("@once", False),
+        ],
+    )
+    def test_partitioned_at_runtime_flag(self, schedule, expected):
+        dag = DAG("part-flag", schedule=schedule, start_date=DEFAULT_DATE, max_active_runs=1)
+        assert dag.timetable.partitioned_at_runtime is expected
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule

@@ -469,14 +469,14 @@ class TestOutletEventAccessorPartitionKeys:
         accessor.partition_keys = ["us", "eu"]
         assert accessor.partition_keys == ["us", "eu"]
 
-    def test_add_partition(self, accessor):
-        accessor.add_partition("us")
+    def test_add_partitions(self, accessor):
+        accessor.add_partitions("us")
         assert accessor.partition_keys == ["us"]
 
-    def test_add_partition_appends(self, accessor):
-        accessor.add_partition("us")
-        accessor.add_partition("eu")
-        accessor.add_partition("apac")
+    def test_add_partitions_appends(self, accessor):
+        accessor.add_partitions("us")
+        accessor.add_partitions("eu")
+        accessor.add_partitions("apac")
         assert accessor.partition_keys == ["us", "eu", "apac"]
 
 
