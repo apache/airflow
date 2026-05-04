@@ -27,7 +27,12 @@ from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, timezone
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    timezone,
+)
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
@@ -66,7 +71,10 @@ class TestDayOfWeekSensor:
 
     def setup_method(self):
         self.clean_db()
-        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
+        if AIRFLOW_V_3_3_PLUS:
+            self.dagbag = DagBag(dag_folder=DEV_NULL)
+        else:
+            self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=self.args)
         self.dag = dag

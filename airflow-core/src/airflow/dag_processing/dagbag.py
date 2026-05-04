@@ -172,12 +172,6 @@ class DagBag(LoggingMixin):
     that one system can run multiple, independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :param include_examples: back-compat-only on Airflow 3.1+. Example DAGs are
-        now exposed as dedicated bundles (``example_dags`` for core,
-        ``apache-airflow-providers-*-example-dags`` for each provider that
-        ships an ``example_dags`` folder), and the ``[core] load_examples``
-        config controls whether those bundles are registered. Passing
-        ``include_examples=True`` here emits a :class:`DeprecationWarning`.
     :param safe_mode: when ``False``, scans all python modules for dags.
         When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
         to filter python modules to scan for dags.
@@ -191,7 +185,6 @@ class DagBag(LoggingMixin):
     def __init__(
         self,
         dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
-        include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         load_op_links: bool = True,
         collect_dags: bool = True,
@@ -222,11 +215,6 @@ class DagBag(LoggingMixin):
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
-                include_examples=(
-                    include_examples
-                    if is_arg_set(include_examples)
-                    else conf.getboolean("core", "LOAD_EXAMPLES")
-                ),
                 safe_mode=(
                     safe_mode if is_arg_set(safe_mode) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
                 ),
@@ -455,7 +443,6 @@ class DagBag(LoggingMixin):
         self,
         dag_folder: str | Path | None = None,
         only_if_updated: bool = True,
-        include_examples: bool = conf.getboolean("core", "LOAD_EXAMPLES"),
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
     ):
         """
@@ -469,21 +456,7 @@ class DagBag(LoggingMixin):
         **Note**: The patterns in ``.airflowignore`` are interpreted as either
         un-anchored regexes or gitignore-like glob expressions, depending on
         the ``DAG_IGNORE_FILE_SYNTAX`` configuration parameter.
-
-        ``include_examples`` is a back-compat-only argument on Airflow 3.1+;
-        example DAGs are loaded via dedicated bundles gated by the
-        ``[core] load_examples`` configuration option. Passing
-        ``include_examples=True`` emits a :class:`DeprecationWarning`.
         """
-        if include_examples is True:
-            warnings.warn(
-                "include_examples=True is deprecated for DagBag.collect_dags. "
-                "Example DAGs are now loaded via dedicated bundles controlled by "
-                "the [core] load_examples configuration option. This argument "
-                "will be removed in a future release.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         self.log.info("Filling up the DagBag from %s", dag_folder)
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
@@ -565,17 +538,7 @@ class BundleDagBag(DagBag):
         if str(bundle_path) not in sys.path:
             sys.path.append(str(bundle_path))
 
-        # Warn if user explicitly set include_examples=True, since bundles never contain examples
-        if kwargs.get("include_examples") is True:
-            warnings.warn(
-                "include_examples=True is ignored for BundleDagBag. "
-                "Bundles do not contain example DAGs, so include_examples is always False.",
-                UserWarning,
-                stacklevel=2,
-            )
-
         kwargs["bundle_path"] = bundle_path
-        kwargs["include_examples"] = False
         super().__init__(*args, **kwargs)
 
 

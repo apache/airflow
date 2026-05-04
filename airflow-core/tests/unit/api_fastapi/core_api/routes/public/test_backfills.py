@@ -86,7 +86,7 @@ def make_dags():
     with DAG(DAG3_ID, schedule=None) as dag3:  # DAG start_date set to None
         EmptyOperator(task_id=TASK_ID, start_date=datetime(2019, 6, 12))
 
-    dag_bag = DagBag(os.devnull, include_examples=False)
+    dag_bag = DagBag(os.devnull)
     dag_bag.dags = {dag.dag_id: dag, dag2.dag_id: dag2, dag3.dag_id: dag3}
 
 

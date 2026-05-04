@@ -472,7 +472,7 @@ def collect_dags(dag_folder=None):
             for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
                 if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
                     continue
-                dagbag = DagBag(directory, include_examples=False)
+                dagbag = DagBag(directory)
                 dags.update(dagbag.dags)
                 import_errors.update(dagbag.import_errors)
     return dags, import_errors
@@ -1821,9 +1821,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     def test_basic_mapped_dag(self, dag_maker):
-        dagbag = DagBag(
-            "airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py", include_examples=False
-        )
+        dagbag = DagBag("airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py")
         assert not dagbag.import_errors
         dag = dagbag.dags["example_dynamic_task_mapping"]
         ser_dag = DagSerialization.to_dict(dag)

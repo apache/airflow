@@ -35,7 +35,7 @@ pytestmark = pytest.mark.db_test
 class TestCliPools:
     @classmethod
     def setup_class(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = models.DagBag()
         cls.parser = cli_parser.get_parser()
         settings.configure_orm()
         cls.session = Session

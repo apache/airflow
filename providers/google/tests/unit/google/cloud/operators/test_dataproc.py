@@ -459,7 +459,7 @@ def assert_warning(msg: str, warnings):
 class DataprocTestBase:
     @classmethod
     def setup_class(cls):
-        cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
+        cls.dagbag = DagBag(dag_folder="/dev/null")
         cls.dag = DAG(
             dag_id=TEST_DAG_ID,
             schedule=None,

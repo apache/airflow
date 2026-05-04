@@ -253,7 +253,7 @@ class TestCliDags:
         print(file_content)
         with time_machine.travel(DEFAULT_DATE):
             clear_db_dags()
-            parse_and_sync_to_db(tmp_path, include_examples=False)
+            parse_and_sync_to_db(tmp_path)
 
         # Test num-executions = 1 (default)
         args = self.parser.parse_args(["dags", "next-execution", dag_id])
@@ -915,7 +915,7 @@ class TestCliDags:
         path_to_parse = TEST_DAGS_FOLDER / "test_dag_parsing_context.py"
 
         with configure_testing_dag_bundle(path_to_parse):
-            bag = DagBag(dag_folder=path_to_parse, include_examples=False)
+            bag = DagBag(dag_folder=path_to_parse)
             sync_bag_to_db(bag, "testing", None)
             cli_args = self.parser.parse_args(
                 ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
@@ -1009,7 +1009,7 @@ class TestCliDags:
             from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
-            # example DAG should not be found since include_examples=False
+            # example DAG should not be found since the testing bundle only exposes test_sensor.py
             with pytest.raises(AirflowException, match="could not be found"):
                 get_bagged_dag(bundle_names=["testing"], dag_id="example_simplest_dag")
 

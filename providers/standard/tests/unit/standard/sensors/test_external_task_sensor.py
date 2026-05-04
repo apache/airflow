@@ -62,7 +62,11 @@ from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -1721,7 +1725,7 @@ def dag_bag_ext():
     """
     clear_db_runs()
 
-    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    dag_bag = DagBag(dag_folder=DEV_NULL)
 
     dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule=None)
     task_a_0 = EmptyOperator(task_id="task_a_0", dag=dag_0)
@@ -1785,7 +1789,7 @@ def dag_bag_parent_child():
     """
     clear_db_runs()
 
-    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    dag_bag = DagBag(dag_folder=DEV_NULL)
 
     day_1 = DEFAULT_DATE
 
@@ -2020,7 +2024,7 @@ def dag_bag_cyclic():
     """
 
     def _factory(depth: int) -> DagBag:
-        dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+        dag_bag = DagBag(dag_folder=DEV_NULL)
 
         dags = []
 
@@ -2118,7 +2122,7 @@ def dag_bag_multiple(session):
     """
     Create a DagBag containing two DAGs, linked by multiple ExternalTaskMarker.
     """
-    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    dag_bag = DagBag(dag_folder=DEV_NULL)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule="@daily")
     if AIRFLOW_V_3_0_PLUS:
@@ -2164,7 +2168,7 @@ def dag_bag_head_tail(session):
     | tail/|     | tail/|          /      | tail |
     +------+     +------+                 +------+
     """
-    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    dag_bag = DagBag(dag_folder=DEV_NULL)
 
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
         head = ExternalTaskSensor(
@@ -2209,7 +2213,7 @@ def dag_bag_head_tail_mapped_tasks(session):
     | tail/|     | tail/|          /      | tail |
     +------+     +------+                 +------+
     """
-    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+    dag_bag = DagBag(dag_folder=DEV_NULL)
 
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
 

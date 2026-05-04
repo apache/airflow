@@ -207,7 +207,7 @@ class TestDag:
 
         dag_id = "test_example_bash_operator"
 
-        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = DagBag(dag_folder=os.fspath(TEST_DAGS_FOLDER))
         dag = dagbag.dags.get(dag_id)
 
         # Ensure not serialized yet

@@ -754,7 +754,6 @@ class TestDagFileProcessorManager:
         )
         dagbag = DagBag(
             test_dag_path.absolute_path,
-            include_examples=False,
             bundle_path=test_dag_path.bundle_path,
         )
 
@@ -1114,7 +1113,7 @@ class TestDagFileProcessorManager:
         self, tmp_path, session, configure_testing_dag_bundle, test_zip_path
     ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
-        dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
+        dagbag = DagBag(dag_folder=tmp_path)
         dagbag.process_file(test_zip_path)
         dag = dagbag.get_dag("test_zip_dag")
         sync_dag_to_db(dag)

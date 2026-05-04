@@ -86,7 +86,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
 
             dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
-                include_examples=False,
             )
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task(task_name)
@@ -189,7 +188,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
 
             dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
-                include_examples=False,
             )
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task("execute_long_stall")

@@ -932,7 +932,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False)
+            self.dagbag = DagBag(os.devnull)
 
         def __enter__(self):
             self.serialized_model = None
@@ -1740,7 +1740,7 @@ def get_test_dag():
             from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
         dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_file)
 
         dag = dagbag.get_dag(dag_id)
 

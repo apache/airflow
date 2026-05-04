@@ -733,7 +733,7 @@ class TestGetMappedTaskInstances:
                 session.add(ti)
 
             DagBundlesManager().sync_bundles_to_db()
-            dagbag = DagBag(os.devnull, include_examples=False)
+            dagbag = DagBag(os.devnull)
             dagbag.dags = {dag_id: dag_maker.dag}
             sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()

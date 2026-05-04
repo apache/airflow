@@ -252,7 +252,7 @@ class TestOtelIntegration:
     def serialize_and_get_dags(cls) -> dict[str, SerializedDAG]:
         log.info("Serializing Dags from directory %s", cls.dag_folder)
         # Load DAGs from the dag directory.
-        dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
+        dag_bag = DagBag(dag_folder=cls.dag_folder)
 
         dag_ids = dag_bag.dag_ids
         assert len(dag_ids) == 1

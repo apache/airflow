@@ -212,7 +212,6 @@ def patch_get_dagbag_import_timeout():
 def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
     dagbag = DagBag(
         dag_folder=example,
-        include_examples=False,
     )
     if len(dagbag.import_errors) == 1 and "AirflowOptionalProviderFeatureException" in str(
         dagbag.import_errors
@@ -231,7 +230,6 @@ def test_should_not_do_database_queries(example: str, patch_get_dagbag_import_ti
     with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
-            include_examples=False,
         )
 
 
@@ -243,7 +241,6 @@ def test_should_not_run_hook_connections(example: str, patch_get_dagbag_import_t
         mock_get_connection.return_value = Connection()
         DagBag(
             dag_folder=example,
-            include_examples=False,
         )
     assert mock_get_connection.call_count == 0, (
         f"BaseHook.get_connection() should not be called during DAG parsing. "
