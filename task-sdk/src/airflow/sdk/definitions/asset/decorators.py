@@ -40,6 +40,9 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseTrigger
 
 
+_INVALID_INLET_ASSET_NAMES = ("self", "context", "outlet_events")
+
+
 class _AssetSelfProxy:
     """Proxy for ``self`` in ``@asset`` functions; intercepts ``partition_keys`` writes and forwards them to the outlet event accessor."""
 
@@ -86,7 +89,7 @@ class _AssetMainOperator(PythonOperator):
             inlets=[
                 Asset.ref(name=inlet_asset_name)
                 for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
-                if inlet_asset_name not in ("self", "context", "outlet_events")
+                if inlet_asset_name not in _INVALID_INLET_ASSET_NAMES
                 and param.default is inspect.Parameter.empty
             ],
             outlets=list(definition.iter_outlets()),

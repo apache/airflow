@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib
 import re
 import warnings
 import weakref
@@ -30,6 +29,7 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
+from airflow.sdk.definitions.timetables import assets, events, interval, simple, trigger  # noqa: F401
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
@@ -441,14 +441,6 @@ class TestDag:
 
     def test_only_partition_at_runtime_has_partitioned_at_runtime_flag(self):
         """Regression guard: across every BaseTimetable subclass, only PartitionAtRuntime sets partitioned_at_runtime=True."""
-        for mod in (
-            "airflow.sdk.definitions.timetables.assets",
-            "airflow.sdk.definitions.timetables.events",
-            "airflow.sdk.definitions.timetables.interval",
-            "airflow.sdk.definitions.timetables.simple",
-            "airflow.sdk.definitions.timetables.trigger",
-        ):
-            importlib.import_module(mod)
 
         def all_subclasses(cls):
             for sub in cls.__subclasses__():
