@@ -190,6 +190,39 @@ def compare_dag_defaults() -> list[str]:
     print(f"Found {len(schema_defaults)} DAG schema defaults")
     print(f"Found {len(server_defaults)} DAG server-side defaults")
 
+    # Check each server default against schema
+    for field_name, server_value in server_defaults.items():
+        schema_value = schema_defaults.get(field_name)
+
+        # Check if field exists in schema
+        if field_name not in schema_defaults:
+            # Some server fields don't need defaults in schema (like None values, empty collections, or computed fields)
+            if (
+                server_value is not None
+                and server_value not in [[], {}, (), set()]
+                and field_name
+                not in [
+                    "dag_id",
+                    "dag_display_name",
+                    "max_active_runs",
+                    "max_active_tasks",
+                    "max_consecutive_failed_dag_runs",
+                    "catchup",
+                    "disable_bundle_versioning",
+                ]
+            ):
+                errors.append(
+                    f"DAG server field '{field_name}' has default {server_value!r} but no schema default"
+                )
+            continue
+
+        # Direct comparison
+        if schema_value != server_value:
+            errors.append(
+                f"DAG field '{field_name}': schema default is {schema_value!r}, "
+                f"server default is {server_value!r}"
+            )
+
     # Check for schema defaults that don't have corresponding server defaults
     for field_name, schema_value in schema_defaults.items():
         if field_name not in server_defaults:
@@ -202,15 +235,6 @@ def compare_dag_defaults() -> list[str]:
                 errors.append(
                     f"DAG schema has default for '{field_name}' = {schema_value!r} but no corresponding server default"
                 )
-            continue
-
-        # Direct comparison
-        server_value = server_defaults[field_name]
-        if schema_value != server_value:
-            errors.append(
-                f"DAG field '{field_name}': schema default is {schema_value!r}, "
-                f"server default is {server_value!r}"
-            )
 
     return errors
 
