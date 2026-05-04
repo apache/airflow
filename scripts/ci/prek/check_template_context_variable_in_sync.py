@@ -48,7 +48,7 @@ IGNORE = {
     "data_interval_start",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
-    # AIP-103: task_state/asset_state are NotRequired/conditional; docs land in PR 6
+    # AIP-103: task_state/asset_state aren't documented yet. Will be done in a later PR.
     "task_state",
     "asset_state",
 }
