@@ -19,10 +19,10 @@
 # Maintain Apache Airflow GitHub Releases so that they comply with the
 # ASF release-distribution policy: each in-scope release body ends with
 # a disclaimer footer that names the project's official downloads page
-# at airflow.apache.org as the authoritative source, with PyPI /
-# ArtifactHub mentioned as convenience mirrors. The binary asset
-# attachments are removed so users cannot accidentally take a
-# non-authoritative copy from GitHub.
+# at airflow.apache.org as the authoritative source. (For the Helm
+# chart, ArtifactHub is mentioned as a convenience mirror because the
+# chart is not on PyPI.) The binary asset attachments are removed so
+# users cannot accidentally take a non-authoritative copy from GitHub.
 #
 # What this script does:
 #
@@ -89,11 +89,10 @@ CORE_BLOCK = """\
 > verifying each — including the project's signing keys at
 > https://downloads.apache.org/airflow/KEYS.
 >
-> The wheels on PyPI are convenience binaries that are byte-for-byte
-> identical to the corresponding ASF release artifacts; the same `.asc`
-> signatures and `.sha512` checksums apply to them.
->
-> * **PyPI:** https://pypi.org/project/apache-airflow/{version}/
+> Note: the "Source code (zip)" and "Source code (tar.gz)" attachments
+> on this page are GitHub-generated snapshots of the git tag. They are
+> **not** official ASF releases, are **not** signed, and differ
+> from the canonical artifacts on the downloads page above.
 """
 
 HELM_BLOCK = """\
@@ -113,6 +112,11 @@ HELM_BLOCK = """\
 > the same `.asc` signature and `.sha512` checksum apply to it.
 >
 > * **ArtifactHub:** https://artifacthub.io/packages/helm/apache-airflow/airflow/{version}
+>
+> Note: the "Source code (zip)" and "Source code (tar.gz)" attachments
+> on this page are GitHub-generated snapshots of the git tag. They are
+> **not** official ASF releases, are **not** signed, and differ
+> from the canonical artifacts on the downloads page above.
 """
 
 CTL_BLOCK = """\
@@ -127,11 +131,10 @@ CTL_BLOCK = """\
 > verifying each — including the project's signing keys at
 > https://downloads.apache.org/airflow/KEYS.
 >
-> The wheels on PyPI are convenience binaries that are byte-for-byte
-> identical to the corresponding ASF release artifacts; the same `.asc`
-> signatures and `.sha512` checksums apply to them.
->
-> * **PyPI:** https://pypi.org/project/apache-airflow-ctl/{version}/
+> Note: the "Source code (zip)" and "Source code (tar.gz)" attachments
+> on this page are GitHub-generated snapshots of the git tag. They are
+> **not** official ASF releases, are **not** signed, and differ
+> from the canonical artifacts on the downloads page above.
 """
 
 UPGRADE_CHECK_BLOCK = """\
@@ -144,10 +147,10 @@ UPGRADE_CHECK_BLOCK = """\
 > Verify signatures against the project's signing keys at
 > https://downloads.apache.org/airflow/KEYS.
 >
-> The wheels on PyPI are convenience binaries that are byte-for-byte
-> identical to the corresponding ASF release artifacts.
->
-> * **PyPI:** https://pypi.org/project/apache-airflow-upgrade-check/{version}/
+> Note: the "Source code (zip)" and "Source code (tar.gz)" attachments
+> on this page are GitHub-generated snapshots of the git tag. They are
+> **not** official ASF releases, are **not** signed, and differ
+> from the canonical artifacts on the downloads page above.
 """
 
 TEMPLATES = {
