@@ -25,7 +25,6 @@ in the ``[email]`` section.
 .. code-block:: ini
 
   [email]
-  email_backend = airflow.utils.email.send_email_smtp
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
@@ -33,7 +32,6 @@ Equivalent environment variables look like:
 
 .. code-block:: sh
 
-  AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
   AIRFLOW__EMAIL__SUBJECT_TEMPLATE=/path/to/my_subject_template_file
   AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE=/path/to/my_html_content_template_file
 
@@ -56,14 +54,6 @@ If you do not want to store the SMTP credentials in the config or in the environ
 connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with its name in
 the configuration & store SMTP username-password in it. Other SMTP settings like host, port etc always gets picked up
 from the configuration only. The connection can be of any type (for example 'HTTP connection').
-
-If you want to check which email backend is currently set, you can use ``airflow config get-value email email_backend`` command as in
-the example below.
-
-.. code-block:: bash
-
-    $ airflow config get-value email email_backend
-    airflow.utils.email.send_email_smtp
 
 To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
 

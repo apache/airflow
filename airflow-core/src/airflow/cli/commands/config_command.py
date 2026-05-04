@@ -818,12 +818,6 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("triggerer", "default_capacity"),
         renamed_to=ConfigParameter("triggerer", "capacity"),
     ),
-    # email
-    ConfigChange(
-        config=ConfigParameter("email", "email_backend"),
-        was_removed=True,
-        remove_if_equals="airflow.contrib.utils.sendgrid.send_email",
-    ),
     # elasticsearch
     ConfigChange(
         config=ConfigParameter("elasticsearch", "log_id_template"),

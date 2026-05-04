@@ -2192,6 +2192,10 @@ email:
     email_backend:
       description: Email backend to use
       version_added: ~
+      version_deprecated: 3.2.0
+      deprecation_reason: |
+        Since the legacy email_on_failure and email_on_retry attributes are replaced with SmtpNotifier
+        from apache-airflow-providers-smtp, email_backend is no longer used.
       type: string
       example: ~
       default: "airflow.utils.email.send_email_smtp"
