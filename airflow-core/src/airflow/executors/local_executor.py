@@ -128,7 +128,7 @@ class LocalExecutor(BaseExecutor):
     serve_logs: bool = True
     # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``) to bound hook
     # execution, so ``TEST_CONNECTION`` support requires a POSIX worker (LocalExecutor runs on the host).
-    supported_workload_types: frozenset[str] = frozenset(
+    supported_workload_types: frozenset[WorkloadType] = frozenset(
         {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
     )
 
