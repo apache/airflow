@@ -3203,7 +3203,7 @@ otelCollector:
   # reference values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or
   # `{{ include "airflow.fullname" . }}` from inside the string. Leave empty to use
   # the chart default.
-  config: ""
+  config: ~
   # config: |
   #   extensions:
   #     health_check:

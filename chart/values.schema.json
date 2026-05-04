@@ -8658,8 +8658,11 @@
                 },
                 "config": {
                     "description": "Override the OTel Collector `config.yml`. When set (non-empty), this string replaces the chart's default collector config. The value is rendered with `tpl`, so values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or `{{ include \"airflow.fullname\" . }}` can be referenced from inside the string. Leave empty to use the chart default.",
-                    "type": "string",
-                    "default": ""
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "args": {
                     "description": "Args to pass to the OTel Collector container (templated).",
