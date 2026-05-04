@@ -120,7 +120,7 @@ def create_variable_file(tmp_path):
 class TestCliVariables:
     @classmethod
     def setup_class(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dagbag = models.DagBag()
         cls.parser = cli_parser.get_parser()
 
     def setup_method(self):

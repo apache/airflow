@@ -27,15 +27,20 @@ registered.
   to update to the new per-provider bundle names. The DAG identifiers
   themselves are unchanged.
 
-**Deprecations:**
+**Removals:**
 
-- The ``include_examples`` parameter on ``DagBag.collect_dags`` and on
-  ``tests_common.test_utils.db.parse_and_sync_to_db`` is now back-compat
-  only. Passing ``include_examples=True`` emits a
-  :class:`DeprecationWarning`. Tests and external callers that need
-  example DAGs loaded should set the ``[core] load_examples`` config to
-  ``true`` (e.g. via ``conf_vars({("core", "load_examples"): "true"})``)
-  instead.
+- The ``include_examples`` parameter has been removed from
+  ``DagBag.__init__``, ``DagBag.collect_dags``, ``BundleDagBag.__init__``,
+  and ``tests_common.test_utils.db.parse_and_sync_to_db``. Example DAG
+  loading is now controlled exclusively by the ``[core] load_examples``
+  configuration option, which gates whether the per-provider example
+  bundles are registered. Callers that previously passed
+  ``include_examples=True`` should set
+  ``conf_vars({("core", "load_examples"): "true"})`` (or equivalent
+  configuration). Callers that previously passed
+  ``include_examples=False`` can drop the argument: it matches the new
+  default behaviour where ``DagBag`` only walks the configured
+  ``dag_folder`` and example DAGs come in via dedicated bundles.
 
 * Types of change
 
@@ -55,4 +60,6 @@ registered.
   * Replace ``include_examples=True`` calls to ``DagBag`` /
     ``parse_and_sync_to_db`` with
     ``conf_vars({("core", "load_examples"): "true"})`` (or equivalent
-    configuration) before the deprecated argument is removed.
+    configuration). The argument has been removed.
+  * Drop ``include_examples=False`` arguments from ``DagBag`` /
+    ``parse_and_sync_to_db`` calls; the default behaviour is unchanged.

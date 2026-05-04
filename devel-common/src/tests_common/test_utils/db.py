@@ -21,7 +21,6 @@ import functools
 import json
 import logging
 import os
-import warnings
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
@@ -186,29 +185,17 @@ def initial_db_init():
     _bootstrap_dagbag()
 
 
-def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
+def parse_and_sync_to_db(folder: Path | str):
     """
     Parse DAGs in ``folder`` and sync them to the metadata database.
 
-    On Airflow 3.1+, ``include_examples`` is back-compat-only: example DAGs
-    are exposed as dedicated bundles (``example_dags`` for core,
-    ``apache-airflow-providers-*-example-dags`` for each provider that ships
-    an ``example_dags`` folder), and whether they are loaded is controlled by
-    the ``[core] load_examples`` configuration option, not by this argument.
-    Tests that need example DAGs should set ``conf_vars({("core", "load_examples"): "true"})``
-    instead. Passing ``include_examples=True`` on 3.1+ emits a
-    :class:`DeprecationWarning`.
+    On Airflow 3.3+, example DAGs are exposed as dedicated bundles
+    (``example_dags`` for core, ``apache-airflow-providers-*-example-dags``
+    for each provider that ships an ``example_dags`` folder), and whether
+    they are loaded is controlled by the ``[core] load_examples``
+    configuration option. Tests that need example DAGs should set
+    ``conf_vars({("core", "load_examples"): "true"})``.
     """
-    if AIRFLOW_V_3_1_PLUS and include_examples is True:
-        warnings.warn(
-            "include_examples=True is deprecated for parse_and_sync_to_db on "
-            "Airflow 3.1+. Example DAGs are now loaded via dedicated bundles "
-            "controlled by the [core] load_examples configuration option. Set "
-            "conf_vars({('core', 'load_examples'): 'true'}) in the test instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
     if AIRFLOW_V_3_2_PLUS:
         from airflow.dag_processing.dagbag import DagBag
     else:
@@ -235,17 +222,17 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             # otherwise the same DAG gets registered under two bundles and
             # ``dag_schedule_asset_reference`` rows collide on the unique
             # ``(asset_id, dag_id)`` constraint.
-            dagbag = DagBag(dag_folder=folder, include_examples=False)
+            dagbag = DagBag(dag_folder=folder)
             sync_bag_to_db(dagbag, "dags-folder", None, session=session)
             for bundle in DagBundlesManager().get_all_dag_bundles():
-                bundle_dagbag = DagBag(dag_folder=bundle.path, include_examples=False)
+                bundle_dagbag = DagBag(dag_folder=bundle.path)
                 sync_bag_to_db(bundle_dagbag, bundle.name, None, session=session)
 
         elif AIRFLOW_V_3_0_PLUS:
-            dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
+            dagbag = DagBag(dag_folder=folder, include_examples=False)
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
-            dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
+            dagbag = DagBag(dag_folder=folder, include_examples=False)
             dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
     return dagbag
