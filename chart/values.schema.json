@@ -8325,7 +8325,7 @@
                     }
                 },
                 "enabled": {
-                    "description": "Enable StatsD. When OtelCollector.MetricsEnabled is true, [metrics] statsd_on is set to false in the rendered Airflow config because Airflow can only export metrics to one backend at a time.",
+                    "description": "Enable StatsD. When `otelCollector.metricsEnabled` is true, [metrics] statsd_on is set to false in the rendered Airflow config because Airflow can only export metrics to one backend at a time.",
                     "type": "boolean",
                     "default": true
                 },
@@ -8653,7 +8653,8 @@
                 "metricExportIntervalMs": {
                     "description": "Interval (in milliseconds) at which the OTel SDK exports metrics to the collector. Sets the `OTEL_METRIC_EXPORT_INTERVAL` env var on Airflow pods.",
                     "type": "integer",
-                    "default": 30000
+                    "default": 30000,
+                    "minimum": 0
                 },
                 "config": {
                     "description": "Override the OTel Collector `config.yml`. When set (non-empty), this string replaces the chart's default collector config. The value is rendered with `tpl`, so values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or `{{ include \"airflow.fullname\" . }}` can be referenced from inside the string. Leave empty to use the chart default.",
