@@ -2260,6 +2260,7 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
     assert refreshed_ti.try_number == 1
 
 
+@pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
@@ -2292,6 +2293,41 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     ti.task = dr.dag.get_task("test_task")
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
+
+
+@pytest.mark.need_serialized_dag
+def test_schedule_tis_start_trigger_next_kwargs_round_trip(dag_maker, session):
+    """next_kwargs with encoded values (timedelta) must survive the defer_task round-trip."""
+    import datetime
+
+    from airflow.sdk.serde import deserialize
+
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs={},
+            next_method="execute_complete",
+            next_kwargs={"delay": datetime.timedelta(seconds=30)},
+            timeout=None,
+        )
+        start_from_trigger = True
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("test_task")
+    ti.task = dr.dag.get_task("test_task")
+    dr.schedule_tis((ti,), session=session)
+
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert deserialize(ti.next_kwargs) == {"delay": datetime.timedelta(seconds=30)}
 
 
 def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):

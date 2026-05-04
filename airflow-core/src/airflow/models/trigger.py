@@ -75,9 +75,11 @@ def _stringify_encoding_keys(d: Any) -> Any:
     """
     Convert BaseSerialization Encoding enum keys to their string values recursively.
 
-    On Python 3.10, str(Encoding.TYPE) returns "Encoding.TYPE" instead of "__type__",
-    so serde.serialize confuses it. Converting keys to their value strings
-    here ensures serde stores and retrieves them correctly on all Python versions.
+    Python 3.10 compatibility: str(Encoding.TYPE) returns "Encoding.TYPE" on 3.10
+    instead of "__type__" (3.10 is still the default CI target). serde.serialize
+    uses str(k) for dict keys, so without this conversion the encrypted blob ends up
+    with "Encoding.TYPE" keys that neither serde._convert nor the BaseSerialization
+    fallback can read back.
     """
     from airflow.serialization.enums import Encoding
 

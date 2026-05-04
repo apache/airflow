@@ -857,8 +857,10 @@ class TestStringifiedDAGs:
         else:
             assert serialized_task.resources == task.resources
 
-        # start_trigger_args: trigger_kwargs is kept as raw JSON after deserialization;
-        # compare after deserializing both sides
+        # start_trigger_args: trigger_kwargs is kept as raw BaseSerialization-encoded form
+        # after deserialization. Compare the encoded forms directly — s.trigger_kwargs is
+        # exactly BaseSerialization.serialize(o.trigger_kwargs) since _encode_start_trigger_args
+        # serializes it and _decode_start_trigger_args keeps it raw.
         if task.start_trigger_args is not None:
             from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -867,7 +869,7 @@ class TestStringifiedDAGs:
             assert s.trigger_cls == o.trigger_cls
             assert s.next_method == o.next_method
             assert s.timeout == o.timeout
-            assert BaseSerialization.deserialize(s.trigger_kwargs or {}) == (o.trigger_kwargs or {})
+            assert s.trigger_kwargs == BaseSerialization.serialize(o.trigger_kwargs or {})
 
         assert [ensure_serialized_asset(i) for i in task.inlets] == serialized_task.inlets
         assert [ensure_serialized_asset(o) for o in task.outlets] == serialized_task.outlets
@@ -2642,14 +2644,14 @@ class TestStringifiedDAGs:
         assert tasks[1]["__var"]["start_from_trigger"] is True
 
     def test_trigger_kwargs_not_deserialised_through_serdag(self):
-        """trigger_kwargs are not deserialized when loading a serialized DAG."""
+        """trigger_kwargs and next_kwargs are kept as raw BaseSerialization JSON when loading a serialized DAG."""
 
         class TestOperator(BaseOperator):
             start_trigger_args = StartTriggerArgs(
                 trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
                 trigger_kwargs={"delta": timedelta(seconds=2)},
                 next_method="execute_complete",
-                next_kwargs=None,
+                next_kwargs={"resume_after": timedelta(seconds=5)},
                 timeout=None,
             )
             start_from_trigger = True
@@ -2671,6 +2673,10 @@ class TestStringifiedDAGs:
         assert task.start_trigger_args.trigger_kwargs == {
             "__type": "dict",
             "__var": {"delta": {"__type": "timedelta", "__var": 2.0}},
+        }
+        assert task.start_trigger_args.next_kwargs == {
+            "__type": "dict",
+            "__var": {"resume_after": {"__type": "timedelta", "__var": 5.0}},
         }
 
 
