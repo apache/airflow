@@ -35,6 +35,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -1575,11 +1576,11 @@ class TestTaskInstance:
         ti.state = State.SUCCESS
         assert ti.try_number == 2  # unaffected by state
 
-    def test_get_num_running_task_instances(self, dag_maker, create_task_instance):
+    def test_get_num_active_task_instances(self, dag_maker, create_task_instance):
         session = settings.Session()
 
         ti1 = create_task_instance(
-            dag_id="test_get_num_running_task_instances", task_id="task1", session=session
+            dag_id="test_get_num_active_task_instances", task_id="task1", session=session
         )
 
         logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
@@ -1598,7 +1599,7 @@ class TestTaskInstance:
         ti2.task = ti1.task
 
         ti3 = create_task_instance(
-            dag_id="test_get_num_running_task_instances_dummy", task_id="task2", session=session
+            dag_id="test_get_num_active_task_instances_dummy", task_id="task2", session=session
         )
         assert ti3 in session
         assert ti1 in session
@@ -1609,11 +1610,11 @@ class TestTaskInstance:
         assert ti3 in session
         session.commit()
 
-        assert ti1.get_num_running_task_instances(session=session) == 1
-        assert ti2.get_num_running_task_instances(session=session) == 1
-        assert ti3.get_num_running_task_instances(session=session) == 1
+        assert ti1.get_num_active_task_instances(session=session) == 1
+        assert ti2.get_num_active_task_instances(session=session) == 1
+        assert ti3.get_num_active_task_instances(session=session) == 1
 
-    def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
+    def test_get_num_active_task_instances_per_dagrun(self, create_task_instance, dag_maker):
         session = settings.Session()
 
         with dag_maker(dag_id="test_dag"):
@@ -1652,15 +1653,49 @@ class TestTaskInstance:
 
         session.commit()
 
-        assert tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_2", 0)].get_num_running_task_instances(session=session) == 2
-        assert tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_2", 0)].get_num_active_task_instances(session=session) == 2
+        assert tis1[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
 
-        assert tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_2", 0)].get_num_running_task_instances(session=session) == 2
-        assert tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_2", 0)].get_num_active_task_instances(session=session) == 2
+        assert tis2[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+
+    def test_get_num_active_task_instances_includes_deferred(self, dag_maker, create_task_instance):
+        """
+        get_num_active_task_instances should count DEFERRED TIs.
+
+        Regression test for https://github.com/apache/airflow/issues/61700
+        """
+        session = settings.Session()
+
+        ti1 = create_task_instance(
+            dag_id="test_get_num_active_task_instances_deferred", task_id="task1", session=session
+        )
+
+        logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        dr = dag_maker.create_dagrun(
+            logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
+            state=None,
+            run_id="2",
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        ti2 = dr.task_instances[0]
+        ti2.task = ti1.task
+
+        ti1.state = TaskInstanceState.RUNNING
+        ti2.state = TaskInstanceState.DEFERRED
+        session.commit()
+
+        # Both RUNNING and DEFERRED should be counted
+        assert ti1.get_num_active_task_instances(session=session) == 2
+        assert ti2.get_num_active_task_instances(session=session) == 2
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
@@ -3570,11 +3605,6 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
     relationship is marked as loaded but unset (`None`).
     """
-    from sqlalchemy.orm.attributes import set_committed_value
-
-    from airflow.operators.empty import EmptyOperator
-    from airflow.utils.state import State
-
     with dag_maker(dag_id="test_get_dagrun_loaded_none"):
         EmptyOperator(task_id="test_task")
 
