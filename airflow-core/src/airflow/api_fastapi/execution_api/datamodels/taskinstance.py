@@ -338,8 +338,11 @@ class DagRun(StrictBaseModel):
         for field_name in cls.model_fields:
             if field_name in insp.dict:
                 values[field_name] = insp.dict[field_name]
-            elif field_name == "state" and "_state" in insp.dict:
-                values["state"] = insp.dict["_state"]
+            elif field_name == "state":
+                if "_state" in insp.dict:
+                    values["state"] = insp.dict["_state"]
+                elif not insp.detached and (state_val := data._state) is not None:
+                    values["state"] = state_val
 
         if "consumed_asset_events" not in values:
             values["consumed_asset_events"] = []
