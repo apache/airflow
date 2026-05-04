@@ -252,3 +252,46 @@ class S3TablesDeleteTableBucketOperator(AwsBaseOperator[S3TablesHook]):
         self.log.info("Deleting S3 Tables table bucket %s", self.table_bucket_arn)
         self.hook.conn.delete_table_bucket(tableBucketARN=self.table_bucket_arn)
         self.log.info("Deleted table bucket %s", self.table_bucket_arn)
+
+
+class S3TablesCreateNamespaceOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Create a namespace in an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesCreateNamespaceOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param namespace: The namespace name to create. (templated)
+    :param if_exists: Behavior when the namespace already exists.
+        ``"fail"`` raises an error, ``"skip"`` logs and returns.
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn", "namespace")
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        namespace: str,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.namespace = namespace
+        self.if_exists = if_exists
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating namespace %s in %s", self.namespace, self.table_bucket_arn)
+        try:
+            self.hook.conn.create_namespace(tableBucketARN=self.table_bucket_arn, namespace=[self.namespace])
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConflictException" and self.if_exists == "skip":
+                self.log.info("Namespace %s already exists, skipping.", self.namespace)
+            else:
+                raise
+        self.log.info("Namespace %s created.", self.namespace)
+        return self.namespace

@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3_tables import (
+    S3TablesCreateNamespaceOperator,
     S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
     S3TablesDeleteTableBucketOperator,
@@ -84,7 +85,13 @@ with DAG(
         table_bucket_name=bucket_name,
     )
     # [END howto_operator_s3tables_create_table_bucket]
-    setup_namespace = create_namespace(table_bucket_arn=create_table_bucket.output, namespace=namespace)
+    # [START howto_operator_s3tables_create_namespace]
+    setup_namespace = S3TablesCreateNamespaceOperator(
+        task_id="create_namespace",
+        table_bucket_arn=create_table_bucket.output,
+        namespace=namespace,
+    )
+    # [END howto_operator_s3tables_create_namespace]
 
     # [START howto_operator_s3tables_create_table]
     create_table = S3TablesCreateTableOperator(

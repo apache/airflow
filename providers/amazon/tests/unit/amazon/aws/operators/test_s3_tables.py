@@ -25,6 +25,7 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3_tables import S3TablesHook
 from airflow.providers.amazon.aws.operators.s3_tables import (
+    S3TablesCreateNamespaceOperator,
     S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
     S3TablesDeleteTableBucketOperator,
@@ -228,6 +229,63 @@ class TestS3TablesDeleteTableBucketOperator:
         self.operator.execute({})
 
         mock_client.delete_table_bucket.assert_called_once_with(tableBucketARN=BUCKET_ARN)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+NAMESPACE = "test_namespace"
+
+
+class TestS3TablesCreateNamespaceOperator:
+    def setup_method(self):
+        self.operator = S3TablesCreateNamespaceOperator(
+            task_id="create_namespace",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+        )
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_namespace.assert_called_once_with(
+            tableBucketARN=TABLE_BUCKET_ARN, namespace=[NAMESPACE]
+        )
+        assert result == NAMESPACE
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_namespace.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateNamespace",
+        )
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+        assert result == NAMESPACE
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = S3TablesCreateNamespaceOperator(
+            task_id="create_namespace",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_namespace.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateNamespace",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
