@@ -322,6 +322,7 @@ required-version = ">=0.11.8"
 
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
+apache-airflow-ctl = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
 
 [tool.airflow]
