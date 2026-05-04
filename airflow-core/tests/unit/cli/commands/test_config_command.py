@@ -45,6 +45,7 @@ class TestCliConfigList:
         mock_conf.write.assert_called_once_with(
             mock_stringio.return_value.__enter__.return_value,
             section=None,
+            include_examples=False,
             include_descriptions=False,
             include_sources=False,
             include_env_vars=False,
@@ -64,6 +65,7 @@ class TestCliConfigList:
         mock_conf.write.assert_called_once_with(
             mock_stringio.return_value.__enter__.return_value,
             section="core",
+            include_examples=False,
             include_descriptions=False,
             include_sources=False,
             include_env_vars=False,

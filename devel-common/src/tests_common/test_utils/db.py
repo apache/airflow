@@ -229,10 +229,10 @@ def parse_and_sync_to_db(folder: Path | str):
                 sync_bag_to_db(bundle_dagbag, bundle.name, None, session=session)
 
         elif AIRFLOW_V_3_0_PLUS:
-            dagbag = DagBag(dag_folder=folder, include_examples=False)
+            dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
-            dagbag = DagBag(dag_folder=folder, include_examples=False)
+            dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
             dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
     return dagbag
