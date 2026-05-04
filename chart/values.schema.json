@@ -8694,7 +8694,8 @@
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for the OTel Collector to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
-                    "default": 30
+                    "default": 30,
+                    "minimum": 0
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for the OTel Collector container.",
@@ -8704,12 +8705,14 @@
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before the liveness probe is initiated.",
                             "type": "integer",
-                            "default": 10
+                            "default": 10,
+                            "minimum": 0
                         },
                         "periodSeconds": {
                             "description": "How often (in seconds) to perform the liveness probe.",
                             "type": "integer",
-                            "default": 15
+                            "default": 15,
+                            "minimum": 0
                         }
                     }
                 },
@@ -8721,12 +8724,14 @@
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before the readiness probe is initiated.",
                             "type": "integer",
-                            "default": 10
+                            "default": 10,
+                            "minimum": 0
                         },
                         "periodSeconds": {
                             "description": "How often (in seconds) to perform the readiness probe.",
                             "type": "integer",
-                            "default": 15
+                            "default": 15,
+                            "minimum": 0
                         }
                     }
                 },
