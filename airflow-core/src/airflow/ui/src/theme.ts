@@ -367,7 +367,7 @@ const defaultAirflowTheme = {
       skipped: generateSemanticTokens("pink"),
       up_for_reschedule: generateSemanticTokens("sky"),
       up_for_retry: generateSemanticTokens("yellow"),
-      upstream_failed: generateSemanticTokens("orange"),
+      upstream_failed: generateSemanticTokens("amber"),
       running: generateSemanticTokens("cyan"),
       restarting: generateSemanticTokens("violet"),
       deferred: generateSemanticTokens("purple"),
