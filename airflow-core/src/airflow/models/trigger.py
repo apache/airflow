@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -69,29 +70,6 @@ class TriggerFailureReason(str, Enum):
 
     TRIGGER_TIMEOUT = "Trigger timeout"
     TRIGGER_FAILURE = "Trigger failure"
-
-
-def _stringify_encoding_keys(d: Any) -> Any:
-    """
-    Convert BaseSerialization Encoding enum keys to their string values recursively.
-
-    Python 3.10 compatibility: str(Encoding.TYPE) returns "Encoding.TYPE" on 3.10
-    instead of "__type__" (3.10 is still the default CI target). serde.serialize
-    uses str(k) for dict keys, so without this conversion the encrypted blob ends up
-    with "Encoding.TYPE" keys that neither serde._convert nor the BaseSerialization
-    fallback can read back.
-    """
-    from airflow.serialization.enums import Encoding
-
-    if isinstance(d, dict):
-        return {
-            (k.value if isinstance(k, Encoding) else str(k)): _stringify_encoding_keys(v)
-            for k, v in d.items()
-        }
-    if isinstance(d, (list, tuple)):
-        converted = [_stringify_encoding_keys(i) for i in d]
-        return type(d)(converted)
-    return d
 
 
 class Trigger(Base):

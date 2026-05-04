@@ -1658,9 +1658,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             self.state = TaskInstanceState.DEFERRED
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
-            from airflow.models.trigger import _stringify_encoding_keys
+            from airflow.serialization.enums import stringify_encoding_keys
 
-            self.next_kwargs = _stringify_encoding_keys(start_trigger_args.next_kwargs or {})
+            self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
             self.start_date = timezone.utcnow()
 
             # If an execution_timeout is set, set the timeout to the minimum of

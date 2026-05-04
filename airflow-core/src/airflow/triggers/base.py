@@ -263,9 +263,11 @@ class BaseEventTrigger(BaseTrigger):
         We do not want to have this logic in ``BaseTrigger`` because, when used to defer tasks, 2 triggers
         can have the same classpath and kwargs. This is not true for event driven scheduling.
         """
+        from airflow.serialization.encoders import encode_trigger
         from airflow.serialization.serialized_objects import BaseSerialization
 
-        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
+        normalized = encode_trigger({"classpath": classpath, "kwargs": kwargs})["kwargs"]
+        return hash((classpath, json.dumps(BaseSerialization.serialize(normalized)).encode("utf-8")))
 
 
 class TriggerEvent(BaseModel):
