@@ -22,6 +22,7 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesCreateNamespaceOperator,
     S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
+    S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
     S3TablesDeleteTableOperator,
 )
@@ -72,13 +73,6 @@ with DAG(
 
         boto3.client("s3tables").create_namespace(tableBucketARN=table_bucket_arn, namespace=[namespace])
 
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_namespace(table_bucket_arn: str, namespace: str):
-        """Delete the namespace."""
-        import boto3
-
-        boto3.client("s3tables").delete_namespace(tableBucketARN=table_bucket_arn, namespace=namespace)
-
     # [START howto_operator_s3tables_create_table_bucket]
     create_table_bucket = S3TablesCreateTableBucketOperator(
         task_id="create_table_bucket",
@@ -121,6 +115,15 @@ with DAG(
     )
     # [END howto_operator_s3tables_delete_table_bucket]
 
+    # [START howto_operator_s3tables_delete_namespace]
+    delete_namespace = S3TablesDeleteNamespaceOperator(
+        task_id="delete_namespace",
+        table_bucket_arn=create_table_bucket.output,
+        namespace=namespace,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3tables_delete_namespace]
+
     chain(
         # TEST SETUP
         test_context,
@@ -130,7 +133,7 @@ with DAG(
         create_table,
         # TEST TEARDOWN
         delete_table,
-        delete_namespace(table_bucket_arn=create_table_bucket.output, namespace=namespace),
+        delete_namespace,
         delete_table_bucket,
     )
 

@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesCreateNamespaceOperator,
     S3TablesCreateTableBucketOperator,
     S3TablesCreateTableOperator,
+    S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
     S3TablesDeleteTableOperator,
 )
@@ -286,6 +287,29 @@ class TestS3TablesCreateNamespaceOperator:
 
         with pytest.raises(ClientError):
             op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3TablesDeleteNamespaceOperator:
+    def setup_method(self):
+        self.operator = S3TablesDeleteNamespaceOperator(
+            task_id="delete_namespace",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+            namespace=NAMESPACE,
+        )
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_namespace.assert_called_once_with(
+            tableBucketARN=TABLE_BUCKET_ARN, namespace=NAMESPACE
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
