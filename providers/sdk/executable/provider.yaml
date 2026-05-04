@@ -52,5 +52,5 @@ config:
         example: ~/airflow/executable-bundles
         default: ""
 
-runtime-coordinators:
-  - airflow.providers.sdk.executable.coordinator.ExecutableRuntimeCoordinator
+coordinators:
+  - airflow.providers.sdk.executable.coordinator.ExecutableCoordinator
