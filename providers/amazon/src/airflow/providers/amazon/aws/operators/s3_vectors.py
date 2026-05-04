@@ -209,3 +209,43 @@ class S3VectorsCreateIndexOperator(AwsBaseOperator[AwsBaseHook]):
                 raise
         self.log.info("Index %s: %s", self.index_name, index_arn)
         return index_arn
+
+
+class S3VectorsDeleteIndexOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Delete an index from an Amazon S3 Vectors vector bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3VectorsDeleteIndexOperator`
+
+    :param vector_bucket_name: The name of the vector bucket. (templated)
+    :param index_name: The name of the index to delete. (templated)
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "vector_bucket_name",
+        "index_name",
+    )
+
+    def __init__(
+        self,
+        *,
+        vector_bucket_name: str,
+        index_name: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.vector_bucket_name = vector_bucket_name
+        self.index_name = index_name
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "s3vectors"}
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting index %s from vector bucket %s", self.index_name, self.vector_bucket_name)
+        self.hook.conn.delete_index(vectorBucketName=self.vector_bucket_name, indexName=self.index_name)
+        self.log.info("Deleted index %s", self.index_name)

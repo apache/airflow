@@ -24,6 +24,7 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.operators.s3_vectors import (
     S3VectorsCreateIndexOperator,
     S3VectorsCreateVectorBucketOperator,
+    S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
 )
 
@@ -198,6 +199,26 @@ class TestS3VectorsCreateIndexOperator:
 
         with pytest.raises(ClientError):
             op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3VectorsDeleteIndexOperator:
+    def setup_method(self):
+        self.operator = S3VectorsDeleteIndexOperator(
+            task_id="delete_index",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+        )
+
+    def test_execute(self):
+        mock_conn = MagicMock()
+        self.operator.hook.conn = mock_conn
+
+        self.operator.execute({})
+
+        mock_conn.delete_index.assert_called_once_with(vectorBucketName=BUCKET_NAME, indexName=INDEX_NAME)
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
