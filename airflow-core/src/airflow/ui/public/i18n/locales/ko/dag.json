@@ -42,8 +42,8 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} 기준 {{interval}} 이내에 완료되어야 합니다",
-    "count_one": "마감 {{count}}건",
-    "count_other": "마감 {{count}}건",
+    "count_one": "마감 {{count}}개",
+    "count_other": "마감 {{count}}개",
     "referenceType": {
       "AverageRuntimeDeadline": "평균 실행 시간",
       "DagRunLogicalDateDeadline": "논리적 날짜",
