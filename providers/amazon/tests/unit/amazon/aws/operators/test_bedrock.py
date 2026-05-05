@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockBatchInferenceOperator,
     BedrockCreateDataSourceOperator,
     BedrockCreateGuardrailOperator,
+    BedrockCreateGuardrailVersionOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
@@ -910,6 +911,52 @@ class TestBedrockDeleteGuardrailOperator:
         mock_client.delete_guardrail.assert_called_once_with(
             guardrailIdentifier=GUARDRAIL_ID, guardrailVersion="1"
         )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockCreateGuardrailVersionOperator:
+    def setup_method(self):
+        self.operator = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail_version.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "version": "1",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_guardrail_version.assert_called_once_with(guardrailIdentifier=GUARDRAIL_ID)
+        assert result == "1"
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_description(self, mock_conn):
+        op = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+            description="Production version",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail_version.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "version": "2",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_guardrail_version.assert_called_once_with(
+            guardrailIdentifier=GUARDRAIL_ID, description="Production version"
+        )
+        assert result == "2"
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
