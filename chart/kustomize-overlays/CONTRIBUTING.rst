@@ -40,7 +40,7 @@ A component **belongs in the chart** when all of the following are true:
 
 * It is required to run Airflow (scheduler, API server, dag-processor,
   triggerer, workers).
-* Removing it requires changes to Airflow's own configuration.
+* Removing/adding it requires changes to Airflow's own configuration.
 * It has no external owner.
 * It is assumed that the larger majority (>80%) will need and use this function for productive use
 
@@ -49,10 +49,10 @@ A component **belongs in Kustomize** when any of the following are true:
 * It can be expressed as a standalone Kubernetes resource without modifying
   chart-rendered resources.
 * It is environment-specific (authentication schemes, logging backends,
-  autoscaling controllers).
-* It has an external owner (KEDA, Elasticsearch, any PostgreSQL distribution).
+  autoscaling controllers, etc.).
+* It has an external owner (KEDA, Elasticsearch, any PostgreSQL distribution, etc.).
 * It requires CRDs that the chart does not install.
-* It is used by only a few users such that additional complexity and maintenance burden does not pay out
+* It is used by a minority of users, such that the additional complexity and maintenance burden do not pay off
 
 If a component qualifies for Kustomize but no overlay exists yet, it stays in
 the chart until the overlay is in place and verified.

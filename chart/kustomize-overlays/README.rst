@@ -62,7 +62,7 @@ Status conventions
 
 Each overlay carries a ``STATUS.yaml`` file that declares its verification level:
 
-* ``tested`` - the overlay is verified in CI against the current chart version.
+* ``tested`` - the overlay is verified in Apache Airflow CI against the current chart version.
 * ``not-tested`` - the overlay builds successfully but has no functional CI
   coverage. Treat it as a starting point that you adapt to your environment.
 * ``deprecated`` - the overlay is scheduled for removal. The ``STATUS.yaml`` file

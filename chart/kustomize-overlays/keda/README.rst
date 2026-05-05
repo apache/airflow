@@ -30,8 +30,7 @@ Prerequisites
 -------------
 
 * `KEDA <https://keda.sh/docs/latest/deploy/>`__ installed in the cluster.
-* The Airflow chart installed with the **CeleryExecutor** (or
-  CeleryKubernetesExecutor).
+* The Airflow chart installed with the **CeleryExecutor**.
 * The chart's metadata Secret (``<release>-airflow-metadata``) reachable
   from KEDA's namespace - usually the same namespace as the chart release.
 
@@ -111,10 +110,8 @@ your chart install, edit ``scaledobject.yaml`` accordingly:
 
 * Replace ``16`` with the value of ``config.celery.worker_concurrency``.
 * Extend ``queue IN ('default')`` to list every entry from
-  ``workers.queue`` (comma-separated in ``values.yaml``, single-quoted
+  ``workers.celery.queue`` (comma-separated in ``values.yaml``, single-quoted
   here).
-* For ``CeleryKubernetesExecutor`` add
-  ``AND queue != '<config.celery_kubernetes_executor.kubernetes_queue>'``.
 
 Pgbouncer
 ---------
@@ -128,7 +125,7 @@ Persistence
 -----------
 
 If your worker is deployed as a ``StatefulSet`` (i.e. you set
-``workers.persistence.enabled=true``), change ``kind: Deployment`` to
+``workers.celery.persistence.enabled=true``), change ``kind: Deployment`` to
 ``kind: StatefulSet`` under ``scaleTargetRef`` in ``scaledobject.yaml``.
 
 Migration guide from the chart
