@@ -64,7 +64,12 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 log = logging.getLogger(__name__)
 
@@ -209,11 +214,9 @@ def parse_and_sync_to_db(folder: Path | str):
             DagBundlesManager().sync_bundles_to_db(session=session)
             session.flush()
 
-        if AIRFLOW_V_3_1_PLUS:
-            try:
-                from airflow.dag_processing.dagbag import sync_bag_to_db
-            except ImportError:
-                from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.dag_processing.dagbag import sync_bag_to_db
+
             # On 3.3+, example DAGs are exposed as their own bundles
             # (``example_dags`` for core, ``apache-airflow-providers-*-example-dags``
             # for each provider that ships an ``example_dags`` folder). The
@@ -228,6 +231,13 @@ def parse_and_sync_to_db(folder: Path | str):
                 bundle_dagbag = DagBag(dag_folder=bundle.path)
                 sync_bag_to_db(bundle_dagbag, bundle.name, None, session=session)
 
+        elif AIRFLOW_V_3_1_PLUS:
+            try:
+                from airflow.dag_processing.dagbag import sync_bag_to_db
+            except ImportError:
+                from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
+            dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
+            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
         elif AIRFLOW_V_3_0_PLUS:
             dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]

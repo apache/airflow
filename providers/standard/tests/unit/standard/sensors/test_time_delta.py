@@ -68,7 +68,10 @@ def clear_db():
 
 class TestTimedeltaSensor:
     def setup_method(self):
-        self.dagbag = DagBag(dag_folder=DEV_NULL)
+        if AIRFLOW_V_3_3_PLUS:
+            self.dagbag = DagBag(dag_folder=DEV_NULL)
+        else:
+            self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)  # type: ignore[call-arg]
         self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
     def test_timedelta_sensor(self, mocker):
