@@ -28,7 +28,7 @@ import ElkWorkerSource from "elkjs/lib/elk-worker.min.js?raw";
 
 import type { NodeResponse, StructureDataResponse } from "openapi/requests/types.gen";
 
-import type  { Direction } from "./DirectionDropdown";
+import type { Direction } from "./DirectionDropdown";
 import { generateElkGraph } from "./elkGraphUtils";
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
