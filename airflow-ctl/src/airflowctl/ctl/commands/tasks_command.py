@@ -22,6 +22,7 @@ import sys
 
 import rich
 
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
 from airflowctl.api.client import (
     NEW_API_CLIENT,
     ClientKind,
@@ -82,3 +83,46 @@ def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
         for ti in response.task_instances
     ]
     AirflowConsole().print_as(data=rows, output=args.output)
+
+@provide_api_client(kind=ClientKind.CLI)
+def clear(args, api_client=NEW_API_CLIENT) -> None:
+    """Clear task instances matching the given filters.
+
+    Implements the `airflowctl tasks clear` command (issue #66176).
+    """
+    body = ClearTaskInstancesBody(
+        dry_run=args.dry_run,
+        only_failed=args.only_failed,
+        only_running=args.only_running,
+        include_upstream=args.upstream,
+        include_downstream=args.downstream,
+        include_past=args.include_past,
+        include_future=args.include_future,
+        reset_dag_runs=args.reset_dag_runs,
+        dag_run_id=args.dag_run_id,
+        task_ids=args.task_ids if args.task_ids else None,
+        start_date=args.start_date,
+        end_date=args.end_date,
+    )
+    try:
+        response = api_client.tasks.clear_tis(dag_id=args.dag_id, body=body)
+    except ServerResponseError as e:
+        rich.print(f"[red]Error clearing task instances: {e}[/red]")
+        sys.exit(1)
+
+    action_word = "Would clear" if args.dry_run else "Cleared"
+    rich.print(
+        f"[green]{action_word} {response.total_entries} task instance(s).[/green]"
+    )
+    if args.dry_run and response.task_instances:
+        AirflowConsole().print_as(
+            data=[
+                {
+                    "task_id": ti.task_id,
+                    "run_id": ti.dag_run_id,
+                    "state": ti.state.value if ti.state else "",
+                }
+                for ti in response.task_instances
+            ],
+            output=args.output,
+        )

@@ -120,3 +120,23 @@ class TestTasksCommands:
                 ]),
                 api_client=api_client,
             )
+            
+    def test_tasks_clear_dry_run(self, api_client_maker):
+        collection = TaskInstanceCollectionResponse(
+            task_instances=[self.task_instance_response],
+            total_entries=1,
+            next_cursor=None,
+            previous_cursor=None,
+        )
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}/clearTaskInstances",
+            response_json=collection.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        tasks_command.clear(
+            self.parser.parse_args([
+                "tasks", "clear", self.dag_id, self.dag_run_id, "--dry-run",
+            ]),
+            api_client=api_client,
+        )

@@ -280,6 +280,83 @@ ARG_DAG_RUN_ID = Arg(
     help="The DAG run ID",
 )
 
+ARG_DRY_RUN = Arg(
+    flags=("--dry-run",),
+    action="store_true",
+    default=False,
+    help="Print which task instances would be cleared without clearing them",
+)
+
+ARG_ONLY_FAILED = Arg(
+    flags=("--only-failed",),
+    action="store_true",
+    default=False,
+    help="Only clear failed task instances",
+)
+
+ARG_ONLY_RUNNING = Arg(
+    flags=("--only-running",),
+    action="store_true",
+    default=False,
+    help="Only clear running task instances",
+)
+
+ARG_TASK_UPSTREAM = Arg(
+    flags=("--upstream",),
+    action="store_true",
+    default=False,
+    help="Include upstream tasks when clearing",
+)
+
+ARG_TASK_DOWNSTREAM = Arg(
+    flags=("--downstream",),
+    action="store_true",
+    default=False,
+    help="Include downstream tasks when clearing",
+)
+
+ARG_INCLUDE_PAST = Arg(
+    flags=("--include-past",),
+    action="store_true",
+    default=False,
+    help="Include past DAG runs when clearing",
+)
+
+ARG_INCLUDE_FUTURE = Arg(
+    flags=("--include-future",),
+    action="store_true",
+    default=False,
+    help="Include future DAG runs when clearing",
+)
+
+ARG_RESET_DAG_RUNS = Arg(
+    flags=("--reset-dag-runs",),
+    action="store_true",
+    default=False,
+    help="Reset the DAG runs to the queued state after clearing",
+)
+
+ARG_TASK_IDS = Arg(
+    flags=("--task-ids",),
+    nargs="*",
+    default=[],
+    help="Specific task IDs to clear (default: all tasks in the DAG run)",
+)
+
+ARG_TASK_START_DATE = Arg(
+    flags=("--start-date",),
+    type=str,
+    default=None,
+    help="Earliest logical date to consider when clearing (ISO 8601)",
+)
+
+ARG_TASK_END_DATE = Arg(
+    flags=("--end-date",),
+    type=str,
+    default=None,
+    help="Latest logical date to consider when clearing (ISO 8601)",
+)
+
 ARG_MAP_INDEX = Arg(
     flags=("--map-index",),
     type=int,
@@ -983,6 +1060,27 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_DAG_RUN_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="clear",
+        help="Clear task instances",
+        func=lazy_load_command("airflowctl.ctl.commands.tasks_command.clear"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_TASK_IDS,
+            ARG_DRY_RUN,
+            ARG_ONLY_FAILED,
+            ARG_ONLY_RUNNING,
+            ARG_TASK_UPSTREAM,
+            ARG_TASK_DOWNSTREAM,
+            ARG_INCLUDE_PAST,
+            ARG_INCLUDE_FUTURE,
+            ARG_RESET_DAG_RUNS,
+            ARG_TASK_START_DATE,
+            ARG_TASK_END_DATE,
             ARG_OUTPUT,
         ),
     ),
