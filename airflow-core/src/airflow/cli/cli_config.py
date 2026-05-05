@@ -1523,6 +1523,13 @@ TEAMS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="sync",
+        help="Sync teams",
+        description=("Sync missing teams from the dag bundle config into the database.\n"),
+        func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
+        args=(ARG_VERBOSE,),
+    ),
 )
 DB_COMMANDS = (
     ActionCommand(
