@@ -584,24 +584,22 @@ class AssetStateAccessors:
             elif isinstance(inlet, AssetUriRef):
                 self._by_uri[inlet.uri] = AssetStateAccessor(uri=inlet.uri)
 
+        self._total = len(self._by_name) + len(self._by_uri)
+
     def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateAccessor:
-        if isinstance(key, (Asset, AssetNameRef)):
-            try:
+        try:
+            if isinstance(key, (Asset, AssetNameRef)):
                 return self._by_name[key.name]
-            except KeyError:
-                raise KeyError(f"{key!r} is not in this task's inlets")
-        if isinstance(key, AssetUriRef):
-            try:
+            if isinstance(key, AssetUriRef):
                 return self._by_uri[key.uri]
-            except KeyError:
-                raise KeyError(f"{key!r} is not in this task's inlets")
+        except KeyError:
+            raise KeyError(f"{key!r} is not in this task's inlets")
         raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
 
-    def _single(self) -> AssetStateAccessor:
-        total = len(self._by_name) + len(self._by_uri)
-        if total != 1:
+    def _single_accessor(self) -> AssetStateAccessor:
+        if self._total != 1:
             raise ValueError(
-                f"Task has {total} concrete inlets — use context['asset_state'][MY_ASSET] to specify which"
+                f"Task has {self._total} concrete inlets — use context['asset_state'][MY_ASSET] to specify which"
             )
         if self._by_name:
             return next(iter(self._by_name.values()))
@@ -609,30 +607,22 @@ class AssetStateAccessors:
 
     def get(self, key: str) -> str | None:
         """Return the stored value for the single-inlet task, or ``None`` if not found."""
-        return self._single().get(key)
+        return self._single_accessor().get(key)
 
     def set(self, key: str, value: str) -> None:
         """Write or overwrite the value for the single-inlet task."""
-        self._single().set(key, value)
+        self._single_accessor().set(key, value)
 
     def delete(self, key: str) -> None:
         """Delete a single key for the single-inlet task."""
-        self._single().delete(key)
+        self._single_accessor().delete(key)
 
     def clear(self) -> None:
         """Delete all state keys for the single-inlet task."""
-        self._single().clear()
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, AssetStateAccessors):
-            return False
-        return self._by_name == other._by_name and self._by_uri == other._by_uri
-
-    def __hash__(self) -> int:
-        return hash((tuple(self._by_name.keys()), tuple(self._by_uri.keys())))
+        self._single_accessor().clear()
 
     def __repr__(self) -> str:
-        names = list(self._by_name.keys()) + list(self._by_uri.keys())
+        names = [*self._by_name, *self._by_uri]
         return f"<AssetStateAccessors {names!r}>"
 
 

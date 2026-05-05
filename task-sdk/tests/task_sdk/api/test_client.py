@@ -1719,7 +1719,7 @@ class TestTaskStateOperations:
         assert isinstance(result, TaskStateResponse)
         assert result.value == "spark_app_001"
 
-    def test_get_raises_on_404(self):
+    def test_get_returns_error_response_on_404(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             return httpx.Response(
                 status_code=404,
@@ -1727,8 +1727,9 @@ class TestTaskStateOperations:
             )
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        with pytest.raises(ServerResponseError):
-            client.task_state.get(ti_id=self.TI_ID, key="job_id")
+        result = client.task_state.get(ti_id=self.TI_ID, key="job_id")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.TASK_STATE_NOT_FOUND
 
     def test_set_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
