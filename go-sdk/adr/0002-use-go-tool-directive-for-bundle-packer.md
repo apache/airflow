@@ -26,6 +26,16 @@ Date: 2026-04-30
 Accepted. Selects from the option register in
 [ADR 0001](0001-bundle-packing-options.md).
 
+The output-format portion of this ADR (the packer writes a ZIP archive
+following the bundle spec) is superseded by
+[ADR 0004](0004-self-contained-executable-bundle.md): the packer now
+writes a self-contained executable with an appended footer carrying
+the source bytes and the manifest. The packer's *mechanism* (Option
+A standalone binary + Option D introspection contract + Option H
+`tool` directive) is unchanged. The decision sketches below mention
+ZIP output; read them with the ADR 0004 substitution in mind, and
+treat ADR 0004 as authoritative wherever the two disagree.
+
 ## Context
 
 [ADR 0001](0001-bundle-packing-options.md) enumerated nine candidate
