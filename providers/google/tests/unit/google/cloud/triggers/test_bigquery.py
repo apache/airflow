@@ -432,6 +432,9 @@ class TestBigQueryGetDataTrigger:
         Tests that when a custom universe is detected, the trigger uses sync_to_async
         to call the sync hook's get_query_results with the correct arguments.
         """
+        TEST_LOCATION = "custom_private_loc"
+        get_data_trigger.location = TEST_LOCATION
+
         mock_job_status.return_value = {"status": "success", "message": "Job completed"}
 
         mock_sync_hook = mock.MagicMock()
@@ -449,7 +452,7 @@ class TestBigQueryGetDataTrigger:
 
         expected_args = {
             "job_id": TEST_JOB_ID,
-            "location": None,
+            "location": TEST_LOCATION,
             "selected_fields": TEST_SELECTED_FIELDS,
             "project_id": TEST_GCP_PROJECT_ID,
         }
@@ -640,6 +643,8 @@ class TestBigQueryIntervalCheckTrigger:
         mock_sync_to_async,
         interval_check_trigger,
     ):
+        TEST_LOCATION = "custom_private_loc"
+        interval_check_trigger.location = TEST_LOCATION
         mock_job_status.return_value = {"status": "success", "message": "Job completed"}
 
         mock_sync_hook = mock.MagicMock()

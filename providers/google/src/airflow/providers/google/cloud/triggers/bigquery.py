@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Sequence
-from typing import TYPE_CHECKING, Any, SupportsAbs
+from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -249,9 +249,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
         try:
             while True:
                 # Poll for job execution status
-                job_status = await hook.get_job_status(
-                    job_id=self.job_id, project_id=self.project_id, location=self.location
-                )
+                job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if job_status["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
                     records = hook.get_records(query_results)
@@ -346,6 +344,10 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                             selected_fields=self.selected_fields,
                         )
                     else:
+                        if not self.location:
+                            raise ValueError(
+                                "Location cannot be empty or None. Please provide a valid location."
+                            )
                         query_results_args = {
                             "job_id": self.job_id,
                             "location": self.location,
@@ -519,6 +521,10 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                             # Extract only first record from the query results
                             second_job_row = second_records.pop(0)
                     else:
+                        if not self.location:
+                            raise ValueError(
+                                "Location cannot be empty or None. Please provide a valid location."
+                            )
                         query_args_base = {
                             "location": self.location,
                             "max_results": 1,
@@ -530,8 +536,12 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                         second_job_result = await sync_to_async(sync_hook.get_query_results)(
                             **(query_args_base | {"job_id": self.second_job_id})
                         )
-                        first_job_row = list(first_job_result[0].values()) if first_job_result else None
-                        second_job_row = list(second_job_result[0].values()) if second_job_result else None
+                        first_job_row = (
+                            cast("Any", list(first_job_result[0].values())) if first_job_result else None
+                        )
+                        second_job_row = (
+                            cast("Any", list(second_job_result[0].values())) if second_job_result else None
+                        )
 
                     hook.interval_check(
                         first_job_row,
