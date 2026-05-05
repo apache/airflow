@@ -98,6 +98,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
                 key={menuState}
                 openDelay={100}
               >
+                {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item
                   asChild
                   data-testid={`mark-run-as-${menuState}`}

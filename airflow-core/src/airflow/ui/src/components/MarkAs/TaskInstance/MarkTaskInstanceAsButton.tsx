@@ -100,6 +100,7 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
                 key={menuState}
                 openDelay={100}
               >
+                {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item
                   asChild
                   key={menuState}
