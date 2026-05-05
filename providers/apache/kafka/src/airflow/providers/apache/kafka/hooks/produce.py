@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from confluent_kafka import Producer
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
@@ -26,10 +28,16 @@ class KafkaProducerHook(KafkaBaseHook):
     A hook for creating a Kafka Producer.
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
+    :param config_dict: Optional confluent-kafka client configuration. Each key overrides
+        the same key from the connection's config; see :class:`KafkaBaseHook`.
     """
 
-    def __init__(self, kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
-        super().__init__(kafka_config_id=kafka_config_id)
+    def __init__(
+        self,
+        kafka_config_id: str = KafkaBaseHook.default_conn_name,
+        config_dict: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(kafka_config_id=kafka_config_id, config_dict=config_dict)
 
     def _get_client(self, config) -> Producer:
         return Producer(config)
