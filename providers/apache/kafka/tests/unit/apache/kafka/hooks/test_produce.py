@@ -60,3 +60,23 @@ class TestProducerHook:
         mock_client_spec = MagicMock(spec=AdminClient)
         mock_client.return_value = mock_client_spec
         assert self.hook.get_producer() == self.hook.get_conn
+
+    @patch("airflow.providers.apache.kafka.hooks.produce.Producer")
+    def test_config_dict_overrides_connection_config(self, mock_producer):
+        hook = KafkaProducerHook(
+            kafka_config_id="kafka_d", config_dict={"bootstrap.servers": "override:9092"}
+        )
+        producer = hook.get_producer()
+        mock_producer.assert_called_once_with(
+            {"socket.timeout.ms": 10, "bootstrap.servers": "override:9092", "group.id": "test_group"}
+        )
+        assert producer == mock_producer.return_value
+
+    @patch("airflow.providers.apache.kafka.hooks.produce.Producer")
+    def test_config_dict_standalone_without_connection(self, mock_producer):
+        hook = KafkaProducerHook(
+            kafka_config_id="kafka_missing", config_dict={"bootstrap.servers": "standalone:9092"}
+        )
+        producer = hook.get_producer()
+        mock_producer.assert_called_once_with({"bootstrap.servers": "standalone:9092"})
+        assert producer == mock_producer.return_value

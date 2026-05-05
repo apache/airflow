@@ -25,7 +25,7 @@ from confluent_kafka.admin import AdminClient
 from airflow.models import Connection
 
 # Import Hook
-from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
+from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook, error_callback
 
 
 class TestConsumerHook:
@@ -59,3 +59,19 @@ class TestConsumerHook:
         mock_client_spec = MagicMock(spec=AdminClient)
         mock_client.return_value = mock_client_spec
         assert self.hook.get_consumer() == self.hook.get_conn
+
+    @patch("airflow.providers.apache.kafka.hooks.consume.Consumer")
+    def test_default_error_cb(self, mock_consumer):
+        consumer = self.hook.get_consumer()
+        config = mock_consumer.call_args.args[0]
+        assert config["error_cb"] is error_callback
+        assert consumer == mock_consumer.return_value
+        mock_consumer.return_value.subscribe.assert_called_once_with(["test_1"])
+
+    @patch("airflow.providers.apache.kafka.hooks.consume.Consumer")
+    def test_user_error_cb_not_overridden(self, mock_consumer):
+        error_cb = MagicMock()
+        hook = KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d", config_dict={"error_cb": error_cb})
+        hook.get_consumer()
+        config = mock_consumer.call_args.args[0]
+        assert config["error_cb"] is error_cb
