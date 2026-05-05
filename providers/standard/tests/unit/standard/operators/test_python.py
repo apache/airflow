@@ -1130,6 +1130,10 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         intentionally_excluded_context_keys |= {
             "inlet_events",
             "outlet_events",
+            # AIP-103: task_state is a live accessor backed by the supervisor pipe —
+            # it holds no serializable state and has no meaning in a virtualenv subprocess.
+            # asset_state is omitted here as it is only in context when the task has inlets.
+            "task_state",
         }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
