@@ -27,6 +27,21 @@ from airflow.sdk import chain, dag, task
 
 @dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])
 def example_short_circuit_decorator():
+    """
+    ### Short Circuit TaskFlow Decorator Example
+
+    This DAG demonstrates the `@task.short_circuit()` TaskFlow decorator. A
+    short-circuit task evaluates a Python callable that returns a truthy or
+    falsy value: when falsy, downstream tasks are skipped without running.
+
+    **What this DAG shows:**
+
+    - Defining a short-circuit task with `@task.short_circuit()`
+    - Branching execution paths based on a Python condition
+    - Combining short-circuit decisions with explicit `trigger_rule`s on
+      downstream tasks via `ignore_downstream_trigger_rules=False`
+    """
+
     # [START howto_operator_short_circuit]
     @task.short_circuit()
     def check_condition(condition):

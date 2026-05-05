@@ -15,11 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the branching TaskFlow API decorators.
+"""
+### Branching TaskFlow Decorator Example
 
-It shows how to use standard Python ``@task.branch`` as well as the external Python
-version ``@task.branch_external_python`` which calls an external Python interpreter and
-the ``@task.branch_virtualenv`` which builds a temporary Python virtual environment.
+This DAG demonstrates the branching TaskFlow API decorators, which let a
+Python callable choose which downstream task(s) to run.
+
+**What this DAG shows:**
+
+- `@task.branch` — branch on a standard Python task
+- `@task.branch_external_python` — branch on a callable run with an external
+  Python interpreter
+- `@task.branch_virtualenv` — branch on a callable run inside a temporary
+  Python virtual environment
 """
 
 from __future__ import annotations
@@ -42,6 +50,7 @@ with DAG(
     catchup=False,
     schedule="@daily",
     tags=["example", "example2"],
+    doc_md=__doc__,
 ) as dag:
     run_this_first = EmptyOperator(task_id="run_this_first")
 
