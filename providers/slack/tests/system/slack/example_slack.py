@@ -20,7 +20,11 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.slack.operators.slack import SlackAPIFileOperator, SlackAPIPostOperator
+from airflow.providers.slack.operators.slack import (
+    SlackAPIConversationsHistoryOperator,
+    SlackAPIFileOperator,
+    SlackAPIPostOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "slack_api_example_dag"
@@ -87,15 +91,24 @@ with DAG(
     )
     # [END slack_api_file_operator_content_howto_guide]
 
+    # [START slack_api_conversations_history_operator_howto_guide]
+    slack_operator_conversations_history = SlackAPIConversationsHistoryOperator(
+        task_id="slack_conversations_history",
+        channel=SLACK_CHANNEL,
+        limit=10,
+    )
+    # [END slack_api_conversations_history_operator_howto_guide]
+
     (
         slack_operator_post_text
         >> slack_operator_post_blocks
         >> slack_operator_file
         >> slack_operator_file_content
+        >> slack_operator_conversations_history
     )
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

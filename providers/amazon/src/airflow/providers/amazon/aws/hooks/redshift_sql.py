@@ -88,16 +88,20 @@ class RedshiftSQLHook(DbApiHook):
         conn_params: dict[str, str | int] = {}
 
         if conn.extra_dejson.get("iam", False):
-            conn.login, conn.password, conn.port = self.get_iam_token(conn)
+            login, password, port = self.get_iam_token(conn)
+        else:
+            login = conn.login
+            password = conn.password
+            port = conn.port
 
-        if conn.login:
-            conn_params["user"] = conn.login
-        if conn.password:
-            conn_params["password"] = conn.password
+        if login:
+            conn_params["user"] = login
+        if password:
+            conn_params["password"] = password
+        if port:
+            conn_params["port"] = port
         if conn.host:
             conn_params["host"] = conn.host
-        if conn.port:
-            conn_params["port"] = conn.port
         if conn.schema:
             conn_params["database"] = conn.schema
 
@@ -280,6 +284,10 @@ class RedshiftSQLHook(DbApiHook):
     def _get_identifier_from_hostname(self, hostname: str) -> str:
         parts = hostname.split(".")
         if hostname.endswith("amazonaws.com") and len(parts) == 6:
+            return f"{parts[0]}.{parts[2]}"
+        # AWS China regions use the amazonaws.com.cn endpoint suffix
+        # e.g. my-cluster.id.cn-north-1.redshift.amazonaws.com.cn (7 parts vs 6 for global)
+        if hostname.endswith("amazonaws.com.cn") and len(parts) == 7:
             return f"{parts[0]}.{parts[2]}"
         self.log.debug(
             """Could not parse identifier from hostname '%s'.

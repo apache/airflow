@@ -20,6 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.timezones import timezone
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.db import clear_db_runs
@@ -125,3 +126,129 @@ class TestDagRunStartDateNullableBackwardCompat:
         assert response.status_code == 200
         assert dag_run["start_date"] is not None, "start_date should not be None when DagRun has started"
         assert dag_run["start_date"] == TIMESTAMP.isoformat().replace("+00:00", "Z")
+
+
+class TestNextKwargsBackwardCompat:
+    """Old workers only know BaseSerialization.deserialize -- SDK serde plain dicts cause KeyError."""
+
+    @pytest.fixture(autouse=True)
+    def _freeze_time(self, time_machine):
+        time_machine.move_to(TIMESTAMP_STR, tick=False)
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_old_version_gets_base_serialization_format(self, old_ver_client, session, create_task_instance):
+        """Old API version receives next_kwargs wrapped in __type/__var so BaseSerialization can parse it."""
+        ti = create_task_instance(
+            task_id="test_next_kwargs_compat",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        # Store SDK serde format (plain dict) in DB -- this is what trigger.py handle_event_submit produces
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"cheesecake": True, "event": "payload"}
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        next_kwargs = response.json()["next_kwargs"]
+        # Old workers call BaseSerialization.deserialize on this -- verify it works
+        result = BaseSerialization.deserialize(next_kwargs)
+        assert result == {"cheesecake": True, "event": "payload"}
+
+    def test_old_version_deserializes_complex_types(self, old_ver_client, session, create_task_instance):
+        """Non-primitive values (datetime) must round-trip through serde -> BaseSerialization correctly."""
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        original = {"event": TIMESTAMP, "simple": True}
+        # Store SDK serde format with a datetime -- this is what handle_event_submit produces
+        # when the trigger payload contains a datetime (e.g. DateTimeSensorAsync)
+        serde_encoded = serde_serialize(original)
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_datetime",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_encoded
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        next_kwargs = response.json()["next_kwargs"]
+        result = BaseSerialization.deserialize(next_kwargs)
+        assert result["simple"] is True
+        # datetime must come back as a datetime, not a {"__classname__": ...} dict
+        assert result["event"] == TIMESTAMP
+
+    def test_old_version_handles_already_base_serialization_in_db(
+        self, old_ver_client, session, create_task_instance
+    ):
+        """Rolling upgrade: DB still has BaseSerialization format from old handle_event_submit."""
+        ti = create_task_instance(
+            task_id="test_next_kwargs_already_base",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        # Pre-upgrade data: BaseSerialization format already in DB
+        ti.next_kwargs = BaseSerialization.serialize({"cheesecake": True, "event": "payload"})
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        next_kwargs = response.json()["next_kwargs"]
+        # Should still be parseable by old workers
+        result = BaseSerialization.deserialize(next_kwargs)
+        assert result == {"cheesecake": True, "event": "payload"}
+
+    def test_old_version_handles_submit_failure_plain_dict(
+        self, old_ver_client, session, create_task_instance
+    ):
+        """submit_failure and scheduler timeout write raw plain dicts -- converter must handle those too."""
+        ti = create_task_instance(
+            task_id="test_next_kwargs_failure",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "__fail__"
+        # This is what submit_failure / scheduler timeout writes -- plain dict, no wrapping
+        ti.next_kwargs = {"error": "Trigger timeout"}
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        next_kwargs = response.json()["next_kwargs"]
+        result = BaseSerialization.deserialize(next_kwargs)
+        assert result == {"error": "Trigger timeout"}
+
+    def test_head_version_returns_raw_serde_format(self, client, session, create_task_instance):
+        """Head API version returns next_kwargs as-is (SDK serde format)."""
+        ti = create_task_instance(
+            task_id="test_next_kwargs_head",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"cheesecake": True, "event": "payload"}
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        # Head version gets the plain dict directly -- no BaseSerialization wrapping
+        assert response.json()["next_kwargs"] == {"cheesecake": True, "event": "payload"}

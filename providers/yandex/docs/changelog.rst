@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Remove the lxml workaround (#64554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix pytest in Yandexcloud if 0.384.0 (#64696)``
+
 4.4.1
 .....
 

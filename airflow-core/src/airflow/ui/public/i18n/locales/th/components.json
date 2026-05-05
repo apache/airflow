@@ -21,7 +21,6 @@
         "title": "สร้าง Backfill แล้ว"
       }
     },
-    "tooltip": "Backfill ต้องการการกำหนดเวลาทำงาน (schedule)",
     "unpause": "ยกเลิกการหยุดพัก {{dag_display_name}} เมื่อทริกเกอร์",
     "validation": {
       "datesRequired": "จำเป็นต้องระบุวันเริ่มต้นและวันสิ้นสุดทั้งสองวัน",

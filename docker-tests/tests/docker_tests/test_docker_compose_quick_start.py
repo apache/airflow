@@ -169,7 +169,7 @@ def print_diagnostics(compose: DockerClient, compose_version: str, docker_versio
     console.print(" Docker Compose Version ".center(72, "="))
     console.print(compose_version)
     console.print(" Compose Config ".center(72, "="))
-    console.print(json.dumps(compose.config(return_json=True), indent=4))
+    console.print(json.dumps(compose.config(return_json=True), indent=4))  # type: ignore[operator]
     for service in compose.ps(all=True):
         console.print(f"Service: {service.name} ".center(72, "="))
         console.print(f" Service State {service.name}".center(50, "."))

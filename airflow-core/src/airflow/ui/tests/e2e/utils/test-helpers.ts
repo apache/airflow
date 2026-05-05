@@ -54,7 +54,7 @@ export function uniqueRunId(prefix: string): string {
 }
 
 /**
- * Poll GET /api/v2/dags/{dagId} until 200 — waits for DAG to be parsed.
+ * Poll GET /api/v2/dags/{dagId} until 200 — waits for Dag to be parsed.
  */
 export async function waitForDagReady(
   source: RequestLike,
@@ -69,7 +69,7 @@ export async function waitForDagReady(
     .poll(
       async () => {
         try {
-          const response = await request.get(`${baseUrl}/api/v2/dags/${dagId}`, { timeout: 30_000 });
+          const response = await request.get(`${baseUrl}/api/v2/dags/${dagId}`, { timeout: 10_000 });
 
           return response.ok();
         } catch {
@@ -82,7 +82,7 @@ export async function waitForDagReady(
 }
 
 /**
- * Trigger a DAG run with an auto-generated unique run ID.
+ * Trigger a Dag run with an auto-generated unique run ID.
  * Returns the dagRunId and logicalDate for targeted polling.
  */
 export async function apiTriggerDagRun(
@@ -107,7 +107,7 @@ export async function apiTriggerDagRun(
         note: "e2e test",
       },
       headers: { "Content-Type": "application/json" },
-      timeout: 30_000,
+      timeout: 10_000,
     });
 
     if (!response.ok()) {
@@ -117,7 +117,7 @@ export async function apiTriggerDagRun(
         dagRunId = uniqueRunId(dagId);
       }
 
-      throw new Error(`DAG run trigger failed (${response.status()})`);
+      throw new Error(`Dag run trigger failed (${response.status()})`);
     }
 
     const json = (await response.json()) as { logical_date?: string } & DagRunResponse;
@@ -129,7 +129,7 @@ export async function apiTriggerDagRun(
 }
 
 /**
- * Create a DAG run via the API.
+ * Create a Dag run via the API.
  */
 export async function apiCreateDagRun(source: RequestLike, dagId: string, data: DagRunData): Promise<string> {
   const request = getRequestContext(source);
@@ -152,7 +152,7 @@ export async function apiCreateDagRun(source: RequestLike, dagId: string, data: 
         note: data.note ?? "e2e test",
       },
       headers: { "Content-Type": "application/json" },
-      timeout: 30_000,
+      timeout: 10_000,
     });
 
     if (!response.ok()) {
@@ -162,7 +162,7 @@ export async function apiCreateDagRun(source: RequestLike, dagId: string, data: 
         retryLogicalDate = new Date().toISOString();
       }
 
-      throw new Error(`DAG run creation failed (${response.status()})`);
+      throw new Error(`Dag run creation failed (${response.status()})`);
     }
 
     const json = (await response.json()) as DagRunResponse;
@@ -174,7 +174,7 @@ export async function apiCreateDagRun(source: RequestLike, dagId: string, data: 
 }
 
 /**
- * Set a DAG run's state via the API.
+ * Set a Dag run's state via the API.
  */
 export async function apiSetDagRunState(
   source: RequestLike,
@@ -187,17 +187,17 @@ export async function apiSetDagRunState(
     const response = await request.patch(`${baseUrl}/api/v2/dags/${dagId}/dagRuns/${runId}`, {
       data: { state },
       headers: { "Content-Type": "application/json" },
-      timeout: 30_000,
+      timeout: 10_000,
     });
 
     if (response.status() !== 409 && !response.ok()) {
-      throw new Error(`Set DAG run state failed (${response.status()})`);
+      throw new Error(`Set Dag run state failed (${response.status()})`);
     }
   }).toPass({ intervals: [2000, 3000, 5000], timeout: 60_000 });
 }
 
 /**
- * Poll the API until the DAG run reaches the expected state.
+ * Poll the API until the Dag run reaches the expected state.
  */
 export async function waitForDagRunStatus(
   source: RequestLike,
@@ -213,7 +213,7 @@ export async function waitForDagRunStatus(
       async () => {
         try {
           const response = await request.get(`${baseUrl}/api/v2/dags/${dagId}/dagRuns/${runId}`, {
-            timeout: 30_000,
+            timeout: 10_000,
           });
 
           if (!response.ok()) {
@@ -223,7 +223,7 @@ export async function waitForDagRunStatus(
           const data = (await response.json()) as DagRunResponse;
 
           if (data.state === "failed" && expectedState !== "failed") {
-            throw new Error(`DAG run ${runId} failed unexpectedly`);
+            throw new Error(`Dag run ${runId} failed unexpectedly`);
           }
 
           return data.state;
@@ -239,7 +239,7 @@ export async function waitForDagRunStatus(
       },
       {
         intervals: [5000],
-        message: `DAG run ${runId} did not reach state "${expectedState}" within ${timeout}ms`,
+        message: `Dag run ${runId} did not reach state "${expectedState}" within ${timeout}ms`,
         timeout,
       },
     )
@@ -248,7 +248,7 @@ export async function waitForDagRunStatus(
 
 /**
  * Poll the API until a task instance reaches the expected state.
- * Unlike waitForDagRunStatus, this targets a specific task within a DAG run.
+ * Unlike waitForDagRunStatus, this targets a specific task within a Dag run.
  */
 export async function waitForTaskInstanceState(
   source: RequestLike,
@@ -272,7 +272,7 @@ export async function waitForTaskInstanceState(
         try {
           const response = await request.get(
             `${baseUrl}/api/v2/dags/${dagId}/dagRuns/${runId}/taskInstances/${taskId}`,
-            { timeout: 30_000 },
+            { timeout: 10_000 },
           );
 
           if (!response.ok()) {
@@ -331,7 +331,7 @@ export async function apiRespondToHITL(
       {
         data: { chosen_options: chosenOptions, params_input: paramsInput },
         headers: { "Content-Type": "application/json" },
-        timeout: 30_000,
+        timeout: 10_000,
       },
     );
 
@@ -345,9 +345,9 @@ export async function apiRespondToHITL(
 /**
  * Run the full HITL flow entirely via API — no browser needed.
  *
- * The example_hitl_operator DAG has 4 parallel HITL tasks, then an approval
- * task, then a branch task. This function triggers the DAG, responds to each
- * task via the API, and waits for the DAG run to complete.
+ * The example_hitl_operator Dag has 4 parallel HITL tasks, then an approval
+ * task, then a branch task. This function triggers the Dag, responds to each
+ * task via the API, and waits for the Dag run to complete.
  */
 export async function setupHITLFlowViaAPI(
   source: RequestLike,
@@ -473,12 +473,12 @@ export async function setupHITLFlowViaAPI(
   return dagRunId;
 }
 
-/** Delete a DAG run via the API. 404 is treated as success. */
+/** Delete a Dag run via the API. 404 is treated as success. */
 export async function apiDeleteDagRun(source: RequestLike, dagId: string, runId: string): Promise<void> {
   const request = getRequestContext(source);
 
   const response = await request.delete(`${baseUrl}/api/v2/dags/${dagId}/dagRuns/${runId}`, {
-    timeout: 30_000,
+    timeout: 10_000,
   });
 
   // 404 = already deleted by another worker or cleanup; acceptable.
@@ -489,37 +489,42 @@ export async function apiDeleteDagRun(source: RequestLike, dagId: string, runId:
   if (!response.ok()) {
     const body = await response.text();
 
-    throw new Error(`DAG run deletion failed (${response.status()}): ${body}`);
+    throw new Error(`Dag run deletion failed (${response.status()}): ${body}`);
   }
 }
 
 /**
- * Delete a DAG run, logging (not throwing) unexpected errors.
+ * Delete a Dag run, logging (not throwing) unexpected errors.
  * Use this in fixture teardown where cleanup must not abort the loop.
  * 404 is already handled inside `apiDeleteDagRun`.
- * 409 (running state) is handled by force-failing the run first, then retrying.
+ *
+ * Strategy: force-fail the run first so the server doesn't wait for
+ * running tasks during deletion, then delete with one retry on timeout.
  */
 export async function safeCleanupDagRun(source: RequestLike, dagId: string, runId: string): Promise<void> {
   try {
-    await apiDeleteDagRun(source, dagId, runId);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    await apiSetDagRunState(source, { dagId, runId, state: "failed" });
+  } catch {
+    // Run may already be terminal or deleted — ignore.
+  }
 
-    // 409 = DAG run is still running — force-fail, then retry deletion.
-    if (message.includes("409")) {
-      try {
-        await apiSetDagRunState(source, { dagId, runId, state: "failed" });
-        await apiDeleteDagRun(source, dagId, runId);
-      } catch (retryError) {
-        console.warn(
-          `[e2e cleanup] Retry failed for DAG run ${dagId}/${runId}: ${retryError instanceof Error ? retryError.message : String(retryError)}`,
-        );
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await apiDeleteDagRun(source, dagId, runId);
+
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isTimeout = message.includes("Timeout");
+
+      if (isTimeout && attempt === 0) {
+        continue;
       }
+
+      console.warn(`[e2e cleanup] Failed to delete Dag run ${dagId}/${runId}: ${message}`);
 
       return;
     }
-
-    console.warn(`[e2e cleanup] Failed to delete DAG run ${dagId}/${runId}: ${message}`);
   }
 }
 
@@ -549,7 +554,7 @@ export async function apiDeleteVariable(source: RequestLike, key: string): Promi
   const request = getRequestContext(source);
 
   const response = await request.delete(`${baseUrl}/api/v2/variables/${encodeURIComponent(key)}`, {
-    timeout: 30_000,
+    timeout: 10_000,
   });
 
   // 404 = already deleted by another worker or cleanup; acceptable.
@@ -569,7 +574,7 @@ export async function apiCancelBackfill(source: RequestLike, backfillId: number)
   const request = getRequestContext(source);
 
   const response = await request.put(`${baseUrl}/api/v2/backfills/${backfillId}/cancel`, {
-    timeout: 30_000,
+    timeout: 10_000,
   });
 
   if (response.status() !== 200 && response.status() !== 409) {
@@ -577,12 +582,12 @@ export async function apiCancelBackfill(source: RequestLike, backfillId: number)
   }
 }
 
-/** Cancel all active (non-completed) backfills for a DAG. */
+/** Cancel all active (non-completed) backfills for a Dag. */
 export async function apiCancelAllActiveBackfills(source: RequestLike, dagId: string): Promise<void> {
   const request = getRequestContext(source);
 
   const response = await request.get(`${baseUrl}/api/v2/backfills?dag_id=${dagId}&limit=100`, {
-    timeout: 30_000,
+    timeout: 10_000,
   });
 
   if (!response.ok()) {
@@ -598,7 +603,7 @@ export async function apiCancelAllActiveBackfills(source: RequestLike, dagId: st
   }
 }
 
-/** Poll until all backfills for a DAG are completed. */
+/** Poll until all backfills for a Dag are completed. */
 export async function apiWaitForNoActiveBackfill(
   source: RequestLike,
   dagId: string,
@@ -611,7 +616,7 @@ export async function apiWaitForNoActiveBackfill(
       async () => {
         try {
           const response = await request.get(`${baseUrl}/api/v2/backfills?dag_id=${dagId}&limit=100`, {
-            timeout: 30_000,
+            timeout: 10_000,
           });
 
           if (!response.ok()) {
@@ -629,7 +634,7 @@ export async function apiWaitForNoActiveBackfill(
       },
       {
         intervals: [2000, 5000, 10_000],
-        message: `Active backfills for DAG ${dagId} did not clear within ${timeout}ms`,
+        message: `Active backfills for Dag ${dagId} did not clear within ${timeout}ms`,
         timeout,
       },
     )
@@ -649,7 +654,7 @@ export async function apiWaitForBackfillComplete(
       async () => {
         try {
           const response = await request.get(`${baseUrl}/api/v2/backfills/${backfillId}`, {
-            timeout: 30_000,
+            timeout: 10_000,
           });
 
           if (!response.ok()) {
@@ -700,7 +705,7 @@ export async function apiCreateBackfill(
   const response = await request.post(`${baseUrl}/api/v2/backfills`, {
     data: body,
     headers: { "Content-Type": "application/json" },
-    timeout: 30_000,
+    timeout: 10_000,
   });
 
   if (response.status() === 409) {
@@ -710,7 +715,7 @@ export async function apiCreateBackfill(
     const retryResponse = await request.post(`${baseUrl}/api/v2/backfills`, {
       data: body,
       headers: { "Content-Type": "application/json" },
-      timeout: 30_000,
+      timeout: 10_000,
     });
 
     if (!retryResponse.ok()) {

@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from base64 import decodebytes
 from collections.abc import Sequence
@@ -30,11 +29,11 @@ from typing import Any
 
 import paramiko
 from paramiko.config import SSH_PORT
-from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.ssh.tunnel import AsyncSSHTunnel, SSHTunnel
 from airflow.utils.platform import getuser
 
 try:
@@ -366,51 +365,37 @@ class SSHHook(BaseHook):
 
     def get_tunnel(
         self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
-    ) -> SSHTunnelForwarder:
+    ) -> SSHTunnel:
         """
-        Create a tunnel between two hosts.
+        Create a local port-forwarding tunnel through the SSH connection.
 
-        This is conceptually similar to ``ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>``.
+        This is conceptually similar to ``ssh -L <LOCAL_PORT>:<remote_host>:<REMOTE_PORT>``.
+
+        The returned ``SSHTunnel`` should be used as a context manager::
+
+            with hook.get_tunnel(remote_port=5432) as tunnel:
+                connect_to("localhost", tunnel.local_bind_port)
+
+        The ``.start()`` / ``.stop()`` methods still work but are deprecated.
+
+        .. versionchanged:: 4.4.0
+            Returns ``SSHTunnel`` instead of ``sshtunnel.SSHTunnelForwarder``.
+            The tunnel now reuses the hook's SSH connection (``get_conn()``)
+            instead of establishing a separate one.
 
         :param remote_port: The remote port to create a tunnel to
         :param remote_host: The remote host to create a tunnel to (default localhost)
-        :param local_port:  The local port to attach the tunnel to
-
-        :return: sshtunnel.SSHTunnelForwarder object
+        :param local_port: The local port to attach the tunnel to (None for ephemeral)
+        :return: SSHTunnel instance
         """
-        if local_port:
-            local_bind_address: tuple[str, int] | tuple[str] = ("localhost", local_port)
-        else:
-            local_bind_address = ("localhost",)
-
-        tunnel_kwargs = {
-            "ssh_port": self.port,
-            "ssh_username": self.username,
-            "ssh_pkey": self.key_file or self.pkey,
-            "ssh_proxy": self.host_proxy,
-            "local_bind_address": local_bind_address,
-            "remote_bind_address": (remote_host, remote_port),
-            "logger": self.log,
-        }
-
-        if self.password:
-            password = self.password.strip()
-            tunnel_kwargs.update(
-                ssh_password=password,
-            )
-        else:
-            tunnel_kwargs.update(
-                host_pkey_directories=None,
-            )
-
-        if not hasattr(self.log, "handlers"):
-            # We need to not hit this https://github.com/pahaz/sshtunnel/blob/dc0732884379a19a21bf7a49650d0708519ec54f/sshtunnel.py#L238-L239
-            paramkio_log = logging.getLogger("paramiko.transport")
-            paramkio_log.addHandler(logging.NullHandler())
-            paramkio_log.propagate = True
-        client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
-
-        return client
+        ssh_client = self.get_conn()
+        return SSHTunnel(
+            ssh_client=ssh_client,
+            remote_host=remote_host,
+            remote_port=remote_port,
+            local_port=local_port,
+            logger=self.log,
+        )
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
         """
@@ -661,6 +646,30 @@ class SSHHookAsync(BaseHook):
         async with await self._get_conn() as ssh_conn:
             result = await ssh_conn.run(command, timeout=timeout, check=False)
             return result.exit_status or 0, result.stdout or "", result.stderr or ""
+
+    async def get_tunnel(
+        self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
+    ) -> AsyncSSHTunnel:
+        """
+        Create an async local port-forwarding tunnel through the SSH connection.
+
+        Usage::
+
+            async with await hook.get_tunnel(remote_port=5432) as tunnel:
+                connect_to("localhost", tunnel.local_bind_port)
+
+        :param remote_port: The remote port to create a tunnel to
+        :param remote_host: The remote host to create a tunnel to (default localhost)
+        :param local_port: The local port to attach the tunnel to (None for ephemeral)
+        :return: AsyncSSHTunnel instance
+        """
+        ssh_conn = await self._get_conn()
+        return AsyncSSHTunnel(
+            ssh_conn=ssh_conn,
+            remote_host=remote_host,
+            remote_port=remote_port,
+            local_port=local_port,
+        )
 
     async def run_command_output(self, command: str, timeout: float | None = None) -> str:
         """

@@ -44,14 +44,35 @@ export class ProvidersPage extends BasePage {
     return this.rows.nth(index).locator("td").nth(2);
   }
 
+  public async getRowCount(): Promise<number> {
+    return this.rows.count();
+  }
+
+  public async getRowDetails(index: number): Promise<{
+    description: string;
+    packageName: string;
+    version: string;
+  }> {
+    const packageName = ((await this.packageLinkAt(index).textContent()) ?? "").trim();
+    const version = ((await this.versionCellAt(index).textContent()) ?? "").trim();
+    const description = ((await this.descriptionCellAt(index).textContent()) ?? "").trim();
+
+    return { description, packageName, version };
+  }
+
   public async navigate(): Promise<void> {
-    await this.navigateTo("/providers");
+    await expect(async () => {
+      await this.navigateTo("/providers");
+      await this.waitForLoad();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateFromAdminMenu(): Promise<void> {
-    await this.navigateTo("/");
-    await this.adminMenuButton.click();
-    await expect(this.providersMenuItem).toBeVisible();
+    await expect(async () => {
+      await this.navigateTo("/");
+      await this.adminMenuButton.click();
+      await expect(this.providersMenuItem).toBeVisible();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.providersMenuItem.click();
   }
 
@@ -64,8 +85,7 @@ export class ProvidersPage extends BasePage {
   }
 
   public async waitForLoad(): Promise<void> {
-    await expect(this.table).toBeVisible({ timeout: 30_000 });
-    await expect(this.rows.first()).toBeVisible({ timeout: 30_000 });
-    await expect(this.packageLinkAt(0)).toBeVisible({ timeout: 30_000 });
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.first()).toBeVisible();
   }
 }

@@ -26,25 +26,21 @@ class TestWorker:
     """Tests worker."""
 
     @pytest.mark.parametrize(
-        ("executor", "workers_values", "kind"),
+        ("workers_values", "kind"),
         [
             # Test workers.celery.persistence.enabled flag
-            ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ({"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ({"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             # Test workers.persistence.enabled flag when celery one is default
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}}, "Deployment"),
+            ({"persistence": {"enabled": True}}, "StatefulSet"),
         ],
     )
-    def test_worker_kind(self, executor, workers_values, kind):
+    def test_worker_kind(self, workers_values, kind):
         """Test worker kind is StatefulSet when worker persistence is enabled."""
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -135,23 +131,53 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
-    def test_should_add_extra_containers(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraContainers": [
+                    {"name": "{{ .Chart.Name }}-test-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                }
+            },
+            {
+                "extraContainers": [{"name": "test", "image": "repo:test"}],
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    def test_should_add_extra_containers_with_template(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [
-                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "airflow",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        # [2:] -> Skipping worker and worker-log-groomer containers
+        assert jmespath.search("spec.template.spec.containers[2:]", docs[0]) == [
+            {
+                "name": "airflow-test-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -188,28 +214,16 @@ class TestWorker:
             "whenDeleted": "Delete",
         }
 
-    def test_should_template_extra_containers(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"waitForMigrations": {"enabled": False}},
+            {"celery": {"waitForMigrations": {"enabled": False}}},
+        ],
+    )
+    def test_disable_wait_for_migration(self, workers_values):
         docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
-            "name": "release-name-test-container"
-        }
-
-    def test_disable_wait_for_migration(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "waitForMigrations": {"enabled": False},
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         actual = jmespath.search(
@@ -261,60 +275,130 @@ class TestWorker:
                 for m in mounts
             )
 
-    def test_should_add_extra_init_containers(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraInitContainers": [
+                    {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
-                    ],
+                    ]
+                }
+            },
+            {
+                "extraInitContainers": [{"name": "container", "image": "repo:tag"}],
+                "celery": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ]
                 },
             },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "test-init-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
-
-    def test_should_template_extra_init_containers(self):
+        ],
+    )
+    def test_should_add_extra_init_containers(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "release-name-test-init-container"
-        }
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {
+                "name": "test-init-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
-    def test_should_add_extra_volume_and_extra_volume_mount(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            {"celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]}},
+            {
+                "extraInitContainers": [{"name": "container"}],
+                "celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            },
+        ],
+    )
+    def test_should_template_extra_init_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {"name": "release-name-test-init-container"}
+        ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            {"celery": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]}},
+            {
+                "extraVolumes": [{"name": "test", "emptyDir": {}}],
+                "celery": {"extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}]},
+            },
+        ],
+    )
+    def test_should_add_extra_volume(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # [:-1] -> Skipping config volume
+        assert jmespath.search("spec.template.spec.volumes[:-1].name", docs[0]) == ["test-volume-airflow"]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraVolumeMounts": [{"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}],
+            },
+            {
+                "celery": {
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
+                }
+            },
+            {
+                "extraVolumeMounts": [{"name": "test", "mountPath": "/opt"}],
+                "celery": {
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
                 },
             },
+        ],
+    )
+    def test_should_add_extra_volume_mount(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "test-volume-airflow"
-        assert (
-            jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
-            == "test-volume-airflow"
-        )
-        assert (
-            jmespath.search("spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0])
-            == "test-volume-airflow"
-        )
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        init_volume_mounts = jmespath.search("spec.template.spec.initContainers[0].volumeMounts", docs[0])
+
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in init_volume_mounts
+        assert {"name": "test", "mountPath": "/opt"} not in init_volume_mounts
+
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in volume_mounts
+        assert {"name": "test", "mountPath": "/opt"} not in volume_mounts
 
     def test_should_add_global_volume_and_global_volume_mount(self):
         docs = render_chart(
@@ -330,10 +414,40 @@ class TestWorker:
             jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0]) == "test-volume"
         )
 
-    def test_should_add_extraEnvs(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "env": [
+                    {"name": "TEST_ENV_1", "value": "test_env_1"},
+                    {
+                        "name": "TEST_ENV_2",
+                        "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                    },
+                    {
+                        "name": "TEST_ENV_3",
+                        "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                    },
+                ],
+            },
+            {
+                "celery": {
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
+                }
+            },
+            {
+                "env": [{"name": "TEST", "value": "test"}],
+                "celery": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
                         {
@@ -347,10 +461,18 @@ class TestWorker:
                     ],
                 },
             },
+        ],
+    )
+    def test_should_add_extraEnvs(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+        assert {"name": "TEST", "value": "test"} not in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
         assert {
@@ -362,13 +484,20 @@ class TestWorker:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
-    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
+            {"celery": {"waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}}},
+            {
+                "waitForMigrations": {"env": [{"name": "TEST", "value": "test"}]},
+                "celery": {"waitForMigrations": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
             },
+        ],
+    )
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -376,19 +505,37 @@ class TestWorker:
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("spec.template.metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -500,11 +647,56 @@ class TestWorker:
 
         assert expected_strategy == jmespath.search("spec.strategy", docs[0])
 
-    def test_affinity(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "foo", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+            },
+            {
+                "celery": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                }
+            },
+            {
+                "affinity": {
+                    "podAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "podAffinityTerm": {
+                                    "topologyKey": "foo",
+                                    "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                                },
+                                "weight": 1,
+                            }
+                        ]
+                    }
+                },
+                "celery": {
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -519,6 +711,14 @@ class TestWorker:
                         }
                     },
                 },
+            },
+        ],
+    )
+    def test_affinity(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -538,15 +738,36 @@ class TestWorker:
             }
         }
 
-    def test_tolerations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "tolerations": [
+                    {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+            },
+            {
+                "celery": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+            {
+                "tolerations": [{"key": "pods", "operator": "Exists", "effect": "PreferNoSchedule"}],
+                "celery": {
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ]
+                },
+            },
+        ],
+    )
+    def test_tolerations(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "tolerations": [
-                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
-                    ],
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -556,8 +777,60 @@ class TestWorker:
             {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
         ]
 
-    def test_topology_spread_constraints(self):
-        expected_topology_spread_constraints = [
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
+                ]
+            },
+            {
+                "celery": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ]
+                }
+            },
+            {
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 2,
+                        "topologyKey": "not-me",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"airflow": "test"}},
+                    }
+                ],
+                "celery": {
+                    "topologySpreadConstraints": [
+                        {
+                            "maxSkew": 1,
+                            "topologyKey": "foo",
+                            "whenUnsatisfiable": "ScheduleAnyway",
+                            "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                        }
+                    ]
+                },
+            },
+        ],
+    )
+    def test_topology_spread_constraints(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.topologySpreadConstraints", docs[0]) == [
             {
                 "maxSkew": 1,
                 "topologyKey": "foo",
@@ -565,14 +838,6 @@ class TestWorker:
                 "labelSelector": {"matchLabels": {"tier": "airflow"}},
             }
         ]
-        docs = render_chart(
-            values={"workers": {"topologySpreadConstraints": expected_topology_spread_constraints}},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert expected_topology_spread_constraints == jmespath.search(
-            "spec.template.spec.topologySpreadConstraints", docs[0]
-        )
 
     @pytest.mark.parametrize(
         "workers_values",
@@ -695,18 +960,26 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.nodeSelector", docs[0]) == {"diskType": "ssd"}
 
     @pytest.mark.parametrize(
-        ("base_scheduler_name", "worker_scheduler_name", "expected"),
+        ("base_scheduler_name", "worker_values", "expected"),
         [
-            ("default-scheduler", "most-allocated", "most-allocated"),
-            ("default-scheduler", None, "default-scheduler"),
-            (None, None, None),
+            ("default-scheduler", {"schedulerName": "most-allocated"}, "most-allocated"),
+            ("default-scheduler", {"celery": {"schedulerName": "most-allocated"}}, "most-allocated"),
+            (
+                "default-scheduler",
+                {"schedulerName": "least-allocated", "celery": {"schedulerName": "most-allocated"}},
+                "most-allocated",
+            ),
+            ("default-scheduler", {"schedulerName": None}, "default-scheduler"),
+            ("default-scheduler", {"celery": {"schedulerName": None}}, "default-scheduler"),
+            (None, {"schedulerName": None}, None),
+            (None, {"celery": {"schedulerName": None}}, None),
         ],
     )
-    def test_scheduler_name(self, base_scheduler_name, worker_scheduler_name, expected):
+    def test_scheduler_name(self, base_scheduler_name, worker_values, expected):
         docs = render_chart(
             values={
                 "schedulerName": base_scheduler_name,
-                "workers": {"schedulerName": worker_scheduler_name},
+                "workers": worker_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -728,20 +1001,24 @@ class TestWorker:
             docs[0],
         ) == {"component": "worker"}
 
-    def test_runtime_class_name_values_are_configurable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"runtimeClassName": "nvidia"},
+            {"celery": {"runtimeClassName": "nvidia"}},
+            {"runtimeClassName": "test", "celery": {"runtimeClassName": "nvidia"}},
+        ],
+    )
+    def test_runtime_class_name_values_are_configurable(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {"runtimeClassName": "nvidia"},
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_livenessprobe_default_command(self, airflow_version):
+    def test_livenessprobe_default_command(self):
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -848,19 +1125,24 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [
-                        {
-                            "name": "test-init-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "restartPolicy": "Always",
-                        }
-                    ]
+                    "celery": {
+                        "extraInitContainers": [
+                            {
+                                "name": "test-init-container",
+                                "image": "test-registry/test-repo:test-tag",
+                                "restartPolicy": "Always",
+                            }
+                        ]
+                    }
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0]) == "Always"
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:] | [*].restartPolicy", docs[0]) == [
+            "Always"
+        ]
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
@@ -977,10 +1259,8 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_kerberos_init_container_default_different_versions(self, airflow_version):
+    def test_kerberos_init_container_default_different_versions(self):
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -989,7 +1269,6 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -997,10 +1276,9 @@ class TestWorker:
             {"celery": {"kerberosInitContainer": {"enabled": True}}},
         ],
     )
-    def test_kerberos_init_container_enable(self, airflow_version, workers_values):
+    def test_kerberos_init_container_enable(self, workers_values):
         docs = render_chart(
             values={
-                "airflowVersion": airflow_version,
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -1139,27 +1417,17 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "expected_arg"),
-        [
-            ("2.11.0", "airflow celery worker"),
-            ("3.0.0", "airflow celery worker"),
-        ],
-    )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    def test_default_command_and_args_airflow_version(self):
         docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert [
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg}",
-        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+            "exec \\\nairflow celery worker",
+        ]
 
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
@@ -1259,17 +1527,34 @@ class TestWorker:
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
 
-    def test_should_add_component_specific_annotations(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "annotations": {"test_annotation": "test_annotation_value"},
+            },
+            {
+                "celery": {
+                    "annotations": {"test_annotation": "test_annotation_value"},
+                }
+            },
+            {
+                "annotations": {"test": "test"},
+                "celery": {
                     "annotations": {"test_annotation": "test_annotation_value"},
                 },
             },
+        ],
+    )
+    def test_should_add_component_specific_annotations(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert "annotations" in jmespath.search("metadata", docs[0])
-        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+        assert jmespath.search("metadata.annotations", docs[0]) == {
+            "test_annotation": "test_annotation_value"
+        }
 
     @pytest.mark.parametrize(
         ("globalScope", "localScope", "precedence"),
@@ -1284,7 +1569,7 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}},
                     "safeToEvict": True,
                 },
                 "true",
@@ -1292,15 +1577,17 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "celery": {"safeToEvict": True},
+                    "celery": {
+                        "safeToEvict": True,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    },
                 },
                 "true",
             ),
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}},
                     "safeToEvict": False,
                 },
                 "true",
@@ -1308,15 +1595,17 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "celery": {"safeToEvict": False},
+                    "celery": {
+                        "safeToEvict": False,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    },
                 },
                 "true",
             ),
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}},
                     "safeToEvict": True,
                 },
                 "false",
@@ -1324,15 +1613,17 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "celery": {"safeToEvict": True},
+                    "celery": {
+                        "safeToEvict": True,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    },
                 },
                 "false",
             ),
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}},
                     "safeToEvict": False,
                 },
                 "false",
@@ -1340,8 +1631,10 @@ class TestWorker:
             (
                 {},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "celery": {"safeToEvict": False},
+                    "celery": {
+                        "safeToEvict": False,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    },
                 },
                 "false",
             ),
@@ -1388,7 +1681,7 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}},
                     "safeToEvict": False,
                 },
                 "true",
@@ -1396,15 +1689,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "celery": {"safeToEvict": False},
+                    "celery": {
+                        "safeToEvict": False,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    },
                 },
                 "true",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}},
                     "safeToEvict": False,
                 },
                 "false",
@@ -1412,15 +1707,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "celery": {"safeToEvict": False},
+                    "celery": {
+                        "safeToEvict": False,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    },
                 },
                 "false",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}},
                     "safeToEvict": False,
                 },
                 "true",
@@ -1428,15 +1725,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "celery": {"safeToEvict": False},
+                    "celery": {
+                        "safeToEvict": False,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    },
                 },
                 "true",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}},
                     "safeToEvict": False,
                 },
                 "false",
@@ -1444,15 +1743,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "celery": {"safeToEvict": False},
+                    "celery": {
+                        "safeToEvict": False,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    },
                 },
                 "false",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}},
                     "safeToEvict": True,
                 },
                 "true",
@@ -1460,15 +1761,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "celery": {"safeToEvict": True},
+                    "celery": {
+                        "safeToEvict": True,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    },
                 },
                 "true",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}},
                     "safeToEvict": True,
                 },
                 "false",
@@ -1476,15 +1779,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "celery": {"safeToEvict": True},
+                    "celery": {
+                        "safeToEvict": True,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    },
                 },
                 "false",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}},
                     "safeToEvict": True,
                 },
                 "true",
@@ -1492,15 +1797,17 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "celery": {"safeToEvict": True},
+                    "celery": {
+                        "safeToEvict": True,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    },
                 },
                 "true",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}},
                     "safeToEvict": True,
                 },
                 "false",
@@ -1508,8 +1815,10 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "celery": {"safeToEvict": True},
+                    "celery": {
+                        "safeToEvict": True,
+                        "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    },
                 },
                 "false",
             ),
@@ -1527,11 +1836,63 @@ class TestWorker:
             == precedence
         )
 
-    def test_should_add_extra_volume_claim_templates(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "volumeClaimTemplates": [
+                    {
+                        "metadata": {"name": "test-volume-airflow-1"},
+                        "spec": {
+                            "storageClassName": "storage-class-1",
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    },
+                    {
+                        "metadata": {"name": "test-volume-airflow-2"},
+                        "spec": {
+                            "storageClassName": "storage-class-2",
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "20Gi"}},
+                        },
+                    },
+                ]
+            },
+            {
+                "celery": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                }
+            },
+            {
+                "volumeClaimTemplates": [
+                    {
+                        "metadata": {"name": "test"},
+                        "spec": {
+                            "storageClassName": "storage",
+                            "accessModes": ["ReadOnce"],
+                            "resources": {"requests": {"storage": "1Gi"}},
+                        },
+                    }
+                ],
+                "celery": {
                     "volumeClaimTemplates": [
                         {
                             "metadata": {"name": "test-volume-airflow-1"},
@@ -1552,31 +1913,36 @@ class TestWorker:
                     ]
                 },
             },
+        ],
+    )
+    def test_should_add_extra_volume_claim_templates(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].metadata.name", docs[0]) == "test-volume-airflow-1"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].metadata.name", docs[0]) == "test-volume-airflow-2"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].spec.storageClassName", docs[0])
-            == "storage-class-1"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].spec.storageClassName", docs[0])
-            == "storage-class-2"
-        )
-        assert jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0]) == ["ReadWriteOnce"]
-        assert jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0]) == ["ReadWriteOnce"]
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]) == "10Gi"
-        )
-        assert (
-            jmespath.search("spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]) == "20Gi"
-        )
+        # Skipping the first object as it is logs volume claim
+        assert jmespath.search("spec.volumeClaimTemplates[1:]", docs[0]) == [
+            {
+                "metadata": {"name": "test-volume-airflow-1"},
+                "spec": {
+                    "storageClassName": "storage-class-1",
+                    "accessModes": ["ReadWriteOnce"],
+                    "resources": {"requests": {"storage": "10Gi"}},
+                },
+            },
+            {
+                "metadata": {"name": "test-volume-airflow-2"},
+                "spec": {
+                    "storageClassName": "storage-class-2",
+                    "accessModes": ["ReadWriteOnce"],
+                    "resources": {"requests": {"storage": "20Gi"}},
+                },
+            },
+        ]
 
     def test_should_add_extra_volume_claim_templates_with_logs_persistence_enabled(self):
         """
@@ -1590,17 +1956,19 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "celery": {"persistence": {"enabled": True}},
-                    "volumeClaimTemplates": [
-                        {
-                            "metadata": {"name": "data"},
-                            "spec": {
-                                "storageClassName": "longhorn",
-                                "accessModes": ["ReadWriteOnce"],
-                                "resources": {"requests": {"storage": "10Gi"}},
+                    "celery": {
+                        "persistence": {"enabled": True},
+                        "volumeClaimTemplates": [
+                            {
+                                "metadata": {"name": "data"},
+                                "spec": {
+                                    "storageClassName": "longhorn",
+                                    "accessModes": ["ReadWriteOnce"],
+                                    "resources": {"requests": {"storage": "10Gi"}},
+                                },
                             },
-                        },
-                    ],
+                        ],
+                    },
                 },
                 "logs": {
                     "persistence": {"enabled": True},  # This is the key: logs persistence enabled
@@ -1710,8 +2078,10 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "celery": {"persistence": {"enabled": workers_persistence_enabled}},
-                    "volumeClaimTemplates": custom_templates,
+                    "celery": {
+                        "persistence": {"enabled": workers_persistence_enabled},
+                        "volumeClaimTemplates": custom_templates,
+                    },
                 },
                 "logs": {
                     "persistence": {"enabled": logs_persistence_enabled},
@@ -1956,23 +2326,104 @@ class TestWorkerLogGroomer(LogGroomerTestBase):
     folder = "workers"
 
 
-class TestWorkerKedaAutoScaler:
-    """Tests worker keda auto scaler."""
+class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
+    """Worker Celery groomer."""
 
-    def test_should_add_component_specific_labels(self):
+    obj_name = "workers-celery"
+    folder = "workers"
+
+    @pytest.mark.parametrize(
+        ("persistence_enabled", "log_groomer_enabled", "expect_log_groomer"),
+        [
+            # persistence default (true) + logGroomer default (true) -> renders
+            (None, None, True),
+            # persistence default (true) + logGroomer false -> no render
+            (None, False, False),
+            # persistence true + logGroomer default (true) -> renders
+            (True, None, True),
+            # persistence true + logGroomer true -> renders
+            (True, True, True),
+            # persistence true + logGroomer false -> no render
+            (True, False, False),
+            # persistence false + logGroomer default (true) -> renders
+            (False, None, True),
+            # persistence false + logGroomer true -> renders
+            (False, True, True),
+            # persistence false + logGroomer false -> no render
+            (False, False, False),
+        ],
+    )
+    def test_log_groomer_with_persistence_combinations(
+        self, persistence_enabled, log_groomer_enabled, expect_log_groomer
+    ):
+        """Test log groomer sidecar rendering with various persistence and enabled combinations."""
+        celery_values = {}
+        if persistence_enabled is not None:
+            celery_values["persistence"] = {"enabled": persistence_enabled}
+        if log_groomer_enabled is not None:
+            celery_values["logGroomerSidecar"] = {"enabled": log_groomer_enabled}
+
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {"keda": {"enabled": True}},
+                "workers": {"celery": celery_values} if celery_values else {},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Verify resource kind based on persistence
+        expected_kind = "StatefulSet" if persistence_enabled is not False else "Deployment"
+        assert jmespath.search("kind", docs[0]) == expected_kind
+
+        # Verify log groomer presence
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        container_names = [c["name"] for c in containers]
+
+        if expect_log_groomer:
+            assert "worker-log-groomer" in container_names
+            assert len(containers) == 2
+        else:
+            assert "worker-log-groomer" not in container_names
+            assert len(containers) == 1
+
+
+class TestWorkerKedaAutoScaler:
+    """Tests worker keda auto scaler."""
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {"keda": {"enabled": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "keda": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
                 },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -1987,97 +2438,72 @@ class TestWorkerKedaAutoScaler:
 
         assert "replicas" not in jmespath.search("spec", docs[0])
 
-    @pytest.mark.parametrize(
-        ("executor", "expected_query"),
-        [
-            (
-                "CeleryExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default')",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default') AND queue != 'kubernetes'",
-            ),
-        ],
-    )
-    def test_keda_query_default(self, executor, expected_query):
+    def test_keda_query_default(self):
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": {
                     "celery": {"keda": {"enabled": True}},
                 },
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+        assert (
+            jmespath.search("spec.triggers[0].metadata.query", docs[0])
+            == "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default')"
+        )
 
     @pytest.mark.parametrize(
-        ("workers_values", "executor"),
+        "workers_values",
         [
-            # workers - test custom static query
-            (
-                {
+            # workers - custom static query
+            {
+                "keda": {
+                    "enabled": True,
+                    "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                }
+            },
+            # workers - custom template query
+            {
+                "keda": {
+                    "enabled": True,
+                    "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                }
+            },
+            # workers.celery - custom static query
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                    }
+                }
+            },
+            # workers.celery - custom template query
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                    }
+                }
+            },
+            # workers.celery overrides workers when both are set
+            {
+                "keda": {"query": "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"},
+                "celery": {
                     "keda": {
                         "enabled": True,
                         "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
                     }
                 },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers - test custom template query
-            (
-                {
-                    "keda": {
-                        "enabled": True,
-                        "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
-                    }
-                },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers.celery - test custom static query
-            (
-                {
-                    "celery": {
-                        "keda": {
-                            "enabled": True,
-                            "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
-                        }
-                    }
-                },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers.celery - test custom template query
-            (
-                {
-                    "celery": {
-                        "keda": {
-                            "enabled": True,
-                            "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
-                        }
-                    }
-                },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers - workers.celery overwrite
-            (
-                {
-                    "keda": {"query": "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"},
-                    "celery": {
-                        "keda": {
-                            "enabled": True,
-                            "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
-                        }
-                    },
-                },
-                "CeleryKubernetesExecutor",
-            ),
+            },
         ],
     )
-    def test_keda_query_overwrite(self, workers_values, executor):
+    def test_keda_query_overwrite(self, workers_values):
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -2106,45 +2532,59 @@ class TestWorkerHPAAutoScaler:
     """Tests worker HPA auto scaler."""
 
     @pytest.mark.parametrize(
-        "workers_keda_values",
+        "workers_values",
         [
-            {"keda": {"enabled": True}},
-            {"celery": {"keda": {"enabled": True}}},
+            {"keda": {"enabled": True}, "hpa": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}}, "hpa": {"enabled": True}},
+            {"celery": {"keda": {"enabled": True}, "hpa": {"enabled": True}}},
+            {"keda": {"enabled": True}, "celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_should_be_disabled_on_keda_enabled(self, workers_keda_values):
+    def test_should_be_disabled_on_keda_enabled(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    **workers_keda_values,
-                    "hpa": {"enabled": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=[
                 "templates/workers/worker-kedaautoscaler.yaml",
                 "templates/workers/worker-hpa.yaml",
             ],
         )
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
         assert len(docs) == 1
 
-    def test_should_add_component_specific_labels(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"celery": {"hpa": {"enabled": True}}, "labels": {"test_label": "test_label_value"}},
+            {
+                "celery": {
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
                     "hpa": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     def test_should_remove_replicas_field(self):
         docs = render_chart(
@@ -2159,156 +2599,521 @@ class TestWorkerHPAAutoScaler:
         assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
-        ("metrics", "executor", "expected_metrics"),
+        "workers_values",
         [
-            # default metrics
-            (
-                None,
-                "CeleryExecutor",
-                {
-                    "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
-                },
-            ),
-            # custom metric
-            (
-                [
-                    {
-                        "type": "Pods",
-                        "pods": {
-                            "metric": {"name": "custom"},
-                            "target": {"type": "Utilization", "averageUtilization": 80},
-                        },
-                    }
-                ],
-                "CeleryKubernetesExecutor",
-                {
-                    "type": "Pods",
-                    "pods": {
-                        "metric": {"name": "custom"},
-                        "target": {"type": "Utilization", "averageUtilization": 80},
-                    },
-                },
-            ),
+            {"hpa": {"enabled": True}},
+            {"celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_should_use_hpa_metrics(self, metrics, executor, expected_metrics):
+    def test_hpa_metrics_default(self, workers_values):
         docs = render_chart(
             values={
-                "executor": executor,
-                "workers": {
-                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
-                },
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
-        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
+
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Resource",
+                "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "hpa": {
+                    "enabled": True,
+                    "metrics": [
+                        {
+                            "type": "Pods",
+                            "pods": {
+                                "metric": {"name": "custom"},
+                                "target": {"type": "Utilization", "averageUtilization": 80},
+                            },
+                        }
+                    ],
+                }
+            },
+            {
+                "celery": {
+                    "hpa": {
+                        "enabled": True,
+                        "metrics": [
+                            {
+                                "type": "Pods",
+                                "pods": {
+                                    "metric": {"name": "custom"},
+                                    "target": {"type": "Utilization", "averageUtilization": 80},
+                                },
+                            }
+                        ],
+                    }
+                }
+            },
+            {
+                "hpa": {
+                    "enabled": True,
+                    "metrics": [
+                        {
+                            "type": "Resource",
+                            "resource": {
+                                "name": "memory",
+                                "target": {"type": "Utilization", "averageUtilization": 1},
+                            },
+                        }
+                    ],
+                },
+                "celery": {
+                    "hpa": {
+                        "enabled": True,
+                        "metrics": [
+                            {
+                                "type": "Pods",
+                                "pods": {
+                                    "metric": {"name": "custom"},
+                                    "target": {"type": "Utilization", "averageUtilization": 80},
+                                },
+                            }
+                        ],
+                    }
+                },
+            },
+        ],
+    )
+    def test_hpa_metrics_override(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Pods",
+                "pods": {
+                    "metric": {"name": "custom"},
+                    "target": {"type": "Utilization", "averageUtilization": 80},
+                },
+            }
+        ]
 
 
 class TestWorkerNetworkPolicy:
     """Tests worker network policy."""
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-networkpolicy.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
+
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_allow_api_server_to_read_worker_logs(self, executor):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
 
 
 class TestWorkerService:
     """Tests worker service."""
 
-    def test_should_add_component_specific_labels(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {"labels": {"test_label": "test_label_value"}},
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-service.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
 
-class TestWorkerServiceAccount:
-    """Tests worker service account."""
+class TestWorkerCeleryServiceAccount:
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": False}},
+            {"celery": {"serviceAccount": {"create": False}}},
+            {"serviceAccount": {"create": True}, "celery": {"serviceAccount": {"create": False}}},
+        ],
+    )
+    def test_should_not_create_service_account_when_disabled(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
 
-    def test_should_add_component_specific_labels(self):
+        assert len(docs) == 0
+
+    def test_should_create_service_account_by_default(self):
+        docs = render_chart(
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},
+            {"celery": {"serviceAccount": {"create": True}}},
+            {"serviceAccount": {"create": False}, "celery": {"serviceAccount": {"create": True}}},
+        ],
+    )
+    def test_should_not_create_service_account_for_local_executor(self, workers_values):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "serviceAccount": {"create": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "executor": "LocalExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert len(docs) == 0
 
     @pytest.mark.parametrize(
-        ("executor", "creates_service_account"),
+        "executor",
         [
-            ("LocalExecutor", False),
-            ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
-            ("CeleryExecutor,KubernetesExecutor", True),
-            ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
+            "CeleryExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
         ],
     )
-    def test_should_create_worker_service_account_for_specific_executors(
-        self, executor, creates_service_account
-    ):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},
+            {"celery": {"serviceAccount": {"create": True}}},
+            {"serviceAccount": {"create": False}, "celery": {"serviceAccount": {"create": True}}},
+        ],
+    )
+    def test_should_create_service_account_for_specific_executors(self, executor, workers_values):
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {
-                    "serviceAccount": {"create": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
-        if creates_service_account:
-            assert jmespath.search("kind", docs[0]) == "ServiceAccount"
-            assert "test_label" in jmespath.search("metadata.labels", docs[0])
-            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-        else:
-            assert docs == []
 
-    def test_default_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "serviceAccount": {"create": True},
-                },
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},
+            {"celery": {"serviceAccount": {"create": True}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": False},
+                "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": True}},
             },
+        ],
+    )
+    def test_automount_service_account_token_true(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overridden_automount_service_account_token(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+            {"celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": True},
+                "celery": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_false(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True, "name": "test"}},
+            {"celery": {"serviceAccount": {"create": True, "name": "test"}}},
+            {
+                "serviceAccount": {"name": "none"},
+                "celery": {"serviceAccount": {"create": True, "name": "test"}},
+            },
+        ],
+    )
+    def test_overwrite_name(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {"serviceAccount": {"create": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
             values={
-                "workers": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
+
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
+
+
+class TestWorkerKubernetesServiceAccount:
+    def test_should_not_create_service_account_by_default(self):
+        docs = render_chart(
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"serviceAccount": {"create": True}},  # Should not have effect
+            {"kubernetes": {"serviceAccount": {"create": False}}},
+            {"serviceAccount": {"create": True}, "kubernetes": {"serviceAccount": {"create": False}}},
+        ],
+    )
+    def test_should_not_create_service_account_when_disabled(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    def test_should_create_service_account_when_enabled(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {"kubernetes": {"serviceAccount": {"create": True}}},
+            },
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "LocalExecutor",
+            "LocalExecutor,CeleryExecutor",
+        ],
+    )
+    def test_should_not_create_service_account_non_k8s_executors(self, executor):
+        docs = render_chart(
+            values={"executor": executor, "workers": {"kubernetes": {"serviceAccount": {"create": True}}}},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+        ],
+    )
+    def test_should_create_service_account_when_k8s_executors(self, executor):
+        docs = render_chart(
+            values={"executor": executor, "workers": {"kubernetes": {"serviceAccount": {"create": True}}}},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True}}},
+            {"kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": True}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": False},
+                "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": True}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_true(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}}},
+            {
+                "serviceAccount": {"automountServiceAccountToken": True},
+                "kubernetes": {"serviceAccount": {"create": True, "automountServiceAccountToken": False}},
+            },
+        ],
+    )
+    def test_automount_service_account_token_false(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True}}},
+            {"serviceAccount": {"name": "test"}, "kubernetes": {"serviceAccount": {"create": True}}},
+        ],
+    )
+    def test_default_name(self, workers_values):
+        docs = render_chart(
+            name="test",
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test-airflow-worker-kubernetes"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kubernetes": {"serviceAccount": {"create": True, "name": "test"}}},
+            {
+                "serviceAccount": {"name": "none"},
+                "kubernetes": {"serviceAccount": {"create": True, "name": "test"}},
+            },
+        ],
+    )
+    def test_overwrite_name(self, workers_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": workers_values},
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test"
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "kubernetes": {"serviceAccount": {"create": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "kubernetes": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            {
+                "labels": {"key": "value"},
+                "kubernetes": {
+                    "serviceAccount": {"create": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+        ],
+    )
+    def test_should_add_component_specific_labels(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-kubernetes-serviceaccount.yaml"],
+        )
+
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels

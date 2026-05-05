@@ -21,10 +21,7 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - main
-      - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read

@@ -50,7 +50,7 @@ export const AUTH_FILE = path.join(currentDirname, "playwright/.auth/user.json")
 
 export default defineConfig({
   expect: {
-    timeout: 5000,
+    timeout: 10_000,
   },
   forbidOnly: process.env.CI !== undefined && process.env.CI !== "",
   fullyParallel: true,
@@ -107,20 +107,9 @@ export default defineConfig({
     process.env.CI !== undefined && process.env.CI !== "" ? ["github"] : ["list"],
   ],
 
-  retries: process.env.CI !== undefined && process.env.CI !== "" ? 2 : 0,
+  retries: process.env.CI !== undefined && process.env.CI !== "" ? 4 : 0,
 
   testDir: "./tests/e2e/specs",
-  // TODO: Temporarily ignore flaky specs until stabilized
-  // See: #63036
-  testIgnore: [
-    "**/dag-runs-tab.spec.ts",
-    "**/dag-runs.spec.ts",
-    "**/dag-grid-view.spec.ts",
-    "**/task-logs.spec.ts",
-    "**/dag-tasks.spec.ts",
-    "**/variable.spec.ts",
-    "**/xcoms.spec.ts",
-  ],
 
   timeout: 60_000,
   use: {

@@ -31,7 +31,11 @@ from airflow.providers.openlineage.utils.spark import (
     _get_transport_information_as_spark_properties,
     _is_parent_job_information_present_in_spark_properties,
     _is_transport_information_present_in_spark_properties,
+    inject_parent_job_information_into_emr_serverless_properties,
+    inject_parent_job_information_into_glue_arguments,
     inject_parent_job_information_into_spark_properties,
+    inject_transport_information_into_emr_serverless_properties,
+    inject_transport_information_into_glue_arguments,
     inject_transport_information_into_spark_properties,
 )
 
@@ -364,3 +368,242 @@ def test_inject_composite_transport_information_into_spark_properties(
     result = inject_transport_information_into_spark_properties(properties, EXAMPLE_CONTEXT)
     expected = {**properties, **EXAMPLE_COMPOSITE_TRANSPORT_SPARK_PROPERTIES} if should_inject else properties
     assert result == expected
+
+
+# ---------------------------------------------------------------------------
+# Glue argument injection tests
+# ---------------------------------------------------------------------------
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_glue_arguments_empty_args(mock_get_parent):
+    """With no existing --conf, parent props are joined into a new --conf value."""
+    mock_get_parent.return_value = {
+        "spark.openlineage.parentJobNamespace": "ns",
+        "spark.openlineage.parentJobName": "dag.task",
+    }
+    result = inject_parent_job_information_into_glue_arguments({}, EXAMPLE_CONTEXT)
+    assert "--conf" in result
+    conf = result["--conf"]
+    assert "spark.openlineage.parentJobNamespace=ns" in conf
+    assert "spark.openlineage.parentJobName=dag.task" in conf
+    # Multiple props joined with ' --conf '
+    assert " --conf " in conf
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_glue_arguments_appends_to_existing_conf(mock_get_parent):
+    """Existing --conf value is preserved and OL props are appended."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    script_args = {"--conf": "spark.some.existing=val", "--other": "arg"}
+    result = inject_parent_job_information_into_glue_arguments(script_args, EXAMPLE_CONTEXT)
+    assert result["--other"] == "arg"
+    conf = result["--conf"]
+    assert conf.startswith("spark.some.existing=val")
+    assert "spark.openlineage.parentJobNamespace=ns" in conf
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_glue_arguments_skips_if_already_present(mock_get_parent):
+    """Injection is skipped when parent job info is already in --conf."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    existing = "spark.openlineage.parentJobNamespace=already_there"
+    script_args = {"--conf": existing}
+    result = inject_parent_job_information_into_glue_arguments(script_args, EXAMPLE_CONTEXT)
+    assert result["--conf"] == existing
+    mock_get_parent.assert_not_called()
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_glue_arguments_does_not_mutate_input(mock_get_parent):
+    """The original script_args dict is not mutated."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    original = {"--my-arg": "val"}
+    original_copy = dict(original)
+    inject_parent_job_information_into_glue_arguments(original, EXAMPLE_CONTEXT)
+    assert original == original_copy
+
+
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_inject_transport_information_into_glue_arguments_empty_args(mock_ol_listener):
+    """With no existing --conf, transport props are joined into a new --conf value."""
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(EXAMPLE_HTTP_TRANSPORT_CONFIG)
+    )
+    result = inject_transport_information_into_glue_arguments({}, EXAMPLE_CONTEXT)
+    assert "--conf" in result
+    conf = result["--conf"]
+    assert "spark.openlineage.transport.type=http" in conf
+    assert "spark.openlineage.transport.url=https://some-custom.url" in conf
+
+
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_inject_transport_information_into_glue_arguments_appends_to_existing_conf(mock_ol_listener):
+    """Existing --conf value is preserved and transport props are appended."""
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(EXAMPLE_HTTP_TRANSPORT_CONFIG)
+    )
+    script_args = {"--conf": "spark.some.existing=val"}
+    result = inject_transport_information_into_glue_arguments(script_args, EXAMPLE_CONTEXT)
+    conf = result["--conf"]
+    assert conf.startswith("spark.some.existing=val")
+    assert "spark.openlineage.transport.type=http" in conf
+
+
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_inject_transport_information_into_glue_arguments_skips_if_already_present(mock_ol_listener):
+    """Injection is skipped when transport info is already in --conf."""
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    existing = "spark.openlineage.transport.type=http"
+    script_args = {"--conf": existing}
+    result = inject_transport_information_into_glue_arguments(script_args, EXAMPLE_CONTEXT)
+    assert result["--conf"] == existing
+    fake_listener.adapter.get_or_create_openlineage_client.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# EMR Serverless configuration injection tests
+# ---------------------------------------------------------------------------
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_emr_serverless_properties_none_overrides(mock_get_parent):
+    """When configuration_overrides is None, creates the full structure with injected properties."""
+    mock_get_parent.return_value = {
+        "spark.openlineage.parentJobNamespace": "ns",
+        "spark.openlineage.parentJobName": "dag.task",
+    }
+    result = inject_parent_job_information_into_emr_serverless_properties(None, EXAMPLE_CONTEXT)
+    assert "applicationConfiguration" in result
+    spark_defaults = result["applicationConfiguration"][0]
+    assert spark_defaults["classification"] == "spark-defaults"
+    assert spark_defaults["properties"]["spark.openlineage.parentJobNamespace"] == "ns"
+    assert spark_defaults["properties"]["spark.openlineage.parentJobName"] == "dag.task"
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_emr_serverless_properties_existing_spark_defaults(
+    mock_get_parent,
+):
+    """Appends to existing spark-defaults properties."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    config = {
+        "applicationConfiguration": [
+            {
+                "classification": "spark-defaults",
+                "properties": {"spark.driver.memory": "8G"},
+            }
+        ]
+    }
+    result = inject_parent_job_information_into_emr_serverless_properties(config, EXAMPLE_CONTEXT)
+    props = result["applicationConfiguration"][0]["properties"]
+    assert props["spark.driver.memory"] == "8G"
+    assert props["spark.openlineage.parentJobNamespace"] == "ns"
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_emr_serverless_properties_no_spark_defaults(mock_get_parent):
+    """Creates spark-defaults entry when only other classifications exist."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    config = {
+        "applicationConfiguration": [
+            {"classification": "spark-env", "properties": {"PYSPARK_PYTHON": "/usr/bin/python3"}}
+        ]
+    }
+    result = inject_parent_job_information_into_emr_serverless_properties(config, EXAMPLE_CONTEXT)
+    # Original entry preserved
+    assert result["applicationConfiguration"][0]["classification"] == "spark-env"
+    # New spark-defaults entry added
+    spark_defaults = result["applicationConfiguration"][1]
+    assert spark_defaults["classification"] == "spark-defaults"
+    assert spark_defaults["properties"]["spark.openlineage.parentJobNamespace"] == "ns"
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_emr_serverless_properties_skips_if_already_present(
+    mock_get_parent,
+):
+    """Injection is skipped when parent job info is already in spark-defaults properties."""
+    config = {
+        "applicationConfiguration": [
+            {
+                "classification": "spark-defaults",
+                "properties": {"spark.openlineage.parentJobNamespace": "already_there"},
+            }
+        ]
+    }
+    result = inject_parent_job_information_into_emr_serverless_properties(config, EXAMPLE_CONTEXT)
+    assert result["applicationConfiguration"][0]["properties"]["spark.openlineage.parentJobNamespace"] == (
+        "already_there"
+    )
+    mock_get_parent.assert_not_called()
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_emr_serverless_properties_does_not_mutate_input(
+    mock_get_parent,
+):
+    """The original configuration_overrides dict is not mutated."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    original = {
+        "applicationConfiguration": [
+            {"classification": "spark-defaults", "properties": {"spark.driver.memory": "4G"}}
+        ]
+    }
+    import copy
+
+    original_copy = copy.deepcopy(original)
+    inject_parent_job_information_into_emr_serverless_properties(original, EXAMPLE_CONTEXT)
+    assert original == original_copy
+
+
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_inject_transport_information_into_emr_serverless_properties_empty(mock_ol_listener):
+    """With no existing config, transport props are injected into new spark-defaults."""
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(EXAMPLE_HTTP_TRANSPORT_CONFIG)
+    )
+    result = inject_transport_information_into_emr_serverless_properties(None, EXAMPLE_CONTEXT)
+    props = result["applicationConfiguration"][0]["properties"]
+    assert props["spark.openlineage.transport.type"] == "http"
+    assert props["spark.openlineage.transport.url"] == "https://some-custom.url"
+
+
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_inject_transport_information_into_emr_serverless_properties_skips_if_already_present(
+    mock_ol_listener,
+):
+    """Injection is skipped when transport info is already in spark-defaults properties."""
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    config = {
+        "applicationConfiguration": [
+            {
+                "classification": "spark-defaults",
+                "properties": {"spark.openlineage.transport.type": "http"},
+            }
+        ]
+    }
+    result = inject_transport_information_into_emr_serverless_properties(config, EXAMPLE_CONTEXT)
+    assert result["applicationConfiguration"][0]["properties"]["spark.openlineage.transport.type"] == "http"
+    fake_listener.adapter.get_or_create_openlineage_client.assert_not_called()
+
+
+@patch("airflow.providers.openlineage.utils.spark._get_parent_job_information_as_spark_properties")
+def test_inject_parent_job_information_into_emr_serverless_preserves_monitoring_config(mock_get_parent):
+    """Other keys like monitoringConfiguration are preserved."""
+    mock_get_parent.return_value = {"spark.openlineage.parentJobNamespace": "ns"}
+    config = {
+        "applicationConfiguration": [{"classification": "spark-defaults", "properties": {}}],
+        "monitoringConfiguration": {"s3MonitoringConfiguration": {"logUri": "s3://bucket/logs"}},
+    }
+    result = inject_parent_job_information_into_emr_serverless_properties(config, EXAMPLE_CONTEXT)
+    assert result["monitoringConfiguration"]["s3MonitoringConfiguration"]["logUri"] == "s3://bucket/logs"
+    assert result["applicationConfiguration"][0]["properties"]["spark.openlineage.parentJobNamespace"] == "ns"

@@ -29,7 +29,7 @@
   "group": "群組",
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
-  "producingTasks": "生產任務",
+  "producingTasks": "生產者任務",
   "scheduledDags": "已排程的 Dags",
   "scheduling": "排程",
   "searchPlaceholder": "搜尋資源",

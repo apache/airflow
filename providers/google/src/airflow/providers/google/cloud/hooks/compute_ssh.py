@@ -76,6 +76,20 @@ class ComputeEngineSSHHook(SSHHook):
     """
     Hook to connect to a remote instance in compute engine.
 
+    This hook supports two SSH key-management flows:
+
+    * Cloud OS Login when ``use_oslogin=True``
+    * instance metadata SSH keys when ``use_oslogin=False``
+
+    In Trusted Partner Cloud (TPC) environments, the recommended setup is to use instance metadata SSH keys:
+
+    * ``use_oslogin=False`` and ``use_iap_tunnel=False`` for direct SSH
+    * ``use_oslogin=False`` and ``use_iap_tunnel=True`` for SSH over IAP
+
+    In a tested TPC environment, the OS Login SSH flow was not available for this hook. Since this hook uses
+    OS Login SSH-key management when ``use_oslogin=True``, that setting should be avoided there unless the
+    target environment explicitly supports OS Login SSH.
+
     :param instance_name: The name of the Compute Engine instance
     :param zone: The zone of the Compute Engine instance
     :param user: The name of the user on which the login attempt will be made
@@ -83,10 +97,14 @@ class ComputeEngineSSHHook(SSHHook):
     :param gcp_conn_id: The connection id to use when fetching connection info
     :param hostname: The hostname of the target instance. If it is not passed, it will be detected
         automatically.
-    :param use_iap_tunnel: Whether to connect through IAP tunnel
+    :param use_iap_tunnel: Whether to connect through IAP tunnel. In TPC environments this can work with
+        metadata-managed SSH keys, but it requires the IAM permissions needed to open an IAP tunnel. In
+        Google Cloud deployments, this is typically the ``IAP-secured Tunnel User`` role
+        (``roles/iap.tunnelResourceAccessor``).
     :param use_internal_ip: Whether to connect using internal IP
     :param use_oslogin: Whether to manage keys using OsLogin API. If false,
-        keys are managed using instance metadata
+        keys are managed using instance metadata. In tested TPC environments, set this to ``False`` and use
+        metadata-managed SSH keys instead.
     :param expire_time: The maximum amount of time in seconds before the private key expires
     :param gcp_conn_id: The connection id to use when fetching connection information
     :param max_retries: Maximum number of retries the process will try to establish connection to instance.

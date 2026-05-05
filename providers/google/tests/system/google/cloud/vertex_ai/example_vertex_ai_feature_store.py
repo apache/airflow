@@ -171,7 +171,8 @@ with DAG(
     wait_for_sync = FeatureViewSyncSensor(
         task_id="wait_for_sync",
         location=REGION,
-        feature_view_sync_name="{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value')}}",
+        # verbose form: "{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value') }}"
+        feature_view_sync_name=sync_task.output,
         poke_interval=60,  # Check every minute
         timeout=1200,  # Timeout after 20 minutes
         mode="reschedule",
@@ -182,7 +183,7 @@ with DAG(
     get_task = GetFeatureViewSyncOperator(
         task_id="get_task",
         location=REGION,
-        feature_view_sync_name="{{ task_instance.xcom_pull(task_ids='sync_task', key='return_value')}}",
+        feature_view_sync_name=sync_task.output,
     )
     # [END how_to_cloud_vertex_ai_feature_store_get_feature_view_sync_operator]
 
@@ -251,5 +252,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

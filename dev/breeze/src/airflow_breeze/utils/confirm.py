@@ -148,6 +148,7 @@ class TriageAction(Enum):
     OPEN = "o"
     SHOW = "e"
     READY = "m"
+    REVIEW_MERGE = "g"
     SKIP = "s"
     QUIT = "q"
     BACK = "ESC"
@@ -215,14 +216,15 @@ def _show_pr_diff(token: str, github_repository: str, pr_number: int, pr_url: st
 class ContinueAction(Enum):
     CONTINUE = "c"
     FLAG = "f"
+    SKIP = "s"
     QUIT = "q"
 
 
 def prompt_space_continue(
-    message: str = "Press Enter to continue, \\[f] to flag as suspicious, \\[q] to quit",
+    message: str = "Press Enter to continue, \\[s] to skip, \\[f] to flag as suspicious, \\[q] to quit",
     forced_answer: str | None = None,
 ) -> ContinueAction:
-    """Wait for the user to press Enter to continue, 'f' to flag, or 'q' to quit.
+    """Wait for the user to press Enter to continue, 's' to skip, 'f' to flag, or 'q' to quit.
 
     Used for scrolling through diffs one-by-one without asking yes/no questions.
     """
@@ -233,6 +235,8 @@ def prompt_space_continue(
             return ContinueAction.QUIT
         if upper in ("F", "FLAG"):
             return ContinueAction.FLAG
+        if upper in ("S", "SKIP"):
+            return ContinueAction.SKIP
         return ContinueAction.CONTINUE
 
     console_print(f"\n{message}: ", end="")
@@ -250,6 +254,9 @@ def prompt_space_continue(
         if ch in ("\r", "\n", ""):
             console_print()
             return ContinueAction.CONTINUE
+        if ch.upper() == "S":
+            console_print("skip")
+            return ContinueAction.SKIP
         if ch.upper() == "F":
             console_print("flag as suspicious")
             return ContinueAction.FLAG
@@ -299,6 +306,7 @@ def prompt_triage_action(
         TriageAction.SHOW: "show diff",
         TriageAction.BACK: "back to TUI",
         TriageAction.READY: "mark as ready",
+        TriageAction.REVIEW_MERGE: "review & merge",
         TriageAction.SKIP: "skip",
         TriageAction.QUIT: "quit",
     }
@@ -376,6 +384,14 @@ def prompt_triage_action(
                 else:
                     console_print("  [warning]No PR URL available to open.[/]")
                 continue  # re-prompt after opening browser
+            if matched == TriageAction.REVIEW_MERGE:
+                if pr_url:
+                    review_url = f"{pr_url}/files"
+                    webbrowser.open(review_url)
+                    console_print(f"  [info]Opened {review_url} in browser for review & merge.[/]")
+                else:
+                    console_print("  [warning]No PR URL available to open.[/]")
+                return matched
             if matched == TriageAction.SHOW:
                 if token and github_repository and pr_number:
                     _show_pr_diff(token, github_repository, pr_number, pr_url)

@@ -344,7 +344,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
     :param poll_interval: the interval in seconds to poll the query
-    :param statement_count: Number of SQL statement to be executed
+    :param statement_count: Number of SQL statement to be executed.
+            Set to 0 to submit a variable number of SQL statements without specifying
+            the exact count.
     :param token_life_time: lifetime of the JWT Token
     :param token_renewal_delta: Renewal time of the JWT Token
     :param bindings: (Optional) Values of bind variables in the SQL statement.

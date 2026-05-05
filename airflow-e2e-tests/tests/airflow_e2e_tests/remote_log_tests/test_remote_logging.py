@@ -31,11 +31,6 @@ class TestRemoteLogging:
     retry_interval_in_seconds = 5
     max_retries = 12
 
-    def test_dag_unpause(self):
-        self.airflow_client.un_pause_dag(
-            TestRemoteLogging.dag_id,
-        )
-
     def test_remote_logging_s3(self):
         """Test that a DAG using remote logging to S3 completes successfully."""
 

@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDagRunDeadlinesData, GetDagRunDeadlinesResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -13,7 +13,13 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
+     * @param data.namePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when possible.
+     * @param data.uriPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.dagIds
      * @param data.onlyActive
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
@@ -28,7 +34,9 @@ export class AssetService {
                 limit: data.limit,
                 offset: data.offset,
                 name_pattern: data.namePattern,
+                name_prefix_pattern: data.namePrefixPattern,
                 uri_pattern: data.uriPattern,
+                uri_prefix_pattern: data.uriPrefixPattern,
                 dag_ids: data.dagIds,
                 only_active: data.onlyActive,
                 order_by: data.orderBy
@@ -49,6 +57,9 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
+     * @param data.namePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
      * @returns AssetAliasCollectionResponse Successful Response
      * @throws ApiError
@@ -61,6 +72,7 @@ export class AssetService {
                 limit: data.limit,
                 offset: data.offset,
                 name_pattern: data.namePattern,
+                name_prefix_pattern: data.namePrefixPattern,
                 order_by: data.orderBy
             },
             errors: {
@@ -109,6 +121,9 @@ export class AssetService {
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
+     * @param data.namePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.timestampGte
      * @param data.timestampGt
      * @param data.timestampLte
@@ -130,6 +145,7 @@ export class AssetService {
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 name_pattern: data.namePattern,
+                name_prefix_pattern: data.namePrefixPattern,
                 timestamp_gte: data.timestampGte,
                 timestamp_gt: data.timestampGt,
                 timestamp_lte: data.timestampLte,
@@ -169,7 +185,7 @@ export class AssetService {
     
     /**
      * Materialize Asset
-     * Materialize an asset by triggering a DAG run that produces it.
+     * Materialize an asset by triggering a Dag run that produces it.
      * @param data The data for the request.
      * @param data.assetId
      * @param data.requestBody
@@ -277,7 +293,7 @@ export class AssetService {
     
     /**
      * Get Dag Asset Queued Events
-     * Get queued asset events for a DAG.
+     * Get queued asset events for a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.before
@@ -332,7 +348,7 @@ export class AssetService {
     
     /**
      * Get Dag Asset Queued Event
-     * Get a queued asset event for a DAG.
+     * Get a queued asset event for a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.assetId
@@ -362,7 +378,7 @@ export class AssetService {
     
     /**
      * Delete Dag Asset Queued Event
-     * Delete a queued asset event for a DAG.
+     * Delete a queued asset event for a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.assetId
@@ -704,6 +720,9 @@ export class ConnectionService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, team_name, connection_id`
      * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``connection_id_prefix_pattern`` parameter when possible.
+     * @param data.connectionIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns ConnectionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -715,7 +734,8 @@ export class ConnectionService {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
-                connection_id_pattern: data.connectionIdPattern
+                connection_id_pattern: data.connectionIdPattern,
+                connection_id_prefix_pattern: data.connectionIdPrefixPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -857,7 +877,7 @@ export class DagRunService {
     
     /**
      * Delete Dag Run
-     * Delete a DAG Run entry.
+     * Delete a Dag Run entry.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -884,7 +904,7 @@ export class DagRunService {
     
     /**
      * Patch Dag Run
-     * Modify a DAG Run.
+     * Modify a Dag Run.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -972,11 +992,21 @@ export class DagRunService {
     
     /**
      * Get Dag Runs
-     * Get all DAG Runs.
+     * Get all Dag Runs.
      *
-     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all Dags.
+     *
+     * Supports two pagination modes:
+     *
+     * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+     *
+     * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+     * on the first page.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
@@ -1010,9 +1040,22 @@ export class DagRunService {
      * @param data.bundleVersion
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * @param data.runIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user_name_prefix_pattern`` parameter when possible.
+     * @param data.triggeringUserNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.partitionKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``partition_key_prefix_pattern`` parameter when possible.
+     * @param data.partitionKeyPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * @param data.consumingAssetPattern Filter by consuming asset name or URI using pattern matching
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1024,6 +1067,7 @@ export class DagRunService {
                 dag_id: data.dagId
             },
             query: {
+                cursor: data.cursor,
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,
@@ -1057,9 +1101,14 @@ export class DagRunService {
                 bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
+                run_id_prefix_pattern: data.runIdPrefixPattern,
                 triggering_user_name_pattern: data.triggeringUserNamePattern,
+                triggering_user_name_prefix_pattern: data.triggeringUserNamePrefixPattern,
                 dag_id_pattern: data.dagIdPattern,
-                partition_key_pattern: data.partitionKeyPattern
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
+                partition_key_pattern: data.partitionKeyPattern,
+                partition_key_prefix_pattern: data.partitionKeyPrefixPattern,
+                consuming_asset_pattern: data.consumingAssetPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1072,7 +1121,7 @@ export class DagRunService {
     
     /**
      * Trigger Dag Run
-     * Trigger a DAG.
+     * Trigger a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1101,7 +1150,7 @@ export class DagRunService {
     
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1133,7 +1182,7 @@ export class DagRunService {
     
     /**
      * Get List Dag Runs Batch
-     * Get a list of DAG Runs.
+     * Get a list of Dag Runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1163,7 +1212,7 @@ export class DagRunService {
 export class ExperimentalService {
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1340,7 +1389,7 @@ export class ConfigService {
 export class DagWarningService {
     /**
      * List Dag Warnings
-     * Get a list of DAG warnings.
+     * Get a list of Dag warnings.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.warningType
@@ -1374,7 +1423,7 @@ export class DagWarningService {
 export class DagService {
     /**
      * Get Dags
-     * Get all DAGs.
+     * Get all Dags.
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
@@ -1382,7 +1431,13 @@ export class DagService {
      * @param data.tagsMatchMode
      * @param data.owners
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
+     * @param data.dagDisplayNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.excludeStale
      * @param data.paused
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
@@ -1417,7 +1472,9 @@ export class DagService {
                 tags_match_mode: data.tagsMatchMode,
                 owners: data.owners,
                 dag_id_pattern: data.dagIdPattern,
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 dag_display_name_pattern: data.dagDisplayNamePattern,
+                dag_display_name_prefix_pattern: data.dagDisplayNamePrefixPattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 has_import_errors: data.hasImportErrors,
@@ -1449,7 +1506,11 @@ export class DagService {
     
     /**
      * Patch Dags
-     * Patch multiple DAGs.
+     * Patch multiple Dags.
+     *
+     * If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no Dags will be
+     * matched regardless of other filters. To match all Dags, pass a wildcard value such as
+     * `~` or `%` for `dag_id_pattern`.
      * @param data The data for the request.
      * @param data.requestBody
      * @param data.updateMask
@@ -1459,6 +1520,9 @@ export class DagService {
      * @param data.tagsMatchMode
      * @param data.owners
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.excludeStale
      * @param data.paused
      * @returns DAGCollectionResponse Successful Response
@@ -1476,6 +1540,7 @@ export class DagService {
                 tags_match_mode: data.tagsMatchMode,
                 owners: data.owners,
                 dag_id_pattern: data.dagIdPattern,
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused
             },
@@ -1493,7 +1558,7 @@ export class DagService {
     
     /**
      * Get Dag
-     * Get basic information about a DAG.
+     * Get basic information about a Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @returns DAGResponse Successful Response
@@ -1518,7 +1583,7 @@ export class DagService {
     
     /**
      * Patch Dag
-     * Patch the specific DAG.
+     * Patch the specific Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.requestBody
@@ -1550,7 +1615,7 @@ export class DagService {
     
     /**
      * Delete Dag
-     * Delete the specific DAG.
+     * Delete the specific Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @returns unknown Successful Response
@@ -1575,7 +1640,7 @@ export class DagService {
     
     /**
      * Get Dag Details
-     * Get details of DAG.
+     * Get details of Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @returns DAGDetailsResponse Successful Response
@@ -1600,7 +1665,7 @@ export class DagService {
     
     /**
      * Favorite Dag
-     * Mark the DAG as favorite.
+     * Mark the Dag as favorite.
      * @param data The data for the request.
      * @param data.dagId
      * @returns void Successful Response
@@ -1624,7 +1689,7 @@ export class DagService {
     
     /**
      * Unfavorite Dag
-     * Unmark the DAG as favorite.
+     * Unmark the Dag as favorite.
      * @param data The data for the request.
      * @param data.dagId
      * @returns void Successful Response
@@ -1649,12 +1714,15 @@ export class DagService {
     
     /**
      * Get Dag Tags
-     * Get all DAG tags.
+     * Get all Dag tags.
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``tag_name_prefix_pattern`` parameter when possible.
+     * @param data.tagNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns DAGTagCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1666,7 +1734,8 @@ export class DagService {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
-                tag_name_pattern: data.tagNamePattern
+                tag_name_pattern: data.tagNamePattern,
+                tag_name_prefix_pattern: data.tagNamePrefixPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1678,7 +1747,7 @@ export class DagService {
     
     /**
      * Get Dags
-     * Get DAGs with recent DagRun.
+     * Get Dags with recent DagRun.
      * @param data The data for the request.
      * @param data.dagRunsLimit
      * @param data.limit
@@ -1688,7 +1757,13 @@ export class DagService {
      * @param data.owners
      * @param data.dagIds
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
+     * @param data.dagDisplayNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.excludeStale
      * @param data.paused
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
@@ -1716,7 +1791,9 @@ export class DagService {
                 owners: data.owners,
                 dag_ids: data.dagIds,
                 dag_id_pattern: data.dagIdPattern,
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 dag_display_name_pattern: data.dagDisplayNamePattern,
+                dag_display_name_prefix_pattern: data.dagDisplayNamePrefixPattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
                 has_import_errors: data.hasImportErrors,
@@ -1802,10 +1879,25 @@ export class EventLogService {
      * @param data.before
      * @param data.after
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
      * @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``owner_prefix_pattern`` parameter when possible.
      * @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``event_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * @param data.taskIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * @param data.runIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * @param data.ownerPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+     * @param data.eventPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1832,7 +1924,12 @@ export class EventLogService {
                 task_id_pattern: data.taskIdPattern,
                 run_id_pattern: data.runIdPattern,
                 owner_pattern: data.ownerPattern,
-                event_pattern: data.eventPattern
+                event_pattern: data.eventPattern,
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
+                task_id_prefix_pattern: data.taskIdPrefixPattern,
+                run_id_prefix_pattern: data.runIdPrefixPattern,
+                owner_prefix_pattern: data.ownerPrefixPattern,
+                event_prefix_pattern: data.eventPrefixPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1853,6 +1950,7 @@ export class ExtraLinksService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.tryNumber
      * @returns ExtraLinkCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1866,7 +1964,8 @@ export class ExtraLinksService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                try_number: data.tryNumber
             },
             errors: {
                 401: 'Unauthorized',
@@ -1888,6 +1987,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.tryNumber
      * @returns ExtraLinkCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1901,7 +2001,8 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                try_number: data.tryNumber
             },
             errors: {
                 401: 'Unauthorized',
@@ -2045,13 +2146,22 @@ export class TaskInstanceService {
      * @param data.state
      * @param data.pool
      * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
+     * @param data.poolNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.queue
      * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter when possible.
+     * @param data.queueNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
      * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
+     * @param data.operatorNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
@@ -2096,13 +2206,16 @@ export class TaskInstanceService {
                 state: data.state,
                 pool: data.pool,
                 pool_name_pattern: data.poolNamePattern,
+                pool_name_prefix_pattern: data.poolNamePrefixPattern,
                 queue: data.queue,
                 queue_name_pattern: data.queueNamePattern,
+                queue_name_prefix_pattern: data.queueNamePrefixPattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
                 operator: data.operator,
                 operator_name_pattern: data.operatorNamePattern,
+                operator_name_prefix_pattern: data.operatorNamePrefixPattern,
                 map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
@@ -2313,11 +2426,21 @@ export class TaskInstanceService {
      * Get Task Instances
      * Get list of task instances.
      *
-     * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-     * and DAG runs.
+     * This endpoint allows specifying `~` as the dag_id, dag_run_id
+     * to retrieve task instances for all Dags and Dag runs.
+     *
+     * Supports two pagination modes:
+     *
+     * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+     *
+     * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
+     * on the first page.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
+     * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.taskId
      * @param data.runAfterGte
      * @param data.runAfterGt
@@ -2344,19 +2467,37 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_display_name_prefix_pattern`` parameter when possible.
+     * @param data.taskDisplayNamePrefixPattern Prefix match on task display name: optional ``_task_display_property_value`` else ``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to ``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` (or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the term are stripped before matching so the range scan stays index-compatible under locale-aware collations.
      * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * @param data.runIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.state
      * @param data.pool
      * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
+     * @param data.poolNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.queue
      * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``queue_name_prefix_pattern`` parameter when possible.
+     * @param data.queueNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
      * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``operator_name_prefix_pattern`` parameter when possible.
+     * @param data.operatorNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
@@ -2373,6 +2514,7 @@ export class TaskInstanceService {
                 dag_run_id: data.dagRunId
             },
             query: {
+                cursor: data.cursor,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
@@ -2399,19 +2541,25 @@ export class TaskInstanceService {
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                task_display_name_prefix_pattern: data.taskDisplayNamePrefixPattern,
                 task_group_id: data.taskGroupId,
                 dag_id_pattern: data.dagIdPattern,
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 run_id_pattern: data.runIdPattern,
+                run_id_prefix_pattern: data.runIdPrefixPattern,
                 state: data.state,
                 pool: data.pool,
                 pool_name_pattern: data.poolNamePattern,
+                pool_name_prefix_pattern: data.poolNamePrefixPattern,
                 queue: data.queue,
                 queue_name_pattern: data.queueNamePattern,
+                queue_name_prefix_pattern: data.queueNamePrefixPattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
                 operator: data.operator,
                 operator_name_pattern: data.operatorNamePattern,
+                operator_name_prefix_pattern: data.operatorNamePrefixPattern,
                 map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
@@ -2572,6 +2720,75 @@ export class TaskInstanceService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Task Group Instances
+     * Update the state of all task instances in a task group.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.groupId
+     * @param data.requestBody
+     * @param data.updateMask
+     * @returns TaskInstanceCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchTaskGroupInstances(data: PatchTaskGroupInstancesData): CancelablePromise<PatchTaskGroupInstancesResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                group_id: data.groupId
+            },
+            query: {
+                update_mask: data.updateMask
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Task Group Instances Dry Run
+     * Dry-run of updating the state of all task instances in a task group.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.groupId
+     * @param data.requestBody
+     * @returns TaskInstanceCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchTaskGroupInstancesDryRun(data: PatchTaskGroupInstancesDryRunData): CancelablePromise<PatchTaskGroupInstancesDryRunResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                group_id: data.groupId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -2836,15 +3053,25 @@ export class TaskInstanceService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when possible.
+     * @param data.dagIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.taskId
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
+     * @param data.taskIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.mapIndex
      * @param data.state
      * @param data.responseReceived
      * @param data.respondedByUserId
      * @param data.respondedByUserName
      * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``subject_search`` parameter when possible.
      * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``body_search`` parameter when possible.
      * @param data.createdAtGte
      * @param data.createdAtGt
      * @param data.createdAtLte
@@ -2865,8 +3092,10 @@ export class TaskInstanceService {
                 offset: data.offset,
                 order_by: data.orderBy,
                 dag_id_pattern: data.dagIdPattern,
+                dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 task_id: data.taskId,
                 task_id_pattern: data.taskIdPattern,
+                task_id_prefix_pattern: data.taskIdPrefixPattern,
                 map_index: data.mapIndex,
                 state: data.state,
                 response_received: data.responseReceived,
@@ -2922,6 +3151,9 @@ export class ImportErrorService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
      * @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
+     * @param data.filenamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns ImportErrorCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2933,7 +3165,8 @@ export class ImportErrorService {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
-                filename_pattern: data.filenamePattern
+                filename_pattern: data.filenamePattern,
+                filename_prefix_pattern: data.filenamePrefixPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -3135,6 +3368,9 @@ export class PoolService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool, name`
      * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``pool_name_prefix_pattern`` parameter when possible.
+     * @param data.poolNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns PoolCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3146,7 +3382,8 @@ export class PoolService {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
-                pool_name_pattern: data.poolNamePattern
+                pool_name_pattern: data.poolNamePattern,
+                pool_name_prefix_pattern: data.poolNamePrefixPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -3345,7 +3582,7 @@ export class XcomService {
      * Get Xcom Entries
      * Get all XCom entries.
      *
-     * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -3355,9 +3592,21 @@ export class XcomService {
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``xcom_key_prefix_pattern`` parameter when possible.
+     * @param data.xcomKeyPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter when possible.
+     * @param data.dagDisplayNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
+     * @param data.runIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``task_id_prefix_pattern`` parameter when possible.
+     * @param data.taskIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.mapIndexFilter
      * @param data.logicalDateGte
      * @param data.logicalDateGt
@@ -3367,6 +3616,7 @@ export class XcomService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3385,9 +3635,13 @@ export class XcomService {
                 limit: data.limit,
                 offset: data.offset,
                 xcom_key_pattern: data.xcomKeyPattern,
+                xcom_key_prefix_pattern: data.xcomKeyPrefixPattern,
                 dag_display_name_pattern: data.dagDisplayNamePattern,
+                dag_display_name_prefix_pattern: data.dagDisplayNamePrefixPattern,
                 run_id_pattern: data.runIdPattern,
+                run_id_prefix_pattern: data.runIdPrefixPattern,
                 task_id_pattern: data.taskIdPattern,
+                task_id_prefix_pattern: data.taskIdPrefixPattern,
                 map_index_filter: data.mapIndexFilter,
                 logical_date_gte: data.logicalDateGte,
                 logical_date_gt: data.logicalDateGt,
@@ -3396,7 +3650,8 @@ export class XcomService {
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
-                run_after_lt: data.runAfterLt
+                run_after_lt: data.runAfterLt,
+                order_by: data.orderBy
             },
             errors: {
                 400: 'Bad Request',
@@ -3445,7 +3700,7 @@ export class XcomService {
 export class TaskService {
     /**
      * Get Tasks
-     * Get tasks for DAG.
+     * Get tasks for Dag.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.orderBy
@@ -3590,6 +3845,9 @@ export class VariableService {
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted, team_name`
      * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``variable_key_prefix_pattern`` parameter when possible.
+     * @param data.variableKeyPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns VariableCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3601,7 +3859,8 @@ export class VariableService {
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
-                variable_key_pattern: data.variableKeyPattern
+                variable_key_pattern: data.variableKeyPattern,
+                variable_key_prefix_pattern: data.variableKeyPrefixPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -3661,7 +3920,7 @@ export class VariableService {
 export class DagParsingService {
     /**
      * Reparse Dag File
-     * Request re-parsing a DAG file.
+     * Request re-parsing a Dag file.
      * @param data The data for the request.
      * @param data.fileToken
      * @returns unknown Successful Response
@@ -3714,9 +3973,9 @@ export class DagVersionService {
     
     /**
      * Get Dag Versions
-     * Get all DAG Versions.
+     * Get all Dag Versions.
      *
-     * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+     * This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions for all Dags.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.limit
@@ -3977,7 +4236,7 @@ export class DashboardService {
     
     /**
      * Dag Stats
-     * Return basic DAG stats with counts of DAGs in various states.
+     * Return basic Dag stats with counts of Dags in various states.
      * @returns DashboardDagStatsResponse Successful Response
      * @throws ApiError
      */
@@ -3992,24 +4251,76 @@ export class DashboardService {
 
 export class DeadlinesService {
     /**
-     * Get Dag Run Deadlines
-     * Get all deadlines for a specific DAG run.
+     * Get Deadlines
+     * Get deadlines for a Dag run.
+     *
+     * This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
+     * Dags and Dag runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+     * @param data.missed
+     * @param data.deadlineTimeGte
+     * @param data.deadlineTimeGt
+     * @param data.deadlineTimeLte
+     * @param data.deadlineTimeLt
+     * @param data.lastUpdatedAtGte
+     * @param data.lastUpdatedAtGt
+     * @param data.lastUpdatedAtLte
+     * @param data.lastUpdatedAtLt
      * @returns DeadlineCollectionResponse Successful Response
      * @throws ApiError
      */
-    public static getDagRunDeadlines(data: GetDagRunDeadlinesData): CancelablePromise<GetDagRunDeadlinesResponse> {
+    public static getDeadlines(data: GetDeadlinesData): CancelablePromise<GetDeadlinesResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy,
+                missed: data.missed,
+                deadline_time_gte: data.deadlineTimeGte,
+                deadline_time_gt: data.deadlineTimeGt,
+                deadline_time_lte: data.deadlineTimeLte,
+                deadline_time_lt: data.deadlineTimeLt,
+                last_updated_at_gte: data.lastUpdatedAtGte,
+                last_updated_at_gt: data.lastUpdatedAtGt,
+                last_updated_at_lte: data.lastUpdatedAtLte,
+                last_updated_at_lt: data.lastUpdatedAtLt
+            },
+            errors: {
+                400: 'Bad Request',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Dag Deadline Alerts
+     * Get all deadline alerts defined on a Dag.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     * @returns DeadlineAlertCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagDeadlineAlerts(data: GetDagDeadlineAlertsData): CancelablePromise<GetDagDeadlineAlertsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/{dag_id}/deadlineAlerts',
+            path: {
+                dag_id: data.dagId
             },
             query: {
                 limit: data.limit,
@@ -4082,6 +4393,9 @@ export class GridService {
      * @param data.runType
      * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user`` parameter when possible.
+     * @param data.triggeringUserPrefix Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -4106,7 +4420,8 @@ export class GridService {
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
                 state: data.state,
-                triggering_user: data.triggeringUser
+                triggering_user: data.triggeringUser,
+                triggering_user_prefix: data.triggeringUserPrefix
             },
             errors: {
                 400: 'Bad Request',
@@ -4131,6 +4446,9 @@ export class GridService {
      * @param data.runType
      * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     *
+     * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``triggering_user`` parameter when possible.
+     * @param data.triggeringUserPrefix Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -4151,7 +4469,8 @@ export class GridService {
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
                 state: data.state,
-                triggering_user: data.triggeringUser
+                triggering_user: data.triggeringUser,
+                triggering_user_prefix: data.triggeringUserPrefix
             },
             errors: {
                 400: 'Bad Request',
@@ -4169,8 +4488,9 @@ export class GridService {
      * run's task instances have been processed, so the client can render columns
      * progressively without waiting for all runs to complete.
      *
-     * The serialized Dag structure is loaded once and reused for all runs that
-     * share the same ``dag_version_id``, avoiding repeated deserialization.
+     * The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
+     * (keyed by ``dag_version_id``), which avoids repeated deserialization across
+     * runs of the same version *and* across requests.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runIds
@@ -4227,7 +4547,7 @@ export class GanttService {
 export class CalendarService {
     /**
      * Get Calendar
-     * Get calendar data for a DAG including historical and planned DAG runs.
+     * Get calendar data for a Dag including historical and planned Dag runs.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.granularity

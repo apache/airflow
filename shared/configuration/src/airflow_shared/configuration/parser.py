@@ -257,6 +257,8 @@ class AirflowConfigParser(ConfigParser):
         ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
         ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
         ("workers", "missing_dag_retries"): ("workers", "missing_dag_retires", "3.1.8"),
+        ("core", "execution_api_server_url"): ("workers", "execution_api_server_url", "3.0"),
+        ("database", "sql_alchemy_conn"): ("core", "sql_alchemy_conn", "3.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -621,7 +623,7 @@ class AirflowConfigParser(ConfigParser):
             )
         if value is VALUE_NOT_FOUND_SENTINEL:
             value = fallback
-        if raw and value is not None:
+        if raw and isinstance(value, str):
             return value.replace("%", "%%")
         return value
 
@@ -843,7 +845,7 @@ class AirflowConfigParser(ConfigParser):
                 # when display_source = true, we know that the config_sources contains tuple
                 opt, source = config_sources[section][key]  # type: ignore
             else:
-                opt = config_sources[section][key]
+                opt = config_sources[section][key]  # type: ignore[assignment]
             if opt == self.get_default_value(section, key):
                 del config_sources[section][key]
 
@@ -1630,7 +1632,9 @@ class AirflowConfigParser(ConfigParser):
         )
         return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True, **kwargs) -> bool:
+    def has_option(  # type: ignore[override]
+        self, section: str, option: str, lookup_from_deprecated: bool = True, **kwargs
+    ) -> bool:
         """
         Check if option is defined.
 
@@ -1659,7 +1663,7 @@ class AirflowConfigParser(ConfigParser):
         except (NoOptionError, NoSectionError, AirflowConfigException):
             return False
 
-    def set(self, section: str, option: str, value: str | None = None) -> None:
+    def set(self, section: str, option: str, value: str | None = None) -> None:  # type: ignore[override]
         """
         Set an option to the given value.
 
@@ -1674,7 +1678,7 @@ class AirflowConfigParser(ConfigParser):
             self.add_section(section)
         super().set(section, option, value)
 
-    def remove_option(self, section: str, option: str, remove_default: bool = True):
+    def remove_option(self, section: str, option: str, remove_default: bool = True):  # type: ignore[override]
         """
         Remove an option if it exists in config from a file or default config.
 

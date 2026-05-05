@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Corpo",
-    "createdAtFrom": "Criado De",
-    "createdAtTo": "Criado Até",
+    "createdAt": "Criado Em",
     "response": {
       "all": "Todas",
       "pending": "Pendente",

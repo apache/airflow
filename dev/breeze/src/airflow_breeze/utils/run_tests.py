@@ -90,7 +90,16 @@ def verify_an_image(
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
-        ["uv", "run", "--isolated", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "--isolated",
+            "pytest",
+            test_path.as_posix(),
+            *pytest_args,
+            *extra_pytest_args,
+        ],
         env=env,
         output=output,
         check=False,
@@ -177,7 +186,7 @@ def run_docker_compose_tests(
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
     env["AIRFLOW_UID"] = str(os.getuid())
     command_result = run_command(
-        ["uv", "run", "pytest", *pytest_args],
+        ["uv", "run", "--frozen", "pytest", *pytest_args],
         env=env,
         check=False,
         cwd=cwd,

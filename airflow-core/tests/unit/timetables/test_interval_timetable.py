@@ -66,6 +66,31 @@ def test_no_catchup_first_starts_at_current_time(
 
 
 @pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+)
+@time_machine.travel(pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc))
+def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) -> None:
+    """A zero-length ``data_interval`` (``start == end``) on the previous run
+    must not cause ``next_dagrun_info`` to re-emit that run's logical_date.
+
+    These appear when a DAG was scheduled by ``CronTriggerTimetable`` and later
+    switched to ``CronDataIntervalTimetable``. Without the guard the scheduler
+    loops on "run already exists; skipping dagrun creation".
+    """
+    timetable = CronDataIntervalTimetable("0 17 * * *", utc)
+    last_run_at = pendulum.DateTime(2021, 9, 5, 17, tzinfo=utc)
+    last = DataInterval(start=last_run_at, end=last_run_at)
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=last,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+    )
+    expected_start = pendulum.DateTime(2021, 9, 6, 17, tzinfo=utc)
+    expected_end = pendulum.DateTime(2021, 9, 7, 17, tzinfo=utc)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+@pytest.mark.parametrize(
     "earliest",
     [pytest.param(None, id="none"), pytest.param(START_DATE, id="start_date")],
 )

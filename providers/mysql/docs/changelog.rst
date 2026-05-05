@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+6.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent SQL keyword parameterization in MySQL bulk_load_custom (#63530)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.5.1
 .....
 

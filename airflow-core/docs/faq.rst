@@ -666,6 +666,64 @@ try pausing the Dag again, or check the console or server logs if the
 issue recurs.
 
 
+API Server
+^^^^^^^^^^
+
+.. _faq:api-server-memory-growth:
+
+How to prevent API server memory growth?
+-----------------------------------------
+
+The API server caches serialized Dag objects in memory. Over time, as Dag versions accumulate
+(see :ref:`faq:dag-version-inflation`), this cache grows and can consume several gigabytes of memory.
+
+There are two complementary approaches:
+
+**1. Bounded DAG caching (available since Airflow 3.3.0)**
+
+The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
+in memory. Configure this in the ``[api]`` section:
+
+.. code-block:: ini
+
+    [api]
+    dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
+    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
+
+The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
+previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
+
+See :ref:`config:api__dag_cache_size` and :ref:`config:api__dag_cache_ttl` for the full
+configuration reference.
+
+**2. Gunicorn with rolling worker restarts (available since Airflow 3.2.0)**
+
+Gunicorn periodically recycles worker processes, releasing all accumulated memory. It also
+uses ``preload`` + ``fork``, so workers share read-only memory pages via copy-on-write, reducing overall
+memory usage by 40-50% compared to uvicorn's multiprocess mode.
+
+To enable gunicorn with worker recycling:
+
+.. code-block:: ini
+
+    [api]
+    server_type = gunicorn
+    # Restart each worker every 12 hours (43200 seconds)
+    worker_refresh_interval = 43200
+    worker_refresh_batch_size = 1
+
+This requires the ``apache-airflow-core[gunicorn]`` extra to be installed.
+
+See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, and
+:ref:`config:api__worker_refresh_batch_size` for the full configuration reference.
+
+.. note::
+
+    Worker recycling handles memory growth from *any* source, not just the Dag cache.
+    For production deployments, using both bounded caching and gunicorn worker recycling
+    provides the best results.
+
+
 MySQL and MySQL variant Databases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

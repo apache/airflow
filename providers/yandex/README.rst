@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-yandex``
 
-Release: ``4.4.1``
+Release: ``4.4.2``
 
 
 This package is for Yandex, including:
@@ -38,7 +38,7 @@ This is a provider package for ``yandex`` provider. All classes for this provide
 are in ``airflow.providers.yandex`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.4.2/>`_.
 
 Installation
 ------------
@@ -56,11 +56,13 @@ Requirements
 PIP package                                 Version required
 ==========================================  =======================================
 ``apache-airflow``                          ``>=2.11.0``
+``yandexcloud``                             ``>=0.383.0; python_version >= "3.14"``
 ``yandexcloud``                             ``>=0.376.0; python_version >= "3.13"``
 ``yandexcloud``                             ``>=0.328.0; python_version < "3.13"``
 ``yandex-query-client``                     ``>=0.1.4``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``grpcio``                                  ``>=1.70.0``
+``grpcio``                                  ``>=1.70.0; python_version < "3.14"``
+``grpcio``                                  ``>=1.78.0; python_version >= "3.14"``
 ==========================================  =======================================
 
 Cross provider package dependencies
@@ -83,4 +85,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.4.2/changelog.html>`_.

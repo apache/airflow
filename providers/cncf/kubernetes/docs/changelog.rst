@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+10.16.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Treat registry 5xx errors as transient during KubernetesPodOperator pod startup (#65490)``
+* ``Fix KubernetesPodOperator to forward pod log levels to Airflow task logs (#64829)``
+* ``Catch TypeError for non-datetime since_time in _write_logs (#65232)``
+* ``Do not cache kubeconfig for exec based auth in AsyncKubernetesHook (#65212)``
+* ``Consider XCOM sidecar container during pod cleanup (#64962)``
+* ``Handle unknown pod phase in KubernetesPodOperator (#65202)``
+* ``Allow string conversion to datetime for since_time in KPO logs (#65498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+10.16.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add retries for '_write_logs' method in 'KubernetesPodOperator' (#64471)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle rate limiting of K8s API server in K8s executor (#64504)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Log on_kill job deletion in kubernetes spark operator at INFO level (#64633)``
+* ``Update cncf's import conf path to use common compat SDK (#64143)``
+* ``Fix advertising some of the missing provider capabilities via provider info (#64127)``
+* ``Add explicit type annotations to k8s code to fix mypy (#64260)``
+* ``Pass parameters to Kubernetes methods conditionally (#64242)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.15.0
 .......
 

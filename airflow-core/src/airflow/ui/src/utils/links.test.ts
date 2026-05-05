@@ -271,4 +271,16 @@ describe("buildTaskInstanceUrl", () => {
       }),
     ).toBe("/dags/my_dag/runs/run_1/tasks/group/my_group");
   });
+
+  it("should not preserve sub-routes for mapped tasks without map index", () => {
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/old_dag/runs/old_run/tasks/old_task/mapped/2/xcom",
+        dagId: "new_dag",
+        isMapped: true,
+        runId: "new_run",
+        taskId: "new_task",
+      }),
+    ).toBe("/dags/new_dag/runs/new_run/tasks/new_task/mapped");
+  });
 });

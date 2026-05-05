@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-http``
 
-Release: ``6.0.1``
+Release: ``6.0.2``
 
 
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``http`` provider. All classes for this provider 
 are in ``airflow.providers.http`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.2/>`_.
 
 Installation
 ------------
@@ -82,4 +82,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.2/changelog.html>`_.

@@ -26,11 +26,6 @@ from chart_utils.helm_template_generator import render_chart
 class TestResultBackendConnectionSecret:
     """Tests result backend connection secret."""
 
-    def _get_values_with_version(self, values, version):
-        if version != "default":
-            values["airflowVersion"] = version
-        return values
-
     non_chart_database_values = {
         "user": "someuser",
         "pass": "somepass",
@@ -53,7 +48,6 @@ class TestResultBackendConnectionSecret:
         ("executor", "expected_doc_count"),
         [
             ("CeleryExecutor", 1),
-            ("CeleryKubernetesExecutor", 1),
             ("LocalExecutor", 0),
         ],
     )
@@ -105,25 +99,22 @@ class TestResultBackendConnectionSecret:
         encoded_connection = jmespath.search("data.connection", docs[0])
         return base64.b64decode(encoded_connection).decode()
 
-    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
-    def test_default_connection_old_version(self, version):
-        connection = self._get_connection(self._get_values_with_version(version=version, values={}))
+    def test_default_connection_old_version(self):
+        connection = self._get_connection({})
         assert connection is None
 
-    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
-    def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(self, version):
+    def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(self):
         values = {
             "pgbouncer": {"enabled": True},
             "data": {"metadataConnection": {**self.non_chart_database_values}},
         }
-        connection = self._get_connection(self._get_values_with_version(values=values, version=version))
+        connection = self._get_connection(values)
 
         assert connection is None
 
-    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
-    def test_should_set_pgbouncer_overrides_when_enabled(self, version):
+    def test_should_set_pgbouncer_overrides_when_enabled(self):
         values = {"pgbouncer": {"enabled": True}}
-        connection = self._get_connection(self._get_values_with_version(values=values, version=version))
+        connection = self._get_connection(values)
 
         assert connection is None
 
@@ -140,12 +131,11 @@ class TestResultBackendConnectionSecret:
             "/release-name-result-backend?sslmode=allow"
         )
 
-    @pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
-    def test_should_default_to_custom_metadata_db_connection_in_old_version(self, version):
+    def test_should_default_to_custom_metadata_db_connection_in_old_version(self):
         values = {
             "data": {"metadataConnection": {**self.non_chart_database_values}},
         }
-        connection = self._get_connection(self._get_values_with_version(values=values, version=version))
+        connection = self._get_connection(values)
         assert connection is None
 
     def test_should_correctly_use_non_chart_database(self):

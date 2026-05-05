@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-mysql``
 
-Release: ``6.5.1``
+Release: ``6.5.2``
 
 
 `MySQL <https://www.mysql.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``mysql`` provider. All classes for this provider
 are in ``airflow.providers.mysql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.2/>`_.
 
 Installation
 ------------
@@ -101,4 +101,4 @@ Extra                       Dependencies
 ==========================  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.2/changelog.html>`_.

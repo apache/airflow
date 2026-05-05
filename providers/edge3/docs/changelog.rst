@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add extended sysinfo for Edge worker (#65472)``
+* ``Add bulk support for maintenance mode entry and exit for edge workers (#65015)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 20 updates (#65434)``
+* ``Fix Edge provider plugin broken by Vite 8 upgrade (#65387)``
+* ``Bump vite in Edge Provider to 8.0 (#65175)``
+* ``Move ExecutorCallback execution into a supervised process (#62645)``
+* ``Bump axios in /providers/edge3/src/airflow/providers/edge3/plugins/www (#65004)``
+* ``Keep DualStatsManager as a try/except import as it is soon going to be removed (#65676)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+   * ``Remove AirflowException from Edge Example Dag (#64975)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP 67 - Multi-Team: Update Edge Executor to support multi team (#61646)``
+
+Misc
+~~~~
+
+* ``Remove dependabot alarms in edge provider plugin (#64788)``
+* ``Bump vite in /providers/edge3/src/airflow/providers/edge3/plugins/www (#64800)``
+* ``Add no-op _process_workloads to EdgeExecutor to improve readability (#64236)``
+* ``Add 4-day cooldown for pnpm dependency resolution (#64337)``
+* ``chore(deps-dev): bump happy-dom (#64421)``
+* ``Fix dependabot alarms in Edge provider (#64368)``
+* ``chore(deps-dev): bump happy-dom (#64272)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64744)``
+   * ``CI: Upgrade important CI environment (#64451)``
+   * ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+   * ``[main] Upgrade important CI environment (#64239)``
+   * ``Add 4-day cooldown for uv dependency resolution (#64249)``
+
 3.3.0
 .....
 

@@ -96,3 +96,34 @@ def downgrade():
         batch_op.drop_column("type")
 
     op.rename_table("callback", "callback_request")
+    bind = op.get_bind()
+    dialect_name = bind.dialect.name
+    if dialect_name == "postgresql":
+        op.execute("CREATE SEQUENCE IF NOT EXISTS callback_request_id_seq")
+
+        with op.batch_alter_table("callback_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "id",
+                existing_type=sa.INTEGER(),
+                nullable=False,
+                server_default=sa.text("nextval('callback_request_id_seq')"),
+            )
+
+        op.execute("ALTER SEQUENCE callback_request_id_seq OWNED BY callback_request.id")
+        op.execute(
+            "SELECT setval('callback_request_id_seq', "
+            "COALESCE((SELECT MAX(id) FROM callback_request), 1), "
+            "(SELECT MAX(id) IS NOT NULL FROM callback_request))"
+        )
+
+    elif dialect_name == "mysql":
+        with op.batch_alter_table("callback_request", schema=None) as batch_op:
+            batch_op.alter_column(
+                "id",
+                existing_type=sa.INTEGER(),
+                nullable=False,
+                autoincrement=True,
+            )
+        result = bind.execute(sa.text("SELECT COALESCE(MAX(id), 0) + 1 FROM callback_request"))
+        next_id = result.scalar()
+        op.execute(sa.text(f"ALTER TABLE callback_request AUTO_INCREMENT = {next_id}"))

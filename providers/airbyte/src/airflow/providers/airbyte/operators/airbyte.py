@@ -127,7 +127,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         """
         if event["status"] == "error":
             self.log.debug("Error occurred with context: %s", context)
-            raise AirflowException(event["message"])
+            raise RuntimeError(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)
         return None

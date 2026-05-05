@@ -162,6 +162,14 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     if isinstance(trigger, dict):
         classpath = trigger["classpath"]
         kwargs = trigger["kwargs"]
+        # unwrap any kwargs that are themselves serialized objects, to avoid double-serialization in the trigger's own serialize() method.
+        unwrapped = {}
+        for k, v in kwargs.items():
+            if isinstance(v, dict) and Encoding.TYPE in v:
+                unwrapped[k] = BaseSerialization.deserialize(v)
+            else:
+                unwrapped[k] = v
+        kwargs = unwrapped
     else:
         classpath, kwargs = trigger.serialize()
     return {
@@ -203,6 +211,7 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
     from airflow.sdk.serde import serialize
 
     return {
+        "name": d.name,
         "reference": encode_deadline_reference(d.reference),
         "interval": d.interval.total_seconds(),
         "callback": serialize(d.callback),

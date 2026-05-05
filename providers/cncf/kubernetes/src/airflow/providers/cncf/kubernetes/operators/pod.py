@@ -29,19 +29,19 @@ import re
 import shlex
 import string
 from collections.abc import Callable, Container, Iterable, Sequence
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
+import pendulum
 import tenacity
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
-from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -80,7 +80,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred, conf
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -101,6 +101,8 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
     from airflow.providers.cncf.kubernetes.secret import Secret
     from airflow.sdk import Context
+
+log = logging.getLogger(__name__)
 
 alphanum_lower = string.ascii_lowercase + string.digits
 
@@ -655,10 +657,8 @@ class KubernetesPodOperator(BaseOperator):
                 finally:
                     # Stop watching events
                     events_task.cancel()
-                    try:
+                    with suppress(asyncio.CancelledError):
                         await events_task
-                    except asyncio.CancelledError:
-                        pass
 
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
@@ -758,7 +758,7 @@ class KubernetesPodOperator(BaseOperator):
                 result = self.extract_xcom(pod=self.pod)
             istio_enabled = self.is_istio_enabled(self.pod)
             self.remote_pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
+                self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
@@ -972,7 +972,14 @@ class KubernetesPodOperator(BaseOperator):
 
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    try:
+                        self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    except (HTTPError, ApiException) as e:
+                        self.log.warning(
+                            "Reading of logs interrupted with error %r. "
+                            "Set log level to DEBUG for traceback.",
+                            e if not isinstance(e, ApiException) else e.reason,
+                        )
 
                 for callback in self.callbacks:
                     callback.on_pod_completion(
@@ -1017,7 +1024,7 @@ class KubernetesPodOperator(BaseOperator):
         if event["status"] != "timeout":
             try:
                 self.pod = self.pod_manager.await_pod_completion(
-                    self.pod, istio_enabled, self.base_container_name
+                    self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
                 )
             except ApiException as e:
                 if e.status == 404:
@@ -1035,32 +1042,40 @@ class KubernetesPodOperator(BaseOperator):
                 result=result,
             )
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(max=15),
+        retry=tenacity.retry_if_exception_type((HTTPError, ApiException)),
+        before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
+        reraise=True,
+    )
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        try:
-            since_seconds = (
-                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-                if since_time
-                else None
-            )
-            logs = self.client.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container=self.base_container_name,
-                follow=follow,
-                timestamps=False,
-                since_seconds=since_seconds,
-                _preload_content=False,
-            )
-            for raw_line in logs:
-                line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
-                if line:
-                    self.log.info("[%s] logs: %s", self.base_container_name, line)
-        except (HTTPError, ApiException) as e:
-            self.log.warning(
-                "Reading of logs interrupted with error %r; will retry. "
-                "Set log level to DEBUG for traceback.",
-                e if not isinstance(e, ApiException) else e.reason,
-            )
+        since_seconds = None
+        if since_time:
+            try:
+                if isinstance(since_time, str):  # against interface spec but accept string as safeguard
+                    since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
+                since_seconds = math.ceil(
+                    (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
+                )
+            except (TypeError, ValueError):
+                self.log.warning(
+                    "Error calculating since_seconds with since_time %s. Using None instead.",
+                    since_time,
+                )
+        logs = self.client.read_namespaced_pod_log(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=self.base_container_name,
+            follow=follow,
+            timestamps=False,
+            since_seconds=since_seconds,
+            _preload_content=False,
+        )
+        for raw_line in logs:
+            line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
+            if line:
+                self.log.info("[%s] logs: %s", self.base_container_name, line)
 
     def post_complete_action(
         self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict | None, **kwargs
@@ -1102,9 +1117,10 @@ class KubernetesPodOperator(BaseOperator):
         ):
             self.patch_already_checked(remote_pod, reraise=False)
 
-        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
-            istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        )
+        if istio_enabled or self.do_xcom_push:
+            failed = not container_is_succeeded(remote_pod, self.base_container_name)
+        else:
+            failed = pod_phase != PodPhase.SUCCEEDED
 
         if failed:
             if self.do_xcom_push and xcom_result and context:

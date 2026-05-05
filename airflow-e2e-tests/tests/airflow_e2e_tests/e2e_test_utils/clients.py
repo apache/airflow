@@ -43,11 +43,6 @@ def get_s3_client():
     )
 
 
-def get_elasticsearch_session():
-    """Return a requests session configured for talking to the local Elasticsearch container."""
-    return create_request_session_with_retries(status_forcelist=[429, 500, 502, 503, 504])
-
-
 def create_request_session_with_retries(status_forcelist: list[int]):
     """Create a requests Session with retry logic for handling transient errors."""
     Retry.DEFAULT_BACKOFF_MAX = 32
@@ -114,8 +109,11 @@ class AirflowClient:
         )
 
     def trigger_dag(self, dag_id: str, json=None):
+        self.un_pause_dag(dag_id)
+
         if json is None:
             json = {}
+
         return self._make_request(method="POST", endpoint=f"dags/{dag_id}/dagRuns", json=json)
 
     def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):

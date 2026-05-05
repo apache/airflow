@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299553
+source-date-epoch: 1775592621
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.10.3
   - 5.10.2
   - 5.10.1
   - 5.10.0
@@ -82,6 +83,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook
+    hook-name: "Opsgenie"
     connection-type: opsgenie
     ui-field-behaviour:
       hidden-fields:

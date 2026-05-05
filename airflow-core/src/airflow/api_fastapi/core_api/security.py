@@ -779,6 +779,12 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         # Can't enforce any security check.
         return True
 
+    # According to WHATWG for http/https /// is interpreted as // whereas urllib doesnt
+    # this leads to an inconsistency where python returns a target url with /// as a valid url
+    # The same thing also happens with \ where under WHATWG \ are translated to /
+    target_url = unquote(target_url).strip()
+    if target_url.startswith(("//", "/\\", "\\/", "\\\\")):
+        return False
     for base_url, parsed_base in parsed_bases:
         parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 

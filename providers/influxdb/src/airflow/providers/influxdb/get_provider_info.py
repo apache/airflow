@@ -46,6 +46,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.influxdb.hooks.influxdb.InfluxDBHook",
+                "hook-name": "Influxdb",
                 "connection-type": "influxdb",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "password"],

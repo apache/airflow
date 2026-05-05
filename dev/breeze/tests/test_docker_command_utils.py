@@ -24,8 +24,11 @@ import pytest
 
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
+    bring_all_compose_projects_down,
     check_docker_compose_version,
     check_docker_version,
+    discover_running_compose_projects,
+    is_known_breeze_compose_project,
 )
 
 
@@ -292,3 +295,97 @@ SOCKET_INFO_DESKTOP_LINUX = json.dumps(
         }
     ]
 )
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("breeze", True),
+        ("prek", True),
+        ("docker-compose", True),
+        ("docs", True),
+        ("db", True),
+        ("providers", True),
+        ("breeze-registry-abcd1234", True),
+        ("breeze-backfill-deadbeef", True),
+        ("breeze-run-12345678", True),
+        ("airflow-test", True),
+        ("airflow-test-providers-google", True),
+        ("constraints-3-12", True),
+        ("providers-7", True),
+        ("my-other-project", False),
+        ("airflow", False),
+        ("doc", False),
+        ("", False),
+    ],
+)
+def test_is_known_breeze_compose_project(name, expected):
+    assert is_known_breeze_compose_project(name) is expected
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_discover_running_compose_projects_parses_label_output(mock_run_command):
+    mock_run_command.return_value = mock.Mock(
+        returncode=0,
+        stdout="breeze\nbreeze\nairflow-test-providers-amazon\n   \n",
+    )
+    assert discover_running_compose_projects() == {"breeze", "airflow-test-providers-amazon"}
+    cmd = mock_run_command.call_args.args[0]
+    assert cmd[:2] == ["docker", "ps"]
+    assert "label=com.docker.compose.project" in cmd
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_discover_running_compose_projects_returns_empty_on_failure(mock_run_command):
+    mock_run_command.return_value = mock.Mock(returncode=1, stdout="")
+    assert discover_running_compose_projects() == set()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
+def test_bring_all_compose_projects_down_filters_unknown_by_default(
+    mock_discover, mock_run_command, _mock_console
+):
+    mock_discover.return_value = {"breeze", "providers-3", "my-app"}
+    brought_down, skipped = bring_all_compose_projects_down()
+    assert brought_down == ["breeze", "providers-3"]
+    assert skipped == ["my-app"]
+    down_calls = [c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"]]
+    assert len(down_calls) == 2
+    for c in down_calls:
+        assert "--volumes" in c.args[0]
+        assert "--remove-orphans" in c.args[0]
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
+def test_bring_all_compose_projects_down_include_unknown(mock_discover, mock_run_command, _mock_console):
+    mock_discover.return_value = {"breeze", "my-app"}
+    brought_down, skipped = bring_all_compose_projects_down(include_unknown=True)
+    assert brought_down == ["breeze", "my-app"]
+    assert skipped == []
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
+def test_bring_all_compose_projects_down_only_project_skips_discovery(
+    mock_discover, mock_run_command, _mock_console
+):
+    brought_down, skipped = bring_all_compose_projects_down(only_project="my-app")
+    assert brought_down == ["my-app"]
+    assert skipped == []
+    mock_discover.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.discover_running_compose_projects")
+def test_bring_all_compose_projects_down_preserve_volumes(mock_discover, mock_run_command, _mock_console):
+    mock_discover.return_value = {"breeze"}
+    bring_all_compose_projects_down(preserve_volumes=True)
+    down_call = next(c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"])
+    assert "--volumes" not in down_call.args[0]
+    assert "--remove-orphans" in down_call.args[0]

@@ -34,6 +34,10 @@
       "error": "Falha ao limpar {{type}}",
       "title": "Limpar {{type}}"
     },
+    "confirmationDialog": {
+      "description": "A tarefa está atualmente em estado {{state}} iniciado pelo utilizador {{user}} às {{time}}. O utilizador não pode limpar esta tarefa até que termine de executar ou até que um utilizador desmarque a opção \"Impedir nova execução se a tarefa estiver em execução\" no diálogo de limpeza.",
+      "title": "Não é Possível Limpar a Instância de Tarefa"
+    },
     "delete": {
       "button": "Excluir {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Futuro",
       "onlyFailed": "Limpar somente tarefas falhadas",
       "past": "Passado",
+      "preventRunningTasks": "Impedir nova execução se a tarefa estiver em execução",
       "queueNew": "Enfileirar novas tarefas",
       "runOnLatestVersion": "Executar com a versão mais recente do pacote",
       "upstream": "Upstream"

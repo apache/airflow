@@ -15,17 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Cloud Composer Operators
-===============================
+Managed Service for Apache Airflow (formerly Cloud Composer) Operators
+======================================================================
 
-Cloud Composer is a fully managed workflow orchestration service, enabling you to create, schedule, monitor,
+Managed Service for Apache Airflow (formerly Cloud Composer) is a fully managed workflow orchestration service, enabling you to create, schedule, monitor,
 and manage workflows that span across clouds and on-premises data centers.
 
-Cloud Composer is built on the popular Apache Airflow open source project and operates using the
+Managed Service for Apache Airflow (formerly Cloud Composer) is built on the popular Apache Airflow open source project and operates using the
 Python programming language.
 
-By using Cloud Composer instead of a local instance of Apache Airflow, you can benefit from the best of
-Airflow with no installation or management overhead. Cloud Composer helps you create Airflow
+By using Managed Service for Apache Airflow (formerly Cloud Composer) instead of a local instance of Apache Airflow, you can benefit from the best of
+Airflow with no installation or management overhead. Managed Service for Apache Airflow (formerly Cloud Composer) helps you create Airflow
 environments quickly and use Airflow-native tools, such as the powerful Airflow web interface and
 command-line tools, so you can focus on your workflows and not your infrastructure.
 
@@ -48,6 +48,10 @@ A simple environment configuration can look as followed:
 With this configuration we can create the environment:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerCreateEnvironmentOperator`
 
+The create operator only succeeds after the Composer environment reaches the ``RUNNING`` state.
+If the long-running create operation finishes but the environment remains in another state such as
+``ERROR`` or ``CREATING``, the task fails so downstream tasks do not run against an unusable environment.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
     :language: python
     :dedent: 4
@@ -62,6 +66,16 @@ or you can define the same operator in the deferrable mode:
     :dedent: 4
     :start-after: [START howto_operator_create_composer_environment_deferrable_mode]
     :end-before: [END howto_operator_create_composer_environment_deferrable_mode]
+
+For retry-heavy system tests, you can clean up a failed environment before retrying the create task.
+The example below only deletes environments that are already in the ``ERROR`` state and leaves other
+states untouched.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_composer_retry_cleanup]
+    :end-before: [END howto_operator_composer_retry_cleanup]
 
 Get an environment
 ------------------
@@ -198,10 +212,10 @@ or you can define the same sensor in the deferrable mode:
     :start-after: [START howto_sensor_dag_run_deferrable_mode]
     :end-before: [END howto_sensor_dag_run_deferrable_mode]
 
-Trigger a DAG run
+Trigger a Dag run
 -----------------
 
-You can trigger a DAG in another Composer environment, use:
+You can trigger a Dag in another Composer environment, use:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerTriggerDAGRunOperator`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
@@ -210,10 +224,10 @@ You can trigger a DAG in another Composer environment, use:
     :start-after: [START howto_operator_trigger_dag_run]
     :end-before: [END howto_operator_trigger_dag_run]
 
-Waits for a different DAG, task group, or task to complete
+Waits for a different Dag, task group, or task to complete
 ----------------------------------------------------------
 
-You can use sensor that waits for a different DAG, task group, or task to complete for a specific composer environment, use:
+You can use sensor that waits for a different Dag, task group, or task to complete for a specific composer environment, use:
 :class:`~airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerExternalTaskSensor`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py

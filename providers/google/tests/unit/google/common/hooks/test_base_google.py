@@ -541,6 +541,59 @@ class TestGoogleBaseHook:
         )
         assert result == ("CREDENTIALS", "SECOND_PROJECT_ID")
 
+    def test_quota_project_id_init(self):
+        """Test that quota project ID is properly initialized."""
+        hook = GoogleBaseHook(gcp_conn_id="google_cloud_default", quota_project_id="test-quota-project")
+        assert hook.quota_project_id == "test-quota-project"
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    def test_quota_project_id_from_connection(self, mock_get_creds_and_proj_id):
+        """Test that quota project ID from connection is applied to credentials."""
+        mock_creds = mock.MagicMock()
+        mock_creds.with_quota_project.return_value = mock_creds
+        mock_get_creds_and_proj_id.return_value = (mock_creds, "test-project")
+
+        # Mock connection with quota_project_id in extras
+        uri = "google-cloud-platform://?quota_project_id=test-quota-project"
+        with mock.patch.dict("os.environ", {"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": uri}):
+            hook = GoogleBaseHook(gcp_conn_id="google_cloud_default")
+            creds, _ = hook.get_credentials_and_project_id()
+            mock_creds.with_quota_project.assert_called_once_with("test-quota-project")
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    def test_quota_project_id_param_overrides_connection(self, mock_get_creds_and_proj_id):
+        """Test that quota project ID from param overrides connection value."""
+        mock_creds = mock.MagicMock()
+        mock_creds.with_quota_project.return_value = mock_creds
+        mock_get_creds_and_proj_id.return_value = (mock_creds, "test-project")
+
+        # Connection with quota_project_id in extras
+        conn_quota = "connection-quota-project"
+        uri = f"google-cloud-platform://?quota_project_id={conn_quota}"
+
+        with mock.patch.dict("os.environ", {"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": uri}):
+            hook = GoogleBaseHook(gcp_conn_id="google_cloud_default", quota_project_id="test-quota-project")
+            creds, _ = hook.get_credentials_and_project_id()
+
+            # Should use param quota project, not connection quota project
+            mock_creds.with_quota_project.assert_called_once_with("test-quota-project")
+
+    @pytest.mark.parametrize(
+        "invalid_id",
+        [
+            "UPPERCASE",  # Must be lowercase
+            "special@chars",  # Invalid characters
+            "ab-cd",  # Too short
+            "a" + "b" * 30,  # Too long
+            "1starts-with-number",  # Must start with letter
+            "",  # Empty string
+        ],
+    )
+    def test_quota_project_invalid_format(self, invalid_id):
+        """Test validation of quota project ID format."""
+        with pytest.raises((TypeError, ValueError)):
+            GoogleBaseHook(quota_project_id=invalid_id)
+
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {
             "project": "PROJECT_ID",

@@ -46,7 +46,7 @@ PASSWORD = "password"
 
 
 def configure_secrets_masker_for_test(
-    masker: SecretsMasker, min_length: int = 5, sensitive_fields: list[str] = None
+    masker: SecretsMasker, min_length: int = 5, sensitive_fields: list[str] | None = None
 ):
     """Helper function to configure a SecretsMasker instance for testing."""
     masker.min_length_to_mask = min_length

@@ -38,7 +38,7 @@ Multi-Team mode is designed for medium to large organizations that typically hav
 **Use Multi-Team mode when:**
 
 - You have many teams that need to share Airflow infrastructure
-- You need resource isolation (Variables, Connections, Secrets, etc) between teams
+- You need resource isolation (Variables, Connections, Secrets, etc) between teams at the UI and API level (see :doc:`/security/security_model` for task-level isolation limitations)
 - You want separate execution environments per team
 - You want separate views per team in the Airflow UI
 - You want to minimize operational overhead or cost by sharing a single Airflow deployment

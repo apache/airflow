@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-databricks"
-version = "7.12.0"
+version = "7.13.0"
 description = "Provider package apache-airflow-providers-databricks for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -150,8 +150,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.12.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.12.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.13.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.13.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -166,3 +166,14 @@ databricks_workflow = "airflow.providers.databricks.plugins.databricks_workflow:
 
 [tool.flit.module]
 name = "airflow.providers.databricks"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "tests/",
+]

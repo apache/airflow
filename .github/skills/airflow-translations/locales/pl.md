@@ -147,6 +147,25 @@ Preserve all `{{variable}}` placeholders. Adjust word order for natural Polish:
 "title": "Usuń {{liczba}} połączeń"  // variable name translated
 ```
 
+## Terminology Glossary
+
+Preferred wording for specific UI terms. Apply these to new translations and
+prefer them when reviewing existing ones.
+
+| English / context | Preferred Polish | Avoid |
+|---|---|---|
+| Consuming Asset (asset consumed by a Dag run) | **Zabierający zasób** | ~~Konsumujący zasób~~ |
+| Bulk clear / delete / update (toaster and button labels) | **grupowy / grupowego / grupowej / grupowe …** | ~~masowy / masowego / masowej / masowe~~ |
+| Deactivated (Dag header status) | **Deaktywowany** / Deaktywowana / Deaktywowane | ~~Dezaktywowany~~ |
+
+Notes:
+
+- For "bulk <verb>" always use "grupowy" with the grammatical form that
+  matches the noun — e.g. "żądanie grupowego wyczyszczenia", "żądanie
+  grupowej aktualizacji". Never use "masowy".
+- "Deactivated" / "Deaktywowany" must agree in gender with the noun it
+  describes (e.g. neuter "zadanie" → "Deaktywowane").
+
 ## Terminology Reference
 
 The established Polish translations are defined in the existing locale files.
