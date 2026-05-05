@@ -1178,7 +1178,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
             previous_state=TaskInstanceState.QUEUED, task_instance=ti
         )
     except Exception:
-        log.exception("error calling listener for hook %r", "on_task_instance_running")
+        log.exception("error calling listener", hook="on_task_instance_running")
 
     # No error, carry on and execute the task
     return None
@@ -1903,7 +1903,7 @@ def finalize(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti
             )
         except Exception:
-            log.exception("error calling listener for hook %r", "on_task_instance_success")
+            log.exception("error calling listener", hook="on_task_instance_success")
     elif state == TaskInstanceState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
         try:
@@ -1911,7 +1911,7 @@ def finalize(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti
             )
         except Exception:
-            log.exception("error calling listener for hook %r", "on_task_instance_skipped")
+            log.exception("error calling listener", hook="on_task_instance_skipped")
     elif state == TaskInstanceState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
@@ -1919,7 +1919,7 @@ def finalize(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
             )
         except Exception:
-            log.exception("error calling listener for hook %r", "on_task_instance_failed")
+            log.exception("error calling listener", hook="on_task_instance_failed")
         if error and task.email_on_retry and task.email:
             _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
@@ -1929,7 +1929,7 @@ def finalize(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
             )
         except Exception:
-            log.exception("error calling listener for hook %r", "on_task_instance_failed")
+            log.exception("error calling listener", hook="on_task_instance_failed")
         if error and task.email_on_failure and task.email:
             _send_error_email_notification(task, ti, context, error, log)
 

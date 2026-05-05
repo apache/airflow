@@ -3976,9 +3976,7 @@ class TestTaskRunnerCallsListeners:
         state, _, _ = run(runtime_ti, context, log)
         finalize(runtime_ti, state, context, log)
 
-        log.exception.assert_any_call(
-            "error calling listener for hook %r", "on_task_instance_success"
-        )
+        log.exception.assert_any_call("error calling listener", hook="on_task_instance_success")
 
     @pytest.mark.parametrize(
         "exception",
