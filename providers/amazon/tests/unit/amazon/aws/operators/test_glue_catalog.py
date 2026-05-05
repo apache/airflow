@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
     GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
+    GlueCatalogDeleteTableOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -201,6 +202,27 @@ class TestGlueCatalogCreateTableOperator:
 
         with pytest.raises(ClientError):
             op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestGlueCatalogDeleteTableOperator:
+    def setup_method(self):
+        self.operator = GlueCatalogDeleteTableOperator(
+            task_id="delete_table",
+            database_name=DB_NAME,
+            table_name=TABLE_NAME,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_table.assert_called_once_with(DatabaseName=DB_NAME, Name=TABLE_NAME)
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

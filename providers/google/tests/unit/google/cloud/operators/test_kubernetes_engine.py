@@ -334,6 +334,7 @@ class TestGKEDeleteClusterOperator:
             gcp_conn_id=TEST_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poll_interval=10,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger_instance,
@@ -683,6 +684,7 @@ class TestGKECreateClusterOperator:
             gcp_conn_id=TEST_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poll_interval=10,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger_instance,
@@ -801,6 +803,7 @@ class TestGKEStartPodOperator:
             on_finish_action=OnFinishAction.KEEP_POD,
             gcp_conn_id=TEST_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            schedule_timeout_seconds=60,
         )
 
     def test_template_fields(self):
@@ -891,6 +894,7 @@ class TestGKEStartPodOperator:
             ssl_ca_cert=GKE_SSL_CA_CERT,
             get_logs=mock_get_logs,
             startup_timeout=120,
+            schedule_timeout=60,  # issue-66352: schedule_timeout should now be passed into the trigger
             cluster_context=None,
             poll_interval=2,
             in_cluster=None,
@@ -900,6 +904,7 @@ class TestGKEStartPodOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             logging_interval=None,
             last_log_time=mock_last_log_time,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
@@ -1031,6 +1036,7 @@ class TestGKEStartJobOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             get_logs=mock_get_logs,
             do_xcom_push=False,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
@@ -1091,6 +1097,7 @@ class TestGKEStartJobOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             get_logs=mock_get_logs,
             do_xcom_push=False,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,

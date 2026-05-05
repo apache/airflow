@@ -61,6 +61,20 @@ To create a new Iceberg table in an Amazon S3 Tables namespace you can use
     :start-after: [START howto_operator_s3tables_create_table]
     :end-before: [END howto_operator_s3tables_create_table]
 
+.. _howto/operator:S3TablesDeleteNamespaceOperator:
+
+Delete a Namespace
+------------------
+
+To delete a namespace from an Amazon S3 Tables table bucket, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesDeleteNamespaceOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_delete_namespace]
+    :end-before: [END howto_operator_s3tables_delete_namespace]
+
 .. _howto/operator:S3TablesDeleteTableOperator:
 
 Delete a Table

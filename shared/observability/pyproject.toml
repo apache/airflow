@@ -24,15 +24,14 @@ classifiers = [
 ]
 
 dependencies = [
+    "opentelemetry-api>=1.27.0",
     "pendulum>=3.1.0",
-    "pygtrie>=2.5.0",
     "structlog>=25.4.0",
     "methodtools>=0.4.7",
 ]
 
 [project.optional-dependencies]
 "otel" = [
-    "opentelemetry-api>=1.27.0",
     "opentelemetry-exporter-otlp>=1.27.0",
     "opentelemetry-proto<9999,>=1.27.0",
 ]

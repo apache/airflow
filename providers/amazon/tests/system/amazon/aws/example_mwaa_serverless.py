@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
+from airflow.providers.amazon.aws.sensors.mwaa_serverless import MwaaServerlessWorkflowRunSensor
 from airflow.providers.common.compat.sdk import DAG, chain
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -113,6 +114,16 @@ with DAG(
     )
     # [END howto_operator_mwaa_serverless_start_workflow_run]
 
+    # [START howto_sensor_mwaa_serverless_workflow_run]
+    wait_for_run = MwaaServerlessWorkflowRunSensor(
+        task_id="wait_for_run",
+        workflow_arn=workflow_arn,
+        run_id=start_workflow.output,
+        poke_interval=30,
+        timeout=600,
+    )
+    # [END howto_sensor_mwaa_serverless_workflow_run]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=bucket_name,
@@ -126,6 +137,7 @@ with DAG(
         upload_workflow_yaml,
         workflow_arn,
         start_workflow,
+        wait_for_run,
         stop_workflow_run(workflow_arn=workflow_arn, run_id=start_workflow.output),
         delete_workflow(workflow_arn=workflow_arn),
         delete_bucket,

@@ -1,18 +1,13 @@
 ---
 name: pr-stats
 description: |
-  Produce maintainer-facing statistics about open pull requests on
-  `apache/airflow` (or another target repo). Successor to
-  `breeze pr stats`: read-only, no mutations — just two summary
-  tables grouped by `area:*` label (Triaged final-state, and
-  Triaged still-open) plus per-area age-bucket breakdowns so the
-  maintainer can see where queue pressure is sitting.
-
-  Invoke when the user says "how is the PR queue doing", "run PR
-  stats", "show the area breakdown", "how many PRs are still
-  waiting on authors after triage", or any variation on the "give
-  me numbers about the open PR backlog" theme. Also appropriate
-  as a quick health check before or after a triage sweep.
+  Read-only stats on the open-PR backlog of apache/airflow — two area-grouped
+  tables (triaged final-state and triaged still-open) with age buckets, so
+  maintainers can see where queue pressure sits.
+when_to_use: |
+  When the user asks "how is the PR queue doing", "run PR stats", "show the
+  area breakdown", or "how many PRs are still waiting on authors". Good as a
+  health check before or after a triage sweep.
 ---
 
 <!-- SPDX-License-Identifier: Apache-2.0

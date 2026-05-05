@@ -67,7 +67,13 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("drive", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "drive",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=self.get_client_options(),
+            )
         return self._conn
 
     def _ensure_folders_exists(self, path: str, folder_id: str) -> str:

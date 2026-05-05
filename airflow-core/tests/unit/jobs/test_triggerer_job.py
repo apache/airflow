@@ -22,19 +22,24 @@ import contextlib
 import datetime
 import itertools
 import os
+import random
 import selectors
+import threading
 import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
-from socket import socket
+from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
+import greenback
+import msgspec
 import pendulum
 import pytest
-from asgiref.sync import sync_to_async
+import pytest_asyncio
+from asgiref.sync import async_to_sync, sync_to_async
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -68,7 +73,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, BaseHook, BaseOperator
-from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
+from airflow.sdk.execution_time.comms import ToSupervisor, ToTask, _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
@@ -359,6 +364,54 @@ def test_heartbeat_raises_without_job(jobless_supervisor, mocker):
         jobless_supervisor.heartbeat()
 
     perform_heartbeat.assert_not_called()
+
+
+def test_heartbeat_watchdog(supervisor_builder, mocker):
+    """heartbeat() fires when the subprocess is active, skips when silent, and only arms the
+    silence flag once (so the error is logged once, not on every subsequent call)."""
+    supervisor = supervisor_builder()
+    perform_heartbeat_mock = mocker.patch("airflow.jobs.triggerer_job_runner.perform_heartbeat")
+
+    # Within threshold — heartbeat fires
+    supervisor._last_runner_comms = time.monotonic() - 5.0
+    supervisor.heartbeat()
+    perform_heartbeat_mock.assert_called_once()
+
+    # Just inside threshold (29.9s < 30s default) — still fires
+    supervisor._last_runner_comms = time.monotonic() - 29.9
+    supervisor.heartbeat()
+    assert perform_heartbeat_mock.call_count == 2
+
+    # Beyond threshold — heartbeat skips and silence flag is set
+    supervisor._last_runner_comms = time.monotonic() - 9999.0
+    supervisor.heartbeat()
+    assert perform_heartbeat_mock.call_count == 2
+    assert supervisor._runner_comms_silence_logged is True
+
+    # Subsequent silent heartbeats don't re-arm the flag (error logged only once)
+    supervisor.heartbeat()
+    supervisor.heartbeat()
+    assert perform_heartbeat_mock.call_count == 2
+    assert supervisor._runner_comms_silence_logged is True
+
+    # Once the subprocess speaks again the flag resets and heartbeat resumes
+    supervisor._last_runner_comms = time.monotonic()
+    supervisor.heartbeat()
+    assert perform_heartbeat_mock.call_count == 3
+    assert supervisor._runner_comms_silence_logged is False
+
+
+def test_heartbeat_watchdog_disabled_when_threshold_is_zero(supervisor_builder, mocker):
+    """Setting runner_health_check_threshold=0 disables the watchdog; heartbeat always fires."""
+    supervisor = supervisor_builder()
+    mocker.patch.object(type(supervisor), "runner_health_check_threshold", new=0)
+    perform_heartbeat_mock = mocker.patch("airflow.jobs.triggerer_job_runner.perform_heartbeat")
+
+    supervisor._last_runner_comms = time.monotonic() - 9999.0
+
+    supervisor.heartbeat()
+
+    perform_heartbeat_mock.assert_called_once()
 
 
 def test_metric_tags_default_uses_job_hostname(supervisor_builder):
@@ -1853,3 +1906,175 @@ class TestMakeTriggerSpan:
         assert attrs["airflow.trigger.name"] == "OnlyTrigger"
         assert "airflow.dag_id" not in attrs
         assert "airflow.task_id" not in attrs
+
+
+def _read_frame_sync(sock) -> _RequestFrame | None:
+    """Read a length-prefixed msgpack frame from a blocking socket."""
+    lb = b""
+    while len(lb) < 4:
+        chunk = sock.recv(4 - len(lb))
+        if not chunk:
+            return None
+        lb += chunk
+    n = int.from_bytes(lb, "big")
+    data = b""
+    while len(data) < n:
+        chunk = sock.recv(n - len(data))
+        if not chunk:
+            return None
+        data += chunk
+    return msgspec.msgpack.decode(data, type=_RequestFrame)
+
+
+@pytest_asyncio.fixture
+async def decoder_pair():
+    """Yield (decoder, server_sock). Caller owns closing."""
+    server_sock, client_sock = socketpair()
+    reader, writer = await asyncio.open_connection(sock=client_sock)
+    decoder = TriggerCommsDecoder(async_writer=writer, async_reader=reader, socket=client_sock)
+    await decoder.start_reader()
+    yield decoder, server_sock
+    if decoder._reader_task:
+        if not decoder._reader_task.done():
+            decoder._reader_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await decoder._reader_task
+    writer.close()
+    server_sock.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.execution_timeout(15)
+async def test_all_send_paths_concurrent(decoder_pair):
+    """
+    All four send() paths running concurrently with responses returned out of order:
+
+      1. asend() directly from async code           — pure-async path
+      2. send() via asyncio.to_thread()              — mirrors apache/airflow#63913:
+                                                       sync_to_async(hook_class)() → get_connection()
+                                                       → SUPERVISOR_COMMS.send() from a thread pool thread
+      3. send() from the event-loop thread           — mirrors apache/airflow#63760:
+         via greenback                                 async_to_sync raised RuntimeError in same thread
+      4. async_to_sync(asend)() from a thread        — trigger code that wraps an async fn which
+                                                       internally calls asend; bridges via wrap_future
+
+    The concurrent mix with shuffled responses also covers apache/airflow#65286: the
+    _thread_lock + async_to_sync approach stalled the triggerer under this exact load pattern.
+    """
+    decoder, server_sock = decoder_pair
+    N = 5
+    N_TOTAL = N * 4
+
+    def supervisor():
+        frames = []
+        for _ in range(N_TOTAL):
+            f = _read_frame_sync(server_sock)
+            if f is None:
+                break
+            frames.append(f)
+        random.shuffle(frames)
+        for f in frames:
+            server_sock.sendall(
+                _ResponseFrame(
+                    id=f.id,
+                    body={"type": "TriggerStateSync", "to_create": [], "to_cancel": []},
+                ).as_bytes()
+            )
+
+    sup = threading.Thread(target=supervisor, daemon=True)
+    sup.start()
+
+    async def async_send(idx):
+        return await decoder.asend(messages.TriggerStateChanges(events=None, finished=[idx], failures=None))
+
+    async def from_thread_send(idx):
+        # In production this path is taken by asgiref's own thread pool (sync_to_async),
+        # which is invisible to asyncio's default executor.  We avoid asyncio.to_thread()
+        # here because on Python < 3.12 loop.shutdown_default_executor() has no timeout
+        # and hangs if any executor threads are still alive at loop teardown.
+        # TODO: simplify with asyncio.to_thread() when Python 3.12 is the minimum.
+        loop = asyncio.get_running_loop()
+        fut: asyncio.Future[messages.TriggerStateSync] = loop.create_future()
+
+        def sync_send():
+            try:
+                result = decoder.send(
+                    messages.TriggerStateChanges(events=None, finished=[N + idx], failures=None)
+                )
+                loop.call_soon_threadsafe(fut.set_result, result)
+            except Exception as exc:
+                loop.call_soon_threadsafe(fut.set_exception, exc)
+
+        threading.Thread(target=sync_send, daemon=True).start()
+        return await fut
+
+    async def greenback_send(idx):
+        await greenback.ensure_portal()
+        return decoder.send(messages.TriggerStateChanges(events=None, finished=[2 * N + idx], failures=None))
+
+    async def async_to_sync_send(idx):
+        # Same executor-avoidance reason as from_thread_send above.
+        # TODO: simplify with asyncio.to_thread() when Python 3.12 is the minimum.
+        loop = asyncio.get_running_loop()
+        fut: asyncio.Future[messages.TriggerStateSync] = loop.create_future()
+
+        def thread_fn():
+            try:
+                result = async_to_sync(decoder.asend)(
+                    messages.TriggerStateChanges(events=None, finished=[3 * N + idx], failures=None)
+                )
+                loop.call_soon_threadsafe(fut.set_result, result)
+            except Exception as exc:
+                loop.call_soon_threadsafe(fut.set_exception, exc)
+
+        threading.Thread(target=thread_fn, daemon=True).start()
+        return await fut
+
+    results = await asyncio.gather(
+        *[asyncio.create_task(async_send(i)) for i in range(N)],
+        *[asyncio.create_task(from_thread_send(i)) for i in range(N)],
+        *[asyncio.create_task(greenback_send(i)) for i in range(N)],
+        *[asyncio.create_task(async_to_sync_send(i)) for i in range(N)],
+        return_exceptions=True,
+    )
+
+    sup.join(timeout=5)
+
+    errors = [r for r in results if isinstance(r, Exception)]
+    assert not errors, f"errors: {errors}"
+    assert len(results) == N_TOTAL
+    assert all(isinstance(r, messages.TriggerStateSync) for r in results)
+
+
+@pytest.mark.asyncio
+async def test_connection_close_cancels_pending(decoder_pair):
+    """When the connection closes while asend() is awaiting, the future is cancelled."""
+    decoder, server_sock = decoder_pair
+
+    task = asyncio.create_task(
+        decoder.asend(messages.TriggerStateChanges(events=None, finished=[1], failures=None))
+    )
+    await asyncio.sleep(0)
+
+    server_sock.close()
+
+    with pytest.raises((asyncio.CancelledError, Exception)):
+        await asyncio.wait_for(task, timeout=5)
+
+
+@pytest.mark.asyncio
+async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
+    """An orphan response frame (no matching pending future) is silently dropped; reader stays alive."""
+    decoder, server_sock = decoder_pair
+
+    server_sock.sendall(
+        _ResponseFrame(
+            id=99999,
+            body={"type": "TriggerStateSync", "to_create": [], "to_cancel": []},
+        ).as_bytes()
+    )
+
+    await asyncio.sleep(0.05)
+
+    assert decoder._reader_task is not None
+    assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"

@@ -102,11 +102,18 @@ class TestDataFusionHook:
         assert hook._parent(PROJECT_ID, LOCATION) == expected
 
     @mock.patch(HOOK_STR.format("build"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_client_options"))
     @mock.patch(HOOK_STR.format("DataFusionHook._authorize"))
-    def test_get_conn(self, mock_authorize, mock_build, hook):
+    def test_get_conn(self, mock_authorize, mock_get_client_options, mock_build, hook):
         mock_authorize.return_value = "test"
         hook.get_conn()
-        mock_build.assert_called_once_with("datafusion", hook.api_version, http="test", cache_discovery=False)
+        mock_build.assert_called_once_with(
+            "datafusion",
+            hook.api_version,
+            http="test",
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
+        )
 
     @mock.patch(HOOK_STR.format("DataFusionHook.get_conn"))
     def test_restart_instance(self, get_conn_mock, hook):

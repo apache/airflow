@@ -614,6 +614,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa_serverless"],
+            },
+            {
                 "integration-name": "Amazon OpenSearch Serverless",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.opensearch_serverless"],
             },

@@ -77,7 +77,11 @@ class CloudFunctionsHook(GoogleBaseHook):
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
-                "cloudfunctions", self.api_version, http=http_authorized, cache_discovery=False
+                "cloudfunctions",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=self.get_client_options(),
             )
         return self._conn
 
