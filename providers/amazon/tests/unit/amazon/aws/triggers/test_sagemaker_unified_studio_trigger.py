@@ -18,13 +18,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-
-import pytest
-
 
 
 @pytest.mark.asyncio
@@ -75,9 +74,7 @@ async def test_trigger_failure(mock_hook):
 @pytest.mark.asyncio
 @patch("airflow.providers.amazon.aws.triggers.sagemaker_unified_studio.SageMakerNotebookHook")
 async def test_trigger_running_then_timeout(mock_hook):
-    mock_hook.return_value.get_notebook_execution = MagicMock(
-        return_value={"status": "IN_PROGRESS"}
-    )
+    mock_hook.return_value.get_notebook_execution = MagicMock(return_value={"status": "IN_PROGRESS"})
     trigger = SageMakerNotebookJobTrigger(
         execution_id="exec-123",
         execution_name="my-notebook",
