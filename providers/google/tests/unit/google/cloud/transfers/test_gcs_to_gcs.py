@@ -677,6 +677,68 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         ):
             operator.execute(None)
 
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_replace_false_skips_single_file_when_destination_exists(self, mock_hook):
+        mock_hook.return_value.list.side_effect = [
+            [SOURCE_OBJECT_NO_WILDCARD],
+            [SOURCE_OBJECT_NO_WILDCARD],
+        ]
+        mock_hook.return_value.exists.return_value = True
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            replace=False,
+        )
+
+        operator.execute(None)
+
+        mock_hook.return_value.exists.assert_any_call(DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD)
+        mock_hook.return_value.rewrite.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_replace_false_copies_single_file_when_destination_missing(self, mock_hook):
+        mock_hook.return_value.list.side_effect = [[], []]
+        mock_hook.return_value.exists.side_effect = lambda bucket, _obj: bucket == TEST_BUCKET
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            replace=False,
+        )
+
+        operator.execute(None)
+
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_replace_true_copies_single_file_even_when_destination_exists(self, mock_hook):
+        mock_hook.return_value.list.return_value = []
+        mock_hook.return_value.exists.return_value = True
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            replace=True,
+        )
+
+        operator.execute(None)
+
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD, DESTINATION_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+        )
+
     @pytest.mark.parametrize(
         (
             "existing_objects",

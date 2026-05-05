@@ -479,7 +479,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.operators.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Email Service (SES)",
@@ -632,7 +635,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.sensors.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Queue Service (SQS)",
@@ -801,7 +807,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.hooks.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Email Service (SES)",
@@ -912,7 +921,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.triggers.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "AWS Glue",

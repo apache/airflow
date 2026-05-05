@@ -18,8 +18,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+from botocore.exceptions import ClientError
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
+    MwaaServerlessCreateWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
 )
 
@@ -73,6 +77,72 @@ class TestMwaaServerlessStartWorkflowRunOperator:
             WorkflowVersion="2",
         )
         assert result == RUN_ID
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+WORKFLOW_NAME = "test-workflow"
+WORKFLOW_ARN = "arn:aws:mwaa-serverless:us-east-1:123456789012:workflow/test-workflow"
+S3_LOCATION = {"Bucket": "test-bucket", "ObjectKey": "workflow.yaml"}
+ROLE_ARN = "arn:aws:iam::123456789012:role/test-role"
+
+
+class TestMwaaServerlessCreateWorkflowOperator:
+    def setup_method(self):
+        self.operator = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_workflow.assert_called_once_with(
+            Name=WORKFLOW_NAME,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateWorkflow",
+        )
+        mock_client.get_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateWorkflow",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

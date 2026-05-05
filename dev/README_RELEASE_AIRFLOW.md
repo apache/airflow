@@ -202,7 +202,7 @@ EOF
 When it is time to cut the RC, you should:
 
 1. Generate an additional completeness output:
-  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to the [removing or replacing ownership procedure](../airflow-core/src/airflow/ui/public/i18n/README.md#removing-or-replacing-ownership) in the i18n policy.
+  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to the [Relinquishing translation/code ownership procedure](../airflow-core/src/airflow/ui/public/i18n/README.md#relinquishing-translationcode-ownership) in the i18n policy.
   b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
 2. Post the final completeness output on the same thread.
 

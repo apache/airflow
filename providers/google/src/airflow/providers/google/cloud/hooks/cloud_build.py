@@ -22,7 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
@@ -80,6 +79,14 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
         except Exception:
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
+    def _get_api_endpoint(
+        self,
+        location: str | None = None,
+    ) -> str | None:
+        if location and location != "global" and self.is_default_universe():
+            return f"{location}-cloudbuild.googleapis.com:443"
+        return None
+
     def get_conn(self, location: str = "global") -> CloudBuildClient:
         """
         Retrieve the connection to Google Cloud Build.
@@ -89,13 +96,12 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
         :return: Google Cloud Build client object.
         """
         if location not in self._client:
-            client_options = None
-            if location != "global":
-                client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
             self._client[location] = CloudBuildClient(
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
-                client_options=client_options,
+                client_options=self.get_client_options(
+                    api_endpoint_override=self._get_api_endpoint(location=location)
+                ),
             )
         return self._client[location]
 
@@ -570,6 +576,14 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
 class CloudBuildAsyncHook(GoogleBaseHook):
     """Asynchronous Hook for the Google Cloud Build Service."""
 
+    def _get_api_endpoint(
+        self,
+        location: str | None = None,
+    ) -> str | None:
+        if location and location != "global" and self.is_default_universe():
+            return f"{location}-cloudbuild.googleapis.com:443"
+        return None
+
     @GoogleBaseHook.fallback_to_default_project_id
     async def get_cloud_build(
         self,
@@ -584,11 +598,12 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         if not id_:
             raise AirflowException("Google Cloud Build id is required.")
 
-        client_options = None
-        if location != "global":
-            client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
         client = CloudBuildAsyncClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(location=location)
+            ),
         )
 
         request = GetBuildRequest(

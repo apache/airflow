@@ -29,6 +29,8 @@ import certifi
 import httpx
 import msgspec
 import structlog
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel
 from tenacity import (
     before_log,
@@ -163,6 +165,9 @@ def getuser() -> str:
 
 log = structlog.get_logger(logger_name=__name__)
 
+_trace_propagator = TraceContextTextMapPropagator()
+_log_retry_warning = before_log(log, logging.WARNING)
+
 __all__ = [
     "Client",
     "ConnectionOperations",
@@ -204,6 +209,24 @@ if hasattr(BaseException, "add_note"):
 
 def add_correlation_id(request: httpx.Request):
     request.headers["correlation-id"] = str(uuid7())
+
+
+def inject_trace_context(request: httpx.Request) -> None:
+    _trace_propagator.inject(request.headers)
+
+
+def _log_and_trace_retry(retry_state) -> None:
+    _log_retry_warning(retry_state)
+    span = trace.get_current_span()
+    if span.is_recording():
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        span.add_event(
+            "http.retry",
+            attributes={
+                "attempt_number": retry_state.attempt_number,
+                "error": str(exc) if exc else "",
+            },
+        )
 
 
 class TaskInstanceOperations:
@@ -980,7 +1003,10 @@ class Client(httpx.Client):
                 "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
                 "airflow-api-version": API_VERSION,
             },
-            event_hooks={"response": [self._update_auth, raise_on_4xx_5xx], "request": [add_correlation_id]},
+            event_hooks={
+                "response": [self._update_auth, raise_on_4xx_5xx],
+                "request": [add_correlation_id, inject_trace_context],
+            },
             **kwargs,
         )
 
@@ -993,7 +1019,7 @@ class Client(httpx.Client):
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
         wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=before_log(log, logging.WARNING),
+        before_sleep=_log_and_trace_retry,
         reraise=True,
     )
     def request(self, *args, **kwargs):

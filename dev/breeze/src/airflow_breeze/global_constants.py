@@ -262,7 +262,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.0.1"
+PIP_VERSION = "26.1"
 UV_VERSION = "0.11.8"
 
 # packages that providers docs

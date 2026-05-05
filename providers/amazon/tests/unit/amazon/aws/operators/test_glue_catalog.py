@@ -16,13 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from botocore.exceptions import ClientError
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
+    GlueCatalogDeleteTableOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -131,3 +136,93 @@ class TestGlueCatalogDeleteDatabaseOperator:
             database_name=DB_NAME,
         )
         validate_template_fields(op)
+
+
+TABLE_NAME = "test_table"
+TABLE_INPUT = {
+    "StorageDescriptor": {
+        "Columns": [{"Name": "id", "Type": "int"}, {"Name": "name", "Type": "string"}],
+        "Location": "s3://bucket/path/",
+        "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+        "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+        "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+    },
+    "TableType": "EXTERNAL_TABLE",
+}
+
+
+class TestGlueCatalogCreateTableOperator:
+    def setup_method(self):
+        self.operator = GlueCatalogCreateTableOperator(
+            task_id="create_table",
+            database_name=DB_NAME,
+            table_name=TABLE_NAME,
+            table_input=TABLE_INPUT,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        call_kwargs = mock_client.create_table.call_args[1]
+        assert call_kwargs["DatabaseName"] == DB_NAME
+        assert call_kwargs["TableInput"]["Name"] == TABLE_NAME
+        assert result == TABLE_NAME
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_table.side_effect = ClientError(
+            {"Error": {"Code": "AlreadyExistsException", "Message": "Already exists"}},
+            "CreateTable",
+        )
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+        assert result == TABLE_NAME
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = GlueCatalogCreateTableOperator(
+            task_id="create_table",
+            database_name=DB_NAME,
+            table_name=TABLE_NAME,
+            table_input=TABLE_INPUT,
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_table.side_effect = ClientError(
+            {"Error": {"Code": "AlreadyExistsException", "Message": "Already exists"}},
+            "CreateTable",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestGlueCatalogDeleteTableOperator:
+    def setup_method(self):
+        self.operator = GlueCatalogDeleteTableOperator(
+            task_id="delete_table",
+            database_name=DB_NAME,
+            table_name=TABLE_NAME,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_table.assert_called_once_with(DatabaseName=DB_NAME, Name=TABLE_NAME)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

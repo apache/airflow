@@ -19,7 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3_vectors import (
+    S3VectorsCreateIndexOperator,
     S3VectorsCreateVectorBucketOperator,
+    S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
@@ -36,6 +38,7 @@ DAG_ID = "example_s3_vectors"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
+
 with DAG(
     dag_id=DAG_ID,
     schedule=None,
@@ -45,6 +48,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     bucket_name = f"{env_id}-test-vectors"
+    index_name = f"{env_id}-test-index"
 
     # [START howto_operator_s3vectors_create_vector_bucket]
     create_vector_bucket = S3VectorsCreateVectorBucketOperator(
@@ -52,6 +56,17 @@ with DAG(
         vector_bucket_name=bucket_name,
     )
     # [END howto_operator_s3vectors_create_vector_bucket]
+
+    # [START howto_operator_s3vectors_create_index]
+    create_index = S3VectorsCreateIndexOperator(
+        task_id="create_index",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        data_type="float32",
+        dimension=128,
+        distance_metric="cosine",
+    )
+    # [END howto_operator_s3vectors_create_index]
 
     # [START howto_operator_s3vectors_delete_vector_bucket]
     delete_vector_bucket = S3VectorsDeleteVectorBucketOperator(
@@ -61,9 +76,20 @@ with DAG(
     )
     # [END howto_operator_s3vectors_delete_vector_bucket]
 
+    # [START howto_operator_s3vectors_delete_index]
+    delete_index = S3VectorsDeleteIndexOperator(
+        task_id="delete_index",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3vectors_delete_index]
+
     chain(
         test_context,
         create_vector_bucket,
+        create_index,
+        delete_index,
         delete_vector_bucket,
     )
 

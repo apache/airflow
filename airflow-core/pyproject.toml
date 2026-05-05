@@ -18,14 +18,14 @@
 [build-system]
 requires = [
     "gitdb==4.0.12",
-    "GitPython==3.1.47",
+    "GitPython==3.1.49",
     "hatchling==1.29.0",
-    "packaging==26.1",
-    "pathspec==1.1.0",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "smmap==5.0.3",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.4.28.13",
 ]
 build-backend = "hatchling.build"
 

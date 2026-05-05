@@ -10,9 +10,11 @@
     "maxRuns": "活躍執行數上限",
     "missingAndErroredRuns": "遺漏和錯誤的執行",
     "missingRuns": "遺漏的執行",
+    "overrideExistingParams": "覆寫既有執行的參數",
     "permissionDenied": "試執行失敗：使用者沒有建立回填的權限。",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
+    "scheduleNotBackfillable": "此 Dag 的排程不支援回填",
     "selectDescription": "為指定的日期範圍補上 Dag 執行",
     "selectLabel": "回填",
     "title": "執行回填",
@@ -90,7 +92,8 @@
     "otherDagRuns": "+ 其他 Dag 執行",
     "taskCount_one": "1 個任務",
     "taskCount_other": "{{count}} 個任務",
-    "taskGroup": "任務群組"
+    "taskGroup": "任務群組",
+    "zoomToTask": "縮放至選定任務"
   },
   "limitedList": "+ 其他 {{count}} 項",
   "limitedList.allItems": "所有 {{count}} 個項目：",
