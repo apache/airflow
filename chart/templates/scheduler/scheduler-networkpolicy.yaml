@@ -17,9 +17,9 @@
  under the License.
 */}}
 
-################################
+##################################
 ## Airflow Scheduler NetworkPolicy
-#################################
+##################################
 {{- if and .Values.scheduler.enabled .Values.networkPolicies.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -48,7 +48,7 @@ spec:
     - podSelector:
         matchLabels:
           tier: airflow
-          component: webserver
+          component: api-server
           release: {{ .Release.Name }}
     ports:
     - protocol: TCP

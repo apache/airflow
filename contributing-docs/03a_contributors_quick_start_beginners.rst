@@ -67,7 +67,7 @@ Option A – Breeze on Your Laptop
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
-    uv tool install -e ./dev/breeze
+    ./scripts/tools/setup_breeze
 
 2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
@@ -96,17 +96,17 @@ and launches all Airflow necessary components in those terminals. To know more a
 check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
 of the tmux panes and hit Enter
 
-**Working with DAGs in Breeze:**
+**Working with Dags in Breeze:**
 
-- **Adding your own DAGs**: Place your DAG files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your DAGs will be visible in the Airflow UI.
+- **Adding your own Dags**: Place your Dag files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your Dags will be visible in the Airflow UI.
 
-- **Loading example DAGs**: Use the ``--load-example-dags`` flag to load all example DAGs from the repository:
+- **Loading example Dags**: Use the ``--load-example-dags`` flag to load all example Dags from the repository:
 
 .. code-block:: bash
 
     breeze start-airflow --load-example-dags
 
-This flag enables configuration to load example DAGs when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
+This flag enables configuration to load example Dags when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
 5.  **Make a tiny change** – e.g. fix a typo in docs
 
@@ -183,7 +183,7 @@ Option B – One-Click GitHub Codespaces
       uv tool install prek
       prek install -f
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
-      uv tool install -e ./dev/breeze
+      ./scripts/tools/setup_breeze
       uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
 

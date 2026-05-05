@@ -21,7 +21,6 @@ from copy import copy
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
-from packaging.version import parse as parse_version
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Secret", "test-rbac-postgresql"),
@@ -30,6 +29,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Secret", "test-rbac-pgbouncer-stats"),
     ("ConfigMap", "test-rbac-config"),
     ("ConfigMap", "test-rbac-statsd"),
+    ("Service", "test-rbac-api-server"),
     ("Service", "test-rbac-postgresql-hl"),
     ("Service", "test-rbac-postgresql"),
     ("Service", "test-rbac-statsd"),
@@ -38,6 +38,8 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Service", "test-rbac-redis"),
     ("Service", "test-rbac-triggerer"),
     ("Service", "test-rbac-worker"),
+    ("Deployment", "test-rbac-api-server"),
+    ("Deployment", "test-rbac-dag-processor"),
     ("Deployment", "test-rbac-scheduler"),
     ("Deployment", "test-rbac-statsd"),
     ("Deployment", "test-rbac-flower"),
@@ -46,8 +48,10 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("StatefulSet", "test-rbac-redis"),
     ("StatefulSet", "test-rbac-triggerer"),
     ("StatefulSet", "test-rbac-worker"),
+    ("Secret", "test-rbac-api-secret-key"),
     ("Secret", "test-rbac-broker-url"),
     ("Secret", "test-rbac-fernet-key"),
+    ("Secret", "test-rbac-jwt-secret"),
     ("Secret", "test-rbac-redis-password"),
     ("Job", "test-rbac-create-user"),
     ("Job", "test-rbac-run-airflow-migrations"),
@@ -96,188 +100,139 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_REDIS_NAME := "TestRedis"),
     (CUSTOM_POSTGRESQL_NAME := "TestPostgresql"),
 )
-CUSTOM_WEBSERVER_NAME = "TestWebserver"
-
-parametrize_version = pytest.mark.parametrize("version", ["2.11.0", "3.0.0", "default"])
 
 
 class TestRBAC:
     """Tests RBAC."""
 
-    def _get_values_with_version(self, values, version):
-        if version != "default":
-            values["airflowVersion"] = version
-        return values
-
-    def _is_airflow_3_or_above(self, version):
-        return version == "default" or (parse_version(version) >= parse_version("3.0.0"))
-
-    def _get_object_tuples(self, version, sa: bool = True):
+    def _get_object_tuples(self, sa: bool = True):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
-        if self._is_airflow_3_or_above(version):
-            tuples.extend(
-                (
-                    ("Service", "test-rbac-api-server"),
-                    ("Deployment", "test-rbac-api-server"),
-                    ("Deployment", "test-rbac-dag-processor"),
-                    ("Secret", "test-rbac-api-secret-key"),
-                    ("Secret", "test-rbac-jwt-secret"),
-                )
-            )
-            if sa:
-                tuples.append(("ServiceAccount", "test-rbac-api-server"))
-                tuples.append(("ServiceAccount", "test-rbac-dag-processor"))
-        else:
-            tuples.extend(
-                (
-                    ("Service", "test-rbac-webserver"),
-                    ("Deployment", "test-rbac-webserver"),
-                    ("Secret", "test-rbac-webserver-secret-key"),
-                )
-            )
-            if sa:
-                tuples.append(("ServiceAccount", "test-rbac-webserver"))
+        if sa:
+            tuples.append(("ServiceAccount", "test-rbac-api-server"))
+            tuples.append(("ServiceAccount", "test-rbac-dag-processor"))
 
         return tuples
 
-    @parametrize_version
-    def test_deployments_no_rbac_no_sa(self, version):
+    def test_deployments_no_rbac_no_sa(self):
         k8s_objects = render_chart(
             "test-rbac",
-            values=self._get_values_with_version(
-                values={
-                    "fullnameOverride": "test-rbac",
-                    "executor": "CeleryExecutor,KubernetesExecutor",
-                    "rbac": {"create": False},
-                    "cleanup": {
-                        "enabled": True,
-                        "serviceAccount": {
-                            "create": False,
-                        },
+            values={
+                "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "rbac": {"create": False},
+                "cleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
                     },
-                    "databaseCleanup": {
-                        "enabled": True,
-                        "serviceAccount": {
-                            "create": False,
-                        },
-                    },
-                    "pgbouncer": {
-                        "enabled": True,
-                        "serviceAccount": {
-                            "create": False,
-                        },
-                    },
-                    "redis": {"serviceAccount": {"create": False}},
-                    "scheduler": {"serviceAccount": {"create": False}},
-                    "dagProcessor": {"serviceAccount": {"create": False}},
-                    "webserver": {"serviceAccount": {"create": False}},
-                    "apiServer": {"serviceAccount": {"create": False}},
-                    "workers": {"serviceAccount": {"create": False}},
-                    "triggerer": {"serviceAccount": {"create": False}},
-                    "statsd": {"serviceAccount": {"create": False}},
-                    "createUserJob": {"serviceAccount": {"create": False}},
-                    "migrateDatabaseJob": {"serviceAccount": {"create": False}},
-                    "flower": {"enabled": True, "serviceAccount": {"create": False}},
                 },
-                version=version,
-            ),
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
+                "redis": {"serviceAccount": {"create": False}},
+                "scheduler": {"serviceAccount": {"create": False}},
+                "dagProcessor": {"serviceAccount": {"create": False}},
+                "apiServer": {"serviceAccount": {"create": False}},
+                "workers": {"serviceAccount": {"create": False}},
+                "triggerer": {"serviceAccount": {"create": False}},
+                "statsd": {"serviceAccount": {"create": False}},
+                "createUserJob": {"serviceAccount": {"create": False}},
+                "migrateDatabaseJob": {"serviceAccount": {"create": False}},
+                "flower": {"enabled": True, "serviceAccount": {"create": False}},
+            },
         )
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version, sa=False))
+        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(sa=False))
 
-    @parametrize_version
-    def test_deployments_no_rbac_with_sa(self, version):
+    def test_deployments_no_rbac_with_sa(self):
         k8s_objects = render_chart(
             "test-rbac",
-            values=self._get_values_with_version(
-                values={
-                    "fullnameOverride": "test-rbac",
-                    "executor": "CeleryExecutor,KubernetesExecutor",
-                    "rbac": {"create": False},
-                    "cleanup": {"enabled": True},
-                    "databaseCleanup": {"enabled": True},
-                    "flower": {"enabled": True},
-                    "pgbouncer": {"enabled": True},
-                },
-                version=version,
-            ),
+            values={
+                "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "rbac": {"create": False},
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+            },
         )
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
+        real_list_of_kind_names = self._get_object_tuples() + SERVICE_ACCOUNT_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @parametrize_version
-    def test_deployments_with_rbac_no_sa(self, version):
+    def test_deployments_with_rbac_no_sa(self):
         k8s_objects = render_chart(
             "test-rbac",
-            values=self._get_values_with_version(
-                values={
-                    "fullnameOverride": "test-rbac",
-                    "executor": "CeleryExecutor,KubernetesExecutor",
-                    "cleanup": {
-                        "enabled": True,
-                        "serviceAccount": {
-                            "create": False,
-                        },
+            values={
+                "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "cleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
                     },
-                    "databaseCleanup": {
-                        "enabled": True,
-                        "serviceAccount": {
-                            "create": False,
-                        },
-                    },
-                    "scheduler": {"serviceAccount": {"create": False}},
-                    "dagProcessor": {"serviceAccount": {"create": False}},
-                    "webserver": {"serviceAccount": {"create": False}},
-                    "apiServer": {"serviceAccount": {"create": False}},
-                    "workers": {"serviceAccount": {"create": False}},
-                    "triggerer": {"serviceAccount": {"create": False}},
-                    "flower": {"enabled": True, "serviceAccount": {"create": False}},
-                    "statsd": {"serviceAccount": {"create": False}},
-                    "redis": {"serviceAccount": {"create": False}},
-                    "pgbouncer": {
-                        "enabled": True,
-                        "serviceAccount": {
-                            "create": False,
-                        },
-                    },
-                    "createUserJob": {"serviceAccount": {"create": False}},
-                    "migrateDatabaseJob": {"serviceAccount": {"create": False}},
                 },
-                version=version,
-            ),
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
+                "scheduler": {"serviceAccount": {"create": False}},
+                "dagProcessor": {"serviceAccount": {"create": False}},
+                "apiServer": {"serviceAccount": {"create": False}},
+                "workers": {"serviceAccount": {"create": False}},
+                "triggerer": {"serviceAccount": {"create": False}},
+                "flower": {"enabled": True, "serviceAccount": {"create": False}},
+                "statsd": {"serviceAccount": {"create": False}},
+                "redis": {"serviceAccount": {"create": False}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": False,
+                    },
+                },
+                "createUserJob": {"serviceAccount": {"create": False}},
+                "migrateDatabaseJob": {"serviceAccount": {"create": False}},
+            },
         )
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_tuples(version, sa=False) + RBAC_ENABLED_KIND_NAME_TUPLES
+        real_list_of_kind_names = self._get_object_tuples(sa=False) + RBAC_ENABLED_KIND_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @parametrize_version
-    def test_deployments_with_rbac_with_sa(self, version):
+    def test_deployments_with_rbac_with_sa(self):
         k8s_objects = render_chart(
             "test-rbac",
-            values=self._get_values_with_version(
-                values={
-                    "fullnameOverride": "test-rbac",
-                    "executor": "CeleryExecutor,KubernetesExecutor",
-                    "cleanup": {"enabled": True},
-                    "databaseCleanup": {"enabled": True},
-                    "flower": {"enabled": True},
-                    "pgbouncer": {"enabled": True},
-                },
-                version=version,
-            ),
+            values={
+                "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+            },
         )
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+            self._get_object_tuples() + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
@@ -286,7 +241,6 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
-                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "executor": executor,
                 "rbac": {"create": True},
@@ -306,7 +260,6 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
-                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
@@ -347,24 +300,10 @@ class TestRBAC:
         ]
         assert sorted(list_of_sa_names) == sorted(CUSTOM_SERVICE_ACCOUNT_NAMES)
 
-    def test_webserver_service_account_name_airflow_2(self):
-        k8s_objects = render_chart(
-            "test-rbac",
-            values={
-                "airflowVersion": "2.11.0",
-                "fullnameOverride": "test-rbac",
-                "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-            },
-            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
-        )
-        sa_name = jmespath.search("metadata.name", k8s_objects[0])
-        assert sa_name == CUSTOM_WEBSERVER_NAME
-
     def test_service_account_custom_names_in_objects(self):
         k8s_objects = render_chart(
             "test-rbac",
             values={
-                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
@@ -417,7 +356,6 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
-                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "executor": "LocalExecutor",
                 "cleanup": {"enabled": False},

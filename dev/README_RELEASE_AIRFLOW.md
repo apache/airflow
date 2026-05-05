@@ -116,7 +116,7 @@ The first step of a release is to work out what is being included. This differs 
 ### Validating completeness of locale files
 
 Before cutting the release candidate (RC), you should verify the completeness of all merged locale files.
-Generate a completeness output for all locale files – follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md#81-checking-completeness-of-i18n-files) to do so.
+Generate a completeness output for all locale files by following the tooling instructions in the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md#tools).
 
 #### Patch releases (v3-X-test branch)
 
@@ -160,8 +160,7 @@ When it is time to cut the RC:
 
 #### Minor/Major releases
 
-If the median completeness across all supported languages is below 90%, or upon other justifying circumstances (e.g., release of a critical UI feature), you should consider skipping the following instructions and applying an i18n translation freeze instead (see subsection below).
-Otherwise, you should announce the completeness status to the dev@airflow.apache.org mailing list.
+For major and minor releases, announce the completeness status to the dev@airflow.apache.org mailing list.
 
 Subject:
 
@@ -186,14 +185,14 @@ After running the i18n completeness script, this is the coverage state of all me
 Code owners, translation owners, and engaged translators whose locales are currently below 90% coverage are kindly asked to complete their translations prior to the RC being cut.
 This will help ensure that all languages included in the upcoming release remain complete and consistent.
 
-Contributors are also encouraged to plan their PRs accordingly and avoid introducing large sets of new English terms close to the release date, to prevent unexpected translation work for code owners.
+Contributors are also encouraged to keep PRs small and avoid introducing large sets of new English terms close to the release date, to reduce last-minute translation work.
 
 Important notes:
 1. Locales that remain incomplete for two consecutive major or minor releases may be removed from the project, according to the i18n policy.
-2. Any changes merged after the final release won't be included, and missing terms will fall back to English.
+2. Any changes merged after the release is cut won't be included, and missing terms will fall back to English.
 3. Code owners are responsible for ensuring that their assigned locales reach at least 90% coverage before the RC is cut.
 4. Requests for assistance, coordination, or early heads-up on expected terminology changes may be shared in the #i18n Slack channel.
-5. PRs introducing new translations may continue to be merged as usual, provided that coverage remains complete by the RC date.
+5. PRs introducing translation updates may continue to be merged as usual until the RC is cut.
 
 Thanks for your cooperation!
 <your name>
@@ -203,73 +202,12 @@ EOF
 When it is time to cut the RC, you should:
 
 1. Generate an additional completeness output:
-  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
+  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to the [Relinquishing translation/code ownership procedure](../airflow-core/src/airflow/ui/public/i18n/README.md#relinquishing-translationcode-ownership) in the i18n policy.
   b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
 2. Post the final completeness output on the same thread.
 
-### Applying an i18n translation freeze
-
-Before cutting the release candidate (RC), you may announce a freeze time to allow translators to complete translations for the upcoming release.
-During the freeze time, no changes to the English locale file should be merged (enforced by CI checks), except for approved exemptions (see below).
-In general, if the overall median coverage across all supported languages stays above 90%, a freeze is not required. However, if significant changes are introduced that lower the median coverage to or below this threshold, a freeze period can help translators complete their work without being overloaded.
-When a freeze is used, it should remain in effect until the median coverage reaches at least 90% again, or until the RC is cut, whichever comes first.
-The freeze should be announced at least two weeks before it starts, to allow time for translators to get ready and for contributors to plan their PRs accordingly.
-To prepare for the announcement, fetch the completeness output generated earlier.
-The announcement should be sent via the dev@airflow.apache.org mailing list – you may accompany it with a GitHub issue for tracking purposes.
-
-Subject:
-
-```shell script
-cat <<EOF
-[ANNOUNCEMENT] English Translation freeze for Airflow ${VERSION} RC starting at <START_DATE>
-EOF
-```
-
-Body (assuming delegation to another committer):
-
-```shell script
-cat <<EOF
-Hey fellow Airflowers,
-
-I'm sending this message on behalf of the release managers.
-The release managers are planning to cut the Airflow ${VERSION} RC soon/by <RELEASE_DATE>.
-
-After running the i18n completeness script, this is the coverage state of all merged locales as of <CURRENT_DATE>:
-
-<OUTPUT_OF_I18N_COMPLETENESS_SCRIPT>
-
-To prevent overloading the translators and to ensure completeness of all translations by the release, a freeze upon the English locale will be applied starting <START_DATE>,
-and until the RC is cut.
-Code owners, translation owners, and engaged translators are asked to complete the coverage of their assigned locales during this time.
-Contributors are also encouraged to plan their PRs accordingly, to avoid modifying the English locale during the freeze time.
-
-Important notes:
-1. Locales that remain incomplete for two consecutive major or minor releases may be removed from the project, according to the i18n policy.
-2. Any changes merged after the final release won't be included, and missing terms will fall back to English.
-3. Any PR that modifies the English locale during the freeze time will fail CI checks.
-4. Requests for exemptions should be communicated in the #i18n Slack channel, and approved by at least 1 PMC member - guidelines for approval are available in the i18n policy.
-5. PRs approved for an exemption will be labeled with `allow translation change`, and then the relevant CI check will pass. Translators are encouraged to complete the translations for the exempted terms during the freeze time.
-6. Merging PRs for adding new translations could be done during the freeze time - designated code owners should validate that by the end of the freeze time, the coverage of the suggested translation is complete.
-
-
-Thanks for your cooperation!
-<your name>
-EOF
-```
-
-When the freeze starts, you should merge a PR for setting the flag `FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED` to `True` in the file [selective_checks.py](./breeze/src/airflow_breeze/utils/selective_checks.py).
-If the freeze gets extended beyond the originally announced date, you should post an update on the same thread.
-When it is time to cut the RC, you should:
-
-1. Generate an additional completeness output:
-  a. If there are incomplete locales that were also incomplete in the previous completeness output, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
-  b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
-2. Create a PR for setting the flag back to `False`.
-3. Post on the same thread that the freeze is lifted, and share the final completeness output.
-
 > [!NOTE]
-> Release managers - do not hold the release process beyond the due date if there are still incomplete locales after the freeze.
-> It is the responsibility of code owners to ensure the completeness of their locales by the due date.
+> The release process should not be blocked solely because some locales remain incomplete at RC cut time. Missing translations fall back to English, and incomplete locales should be followed up after the release.
 
 ## Selecting what to cherry-pick
 
@@ -297,9 +235,9 @@ You are likely want to cherry-pick some of the latest doc changes in order to br
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
-git fetch apache
-git log --oneline apache/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
+git fetch upstream
+git log --oneline upstream/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline --decorate upstream/v2-2-stable..upstream/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
@@ -307,8 +245,22 @@ land in documentation part of the changelog. The tool to review and assign the l
 
 ## Making the cherry picking
 
-It is recommended to clone Airflow upstream (not your fork) and run the commands on
-the relevant test branch in this clone. That way origin points to the upstream repo.
+It is recommended to clone Airflow from `apache/airflow` directly (not your fork) into a
+dedicated release-manager checkout and run the commands on the relevant test branch there.
+This repo follows the standard convention that `upstream` → `apache/airflow` and `origin`
+→ your fork (see
+[`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)),
+so in this release-manager clone add `apache/airflow` as `upstream`:
+
+```shell
+git remote add upstream https://github.com/apache/airflow.git
+git fetch upstream
+```
+
+All the commands in this document assume `upstream` is the remote that tracks
+`apache/airflow`. If you previously set this up under a different name (e.g. `apache`),
+either rename it with `git remote rename apache upstream` or pass the alternative name
+via the `--remote-name` option where the commands accept it.
 
 To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
 branch you can run:
@@ -344,7 +296,7 @@ We have the tool that allows to review cherry-picked PRs and assign the labels
 It allows to manually review and assign milestones and labels to cherry-picked PRs:
 
 ```shell
-./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable --current-release apache/v2-2-test --milestone-number 48
+./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable --current-release upstream/v2-2-test --milestone-number 48
 ```
 
 It summarises the state of each cherry-picked PR including information whether it is going to be
@@ -360,7 +312,7 @@ assumes the `--skip-assigned` flag, so that the summary can be produced without 
 
 ```shell
 ./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
-  --current-release apache/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
+  --current-release upstream/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
   --output-folder /tmp
 ```
 
@@ -386,13 +338,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log upstream/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log upstream/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -435,11 +387,16 @@ cd airflow
 export AIRFLOW_REPO_ROOT=$(pwd)
 ```
 
-- Install `breeze` command:
+- Install `breeze` command (recommended — installs a shim at `~/.local/bin/breeze` that runs
+  breeze via `uvx` from the current git worktree's `dev/breeze`; see
+  [ADR 0017](breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md)):
 
 ```shell script
-uv tool install -e ./dev/breeze
+./scripts/tools/setup_breeze
 ```
+
+The legacy global install (`uv tool install -e ./dev/breeze` or `pipx install -e ./dev/breeze`)
+still works but is no longer recommended.
 
 - Verify your GPG signing key is ready.
 
@@ -484,7 +441,7 @@ uv tool install -e ./dev/breeze
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
-    git reset --hard origin/v${VERSION_BRANCH}-test
+    git reset --hard upstream/v${VERSION_BRANCH}-test
     ```
 
 - Create a new branch from v${VERSION_BRANCH}-test
@@ -635,13 +592,14 @@ uv tool install -e ./dev/breeze
    Before running the actual release command, you can safely test it using:
 
    ```shell script
-   # Test with dry-run (shows what would be executed without doing it)
+   # Test with dry-run (shows what would be executed without doing it).
+   # --remote-name defaults to "upstream" per the project convention, so only
+   # pass it explicitly if you set apache/airflow up under a different name.
    breeze release-management start-rc-process \
        --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION_RC} \
        --sync-branch ${SYNC_BRANCH} \
-       --remote-name upstream \
        --dry-run
    ```
 
@@ -899,7 +857,7 @@ VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
 TASK_SDK_VERSION=X.Y.Z
 TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
-git fetch apache --tags
+git fetch upstream --tags
 git checkout ${VERSION_RC}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*

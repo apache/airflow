@@ -103,6 +103,10 @@ except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
 
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+_trace_propagator = TraceContextTextMapPropagator()
+
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -133,23 +137,14 @@ def _new_encoder() -> msgspec.msgpack.Encoder:
     return msgspec.msgpack.Encoder(enc_hook=_msgpack_enc_hook)
 
 
-class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
-    id: int
-    """
-    The request id, set by the sender.
-
-    This is used to allow "pipeling" of requests and to be able to tie response to requests, which is
-    particularly useful in the Triggerer where multiple async tasks can send a requests concurrently.
-    """
-    body: dict[str, Any] | None
-
-    req_encoder: ClassVar[msgspec.msgpack.Encoder] = _new_encoder()
+class _FrameMixin:
+    _encoder: ClassVar[msgspec.msgpack.Encoder] = _new_encoder()
 
     def as_bytes(self) -> bytearray:
         # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
         buffer = bytearray(256)
 
-        self.req_encoder.encode_into(self, buffer, 4)
+        self._encoder.encode_into(self, buffer, 4)  # type: ignore[arg-type]
 
         n = len(buffer) - 4
         if n >= 2**32:
@@ -159,7 +154,25 @@ class _RequestFrame(msgspec.Struct, array_like=True, frozen=True, omit_defaults=
         return buffer
 
 
-class _ResponseFrame(_RequestFrame, frozen=True):  # type: ignore[call-arg]
+class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
+    id: int
+    """
+    The request id, set by the sender.
+
+    This is used to allow "pipeling" of requests and to be able to tie response to requests, which is
+    particularly useful in the Triggerer where multiple async tasks can send a requests concurrently.
+    """
+    body: dict[str, Any] | None
+    context_carrier: dict[str, str] | None = None
+    """W3C trace context carrier (traceparent + tracestate) of the task runner's active span.
+
+    The supervisor extracts this to restore the task runner's trace context before making outbound HTTP
+    calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
+    rather than under the supervisor's own span.
+    """
+
+
+class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
     id: int
     """
     The id of the request this is a response to
@@ -193,10 +206,14 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # Async lock for async operations
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
 
+    def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
+        carrier: dict[str, str] = {}
+        _trace_propagator.inject(carrier)
+        return _RequestFrame(id=next(self.id_counter), body=msg.model_dump(), context_carrier=carrier or None)
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        frame_bytes = frame.as_bytes()
+        frame_bytes = self._make_frame(msg).as_bytes()
 
         # We must make sure sockets aren't intermixed between sync and async calls,
         # thus we need a dual locking mechanism to ensure that.
@@ -224,8 +241,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
-        frame_bytes = frame.as_bytes()
+        frame_bytes = self._make_frame(msg).as_bytes()
 
         async with self._async_lock:
             # Acquire the threading lock without blocking the event loop

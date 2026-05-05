@@ -739,6 +739,54 @@ class TestClearTasks:
             for ti in dr.task_instances:
                 assert ti.dag_version_id == old_dag_version.id
 
+    def test_clear_subset_run_on_latest_version_only_updates_cleared_tis(self, dag_maker, session):
+        """run_on_latest_version on a finished DR must not rewrite dag_version_id on TIs that were not cleared."""
+        with dag_maker(
+            "test_clear_subset_latest",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            catchup=True,
+            bundle_version="v1",
+        ) as dag:
+            task0 = EmptyOperator(task_id="0")
+            task1 = EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        old_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.refresh_from_task(dag.get_task("0"))
+        ti1.refresh_from_task(dag.get_task("1"))
+
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
+        dr.state = DagRunState.SUCCESS
+        session.merge(dr)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_subset_latest",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            catchup=True,
+            bundle_version="v2",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dr.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances([ti0], session, run_on_latest_version=True)
+        session.commit()
+
+        dr_after = session.scalar(select(DagRun).where(DagRun.dag_id == dr.dag_id))
+        tis = {ti.task_id: ti for ti in dr_after.task_instances}
+        assert tis["0"].dag_version_id == new_dag_version.id
+        assert tis["1"].dag_version_id == old_dag_version.id
+        assert dr_after.created_dag_version_id == new_dag_version.id
+
     def test_clear_only_new_tasks(self, dag_maker, session):
         """Test that only_new queues only newly added tasks without clearing existing ones."""
 

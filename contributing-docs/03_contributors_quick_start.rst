@@ -410,33 +410,22 @@ syndrome - because not only others can reproduce easily what you do, but also th
 the same environment to run all tests - so you should be able to easily reproduce the same failures you
 see in CI in your local environment.
 
-1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as the general purpose python development
-   environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
-   install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
-   It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
-   in September 2023
+1. Install ``uv``. You can install it via https://docs.astral.sh/uv/getting-started/installation/.
+   ``uv`` is the recommended general-purpose Python development environment for Airflow.
 
-2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze``) in your checked-out
-   repository. Make sure to follow any instructions printed during the installation - this is needed
-   to make sure that the ``breeze`` command is available in your PATH
+2. Run ``./scripts/tools/setup_breeze`` in your checked-out repository. This installs a small shim
+   at ``~/.local/bin/breeze`` that runs Breeze via ``uvx`` from the current git worktree's
+   ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding agents) gets
+   its own Breeze tied to that worktree's sources. See
+   `ADR 0017 <../dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md>`_ for the
+   rationale.
 
-.. warning::
-
-  If you see below warning while running pipx - it means that you have hit the
-  `known issue <https://github.com/pypa/pipx/issues/1092>`_ with ``packaging`` version 23.2:
-
-  .. code-block:: bash
-
-    ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-    to avoid having to create a new src/ directory.
-
-  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
-  by running ``pip install "packaging<23.2"``.
-
-  .. code-block:: bash
-
-     pip install "packaging==23.1"
-     pipx install -e ./dev/breeze --force
+   The legacy global install path (``uv tool install -e ./dev/breeze`` or
+   ``pipx install -e ./dev/breeze``) still works for users who explicitly want a single shared
+   install, but it is no longer the recommended approach and conflicts with the shim (both target
+   ``~/.local/bin/breeze``). If you previously installed Breeze that way, uninstall it first
+   (``uv tool uninstall apache-airflow-breeze`` or ``pipx uninstall apache-airflow-breeze``) before
+   running ``setup_breeze``.
 
 3. Initialize breeze autocomplete
 

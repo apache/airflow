@@ -57,10 +57,8 @@ describe("getDuration", () => {
   });
 
   it("handles small, null or undefined values", () => {
-    // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
-    // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, "2024-03-14T10:00:10.000Z")).toBe(undefined);
     expect(renderDuration(0.000_01)).toBe(undefined);
   });
@@ -71,7 +69,6 @@ describe("getDuration", () => {
 
     const start = "2024-03-14T10:00:00.000Z";
 
-    // eslint-disable-next-line unicorn/no-null
     expect(getDuration(start, null)).toBe("00:00:10.000");
     expect(getDuration(start, undefined)).toBe("00:00:10.000");
 

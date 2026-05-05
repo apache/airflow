@@ -124,7 +124,7 @@ with DAG(
 
     DEPLOYED_MODEL = {
         # format: 'projects/{project}/locations/{location}/models/{model}'
-        "model": "{{ti.xcom_pull('auto_ml_image_task')['name']}}",
+        "model": "{{ task_instance.xcom_pull('auto_ml_image_task')['name'] }}",
         "display_name": f"temp_endpoint_test_{ENV_ID}",
         "automatic_resources": {
             "min_replica_count": 1,

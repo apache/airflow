@@ -469,25 +469,50 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
                     self.status_queries,
                 )
             yield TriggerEvent({"status": "success", self.return_key: self.return_value})
-        except asyncio.CancelledError:
-            if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
-                self.log.info(
-                    "Task was cancelled. Cancelling EMR Serverless job. Application ID: %s, Job ID: %s",
-                    self.application_id,
-                    self.job_id,
-                )
-                hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
-                self.log.info("EMR Serverless job %s cancelled successfully.", self.job_id)
-            else:
-                self.log.info(
-                    "Trigger may have shutdown or cancel_on_kill is disabled. "
-                    "Skipping job cancellation. Application ID: %s, Job ID: %s",
-                    self.application_id,
-                    self.job_id,
-                )
+        except asyncio.CancelledError as e:
+            # TODO: Remove this handler once the minimum supported Airflow version is 3.3+.
+            # On Airflow 3.3+, the triggerer passes a sentinel via task.cancel(msg) for
+            # user-initiated kills and calls on_kill() separately — skip here to avoid
+            # cancelling the job twice. On older Airflow there is no sentinel, so we
+            # handle cancellation here as before.
+            if not (e.args and e.args[0] == "__airflow_user_action__"):
+                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
+                    self.log.info(
+                        "Task was cancelled. Cancelling EMR Serverless job. Application ID: %s, Job ID: %s",
+                        self.application_id,
+                        self.job_id,
+                    )
+                    hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
+                    self.log.info("EMR Serverless job %s cancelled successfully.", self.job_id)
+                else:
+                    self.log.info(
+                        "Trigger may have shutdown or cancel_on_kill is disabled. "
+                        "Skipping job cancellation. Application ID: %s, Job ID: %s",
+                        self.application_id,
+                        self.job_id,
+                    )
             raise
         except Exception as e:
             yield TriggerEvent({"status": "failure", "message": str(e)})
+
+    async def on_kill(self) -> None:
+        """
+        Cancel the EMR Serverless job when the trigger is cancelled by a user action.
+
+        This hook is available in Airflow 3.3+ via BaseTrigger.on_kill().
+        For older Airflow versions, the CancelledError handler in run() provides
+        the same cancellation behavior.
+        """
+        if self.job_id and self.cancel_on_kill:
+            self.log.info(
+                "Cancelling EMR Serverless job. Application ID: %s, Job ID: %s",
+                self.application_id,
+                self.job_id,
+            )
+            await sync_to_async(self.hook().conn.cancel_job_run)(
+                applicationId=self.application_id, jobRunId=self.job_id
+            )
+            self.log.info("EMR Serverless job %s cancelled successfully.", self.job_id)
 
 
 class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):

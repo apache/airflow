@@ -23,14 +23,12 @@ from chart_utils.helm_template_generator import render_chart
 class TestDagProcessorServiceAccount:
     """Tests dag-processor service account labels."""
 
-    AIRFLOW_VERSION = "3.0.0"
     TEMPLATE_FILE = "templates/dag-processor/dag-processor-serviceaccount.yaml"
 
     def test_should_add_global_labels(self):
         """Test adding only .Values.labels."""
         docs = render_chart(
             values={
-                "airflowVersion": self.AIRFLOW_VERSION,
                 "labels": {"test_global_label": "test_global_label_value"},
             },
             show_only=[self.TEMPLATE_FILE],
@@ -43,7 +41,6 @@ class TestDagProcessorServiceAccount:
         """Test adding only .Values.dagProcessor.labels."""
         docs = render_chart(
             values={
-                "airflowVersion": self.AIRFLOW_VERSION,
                 "dagProcessor": {
                     "labels": {"test_component_label": "test_component_label_value"},
                 },
@@ -61,7 +58,6 @@ class TestDagProcessorServiceAccount:
         """Test adding both .Values.labels and .Values.dagProcessor.labels."""
         docs = render_chart(
             values={
-                "airflowVersion": self.AIRFLOW_VERSION,
                 "labels": {"test_global_label": "test_global_label_value"},
                 "dagProcessor": {
                     "labels": {"test_component_label": "test_component_label_value"},
@@ -82,7 +78,6 @@ class TestDagProcessorServiceAccount:
         """Test that component-specific labels take precedence over global labels with the same key."""
         docs = render_chart(
             values={
-                "airflowVersion": self.AIRFLOW_VERSION,
                 "labels": {"common_label": "global_value"},
                 "dagProcessor": {
                     "labels": {"common_label": "component_value"},

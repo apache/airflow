@@ -66,6 +66,36 @@ the full list of supported parameters.
     :start-after: [START howto_operator_llm_agent_params]
     :end-before: [END howto_operator_llm_agent_params]
 
+Usage Limits
+------------
+
+Set ``usage_limits`` to a
+`pydantic-ai UsageLimits <https://ai.pydantic.dev/api/usage/#pydantic_ai.usage.UsageLimits>`__
+to fail the task when the run exceeds a configured budget — request count,
+input/output tokens, or tool calls. The check happens inside pydantic-ai's
+run loop, so the limit applies even when ``retries`` triggers multiple model
+calls within a single task.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
+    :language: python
+    :start-after: [START howto_operator_llm_usage_limits]
+    :end-before: [END howto_operator_llm_usage_limits]
+
+Common knobs on ``UsageLimits``:
+
+- ``request_limit`` — max model requests per run (caps retry/tool-loop blow-ups).
+  pydantic-ai applies a default of ``50`` when ``UsageLimits()`` is constructed
+  without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
+  silently inherits that 50-request cap. Set ``request_limit=None`` to disable
+  it explicitly when you only want a token cap.
+- ``input_tokens_limit`` / ``output_tokens_limit`` — per-run token caps.
+- ``total_tokens_limit`` — combined input + output cap.
+- ``tool_calls_limit`` — max tool invocations (``AgentOperator`` only).
+
+When the limit is hit pydantic-ai raises ``UsageLimitExceeded``, which
+propagates to Airflow as a task failure — Airflow's standard retry policy
+applies on top.
+
 TaskFlow Decorator
 ------------------
 
@@ -132,6 +162,8 @@ Parameters
   for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run.  Fails
+  the task when token / request / tool-call budgets are exceeded.  Default ``None``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
   for human review.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``

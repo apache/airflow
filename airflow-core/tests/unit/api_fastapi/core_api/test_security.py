@@ -110,6 +110,11 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
+    async def test_resolve_user_from_token_no_token_raises(self):
+        """No token always produces 401; public-user fallback is handled by middleware, not here."""
+        with pytest.raises(HTTPException, match="Not authenticated"):
+            await resolve_user_from_token(None)
+
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
     async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
         user = Mock()
@@ -411,6 +416,21 @@ class TestFastApiSecurity:
     def test_is_safe_url(self, url, expected_is_safe):
         request = Mock()
         request.base_url = "https://requesting_server_base_url.com/prefix2"
+        assert is_safe_url(url, request=request) == expected_is_safe
+
+    @pytest.mark.parametrize(
+        ("url", "expected_is_safe"),
+        [
+            # Using \ or /// to escape host check
+            ("///some_netlock.com/prefix", False),
+            ("\\\\some_netlock.com/prefix", False),
+            # encoded url
+            ("%5C%5C%5C%5Csome_netlock.com/prefix", False),
+        ],
+    )
+    def test_is_safe_url_without_prefix(self, url, expected_is_safe):
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/"
         assert is_safe_url(url, request=request) == expected_is_safe
 
     @pytest.mark.parametrize(

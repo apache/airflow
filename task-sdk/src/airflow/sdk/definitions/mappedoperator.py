@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
@@ -553,6 +554,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
+    def retry_policy(self) -> RetryPolicy | None:
+        return self.partial_kwargs.get("retry_policy")
+
+    @retry_policy.setter
+    def retry_policy(self, value: RetryPolicy | None) -> None:
+        self.partial_kwargs["retry_policy"] = value
+
+    @property
     def priority_weight(self) -> int:
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
@@ -647,6 +656,10 @@ class MappedOperator(AbstractOperator):
     @property
     def has_on_skipped_callback(self) -> bool:
         return bool(self.on_skipped_callback)
+
+    @property
+    def has_retry_policy(self) -> bool:
+        return bool(self.retry_policy)
 
     @property
     def run_as_user(self) -> str | None:

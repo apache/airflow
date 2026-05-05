@@ -26,6 +26,57 @@
 Changelog
 ---------
 
+9.27.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3ReadObjectOperator' (#65789)``
+* ``Add multi-team dimensions to boto3 user agent string (#65821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent unauthorized access to team-scoped secrets in SM and SSM (#65703)``
+
+Misc
+~~~~
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+9.26.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support AWS China region endpoints in RedshiftSQLHook OpenLineage identifier parsing (#65483)``
+* ``Update SecretsManagerBackend to support multi-team (#65395)``
+* ``Update SystemsManagerParameterStoreBackend to support multi-team (#65396)``
+* ``Correct AWS China SQS regex to use amazonaws.com.cn (#65299)``
+* ``Extend SQS QUEUE_REGEXP to match AWS China endpoints (#65173)``
+* ``Update 'AwsAuthManager' to support multi-team #65371 (#65393)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix RedshiftSQLHook._get_conn_params connection mutation with IAM (#64991)``
+* ``Fix SQS CreateQueue type error by casting attributes to string (#65649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky Stackdriver test timeout caused by leaked watchtower handler (#65488)``
+   * ``[AWS System Tests] Use dynamic inference profiles in Bedrock system tests (#65185)``
+
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix: Correct grammatical error in AWS IAM Identity Center documentation (#65603)``
+
 9.25.0
 ......
 

@@ -77,7 +77,6 @@ jobs:
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
     env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
       INCLUDE_DOCS: ${{ inputs.include-docs }}
@@ -98,7 +97,8 @@ jobs:
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
       default-python-version: "3.10"
-      registry-providers: ${{ steps.parameters.outputs.registry-providers }}
+      registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
+      registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -115,6 +115,19 @@ jobs:
       "vatsrahul1001",
       ]'), github.event.sender.login)
     steps:
+      - name: "Checkout for wave provider derivation"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+          fetch-tags: true
+          fetch-depth: 0
+      - name: "Derive registry trigger inputs"
+        id: derive_registry_inputs
+        env:
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+          REF: ${{ inputs.ref }}
+        run: python3 dev/registry/derive_wave_providers.py
       - name: "Input parameters summary"
         shell: bash
         id: parameters
@@ -166,27 +179,6 @@ jobs:
              echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
              echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
-          # Extract provider IDs for registry update
-          # include-docs contains short names like "amazon", "common.ai", "openlineage"
-          # or full package names like "apache-airflow-providers-amazon"
-          REGISTRY_PROVIDERS=""
-          for pkg in ${INCLUDE_DOCS}; do
-            case "${pkg}" in
-              apache-airflow-providers-*)
-                PROVIDER_ID="${pkg#apache-airflow-providers-}"
-                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
-                ;;
-              apache-airflow|all-providers|apache-airflow-providers|helm-chart|docker-stack|apache-airflow-ctl|apache-airflow-task-sdk)
-                # Not a provider package, skip
-                ;;
-              *)
-                # Short name like "amazon" or "common.ai" -- convert dots to hyphens
-                PROVIDER_ID="${pkg//./-}"
-                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
-                ;;
-            esac
-          done
-          echo "registry-providers=${REGISTRY_PROVIDERS}" >> ${GITHUB_OUTPUT}
 
   build-docs:
     needs: [build-info]
@@ -313,7 +305,7 @@ jobs:
             exit 1
           fi
       - name: "Upload build docs"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: airflow-docs
           path: /mnt/_build
@@ -435,7 +427,7 @@ jobs:
 
   update-registry:
     needs: [publish-docs-to-s3, build-info]
-    if: needs.build-info.outputs.registry-providers != ''
+    if: needs.build-info.outputs.registry-providers != '' || needs.build-info.outputs.registry-full-build == 'true'
     name: "Update Provider Registry"
     permissions:
       contents: read

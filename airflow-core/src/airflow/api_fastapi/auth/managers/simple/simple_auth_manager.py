@@ -42,6 +42,8 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
+    from starlette.middleware import _MiddlewareFactory
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -70,7 +72,7 @@ class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), E
     # VIEWER role gives all read-only permissions
     VIEWER = "VIEWER", 0
 
-    # USER role gives viewer role permissions + access to DAGs
+    # USER role gives viewer role permissions + access to Dags
     USER = "USER", 1
 
     # OP role gives user role permissions + access to connections, config, pools, variables
@@ -318,6 +320,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         # Delegate to parent class for the actual authorization check
         return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
+
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """Register the all-admins middleware when ``[core] simple_auth_manager_all_admins`` is set."""
+        if not conf.getboolean("core", "simple_auth_manager_all_admins"):
+            return []
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        return [(SimpleAllAdminMiddleware, {})]
 
     def get_fastapi_app(self) -> FastAPI | None:
         """

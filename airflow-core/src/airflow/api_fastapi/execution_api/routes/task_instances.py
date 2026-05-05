@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, Security, status
+from fastapi import Body, HTTPException, Query, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -42,6 +42,7 @@ from structlog.contextvars import bind_contextvars
 
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -63,7 +64,9 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.deps import DepContainer
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -98,6 +101,7 @@ tracer = trace.get_tracer(__name__)
 @ti_id_router.patch(
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
+    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
@@ -108,8 +112,11 @@ tracer = trace.get_tracer(__name__)
 def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
+    response: Response,
     session: SessionDep,
     dag_bag: DagBagDep,
+    services=DepContainer,
+    token: TIToken = CurrentTIToken,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -220,7 +227,7 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
-    # Ensure there is no end date set.
+    # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
         hostname=ti_run_payload.hostname,
@@ -228,6 +235,8 @@ def ti_run(
         pid=ti_run_payload.pid,
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
+        retry_delay_override=None,
+        retry_reason=None,
     )
 
     try:
@@ -273,6 +282,10 @@ def ti_run(
             or 0
         )
 
+        from airflow.api_fastapi.execution_api.security import get_team_name_for_ti
+
+        dr.team_name = get_team_name_for_ti(task_instance_id, session)
+
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
@@ -289,12 +302,19 @@ def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
-        return context
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+    # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
+    if token.claims.scope == "workload":
+        generator: JWTGenerator = services.get(JWTGenerator)
+        execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
+        response.headers["Refreshed-API-Token"] = execution_token
+
+    return context
 
 
 @ti_id_router.patch(
@@ -384,7 +404,10 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
+    data = ti_patch_payload.model_dump(
+        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
+        exclude_unset=True,
+    )
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     try:
@@ -518,6 +541,12 @@ def _create_ti_state_update_query_and_update_state(
         elif isinstance(ti_patch_payload, TIRetryStatePayload):
             if ti is not None:
                 ti.prepare_db_for_next_try(session)
+            # Store retry policy overrides so next_retry_datetime() can read them.
+            # These are cleared when the task enters RUNNING (ti_run).
+            query = query.values(
+                retry_delay_override=ti_patch_payload.retry_delay_seconds,
+                retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
+            )
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
                 TI.register_asset_changes_in_db(

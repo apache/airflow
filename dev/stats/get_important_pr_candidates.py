@@ -1044,7 +1044,21 @@ def main(
     # Format date range for display
     date_range_str = f"{date_start.strftime('%Y-%m-%d')} to {date_end.strftime('%Y-%m-%d')}"
     console.print(f"\n[bold green]🏆 Top {top_number} PRs ({date_range_str}):[/bold green]\n")
-    top_final = heapq.nlargest(top_number, scores.items(), key=lambda x: x[1])
+
+    if rookie:
+        # One PR per author to ensure fair representation of different rookies
+        seen_authors: set[str] = set()
+        selected = []
+        for pr_num, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
+            pr_stat = next((pr for pr in pr_stats if pr.number == pr_num), None)
+            if pr_stat and pr_stat.author not in seen_authors:
+                selected.append((pr_num, score))
+                seen_authors.add(pr_stat.author)
+            if len(selected) >= top_number:
+                break
+        top_final = selected
+    else:
+        top_final = heapq.nlargest(top_number, scores.items(), key=lambda x: x[1])
 
     for i, (pr_num, score) in enumerate(top_final, 1):
         pr_stat = next((pr for pr in pr_stats if pr.number == pr_num), None)

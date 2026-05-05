@@ -46,6 +46,33 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def _build_variable_upsert_stmt(
+    dialect: str | None,
+    model: type[Variable],
+    conflict_cols: list[str],
+    values: dict[str, Any],
+    update_fields: dict[str, Any],
+) -> MySQLInsert | PostgreSQLInsert | SQLiteInsert:
+    """Return a dialect-specific INSERT ... ON CONFLICT UPDATE statement."""
+    stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    elif dialect == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        stmt = mysql_insert(model).values(**values)
+        stmt = stmt.on_duplicate_key_update(**update_fields)
+    else:
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(model).values(**values)
+        stmt = stmt.on_conflict_do_update(index_elements=conflict_cols, set_=update_fields)
+    return stmt
+
+
 class Variable(Base, LoggingMixin):
     """A generic way to store and retrieve arbitrary content or settings as a simple key/value store."""
 
@@ -257,65 +284,22 @@ class Variable(Base, LoggingMixin):
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
 
-            # Create dialect-specific upsert statement
-            dialect_name = get_dialect_name(session)
-            stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
-
-            if dialect_name == "postgresql":
-                from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-                pg_stmt = pg_insert(Variable).values(
-                    key=key,
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-                stmt = pg_stmt.on_conflict_do_update(
-                    index_elements=["key"],
-                    set_=dict(
-                        val=val,
-                        description=description,
-                        is_encrypted=is_encrypted,
-                        team_name=team_name,
-                    ),
-                )
-            elif dialect_name == "mysql":
-                from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-                mysql_stmt = mysql_insert(Variable).values(
-                    key=key,
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-                stmt = mysql_stmt.on_duplicate_key_update(
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-            else:
-                from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-                sqlite_stmt = sqlite_insert(Variable).values(
-                    key=key,
-                    val=val,
-                    description=description,
-                    is_encrypted=is_encrypted,
-                    team_name=team_name,
-                )
-                stmt = sqlite_stmt.on_conflict_do_update(
-                    index_elements=["key"],
-                    set_=dict(
-                        val=val,
-                        description=description,
-                        is_encrypted=is_encrypted,
-                        team_name=team_name,
-                    ),
-                )
-
+            upsert_values = dict(
+                key=key,
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+                team_name=team_name,
+            )
+            update_fields = dict(
+                val=val,
+                description=description,
+                is_encrypted=is_encrypted,
+                team_name=team_name,
+            )
+            stmt = _build_variable_upsert_stmt(
+                get_dialect_name(session), Variable, ["key"], upsert_values, update_fields
+            )
             session.execute(stmt)
             # invalidate key in cache for faster propagation
             # we cannot save the value set because it's possible that it's shadowed by a custom backend
