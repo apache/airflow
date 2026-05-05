@@ -16,6 +16,7 @@
 # under the License.
 #
 ---
+# CI infra test: verifying K8S runner Docker Hub connectivity
 name: K8s tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
