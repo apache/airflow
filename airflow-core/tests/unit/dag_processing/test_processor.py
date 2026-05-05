@@ -1969,6 +1969,19 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
+            # AIP-103 task/asset state — DAG processor has no task execution context.
+            "GetTaskState",
+            "SetTaskState",
+            "DeleteTaskState",
+            "ClearTaskState",
+            "GetAssetStateByName",
+            "GetAssetStateByUri",
+            "SetAssetStateByName",
+            "SetAssetStateByUri",
+            "DeleteAssetStateByName",
+            "DeleteAssetStateByUri",
+            "ClearAssetStateByName",
+            "ClearAssetStateByUri",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
@@ -1987,6 +2000,9 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            # AIP-103 task/asset state results — worker-only responses to the above messages.
+            "TaskStateResult",
+            "AssetStateResult",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager
