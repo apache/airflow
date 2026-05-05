@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import importlib
 import json
+import logging
 import multiprocessing
 import signal
 from datetime import datetime
@@ -672,6 +673,73 @@ class TestEdgeWorker:
         mock_loop.assert_called_once()
         assert mock_set_state.call_count == 1
 
+    @pytest.mark.parametrize(
+        ("automatic_maintenance_on", "sysinfo_status", "expected_maintenance_mode"),
+        [
+            pytest.param("Warning", logging.INFO, False, id="Warning 20"),
+            pytest.param("Warning", logging.WARNING, True, id="Warning 30"),
+            pytest.param("Warning", logging.ERROR, True, id="Warning 40"),
+            pytest.param("Error", logging.INFO, False, id="Error 20"),
+            pytest.param("Error", logging.WARNING, False, id="Error 30"),
+            pytest.param("Error", logging.ERROR, True, id="Error 40"),
+            pytest.param("Gargelfu", logging.ERROR, False, id="Gargelfu 40"),
+            pytest.param("Off", logging.ERROR, False, id="Off 40"),
+            pytest.param(None, logging.ERROR, False, id="None 40"),
+        ],
+    )
+    def test_adjust_maintenance_mode_based_on_sysinfo_on(
+        self,
+        automatic_maintenance_on: str,
+        sysinfo_status: int,
+        expected_maintenance_mode: bool,
+        worker_with_job: EdgeWorker,
+    ):
+        worker_with_job.maintenance_mode = False
+        worker_with_job.automatic_maintenance_on = (automatic_maintenance_on or "off").lower()
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
+        assert worker_with_job.maintenance_mode is expected_maintenance_mode
+
+    @pytest.mark.parametrize(
+        ("automatic_maintenance_exit", "sysinfo_status", "expected_maintenance_mode"),
+        [
+            pytest.param("Info", logging.INFO, False, id="Info 20"),
+            pytest.param("Info", logging.WARNING, True, id="Info 30"),
+            pytest.param("Info", logging.ERROR, True, id="Info 40"),
+            pytest.param("Warning", logging.INFO, False, id="Warning 20"),
+            pytest.param("Warning", logging.WARNING, False, id="Warning 30"),
+            pytest.param("Warning", logging.ERROR, True, id="Warning 40"),
+            pytest.param("Gargelfu", logging.ERROR, True, id="Gargelfu 40"),
+            pytest.param("Off", logging.ERROR, True, id="Off 40"),
+            pytest.param(None, logging.ERROR, True, id="None 40"),
+        ],
+    )
+    def test_adjust_maintenance_mode_based_on_sysinfo_exit(
+        self,
+        automatic_maintenance_exit: str,
+        sysinfo_status: int,
+        expected_maintenance_mode: bool,
+        worker_with_job: EdgeWorker,
+    ):
+        # Set initial error status
+        worker_with_job.automatic_maintenance_on = "warning"
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.ERROR})
+        assert worker_with_job.maintenance_mode is True
+
+        worker_with_job.automatic_maintenance_exit = (automatic_maintenance_exit or "off").lower()
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
+        assert worker_with_job.maintenance_mode is expected_maintenance_mode
+
+    def test_adjust_maintenance_mode_based_on_sysinfo_no_exit(self, worker_with_job: EdgeWorker):
+        """Ensure maintenance is not automatically exited if made manually on, even if sysinfo status improves."""
+        # Set initial error status
+        worker_with_job.automatic_maintenance_exit = "warning"
+        worker_with_job.maintenance_mode = True  # simulate manual maintenance mode activation
+        worker_with_job.maintenance_comments = "Manually set for testing"
+
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.INFO})
+        assert worker_with_job.maintenance_mode is True
+        assert worker_with_job.maintenance_comments == "Manually set for testing"
+
     @pytest.mark.asyncio
     async def test_get_sysinfo(self, worker_with_job: EdgeWorker):
         concurrency = 8
@@ -683,9 +751,22 @@ class TestEdgeWorker:
         assert "concurrency" in sysinfo
         assert "worker_start_time" in sysinfo
         assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
-        assert "status" in sysinfo
+        assert sysinfo["status"] == logging.INFO
         assert "status_text" not in sysinfo  # is only defined if extended sysinfo provides this field
         assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo_version_mismatch(self, worker_with_job: EdgeWorker):
+        worker_with_job.versions_match = False  # Simulate version mismatch to verify sysinfo
+        sysinfo = await worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
+        assert sysinfo["status"] == logging.WARNING
+        assert "status_text" in sysinfo
 
     @pytest.mark.asyncio
     async def test_get_sysinfo_extended(self, worker_with_job_and_sysinfo: EdgeWorker):

@@ -483,6 +483,7 @@ operators:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.operators.ses
@@ -596,6 +597,7 @@ sensors:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.sqs
@@ -732,6 +734,7 @@ hooks:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
@@ -815,6 +818,7 @@ triggers:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue

@@ -215,6 +215,7 @@ class ClusterGenerator:
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
     :param cluster_tier: The tier of the cluster (e.g. "CLUSTER_TIER_STANDARD" / "CLUSTER_TIER_PREMIUM").
     :param cluster_type: The type of the cluster (e.g. "STANDARD" / "SINGLE_NODE" / "ZERO_SCALE")
+    :param engine: Specifies the engine of the cluster created (e.g. "ENGINE_UNSPECIFIED" / "DEFAULT" / "LIGHTNING")
     """
 
     def __init__(
@@ -266,6 +267,7 @@ class ClusterGenerator:
         *,
         cluster_tier: str | None = None,
         cluster_type: str | None = None,
+        engine: str | None = None,
         **kwargs,
     ) -> None:
         self.project_id = project_id
@@ -315,6 +317,7 @@ class ClusterGenerator:
         self.secondary_worker_accelerator_count = secondary_worker_accelerator_count
         self.cluster_tier = cluster_tier
         self.cluster_type = cluster_type
+        self.engine = engine
 
         if self.custom_image and self.image_version:
             raise ValueError("The custom_image and image_version can't be both set")
@@ -525,6 +528,9 @@ class ClusterGenerator:
 
         if self.cluster_type:
             cluster_data["cluster_type"] = self.cluster_type
+
+        if self.engine:
+            cluster_data["engine"] = self.engine
 
         cluster_data = self._build_gce_cluster_config(cluster_data)
 

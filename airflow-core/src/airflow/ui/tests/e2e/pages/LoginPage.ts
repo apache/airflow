@@ -84,7 +84,7 @@ export class LoginPage extends BasePage {
 
     await expect(async () => {
       await this.navigateTo(LoginPage.loginUrl);
-      await expect(this.loginButton).toBeVisible({ timeout: 10_000 });
+      await expect(this.loginButton).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
