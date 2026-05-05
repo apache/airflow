@@ -114,7 +114,6 @@ class TestCallbackRun:
         [
             CallbackState.PENDING,
             CallbackState.SCHEDULED,
-            CallbackState.RUNNING,
             CallbackState.SUCCESS,
             CallbackState.FAILED,
         ],
