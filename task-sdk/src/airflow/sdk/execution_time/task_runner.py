@@ -1342,6 +1342,15 @@ def run(
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
+    except AirflowTaskCheckpointed as checkpoint:
+        log.info("Task checkpointed; reporting CHECKPOINTED state.")
+        msg = TaskState(
+            state=TaskInstanceState.CHECKPOINTED,
+            end_date=datetime.now(tz=timezone.utc),
+            rendered_map_index=ti.rendered_map_index,
+        )
+        state = TaskInstanceState.CHECKPOINTED
+        ti._checkpoint_data = checkpoint.checkpoint_data  # type: ignore[attr-defined]
     except AirflowRescheduleException as reschedule:
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
         msg = RescheduleTask(

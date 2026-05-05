@@ -165,6 +165,33 @@ class AirflowSkipException(AirflowException):
     """Raise when the task should be skipped."""
 
 
+class AirflowTaskCheckpointed(AirflowException):
+    """
+    Raise when the operator has reached a stable checkpoint and intends to pause.
+
+    The worker reports the task as CHECKPOINTED and persists the optional
+    ``checkpoint_data`` so a subsequent run can resume from the same point.
+
+    This is the AIP-96 (Resumable Operators) foundation primitive. Auto-resume
+    semantics, scheduler treatment, and downstream trigger-rule integration are
+    intentionally deferred to follow-ups so the API shape can be discussed
+    without committing to a single resumption policy.
+
+    :param checkpoint_data: Arbitrary serializable payload representing the
+        operator's resume point. Persistence and resume wiring are out of scope
+        for this foundation; the parameter exists so listeners and operator
+        authors can iterate against the final shape.
+    """
+
+    def __init__(self, checkpoint_data=None):
+        super().__init__()
+        self.checkpoint_data = checkpoint_data
+
+    def serialize(self):
+        cls = self.__class__
+        return f"{cls.__module__}.{cls.__name__}", (), {"checkpoint_data": self.checkpoint_data}
+
+
 class AirflowTaskTerminated(BaseException):
     """Raise when the task execution is terminated."""
 

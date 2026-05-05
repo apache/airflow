@@ -4758,6 +4758,37 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms.send.assert_any_call(msg)
 
 
+class TestTaskCheckpointed:
+    """AIP-96 foundation: AirflowTaskCheckpointed -> CHECKPOINTED state."""
+
+    @pytest.mark.parametrize(
+        "checkpoint_data",
+        [
+            pytest.param(None, id="no-payload"),
+            pytest.param({"step": 3, "iterator_offset": 1024}, id="dict-payload"),
+            pytest.param([1, 2, 3], id="list-payload"),
+        ],
+    )
+    def test_run_returns_checkpointed_state(
+        self, checkpoint_data, create_runtime_ti, mock_supervisor_comms
+    ):
+        """``run()`` reports CHECKPOINTED when the operator raises
+        ``AirflowTaskCheckpointed``. The exception's ``checkpoint_data`` payload
+        is preserved on the exception object regardless of shape; persistence
+        and resume wiring are out of scope for the foundation PR."""
+        from airflow.sdk.exceptions import AirflowTaskCheckpointed
+
+        def _raise_checkpointed():
+            raise AirflowTaskCheckpointed(checkpoint_data=checkpoint_data)
+
+        task = PythonOperator(task_id="checkpointed_task", python_callable=_raise_checkpointed)
+        ti = create_runtime_ti(task=task)
+
+        state, _msg, _error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+        assert state == TaskInstanceState.CHECKPOINTED
+
+
 class TestTaskInstanceMetrics:
     def test_ti_start_metric_emitted(self, create_runtime_ti, mock_supervisor_comms):
         """Test that ti.start metric is emitted at the beginning of task."""
