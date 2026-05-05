@@ -26,7 +26,11 @@ import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
@@ -122,10 +126,16 @@ const parseLogs = ({
     return { data, warning };
   }
 
+  // Extract TI identity fields from the first structured log line and insert a single preamble
+  // entry after the "Log message source details" group (or at position 0 if absent), so they
+  // appear once rather than repeated on every line.
+  const tiContext = extractTIContext(data);
+
   parsedLines = (() => {
     type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
     const groupStack: Array<Group> = [];
     const result: Array<JSX.Element | ""> = [];
+    let tiInsertAt: number | undefined;
 
     parsedLines.forEach((line) => {
       const text = innerText(line);
@@ -162,6 +172,10 @@ const parseLogs = ({
           } else {
             result.push(groupElement);
           }
+
+          if (groupStack.length === 0 && finishedGroup.name.startsWith("Log message source details")) {
+            tiInsertAt = result.length;
+          }
         }
 
         return;
@@ -184,6 +198,14 @@ const parseLogs = ({
           </Box>,
         );
       }
+    }
+
+    if (tiContext !== undefined) {
+      result.splice(
+        tiInsertAt ?? 0,
+        0,
+        renderTIContextPreamble(tiContext, "jsx", "Task Identity") as JSX.Element,
+      );
     }
 
     return result;

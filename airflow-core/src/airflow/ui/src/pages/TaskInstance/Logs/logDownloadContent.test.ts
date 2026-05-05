@@ -16,11 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable unicorn/no-null */
 import type { TFunction } from "i18next";
 import { describe, expect, it } from "vitest";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { parseStreamingLogContent } from "src/utils/logs";
 
 /** Same construction as Logs.tsx getLogString (download path). */
@@ -28,23 +34,112 @@ const logStringForDownload = (
   fetchedData: TaskInstancesLogResponse | undefined,
   logLevelFilters: Array<string>,
   translate: TFunction,
-) =>
-  parseStreamingLogContent(fetchedData)
-    .map((line) =>
-      renderStructuredLog({
-        index: 0,
-        logLevelFilters,
-        logLink: "",
-        logMessage: line,
-        renderingMode: "text",
-        showSource: false,
-        showTimestamp: true,
-        sourceFilters: [],
-        translate,
-      }),
-    )
-    .filter((line) => line !== "")
-    .join("\n");
+) => {
+  const lines = parseStreamingLogContent(fetchedData);
+  const tiContext = extractTIContext(lines);
+
+  const rendered = lines.map((line) =>
+    renderStructuredLog({
+      index: 0,
+      logLevelFilters,
+      logLink: "",
+      logMessage: line,
+      renderingMode: "text",
+      showSource: false,
+      showTimestamp: true,
+      sourceFilters: [],
+      translate,
+    }),
+  );
+
+  if (tiContext !== undefined) {
+    const firstEndGroup = lines.findIndex((line) => {
+      const text = typeof line === "string" ? line : line.event;
+
+      return text.includes("::endgroup::");
+    });
+
+    rendered.splice(
+      firstEndGroup === -1 ? 0 : firstEndGroup + 1,
+      0,
+      renderTIContextPreamble(tiContext, "text", "Task Identity") as string,
+    );
+  }
+
+  return rendered.filter((line) => line !== "").join("\n");
+};
+
+const tiLine = (event: string, timestamp: string) => ({
+  dag_id: "my_dag",
+  event,
+  level: "info",
+  map_index: -1 as const,
+  run_id: "run_1",
+  task_id: "my_task",
+  ti_id: "abc-123",
+  timestamp,
+  try_number: 1,
+});
+
+describe("Task log download content (TI context)", () => {
+  const translate = ((key: string) => key) as unknown as TFunction;
+
+  it("injects Task Identity preamble after the source details endgroup", () => {
+    const fetchedData: TaskInstancesLogResponse = {
+      content: [
+        { event: "::group::Log message source details", sources: ["/logs/a.log", "/logs/b.log"] },
+        { event: "some source detail" },
+        { event: "::endgroup::" },
+        tiLine("First log line", "2026-01-01T00:00:00Z"),
+        tiLine("Second log line", "2026-01-01T00:00:01Z"),
+      ],
+      continuation_token: null,
+    };
+
+    const text = logStringForDownload(fetchedData, [], translate);
+    const lines = text.split("\n");
+    const preambleIdx = lines.findIndex((line) => line.includes("Task Identity"));
+    const endGroupIdx = lines.findIndex((line) => line.includes("::endgroup::"));
+    const firstLogIdx = lines.findIndex((line) => line.includes("First log line"));
+
+    expect(preambleIdx).toBeGreaterThan(endGroupIdx);
+    expect(preambleIdx).toBeLessThan(firstLogIdx);
+  });
+
+  it("does not include TI context fields on individual log lines", () => {
+    const fetchedData: TaskInstancesLogResponse = {
+      content: [
+        { event: "::group::Log message source details", sources: ["/logs/a.log"] },
+        { event: "::endgroup::" },
+        tiLine("Task started", "2026-01-01T00:00:00Z"),
+      ],
+      continuation_token: null,
+    };
+
+    const text = logStringForDownload(fetchedData, [], translate);
+    const taskStartedLine = text.split("\n").find((line) => line.includes("Task started"));
+
+    expect(taskStartedLine).toBeDefined();
+    expect(taskStartedLine).not.toContain("ti_id=");
+    expect(taskStartedLine).not.toContain("dag_id=");
+    expect(taskStartedLine).not.toContain("run_id=");
+  });
+
+  it("omits the preamble when no TI context fields are present", () => {
+    const fetchedData: TaskInstancesLogResponse = {
+      content: [
+        { event: "::group::Log message source details", sources: ["/logs/a.log"] },
+        { event: "::endgroup::" },
+        { event: "plain log line", level: "info", timestamp: "2026-01-01T00:00:00Z" },
+      ],
+      continuation_token: null,
+    };
+
+    const text = logStringForDownload(fetchedData, [], translate);
+
+    expect(text).not.toContain("Task Identity");
+  });
+});
 
 describe("Task log download content (log level filter)", () => {
   const translate = ((key: string) => key) as unknown as TFunction;
