@@ -54,8 +54,8 @@ else:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST"),
-    reason="Manual-only system test: set RUN_MANUAL_DATAPROC_CANCEL_ON_KILL_TEST=1 to run.",
+    not os.environ.get("RUN_MANUAL_GOOGLE_SYSTEM_TESTS"),
+    reason="Manual-only system test: set RUN_MANUAL_GOOGLE_SYSTEM_TESTS=1 to run.",
 )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
