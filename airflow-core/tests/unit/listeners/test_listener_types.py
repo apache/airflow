@@ -68,6 +68,9 @@ class TestOnTaskInstanceFailedAcceptsFailureDetails:
     def test_listener_with_failure_details_receives_it(self, listener_manager):
         received: dict[str, FailureDetails | None] = {"failure_details": None}
 
+        # Per the hookspec docstring, listener implementations must declare
+        # failure_details WITHOUT a default value — pluggy treats the impl
+        # default as authoritative and silently overrides the caller's value.
         class InfraListener:
             @hookimpl
             def on_task_instance_failed(
@@ -75,7 +78,7 @@ class TestOnTaskInstanceFailedAcceptsFailureDetails:
                 previous_state,
                 task_instance,
                 error,
-                failure_details: FailureDetails | None = None,
+                failure_details,
             ):
                 received["failure_details"] = failure_details
 
