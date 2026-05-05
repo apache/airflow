@@ -34,6 +34,7 @@ from kubernetes.client import models as k8s
 
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -291,6 +292,83 @@ def create_context(task):
         "ti": task_instance,
         "task_instance": task_instance,
     }
+
+
+def _spark_kubernetes_test_connections(create_connection_without_db):
+    create_connection_without_db(
+        Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
+    )
+    create_connection_without_db(
+        Connection(
+            conn_id="kubernetes_with_namespace",
+            conn_type="kubernetes",
+            extra=json.dumps({"extra__kubernetes__namespace": "mock_namespace"}),
+        )
+    )
+
+
+def test_deferrable_does_not_fall_through_to_kpo_execute(mocker, data_file, create_connection_without_db):
+    """
+    When deferrable=True, SparkKubernetesOperator.execute() must call
+    execute_async() and return immediately. It must NOT call
+    KubernetesPodOperator.execute() (super().execute()), which would
+    attempt to create a bare pod with no image.
+    """
+    _spark_kubernetes_test_connections(create_connection_without_db)
+
+    mock_execute_async = mocker.patch.object(SparkKubernetesOperator, "execute_async")
+    mock_kpo_execute = mocker.patch.object(KubernetesPodOperator, "execute", return_value=None)
+    mock_create_pod = mocker.patch(f"{POD_MANAGER_CLASS}.create_pod")
+    mocker.patch.object(
+        SparkKubernetesOperator,
+        "get_or_create_spark_crd",
+        return_value=k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-driver", namespace="default")),
+    )
+
+    job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+    op = SparkKubernetesOperator(
+        task_id="deferrable_no_super_execute",
+        template_spec=job_spec,
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        deferrable=True,
+        reattach_on_restart=False,
+    )
+    context = create_context(op)
+
+    op.execute(context)
+
+    mock_execute_async.assert_called_once_with(context)
+    mock_kpo_execute.assert_not_called()
+    mock_create_pod.assert_not_called()
+
+
+def test_non_deferrable_calls_kpo_execute(mocker, data_file, create_connection_without_db):
+    """
+    When deferrable=False, SparkKubernetesOperator.execute() must call
+    super().execute() (KubernetesPodOperator.execute()) as before.
+    """
+    _spark_kubernetes_test_connections(create_connection_without_db)
+
+    mock_kpo_execute = mocker.patch.object(KubernetesPodOperator, "execute", return_value=None)
+    mocker.patch.object(
+        SparkKubernetesOperator,
+        "get_or_create_spark_crd",
+        return_value=k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-driver", namespace="default")),
+    )
+
+    job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+    op = SparkKubernetesOperator(
+        task_id="non_deferrable_calls_super_execute",
+        template_spec=job_spec,
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        deferrable=False,
+        reattach_on_restart=False,
+    )
+    context = create_context(op)
+
+    op.execute(context)
+
+    mock_kpo_execute.assert_called_once_with(context)
 
 
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
