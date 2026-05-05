@@ -70,13 +70,19 @@ class Variable:
     @classmethod
     def keys(cls, prefix: str | None = None) -> list[str]:
         """
-        Return all Variable keys that start with the given prefix.
+        Return Variable keys that start with the given prefix.
 
-        :param prefix: Optional key prefix to filter by. If None, all Variable keys are returned.
+        The keys are fetched lazily on first access (iteration, indexing, len, etc.)
+        and cached for subsequent access. Only keys stored in the metadata database
+        are returned — secrets backends are not consulted.
+
+        :param prefix: Optional key prefix to filter by. If None, all keys are returned.
         """
+        import lazy_object_proxy
+
         from airflow.sdk.execution_time.context import _get_variable_keys
 
-        return _get_variable_keys(prefix=prefix)
+        return lazy_object_proxy.Proxy(lambda: _get_variable_keys(prefix=prefix))
 
     @classmethod
     def delete(cls, key: str) -> None:

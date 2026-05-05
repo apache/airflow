@@ -116,8 +116,25 @@ class TestVariableKeys:
 
         results = Variable.keys(prefix=prefix)
 
+        # keys() is lazy — no API call until the proxy is accessed
+        mock_supervisor_comms.send.assert_not_called()
+
+        materialized = list(results)
+
         mock_supervisor_comms.send.assert_called_once_with(msg=GetVariableKeys(prefix=prefix))
-        assert results == keys
+        assert materialized == keys
+
+    def test_keys_cached_after_first_access(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = VariableKeysResult(keys=["a", "b"])
+
+        results = Variable.keys(prefix="x_")
+
+        # Multiple accesses should only trigger the API call once
+        list(results)
+        list(results)
+        len(results)
+
+        mock_supervisor_comms.send.assert_called_once_with(msg=GetVariableKeys(prefix="x_"))
 
 
 class TestVariableFromSecrets:
