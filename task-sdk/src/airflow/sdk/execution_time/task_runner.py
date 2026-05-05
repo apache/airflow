@@ -1248,6 +1248,7 @@ def run(
         AirflowRescheduleException,
         AirflowSensorTimeout,
         AirflowSkipException,
+        AirflowTaskCheckpointed,
         AirflowTaskTerminated,
         DagRunTriggerException,
         DownstreamTasksSkipped,

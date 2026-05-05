@@ -754,6 +754,7 @@ class TaskState(BaseModel):
         TaskInstanceState.FAILED,
         TaskInstanceState.SKIPPED,
         TaskInstanceState.REMOVED,
+        TaskInstanceState.CHECKPOINTED,
     ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"

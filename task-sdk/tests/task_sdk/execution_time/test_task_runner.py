@@ -4822,7 +4822,6 @@ class TestTaskCheckpointed:
         assert received["called"] == 1
         assert received["data"] == checkpoint_data
 
-
 class TestTaskInstanceMetrics:
     def test_ti_start_metric_emitted(self, create_runtime_ti, mock_supervisor_comms):
         """Test that ti.start metric is emitted at the beginning of task."""

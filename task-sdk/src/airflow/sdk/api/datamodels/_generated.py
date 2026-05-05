@@ -198,6 +198,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    CHECKPOINTED = "checkpointed"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -365,6 +366,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    CHECKPOINTED = "checkpointed"
 
 
 class TaskStatePutBody(BaseModel):
