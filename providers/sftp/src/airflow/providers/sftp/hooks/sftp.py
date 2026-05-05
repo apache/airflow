@@ -843,19 +843,21 @@ class SFTPHookAsync(BaseHook):
         If local_full_path_or_buffer is a string path, the file will be read
         from that location.
 
+        Parent directories for ``remote_full_path`` are created when missing.
+
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file or a file-like buffer
         """
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
+                with suppress(asyncssh.SFTPFailure):
+                    remote_path = PurePosixPath(remote_full_path)
+                    await sftp.makedirs(str(remote_path.parent))
+
                 if isinstance(local_full_path, bytes):
                     local_full_path = BytesIO(local_full_path)
 
                 if isinstance(local_full_path, BytesIO):
-                    with suppress(asyncssh.SFTPFailure):
-                        remote_path = PurePosixPath(remote_full_path)
-                        await sftp.makedirs(str(remote_path.parent))
-
                     async with sftp.open(remote_full_path, "wb") as f:
                         local_full_path.seek(0)
                         data = local_full_path.read()

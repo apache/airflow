@@ -1089,6 +1089,30 @@ class TestSFTPHookAsync:
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
+    async def test_store_file_bytesio_creates_parent_directories(self, sftp_hook_mocked):
+        """Assert that BytesIO uploads create parent dirs before writing file."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+
+        await hook.store_file("/remote/new/dir/file.txt", BytesIO(b"abc"))
+
+        sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir")
+        sftp_client.open.assert_called_once_with("/remote/new/dir/file.txt", "wb")
+
+    @pytest.mark.asyncio
+    async def test_store_file_path_creates_parent_directories(self, sftp_hook_mocked):
+        """Assert that local-path uploads create parent dirs before put()."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+
+        await hook.store_file("/remote/new/dir/file.txt", "/local/file.txt")
+
+        sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir")
+        sftp_client.put.assert_awaited_once_with("/local/file.txt", "/remote/new/dir/file.txt")
+
+    @pytest.mark.asyncio
     async def test_walktree_recursive(self, sftp_hook_mocked):
         """Assert that walktree recursively traverses files and directories."""
         hook, sftp_client_mock = sftp_hook_mocked
