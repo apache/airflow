@@ -4,7 +4,7 @@
   "title": "Airflow Executable SDK Bundle Metadata",
   "description": "Build-time manifest declaring DAG and task identifiers exposed by an Airflow native-executable SDK bundle. See the Bundle Spec Format documentation in apache-airflow-providers-sdk-executable.",
   "type": "object",
-  "required": ["format_version", "sdk", "source", "executable", "dags"],
+  "required": ["format_version", "sdk", "source", "dags"],
   "additionalProperties": true,
   "properties": {
     "format_version": {
@@ -32,12 +32,7 @@
     },
     "source": {
       "type": "string",
-      "description": "Archive-relative path to the primary DAG source file.",
-      "minLength": 1
-    },
-    "executable": {
-      "type": "string",
-      "description": "Archive-relative path to the compiled executable.",
+      "description": "Original filename of the primary DAG source file (e.g. 'example.go'). The file's bytes are embedded in the bundle's source region; this field is a display name used by the Airflow UI.",
       "minLength": 1
     },
     "dags": {
