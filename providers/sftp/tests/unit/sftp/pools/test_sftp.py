@@ -47,8 +47,9 @@ class TestSFTPClientPool:
             await pool.release((ssh2, sftp2))
 
     @pytest.mark.asyncio
-    async def test_get_sftp_client_context_manager(self, sftp_hook_mocked):
+    async def test_get_sftp_client_context_manager(self, sftp_hook_mocked, mocker):
         async with SFTPClientPool("test_conn", pool_size=1) as pool:
+            release_spy = mocker.spy(pool, "_release_pair")
             async with pool.get_sftp_client() as sftp:
                 assert sftp is not None
 
@@ -57,6 +58,30 @@ class TestSFTPClientPool:
             assert ssh2 is not None
             assert sftp2 is not None
             await pool.release((ssh2, sftp2))
+
+            assert any(call.kwargs.get("faulty") is False for call in release_spy.call_args_list)
+
+    @pytest.mark.asyncio
+    async def test_get_sftp_client_marks_connection_faulty_on_exception(self, sftp_hook_mocked, mocker):
+        pool = SFTPClientPool("faulty_conn", pool_size=1)
+        release_spy = mocker.spy(pool, "_release_pair")
+
+        with pytest.raises(ValueError, match="boom"):
+            async with pool.get_sftp_client():
+                raise ValueError("boom")
+
+        assert any(call.kwargs.get("faulty") is True for call in release_spy.call_args_list)
+
+    @pytest.mark.asyncio
+    async def test_get_sftp_client_marks_connection_faulty_on_cancellation(self, sftp_hook_mocked, mocker):
+        pool = SFTPClientPool("cancel_conn", pool_size=1)
+        release_spy = mocker.spy(pool, "_release_pair")
+
+        with pytest.raises(asyncio.CancelledError):
+            async with pool.get_sftp_client():
+                raise asyncio.CancelledError()
+
+        assert any(call.kwargs.get("faulty") is True for call in release_spy.call_args_list)
 
     @pytest.mark.asyncio
     async def test_acquire_failure_releases_semaphore(self, sftp_hook_mocked, monkeypatch):

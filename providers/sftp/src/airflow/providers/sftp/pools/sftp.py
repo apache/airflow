@@ -201,9 +201,7 @@ class SFTPClientPool(LoggingMixin):
         with suppress(Exception):
             ssh.close()
 
-    async def release(self, pair):
-        state = self._get_loop_state()
-
+    async def _release_pair(self, pair, state: _LoopState, *, faulty: bool) -> None:
         if pair not in state.in_use:
             self.log.warning("Attempted to release unknown or already released connection")
             return
@@ -213,13 +211,17 @@ class SFTPClientPool(LoggingMixin):
 
         state.in_use.discard(pair)
 
-        if state.closed:
+        if faulty or state.closed:
             self._close_connection_pair(pair)
         else:
             await state.idle.put(pair)
 
         self.log.debug("Releasing SFTP connection for '%s'", self.sftp_conn_id)
         state.semaphore.release()
+
+    async def release(self, pair):
+        state = self._get_loop_state()
+        await self._release_pair(pair, state, faulty=False)
 
     @asynccontextmanager
     async def get_sftp_client(self):
@@ -230,16 +232,17 @@ class SFTPClientPool(LoggingMixin):
             pair = await self.acquire()
             ssh, sftp = pair
             yield sftp
-        except BaseException as e:
+        except asyncio.CancelledError:
+            if pair:
+                await self._release_pair(pair, state, faulty=True)
+            raise
+        except Exception as e:
             self.log.warning("Dropping faulty connection for '%s': %s", self.sftp_conn_id, e)
             if pair:
-                state.in_use.discard(pair)
-                self._close_connection_pair(pair)
-                if state.semaphore is not None:
-                    state.semaphore.release()
+                await self._release_pair(pair, state, faulty=True)
             raise
         else:
-            await self.release(pair)
+            await self._release_pair(pair, state, faulty=False)
 
     async def close(self):
         """Gracefully shutdown all connections in the pool for the current event loop."""
