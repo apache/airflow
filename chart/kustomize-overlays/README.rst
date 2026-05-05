@@ -68,4 +68,4 @@ Each overlay carries a ``STATUS.yaml`` file that declares its verification level
 * ``deprecated`` - the overlay is scheduled for removal. The ``STATUS.yaml`` file
   carries a ``message`` field pointing to the replacement.
 
-See ``CONTRIBUTING.rst`` for the full status grammar and lifecycle.
+See `CONTRIBUTING.rst <CONTRIBUTING.rst>`_ for the full status grammar and lifecycle.
