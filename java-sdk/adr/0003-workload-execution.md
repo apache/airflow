@@ -418,21 +418,15 @@ public static class Load implements Task {
 **Java SDK Complete Bundle Entry Point:**
 
 ```java
-public class JavaExample implements DagBundle {
+public class ExampleBundleBuilder implements BundleBuilder {
     @Override
     public List<Dag> getDags() {
-        var dag = new Dag("java_example", null, "@daily");
-        dag.addTask("extract", Extract.class, List.of());
-        dag.addTask("transform", Transform.class, List.of("extract"));
-        dag.addTask("load", Load.class, List.of("transform"));
+        var dag = JavaExampleBuilder.build();
         return List.of(dag);
     }
 
     public static void main(String[] args) {
-        var bundle = new Bundle(
-            JavaExample.class.getPackage().getImplementationVersion(),
-            new JavaExample().getDags()
-        );
+        var bundle = new ExampleBundleBuilder().build();
         Server.create(args).serve(bundle);  // parses --comm/--logs, connects, enters message loop
     }
 }

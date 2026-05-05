@@ -47,10 +47,10 @@ There is one way to write a non-Python task: implement the language SDK's task i
 We provide two approaches for integrating non-Python tasks into a DAG:
 
 **a) Pure Java DAG** — define the entire DAG in Java, with no Python file at all.
-The Java SDK provides `DagBundle`, `Dag`, and `Task` interfaces:
+The Java SDK provides `BundleBuilder`, `Dag`, and `Task` interfaces:
 
 ```java
-public class JavaExample implements DagBundle {
+public class JavaExampleBuilder {
 
   public static class Extract implements Task {
     public void execute(Client client) throws Exception {
@@ -67,11 +67,11 @@ public class JavaExample implements DagBundle {
   }
 
   @Override
-  public List<Dag> getDags() {
+  public Dag build() {
     var dag = new Dag("java_example", null, "@daily");
     dag.addTask("extract", Extract.class, List.of());
     dag.addTask("transform", Transform.class, List.of("extract"));
-    return List.of(dag);
+    return dag;
   }
 }
 ```
@@ -101,7 +101,7 @@ def simple_dag():
 
 Both approaches are supported in parallel. A pure Java DAG needs no Python at all for authoring. A `@task.stub` DAG requires a Python file but lets you mix Python operators and non-Python tasks in a single pipeline.
 
-> **Note:** The current `DagBundle` interface used in pure Java DAGs is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
+> **Note:** The current `BundleBuilder` interface used in pure Java DAGs is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
 
 ### The Coordinator Layer
 
@@ -199,7 +199,7 @@ class BaseCoordinator:
 
     @classmethod
     def get_code_from_file(cls, fileloc: str) -> str:
-        """Return the actual DAG code (the content of JavaExample.java in this case"""
+        """Return the actual DAG code (the content of JavaExampleBuilder.java in this case"""
         ...
 
     # DAG Parsing (called in forked DagFileProcessor child process)

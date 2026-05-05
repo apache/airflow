@@ -25,7 +25,7 @@ Accepted
 
 ## Context
 
-[ADR-0001](0001-java-sdk-airflow-integration.md) introduces two ways to integrate non-Python tasks: `@task.stub` (mixed Python+Java DAGs) and pure Java DAGs (entire DAG in Java via `DagBundle`). [ADR-0002](0002-dag-parsing.md) and [ADR-0003](0003-workload-execution.md) describe the coordinator infrastructure for DAG parsing and task execution respectively.
+[ADR-0001](0001-java-sdk-airflow-integration.md) introduces two ways to integrate non-Python tasks: `@task.stub` (mixed Python+Java DAGs) and pure Java DAGs (entire DAG in Java via `BundleBuilder`). [ADR-0002](0002-dag-parsing.md) and [ADR-0003](0003-workload-execution.md) describe the coordinator infrastructure for DAG parsing and task execution respectively.
 
 This ADR focuses on the Java-SDK-specific concerns that make pure Java DAGs work end-to-end — build-time metadata generation, source code packaging for UI visibility, and JAR manifest conventions — rather than the shared coordinator infrastructure already covered in those ADRs.
 
@@ -37,17 +37,17 @@ The central challenge is that Airflow Core expects to read DAG metadata and sour
 
 The JAR manifest (`META-INF/MANIFEST.MF`) carries three SDK-specific attributes that Airflow and the Java SDK use to bootstrap a bundle:
 
-| Attribute | Example Value | Purpose |
-|---|---|---|
-| `Main-Class` | `org.apache.airflow.example.JavaExample` | Standard Java attribute; the coordinator uses it to launch the JVM |
-| `Airflow-Java-SDK-Metadata` | `airflow-metadata.yaml` | Points to the embedded metadata file (dag IDs, task IDs) |
-| `Airflow-Java-SDK-Dag-Code` | `JavaExample.java` | Points to the embedded source file for Airflow UI display |
+| Attribute | Example Value                                     | Purpose |
+|---|---------------------------------------------------|---|
+| `Main-Class` | `org.apache.airflow.example.ExampleBundleBuilder` | Standard Java attribute; the coordinator uses it to launch the JVM |
+| `Airflow-Java-SDK-Metadata` | `airflow-metadata.yaml`                           | Points to the embedded metadata file (dag IDs, task IDs) |
+| `Airflow-Java-SDK-Dag-Code` | `JavaExampleBuilder.java`                         | Points to the embedded source file for Airflow UI display |
 
 These attributes are set in the Gradle build (see [Build-Time Packaging](#build-time-packaging-gradle) below). The Python-side coordinator reads `Main-Class` to construct the launch command; `BundleScanner` reads `Airflow-Java-SDK-Metadata` to discover DAG IDs without launching the JVM.
 
 ### Build-Time Metadata: `airflow-metadata.yaml`
 
-At build time, the SDK runs `BundleInspector` — a build-time utility that reflectively instantiates the user's `DagBundle` class, calls `getDags()`, and writes a YAML file listing every DAG ID and its task IDs:
+At build time, the SDK runs `BundleInspector` — a build-time utility that reflectively instantiates the user's `BundleBuilder` class, calls `getDags()`, and writes a YAML file listing every DAG ID and its task IDs:
 
 ```yaml
 dags:
@@ -71,8 +71,8 @@ object BundleInspector {
     val className = args[0]
     val outputPath = args[1]
     val clazz = Class.forName(className)
-    val instance = clazz.getDeclaredConstructor().newInstance() as? DagBundle
-        ?: error("$className does not implement DagBundle")
+    val instance = clazz.getDeclaredConstructor().newInstance() as? BundleBuilder
+        ?: error("$className does not implement BundleBuilder")
     val dags = instance.getDags()
     File(outputPath).apply { parentFile.mkdirs() }.writeText(toYaml(dags))
   }
@@ -145,12 +145,12 @@ The resulting JAR contains:
 example.jar
 ├── META-INF/MANIFEST.MF          (Main-Class, SDK attributes)
 ├── airflow-metadata.yaml          (dag IDs + task IDs)
-├── JavaExample.java               (raw source for UI display)
+├── JavaExampleBuilder.java               (raw source for UI display)
 ├── org/apache/airflow/example/
-│   ├── JavaExample.class          (compiled bundle entry point)
-│   ├── JavaExample$Extract.class
-│   ├── JavaExample$Transform.class
-│   └── JavaExample$Load.class
+│   ├── JavaExampleBuildser.class          (compiled bundle entry point)
+│   ├── JavaExampleBuilder$Extract.class
+│   ├── JavaExampleBuilder$Transform.class
+│   └── JavaExampleBuilder$Load.class
 └── ...                            (SDK + dependency classes)
 ```
 
@@ -174,12 +174,12 @@ It supports two directory layouts:
 
 For each JAR, it reads the `Airflow-Java-SDK-Metadata` manifest attribute, extracts the referenced YAML, parses DAG IDs, and returns a mapping from `dag_id` to `ResolvedBundle`.
 
-### The DagBundle Authoring API
+### The BundleBuilder Authoring API
 
-Bundle authors implement `DagBundle` to define their DAGs:
+Bundle authors implement builder classes to define their DAGs:
 
 ```java
-public class JavaExample implements DagBundle {
+public class JavaExampleBuilder {
 
   public static class Extract implements Task {
     public void execute(Client client) throws Exception {
@@ -195,28 +195,33 @@ public class JavaExample implements DagBundle {
     }
   }
 
-  @Override
-  public List<Dag> getDags() {
+  public static Dag build() {
     var dag = new Dag("java_example", null, "@daily");
     dag.addTask("extract", Extract.class, List.of());
     dag.addTask("transform", Transform.class, List.of("extract"));
-    return List.of(dag);
-  }
-
-  public static void main(String[] args) {
-    var example = new JavaExample();
-    var bundle = new Bundle(
-        JavaExample.class.getPackage().getImplementationVersion(),
-        example.getDags()
-    );
-    Server.create(args).serve(bundle);
+    return dag;
   }
 }
 ```
 
-The `main()` method is the JVM entry point that the coordinator launches. It wires the `DagBundle` to the SDK's TCP communication layer (`Server` → `CoordinatorComm`), which handles DAG parsing requests and task execution commands as described in [ADR-0002](0002-dag-parsing.md) and [ADR-0003](0003-workload-execution.md).
+and then collect DAGs with a BundleBuilder:
 
-> **Note:** The current `DagBundle` interface is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
+```java
+public class ExampleBundleBuilder implements BundleBuilder {
+    public Iterable<Dag> getDags() {
+        return List.of(JavaExampleBuilder.build())
+    }
+
+    public static void main(String[] args) {
+        var bundle = new ExampleBundleBuilder().build();
+        Server.create(args).serve(bundle);
+    }
+}
+```
+
+The `main()` method is the JVM entry point that the coordinator launches. It wires the `BundleBuilder` to the SDK's TCP communication layer (`Server` → `CoordinatorComm`), which handles DAG parsing requests and task execution commands as described in [ADR-0002](0002-dag-parsing.md) and [ADR-0003](0003-workload-execution.md).
+
+> **Note:** The current `BundleBuilder` interface is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
 
 ## Consequences
 
@@ -224,5 +229,5 @@ The `main()` method is the JVM entry point that the coordinator launches. It wir
 - Build-time metadata generation means DAG IDs can be discovered without JVM startup — important for `BundleScanner` and tooling.
 - Source code packaging enables Airflow UI display with no changes to Airflow Core's `DagCode` infrastructure.
 - The manifest convention (`Airflow-Java-SDK-*` attributes) is extensible — future attributes can carry additional metadata without breaking existing tooling.
-- The build-time `BundleInspector` step adds a compile-time dependency on the SDK and requires the `DagBundle` class to be instantiable without side effects (no I/O, no connections in the constructor).
+- The build-time `BundleInspector` step adds a compile-time dependency on the SDK and requires the `BundleBuilder` class to be instantiable without side effects (no I/O, no connections in the constructor).
 - Bundle authors must follow the Gradle packaging pattern (or replicate it in Maven/other build tools) — this is SDK-specific boilerplate that doesn't exist for Python DAGs.

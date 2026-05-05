@@ -33,7 +33,7 @@ sourceSets {
 }
 
 application {
-    mainClass = "org.apache.airflow.example.JavaExample"
+    mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
 }
 
 val bundleMainClass = application.mainClass.get()

@@ -22,7 +22,7 @@ package org.apache.airflow.sdk
 import java.io.File
 
 /**
- * Build-time utility that inspects a [DagBundle] implementation and writes
+ * Build-time utility that inspects a [BundleBuilder] implementation and writes
  * dag_ids and task_ids to a YAML metadata file for inclusion in the JAR.
  *
  * Usage: {@code java -cp <classpath> org.apache.airflow.sdk.BundleInspector <bundleClass> <outputFile>}
@@ -36,8 +36,8 @@ object BundleInspector {
 
     val clazz = Class.forName(className)
     val instance =
-      clazz.getDeclaredConstructor().newInstance() as? DagBundle
-        ?: error("$className does not implement ${DagBundle::class.qualifiedName}")
+      clazz.getDeclaredConstructor().newInstance() as? BundleBuilder
+        ?: error("$className does not implement ${BundleBuilder::class.qualifiedName}")
     val dags = instance.getDags()
 
     val outputFile = File(outputPath)
@@ -45,7 +45,7 @@ object BundleInspector {
     outputFile.writeText(toYaml(dags))
   }
 
-  internal fun toYaml(dags: List<Dag>): String =
+  private fun toYaml(dags: Iterable<Dag>): String =
     buildString {
       appendLine("dags:")
       for (dag in dags) {

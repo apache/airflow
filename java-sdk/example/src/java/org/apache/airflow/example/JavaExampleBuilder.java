@@ -25,8 +25,8 @@ import org.apache.airflow.sdk.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JavaExample implements DagBundle {
-  private static final Logger logger = LoggerFactory.getLogger(JavaExample.class);
+public class JavaExampleBuilder {
+  private static final Logger logger = LoggerFactory.getLogger(JavaExampleBuilder.class);
 
   public static class Extract implements Task {
     public void execute(Client client) throws Exception {
@@ -69,20 +69,11 @@ public class JavaExample implements DagBundle {
     }
   }
 
-  @Override
-  public List<Dag> getDags() {
-    var javaExample = new Dag("java_example", /* description= */ null, /* schedule= */ "@daily");
-    javaExample.addTask("extract", Extract.class, List.of());
-    javaExample.addTask("transform", Transform.class, List.of("extract"));
-    javaExample.addTask("load", Load.class, List.of("transform"));
-    return List.of(javaExample);
-  }
-
-  public static void main(String[] args) {
-    var example = new JavaExample();
-    var bundle =
-        new Bundle(JavaExample.class.getPackage().getImplementationVersion(), example.getDags());
-
-    Server.create(args).serve(bundle);
+  public static Dag build() {
+    var dag = new Dag("java_example", /* description= */ null, /* schedule= */ "@daily");
+    dag.addTask("extract", Extract.class, List.of());
+    dag.addTask("transform", Transform.class, List.of("extract"));
+    dag.addTask("load", Load.class, List.of("transform"));
+    return dag;
   }
 }

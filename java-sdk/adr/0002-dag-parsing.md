@@ -283,7 +283,7 @@ DagParser(request.file).parse(bundle)
   │
   ├── Returns DagParsingResult(fileloc=file, dags=bundle.dags)
   │   The DAGs were already loaded into the Bundle at startup
-  │   via DagBundle.getDags()
+  │   via BundleBuilder.getDags()
   │
   ▼
 sendMessage(frame.id, result)
@@ -308,12 +308,12 @@ sendMessage(frame.id, result)
 shutDownRequested = true  ← one-shot, process will exit
 ```
 
-**Java SDK DagBundle Interface:**
+**Java SDK BundleBuilder Interface:**
 
-Bundle authors implement `DagBundle` to define their DAGs:
+Bundle authors implement `BundleBuilder` to define their DAGs:
 
 ```java
-public class JavaExample implements DagBundle {
+public class ExampleBundleBuilder implements BundleBuilder {
     @Override
     public List<Dag> getDags() {
         var dag = new Dag("java_example", null, "@daily");
@@ -324,11 +324,7 @@ public class JavaExample implements DagBundle {
     }
 
     public static void main(String[] args) {
-        var example = new JavaExample();
-        var bundle = new Bundle(
-            JavaExample.class.getPackage().getImplementationVersion(),
-            example.getDags()
-        );
+        var bundle = new ExampleBundleBuilder().build();
         Server.create(args).serve(bundle);
     }
 }
