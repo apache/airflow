@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,  # add after BulkResponse
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -68,6 +69,8 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,  # add after QueuedEventResponse
+    TaskInstanceResponse,  # add right after TaskInstanceCollectionResponse
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -640,6 +643,66 @@ class DagRunOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
+class TasksOperations(BaseOperations):
+    """Task instance operations."""
+
+    def get_ti_state(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """
+        Get the state of a single task instance.
+
+        Used by ``airflowctl tasks state`` (issue #66174).
+        """
+        if map_index is not None and map_index >= 0:
+            path = f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}"
+        else:
+            path = f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        try:
+            self.response = self.client.get(path)
+            return TaskInstanceResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list_states_for_dag_run(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        limit: int = 100,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """
+        List all task instances for a DAG run.
+
+        Used by ``airflowctl tasks states-for-dag-run`` (issue #66175).
+        """
+        return super().execute_list(
+            path=f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+            limit=limit,
+        )
+
+    def clear_tis(
+        self,
+        dag_id: str,
+        body: ClearTaskInstancesBody,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """
+        Clear task instances matching the given filters.
+
+        Used by ``airflowctl tasks clear`` (issue #66176).
+        """
+        try:
+            self.response = self.client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json=body.model_dump(mode="json", exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 class JobsOperations(BaseOperations):
     """Job operations."""
