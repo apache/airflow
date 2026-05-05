@@ -41,9 +41,9 @@
     "parsedAt": "解析時間："
   },
   "deadlineAlerts": {
-    "completionRule": "必須在 {{reference}}的 {{interval}} 內完成",
-    "count_one": "{{count}} 個截止時間",
-    "count_other": "{{count}} 個截止時間",
+    "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "count_one": "{{count}} 個期限",
+    "count_other": "{{count}} 個期限",
     "referenceType": {
       "AverageRuntimeDeadline": "平均執行時間",
       "DagRunLogicalDateDeadline": "邏輯日期",
@@ -53,18 +53,18 @@
   "deadlineStatus": {
     "actual": "實際",
     "expected": "預期",
-    "finishedEarly": "比截止時間提前 {{duration}} 完成",
-    "finishedLate": "比截止時間延後 {{duration}} 完成",
-    "label": "截止時間",
-    "met": "達成",
-    "missed": "未達成",
-    "missedCount_one": "{{count}} 個未達成的截止時間",
-    "missedCount_other": "{{count}} 個未達成的截止時間",
-    "mixedCount": "{{missedCount}} 個未達成，{{upcomingCount}} 個即將到期",
+    "finishedEarly": "提前 {{duration}} 達成期限",
+    "finishedLate": "逾期 {{duration}} 完成",
+    "label": "期限",
+    "met": "已達成",
+    "missed": "已逾期",
+    "missedCount_one": "{{count}} 個已逾期的期限",
+    "missedCount_other": "{{count}} 個已逾期的期限",
+    "mixedCount": "{{missedCount}} 個已逾期，{{upcomingCount}} 個即將到期",
     "stillRunning": "仍在執行中",
     "upcoming": "即將到期",
-    "upcomingCount_one": "{{count}} 個即將到期的截止時間",
-    "upcomingCount_other": "{{count}} 個即將到期的截止時間"
+    "upcomingCount_one": "{{count}} 個即將到期的期限",
+    "upcomingCount_other": "{{count}} 個即將到期的期限"
   },
   "extraLinks": "額外連結",
   "grid": {
@@ -132,7 +132,7 @@
     },
     "deadlines": {
       "showAll": "顯示全部",
-      "title": "截止時間"
+      "title": "期限"
     },
     "failedLogs": {
       "hideLogs": "隱藏日誌",
