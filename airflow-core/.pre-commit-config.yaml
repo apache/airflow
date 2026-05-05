@@ -256,6 +256,14 @@ repos:
           (?x)
           ^src/airflow/migrations/versions/.*\.py$|
           ^docs/migrations-ref\.rst$
+      - id: migration-round-trip
+        name: Migration round-trip SQLite FK enforcement
+        language: python
+        entry: ../scripts/ci/prek/migration_round_trip.py
+        pass_filenames: false
+        require_serial: true
+        stages: [manual]
+        files: ^src/airflow/migrations/versions/.*\.py$
       - id: check-default-configuration
         name: Check the default configuration
         entry: ../scripts/ci/prek/check_default_configuration.py
