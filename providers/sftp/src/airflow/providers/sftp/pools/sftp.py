@@ -238,4 +238,8 @@ class SFTPClientPool(LoggingMixin):
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        await self.close()
+        # Intentionally a no-op: this pool is a process-wide singleton, so
+        # exiting a single `async with` block must not close it for all other
+        # concurrent users.  Call `close()` explicitly when you truly want to
+        # shut down all connections for the current event loop.
+        pass

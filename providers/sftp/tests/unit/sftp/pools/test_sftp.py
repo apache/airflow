@@ -88,7 +88,22 @@ class TestSFTPClientPool:
             ssh, sftp = await pool.acquire()
             await pool.release((ssh, sftp))
 
+        # __aexit__ must NOT call close() — the pool is a process-wide singleton
+        assert close_spy.call_count == 0
+
+        # close() works when called explicitly
+        await pool.close()
         assert close_spy.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_aexit_does_not_close_pool(self, sftp_hook_mocked):
+        """Exiting async-with must not close the singleton for other concurrent users."""
+        pool = SFTPClientPool("no_close_conn", pool_size=2)
+        async with pool:
+            pass  # exit block
+
+        state = pool._get_loop_state()
+        assert not state.closed
 
     @pytest.mark.asyncio
     async def test_close_warns_when_active_connections_exist(self, sftp_hook_mocked):
@@ -159,14 +174,15 @@ class TestSFTPClientPool:
 
         Each ``asyncio.run()`` creates and then destroys its own event loop.  The singleton
         pool must lazily create fresh asyncio primitives for each new loop rather than
-        reusing primitives that are bound to the now-dead previous loop.
+        reusing primitives that are bound to the now-dead previous loop.  Crucially,
+        ``async with`` must NOT close the pool between the two calls.
         """
         results: list[bool] = []
 
         async def use_pool_once():
-            async with SFTPClientPool("multi_loop_conn", pool_size=2) as pool:
-                async with pool.get_sftp_client() as sftp:
-                    results.append(sftp is not None)
+            pool = SFTPClientPool("multi_loop_conn", pool_size=2)
+            async with pool.get_sftp_client() as sftp:
+                results.append(sftp is not None)
 
         # First run — creates a new event loop, uses the pool, then shuts the loop down.
         asyncio.run(use_pool_once())
