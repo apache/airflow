@@ -12,11 +12,12 @@ issue bodies, and chat replies. Never write "DAG" (all caps) or "dag"
 
 Exceptions where the literal form is required and must be preserved as-is:
 
-- **Python source code** where a legacy class or variable is literally named
-  `DAG` (e.g., `from airflow.sdk import DAG`, `dag = DAG("my_dag", ...)`). The
-  class is spelt `DAG`; that token cannot be renamed in documentation that
-  shows it. Same applies to lowercase identifiers like `dag_id`, `dag`,
-  `my_dag`.
+- **Python source code** where a class or variable is literally named `DAG`
+  (e.g., `from airflow.sdk import DAG`, `dag = DAG("my_dag", ...)`). The `DAG`
+  class itself is current and stays as-is in code; only its appearance in
+  prose moves to "Dag". The token `DAG` in code cannot be rewritten in
+  documentation that shows the code. Same applies to lowercase identifiers
+  like `dag_id`, `dag`, `my_dag`.
 - **CLI subcommands** that are literally named `dags` (e.g.,
   `airflow dags list`, `airflow dags test`). Lowercase is the actual command
   name.
