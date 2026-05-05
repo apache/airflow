@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, overload
 
 import attrs
 
+from airflow.sdk.exceptions import RemovedInAirflow4Warning
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
@@ -278,7 +279,7 @@ class Asset(os.PathLike, BaseAsset):
         default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
         validator=[_validate_identifier],
     )
-    extra: dict[str, JsonValue] = attrs.field(
+    _extra: dict[str, JsonValue] = attrs.field(
         factory=dict,
         converter=_set_extra_default,
     )
@@ -300,7 +301,6 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath,
         *,
         group: str = ...,
-        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
         allow_producer_teams: list[str] = ...,
     ) -> None:
@@ -312,7 +312,6 @@ class Asset(os.PathLike, BaseAsset):
         name: str,
         *,
         group: str = ...,
-        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
         allow_producer_teams: list[str] = ...,
     ) -> None:
@@ -324,7 +323,6 @@ class Asset(os.PathLike, BaseAsset):
         *,
         uri: str | ObjectStoragePath,
         group: str = ...,
-        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
         allow_producer_teams: list[str] = ...,
     ) -> None:
@@ -357,6 +355,11 @@ class Asset(os.PathLike, BaseAsset):
         if group is not None:
             kwargs["group"] = group
         if extra is not None:
+            warnings.warn(
+                "Asset.extra is deprecated and will be removed in the future.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
             kwargs["extra"] = extra
         if watchers is not None:
             kwargs["watchers"] = watchers
@@ -420,6 +423,20 @@ class Asset(os.PathLike, BaseAsset):
             return urllib.parse.urlunsplit(normalized_uri)
         except ValueError:
             return None
+
+    @property
+    def extra(self) -> dict[str, JsonValue]:
+        # No warning here; a warning is shown when the value is set.
+        return self._extra
+
+    @extra.setter
+    def extra(self, value: dict[str, JsonValue]) -> None:
+        warnings.warn(
+            "Asset.extra is deprecated and will be removed in the future.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        self._extra = value
 
 
 class AssetRef(BaseAsset, AttrsInstance):

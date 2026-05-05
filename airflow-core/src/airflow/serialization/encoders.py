@@ -187,7 +187,9 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     d: dict[str, Any]
     match a:
         case Asset() | SerializedAsset():
-            d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
+            d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group}
+            if a.extra:
+                d["extra"] = a.extra
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
             return d

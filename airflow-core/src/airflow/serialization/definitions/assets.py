@@ -29,6 +29,7 @@ from airflow.serialization.dag_dependency import DagDependency
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, MutableSequence
 
+    from pydantic import JsonValue
     from typing_extensions import Self
 
     from airflow.models.asset import AssetModel
@@ -118,9 +119,11 @@ class SerializedAsset(SerializedAssetBase):
     name: str
     uri: str
     group: str
-    extra: dict[str, Any]
     watchers: MutableSequence[SerializedAssetWatcher]
     allow_producer_teams: list[str] = attrs.field(factory=list)
+
+    # TODO: Deprecated in SDK. Remove in Airflow 4.0.
+    extra: dict[str, JsonValue]
 
     def as_expression(self) -> Any:
         """

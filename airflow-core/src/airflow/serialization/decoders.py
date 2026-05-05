@@ -95,7 +95,6 @@ def _decode_asset(var: dict[str, Any]):
         name=var["name"],
         uri=var["uri"],
         group=var["group"],
-        extra=var["extra"],
         watchers=[
             SerializedAssetWatcher(
                 name=watcher["name"],
@@ -106,6 +105,8 @@ def _decode_asset(var: dict[str, Any]):
             )
             for watcher in watchers
         ],
+        # TODO: Deprecated in SDK. Remove in Airflow 4.0.
+        extra=var.get("extra", {}),
     )
 
 
