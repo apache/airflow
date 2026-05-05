@@ -985,7 +985,7 @@ class TestSFTPHookAsync:
 
         files = await hook.list_directory(path="/path/exists/")
         assert files is not None
-        assert sorted(files) == sorted(["file"])
+        assert sorted(files) == sorted(["..", ".", "file"])
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio

@@ -895,13 +895,7 @@ class SFTPHookAsync(BaseHook):
                         files = await sftp.readdir(path)
                     except asyncssh.SFTPNoSuchFile:
                         return None
-                    return sorted(
-                        [
-                            os.fsdecode(file.filename)
-                            for file in files
-                            if os.fsdecode(file.filename) not in {".", ".."}
-                        ]
-                    )
+                    return sorted([os.fsdecode(file.filename) for file in files])
 
                 async def walk(dir_path: str) -> list[str]:
                     results: list[str] = []
