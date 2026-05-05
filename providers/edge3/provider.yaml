@@ -206,7 +206,7 @@ config:
           this to a lower version to avoid having to update all workers at the same time as the central site.
           Default is to force matching versions, so relaxing is optional to be configured.
 
-          If the airflow core version between edge worker and central site is not matchning, the worker will
+          If the airflow core version between edge worker and central site is not matching, the worker will
           report warning status.
         version_added: 3.6.0
         type: string
@@ -226,7 +226,7 @@ config:
           can set this to a lower version to avoid having to update all workers at the same time as the
           central site. Default is to force matching versions, so relaxing is optional to be configured.
 
-          If the edge version between edge worker and central site is not matchning, the worker will report
+          If the edge version between edge worker and central site is not matching, the worker will report
           warning status.
         version_added: 3.6.0
         type: string
