@@ -1776,7 +1776,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
             )
         except Exception:
-            log.exception("error calling listener")
+            log.exception("error calling listener for hook %r", "on_task_instance_failed")
 
         return ti
 

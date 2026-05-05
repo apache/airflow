@@ -119,6 +119,9 @@ def test_listener_suppresses_exceptions(create_task_instance, session, cap_struc
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     ti.run()
     assert "error calling listener" in cap_structlog
+    # The hook name must appear in the log so plugin authors can identify which
+    # listener hook raised when multiple hooks are registered.
+    assert "on_task_instance_success" in cap_structlog
 
 
 @provide_session

@@ -3941,6 +3941,45 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
 
+    def test_listener_error_log_includes_hook_name(
+        self, mocked_parse, mock_supervisor_comms, listener_manager
+    ):
+        """When a listener hook raises, the exception log must identify which hook
+        raised so plugin authors can debug across multiple registered listeners."""
+
+        class ThrowingListener:
+            @hookimpl
+            def on_task_instance_success(self, previous_state, task_instance):
+                raise RuntimeError("listener boom")
+
+        listener_manager(ThrowingListener())
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = CustomOperator(task_id="test_listener_error_log_includes_hook_name")
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, _ = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log)
+
+        log.exception.assert_any_call(
+            "error calling listener for hook %r", "on_task_instance_success"
+        )
+
     @pytest.mark.parametrize(
         "exception",
         [

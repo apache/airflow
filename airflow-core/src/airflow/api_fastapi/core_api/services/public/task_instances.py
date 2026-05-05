@@ -76,19 +76,25 @@ def _validate_patch_task_instance_body(
 def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInstanceState) -> None:
     """Fire listener hooks for the given TIs based on their new state. Listener errors are logged."""
     for ti in updated_tis:
-        try:
-            if new_state == TaskInstanceState.SUCCESS:
+        if new_state == TaskInstanceState.SUCCESS:
+            try:
                 get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
-            elif new_state == TaskInstanceState.FAILED:
+            except Exception:
+                log.exception("error calling listener for hook %r", "on_task_instance_success")
+        elif new_state == TaskInstanceState.FAILED:
+            try:
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
                 )
-            elif new_state == TaskInstanceState.SKIPPED:
+            except Exception:
+                log.exception("error calling listener for hook %r", "on_task_instance_failed")
+        elif new_state == TaskInstanceState.SKIPPED:
+            try:
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
-        except Exception:
-            log.exception("error calling listener")
+            except Exception:
+                log.exception("error calling listener for hook %r", "on_task_instance_skipped")
 
 
 def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI]:
