@@ -19,12 +19,14 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.utils.log.file_task_handler import FileTaskHandler
 
 if TYPE_CHECKING:
     from airflow.logging.remote import RemoteLogIO, RemoteLogStreamIO
@@ -160,11 +162,6 @@ if REMOTE_LOGGING:
             f"{type(remote_task_handler_kwargs)}"
         )
     _all_kwargs = cast("dict[str, Any]", remote_task_handler_kwargs)
-    # Dynamically determine which kwargs belong to FileTaskHandler vs RemoteLogIO.
-    import inspect
-
-    from airflow.utils.log.file_task_handler import FileTaskHandler
-
     _fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
         "self",
         "base_log_folder",
