@@ -829,34 +829,44 @@ class SFTPHookAsync(BaseHook):
                         if hasattr(local_full_path, "seek"):
                             local_full_path.seek(0)
 
-    async def store_file(self, remote_full_path: str, local_full_path: str | bytes | BytesIO) -> None:
+    async def store_file(
+        self, remote_full_path: str, local_full_path: str | os.PathLike[str] | IO[bytes]
+    ) -> None:
         """
         Transfer a local file to the remote location.
 
-        If local_full_path_or_buffer is a string path, the file will be read
-        from that location.
+        If ``local_full_path`` is a path, the file will be read from that location.
+        If it is a binary file-like object, the content will be uploaded from the stream.
+        Raw ``bytes`` values are not accepted directly; wrap bytes in ``BytesIO``.
 
         Parent directories for ``remote_full_path`` are created when missing.
 
         :param remote_full_path: full path to the remote file
-        :param local_full_path: full path to the local file or a file-like buffer
+        :param local_full_path: full path to the local file or a binary file-like buffer
         """
+        if isinstance(local_full_path, bytes):
+            raise TypeError("Unsupported type for local_full_path: bytes. Wrap raw bytes in BytesIO.")
+
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 with suppress(asyncssh.SFTPFailure):
                     remote_path = PurePosixPath(remote_full_path)
                     await sftp.makedirs(str(remote_path.parent))
 
-                if isinstance(local_full_path, bytes):
-                    local_full_path = BytesIO(local_full_path)
-
-                if isinstance(local_full_path, BytesIO):
+                if isinstance(local_full_path, (str, os.PathLike)):
+                    await sftp.put(str(local_full_path), remote_full_path)
+                elif hasattr(local_full_path, "read"):
                     async with sftp.open(remote_full_path, "wb") as f:
-                        local_full_path.seek(0)
-                        data = local_full_path.read()
+                        stream = cast("IO[bytes]", local_full_path)
+                        if hasattr(stream, "seek"):
+                            stream.seek(0)
+                        data = stream.read()
                         await f.write(data)
                 else:
-                    await sftp.put(str(local_full_path), remote_full_path)
+                    raise TypeError(
+                        f"Unsupported type for local_full_path: {type(local_full_path)}. "
+                        "Expected a binary file-like object or a path-like object."
+                    )
 
     async def mkdir(self, path: str) -> None:
         """

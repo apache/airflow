@@ -1113,6 +1113,14 @@ class TestSFTPHookAsync:
         sftp_client.put.assert_awaited_once_with("/local/file.txt", "/remote/new/dir/file.txt")
 
     @pytest.mark.asyncio
+    async def test_store_file_rejects_raw_bytes(self, sftp_hook_mocked):
+        """Raw bytes must be wrapped in BytesIO to avoid path/content ambiguity."""
+        hook, _ = sftp_hook_mocked
+
+        with pytest.raises(TypeError, match="Wrap raw bytes in BytesIO"):
+            await hook.store_file("/remote/new/dir/file.txt", b"abc")
+
+    @pytest.mark.asyncio
     async def test_walktree_recursive(self, sftp_hook_mocked):
         """Assert that walktree recursively traverses files and directories."""
         hook, sftp_client_mock = sftp_hook_mocked
