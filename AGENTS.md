@@ -3,6 +3,21 @@
 
 # AGENTS instructions
 
+## Naming
+
+Write **Dag** (title case) in all prose. Keep the all-caps or lowercase
+spelling only when reproducing a literal code token — never rewrite these,
+even inside fenced code blocks:
+
+- Python: the SDK class `DAG` (`from airflow.sdk import DAG`,
+  `dag = DAG("my_dag", ...)`); identifiers like `dag_id`, `dag`, `my_dag`.
+- CLI: `airflow dags list`, `airflow dags test`, etc.
+- Paths and config keys: `dag_processing/`, `dagprocessor`, `get_dag`, etc.
+- Anti-pattern quotes that show the wrong form to teach the rule itself
+  (e.g., `Use "DAG" — always write "Dag"`).
+
+Don't spell out **Directed Acyclic Graph** except for historical context.
+
 ## Environment Setup
 
 - Install prek: `uv tool install prek`
