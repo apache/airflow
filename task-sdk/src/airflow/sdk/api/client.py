@@ -281,6 +281,19 @@ class TaskInstanceOperations:
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def checkpoint(
+        self,
+        id: uuid.UUID,
+        end_date: datetime | None = None,
+        rendered_map_index: str | None = None,
+    ) -> None:
+        """Tell the API server that this TI has reached a stable checkpoint and paused."""
+        from airflow.sdk.api.datamodels._generated import TITargetStatePayload
+
+        del end_date, rendered_map_index  # reserved for future persistence; current API server does not store these
+        body = TITargetStatePayload(state=TaskInstanceState.CHECKPOINTED)
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
     def heartbeat(self, id: uuid.UUID, pid: int):
         body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
         self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())

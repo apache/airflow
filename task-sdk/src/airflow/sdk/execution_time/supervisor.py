@@ -166,6 +166,7 @@ STATES_SENT_DIRECTLY = [
     TaskInstanceState.UP_FOR_RESCHEDULE,
     TaskInstanceState.UP_FOR_RETRY,
     TaskInstanceState.SUCCESS,
+    TaskInstanceState.CHECKPOINTED,
     SERVER_TERMINATED,
 ]
 
@@ -1397,6 +1398,12 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
+            if msg.state == TaskInstanceState.CHECKPOINTED:
+                self.client.task_instances.checkpoint(
+                    id=self.id,
+                    end_date=msg.end_date,
+                    rendered_map_index=self._rendered_map_index,
+                )
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()

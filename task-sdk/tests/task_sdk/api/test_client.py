@@ -482,6 +482,19 @@ class TestTaskInstanceOperations:
         )
         client.task_instances.reschedule(ti_id, msg)
 
+    def test_task_instance_checkpoint(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/state":
+                actual_body = json.loads(request.read())
+                assert actual_body["state"] == "checkpointed"
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_instances.checkpoint(ti_id)
+
     def test_task_instance_up_for_retry(self):
         ti_id = uuid6.uuid7()
 

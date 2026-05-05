@@ -635,6 +635,13 @@ def _create_ti_state_update_query_and_update_state(
         # clear the next_method and next_kwargs so that none of the retries pick them up
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
         query = query.values(state=updated_state, next_method=None, next_kwargs=None)
+    elif type(ti_patch_payload).__name__ == "TITargetStatePayload":
+        # Generic target-state transition (e.g. CHECKPOINTED). No additional
+        # bookkeeping beyond setting the state — persistence of any
+        # state-specific payload (e.g. checkpoint_data) is the open AIP-96
+        # question not addressed here.
+        updated_state = TaskInstanceState(ti_patch_payload.state.value)
+        query = query.values(state=updated_state)
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")
 
