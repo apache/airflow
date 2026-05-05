@@ -71,8 +71,7 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
 def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
     """Get task instance states for a Dag run."""
     try:
-        ops = TaskOperations(client=api_client.client)
-        tis = ops.states_for_dag_run(args.dag_id, args.dag_run_id, getattr(args, "limit", 100))
+        tis = api_client.client.tasks.list(dag_id=args.dag_id, dag_run_id=args.dag_run_id)
         rich.print(f"[green]Found {len(tis.task_instances)} task instance(s)[/green]")
         AirflowConsole().print_as(
             data=[t.model_dump() for t in tis.task_instances],

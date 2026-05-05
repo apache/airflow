@@ -1871,9 +1871,9 @@ class TestTaskOperations:
     def test_clear(self):
         """Test clear calls the correct endpoint with correct params."""
         import httpx
-        from airflowctl.api.datamodels.generated import ClearTaskInstanceCollectionResponse, TaskInstanceResponse
+        from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, TaskInstanceCollectionResponse, TaskInstanceResponse
 
-        clear_response = ClearTaskInstanceCollectionResponse(
+        clear_response = TaskInstanceCollectionResponse(
             task_instances=[
                 TaskInstanceResponse(
                     task_id="task_1",
@@ -1901,7 +1901,8 @@ class TestTaskOperations:
         from airflowctl.api.operations import make_api_client, TaskOperations
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         ops = TaskOperations(client=client.client)
-        response = ops.clear("example_dag", only_failed=True)
+        body = ClearTaskInstancesBody(only_failed=True)
+        response = ops.clear("example_dag", body=body)
         assert response.total_entries == 1
         assert len(response.task_instances) == 1
         assert response.task_instances[0].state == "cleared"
