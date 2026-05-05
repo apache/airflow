@@ -173,6 +173,26 @@ def on_task_instance_skipped(
 # [END howto_listen_ti_skipped_task]
 
 
+# [START howto_listen_ti_checkpointed_task]
+@hookimpl
+def on_task_instance_checkpointed(
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    checkpoint_data,
+):
+    """
+    Called when a task reaches a stable checkpoint and pauses.
+
+    The operator raised ``AirflowTaskCheckpointed`` from ``execute()`` and the
+    worker reported ``CHECKPOINTED`` state. ``checkpoint_data`` is the payload
+    the operator passed when raising; it can be ``None``.
+    """
+    print(f"Task instance reached a checkpoint (data={checkpoint_data!r})")
+
+
+# [END howto_listen_ti_checkpointed_task]
+
+
 # [START howto_listen_dagrun_success_task]
 @hookimpl
 def on_dag_run_success(dag_run: DagRun, msg: str):

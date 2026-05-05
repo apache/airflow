@@ -4759,8 +4759,6 @@ class TestTriggerDagRunOperator:
 
 
 class TestTaskCheckpointed:
-    """AIP-96 foundation: AirflowTaskCheckpointed -> CHECKPOINTED state."""
-
     @pytest.mark.parametrize(
         "checkpoint_data",
         [
@@ -4773,9 +4771,7 @@ class TestTaskCheckpointed:
         self, checkpoint_data, create_runtime_ti, mock_supervisor_comms
     ):
         """``run()`` reports CHECKPOINTED when the operator raises
-        ``AirflowTaskCheckpointed``. The exception's ``checkpoint_data`` payload
-        is preserved on the exception object regardless of shape; persistence
-        and resume wiring are out of scope for the foundation PR."""
+        ``AirflowTaskCheckpointed``."""
         from airflow.sdk.exceptions import AirflowTaskCheckpointed
 
         def _raise_checkpointed():
@@ -4787,6 +4783,44 @@ class TestTaskCheckpointed:
         state, _msg, _error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
         assert state == TaskInstanceState.CHECKPOINTED
+
+    @pytest.mark.parametrize(
+        "checkpoint_data",
+        [
+            pytest.param(None, id="no-payload"),
+            pytest.param({"step": 7}, id="dict-payload"),
+        ],
+    )
+    def test_listener_receives_checkpoint_data(
+        self, checkpoint_data, create_runtime_ti, mock_supervisor_comms, listener_manager
+    ):
+        """``finalize()`` invokes ``on_task_instance_checkpointed`` and forwards
+        the operator-supplied ``checkpoint_data``."""
+        from airflow.sdk.exceptions import AirflowTaskCheckpointed
+
+        received = {"called": 0, "data": "<unset>"}
+
+        class CheckpointListener:
+            @hookimpl
+            def on_task_instance_checkpointed(self, previous_state, task_instance, checkpoint_data):
+                received["called"] += 1
+                received["data"] = checkpoint_data
+
+        listener_manager(CheckpointListener())
+
+        def _raise_checkpointed():
+            raise AirflowTaskCheckpointed(checkpoint_data=checkpoint_data)
+
+        task = PythonOperator(task_id="checkpointed_task", python_callable=_raise_checkpointed)
+        ti = create_runtime_ti(task=task)
+        log = mock.MagicMock()
+        context = ti.get_template_context()
+        state, _msg, _error = run(ti, context=context, log=log)
+        finalize(ti, state, context, log)
+
+        assert state == TaskInstanceState.CHECKPOINTED
+        assert received["called"] == 1
+        assert received["data"] == checkpoint_data
 
 
 class TestTaskInstanceMetrics:

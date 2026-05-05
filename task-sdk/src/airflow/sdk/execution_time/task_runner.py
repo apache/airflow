@@ -1941,6 +1941,15 @@ def finalize(
             log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
             _send_error_email_notification(task, ti, context, error, log)
+    elif state == TaskInstanceState.CHECKPOINTED:
+        try:
+            get_listener_manager().hook.on_task_instance_checkpointed(
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                checkpoint_data=getattr(ti, "_checkpoint_data", None),
+            )
+        except Exception:
+            log.exception("error calling listener")
 
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())

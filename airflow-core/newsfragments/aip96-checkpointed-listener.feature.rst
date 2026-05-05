@@ -1,0 +1,9 @@
+Adds the ``on_task_instance_checkpointed`` listener hook so listener
+authors observe checkpoint events alongside ``running`` /
+``success`` / ``failed`` / ``skipped``. Receives ``previous_state``,
+``task_instance``, and the operator-supplied ``checkpoint_data``
+payload.
+
+The hook fires from the worker's ``finalize()`` when the operator
+raises ``AirflowTaskCheckpointed`` and ``run()`` reports the
+``CHECKPOINTED`` state.

@@ -79,3 +79,25 @@ def on_task_instance_skipped(
     :param task_instance: The task instance object (RuntimeTaskInstance when called
         from task execution context, TaskInstance when called from API server)
     """
+
+
+@hookspec
+def on_task_instance_checkpointed(
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    checkpoint_data,
+):
+    """
+    Execute when a task instance reaches a stable checkpoint and pauses.
+
+    Fires when an operator raises ``AirflowTaskCheckpointed`` and the worker
+    reports ``CHECKPOINTED`` state.
+
+    :param previous_state: Previous state of the task instance (typically RUNNING)
+    :param task_instance: The task instance object (RuntimeTaskInstance when
+        called from task execution context, TaskInstance when called from API
+        server)
+    :param checkpoint_data: The serializable payload the operator passed to
+        ``AirflowTaskCheckpointed(checkpoint_data=...)``, or ``None`` if no
+        payload was supplied.
+    """
