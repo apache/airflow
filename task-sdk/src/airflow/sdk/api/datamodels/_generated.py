@@ -365,6 +365,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    CHECKPOINTED = "checkpointed"
 
 
 class TaskStatePutBody(BaseModel):
