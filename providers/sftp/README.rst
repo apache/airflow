@@ -60,7 +60,6 @@ PIP package                                 Version required
 ``paramiko``                                ``>=3.5.1,<4.0.0``
 ``asyncssh``                                ``>=2.12.0; python_version < "3.14"``
 ``asyncssh``                                ``>=2.22.0; python_version >= "3.14"``
-``types-aiofiles``                          ``>=23.2.0.20240403``
 ==========================================  ======================================
 
 Cross provider package dependencies
