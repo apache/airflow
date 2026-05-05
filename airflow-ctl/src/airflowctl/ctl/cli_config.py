@@ -976,6 +976,16 @@ TASKS_COMMANDS = (
             ARG_OUTPUT,
         ),
     ),
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the states of all task instances in a DAG run",
+        func=lazy_load_command("airflowctl.ctl.commands.tasks_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_OUTPUT,
+        ),
+    ),
 )
 
 VARIABLE_COMMANDS = (

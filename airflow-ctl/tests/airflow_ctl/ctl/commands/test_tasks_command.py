@@ -27,6 +27,7 @@ import pytest
 
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import (
+    TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
 )
@@ -92,6 +93,30 @@ class TestTasksCommands:
                 self.parser.parse_args([
                     "tasks", "state",
                     self.dag_id, self.task_id, self.dag_run_id,
+                ]),
+                api_client=api_client,
+            )
+
+    def test_tasks_states_for_dag_run(self, api_client_maker):
+            collection = TaskInstanceCollectionResponse(
+                task_instances=[self.task_instance_response],
+                total_entries=1,
+                next_cursor=None,
+                previous_cursor=None,
+            )
+            api_client = api_client_maker(
+                path=(
+                    f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
+                    f"/taskInstances"
+                ),
+                response_json=collection.model_dump(mode="json"),
+                expected_http_status_code=200,
+                kind=ClientKind.CLI,
+            )
+            tasks_command.states_for_dag_run(
+                self.parser.parse_args([
+                    "tasks", "states-for-dag-run",
+                    self.dag_id, self.dag_run_id,
                 ]),
                 api_client=api_client,
             )

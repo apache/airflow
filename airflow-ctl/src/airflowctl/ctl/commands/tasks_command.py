@@ -53,3 +53,32 @@ def state(args, api_client=NEW_API_CLIENT) -> None:
         data=[{"state": response.state.value if response.state else None, "task_id": response.task_id}],
         output=args.output,
     )
+
+@provide_api_client(kind=ClientKind.CLI)
+def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
+    """Get the states of all task instances in a DAG run.
+
+    Implements the `airflowctl tasks states-for-dag-run` command (issue #66175).
+    """
+    try:
+        response = api_client.tasks.list_states_for_dag_run(
+            dag_id=args.dag_id,
+            dag_run_id=args.dag_run_id,
+        )
+    except ServerResponseError as e:
+        rich.print(f"[red]Error fetching task states: {e}[/red]")
+        sys.exit(1)
+
+    rows = [
+        {
+            "dag_id": ti.dag_id,
+            "task_id": ti.task_id,
+            "run_id": ti.dag_run_id,
+            "state": ti.state.value if ti.state else "",
+            "start_date": ti.start_date.isoformat() if ti.start_date else "",
+            "end_date": ti.end_date.isoformat() if ti.end_date else "",
+            "map_index": ti.map_index,
+        }
+        for ti in response.task_instances
+    ]
+    AirflowConsole().print_as(data=rows, output=args.output)
