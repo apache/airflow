@@ -35,7 +35,7 @@ Date: 2024-11-11
 
 ## Status
 
-Accepted
+Superseded by [17. Use `uvx` to run breeze from local sources](0017-use-uvx-to-run-breeze-from-local-sources.md)
 
 Supersedes [10. Use pipx to install breeze](0010-use-pipx-to-install-breeze.md)
 

@@ -145,7 +145,7 @@ def _skip_due_to_rate(rate: float) -> bool:
 
 class _OtelTimer(Timer):
     """
-    An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+    An implementation of stats.Timer() which records the result in the OTel Metrics Map.
 
     OpenTelemetry does not have a native timer; values are stored as a Histogram so that
     all observations (count, sum, bucket distribution) are preserved across multiple recordings.

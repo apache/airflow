@@ -549,6 +549,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(current_app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
+    def _hash_password(self, password: str) -> str:
+        method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
+        return generate_password_hash(password, method=method)
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -561,7 +565,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = generate_password_hash(password)
+        user.password = self._hash_password(password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -1404,7 +1408,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if hashed_password:
                 user.password = hashed_password
             else:
-                user.password = generate_password_hash(password)
+                user.password = self._hash_password(password)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
 
@@ -1448,7 +1452,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if hashed_password:
             register_user.password = hashed_password
         else:
-            register_user.password = generate_password_hash(password)
+            register_user.password = self._hash_password(password)
         register_user.registration_hash = str(uuid.uuid1())
         try:
             self.session.add(register_user)

@@ -236,7 +236,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.create_pipeline(pipeline_name=PIPELINE_NAME, pipeline=PIPELINE, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -273,7 +273,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -328,7 +328,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.list_pipelines(instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -422,7 +422,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
@@ -489,7 +489,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.stop_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
@@ -505,7 +505,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.stop_pipeline(
                 pipeline_name=PIPELINE_NAME,
@@ -566,7 +566,7 @@ class TestDataFusionHook:
         with pytest.raises(
             ValueError,
             match=r"Empty response received. Please, check for possible root causes "
-            r"of this behavior either in DAG code or on Cloud DataFusion side",
+            r"of this behavior either in Dag code or on Cloud DataFusion side",
         ):
             hook.get_pipeline_workflow(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, pipeline_id=PIPELINE_ID

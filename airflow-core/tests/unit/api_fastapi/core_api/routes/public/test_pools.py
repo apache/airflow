@@ -196,6 +196,13 @@ class TestGetPools(TestPoolsEndpoint):
                 [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME],
             ),
             ({"pool_name_pattern": "default"}, 1, [Pool.DEFAULT_POOL_NAME]),
+            (
+                {"pool_name_prefix_pattern": "~"},
+                4,
+                [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME],
+            ),
+            ({"pool_name_prefix_pattern": "default"}, 1, [Pool.DEFAULT_POOL_NAME]),
+            ({"pool_name_prefix_pattern": "pool"}, 3, [POOL1_NAME, POOL2_NAME, POOL3_NAME]),
         ],
     )
     def test_should_respond_200(

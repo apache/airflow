@@ -487,6 +487,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
+        use_dns_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         enable_tcp_keepalive: bool = True,
@@ -495,6 +496,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
         self.enable_tcp_keepalive = enable_tcp_keepalive
+        self.use_dns_endpoint = use_dns_endpoint
         super().__init__(
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
@@ -513,6 +515,26 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
             if kube_client is not None:
                 await kube_client.close()
 
+    async def list_pods(
+        self,
+        namespace: str,
+        label_selector: str,
+    ) -> list:
+        """
+        List pods in the given namespace matching the label selector.
+
+        :param namespace: Kubernetes namespace.
+        :param label_selector: Label selector to filter pods (e.g. ``job-name=my-job``).
+        :return: List of V1Pod objects.
+        """
+        async with self.get_conn() as connection:
+            v1_api = async_client.CoreV1Api(connection)
+            response = await v1_api.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=label_selector,
+            )
+            return list(response.items) if response.items else []
+
     async def _load_config(self) -> async_client.ApiClient:
         configuration = self._get_config()
         token = await self.get_token()
@@ -526,11 +548,12 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
     def _get_config(self) -> async_client.configuration.Configuration:
         configuration = async_client.Configuration(
             host=self._cluster_url,
-            ssl_ca_cert=FileOrData(
+        )
+        if not self.use_dns_endpoint:
+            configuration.ssl_ca_cert = FileOrData(
                 {
                     "certificate-authority-data": self._ssl_ca_cert,
                 },
                 file_key_name="certificate-authority",
-            ).as_file(),
-        )
+            ).as_file()
         return configuration

@@ -44,6 +44,23 @@ Changelog
    mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
    please open an issue so support for a configurable CA path can be added.
 
+7.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Implement on_kill() trigger hook for Databricks triggers (#65672)``
+
+Doc-only
+~~~~~~~~
+
+* ``Cleanup databricks docs for 'DatabricksWorkflowTaskGroup' (#65135)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 7.12.1
 ......
 

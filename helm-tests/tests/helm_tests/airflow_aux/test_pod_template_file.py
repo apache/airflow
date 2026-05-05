@@ -48,7 +48,6 @@ class TestPodTemplateFile:
 
     def test_should_work(self):
         docs = render_chart(
-            values={},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -359,7 +358,6 @@ class TestPodTemplateFile:
 
     def test_mount_airflow_cfg(self):
         docs = render_chart(
-            values={},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1118,7 +1116,7 @@ class TestPodTemplateFile:
                 "scheduler": {"safeToEvict": True},
                 "triggerer": {"safeToEvict": True},
                 "executor": "KubernetesExecutor",
-                "dagProcessor": {"enabled": True, "safeToEvict": True},
+                "dagProcessor": {"safeToEvict": True},
             },
             show_only=[
                 "templates/dag-processor/dag-processor-deployment.yaml",
@@ -1468,7 +1466,6 @@ class TestPodTemplateFile:
 
     def test_empty_resources(self):
         docs = render_chart(
-            values={},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1792,17 +1789,14 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_kerberos_init_container_default_different_versions(self, airflow_version):
+    def test_kerberos_init_container_default_different_versions(self):
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -1810,10 +1804,9 @@ class TestPodTemplateFile:
             {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
         ],
     )
-    def test_kerberos_init_container_enable(self, airflow_version, workers_values):
+    def test_kerberos_init_container_enable(self, workers_values):
         docs = render_chart(
             values={
-                "airflowVersion": airflow_version,
                 "workers": workers_values,
             },
             show_only=["templates/pod-template-file.yaml"],
@@ -1891,34 +1884,21 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        ("airflow_version", "workers_values", "kerberos_init_container", "expected_config_name"),
+        ("workers_values", "kerberos_init_container", "expected_config_name"),
         [
-            (None, {"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
-            (None, {"kubernetes": {"kerberosSidecar": {"enabled": True}}}, False, "api-server-config"),
-            (None, {"kubernetes": {"kerberosInitContainer": {"enabled": True}}}, True, "api-server-config"),
-            (None, {"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),
-            ("2.11.0", {"kubernetes": {"kerberosSidecar": {"enabled": True}}}, False, "webserver-config"),
-            ("2.11.0", {"kerberosSidecar": {"enabled": True}}, False, "webserver-config"),
-            (
-                "2.11.0",
-                {"kubernetes": {"kerberosInitContainer": {"enabled": True}}},
-                True,
-                "webserver-config",
-            ),
-            ("2.11.0", {"kerberosInitContainer": {"enabled": True}}, True, "webserver-config"),
+            ({"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
+            ({"kubernetes": {"kerberosSidecar": {"enabled": True}}}, False, "api-server-config"),
+            ({"kubernetes": {"kerberosInitContainer": {"enabled": True}}}, True, "api-server-config"),
+            ({"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),
         ],
     )
-    def test_webserver_config_for_kerberos(
-        self, airflow_version, workers_values, kerberos_init_container, expected_config_name
+    def test_api_server_config_for_kerberos(
+        self, workers_values, kerberos_init_container, expected_config_name
     ):
         values = {
-            "airflowVersion": airflow_version,
             "workers": workers_values,
             "apiServer": {"apiServerConfigConfigMapName": "config"},
-            "webserver": {"webserverConfigConfigMapName": "config"},
         }
-        if airflow_version is None:
-            del values["airflowVersion"]
         docs = render_chart(
             values=values,
             show_only=["templates/pod-template-file.yaml"],

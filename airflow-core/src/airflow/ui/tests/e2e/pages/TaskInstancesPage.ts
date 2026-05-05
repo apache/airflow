@@ -38,7 +38,7 @@ export class TaskInstancesPage extends BasePage {
     await expect(async () => {
       await this.navigateTo(TaskInstancesPage.taskInstancesUrl);
       await this.page.waitForURL(/.*task_instances/, { timeout: 15_000 });
-      await expect(this.taskInstancesTable).toBeVisible({ timeout: 10_000 });
+      await expect(this.taskInstancesTable).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
 
     const dataLink = this.taskInstancesTable.getByRole("link").first();

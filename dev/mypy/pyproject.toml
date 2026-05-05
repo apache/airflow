@@ -61,7 +61,14 @@ Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [build-system]
-requires = ["hatchling==1.29.0"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.2",
+    "pathspec==1.1.1",
+    "pluggy==1.6.0",
+    "tomli==2.4.1; python_version < '3.11'",
+    "trove-classifiers==2026.4.28.13",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -119,4 +126,4 @@ name = "Misc"
 showcontent = true
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.11.8"

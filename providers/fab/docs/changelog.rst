@@ -20,6 +20,31 @@
 Changelog
 ---------
 
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLite migration 02ca36b0235b to use naming_convention for batch_alter_table (#65540)``
+* ``Invalidate cached user permissions after LDAP role sync to prevent intermittent 403 errors (#64539)``
+* ``Lazily initialize flask_app in FastAPI routes (#64908)``
+* ``Fix duplicate Date headers in Flask WSGI responses (#64726)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#65567)``
+* ``Bump stylelint (#65380)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#65234)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#65145)``
+* ``Bump eslint (#65681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
 3.6.1
 .....
 

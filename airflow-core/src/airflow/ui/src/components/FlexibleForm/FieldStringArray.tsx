@@ -45,7 +45,6 @@ export const FieldStringArray = ({ name, namespace = "default", onUpdate }: Flex
     if (Array.isArray(currentValue) && currentValue.length === 1 && currentValue[0] === "") {
       if (paramsDict[name]) {
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
         paramsDict[name].value = null;
       }
 

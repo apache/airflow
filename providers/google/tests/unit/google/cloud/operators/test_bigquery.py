@@ -1890,6 +1890,7 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": None,
         }
+        mock_hook.return_value.labels = {"airflow-env": "test-env-2"}
         mock_hook.return_value.insert_job.return_value = MagicMock(
             state="DONE", job_id=real_job_id, error_result=False
         )
@@ -1904,6 +1905,57 @@ class TestBigQueryInsertJobOperator:
         )
         op.execute(context=MagicMock())
         assert configuration["labels"] is None
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_inherits_labels_from_connection(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        mock_hook.return_value.labels = {"airflow-env": "test-env-2"}
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op.execute(context=MagicMock())
+
+        assert configuration["labels"]["airflow-env"] == "test-env-2"
+        assert configuration["labels"]["airflow-task"] == "insert_query_job"
+
+    def test_add_job_labels_merges_connection_labels(self):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": {"manual-label": "manual-value"},
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        op._add_job_labels(hook=MagicMock(labels={"airflow-env": "test-env-2"}))
+
+        assert configuration["labels"]["airflow-env"] == "test-env-2"
+        assert configuration["labels"]["manual-label"] == "manual-value"
+        assert configuration["labels"]["airflow-task"] == "insert_query_job"
 
     def test_task_label_too_big(self):
         configuration = {

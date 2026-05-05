@@ -308,6 +308,10 @@ def get_provider_info():
                 "integration-name": "Microsoft Azure Service Bus",
                 "python-modules": ["airflow.providers.microsoft.azure.triggers.message_bus"],
             },
+            {
+                "integration-name": "Microsoft Azure Synapse",
+                "python-modules": ["airflow.providers.microsoft.azure.triggers.synapse"],
+            },
         ],
         "queues": ["airflow.providers.microsoft.azure.queues.asb.AzureServiceBusMessageQueueProvider"],
         "transfers": [
