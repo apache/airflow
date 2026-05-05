@@ -396,7 +396,7 @@ class AssetManager(LoggingMixin):
         try:
             get_listener_manager().hook.on_asset_created(asset=asset)
         except Exception:
-            log.exception("error calling listener for hook %r", "on_asset_created")
+            log.exception("error calling listener", hook="on_asset_created")
 
     @staticmethod
     def notify_asset_alias_created(asset_assets: SerializedAssetAlias):
@@ -404,7 +404,7 @@ class AssetManager(LoggingMixin):
         try:
             get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
         except Exception:
-            log.exception("error calling listener for hook %r", "on_asset_alias_created")
+            log.exception("error calling listener", hook="on_asset_alias_created")
 
     @staticmethod
     def notify_asset_changed(asset: SerializedAsset) -> None:
@@ -412,7 +412,7 @@ class AssetManager(LoggingMixin):
         try:
             get_listener_manager().hook.on_asset_changed(asset=asset)
         except Exception:
-            log.exception("error calling listener for hook %r", "on_asset_changed")
+            log.exception("error calling listener", hook="on_asset_changed")
 
     @staticmethod
     def nofity_asset_event_emitted(asset_event: ListenerAssetEvent) -> None:
@@ -420,7 +420,7 @@ class AssetManager(LoggingMixin):
         try:
             get_listener_manager().hook.on_asset_event_emitted(asset_event=asset_event)
         except Exception:
-            log.exception("error calling listener for hook %r", "on_asset_event_emitted")
+            log.exception("error calling listener", hook="on_asset_event_emitted")
 
     @classmethod
     def _queue_dagruns(

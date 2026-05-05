@@ -147,7 +147,7 @@ class Job(Base, LoggingMixin):
         try:
             get_listener_manager().hook.on_starting(component=self)
         except Exception:
-            self.log.exception("error calling listener for hook %r", "on_starting")
+            self.log.exception("error calling listener", hook="on_starting")
         super().__init__(**kwargs)
 
     @cached_property
@@ -280,7 +280,7 @@ class Job(Base, LoggingMixin):
         try:
             get_listener_manager().hook.before_stopping(component=self)
         except Exception:
-            self.log.exception("error calling listener for hook %r", "before_stopping")
+            self.log.exception("error calling listener", hook="before_stopping")
         self.end_date = timezone.utcnow()
         session.merge(self)
         session.commit()
