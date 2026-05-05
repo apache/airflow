@@ -58,6 +58,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class TaskInstanceHistory(Base):
@@ -116,6 +117,12 @@ class TaskInstanceHistory(Base):
 
     task_display_name: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     dag_version_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+
+    # Retry policy snapshot: copied from TaskInstance on record_ti() so the
+    # audit trail of "why did the policy decide N seconds, reason X" is
+    # preserved per try (TI columns are cleared on the next ti_run).
+    retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     dag_version = relationship(
         "DagVersion",
@@ -178,6 +185,13 @@ class TaskInstanceHistory(Base):
     def id(self) -> UUID:
         """Alias for primary key field to support TaskInstance."""
         return self.task_instance_id
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        """Returns a key that identifies this history record, mirroring TaskInstance.key."""
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @staticmethod
     @provide_session

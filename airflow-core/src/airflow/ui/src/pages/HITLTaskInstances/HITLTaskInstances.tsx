@@ -31,6 +31,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -189,13 +190,26 @@ export const HITLTaskInstances = () => {
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
+  const dagIdArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_DISPLAY_NAME_PATTERN,
+    value: dagIdPattern,
+  });
+  const taskIdArg = useAdvancedSearchArg({
+    patternApiKey: "taskIdPattern",
+    prefixApiKey: "taskIdPrefixPattern",
+    storageKey: TASK_ID_PATTERN,
+    value: taskIdPattern,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       bodySearch,
       createdAtGte,
       createdAtLte,
       dagId: dagId ?? "~",
-      dagIdPrefixPattern: dagIdPattern,
+      ...dagIdArg,
       dagRunId: runId ?? "~",
       limit: pagination.pageSize,
       mapIndex: parseInt(mapIndex, 10),
@@ -209,7 +223,7 @@ export const HITLTaskInstances = () => {
       state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
       subjectSearch,
       taskId,
-      taskIdPrefixPattern: taskIdPattern,
+      ...taskIdArg,
     },
     undefined,
     {

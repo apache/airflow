@@ -64,6 +64,20 @@ def get_provider_info():
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
             }
         ],
+        "config": {
+            "common.ai": {
+                "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
+                "options": {
+                    "durable_cache_path": {
+                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True``. Each task\nexecution writes a single JSON file under this path containing its\ncached model responses and tool results, so that on retry the agent\ncan replay completed steps instead of re-issuing LLM calls and tool\ninvocations. The file is deleted on successful task completion.\n\nRequired when ``durable=True`` is used. Any scheme supported by\n``airflow.sdk.ObjectStoragePath`` is accepted (``file://``, ``s3://``,\n``gs://``, ``azure://``, ...).\n",
+                        "version_added": "0.1.0",
+                        "type": "string",
+                        "example": "file:///tmp/airflow_durable_cache",
+                        "default": "",
+                    }
+                },
+            }
+        },
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",

@@ -403,6 +403,64 @@ class TestEmrServerlessStartJobTrigger:
 
         mock_hook.conn.cancel_job_run.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_on_kill_cancels_job(self):
+        """Test that on_kill() cancels the EMR Serverless job via the hook."""
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.conn.cancel_job_run.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.conn.cancel_job_run.assert_called_once_with(applicationId="test_app", jobRunId="test_job")
+
+    @pytest.mark.asyncio
+    async def test_on_kill_skips_when_cancel_disabled(self):
+        """Test that on_kill() does nothing when cancel_on_kill=False."""
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=False,
+        )
+
+        mock_hook = mock.MagicMock()
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.conn.cancel_job_run.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_on_kill_skips_when_no_job_id(self):
+        """Test that on_kill() does nothing when job_id is None."""
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id=None,
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+            cancel_on_kill=True,
+        )
+
+        mock_hook = mock.MagicMock()
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.conn.cancel_job_run.assert_not_called()
+
 
 class TestEmrServerlessDeleteApplicationTrigger:
     def test_serialization(self):

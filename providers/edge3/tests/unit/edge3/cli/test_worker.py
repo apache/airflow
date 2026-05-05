@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import importlib
 import json
+import logging
+import multiprocessing
 import signal
 from datetime import datetime
 from io import StringIO
@@ -78,9 +81,22 @@ MOCK_COMMAND = {
 }
 
 
+def _emit_large_exception_target(results_queue):
+    """Worker-process target used by ``test_fetch_and_run_job_possible_deadlock``.
+
+    Pushes a >64 KB pickled exception to ``results_queue``. On Linux the OS pipe
+    backing ``multiprocessing.Queue`` only has ~64 KB of buffer, so the queue's
+    feeder thread blocks on ``send_bytes`` and the subprocess can't terminate
+    until the parent reads from the queue — exactly the production deadlock
+    condition that #66144 fixed.
+    """
+    results_queue.put(Exception(f"Task execution failed with large error message {'-' * 66000}"))
+
+
 class _MockProcess(Process):
     def __init__(self, returncode=None):
         self.generated_returncode = None
+        self._is_alive = False
 
     def poll(self):
         pass
@@ -88,6 +104,18 @@ class _MockProcess(Process):
     @property
     def returncode(self):
         return self.generated_returncode
+
+    def is_alive(self):
+        return self._is_alive
+
+    def terminate(self):
+        self._is_alive = False
+
+    def kill(self):
+        self._is_alive = False
+
+    def join(self, timeout=None):
+        pass
 
 
 class TestEdgeWorker:
@@ -219,7 +247,7 @@ class TestEdgeWorker:
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
-        q.put.assert_not_called()
+        q.put.assert_called_once()
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
@@ -295,6 +323,72 @@ class TestEdgeWorker:
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_possible_deadlock(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        worker_with_job: EdgeWorker,
+    ):
+        """Verify that a large exception from the subprocess does not deadlock fetch_and_run_job.
+
+        Uses an explicit ``fork`` context to spawn the simulated worker subprocess. Python 3.14
+        flipped the POSIX default ``multiprocessing`` start method to ``forkserver``, which
+        spawns a fresh interpreter for the child — patches applied in the test process do not
+        propagate, so older variants of this test that mocked ``supervise`` no longer triggered
+        the deadlock condition. Forking a small top-level target sidesteps that and reproduces
+        the actual queue-feeder/pipe-buffer deadlock the fix targets.
+        """
+        mock_jobs_fetch.side_effect = [
+            EdgeJobFetched(
+                dag_id="test",
+                task_id="test",
+                run_id="test",
+                map_index=-1,
+                try_number=1,
+                concurrency_slots=1,
+                command=MOCK_COMMAND,  # type: ignore[arg-type]
+            ),
+            None,
+        ]
+        worker_with_job.concurrency = 1  # only one job at a time
+        assert worker_with_job.free_concurrency == 0
+
+        ctx = multiprocessing.get_context("fork")
+        results_queue = ctx.Queue()
+        process = ctx.Process(target=_emit_large_exception_target, args=(results_queue,))
+
+        with patch.object(EdgeWorker, "_launch_job", return_value=(process, results_queue)):
+            process.start()
+            try:
+                await asyncio.wait_for(worker_with_job.fetch_and_run_job(), timeout=10.0)
+            except asyncio.TimeoutError:
+                # Clean up any hanging subprocess to prevent blocking pytest
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=1.0)
+                    if process.is_alive():
+                        process.kill()
+                        process.join()
+                pytest.fail("fetch_and_run_job timed out after 10s - DEADLOCK DETECTED. ")
+            finally:
+                if process.is_alive():
+                    process.join(timeout=1.0)
+                    if process.is_alive():
+                        process.terminate()
+                        process.join(timeout=1.0)
+
+        # If we reach here without timeout, the deadlock was not triggered
+        assert mock_jobs_set_state.call_count >= 1
+        mock_push_log_chunks.assert_called()
+        assert len(worker_with_job.jobs) <= 1  # new job removed, original fixture job still there
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
@@ -579,6 +673,73 @@ class TestEdgeWorker:
         mock_loop.assert_called_once()
         assert mock_set_state.call_count == 1
 
+    @pytest.mark.parametrize(
+        ("automatic_maintenance_on", "sysinfo_status", "expected_maintenance_mode"),
+        [
+            pytest.param("Warning", logging.INFO, False, id="Warning 20"),
+            pytest.param("Warning", logging.WARNING, True, id="Warning 30"),
+            pytest.param("Warning", logging.ERROR, True, id="Warning 40"),
+            pytest.param("Error", logging.INFO, False, id="Error 20"),
+            pytest.param("Error", logging.WARNING, False, id="Error 30"),
+            pytest.param("Error", logging.ERROR, True, id="Error 40"),
+            pytest.param("Gargelfu", logging.ERROR, False, id="Gargelfu 40"),
+            pytest.param("Off", logging.ERROR, False, id="Off 40"),
+            pytest.param(None, logging.ERROR, False, id="None 40"),
+        ],
+    )
+    def test_adjust_maintenance_mode_based_on_sysinfo_on(
+        self,
+        automatic_maintenance_on: str,
+        sysinfo_status: int,
+        expected_maintenance_mode: bool,
+        worker_with_job: EdgeWorker,
+    ):
+        worker_with_job.maintenance_mode = False
+        worker_with_job.automatic_maintenance_on = (automatic_maintenance_on or "off").lower()
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
+        assert worker_with_job.maintenance_mode is expected_maintenance_mode
+
+    @pytest.mark.parametrize(
+        ("automatic_maintenance_exit", "sysinfo_status", "expected_maintenance_mode"),
+        [
+            pytest.param("Info", logging.INFO, False, id="Info 20"),
+            pytest.param("Info", logging.WARNING, True, id="Info 30"),
+            pytest.param("Info", logging.ERROR, True, id="Info 40"),
+            pytest.param("Warning", logging.INFO, False, id="Warning 20"),
+            pytest.param("Warning", logging.WARNING, False, id="Warning 30"),
+            pytest.param("Warning", logging.ERROR, True, id="Warning 40"),
+            pytest.param("Gargelfu", logging.ERROR, True, id="Gargelfu 40"),
+            pytest.param("Off", logging.ERROR, True, id="Off 40"),
+            pytest.param(None, logging.ERROR, True, id="None 40"),
+        ],
+    )
+    def test_adjust_maintenance_mode_based_on_sysinfo_exit(
+        self,
+        automatic_maintenance_exit: str,
+        sysinfo_status: int,
+        expected_maintenance_mode: bool,
+        worker_with_job: EdgeWorker,
+    ):
+        # Set initial error status
+        worker_with_job.automatic_maintenance_on = "warning"
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.ERROR})
+        assert worker_with_job.maintenance_mode is True
+
+        worker_with_job.automatic_maintenance_exit = (automatic_maintenance_exit or "off").lower()
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": sysinfo_status})
+        assert worker_with_job.maintenance_mode is expected_maintenance_mode
+
+    def test_adjust_maintenance_mode_based_on_sysinfo_no_exit(self, worker_with_job: EdgeWorker):
+        """Ensure maintenance is not automatically exited if made manually on, even if sysinfo status improves."""
+        # Set initial error status
+        worker_with_job.automatic_maintenance_exit = "warning"
+        worker_with_job.maintenance_mode = True  # simulate manual maintenance mode activation
+        worker_with_job.maintenance_comments = "Manually set for testing"
+
+        worker_with_job._adjust_maintenance_mode_based_on_sysinfo({"status": logging.INFO})
+        assert worker_with_job.maintenance_mode is True
+        assert worker_with_job.maintenance_comments == "Manually set for testing"
+
     @pytest.mark.asyncio
     async def test_get_sysinfo(self, worker_with_job: EdgeWorker):
         concurrency = 8
@@ -590,9 +751,22 @@ class TestEdgeWorker:
         assert "concurrency" in sysinfo
         assert "worker_start_time" in sysinfo
         assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
-        assert "status" in sysinfo
+        assert sysinfo["status"] == logging.INFO
         assert "status_text" not in sysinfo  # is only defined if extended sysinfo provides this field
         assert sysinfo["concurrency"] == concurrency
+
+    @pytest.mark.asyncio
+    async def test_get_sysinfo_version_mismatch(self, worker_with_job: EdgeWorker):
+        worker_with_job.versions_match = False  # Simulate version mismatch to verify sysinfo
+        sysinfo = await worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "python_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert "worker_start_time" in sysinfo
+        assert sysinfo["worker_start_time"] == worker_with_job.worker_start_time
+        assert sysinfo["status"] == logging.WARNING
+        assert "status_text" in sysinfo
 
     @pytest.mark.asyncio
     async def test_get_sysinfo_extended(self, worker_with_job_and_sysinfo: EdgeWorker):

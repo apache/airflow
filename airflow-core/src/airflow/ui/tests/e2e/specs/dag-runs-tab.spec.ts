@@ -18,10 +18,10 @@
  */
 import { expect, test } from "tests/e2e/fixtures";
 
-test.describe("DAG Runs Tab", () => {
+test.describe("Dag Runs Tab", () => {
   test.setTimeout(60_000);
 
-  test("navigate to DAG detail page and click Runs tab", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+  test("navigate to Dag detail page and click Runs tab", async ({ dagRunsTabPage, successAndFailedRuns }) => {
     await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
 

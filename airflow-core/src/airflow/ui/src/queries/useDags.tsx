@@ -25,6 +25,7 @@ export type DagWithLatest = {
 } & DAGWithLatestDagRunsResponse;
 
 export const useDags = ({
+  advancedSearch = false,
   dagDisplayNamePattern,
   dagIdPattern,
   dagRunsLimit,
@@ -40,6 +41,7 @@ export const useDags = ({
   tags,
   tagsMatchMode,
 }: {
+  advancedSearch?: boolean;
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
   dagRunsLimit: number;
@@ -59,8 +61,9 @@ export const useDags = ({
 
   const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
     {
-      dagDisplayNamePrefixPattern: dagDisplayNamePattern,
-      dagIdPrefixPattern: dagIdPattern,
+      ...(advancedSearch
+        ? { dagDisplayNamePattern, dagIdPattern }
+        : { dagDisplayNamePrefixPattern: dagDisplayNamePattern, dagIdPrefixPattern: dagIdPattern }),
       dagRunsLimit,
       excludeStale,
       hasPendingActions: pendingHitl,

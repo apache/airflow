@@ -230,6 +230,11 @@ Parameters
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
+  agent run (initial run, durable replay, and HITL regeneration). Use it to
+  cap requests, tokens, or tool calls per task -- agents are particularly
+  prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
+  See :ref:`howto/operator:llm` for an example. Default ``None``.
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results via ObjectStorage. On retry, cached steps are replayed instead of
   re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``

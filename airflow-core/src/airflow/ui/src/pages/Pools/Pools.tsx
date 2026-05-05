@@ -32,6 +32,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { Select } from "src/components/ui";
 import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBarCard from "./PoolBarCard";
@@ -55,6 +56,7 @@ export const Pools = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const advancedSearch = useAdvancedSearch("pools");
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -65,7 +67,9 @@ export const Pools = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    poolNamePrefixPattern: poolNamePattern ?? undefined,
+    ...(advancedSearch.enabled
+      ? { poolNamePattern: poolNamePattern ?? undefined }
+      : { poolNamePrefixPattern: poolNamePattern ?? undefined }),
   });
 
   const handleSearchChange = (value: string) => {
@@ -94,6 +98,7 @@ export const Pools = () => {
     <>
       <ErrorAlert error={error} />
       <SearchBar
+        advancedSearch={advancedSearch}
         defaultValue={poolNamePattern ?? ""}
         onChange={handleSearchChange}
         placeholder={translate("pools.searchPlaceholder")}
