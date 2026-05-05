@@ -463,8 +463,12 @@ class TestBackfillOperations:
     )
 
     def test_create(self):
+        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/backfills"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -472,8 +476,12 @@ class TestBackfillOperations:
         assert response == self.backfill_response
 
     def test_create_dry_run(self):
+        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/backfills/dry_run"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -1138,6 +1146,20 @@ class TestDagRunOperations:
             dag_id=dag_id_input,
         )
         assert response == self.dag_run_collection_response
+
+    def test_list_without_state_does_not_send_state_param(self):
+        """`state` is optional: omitting it must not send ``state=None`` to the API."""
+        captured_params: dict[str, str] = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            captured_params.update(dict(request.url.params))
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(limit=5)
+        assert response == self.dag_run_collection_response
+        assert "state" not in captured_params
+        assert captured_params["limit"] == "5"
 
 
 class TestJobsOperations:

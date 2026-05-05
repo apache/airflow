@@ -66,7 +66,8 @@ dependencies = [
     # Install and compile, and it's really only used by MySQL provider, so we can skip it on MacOS
     # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
     'mysqlclient>=2.2.5; sys_platform != "darwin"',
-    'mysql-connector-python>=9.1.0',
+    'mysql-connector-python>=9.1.0; python_version < "3.12"',
+    'mysql-connector-python>=9.1.0, !=9.7.0; python_version >= "3.12"',
     "aiomysql>=0.2.0",
 ]
 
@@ -146,3 +147,14 @@ provider_info = "airflow.providers.mysql.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.mysql"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "tests/",
+]

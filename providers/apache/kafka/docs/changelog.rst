@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.13.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add cleanup to Kafka AwaitMessageTrigger for consumer management (#64612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 1.13.2
 ......
 

@@ -821,7 +821,12 @@ def main():
     parser.add_argument(
         "--provider",
         default=None,
-        help="Only process this provider ID (e.g. 'amazon'). Skips modules.json write.",
+        help=(
+            "Only process these provider ID(s) (space-separated, e.g. 'amazon google'). "
+            "Writes a partial modules.json containing only the requested providers; "
+            "merge_registry_data.py replaces those providers' entries in the global catalog "
+            "while preserving everyone else."
+        ),
     )
     parser.add_argument(
         "--providers-json",
@@ -845,21 +850,38 @@ def main():
         provider_versions[p["id"]] = p["version"]
 
     generated_at = datetime.now(timezone.utc).isoformat()
-    _main_discover(provider_versions, generated_at, only_provider=args.provider)
+    _main_discover(
+        provider_versions,
+        generated_at,
+        requested_providers=_parse_requested_providers(args.provider),
+    )
 
     print("\nDone!")
+
+
+def _parse_requested_providers(provider_arg: str | None) -> set[str] | None:
+    """Parse --provider argument into a set of provider IDs.
+
+    Accepts a space-separated string (matching extract_metadata.py and
+    extract_connections.py). Returns None when the argument is empty so
+    callers can distinguish "all providers" from "explicit empty set".
+    """
+    if not provider_arg:
+        return None
+    return {pid.strip() for pid in provider_arg.split() if pid.strip()}
 
 
 def _main_discover(
     provider_versions: dict[str, str],
     generated_at: str,
-    only_provider: str | None = None,
+    requested_providers: set[str] | None = None,
 ) -> None:
     """Runtime discovery: find classes from provider.yaml files, produce modules.json and parameters.
 
-    When only_provider is set, only that provider is scanned and modules.json is NOT written
-    (it would be incomplete). This enables parallel backfills since the only output is
-    the per-provider parameters.json file.
+    When ``requested_providers`` is set, only those providers are scanned and the resulting
+    modules.json is partial (covers only the requested providers). ``merge_registry_data.py``
+    handles incremental merges by replacing entries for provider IDs present in the new
+    modules.json while preserving all others, so partial output is safe.
     """
     provider_yaml_paths = sorted(PROVIDERS_DIR.rglob("provider.yaml"))
     print(f"Found {len(provider_yaml_paths)} provider.yaml files")
@@ -878,14 +900,15 @@ def _main_discover(
             provider_yamls_by_id[pid] = py
             provider_paths_by_id[pid] = yaml_path
 
-    # Filter to single provider if requested
-    if only_provider:
-        if only_provider not in provider_paths_by_id:
-            print(f"ERROR: provider '{only_provider}' not found in provider.yaml files")
+    # Filter to requested provider(s) if specified
+    if requested_providers:
+        missing = requested_providers - set(provider_paths_by_id)
+        if missing:
+            print(f"ERROR: provider(s) not found in provider.yaml files: {sorted(missing)}")
             sys.exit(1)
-        provider_paths_by_id = {only_provider: provider_paths_by_id[only_provider]}
-        provider_yamls_by_id = {only_provider: provider_yamls_by_id[only_provider]}
-        print(f"Filtering to provider: {only_provider}")
+        provider_paths_by_id = {pid: provider_paths_by_id[pid] for pid in requested_providers}
+        provider_yamls_by_id = {pid: provider_yamls_by_id[pid] for pid in requested_providers}
+        print(f"Filtering to provider(s): {', '.join(sorted(requested_providers))}")
 
     # Fetch Sphinx inventories in parallel
     print("Fetching Sphinx inventory files ...")
@@ -920,21 +943,26 @@ def _main_discover(
     all_discovered = unique_modules
     print(f"Deduplicated to {len(all_discovered)} unique modules")
 
-    # Write modules.json only when doing a full build (no --provider filter).
-    # With --provider, the output would be incomplete and would clobber the
-    # full modules.json from a previous build.
-    if not only_provider:
-        modules_json = validate_modules_catalog({"modules": all_discovered})
-        output_dirs = [SCRIPT_DIR, AIRFLOW_ROOT / "registry" / "src" / "_data"]
-        for out_dir in output_dirs:
-            if not out_dir.parent.exists():
-                continue
-            out_dir.mkdir(parents=True, exist_ok=True)
-            with open(out_dir / "modules.json", "w") as f:
-                json.dump(modules_json, f, indent=2)
-            print(f"Wrote {len(all_discovered)} modules to {out_dir / 'modules.json'}")
+    # Write modules.json. In --provider mode this is partial (covers only the
+    # requested providers); merge_registry_data.py drives module replacement
+    # off the provider IDs present in this file, so non-requested providers'
+    # entries are preserved untouched in the global catalog.
+    modules_json = validate_modules_catalog({"modules": all_discovered})
+    scope_label = (
+        f"partial, providers: {', '.join(sorted(requested_providers))}" if requested_providers else "full"
+    )
+    output_dirs = [SCRIPT_DIR, AIRFLOW_ROOT / "registry" / "src" / "_data"]
+    for out_dir in output_dirs:
+        if not out_dir.parent.exists():
+            continue
+        out_dir.mkdir(parents=True, exist_ok=True)
+        with open(out_dir / "modules.json", "w") as f:
+            json.dump(modules_json, f, indent=2)
+        print(f"Wrote {len(all_discovered)} modules ({scope_label}) to {out_dir / 'modules.json'}")
 
-        # Write runtime_modules.json (debug/stats file)
+    # Write runtime_modules.json (debug/stats file). Only meaningful for full
+    # builds; skip in --provider mode since it would only show partial stats.
+    if not requested_providers:
         runtime_output = {
             "generated_at": generated_at,
             "discovery_method": "runtime",
@@ -948,8 +976,6 @@ def _main_discover(
         with open(runtime_json_path, "w") as f:
             json.dump(runtime_output, f, indent=2)
         print(f"Wrote {runtime_json_path}")
-    else:
-        print("Skipping modules.json write (--provider mode)")
 
     # Extract parameters
     print("\nExtracting parameters from runtime-discovered classes...")

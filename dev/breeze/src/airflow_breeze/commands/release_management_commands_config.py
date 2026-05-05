@@ -69,6 +69,13 @@ RELEASE_AIRFLOW_CTL_COMMANDS: dict[str, str | list[str]] = {
     ],
 }
 
+RELEASE_MYPY_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Apache Airflow Mypy release commands",
+    "commands": [
+        "prepare-mypy-distributions",
+    ],
+}
+
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
     "commands": [
@@ -111,6 +118,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze release-management prepare-airflow-ctl-distributions": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--distribution-format",
+                "--version-suffix",
+                "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management prepare-mypy-distributions": [
         {
             "name": "Package flags",
             "options": [

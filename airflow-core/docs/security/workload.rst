@@ -67,7 +67,7 @@ Worker process memory protection (Linux)
 ''''''''''''''''''''''''''''''''''''''''
 
 On Linux, the supervisor process calls ``prctl(PR_SET_DUMPABLE, 0)`` at the start of
-``supervise()`` before forking the task process. This flag is inherited by the forked
+``supervise_task()`` before forking the task process. This flag is inherited by the forked
 child. Marking processes as non-dumpable prevents same-UID sibling processes from reading
 ``/proc/<pid>/mem``, ``/proc/<pid>/environ``, or ``/proc/<pid>/maps``, and blocks
 ``ptrace(PTRACE_ATTACH)``. This is critical because each supervisor holds a distinct JWT

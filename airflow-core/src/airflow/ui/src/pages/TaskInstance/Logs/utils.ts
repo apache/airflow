@@ -20,7 +20,11 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import type { TFunction } from "i18next";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { parseStreamingLogContent } from "src/utils/logs";
 
 type GetDownloadTextOptions = {
@@ -46,8 +50,9 @@ export const getDownloadText = ({
   translate,
 }: GetDownloadTextOptions): Array<string> => {
   const lines = parseStreamingLogContent(fetchedData);
+  const tiContext = extractTIContext(lines);
 
-  return lines.map((line) =>
+  const rendered = lines.map((line) =>
     renderStructuredLog({
       index: 0,
       logLevelFilters,
@@ -60,6 +65,22 @@ export const getDownloadText = ({
       translate,
     }),
   );
+
+  if (tiContext !== undefined) {
+    const firstEndGroup = lines.findIndex((line) => {
+      const text = typeof line === "string" ? line : line.event;
+
+      return text.includes("::endgroup::");
+    });
+
+    rendered.splice(
+      firstEndGroup === -1 ? 0 : firstEndGroup + 1,
+      0,
+      renderTIContextPreamble(tiContext, "text", "Task Identity") as string,
+    );
+  }
+
+  return rendered;
 };
 
 export type HighlightOptions = {

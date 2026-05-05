@@ -55,13 +55,6 @@ PARAMS = [
         ),
     ),
     (
-        ("Deployment", f"{RELEASE_NAME}-webserver"),
-        (
-            "spec.template.spec.initContainers[0]",
-            "spec.template.spec.containers[0]",
-        ),
-    ),
-    (
         ("StatefulSet", f"{RELEASE_NAME}-triggerer"),
         (
             "spec.template.spec.initContainers[0]",
@@ -85,7 +78,6 @@ class TestExtraEnvEnvFrom:
     def setup_class(cls) -> None:
         values_str = textwrap.dedent(
             """
-            airflowVersion: "2.11.0"
             databaseCleanup:
               enabled: true
               applyCustomEnv: true

@@ -35,6 +35,24 @@ appear as a dictionary key in the task-log output when log-hits did not
 carry a ``host`` field. The OpenSearch client is still connected using
 the full URL, so authentication is unaffected.
 
+1.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Strip userinfo from OpenSearch host URL before using it as task-log label (#65509)``
+* ``Fix opensearch provider to use SDK imports for Airflow 3.2+ (#65076)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document OpenSearch logging override needed on Airflow 3.0.0 – 3.2.0 (#65209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 1.9.0
 .....
 

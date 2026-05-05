@@ -91,6 +91,37 @@ class TestFileTaskHandlerLogServer:
         assert "secret_key" in sources[0]
         assert streams == []
 
+    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch.object(FileTaskHandler, "_get_log_retrieval_url")
+    def test_read_from_logs_server_no_hostname(self, mock_get_url, mock_fetch):
+        """When hostname is missing, show a clear message instead of attempting log server fetch."""
+        mock_get_url.return_value = (None, None)
+
+        sources, streams = self.handler._read_from_logs_server(self.ti, "dag/run/task/1.log")
+
+        assert len(sources) == 1
+        assert "Hostname not available" in sources[0]
+        assert "worker" in sources[0]
+        assert streams == []
+        mock_fetch.assert_not_called()
+
+    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch.object(FileTaskHandler, "_get_log_retrieval_url")
+    def test_read_from_logs_server_no_hostname_triggerer(self, mock_get_url, mock_fetch):
+        """When hostname is missing for triggerer, show a clear message instead of attempting log server fetch."""
+        mock_get_url.return_value = (None, None)
+        self.ti.triggerer_job = MagicMock()
+        self.ti.triggerer_job.hostname = None
+        self.ti.triggerer_job.id = 123
+
+        sources, streams = self.handler._read_from_logs_server(self.ti, "dag/run/task/1.log")
+
+        assert len(sources) == 1
+        assert "Hostname not available" in sources[0]
+        assert "trigger" in sources[0]
+        assert streams == []
+        mock_fetch.assert_not_called()
+
 
 class TestFileTaskHandlerReadFromLocal:
     """Tests for ``FileTaskHandler._read_from_local`` path containment."""

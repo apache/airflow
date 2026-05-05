@@ -31,15 +31,12 @@ class TestScheduler:
             # Test workers.celery.persistence.enabled flag
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
-            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
             (
                 "CeleryExecutor,KubernetesExecutor",
                 {"celery": {"persistence": {"enabled": True}}},
                 "Deployment",
             ),
             ("KubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
-            ("LocalKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ("LocalKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             ("LocalExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             (
                 "LocalExecutor,KubernetesExecutor",
@@ -50,11 +47,8 @@ class TestScheduler:
             # Test workers.persistence.enabled flag when celery one is default
             ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
             ("CeleryExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
             ("KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("LocalKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("LocalKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             ("LocalExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             ("LocalExecutor", {"persistence": {"enabled": False}}, "Deployment"),
@@ -530,10 +524,8 @@ class TestScheduler:
             "wow such test",
         ]
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_livenessprobe_command(self, airflow_version):
+    def test_livenessprobe_command(self):
         docs = render_chart(
-            values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert (
@@ -541,10 +533,8 @@ class TestScheduler:
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_startupprobe_command_depends_on_airflow_version(self, airflow_version):
+    def test_startupprobe_command_depends_on_airflow_version(self):
         docs = render_chart(
-            values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert (
@@ -698,14 +688,7 @@ class TestScheduler:
         [
             ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
-            ("LocalKubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("LocalExecutor,KubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
-            (
-                "LocalKubernetesExecutor",
-                True,
-                {"rollingUpdate": {"partition": 0}},
-                {"rollingUpdate": {"partition": 0}},
-            ),
             (
                 "LocalExecutor,KubernetesExecutor",
                 True,
@@ -739,8 +722,6 @@ class TestScheduler:
             ("LocalExecutor", False, None, None),
             ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
             ("LocalExecutor", True, {"type": "Recreate"}, None),
-            ("LocalKubernetesExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
-            ("LocalKubernetesExecutor", True, {"type": "Recreate"}, None),
             ("CeleryExecutor", True, None, None),
             ("CeleryExecutor", False, None, None),
             ("CeleryExecutor", True, {"type": "Recreate"}, {"type": "Recreate"}),
@@ -796,51 +777,15 @@ class TestScheduler:
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
     @pytest.mark.parametrize(
-        "dags_values",
+        ("executor", "skip_dags_mount"),
         [
-            {"gitSync": {"enabled": True}},
-            {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
-        ],
-    )
-    def test_dags_gitsync_sidecar_and_init_container_with_airflow_2(self, dags_values):
-        docs = render_chart(
-            values={"dags": dags_values, "airflowVersion": "2.11.0"},
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
-        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
-        assert "git-sync-init" in [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
-        ]
-
-    @pytest.mark.parametrize(
-        ("airflow_version", "dag_processor", "executor", "skip_dags_mount"),
-        [
-            # standalone dag_processor is optional on 2.10, so we can skip dags for non-local if its on
-            ("2.11.0", True, "LocalExecutor", False),
-            ("2.11.0", True, "CeleryExecutor", True),
-            ("2.11.0", True, "KubernetesExecutor", True),
-            ("2.11.0", True, "LocalKubernetesExecutor", False),
-            # but if standalone dag_processor is off, we must always have dags
-            ("2.11.0", False, "LocalExecutor", False),
-            ("2.11.0", False, "CeleryExecutor", False),
-            ("2.11.0", False, "KubernetesExecutor", False),
-            ("2.11.0", False, "LocalKubernetesExecutor", False),
-            # by default, we don't have a standalone dag_processor
-            ("2.11.0", None, "LocalExecutor", False),
-            ("2.11.0", None, "CeleryExecutor", False),
-            ("2.11.0", None, "KubernetesExecutor", False),
-            ("2.11.0", None, "LocalKubernetesExecutor", False),
             # but in airflow 3, standalone dag_processor required, so we again can skip dags for non-local
-            ("3.0.0", None, "LocalExecutor", False),
-            ("3.0.0", None, "CeleryExecutor", True),
-            ("3.0.0", None, "KubernetesExecutor", True),
-            ("3.0.0", None, "LocalKubernetesExecutor", False),
+            ("LocalExecutor", False),
+            ("CeleryExecutor", True),
+            ("KubernetesExecutor", True),
         ],
     )
-    def test_dags_mount_and_gitsync_expected_with_dag_processor(
-        self, airflow_version, dag_processor, executor, skip_dags_mount
-    ):
+    def test_dags_mount_and_gitsync_expected_with_dag_processor(self, executor, skip_dags_mount):
         """
         DAG Processor can move gitsync and DAGs mount from the scheduler to the DAG Processor only.
 
@@ -848,13 +793,10 @@ class TestScheduler:
         In these cases, the scheduler does the worker role and needs access to DAGs anyway.
         """
         values = {
-            "airflowVersion": airflow_version,
             "executor": executor,
             "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
             "scheduler": {"logGroomerSidecar": {"enabled": False}},
         }
-        if dag_processor is not None:
-            values["dagProcessor"] = {"enabled": dag_processor}
         docs = render_chart(
             values=values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -900,10 +842,8 @@ class TestScheduler:
         "executor",
         [
             "LocalExecutor",
-            "LocalKubernetesExecutor",
             "CeleryExecutor",
             "KubernetesExecutor",
-            "CeleryKubernetesExecutor",
             "CeleryExecutor,KubernetesExecutor",
         ],
     )
@@ -1065,6 +1005,20 @@ class TestSchedulerNetworkPolicy:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_should_allow_api_server_to_read_scheduler_logs(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "networkPolicies": {"enabled": True},
+            },
+            show_only=["templates/scheduler/scheduler-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
+
 
 class TestSchedulerLogGroomer(LogGroomerTestBase):
     """Scheduler log groomer."""
@@ -1081,9 +1035,7 @@ class TestSchedulerService:
         [
             ("LocalExecutor", True),
             ("CeleryExecutor", False),
-            ("CeleryKubernetesExecutor", False),
             ("KubernetesExecutor", False),
-            ("LocalKubernetesExecutor", True),
         ],
     )
     def test_should_create_scheduler_service_for_specific_executors(self, executor, creates_service):
@@ -1122,9 +1074,7 @@ class TestSchedulerService:
         [
             ("LocalExecutor", "LocalExecutor"),
             ("CeleryExecutor", "CeleryExecutor"),
-            ("CeleryKubernetesExecutor", "CeleryKubernetesExecutor"),
             ("KubernetesExecutor", "KubernetesExecutor"),
-            ("LocalKubernetesExecutor", "LocalKubernetesExecutor"),
             ("CeleryExecutor,KubernetesExecutor", "CeleryExecutor-KubernetesExecutor"),
         ],
     )
@@ -1162,9 +1112,7 @@ class TestSchedulerServiceAccount:
         [
             ("LocalExecutor", None),
             ("CeleryExecutor", None),
-            ("CeleryKubernetesExecutor", None),
             ("KubernetesExecutor", None),
-            ("LocalKubernetesExecutor", None),
             ("CeleryExecutor,KubernetesExecutor", None),
         ],
     )
@@ -1185,9 +1133,7 @@ class TestSchedulerServiceAccount:
         [
             ("LocalExecutor", True, None),
             ("CeleryExecutor", False, False),
-            ("CeleryKubernetesExecutor", False, False),
             ("KubernetesExecutor", False, False),
-            ("LocalKubernetesExecutor", False, False),
             ("CeleryExecutor,KubernetesExecutor", False, False),
         ],
     )
@@ -1217,9 +1163,7 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("LocalExecutor", False),
             ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
             ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
             ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
@@ -1243,9 +1187,7 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("LocalExecutor", False, False),
             ("CeleryExecutor", False, True),
-            ("CeleryKubernetesExecutor", False, True),
             ("KubernetesExecutor", False, True),
-            ("LocalKubernetesExecutor", False, True),
             ("CeleryExecutor,KubernetesExecutor", False, True),
         ],
     )
@@ -1274,9 +1216,7 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("LocalExecutor", False),
             ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
             ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
             ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
@@ -1304,9 +1244,7 @@ class TestSchedulerServiceAccountTokenVolume:
         ("executor", "is_pod_launching"),
         [
             ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
             ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
             ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
@@ -1380,7 +1318,6 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("CeleryExecutor", "/custom/path", 7200),
             ("KubernetesExecutor", "/var/run/secrets/kubernetes.io/serviceaccount", 1800),
-            ("LocalKubernetesExecutor", "/opt/airflow/secrets", 3600),
         ],
     )
     def test_service_account_token_volume_custom_configuration(
@@ -1419,7 +1356,6 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("CeleryExecutor", 0, "scheduler"),
             ("KubernetesExecutor", 0, "scheduler"),
-            ("LocalKubernetesExecutor", 0, "scheduler"),
         ],
     )
     def test_service_account_token_volume_mounted_in_scheduler_container(
@@ -1454,7 +1390,6 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("CeleryExecutor", True),
             ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
         ],
     )
     def test_service_account_token_volume_NOT_mounted_in_init_containers(self, executor, has_init_containers):
@@ -1579,9 +1514,7 @@ class TestSchedulerServiceAccountTokenVolume:
         [
             ("LocalExecutor", False),
             ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
             ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
             ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
@@ -1654,15 +1587,12 @@ class TestSchedulerServiceAccountTokenVolume:
             # Scheduler container should have mount for pod-launching executors
             ("CeleryExecutor", "scheduler", True),
             ("KubernetesExecutor", "scheduler", True),
-            ("LocalKubernetesExecutor", "scheduler", True),
             # Init containers should never have mount
             ("CeleryExecutor", "wait-for-airflow-migrations", False),
             ("KubernetesExecutor", "wait-for-airflow-migrations", False),
-            ("LocalKubernetesExecutor", "wait-for-airflow-migrations", False),
             # Sidecar containers should never have mount
             ("CeleryExecutor", "scheduler-log-groomer", False),
             ("KubernetesExecutor", "scheduler-log-groomer", False),
-            ("LocalKubernetesExecutor", "scheduler-log-groomer", False),
         ],
     )
     def test_service_account_token_volume_mount_per_container_security_policy(
@@ -1716,9 +1646,7 @@ class TestSchedulerServiceAccountTokenVolume:
         executors = [
             "LocalExecutor",
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "KubernetesExecutor",
-            "LocalKubernetesExecutor",
             "CeleryExecutor,KubernetesExecutor",
         ]
 
@@ -1740,9 +1668,7 @@ class TestSchedulerServiceAccountTokenVolume:
 
             is_pod_launching = executor in [
                 "CeleryExecutor",
-                "CeleryKubernetesExecutor",
                 "KubernetesExecutor",
-                "LocalKubernetesExecutor",
                 "CeleryExecutor,KubernetesExecutor",
             ]
 
@@ -1794,9 +1720,7 @@ class TestSchedulerHelperFunctions:
         [
             ("LocalExecutor", False),
             ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
             ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
             ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )

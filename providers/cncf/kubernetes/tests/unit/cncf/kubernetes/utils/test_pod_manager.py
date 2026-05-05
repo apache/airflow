@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone as dt_timezone
 from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, cast
 from unittest import mock
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pendulum
 import pytest
@@ -989,22 +989,64 @@ class TestPodManager:
 
         assert len(ret_values) == 0
 
-    @mock.patch("pendulum.now")
+    @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
-    def test_fetch_container_since_time(self, logs_available, container_running, mock_now):
-        """If given since_time, should be used."""
+    def test_fetch_container_with_valid_since_time(self, logs_available, container_running):
+        """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
         mock_pod = MagicMock()
-        mock_now.return_value = pendulum.datetime(2020, 1, 1, 0, 0, 5, tz="UTC")
+        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc) - timedelta(seconds=30)
         logs_available.return_value = True
         container_running.return_value = False
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
-            stream=mock.MagicMock(return_value=[b"2021-01-01 hi"])
+            stream=mock.MagicMock(return_value=[b"2026-01-01 hi"])
         )
-        since_time = pendulum.datetime(2020, 1, 1, tz="UTC")
         self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", since_time=since_time)
-        args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
-        assert kwargs["since_seconds"] == 5
+        _, call_kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
+        assert call_kwargs["since_seconds"] == 30
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
+    def test_fetch_container_with_invalid_since_time_falls_back_to_none(
+        self, logs_available, container_running
+    ):
+        """Test that an invalid since_time is caught, warns, and since_seconds is passed as None."""
+        mock_pod = MagicMock()
+        logs_available.return_value = True
+        container_running.return_value = False
+        self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
+            stream=mock.MagicMock(return_value=[b"2026-01-01 hi"])
+        )
+        with mock.patch.object(self.pod_manager.log, "warning") as mock_warning:
+            self.pod_manager.fetch_container_logs(
+                pod=mock_pod, container_name="base", since_time="not-a-datetime"
+            )
+        _, call_kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
+        assert "since_seconds" not in call_kwargs
+        mock_warning.assert_called_once_with(
+            "Error calculating since_seconds with since_time %s. Using None instead.",
+            "not-a-datetime",
+        )
+
+    @time_machine.travel("2026-01-01 00:00:00", tick=False)
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
+    def test_fetch_container_with_string_since_time_converts_to_datetime(
+        self, logs_available, container_running
+    ):
+        """Test that a valid ISO string since_time is converted to datetime and since_seconds is calculated."""
+        mock_pod = MagicMock()
+        since_time = "2025-12-31T23:59:30Z"
+        logs_available.return_value = True
+        container_running.return_value = False
+        self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
+            stream=mock.MagicMock(return_value=[b"2026-01-01 hi"])
+        )
+        with patch.object(self.pod_manager.log, "warning") as mock_warning:
+            self.pod_manager.fetch_container_logs(pod=mock_pod, container_name="base", since_time=since_time)
+        _, call_kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
+        assert call_kwargs["since_seconds"] == 30
+        mock_warning.assert_not_called()
 
     @pytest.mark.parametrize(
         ("follow", "is_running_calls", "exp_running"), [(True, 3, False), (False, 3, False)]

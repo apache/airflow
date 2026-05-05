@@ -64,7 +64,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -1742,6 +1742,8 @@ REQUEST_TEST_CASES = [
                 "id": TI_ID,
                 "end_date": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test retry task",
+                "retry_delay_seconds": None,
+                "retry_reason": None,
             },
             response=OKResponse(ok=True),
         ),
@@ -2156,15 +2158,24 @@ REQUEST_TEST_CASES = [
             run_id="test_run",
             conf={"key": "value"},
             logical_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1, 12, 0, 0),
             reset_dag_run=True,
         ),
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                timezone.datetime(2025, 1, 1, 12, 0, 0),
+                True,
+                None,
+            ),
             response=OKResponse(ok=True),
         ),
-        test_id="dag_run_trigger",
+        test_id="dag_run_trigger_with_run_after",
     ),
     RequestTestCase(
         message=TriggerDagRun(
@@ -2178,7 +2189,31 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                None,
+                True,
+                "Test Note",
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), None, True, None),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2188,7 +2223,7 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False, None),
+            args=("test_dag", "test_run", None, None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
@@ -2213,6 +2248,7 @@ REQUEST_TEST_CASES = [
             "triggering_user_name": None,
             "type": "DagRunResult",
             "note": None,
+            "team_name": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2264,6 +2300,7 @@ REQUEST_TEST_CASES = [
                 "conf": None,
                 "triggering_user_name": None,
                 "note": None,
+                "team_name": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -2634,7 +2671,7 @@ class TestHandleRequest:
 
         return subprocess, read_end
 
-    @patch("airflow.sdk.execution_time.supervisor.mask_secret")
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
     @pytest.mark.parametrize("test_case", REQUEST_TEST_CASES, ids=lambda tc: tc.test_id)
     def test_handle_requests(
         self,
@@ -3417,3 +3454,64 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         assert dag_bag_from_app not in api.app.dependency_overrides
     finally:
         in_process_api_server.cache_clear()
+
+
+@pytest.mark.usefixtures("disable_capturing")
+class TestChildExecMain:
+    """Test the macOS fork+exec child entry point."""
+
+    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
+        # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
+        # parent before exec).  It passes log_fd=0 to _fork_main (structured
+        # logging is requested later via ResendLoggingFD).
+        req_a, req_b = socket.socketpair()
+        out_a, out_b = socket.socketpair()
+        err_a, err_b = socket.socketpair()
+
+        # Save originals so we can restore after the test.
+        saved_0 = os.dup(0)
+        saved_1 = os.dup(1)
+        saved_2 = os.dup(2)
+
+        try:
+            os.dup2(req_a.fileno(), 0)
+            os.dup2(out_a.fileno(), 1)
+            os.dup2(err_a.fileno(), 2)
+
+            captured = {}
+
+            def mock_fork_main(requests, stdout, stderr, log_fd, target):
+                captured["requests_fd"] = requests.fileno()
+                captured["stdout_fd"] = stdout.fileno()
+                captured["stderr_fd"] = stderr.fileno()
+                captured["log_fd"] = log_fd
+                captured["target"] = target
+                # Detach so the mock return doesn't double-close FDs that
+                # _child_exec_main's socket objects also own.
+                requests.detach()
+                stdout.detach()
+                stderr.detach()
+
+            monkeypatch.setattr(supervisor, "_fork_main", mock_fork_main)
+
+            supervisor._child_exec_main()
+
+            assert captured["requests_fd"] == 0
+            assert captured["stdout_fd"] == 1
+            assert captured["stderr_fd"] == 2
+            assert captured["log_fd"] == 0
+            assert captured["target"] is supervisor._subprocess_main
+            # _child_exec_main sets this so the task runner knows to request
+            # the log channel via ResendLoggingFD.
+            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
+        finally:
+            # Restore original FDs.
+            os.dup2(saved_0, 0)
+            os.dup2(saved_1, 1)
+            os.dup2(saved_2, 2)
+            os.close(saved_0)
+            os.close(saved_1)
+            os.close(saved_2)
+            for s in [req_a, req_b, out_a, out_b, err_a, err_b]:
+                s.close()

@@ -26,25 +26,21 @@ class TestWorker:
     """Tests worker."""
 
     @pytest.mark.parametrize(
-        ("executor", "workers_values", "kind"),
+        ("workers_values", "kind"),
         [
             # Test workers.celery.persistence.enabled flag
-            ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ({"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ({"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             # Test workers.persistence.enabled flag when celery one is default
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}}, "Deployment"),
+            ({"persistence": {"enabled": True}}, "StatefulSet"),
         ],
     )
-    def test_worker_kind(self, executor, workers_values, kind):
+    def test_worker_kind(self, workers_values, kind):
         """Test worker kind is StatefulSet when worker persistence is enabled."""
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -1021,10 +1017,8 @@ class TestWorker:
 
         assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_livenessprobe_default_command(self, airflow_version):
+    def test_livenessprobe_default_command(self):
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1265,10 +1259,8 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_kerberos_init_container_default_different_versions(self, airflow_version):
+    def test_kerberos_init_container_default_different_versions(self):
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1277,7 +1269,6 @@ class TestWorker:
             is None
         )
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -1285,10 +1276,9 @@ class TestWorker:
             {"celery": {"kerberosInitContainer": {"enabled": True}}},
         ],
     )
-    def test_kerberos_init_container_enable(self, airflow_version, workers_values):
+    def test_kerberos_init_container_enable(self, workers_values):
         docs = render_chart(
             values={
-                "airflowVersion": airflow_version,
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -1427,27 +1417,17 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "expected_arg"),
-        [
-            ("2.11.0", "airflow celery worker"),
-            ("3.0.0", "airflow celery worker"),
-        ],
-    )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    def test_default_command_and_args_airflow_version(self):
         docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert [
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            f"exec \\\n{expected_arg}",
-        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+            "exec \\\nairflow celery worker",
+        ]
 
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
@@ -2352,6 +2332,60 @@ class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
     obj_name = "workers-celery"
     folder = "workers"
 
+    @pytest.mark.parametrize(
+        ("persistence_enabled", "log_groomer_enabled", "expect_log_groomer"),
+        [
+            # persistence default (true) + logGroomer default (true) -> renders
+            (None, None, True),
+            # persistence default (true) + logGroomer false -> no render
+            (None, False, False),
+            # persistence true + logGroomer default (true) -> renders
+            (True, None, True),
+            # persistence true + logGroomer true -> renders
+            (True, True, True),
+            # persistence true + logGroomer false -> no render
+            (True, False, False),
+            # persistence false + logGroomer default (true) -> renders
+            (False, None, True),
+            # persistence false + logGroomer true -> renders
+            (False, True, True),
+            # persistence false + logGroomer false -> no render
+            (False, False, False),
+        ],
+    )
+    def test_log_groomer_with_persistence_combinations(
+        self, persistence_enabled, log_groomer_enabled, expect_log_groomer
+    ):
+        """Test log groomer sidecar rendering with various persistence and enabled combinations."""
+        celery_values = {}
+        if persistence_enabled is not None:
+            celery_values["persistence"] = {"enabled": persistence_enabled}
+        if log_groomer_enabled is not None:
+            celery_values["logGroomerSidecar"] = {"enabled": log_groomer_enabled}
+
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": celery_values} if celery_values else {},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Verify resource kind based on persistence
+        expected_kind = "StatefulSet" if persistence_enabled is not False else "Deployment"
+        assert jmespath.search("kind", docs[0]) == expected_kind
+
+        # Verify log groomer presence
+        containers = jmespath.search("spec.template.spec.containers", docs[0])
+        container_names = [c["name"] for c in containers]
+
+        if expect_log_groomer:
+            assert "worker-log-groomer" in container_names
+            assert len(containers) == 2
+        else:
+            assert "worker-log-groomer" not in container_names
+            assert len(containers) == 1
+
 
 class TestWorkerKedaAutoScaler:
     """Tests worker keda auto scaler."""
@@ -2404,97 +2438,72 @@ class TestWorkerKedaAutoScaler:
 
         assert "replicas" not in jmespath.search("spec", docs[0])
 
-    @pytest.mark.parametrize(
-        ("executor", "expected_query"),
-        [
-            (
-                "CeleryExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default')",
-            ),
-            (
-                "CeleryKubernetesExecutor",
-                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default') AND queue != 'kubernetes'",
-            ),
-        ],
-    )
-    def test_keda_query_default(self, executor, expected_query):
+    def test_keda_query_default(self):
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": {
                     "celery": {"keda": {"enabled": True}},
                 },
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+        assert (
+            jmespath.search("spec.triggers[0].metadata.query", docs[0])
+            == "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ('default')"
+        )
 
     @pytest.mark.parametrize(
-        ("workers_values", "executor"),
+        "workers_values",
         [
-            # workers - test custom static query
-            (
-                {
+            # workers - custom static query
+            {
+                "keda": {
+                    "enabled": True,
+                    "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                }
+            },
+            # workers - custom template query
+            {
+                "keda": {
+                    "enabled": True,
+                    "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                }
+            },
+            # workers.celery - custom static query
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+                    }
+                }
+            },
+            # workers.celery - custom template query
+            {
+                "celery": {
+                    "keda": {
+                        "enabled": True,
+                        "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
+                    }
+                }
+            },
+            # workers.celery overrides workers when both are set
+            {
+                "keda": {"query": "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"},
+                "celery": {
                     "keda": {
                         "enabled": True,
                         "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
                     }
                 },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers - test custom template query
-            (
-                {
-                    "keda": {
-                        "enabled": True,
-                        "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
-                    }
-                },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers.celery - test custom static query
-            (
-                {
-                    "celery": {
-                        "keda": {
-                            "enabled": True,
-                            "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
-                        }
-                    }
-                },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers.celery - test custom template query
-            (
-                {
-                    "celery": {
-                        "keda": {
-                            "enabled": True,
-                            "query": "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }}) FROM task_instance",
-                        }
-                    }
-                },
-                "CeleryKubernetesExecutor",
-            ),
-            # workers - workers.celery overwrite
-            (
-                {
-                    "keda": {"query": "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"},
-                    "celery": {
-                        "keda": {
-                            "enabled": True,
-                            "query": "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
-                        }
-                    },
-                },
-                "CeleryKubernetesExecutor",
-            ),
+            },
         ],
     )
-    def test_keda_query_overwrite(self, workers_values, executor):
+    def test_keda_query_overwrite(self, workers_values):
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -2589,7 +2598,6 @@ class TestWorkerHPAAutoScaler:
         )
         assert "replicas" not in jmespath.search("spec", docs[0])
 
-    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -2597,10 +2605,10 @@ class TestWorkerHPAAutoScaler:
             {"celery": {"hpa": {"enabled": True}}},
         ],
     )
-    def test_hpa_metrics_default(self, executor, workers_values):
+    def test_hpa_metrics_default(self, workers_values):
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
@@ -2613,7 +2621,6 @@ class TestWorkerHPAAutoScaler:
             }
         ]
 
-    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -2677,10 +2684,10 @@ class TestWorkerHPAAutoScaler:
             },
         ],
     )
-    def test_hpa_metrics_override(self, executor, workers_values):
+    def test_hpa_metrics_override(self, workers_values):
         docs = render_chart(
             values={
-                "executor": executor,
+                "executor": "CeleryExecutor",
                 "workers": workers_values,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
@@ -2728,6 +2735,21 @@ class TestWorkerNetworkPolicy:
         labels = jmespath.search("metadata.labels", docs[0])
         assert labels["test_label"] == "test_label_value"
         assert "key" not in labels
+
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_allow_api_server_to_read_worker_logs(self, executor):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
 
 
 class TestWorkerService:
@@ -2809,10 +2831,8 @@ class TestWorkerCeleryServiceAccount:
         "executor",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "CeleryExecutor,KubernetesExecutor",
             "KubernetesExecutor",
-            "LocalKubernetesExecutor",
         ],
     )
     @pytest.mark.parametrize(
@@ -2981,10 +3001,8 @@ class TestWorkerKubernetesServiceAccount:
     @pytest.mark.parametrize(
         "executor",
         [
-            "CeleryKubernetesExecutor",
             "CeleryExecutor,KubernetesExecutor",
             "KubernetesExecutor",
-            "LocalKubernetesExecutor",
         ],
     )
     def test_should_create_service_account_when_k8s_executors(self, executor):

@@ -48,6 +48,7 @@ class TaskInstanceDTO(BaseModel):
     queue: str
     priority_weight: int
     executor_config: dict | None = Field(default=None, exclude=True)
+    external_executor_id: str | None = Field(default=None, exclude=True)
 
     parent_context_carrier: dict | None = None
     context_carrier: dict | None = None

@@ -50,6 +50,7 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     DagNonPeriodicScheduleException,
+    InvalidBackfillConf,
     InvalidBackfillDate,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
@@ -264,6 +265,7 @@ def create_backfill(
         InvalidBackfillDirection,
         DagNonPeriodicScheduleException,
         InvalidBackfillDate,
+        InvalidBackfillConf,
     ) as e:
         raise RequestValidationError(str(e))
 
@@ -316,5 +318,6 @@ def create_backfill_dry_run(
         InvalidBackfillDirection,
         DagNonPeriodicScheduleException,
         InvalidBackfillDate,
+        InvalidBackfillConf,
     ) as e:
         raise RequestValidationError(str(e))

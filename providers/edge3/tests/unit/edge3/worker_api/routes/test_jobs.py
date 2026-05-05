@@ -23,30 +23,17 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import delete, select
 
+from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
-
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
-
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
-
-    stats_reference = f"{DualStatsManager.__module__}.DualStatsManager"
-    expected_call_count = 1
-else:
-    from airflow.providers.common.compat.sdk import Stats
-
-    stats_reference = f"{Stats.__module__}.Stats"
-    expected_call_count = 2
-
 
 DAG_ID = "my_dag"
 TASK_ID = "my_task"
@@ -83,7 +70,7 @@ class TestJobsApiRoutes:
         session.execute(delete(EdgeJobModel))
         session.commit()
 
-    @patch(f"{stats_reference}.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_state(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(
@@ -130,7 +117,7 @@ class TestJobsApiRoutes:
                     "task_id": TASK_ID,
                 },
             )
-            assert mock_stats_incr.call_count == expected_call_count
+            assert mock_stats_incr.call_count == 1
 
             db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))
             assert db_job is not None

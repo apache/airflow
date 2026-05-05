@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timedelta
+from typing import Any
 
+from google.api_core.exceptions import NotFound
+from google.cloud.orchestration.airflow.service_v1.types import Environment
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -33,6 +37,7 @@ else:
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,
@@ -86,6 +91,7 @@ UPDATE_MASK = {"paths": ["labels.label"]}
 # [END howto_operator_composer_update_environment]
 
 COMMAND = "dags list -o json --verbose"
+log = logging.getLogger(__name__)
 
 
 @task(task_id="get_project_number")
@@ -102,6 +108,63 @@ def get_project_number():
                 "or caller does not have permissions to read specified project"
             )
         raise exc
+
+
+# [START howto_operator_composer_retry_cleanup]
+def cleanup_failed_environment_before_retry(context: dict[str, Any]) -> None:
+    task = context["task"]
+
+    hook = CloudComposerHook(
+        gcp_conn_id=task.gcp_conn_id,
+        impersonation_chain=task.impersonation_chain,
+    )
+
+    environment_id = task.environment_id
+    project_id = task.project_id
+    region = task.region
+
+    log.info(
+        "Retry cleanup started for Composer env. project_id=%s region=%s environment_id=%s",
+        project_id,
+        region,
+        environment_id,
+    )
+
+    try:
+        environment = hook.get_environment(
+            project_id=project_id,
+            region=region,
+            environment_id=environment_id,
+        )
+    except NotFound:
+        log.info("Environment does not exist. Nothing to clean up.")
+        return
+
+    env_state = Environment.State(environment.state)
+    log.info(
+        "Environment exists before retry. state=%s value=%s",
+        env_state.name,
+        env_state.value,
+    )
+
+    if env_state != Environment.State.ERROR:
+        log.info(
+            "Skipping cleanup before retry because environment is not in ERROR state. current_state=%s",
+            env_state.name,
+        )
+        return
+
+    log.info("Deleting Composer environment %s in ERROR state before retry.", environment_id)
+    delete_operation = hook.delete_environment(
+        project_id=project_id,
+        region=region,
+        environment_id=environment_id,
+    )
+    hook.wait_for_operation(operation=delete_operation)
+    log.info("Environment %s deleted before retry.", environment_id)
+
+
+# [END howto_operator_composer_retry_cleanup]
 
 
 with DAG(
@@ -126,6 +189,9 @@ with DAG(
         region=REGION,
         environment_id=ENVIRONMENT_ID,
         environment=ENVIRONMENT,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+        on_retry_callback=cleanup_failed_environment_before_retry,
     )
     # [END howto_operator_create_composer_environment]
 
@@ -137,6 +203,9 @@ with DAG(
         environment_id=ENVIRONMENT_ID_ASYNC,
         environment=ENVIRONMENT,
         deferrable=True,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+        on_retry_callback=cleanup_failed_environment_before_retry,
     )
     # [END howto_operator_create_composer_environment_deferrable_mode]
 

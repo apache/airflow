@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+13.1.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Azure provider hooks ignoring cloud_environment connection extra (#65320)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 13.1.1
 ......
 

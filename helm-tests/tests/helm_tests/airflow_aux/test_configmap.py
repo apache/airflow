@@ -50,24 +50,6 @@ class TestConfigmap:
         assert annotations.get("key") == "value"
         assert annotations.get("key-two") == "value-two"
 
-    @pytest.mark.parametrize(("af_version", "expected"), [("3.0.0", False), ("2.11.0", True)])
-    def test_default_airflow_local_settings(self, af_version, expected):
-        docs = render_chart(
-            values={
-                "airflowVersion": af_version,
-                "webserverSecretKey": None,
-                "webserverSecretKeySecretName": None,
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-        if expected:
-            assert (
-                "Usage of a dynamic webserver secret key detected"
-                in jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
-            )
-        else:
-            assert jmespath.search('data."airflow_local_settings.py"', docs[0]).strip() == ""
-
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={"airflowLocalSettings": "# Well hello {{ .Release.Name }}!"},
@@ -91,21 +73,17 @@ class TestConfigmap:
         assert jmespath.search('data."krb5.conf"', docs[0]) == "krb5\ncontent"
 
     @pytest.mark.parametrize(
-        ("executor", "af_version", "should_be_created"),
+        ("executor", "should_be_created"),
         [
-            ("KubernetesExecutor", "2.11.0", True),
-            ("KubernetesExecutor", "3.0.0", True),
-            ("CeleryExecutor", "2.11.0", False),
-            ("CeleryExecutor", "3.0.0", False),
-            ("CeleryExecutor,KubernetesExecutor", "2.11.0", True),
-            ("CeleryExecutor,KubernetesExecutor", "3.0.0", True),
+            ("KubernetesExecutor", True),
+            ("CeleryExecutor", False),
+            ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
-    def test_pod_template_created(self, executor, af_version, should_be_created):
+    def test_pod_template_created(self, executor, should_be_created):
         docs = render_chart(
             values={
                 "executor": executor,
-                "airflowVersion": af_version,
             },
             show_only=["templates/configmaps/configmap.yaml"],
         )
@@ -195,82 +173,31 @@ metadata:
         assert expected_folder_config in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        ("airflow_version", "enabled"),
-        [
-            ("2.11.0", False),
-            ("3.0.0", True),
-        ],
-    )
-    def test_default_standalone_dag_processor_by_airflow_version(self, airflow_version, enabled):
-        docs = render_chart(
-            values={"airflowVersion": airflow_version},
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        cfg = jmespath.search('data."airflow.cfg"', docs[0])
-        expected_line = f"standalone_dag_processor = {enabled}"
-        assert expected_line in cfg.splitlines()
-
-    @pytest.mark.parametrize(
-        ("airflow_version", "enabled"),
-        [
-            ("2.11.0", False),
-            ("2.11.0", True),
-            ("3.0.0", False),
-            ("3.0.0", True),
-        ],
-    )
-    def test_standalone_dag_processor_explicit(self, airflow_version, enabled):
-        docs = render_chart(
-            values={
-                "airflowVersion": airflow_version,
-                "config": {"scheduler": {"standalone_dag_processor": enabled}},
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-
-        cfg = jmespath.search('data."airflow.cfg"', docs[0])
-        expected_line = f"standalone_dag_processor = {str(enabled).lower()}"
-        assert expected_line in cfg.splitlines()
-
-    @pytest.mark.parametrize(
-        ("airflow_version", "base_url", "execution_api_server_url", "expected_execution_url"),
+        ("base_url", "execution_api_server_url", "expected_execution_url"),
         [
             (
-                "3.0.0",
                 None,
                 None,
                 "http://release-name-api-server:8080/execution/",
             ),
             (
-                "2.11.0",
-                None,
-                None,
-                None,
-            ),
-            (
-                "3.0.0",
                 "http://example.com",
                 None,
                 "http://release-name-api-server:8080/execution/",
             ),
             (
-                "3.0.0",
                 "http://example.com/airflow",
                 None,
                 "http://release-name-api-server:8080/airflow/execution/",
             ),
             (
-                "3.0.0",
                 "http://example.com/airflow",
                 "http://service:9090/execution/",
                 "http://service:9090/execution/",
             ),
         ],
     )
-    def test_execution_api_server_url(
-        self, airflow_version, base_url, execution_api_server_url, expected_execution_url
-    ):
+    def test_execution_api_server_url(self, base_url, execution_api_server_url, expected_execution_url):
         config_overrides = {}
         if base_url:
             config_overrides["api"] = {"base_url": base_url}
@@ -279,7 +206,7 @@ metadata:
             config_overrides["core"] = {"execution_api_server_url": execution_api_server_url}
 
         configmap = render_chart(
-            values={"airflowVersion": airflow_version, "config": config_overrides},
+            values={"config": config_overrides},
             show_only=["templates/configmaps/configmap.yaml"],
         )
 
@@ -287,12 +214,7 @@ metadata:
         assert config is not None, "Configmap data for airflow.cfg should not be None"
         assert len(config) > 0, "Configmap data for airflow.cfg should not be empty"
 
-        if expected_execution_url is not None:
-            assert f"\nexecution_api_server_url = {expected_execution_url}\n" in config
-        else:
-            assert "execution_api_server_url" not in config, (
-                "execution_api_server_url should not be set for Airflow 2.11 versions"
-            )
+        assert f"\nexecution_api_server_url = {expected_execution_url}\n" in config
 
     @pytest.mark.parametrize(
         ("git_sync_enabled", "ssh_key_secret", "expected_volume"),

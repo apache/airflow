@@ -163,3 +163,66 @@ def test_remove_reference_for_inactive_dag(
     _simulate_soft_dag_deletion("test2")
     remove_references_to_deleted_dags(session=session)
     assert set(session.execute(select_stmt)) == set()
+
+
+class TestAssetModelAllowProducerTeams:
+    @pytest.mark.parametrize(
+        ("extra", "expected_teams"),
+        [
+            pytest.param({"allow_producer_teams": ["team_a"]}, ["team_a"], id="with_teams"),
+            pytest.param({}, [], id="without_teams"),
+        ],
+    )
+    def test_to_serialized_allow_producer_teams(self, extra, expected_teams):
+        model = AssetModel(name="test_asset", uri="test://asset", extra=extra)
+        serialized = model.to_serialized()
+        assert serialized.allow_producer_teams == expected_teams
+        assert "allow_producer_teams" not in serialized.extra
+
+    @pytest.mark.parametrize(
+        ("teams", "expected_in_extra"),
+        [
+            pytest.param(["team_a", "team_b"], True, id="with_teams"),
+            pytest.param([], False, id="empty_teams"),
+        ],
+    )
+    def test_from_serialized_allow_producer_teams(self, teams, expected_in_extra):
+        from airflow.serialization.definitions.assets import SerializedAsset
+
+        serialized = SerializedAsset(
+            name="test_asset",
+            uri="test://asset",
+            group="asset",
+            extra={},
+            watchers=[],
+            allow_producer_teams=teams,
+        )
+        model = AssetModel.from_serialized(serialized)
+        if expected_in_extra:
+            assert model.extra["allow_producer_teams"] == teams
+        else:
+            assert "allow_producer_teams" not in model.extra
+
+    @pytest.mark.parametrize(
+        ("teams", "extra"),
+        [
+            pytest.param(["team_analytics", "team_ml"], {"some_key": "some_value"}, id="with_teams"),
+            pytest.param([], {}, id="empty_teams"),
+        ],
+    )
+    def test_round_trip_preserves_allow_producer_teams(self, teams, extra):
+        from airflow.serialization.definitions.assets import SerializedAsset
+
+        serialized = SerializedAsset(
+            name="test_asset",
+            uri="test://asset",
+            group="asset",
+            extra=extra,
+            watchers=[],
+            allow_producer_teams=teams,
+        )
+        model = AssetModel.from_serialized(serialized)
+        result = model.to_serialized()
+        assert result.allow_producer_teams == teams
+        assert "allow_producer_teams" not in result.extra
+        assert result.extra == extra
