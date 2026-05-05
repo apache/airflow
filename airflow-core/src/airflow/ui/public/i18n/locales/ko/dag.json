@@ -47,6 +47,10 @@
     "finishedLate": "데드라인보다 {{duration}} 늦게 완료",
     "label": "데드라인",
     "met": "달성"
+    "stillRunning": "실행 중",
+    "upcoming": "예정",
+    "upcomingCount_one": "예정된 데드라인 {{count}}개",
+    "upcomingCount_other": "예정된 데드라인 {{count}}개"
   },
   "extraLinks": "추가 링크",
   "grid": {

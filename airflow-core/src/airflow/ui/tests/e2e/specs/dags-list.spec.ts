@@ -144,7 +144,6 @@ test.describe("Dags Search", () => {
     await expect
       .poll(async () => dagsPage.getDagsCount(), {
         message: "Waiting for Dags count to restore after clearing search",
-        timeout: 10_000,
       })
       .toBe(initialCount);
   });
