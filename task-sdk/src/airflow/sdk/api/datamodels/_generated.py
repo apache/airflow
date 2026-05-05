@@ -198,6 +198,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    CHECKPOINTED = "checkpointed"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
