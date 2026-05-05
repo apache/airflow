@@ -18,7 +18,7 @@
  */
 import { testConfig } from "playwright.config";
 import { expect, test } from "tests/e2e/fixtures";
-import { apiDeleteDagRun, waitForDagRunStatus } from "tests/e2e/utils/test-helpers";
+import { apiDeleteDagRun, waitForDagRunStatus } from "tests/e2e/utils/api/dag-runs";
 
 test.describe("Dag Trigger Workflow", () => {
   const testDagId = testConfig.testDag.id;

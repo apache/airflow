@@ -18,7 +18,8 @@
  */
 import { testConfig } from "playwright.config";
 import { expect, test } from "tests/e2e/fixtures";
-import { apiDeleteDagRun, setupHITLFlowViaAPI } from "tests/e2e/utils/test-helpers";
+import { apiDeleteDagRun } from "tests/e2e/utils/api/dag-runs";
+import { setupHITLFlowViaAPI } from "tests/e2e/utils/api/hitl";
 
 const hitlDagId = testConfig.testDag.hitlId;
 

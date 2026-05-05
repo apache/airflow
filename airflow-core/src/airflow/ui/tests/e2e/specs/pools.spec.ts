@@ -17,7 +17,7 @@
  * under the License.
  */
 import { expect, test } from "tests/e2e/fixtures";
-import { uniqueRunId } from "tests/e2e/utils/test-helpers";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 test.describe("Pools Page", () => {
   test.setTimeout(60_000);

@@ -22,7 +22,7 @@ import path from "node:path";
 
 import { AUTH_FILE, testConfig } from "../../playwright.config";
 import { LoginPage } from "./pages/LoginPage";
-import { waitForDagReady } from "./utils/test-helpers";
+import { waitForDagReady } from "./utils/api/dag-runs";
 
 const browsers = { chromium, firefox, webkit };
 

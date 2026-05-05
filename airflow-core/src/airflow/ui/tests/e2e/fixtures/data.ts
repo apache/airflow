@@ -34,10 +34,10 @@ import {
   apiSetDagRunState,
   apiTriggerDagRun,
   safeCleanupDagRun,
-  uniqueRunId,
   waitForDagReady,
   waitForDagRunStatus,
-} from "../utils/test-helpers";
+} from "../utils/api/dag-runs";
+import { uniqueRunId } from "../utils/shared";
 import { test as base } from "./pom";
 
 /** Shape returned by single Dag run fixtures. */
