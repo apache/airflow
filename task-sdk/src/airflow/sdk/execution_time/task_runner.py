@@ -1175,7 +1175,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     try:
         # TODO: Call pre execute etc.
         get_listener_manager().hook.on_task_instance_running(
-            previous_state=TaskInstanceState.QUEUED, task_instance=ti
+            previous_state=TaskInstanceState.QUEUED, task_instance=ti, msg="started"
         )
     except Exception:
         log.exception("error calling listener")
@@ -1900,7 +1900,7 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_success_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_success(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, msg="success"
             )
         except Exception:
             log.exception("error calling listener")
@@ -1908,7 +1908,7 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_skipped(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, msg="skipped"
             )
         except Exception:
             log.exception("error calling listener")
@@ -1916,7 +1916,10 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                msg="up_for_retry",
             )
         except Exception:
             log.exception("error calling listener")
@@ -1926,7 +1929,10 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                msg="failed",
             )
         except Exception:
             log.exception("error calling listener")

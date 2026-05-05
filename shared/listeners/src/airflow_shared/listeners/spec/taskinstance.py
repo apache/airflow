@@ -35,16 +35,35 @@ hookspec = HookspecMarker("airflow")
 def on_task_instance_running(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
+    msg: str,
 ):
-    """Execute when task state changes to RUNNING. previous_state can be None."""
+    """
+    Execute when task state changes to RUNNING. previous_state can be None.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object
+    :param msg: Short canonical context for the state change. Always ``"started"``
+        for this hook. Mirrors the DagRun listener pattern so listeners can route
+        or filter events without re-deriving intent from other fields.
+    """
 
 
 @hookspec
 def on_task_instance_success(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
+    msg: str,
 ):
-    """Execute when task state changes to SUCCESS. previous_state can be None."""
+    """
+    Execute when task state changes to SUCCESS. previous_state can be None.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object (RuntimeTaskInstance when called
+        from task execution context, TaskInstance when called from API server)
+    :param msg: Short canonical context for the state change. ``"success"`` when
+        emitted from the worker; ``"manually_set_to_success"`` when the state was
+        changed via the API.
+    """
 
 
 @hookspec
@@ -52,14 +71,26 @@ def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
+    msg: str,
 ):
-    """Execute when task state changes to FAIL. previous_state can be None."""
+    """
+    Execute when task state changes to FAIL. previous_state can be None.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object (RuntimeTaskInstance when called
+        from task execution context, TaskInstance when called from API server)
+    :param error: The exception or error message that caused the failure
+    :param msg: Short canonical context distinguishing failure paths without
+        inspecting ``error``. ``"failed"`` (terminal), ``"up_for_retry"`` (will
+        retry), or ``"manually_set_to_failed"`` (API-driven state change).
+    """
 
 
 @hookspec
 def on_task_instance_skipped(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
+    msg: str,
 ):
     """
     Execute when a task instance skips itself during execution.
@@ -78,4 +109,7 @@ def on_task_instance_skipped(
     :param previous_state: Previous state of the task instance (can be None)
     :param task_instance: The task instance object (RuntimeTaskInstance when called
         from task execution context, TaskInstance when called from API server)
+    :param msg: Short canonical context for the state change. ``"skipped"`` when
+        emitted from the worker; ``"manually_set_to_skipped"`` when the state was
+        changed via the API.
     """

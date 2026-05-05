@@ -1773,7 +1773,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                msg="up_for_retry",
             )
         except Exception:
             log.exception("error calling listener")

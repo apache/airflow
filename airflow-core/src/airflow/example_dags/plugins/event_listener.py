@@ -31,16 +31,20 @@ if TYPE_CHECKING:
 # [START howto_listen_ti_running_task]
 @hookimpl
 def on_task_instance_running(
-    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    msg: str,
 ):
     """
     Called when task state changes to RUNNING.
 
     previous_task_state and task_instance object can be used to retrieve more information about current
-    task_instance that is running, its dag_run, task and dag information.
+    task_instance that is running, its dag_run, task and dag information. ``msg`` carries a short
+    canonical context (e.g. ``"started"``) so listeners can route or filter events without
+    re-deriving intent from other fields.
     """
     print("Task instance is in running state")
-    print(" Previous state of the Task instance:", previous_state)
+    print(f" Previous state: {previous_state}, msg: {msg}")
 
     name: str = task_instance.task_id
 
@@ -65,7 +69,9 @@ def on_task_instance_running(
 # [START howto_listen_ti_success_task]
 @hookimpl
 def on_task_instance_success(
-    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    msg: str,
 ):
     """
     Called when task state changes to SUCCESS.
@@ -75,9 +81,12 @@ def on_task_instance_success(
 
     A RuntimeTaskInstance is provided in most cases, except when the task's state change is triggered
     through the API. In that case, the TaskInstance available on the API server will be provided instead.
+
+    ``msg`` carries a short canonical context (e.g. ``"success"`` from the worker,
+    ``"manually_set_to_success"`` when the state was changed via the API).
     """
     print("Task instance in success state")
-    print(" Previous state of the Task instance:", previous_state)
+    print(f" Previous state: {previous_state}, msg: {msg}")
 
     if isinstance(task_instance, TaskInstance):
         print("Task instance's state was changed through the API.")
@@ -100,6 +109,7 @@ def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
+    msg: str,
 ):
     """
     Called when task state changes to FAILED.
@@ -109,8 +119,12 @@ def on_task_instance_failed(
 
     A RuntimeTaskInstance is provided in most cases, except when the task's state change is triggered
     through the API. In that case, the TaskInstance available on the API server will be provided instead.
+
+    ``msg`` distinguishes failure paths without inspecting ``error``:
+    ``"failed"`` (terminal), ``"up_for_retry"`` (will retry), or
+    ``"manually_set_to_failed"`` (API-driven state change).
     """
-    print("Task instance in failure state")
+    print(f"Task instance in failure state (msg={msg})")
 
     if isinstance(task_instance, TaskInstance):
         print("Task instance's state was changed through the API.")
@@ -138,7 +152,9 @@ def on_task_instance_failed(
 # [START howto_listen_ti_skipped_task]
 @hookimpl
 def on_task_instance_skipped(
-    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    msg: str,
 ):
     """
     Called when a task instance skips itself during execution.
@@ -153,8 +169,11 @@ def on_task_instance_skipped(
 
     For comprehensive tracking of skipped tasks, use DAG-level listeners
     (on_dag_run_success/on_dag_run_failed) which may have access to all task states.
+
+    ``msg`` carries the canonical context (``"skipped"`` or
+    ``"manually_set_to_skipped"``).
     """
-    print("Task instance was skipped")
+    print(f"Task instance was skipped (msg={msg})")
 
     if isinstance(task_instance, TaskInstance):
         print("Task instance's state was changed through the API.")

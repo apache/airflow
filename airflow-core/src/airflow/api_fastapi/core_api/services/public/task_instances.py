@@ -78,15 +78,20 @@ def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInsta
     for ti in updated_tis:
         try:
             if new_state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=None, task_instance=ti, msg="manually_set_to_success"
+                )
             elif new_state == TaskInstanceState.FAILED:
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    msg="manually_set_to_failed",
                 )
             elif new_state == TaskInstanceState.SKIPPED:
-                get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
+                get_listener_manager().hook.on_task_instance_skipped(
+                    previous_state=None, task_instance=ti, msg="manually_set_to_skipped"
+                )
         except Exception:
             log.exception("error calling listener")
 

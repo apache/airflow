@@ -3814,30 +3814,35 @@ class TestDagParamRuntime:
 class TestTaskRunnerCallsListeners:
     class CustomListener:
         def __init__(self):
-            self.state = []
+            self.state: list[TaskInstanceState] = []
             self.component = None
             self.error = None
+            self.msgs: list[str] = []
 
         @hookimpl
         def on_starting(self, component):
             self.component = component
 
         @hookimpl
-        def on_task_instance_running(self, previous_state, task_instance):
+        def on_task_instance_running(self, previous_state, task_instance, msg: str):
             self.state.append(TaskInstanceState.RUNNING)
+            self.msgs.append(msg)
 
         @hookimpl
-        def on_task_instance_success(self, previous_state, task_instance):
+        def on_task_instance_success(self, previous_state, task_instance, msg: str):
             self.state.append(TaskInstanceState.SUCCESS)
+            self.msgs.append(msg)
 
         @hookimpl
-        def on_task_instance_failed(self, previous_state, task_instance, error):
+        def on_task_instance_failed(self, previous_state, task_instance, error, msg: str):
             self.state.append(TaskInstanceState.FAILED)
             self.error = error
+            self.msgs.append(msg)
 
         @hookimpl
-        def on_task_instance_skipped(self, previous_state, task_instance):
+        def on_task_instance_skipped(self, previous_state, task_instance, msg: str):
             self.state.append(TaskInstanceState.SKIPPED)
+            self.msgs.append(msg)
 
         @hookimpl
         def before_stopping(self, component):
@@ -3940,6 +3945,7 @@ class TestTaskRunnerCallsListeners:
         finalize(runtime_ti, state, context, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
+        assert listener.msgs == ["started", "success"]
 
     @pytest.mark.parametrize(
         "exception",
@@ -3982,6 +3988,7 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+        assert listener.msgs == ["started", "failed"]
 
     def test_task_runner_calls_listeners_skipped(self, mocked_parse, mock_supervisor_comms, listener_manager):
         listener = self.CustomListener()
@@ -4013,6 +4020,51 @@ class TestTaskRunnerCallsListeners:
         finalize(runtime_ti, state, context, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
+        assert listener.msgs == ["started", "skipped"]
+
+    @pytest.mark.parametrize(
+        "should_retry, expected_state, expected_failure_msg",
+        [
+            pytest.param(
+                True,
+                TaskInstanceState.UP_FOR_RETRY,
+                "up_for_retry",
+                id="up_for_retry-when-retries-remain",
+            ),
+            pytest.param(
+                False,
+                TaskInstanceState.FAILED,
+                "failed",
+                id="failed-when-no-retries-remain",
+            ),
+        ],
+    )
+    def test_task_runner_listener_msg_distinguishes_retry_vs_terminal(
+        self,
+        create_runtime_ti,
+        listener_manager,
+        should_retry,
+        expected_state,
+        expected_failure_msg,
+    ):
+        """The ``msg`` arg lets a listener distinguish ``up_for_retry`` from
+        terminal ``failed`` without inspecting ``error`` or task config."""
+        listener = self.CustomListener()
+        listener_manager(listener)
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                raise ValueError("boom")
+
+        task = CustomOperator(task_id="task_listener_msg_paths")
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=should_retry)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == expected_state
+        assert listener.msgs == ["started", expected_failure_msg]
 
     def test_listener_access_outlet_event_on_running_and_success(
         self, mocked_parse, mock_supervisor_comms, listener_manager
