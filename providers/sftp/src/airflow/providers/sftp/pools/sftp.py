@@ -67,15 +67,14 @@ class SFTPClientPool(LoggingMixin):
                 cls._instances[sftp_conn_id] = instance
             else:
                 instance = cls._instances[sftp_conn_id]
-                requested_pool_size = cls._resolve_pool_size(pool_size)
-                if instance.pool_size != requested_pool_size:
-                    instance.log.warning(
+                if pool_size is not None and pool_size != instance.pool_size:
+                    instance.log.debug(
                         "SFTPClientPool for sftp_conn_id '%s' is already initialized with "
                         "pool_size=%d; ignoring requested pool_size=%d and reusing the "
                         "existing singleton.",
                         sftp_conn_id,
                         instance.pool_size,
-                        requested_pool_size,
+                        pool_size,
                     )
             return cls._instances[sftp_conn_id]
 

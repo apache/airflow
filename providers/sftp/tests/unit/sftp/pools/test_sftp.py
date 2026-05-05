@@ -173,6 +173,16 @@ class TestSFTPClientPool:
         assert pool2 is pool1  # Should be the same instance (singleton)
         assert pool2.pool_size == 4
 
+    def test_pool_size_is_ignored_on_reuse_even_if_invalid(self, sftp_hook_mocked):
+        """Subsequent constructions ignore pool_size and keep first singleton configuration."""
+        pool1 = SFTPClientPool("reuse_invalid_conn", pool_size=2)
+
+        # This would be invalid for first construction, but must be ignored on reuse.
+        pool2 = SFTPClientPool("reuse_invalid_conn", pool_size=0)
+
+        assert pool2 is pool1
+        assert pool2.pool_size == 2
+
     def test_pool_works_across_separate_asyncio_run_calls(self, sftp_hook_mocked):
         """Regression: pool must not raise when used from two separate asyncio.run() calls.
 
