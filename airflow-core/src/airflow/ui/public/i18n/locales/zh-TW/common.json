@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "收合所有額外 JSON",
   "collapseDetailsPanel": "收起詳細資訊",
+  "consumingAsset": "消費者資源",
   "createdAssetEvent_one": "已建立資源事件",
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
@@ -131,6 +132,7 @@
     "logicalDateTo": "到邏輯日期",
     "runAfterFrom": "從最早可執行時間",
     "runAfterTo": "從最早可執行時間",
+    "searchAsset": "搜尋資源",
     "selectDateRange": "選擇日期範圍",
     "startTime": "起始時間"
   },
@@ -190,6 +192,12 @@
       "top": "最上方"
     },
     "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
+  },
+  "search": {
+    "advanced": {
+      "description": "在值中任意位置進行匹配 (子字串搜尋)。在大型部署上會較慢，因為無法使用預設的 B-tree 索引。詳情請參閱文件中關於自訂中繼資料索引的章節。",
+      "title": "任意位置匹配"
+    }
   },
   "security": {
     "actions": "操作",
@@ -351,6 +359,10 @@
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
   "user": "使用者",
+  "validation": {
+    "mustBeAtLeast": "必須至少為 {{min}}。",
+    "mustBeValidNumber": "必須為有效的數字。"
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",

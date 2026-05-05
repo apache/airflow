@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "進階功能",
       "dagDocs": "Dag 文件"
+    },
+    "status": {
+      "deactivated": "已停用"
     }
   },
   "logs": {
@@ -139,11 +142,11 @@
       "direction": "方向",
       "label": "過濾器",
       "mode": "模式",
-      "modeTooltip": "靜態模式會在切換至不同任務時保持目前檢視；遍歷模式則會自動將篩選條件更新為所點擊的任務，以便更容易瀏覽 Dag",
       "modes": {
         "static": "靜態",
         "traverse": "遍歷"
       },
+      "modeTooltip": "靜態模式會在切換至不同任務時保持目前檢視；遍歷模式則會自動將篩選條件更新為所點擊的任務，以便更容易瀏覽 Dag",
       "options": {
         "both": "上游和下游",
         "downstream": "下游",
