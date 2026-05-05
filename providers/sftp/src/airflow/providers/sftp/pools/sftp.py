@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass, field
 from threading import Lock
 from typing import TYPE_CHECKING
+from weakref import WeakKeyDictionary
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
@@ -27,6 +29,18 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import asyncssh
+
+
+@dataclass
+class _LoopState:
+    """Per-event-loop state for SFTP client pool."""
+
+    idle: asyncio.LifoQueue = field(default_factory=asyncio.LifoQueue)
+    in_use: set[tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]] = field(default_factory=set)
+    semaphore: asyncio.Semaphore | None = None
+    init_lock: asyncio.Lock | None = None
+    initialized: bool = False
+    closed: bool = False
 
 
 class SFTPClientPool(LoggingMixin):
@@ -67,37 +81,48 @@ class SFTPClientPool(LoggingMixin):
         pass
 
     def _pre_init(self, sftp_conn_id: str, pool_size: int | None):
-        """Initialize the Singleton structure synchronously."""
+        """Initialize the singleton synchronously, deferring asyncio primitives to the active event loop."""
         LoggingMixin.__init__(self)
         self.sftp_conn_id = sftp_conn_id
         self.pool_size = self._resolve_pool_size(pool_size)
-        self._idle: asyncio.LifoQueue[tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]] = (
-            asyncio.LifoQueue()
-        )
-        self._in_use: set[tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]] = set()
-        self._semaphore = asyncio.Semaphore(self.pool_size)
-        self._init_lock = asyncio.Lock()
-        self._initialized = False
-        self._closed = False
+        self._loop_states: WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopState] = WeakKeyDictionary()
+        self._loop_states_lock = Lock()
         self.log.info("SFTPClientPool with size %d initialised...", self.pool_size)
 
+
+    def _get_loop_state(self) -> _LoopState:
+        """Get or create the state container for the current event loop."""
+        running_loop = asyncio.get_running_loop()
+        with self._loop_states_lock:
+            state = self._loop_states.get(running_loop)
+            if state is None:
+                state = _LoopState(
+                    semaphore=asyncio.Semaphore(self.pool_size),
+                    init_lock=asyncio.Lock(),
+                )
+                self._loop_states[running_loop] = state
+            return state
+
     async def _ensure_initialized(self):
-        """Ensure pool is usable (also handles re-opening after close)."""
-        if self._initialized and not self._closed:
+        """Ensure pool primitives exist for the current loop and the pool is open."""
+        state = self._get_loop_state()
+        if state.init_lock is None:
+            raise RuntimeError("SFTPClientPool init lock is not initialized")
+
+        if state.initialized and not state.closed:
             return
 
-        async with self._init_lock:
-            if not self._initialized or self._closed:
+        async with state.init_lock:
+            if not state.initialized or state.closed:
                 self.log.info(
                     "Initializing / resetting SFTPClientPool for '%s' with size %d",
                     self.sftp_conn_id,
                     self.pool_size,
                 )
-                self._idle = asyncio.LifoQueue()
-                self._in_use.clear()
-                self._semaphore = asyncio.Semaphore(self.pool_size)
-                self._closed = False
-                self._initialized = True
+                state.idle = asyncio.LifoQueue()
+                state.in_use.clear()
+                state.closed = False
+                state.initialized = True
 
     async def _create_connection(
         self,
@@ -109,24 +134,28 @@ class SFTPClientPool(LoggingMixin):
 
     async def acquire(self):
         await self._ensure_initialized()
+        state = self._get_loop_state()
 
-        if self._closed:
+        if state.closed:
             raise RuntimeError("Cannot acquire from a closed SFTPClientPool")
+
+        if state.semaphore is None:
+            raise RuntimeError("SFTPClientPool is not initialized")
 
         self.log.debug("Acquiring SFTP connection for '%s'", self.sftp_conn_id)
 
-        await self._semaphore.acquire()
+        await state.semaphore.acquire()
 
         try:
             try:
-                pair = self._idle.get_nowait()
+                pair = state.idle.get_nowait()
             except asyncio.QueueEmpty:
                 pair = await self._create_connection()
 
-            self._in_use.add(pair)
+            state.in_use.add(pair)
             return pair
         except Exception:
-            self._semaphore.release()
+            state.semaphore.release()
             raise
 
     def _close_connection_pair(self, pair) -> None:
@@ -137,23 +166,29 @@ class SFTPClientPool(LoggingMixin):
             ssh.close()
 
     async def release(self, pair):
-        if pair not in self._in_use:
+        state = self._get_loop_state()
+
+        if pair not in state.in_use:
             self.log.warning("Attempted to release unknown or already released connection")
             return
 
-        self._in_use.discard(pair)
+        if state.semaphore is None:
+            raise RuntimeError("SFTPClientPool is not initialized")
 
-        if self._closed:
+        state.in_use.discard(pair)
+
+        if state.closed:
             self._close_connection_pair(pair)
         else:
-            await self._idle.put(pair)
+            await state.idle.put(pair)
 
         self.log.debug("Releasing SFTP connection for '%s'", self.sftp_conn_id)
-        self._semaphore.release()
+        state.semaphore.release()
 
     @asynccontextmanager
     async def get_sftp_client(self):
         await self._ensure_initialized()
+        state = self._get_loop_state()
         pair = None
         try:
             pair = await self.acquire()
@@ -162,36 +197,41 @@ class SFTPClientPool(LoggingMixin):
         except BaseException as e:
             self.log.warning("Dropping faulty connection for '%s': %s", self.sftp_conn_id, e)
             if pair:
-                self._in_use.discard(pair)
+                state.in_use.discard(pair)
                 self._close_connection_pair(pair)
-                self._semaphore.release()
+                if state.semaphore is not None:
+                    state.semaphore.release()
             raise
         else:
             await self.release(pair)
 
     async def close(self):
-        """Gracefully shutdown all connections in the pool."""
-        async with self._init_lock:
-            if self._closed:
+        """Gracefully shutdown all connections in the pool for the current event loop."""
+        await self._ensure_initialized()
+        state = self._get_loop_state()
+        if state.init_lock is None:
+            raise RuntimeError("SFTPClientPool is not initialized")
+
+        async with state.init_lock:
+            if state.closed:
                 return
 
-            self._closed = True
+            state.closed = True
 
             self.log.info("Closing all SFTP connections for '%s'", self.sftp_conn_id)
 
-            while not self._idle.empty():
-                pair = await self._idle.get()
+            while not state.idle.empty():
+                pair = await state.idle.get()
                 self._close_connection_pair(pair)
 
-            active_in_use = len(self._in_use)
-            for pair in list(self._in_use):
+            active_in_use = len(state.in_use)
+            for pair in list(state.in_use):
                 self._close_connection_pair(pair)
-                self._in_use.discard(pair)
+                state.in_use.discard(pair)
 
             if active_in_use:
                 self.log.warning("Pool closed with %d active connections", active_in_use)
 
-            self._semaphore = asyncio.Semaphore(self.pool_size)
 
     async def __aenter__(self):
         await self._ensure_initialized()
