@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow automated edge worker maintenance (#66310)``
+* ``Relax version checks for remote Edge Workers (#66292)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC110 violation in edge3 worker (#66192)``
+* ``Fix deadlock and add unit test (#66144)``
+* ``Edge worker: bound drain with SIGTERM/SIGKILL escalation (#65838)``
+* ``Fix Edge worker SIGTERM storm during API server outage (#65830)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66068)``
+   * ``Fix edge3 worker deadlock regression test on Python 3.14 (#66247)``
+   * ``Bump the edge-ui-package-updates group across 1 directory with 11 updates (#66227)``
+   * ``Bump the edge-ui-package-updates group across 1 directory with 15 updates (#65802)``
+   * ``[main] CI: Upgrade important CI environment (#65933)``
+   * ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+   * ``Fix typo 'matchning' -> 'matching' (#66427)``
+
 3.5.0
 .....
 
