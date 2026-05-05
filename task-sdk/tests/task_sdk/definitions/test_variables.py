@@ -25,7 +25,7 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.execution_time.comms import PutVariable, VariableResult
+from airflow.sdk.execution_time.comms import GetVariableKeys, PutVariable, VariableKeysResult, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -88,6 +88,36 @@ class TestVariables:
                 key=key, value=expected_value, description=description, serialize_json=serialize_json
             ),
         )
+
+
+class TestVariableKeys:
+    @pytest.mark.parametrize(
+        ("prefix", "keys"),
+        [
+            pytest.param(
+                None,
+                ["prod_db", "prod_api", "dev_debug"],
+                id="all",
+            ),
+            pytest.param(
+                "prod_",
+                ["prod_db", "prod_api"],
+                id="with-prefix",
+            ),
+            pytest.param(
+                "nonexistent_",
+                [],
+                id="empty-result",
+            ),
+        ],
+    )
+    def test_keys(self, prefix, keys, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = VariableKeysResult(keys=keys)
+
+        results = Variable.keys(prefix=prefix)
+
+        mock_supervisor_comms.send.assert_called_once_with(msg=GetVariableKeys(prefix=prefix))
+        assert results == keys
 
 
 class TestVariableFromSecrets:

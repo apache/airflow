@@ -51,6 +51,7 @@ authenticated_router.include_router(task_instances.router, prefix="/task-instanc
 authenticated_router.include_router(
     task_reschedules.router, prefix="/task-reschedules", tags=["Task Reschedules"]
 )
+authenticated_router.include_router(variables.keys_router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])

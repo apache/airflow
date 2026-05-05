@@ -68,6 +68,17 @@ class Variable:
             log.exception(e)
 
     @classmethod
+    def keys(cls, prefix: str | None = None) -> list[str]:
+        """
+        Return all Variable keys that start with the given prefix.
+
+        :param prefix: Optional key prefix to filter by. If None, all Variable keys are returned.
+        """
+        from airflow.sdk.execution_time.context import _get_variable_keys
+
+        return _get_variable_keys(prefix=prefix)
+
+    @classmethod
     def delete(cls, key: str) -> None:
         from airflow.sdk.exceptions import AirflowRuntimeError
         from airflow.sdk.execution_time.context import _delete_variable

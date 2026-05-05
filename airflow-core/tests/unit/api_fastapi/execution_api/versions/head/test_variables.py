@@ -244,6 +244,34 @@ class TestPutVariable:
         assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
 
 
+class TestGetVariableKeys:
+    @pytest.mark.parametrize(
+        ("prefix", "expected_keys"),
+        [
+            pytest.param(None, {"prod_db_url", "prod_api_key", "dev_debug"}, id="no-prefix"),
+            pytest.param("prod_", {"prod_db_url", "prod_api_key"}, id="with-prefix"),
+            pytest.param("staging_", set(), id="no-match"),
+        ],
+    )
+    def test_get_variable_keys(self, client, session, prefix, expected_keys):
+        Variable.set(key="prod_db_url", value="postgres://...", session=session)
+        Variable.set(key="prod_api_key", value="secret", session=session)
+        Variable.set(key="dev_debug", value="true", session=session)
+        session.commit()
+
+        params = {"prefix": prefix} if prefix is not None else {}
+        response = client.get("/execution/variables/keys", params=params)
+
+        assert response.status_code == 200
+        assert set(response.json()["keys"]) == expected_keys
+
+    def test_get_variable_keys_empty_db(self, client):
+        response = client.get("/execution/variables/keys")
+
+        assert response.status_code == 200
+        assert response.json() == {"keys": []}
+
+
 class TestDeleteVariable:
     @pytest.mark.parametrize(
         ("keys_to_create", "key_to_delete"),
