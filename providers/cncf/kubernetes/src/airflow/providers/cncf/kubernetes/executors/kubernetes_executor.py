@@ -725,7 +725,7 @@ class KubernetesExecutor(BaseExecutor):
                 # Iterate the scalar cursor straight into the set so we never
                 # materialize an intermediate list — keeps the memory
                 # footprint flat regardless of how many sibling schedulers
-                # are alive (per @jscheffl review on #66400).
+                # are alive
                 return {
                     jid
                     for jid in session.scalars(
