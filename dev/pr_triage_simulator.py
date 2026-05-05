@@ -618,14 +618,16 @@ def unresolved_threads_only(pr: dict[str, Any], d: Derived) -> bool:
 def unresolved_threads_only_likely_addressed(pr: dict[str, Any], d: Derived) -> bool:
     if not unresolved_threads_only(pr, d):
         return False
-    most_recent_first = max(
-        (
+    first_comment_times = [
+        ts
+        for ts in (
             _parse(t["comments"]["nodes"][0]["createdAt"])
             for t in d.unresolved_collab_threads
             if t["comments"]["nodes"]
-        ),
-        default=None,
-    )
+        )
+        if ts is not None
+    ]
+    most_recent_first = max(first_comment_times, default=None)
     if not (d.last_commit_at and most_recent_first and d.last_commit_at > most_recent_first):
         return False
     for thread in d.unresolved_collab_threads:
@@ -964,10 +966,10 @@ def main() -> int:
     if divergences:
         print()
         print("DIVERGENCE DETAIL:")
-        for d in divergences:
-            print(f"  #{d['pr']:>6} {d['url']}")
-            print(f"    OLD: {d['old']}")
-            print(f"    NEW: {d['new']}")
+        for div in divergences:
+            print(f"  #{div['pr']:>6} {div['url']}")
+            print(f"    OLD: {div['old']}")
+            print(f"    NEW: {div['new']}")
     return 0 if not divergences else 2
 
 
