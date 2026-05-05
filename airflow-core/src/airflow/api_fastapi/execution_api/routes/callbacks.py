@@ -84,9 +84,13 @@ def callback_run(
         )
 
     # Allow QUEUED → RUNNING transition; treat RUNNING as idempotent so a retried
-    # supervisor start does not 409. Anything else (PENDING / SCHEDULED / terminal)
-    # rejects.
-    if not callback.state == CallbackState.QUEUED:
+    # supervisor start does not 409. Anything else (PENDING / SCHEDULED / terminal) rejects.
+    if callback.state == CallbackState.RUNNING:
+        log.info("Duplicate start request received from %s", callback.id)
+    elif callback.state == CallbackState.QUEUED:
+        callback.state = CallbackState.RUNNING
+        session.add(callback)
+    else:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -95,9 +99,6 @@ def callback_run(
                 "current_state": callback.state,
             },
         )
-
-    callback.state = CallbackState.RUNNING
-    session.add(callback)
 
     if token.claims.scope == "workload":
         generator: JWTGenerator = services.get(JWTGenerator)

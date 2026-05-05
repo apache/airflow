@@ -1289,19 +1289,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state == CallbackState.RUNNING:
                 cls.logger().info("Callback %s is currently running", callback_id)
-                if callback.state == CallbackState.QUEUED:
-                    # The state change QUEUE -> RUNNING must be only executed by api
-                    pass
             elif state == CallbackState.SUCCESS:
                 cls.logger().info("Callback %s completed successfully", callback_id)
                 if callback.state == CallbackState.RUNNING:
                     callback.state = CallbackState.SUCCESS
                     need_to_modify = True
             elif state == CallbackState.FAILED:
-                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
+                callback_output = str(info) if info else "Execution failed"
+                cls.logger().error("Callback %s failed: %s", callback_id, callback_output)
                 if callback.state == CallbackState.RUNNING:
                     callback.state = CallbackState.FAILED
-                    callback.output = str(info) if info else "Execution failed"
+                    callback.output = callback_output
                     need_to_modify = True
 
             if need_to_modify:

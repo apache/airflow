@@ -29,7 +29,7 @@ from uuid import uuid4
 import pytest
 import structlog
 
-from airflow.sdk.api.client import Client
+from airflow.sdk.api.client import CallbackOperations, Client
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     execute_callback,
@@ -252,9 +252,7 @@ class TestSuperviseCallback:
 
     def _make_mock_client(self, mocker):
         client = mocker.Mock(spec=Client)
-        client.callbacks = mocker.Mock()
-        client.callbacks.start = mocker.Mock()
-        client.callbacks.finish = mocker.Mock()
+        client.callbacks = mocker.Mock(spec=CallbackOperations)
         return client
 
     def test_start_called_before_subprocess_then_finish_success(self, mocker):
