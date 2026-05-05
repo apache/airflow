@@ -722,15 +722,21 @@ class KubernetesExecutor(BaseExecutor):
             timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
             cutoff = timezone.utcnow() - timedelta(seconds=timeout)
             with create_session() as session:
-                rows = session.scalars(
-                    select(Job.id).where(
-                        Job.job_type == "SchedulerJob",
-                        Job.state == JobState.RUNNING,
-                        Job.latest_heartbeat >= cutoff,
-                        Job.id != self_id,
+                # Iterate the scalar cursor straight into the set so we never
+                # materialize an intermediate list — keeps the memory
+                # footprint flat regardless of how many sibling schedulers
+                # are alive (per @jscheffl review on #66400).
+                return {
+                    jid
+                    for jid in session.scalars(
+                        select(Job.id).where(
+                            Job.job_type == "SchedulerJob",
+                            Job.state == JobState.RUNNING,
+                            Job.latest_heartbeat >= cutoff,
+                            Job.id != self_id,
+                        )
                     )
-                ).all()
-            return set(rows)
+                }
         except Exception as exc:
             self.log.warning(
                 "Could not query alive SchedulerJobs for completed-pod adoption "
