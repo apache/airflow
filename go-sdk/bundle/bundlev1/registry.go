@@ -75,9 +75,16 @@ type (
 		AddDag(dagId string) Dag
 	}
 
-	// TaskInfo describes a registered task by its user-visible id.
+	// TaskInfo describes a registered task. Coordinator-mode DAG parsing uses
+	// it to render the per-task block of a DagFileParsingResult.
 	TaskInfo struct {
+		// ID is the user-visible task id (the function name unless overridden
+		// via AddTaskWithName).
 		ID string
+		// TypeName is the unqualified Go function name (e.g. "extract").
+		TypeName string
+		// PkgPath is the Go package path (e.g. "main", "github.com/x/y").
+		PkgPath string
 	}
 
 	// DagInfo describes a registered dag together with its tasks in
@@ -87,9 +94,9 @@ type (
 		Tasks []TaskInfo
 	}
 
-	// EnumerableBundle exposes the dag/task identity recorded by RegisterDags.
-	// The default registry implements it; airflow-go-pack relies on it to read
-	// a bundle's dag/task ids without executing any task.
+	// EnumerableBundle exposes the dag/task identity recorded by
+	// RegisterDags. The default registry implements it; the coordinator-mode
+	// runtime relies on it for the DAG-parse one-shot.
 	EnumerableBundle interface {
 		OrderedDags() []DagInfo
 	}
@@ -97,6 +104,7 @@ type (
 	registry struct {
 		sync.RWMutex
 		taskFuncMap map[string]map[string]Task
+		taskInfo    map[string]map[string]TaskInfo
 		dagOrder    []string
 		taskOrder   map[string][]string
 	}
@@ -122,26 +130,35 @@ func (d dagShim) AddTaskWithName(taskId string, fn any) {
 func New() Registry {
 	return &registry{
 		taskFuncMap: make(map[string]map[string]Task),
+		taskInfo:    make(map[string]map[string]TaskInfo),
 		taskOrder:   make(map[string][]string),
 	}
 }
 
+func splitFullName(fullName string) (typeName, pkgPath string) {
+	// fullName looks like "main.extract" or "github.com/x/y.MyTask"; method
+	// values get a "-fm" suffix.
+	lastDot := strings.LastIndex(fullName, ".")
+	if lastDot < 0 {
+		return strings.TrimSuffix(fullName, "-fm"), ""
+	}
+	return strings.TrimSuffix(fullName[lastDot+1:], "-fm"), fullName[:lastDot]
+}
+
 func getFnName(fn reflect.Value) string {
 	fullName := runtime.FuncForPC(fn.Pointer()).Name()
-	parts := strings.Split(fullName, ".")
-	fnName := parts[len(parts)-1]
-	// Go adds `-fm` suffix to a method names
-	return strings.TrimSuffix(fnName, "-fm")
+	name, _ := splitFullName(fullName)
+	return name
 }
 
 func (r *registry) AddDag(dagId string) Dag {
-	r.Lock()
-	defer r.Unlock()
-
+	r.RWMutex.Lock()
+	defer r.RWMutex.Unlock()
 	if _, exists := r.taskFuncMap[dagId]; exists {
 		panic(fmt.Errorf("Dag %q already exists in bundle", dagId))
 	}
 	r.taskFuncMap[dagId] = make(map[string]Task)
+	r.taskInfo[dagId] = make(map[string]TaskInfo)
 	r.dagOrder = append(r.dagOrder, dagId)
 	return dagShim{dagId, r}
 }
@@ -164,22 +181,27 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
 	}
 
+	val := reflect.ValueOf(fn)
+	fullName := runtime.FuncForPC(val.Pointer()).Name()
+	typeName, pkgPath := splitFullName(fullName)
+
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
 
 	dagTasks, exists := r.taskFuncMap[dagId]
-
 	if !exists {
 		dagTasks = make(map[string]Task)
 		r.taskFuncMap[dagId] = dagTasks
+		r.taskInfo[dagId] = make(map[string]TaskInfo)
 		r.dagOrder = append(r.dagOrder, dagId)
 	}
 
-	_, exists = dagTasks[taskId]
-	if exists {
+	if _, exists := dagTasks[taskId]; exists {
 		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
 	}
+
 	dagTasks[taskId] = task
+	r.taskInfo[dagId][taskId] = TaskInfo{ID: taskId, TypeName: typeName, PkgPath: pkgPath}
 	r.taskOrder[dagId] = append(r.taskOrder[dagId], taskId)
 }
 
@@ -195,9 +217,9 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 	return task, exists
 }
 
-// OrderedDags returns the registered dags in AddDag order, each with its tasks
-// in registration order. The returned slice is freshly allocated; callers may
-// mutate it freely.
+// OrderedDags returns the registered dags in the order AddDag was called,
+// each with its tasks in the order AddTask / AddTaskWithName was called. The
+// returned slice is freshly allocated; callers may mutate it freely.
 func (r *registry) OrderedDags() []DagInfo {
 	r.RLock()
 	defer r.RUnlock()
@@ -207,7 +229,7 @@ func (r *registry) OrderedDags() []DagInfo {
 		taskIDs := r.taskOrder[dagID]
 		tasks := make([]TaskInfo, 0, len(taskIDs))
 		for _, tid := range taskIDs {
-			tasks = append(tasks, TaskInfo{ID: tid})
+			tasks = append(tasks, r.taskInfo[dagID][tid])
 		}
 		out = append(out, DagInfo{DagID: dagID, Tasks: tasks})
 	}
