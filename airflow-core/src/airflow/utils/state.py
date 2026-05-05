@@ -88,10 +88,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
-    # Operator reached a stable checkpoint and paused; resume requires explicit
-    # action (manual API call) for now. AIP-96 will define automatic resume
-    # semantics; this state is the foundation for that discussion.
-    CHECKPOINTED = IntermediateTIState.CHECKPOINTED
+    CHECKPOINTED = IntermediateTIState.CHECKPOINTED  # Operator paused at a stable checkpoint
 
     def __str__(self) -> str:
         return self.value

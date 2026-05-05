@@ -1343,11 +1343,6 @@ def run(
         )
         state = TaskInstanceState.SKIPPED
     except AirflowTaskCheckpointed as checkpoint:
-        # AIP-96 foundation: the operator reached a stable checkpoint and is
-        # opting to pause. ``checkpoint_data`` persistence and resume wiring are
-        # out of scope for this foundation PR; this branch establishes the
-        # state-transition contract so listeners and operator authors can
-        # iterate against the final shape on a real artifact.
         log.info("Task checkpointed; reporting CHECKPOINTED state.")
         msg = TaskState(
             state=TaskInstanceState.CHECKPOINTED,
@@ -1355,10 +1350,7 @@ def run(
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.CHECKPOINTED
-        # Reference the payload so static analysis flags accidental drops once
-        # persistence wiring lands; the foundation PR intentionally does not
-        # forward this to the supervisor yet.
-        _ = checkpoint.checkpoint_data
+        ti._checkpoint_data = checkpoint.checkpoint_data  # type: ignore[attr-defined]
     except AirflowRescheduleException as reschedule:
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
         msg = RescheduleTask(
