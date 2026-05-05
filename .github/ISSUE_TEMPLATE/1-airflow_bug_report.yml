@@ -99,7 +99,7 @@ body:
         - "Other Docker-based deployment"
         - "Virtualenv installation"
         - "Astronomer"
-        - "Google Cloud Composer"
+        - "Google Managed Service for Apache Airflow"
         - "Amazon (AWS) MWAA"
         - "Microsoft ADF Managed Airflow"
         - "Other"

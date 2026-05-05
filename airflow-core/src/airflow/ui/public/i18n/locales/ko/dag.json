@@ -40,6 +40,18 @@
     "parseDuration": "파싱 기간:",
     "parsedAt": "파싱 시간:"
   },
+  "deadlineStatus": {
+    "actual": "실제",
+    "expected": "예상",
+    "finishedEarly": "데드라인보다 {{duration}} 일찍 완료",
+    "finishedLate": "데드라인보다 {{duration}} 늦게 완료",
+    "label": "데드라인",
+    "met": "달성",
+    "stillRunning": "실행 중",
+    "upcoming": "예정",
+    "upcomingCount_one": "예정된 데드라인 {{count}}개",
+    "upcomingCount_other": "예정된 데드라인 {{count}}개"
+  },
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
@@ -103,6 +115,10 @@
     "charts": {
       "assetEvent_one": "생성된 에셋 이벤트",
       "assetEvent_other": "생성된 에셋 이벤트"
+    },
+    "deadlines": {
+      "showAll": "모두 표시",
+      "title": "데드라인"
     },
     "failedLogs": {
       "hideLogs": "로그 숨기기",

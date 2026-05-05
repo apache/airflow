@@ -26,7 +26,6 @@ import uuid
 from collections.abc import MutableSequence, Sequence
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataproc_v1 import (
@@ -223,44 +222,52 @@ class DataprocHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    def _get_api_endpoint(
+        self,
+        region: str | None = None,
+    ) -> str | None:
+        if region and region != "global" and self.is_default_universe():
+            return f"{region}-dataproc.googleapis.com:443"
+        return None
+
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerClient:
         """Create a ClusterControllerClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         return ClusterControllerClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     def get_template_client(self, region: str | None = None) -> WorkflowTemplateServiceClient:
         """Create a WorkflowTemplateServiceClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         return WorkflowTemplateServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     def get_job_client(self, region: str | None = None) -> JobControllerClient:
         """Create a JobControllerClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         return JobControllerClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     def get_batch_client(self, region: str | None = None) -> BatchControllerClient:
         """Create a BatchControllerClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         return BatchControllerClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     def get_operations_client(self, region: str | None):
@@ -1293,50 +1300,52 @@ class DataprocAsyncHook(GoogleBaseAsyncHook):
 
     async def get_cluster_client(self, region: str | None = None) -> ClusterControllerAsyncClient:
         """Create a ClusterControllerAsyncClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         sync_hook = await self.get_sync_hook()
+
         return ClusterControllerAsyncClient(
-            credentials=sync_hook.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=sync_hook.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=sync_hook.get_client_options(
+                api_endpoint_override=sync_hook._get_api_endpoint(region=region)
+            ),
         )
 
     async def get_template_client(self, region: str | None = None) -> WorkflowTemplateServiceAsyncClient:
         """Create a WorkflowTemplateServiceAsyncClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         sync_hook = await self.get_sync_hook()
+
         return WorkflowTemplateServiceAsyncClient(
-            credentials=sync_hook.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=sync_hook.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=sync_hook.get_client_options(
+                api_endpoint_override=sync_hook._get_api_endpoint(region=region)
+            ),
         )
 
     async def get_job_client(self, region: str | None = None) -> JobControllerAsyncClient:
         """Create a JobControllerAsyncClient."""
         if self._cached_client is None:
-            client_options = None
-            if region and region != "global":
-                client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
             sync_hook = await self.get_sync_hook()
+
             self._cached_client = JobControllerAsyncClient(
                 credentials=sync_hook.get_credentials(),
                 client_info=CLIENT_INFO,
-                client_options=client_options,
+                client_options=sync_hook.get_client_options(
+                    api_endpoint_override=sync_hook._get_api_endpoint(region=region)
+                ),
             )
         return self._cached_client
 
     async def get_batch_client(self, region: str | None = None) -> BatchControllerAsyncClient:
         """Create a BatchControllerAsyncClient."""
-        client_options = None
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
-
         sync_hook = await self.get_sync_hook()
+
         return BatchControllerAsyncClient(
-            credentials=sync_hook.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=sync_hook.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=sync_hook.get_client_options(
+                api_endpoint_override=sync_hook._get_api_endpoint(region=region)
+            ),
         )
 
     async def get_operations_client(self, region: str) -> OperationsClient:

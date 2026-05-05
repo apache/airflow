@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import threading
+
 from airflow._shared.state import (
     AssetScope as AssetScope,
     BaseStateBackend as BaseStateBackend,
@@ -36,3 +38,17 @@ def resolve_state_backend() -> type[BaseStateBackend]:
             f"Your custom state backend `{clazz.__name__}` is not a subclass of `BaseStateBackend`."
         )
     return clazz
+
+
+_backend_instance: BaseStateBackend | None = None
+_backend_lock = threading.Lock()
+
+
+def get_state_backend() -> BaseStateBackend:
+    """Return a cached instance of the configured state backend."""
+    global _backend_instance
+    if _backend_instance is None:
+        with _backend_lock:
+            if _backend_instance is None:
+                _backend_instance = resolve_state_backend()()
+    return _backend_instance

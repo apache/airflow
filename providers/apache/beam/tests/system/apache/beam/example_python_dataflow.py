@@ -60,7 +60,7 @@ with models.DAG(
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config=DataflowConfiguration(
-            job_name="{{task.task_id}}",
+            job_name="{{ task.task_id }}",
             project_id=GCP_PROJECT_ID,
             location="us-central1",
             wait_until_finished=False,
@@ -69,7 +69,8 @@ with models.DAG(
 
     wait_for_python_job_dataflow_runner_async_done = DataflowJobStatusSensor(
         task_id="wait-for-python-job-async-done",
-        job_id="{{task_instance.xcom_pull('start_python_job_dataflow_runner_async')['dataflow_job_id']}}",
+        # verbose form: "{{ task_instance.xcom_pull('start_python_job_dataflow_runner_async')['dataflow_job_id'] }}"
+        job_id=start_python_job_dataflow_runner_async.output["dataflow_job_id"],
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         project_id=GCP_PROJECT_ID,
         location="us-central1",
