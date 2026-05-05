@@ -48,6 +48,9 @@ class SFTPClientPool(LoggingMixin):
 
     _instances: dict[str, SFTPClientPool] = {}
     _lock = Lock()
+    _create_connection_max_retries = 2
+    _create_connection_retry_base_delay = 0.2
+    _create_connection_retry_max_delay = 1.0
 
     @staticmethod
     def _resolve_pool_size(pool_size: int | None) -> int:
@@ -63,16 +66,16 @@ class SFTPClientPool(LoggingMixin):
                 instance._pre_init(sftp_conn_id, pool_size)
                 cls._instances[sftp_conn_id] = instance
             else:
-                # Validate that subsequent constructions for the same sftp_conn_id
-                # do not request a different pool_size, which would otherwise be
-                # silently ignored due to the singleton behavior.
                 instance = cls._instances[sftp_conn_id]
                 requested_pool_size = cls._resolve_pool_size(pool_size)
                 if instance.pool_size != requested_pool_size:
-                    raise ValueError(
-                        f"SFTPClientPool for sftp_conn_id '{sftp_conn_id}' has already been "
-                        f"initialised with pool_size={instance.pool_size}, but a different "
-                        f"pool_size={requested_pool_size} was requested."
+                    instance.log.warning(
+                        "SFTPClientPool for sftp_conn_id '%s' is already initialized with "
+                        "pool_size=%d; ignoring requested pool_size=%d and reusing the "
+                        "existing singleton.",
+                        sftp_conn_id,
+                        instance.pool_size,
+                        requested_pool_size,
                     )
             return cls._instances[sftp_conn_id]
 
@@ -132,6 +135,40 @@ class SFTPClientPool(LoggingMixin):
         self.log.info("Created new SFTP connection for sftp_conn_id '%s'", self.sftp_conn_id)
         return ssh_conn, sftp
 
+    async def _create_connection_with_retry(
+        self,
+    ) -> tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]:
+        max_attempts = self._create_connection_max_retries + 1
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return await self._create_connection()
+            except Exception as exc:
+                if attempt >= max_attempts:
+                    self.log.warning(
+                        "Failed creating SFTP connection for '%s' after %d attempts: %s",
+                        self.sftp_conn_id,
+                        max_attempts,
+                        exc,
+                    )
+                    raise
+
+                delay = min(
+                    self._create_connection_retry_base_delay * (2 ** (attempt - 1)),
+                    self._create_connection_retry_max_delay,
+                )
+                self.log.warning(
+                    "Failed creating SFTP connection for '%s' (attempt %d/%d): %s. Retrying in %.2fs",
+                    self.sftp_conn_id,
+                    attempt,
+                    max_attempts,
+                    exc,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+
+        # Unreachable, but keeps type checkers happy.
+        raise RuntimeError("Unable to create SFTP connection")
+
     async def acquire(self):
         await self._ensure_initialized()
         state = self._get_loop_state()
@@ -150,7 +187,7 @@ class SFTPClientPool(LoggingMixin):
             try:
                 pair = state.idle.get_nowait()
             except asyncio.QueueEmpty:
-                pair = await self._create_connection()
+                pair = await self._create_connection_with_retry()
 
             state.in_use.add(pair)
             return pair

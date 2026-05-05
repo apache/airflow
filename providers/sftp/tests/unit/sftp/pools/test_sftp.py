@@ -70,6 +70,8 @@ class TestSFTPClientPool:
         monkeypatch.setattr(SFTPHookAsync, "_get_conn", fail_get_conn)
 
         async with SFTPClientPool("test_conn", pool_size=2) as pool:
+            monkeypatch.setattr(pool, "_create_connection_retry_base_delay", 0)
+            monkeypatch.setattr(pool, "_create_connection_retry_max_delay", 0)
             with pytest.raises(Exception, match="fail"):
                 await pool.acquire()
 
@@ -77,6 +79,7 @@ class TestSFTPClientPool:
             ssh, sftp = await pool.acquire()
             assert ssh is not None
             assert sftp is not None
+            await pool.release((ssh, sftp))
 
     @pytest.mark.asyncio
     async def test_close(self, sftp_hook_mocked, mocker):
@@ -135,27 +138,22 @@ class TestSFTPClientPool:
         assert sftp.exited is True
 
     def test_pool_size_consistency_validation(self, sftp_hook_mocked):
-        """Test that creating a pool with different pool_size for same conn_id raises ValueError."""
-        # Create first instance with pool_size=2
+        """Second construction with a different pool_size keeps the original singleton configuration."""
         pool1 = SFTPClientPool("consistent_conn", pool_size=2)
-        assert pool1.pool_size == 2
+        pool2 = SFTPClientPool("consistent_conn", pool_size=5)
 
-        # Attempt to create another instance with same conn_id but different pool_size should fail
-        with pytest.raises(ValueError, match="has already been initialised with pool_size=2"):
-            SFTPClientPool("consistent_conn", pool_size=5)
+        assert pool2 is pool1
+        assert pool2.pool_size == 2
 
     def test_pool_size_consistency_with_default(self, sftp_hook_mocked, monkeypatch):
-        """Test that creating a pool with default pool_size and then explicit different pool_size raises ValueError."""
-        # Mock os.cpu_count() default used by the pool when pool_size is not provided.
+        """Default-first construction keeps its pool_size even if later calls pass another value."""
         monkeypatch.setattr("airflow.providers.sftp.pools.sftp.os.cpu_count", lambda: 3)
 
-        # Create first instance without explicit pool_size (uses default)
         pool1 = SFTPClientPool("default_conn")
-        assert pool1.pool_size == 3
+        pool2 = SFTPClientPool("default_conn", pool_size=10)
 
-        # Attempt to create another instance with explicit different pool_size should fail
-        with pytest.raises(ValueError, match="has already been initialised with pool_size=3"):
-            SFTPClientPool("default_conn", pool_size=10)
+        assert pool2 is pool1
+        assert pool2.pool_size == 3
 
     def test_pool_size_defaults_to_one_when_cpu_count_is_none(self, sftp_hook_mocked, monkeypatch):
         """Default pool size falls back to 1 when os.cpu_count() is unavailable."""
@@ -277,3 +275,48 @@ class TestSFTPClientPool:
 
         asyncio.run(acquire_in_loop1())
         asyncio.run(release_in_loop2())
+
+    @pytest.mark.asyncio
+    async def test_create_connection_retries_then_succeeds(self, sftp_hook_mocked, monkeypatch):
+        pool = SFTPClientPool("retry_success_conn", pool_size=1)
+        await pool._ensure_initialized()
+
+        call_count = 0
+
+        async def flaky_create_connection():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ConnectionError("transient")
+            return "ssh", "sftp"
+
+        monkeypatch.setattr(pool, "_create_connection", flaky_create_connection)
+        monkeypatch.setattr(pool, "_create_connection_retry_base_delay", 0)
+        monkeypatch.setattr(pool, "_create_connection_retry_max_delay", 0)
+
+        pair = await pool.acquire()
+        assert pair == ("ssh", "sftp")
+        assert call_count == 2
+        await pool.release(pair)
+
+    @pytest.mark.asyncio
+    async def test_create_connection_retries_exhaust_and_releases_permit(self, sftp_hook_mocked, monkeypatch):
+        pool = SFTPClientPool("retry_fail_conn", pool_size=1)
+        await pool._ensure_initialized()
+        state = pool._get_loop_state()
+
+        async def always_fail_create_connection():
+            raise ConnectionError("still failing")
+
+        monkeypatch.setattr(pool, "_create_connection", always_fail_create_connection)
+        monkeypatch.setattr(pool, "_create_connection_retry_base_delay", 0)
+        monkeypatch.setattr(pool, "_create_connection_retry_max_delay", 0)
+        monkeypatch.setattr(pool, "_create_connection_max_retries", 1)
+
+        with pytest.raises(ConnectionError, match="still failing"):
+            await pool.acquire()
+
+        # Ensure permit is returned after failure so a later acquire can proceed.
+        assert state.semaphore is not None
+        assert state.semaphore._value == pool.pool_size
+
