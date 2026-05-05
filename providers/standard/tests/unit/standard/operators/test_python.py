@@ -71,6 +71,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     NOTSET,
 )
 
@@ -1130,11 +1131,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         intentionally_excluded_context_keys |= {
             "inlet_events",
             "outlet_events",
-            # AIP-103: task_state is a live accessor backed by the supervisor pipe —
-            # it holds no serializable state and has no meaning in a virtualenv subprocess.
-            # asset_state is omitted here as it is only in context when the task has inlets.
-            "task_state",
         }
+        if AIRFLOW_V_3_3_PLUS:
+            # AIP-103: task_state is a live accessor backed by the supervisor pipe —
+            # not serializable and meaningless in a virtualenv subprocess.
+            # asset_state is excluded via its absence: only present when a task has inlets.
+            intentionally_excluded_context_keys.add("task_state")
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
