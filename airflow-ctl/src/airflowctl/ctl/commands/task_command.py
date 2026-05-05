@@ -31,7 +31,7 @@ from airflowctl.api.datamodels.generated import (
     ClearTaskInstancesBody,
     ClearTaskInstanceCollectionResponse,
 )
-from airflowctl.api.operations import TaskOperations
+
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -39,20 +39,23 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 def clear(args, api_client=NEW_API_CLIENT) -> None:
     """Clear task instances for a Dag run."""
     try:
-        ops = TaskOperations(client=api_client.client)
-        cleared = ops.clear(
-            dag_id=args.dag_id,
-            dry_run=getattr(args, "dry_run", False),
-            only_failed=getattr(args, "only_failed", True),
-            only_running=getattr(args, "only_running", False),
-            reset_dag_runs=getattr(args, "reset_dag_runs", True),
-            task_ids=getattr(args, "task_ids", None),
+        task_ids = getattr(args, "task_ids", None)
+        if task_ids:
+            task_ids = task_ids.split(",")
+
+        body = ClearTaskInstancesBody(
+            dry_run=getattr(args, "dry_run", False) or False,
+            only_failed=getattr(args, "only_failed", True) or True,
+            only_running=getattr(args, "only_running", False) or False,
+            reset_dag_runs=getattr(args, "reset_dag_runs", True) or True,
+            task_ids=task_ids,
             dag_run_id=getattr(args, "dag_run_id", None),
-            include_upstream=getattr(args, "upstream", False),
-            include_downstream=getattr(args, "downstream", False),
-            include_future=getattr(args, "include_future", False),
-            include_past=getattr(args, "include_past", False),
+            include_upstream=getattr(args, "upstream", False) or False,
+            include_downstream=getattr(args, "downstream", False) or False,
+            include_future=getattr(args, "include_future", False) or False,
+            include_past=getattr(args, "include_past", False) or False,
         )
+        cleared = api_client.client.tasks.clear(dag_id=args.dag_id, body=body)
         rich.print(
             f"[green]Cleared {len(cleared.task_instances)} task instance(s) for Dag {args.dag_id}[/green]"
         )

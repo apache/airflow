@@ -948,48 +948,21 @@ class TaskOperations(BaseOperations):
     def clear(
         self,
         dag_id: str,
-        dry_run: bool = False,
-        only_failed: bool = True,
-        only_running: bool = False,
-        reset_dag_runs: bool = True,
-        task_ids: list[str] | None = None,
-        dag_run_id: str | None = None,
-        include_upstream: bool = False,
-        include_downstream: bool = False,
-        include_future: bool = False,
-        include_past: bool = False,
-    ) -> ClearTaskInstanceCollectionResponse | ServerResponseError:
+        body: ClearTaskInstancesBody,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
         """
         Clear task instances for a Dag run.
 
         Args:
             dag_id: The Dag ID.
-            dry_run: Perform a dry run (no actual changes).
-            only_failed: Only clear failed task instances.
-            only_running: Only clear running task instances.
-            reset_dag_runs: Reset Dag runs.
-            task_ids: Comma-separated list of task IDs to clear.
-            dag_run_id: The Dag run ID.
-            include_upstream: Include upstream tasks.
-            include_downstream: Include downstream tasks.
-            include_future: Include future Dag runs.
-            include_past: Include past Dag runs.
+            body: ClearTaskInstancesBody containing the clear parameters.
         """
         try:
-            body = {
-                "dry_run": dry_run,
-                "only_failed": only_failed,
-                "only_running": only_running,
-                "reset_dag_runs": reset_dag_runs,
-                "task_ids": task_ids,
-                "dag_run_id": dag_run_id,
-                "include_upstream": include_upstream,
-                "include_downstream": include_downstream,
-                "include_future": include_future,
-                "include_past": include_past,
-            }
-            self.response = self.client.post(f"dags/{dag_id}/clearTaskInstances", json=body)
-            return ClearTaskInstanceCollectionResponse.model_validate_json(self.response.content)
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=body.model_dump(mode="json", exclude_unset=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
