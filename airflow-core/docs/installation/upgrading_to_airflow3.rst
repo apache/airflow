@@ -317,6 +317,7 @@ and FastAPI middlewares (``fastapi_root_middlewares``).
 
 If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
 All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+For the full chart-specific upgrade checklist (``values.yaml`` changes, the standalone Dag processor, JWT secret, FAB defaults, minimum Kubernetes version, and renamed keys across chart ``1.16.0``..``1.18.0``), see :doc:`helm-chart:upgrading-to-airflow-3`.
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
@@ -379,3 +380,15 @@ These include:
 
       airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 - **AUTH API** api routes defined in the auth manager are prefixed with the ``/auth`` route. Urls consumed outside of the application such as oauth redirect urls will have to updated accordingly. For example an oauth redirect url that was ``https://<your-airflow-url.com>/oauth-authorized/google`` in Airflow 2.x will be ``https://<your-airflow-url.com>/auth/oauth-authorized/google`` in Airflow 3.x
+- **XCom Pull Default Behavior**: Calling ``xcom_pull()`` without a ``task_ids`` argument now pulls only from the current task. In Airflow 2, omitting ``task_ids`` would search all tasks in the Dag run and return the most recently pushed value for the given key. You must now explicitly pass ``task_ids`` to pull XComs from other tasks:
+
+  .. code-block:: python
+
+      # Airflow 2 - pulls most recent value from any task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - same call only checks the current task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - specify task_ids to pull from other tasks
+      value = ti.xcom_pull(task_ids="upstream_task", key="shared_state")

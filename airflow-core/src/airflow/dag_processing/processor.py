@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import logging
 import os
 import traceback
 from collections.abc import Callable, Sequence
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -68,12 +69,15 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from socket import socket
+
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
@@ -301,7 +305,14 @@ def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
     for request in callback_requests:
-        log.debug("Processing Callback Request", request=request.to_json())
+        if isinstance(request, (TaskCallbackRequest, EmailRequest)):
+            log.debug(
+                "Processing Callback Request",
+                request=request.to_json(),
+                ti_id=str(request.ti.id),
+            )
+        else:
+            log.debug("Processing Callback Request", request=request.to_json())
         with BundleVersionLock(
             bundle_name=request.bundle_name,
             bundle_version=request.bundle_version,
@@ -356,7 +367,7 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             callback(context)
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
-            Stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+            stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -366,6 +377,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             dag_id=request.ti.dag_id,
             task_id=request.ti.task_id,
             run_id=request.ti.run_id,
+            ti_id=str(request.ti.id),
         )
         return
 
@@ -415,11 +427,21 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
 
     for idx, callback in enumerate(callbacks):
         callback_repr = get_callback_representation(callback)
-        log.info("Executing Task callback at index %d: %s", idx, callback_repr)
+        log.info(
+            "Executing Task callback at index %d: %s (ti_id=%s)",
+            idx,
+            callback_repr,
+            request.ti.id,
+        )
         try:
             callback(context)
         except Exception:
-            log.exception("Error in callback at index %d: %s", idx, callback_repr)
+            log.exception(
+                "Error in callback at index %d: %s (ti_id=%s)",
+                idx,
+                callback_repr,
+                request.ti.id,
+            )
 
 
 def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
@@ -513,6 +535,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
     client: Client
     """The HTTP client to use for communication with the API server."""
 
+    bundle_name: str
+    dag_file_rel_path: str
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -520,6 +545,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
@@ -529,7 +555,13 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
         _pre_import_airflow_modules(os.fspath(path), logger)
 
-        proc: Self = super().start(target=target, client=client, **kwargs)
+        proc: Self = super().start(
+            target=target,
+            client=client,
+            bundle_name=bundle_name,
+            dag_file_rel_path=dag_file_rel_path,
+            **kwargs,
+        )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
@@ -549,6 +581,19 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.send_msg(msg, request_id=0)
 
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        base = super()._get_target_loggers()
+        if not self.subprocess_logs_to_stdout:
+            return base
+        return tuple(
+            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
+        )
+
+    def _create_log_forwarder(
+        self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
+    ) -> Callable[[socket], bool]:
+        return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
+
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
@@ -564,6 +609,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result
                 dump_opts = {"exclude_unset": True, "by_alias": True}
@@ -572,6 +621,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -622,8 +673,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
             resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, MaskSecret):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-            from airflow.sdk.log import mask_secret
-
             mask_secret(msg.value, msg.name)
         elif isinstance(msg, GetTICount):
             resp = self.client.task_instances.get_count(

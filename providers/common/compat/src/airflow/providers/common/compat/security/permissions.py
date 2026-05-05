@@ -16,8 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+
 # Resource Constants
 RESOURCE_BACKFILL = "Backfills"
 RESOURCE_DAG_VERSION = "DAG Versions"
-RESOURCE_ASSET = "Assets"
 RESOURCE_ASSET_ALIAS = "Asset Aliases"
+if AIRFLOW_V_3_0_PLUS:
+    RESOURCE_ASSET = "Assets"
+else:
+    from airflow.security.permissions import (  # type: ignore[attr-defined, no-redef]
+        RESOURCE_DATASET as RESOURCE_ASSET,  # noqa: F401
+    )

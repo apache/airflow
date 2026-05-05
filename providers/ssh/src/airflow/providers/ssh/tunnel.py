@@ -52,6 +52,7 @@ Use the context manager interface instead.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import socket
 import threading
@@ -222,28 +223,22 @@ class SSHTunnel:
         self._running = False
         # Wake the select loop
         if self._shutdown_w is not None:
-            try:
+            with contextlib.suppress(OSError):
                 self._shutdown_w.send(b"\x00")
-            except OSError:
-                pass
         if self._thread is not None:
             self._thread.join(timeout=5)
             self._thread = None
         # Close the shutdown pair
         for sock in (self._shutdown_r, self._shutdown_w):
             if sock is not None:
-                try:
+                with contextlib.suppress(OSError):
                     sock.close()
-                except OSError:
-                    pass
         self._shutdown_r = None
         self._shutdown_w = None
         # Close the server socket
         if self._server_socket is not None:
-            try:
+            with contextlib.suppress(OSError):
                 self._server_socket.close()
-            except OSError:
-                pass
             self._server_socket = None
 
     def _serve_forever(self) -> None:
@@ -357,10 +352,8 @@ class SSHTunnel:
     def _close_pair(local_sock: socket.socket, chan: paramiko.Channel) -> None:
         """Close both ends of a forwarded connection."""
         for closeable in (chan, local_sock):
-            try:
+            with contextlib.suppress(OSError):
                 closeable.close()
-            except OSError:
-                pass
 
 
 class AsyncSSHTunnel:

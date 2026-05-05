@@ -24,7 +24,7 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-openlineage",
-        "name": "OpenLineage Airflow",
+        "name": "OpenLineage",
         "description": "`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.\nAt its core it is an extensible specification that systems can use to interoperate with lineage metadata.\n",
         "integrations": [
             {

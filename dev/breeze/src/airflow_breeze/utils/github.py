@@ -21,7 +21,6 @@ import re
 import sys
 import tempfile
 import zipfile
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -136,13 +135,14 @@ ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
 def get_active_airflow_versions(
-    confirm: bool = True, remote_name: str = "apache"
+    confirm: bool = True, remote_name: str = "upstream"
 ) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
 
     :param confirm: if True, will ask the user before proceeding with the versions found
-    :param remote_name: name of the remote to fetch tags from (e.g., 'apache')
+    :param remote_name: name of the remote to fetch tags from (default: 'upstream' per the
+        project's git remote naming convention)
     :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
@@ -158,12 +158,18 @@ def get_active_airflow_versions(
     try:
         ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
     except GitCommandError as ex:
-        console_print("[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n")
+        console_print(
+            f"[error]Could not fetch tags from `{remote_name}` remote! Make sure to have it configured.\n"
+        )
         console_print(f"{ex}\n")
         console_print(
-            "[info]You can add apache remote with on of those commands (depend which protocol you use):\n"
-            " * git remote add apache https://github.com/apache/airflow.git\n"
-            " * git remote add apache git@github.com:apache/airflow.git\n"
+            "[info]Airflow standardises on `upstream` for the apache/airflow remote and `origin` "
+            "for your fork. You can add the upstream remote with one of these commands "
+            "(depending on which protocol you use):\n"
+            " * git remote add upstream https://github.com/apache/airflow.git\n"
+            " * git remote add upstream git@github.com:apache/airflow.git\n"
+            "If you already have it configured under a different name, rename it with "
+            "`git remote rename <old-name> upstream`, or pass `--remote-name <old-name>`.\n"
         )
         sys.exit(1)
     tags = [tag.split("refs/tags/")[1].strip() for tag in ref_tags if "refs/tags/" in tag]
@@ -352,364 +358,3 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     console_print(f"[info]Found run id {run_id} for PR {pr}")
 
     download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)
-
-
-_CONTRIBUTING_DOCS_URL = "https://github.com/apache/airflow/blob/main/contributing-docs"
-_STATIC_CHECKS_URL = f"{_CONTRIBUTING_DOCS_URL}/08_static_code_checks.rst"
-_TESTING_URL = f"{_CONTRIBUTING_DOCS_URL}/09_testing.rst"
-
-# Patterns to categorize failing CI check names
-_CHECK_CATEGORIES: list[tuple[str, list[str], str, str]] = [
-    # (category, name_patterns, fix_instructions, doc_url)
-    (
-        "Pre-commit / static checks",
-        ["static checks", "pre-commit", "prek"],
-        "Run `prek run --from-ref main` locally to find and fix issues.",
-        _STATIC_CHECKS_URL,
-    ),
-    (
-        "Ruff (linting / formatting)",
-        ["ruff"],
-        "Run `prek run ruff --from-ref main` and `prek run ruff-format --from-ref main` to fix.",
-        f"{_STATIC_CHECKS_URL}#using-prek",
-    ),
-    (
-        "mypy (type checking)",
-        ["mypy"],
-        "",  # dynamically generated in assess_pr_checks based on which mypy hooks failed
-        f"{_STATIC_CHECKS_URL}#mypy-checks",
-    ),
-    (
-        "Unit tests",
-        ["unit test", "test-"],
-        "Run failing tests with `breeze run pytest <path> -xvs`.",
-        _TESTING_URL,
-    ),
-    (
-        "Build docs",
-        ["docs", "spellcheck-docs", "build-docs"],
-        "Run `breeze build-docs` locally to reproduce.",
-        f"{_CONTRIBUTING_DOCS_URL}/16_documentation.rst",
-    ),
-    (
-        "Helm tests",
-        ["helm"],
-        "Run Helm tests with `breeze k8s run-complete-tests`.",
-        _TESTING_URL,
-    ),
-    (
-        "Kubernetes tests",
-        ["k8s", "kubernetes"],
-        "See the K8s testing documentation.",
-        _TESTING_URL,
-    ),
-    (
-        "Image build",
-        ["build ci image", "build prod image", "ci-image", "prod-image"],
-        "Check that Dockerfiles and dependencies are correct.",
-        f"{_CONTRIBUTING_DOCS_URL}/03a_contributors_quick_start_beginners.rst",
-    ),
-    (
-        "Provider tests",
-        ["provider"],
-        "Run provider tests with `breeze run pytest <provider-test-path> -xvs`.",
-        f"{_CONTRIBUTING_DOCS_URL}/12_provider_distributions.rst",
-    ),
-]
-
-
-@dataclass
-class Violation:
-    category: str
-    explanation: str  # short description of the problem (shown in terminal)
-    severity: str  # "error" or "warning"
-    details: str = ""  # fix suggestions and doc links (included only in GitHub comment)
-
-
-@dataclass
-class PRAssessment:
-    should_flag: bool
-    should_report: bool = False
-    violations: list[Violation] = field(default_factory=list)
-    summary: str = ""
-    error: bool = False
-    error_debug_file: str = ""
-    duration: float = 0.0  # actual LLM execution time in seconds
-    attempts: int = 1  # number of LLM attempts (including retries)
-
-
-_MYPY_HOOK_RE = re.compile(r"\b(mypy-[\w-]+)\b", re.IGNORECASE)
-
-
-_ALL_MYPY_HOOKS = [
-    "mypy-airflow-core",
-    "mypy-providers",
-    "mypy-dev",
-    "mypy-task-sdk",
-    "mypy-devel-common",
-    "mypy-airflow-ctl",
-]
-
-
-def _build_mypy_fix(checks: list[str]) -> str:
-    """Build a mypy fix instruction from the list of failing mypy check names."""
-    hooks: list[str] = []
-    for check in checks:
-        m = _MYPY_HOOK_RE.search(check)
-        if m:
-            hooks.append(m.group(1).lower())
-    if not hooks:
-        hooks = _ALL_MYPY_HOOKS
-    commands = " && ".join(f"`prek --stage manual {hook} --all-files`" for hook in hooks)
-    return (
-        f"Run {commands} locally to reproduce. "
-        "You need `breeze ci-image build --python 3.10` for Docker-based mypy."
-    )
-
-
-def _categorize_check(check_name: str) -> tuple[str, str, str] | None:
-    """Match a failing check name to a category. Returns (category, fix_instructions, doc_url) or None."""
-    lower = check_name.lower()
-    for category, patterns, fix_instructions, url in _CHECK_CATEGORIES:
-        if any(p in lower for p in patterns):
-            return category, fix_instructions, url
-    return None
-
-
-def assess_pr_checks(pr_number: int, checks_state: str, failed_checks: list[str]) -> PRAssessment | None:
-    """Deterministically flag a PR if CI checks are failing. Returns None if checks pass.
-
-    Uses the statusCheckRollup.state as the authoritative signal.
-    failed_checks is a best-effort list of individual failing check names.
-    """
-    if checks_state != "FAILURE":
-        return None
-
-    violations: list[Violation] = []
-
-    if failed_checks:
-        # Group failing checks by category
-        categorized: dict[str, tuple[list[str], str, str]] = {}
-        uncategorized: list[str] = []
-
-        for check in failed_checks:
-            match = _categorize_check(check)
-            if match:
-                category, fix_instructions, url = match
-                if category not in categorized:
-                    categorized[category] = ([], fix_instructions, url)
-                categorized[category][0].append(check)
-            else:
-                uncategorized.append(check)
-
-        for category, (checks, fix_instructions, url) in categorized.items():
-            checks_list = ", ".join(checks[:5])
-            if len(checks) > 5:
-                checks_list += f" (+{len(checks) - 5} more)"
-            fix_text = _build_mypy_fix(checks) if category == "mypy (type checking)" else fix_instructions
-            violations.append(
-                Violation(
-                    category=category,
-                    explanation=f"Failing: {checks_list}.",
-                    severity="error",
-                    details=f"{fix_text} See [{category} docs]({url}).",
-                )
-            )
-
-        if uncategorized:
-            checks_list = ", ".join(uncategorized[:5])
-            if len(uncategorized) > 5:
-                checks_list += f" (+{len(uncategorized) - 5} more)"
-            violations.append(
-                Violation(
-                    category="Other failing CI checks",
-                    explanation=f"Failing: {checks_list}.",
-                    severity="error",
-                    details=(
-                        f"Run `prek run --from-ref main` locally to reproduce. "
-                        f"See [static checks docs]({_STATIC_CHECKS_URL})."
-                    ),
-                )
-            )
-
-        summary = f"PR #{pr_number} has {len(failed_checks)} failing CI check(s)."
-    else:
-        violations.append(
-            Violation(
-                category="Failing CI checks",
-                explanation="CI checks are failing (individual check names not available).",
-                severity="error",
-                details=(
-                    f"Run `prek run --from-ref main` locally to reproduce. "
-                    f"See [static checks docs]({_STATIC_CHECKS_URL}) "
-                    f"and [testing docs]({_TESTING_URL})."
-                ),
-            )
-        )
-        summary = f"PR #{pr_number} has failing CI checks."
-
-    return PRAssessment(
-        should_flag=True,
-        violations=violations,
-        summary=summary,
-    )
-
-
-def assess_pr_conflicts(
-    pr_number: int, mergeable: str, base_ref: str, commits_behind: int
-) -> PRAssessment | None:
-    """Deterministically flag a PR if it has merge conflicts. Returns None if no conflicts."""
-    if mergeable != "CONFLICTING":
-        return None
-
-    behind_note = ""
-    if commits_behind > 0:
-        behind_note = (
-            f" Your branch is {commits_behind} commit{'s' if commits_behind != 1 else ''} "
-            f"behind `{base_ref}`."
-        )
-
-    return PRAssessment(
-        should_flag=True,
-        violations=[
-            Violation(
-                category="Merge conflicts",
-                explanation=(f"This PR has merge conflicts with the `{base_ref}` branch.{behind_note}"),
-                severity="error",
-                details=(
-                    f"Please rebase your branch "
-                    f"(`git fetch origin && git rebase origin/{base_ref}`), "
-                    f"resolve the conflicts, and push again. "
-                    f"See [contributing quick start]"
-                    f"({_CONTRIBUTING_DOCS_URL}/03a_contributors_quick_start_beginners.rst)."
-                ),
-            )
-        ],
-        summary=f"PR #{pr_number} has merge conflicts.",
-    )
-
-
-def assess_pr_unresolved_comments(
-    pr_number: int, unresolved_review_comments: int, unresolved_threads: list | None = None
-) -> PRAssessment | None:
-    """Deterministically flag a PR if it has unresolved review comments from maintainers.
-
-    Returns None if there are no unresolved comments.
-    When *unresolved_threads* is provided (list of UnresolvedThread), the violation
-    explanation includes per-reviewer detail.
-    """
-    if unresolved_review_comments <= 0:
-        return None
-
-    thread_word = "thread" if unresolved_review_comments == 1 else "threads"
-
-    # Build per-reviewer explanation if thread detail is available
-    if unresolved_threads:
-        # Group by reviewer
-        from collections import defaultdict
-
-        by_reviewer: dict[str, list] = defaultdict(list)
-        for t in unresolved_threads:
-            by_reviewer[t.reviewer_login].append(t)
-
-        reviewer_lines = []
-        for login, threads in by_reviewer.items():
-            assoc = threads[0].reviewer_association
-            count = len(threads)
-            reviewer_lines.append(f"**@{login}** ({assoc}): {count} unresolved {thread_word}")
-        reviewer_summary = "; ".join(reviewer_lines)
-
-        explanation = (
-            f"This PR has {unresolved_review_comments} unresolved review "
-            f"{thread_word} from maintainers: {reviewer_summary}."
-        )
-    else:
-        explanation = (
-            f"This PR has {unresolved_review_comments} unresolved review {thread_word} from maintainers."
-        )
-
-    return PRAssessment(
-        should_flag=True,
-        violations=[
-            Violation(
-                category="Unresolved review comments",
-                explanation=explanation,
-                severity="warning",
-                details=(
-                    "Please review and resolve all inline review comments before requesting "
-                    "another review. You can resolve a conversation by clicking 'Resolve conversation' "
-                    "on each thread after addressing the feedback. "
-                    f"See [pull request guidelines]"
-                    f"({_CONTRIBUTING_DOCS_URL}/05_pull_requests.rst)."
-                ),
-            )
-        ],
-        summary=f"PR #{pr_number} has {unresolved_review_comments} unresolved review {thread_word}.",
-    )
-
-
-# Patterns that indicate screenshots or video demos in a PR body.
-# Based on analysis of real Airflow UI PRs — GitHub drag-and-drop uploads
-# produce HTML <img> tags or bare URLs with user-attachments/assets/ paths.
-_DEMO_EVIDENCE_PATTERNS = [
-    r"<img\s",  # HTML <img> tag (GitHub drag-and-drop screenshots)
-    r"https://github\.com/user-attachments/assets/",  # GitHub-uploaded assets (images & videos)
-    r"!\[",  # Markdown image syntax (rare but valid)
-    r"https?://\S+\.(?:png|jpg|jpeg|gif|webp|mp4|mov|webm)",  # Direct media file URLs
-]
-
-# authorAssociation values that indicate the author has write access
-_COLLABORATOR_ASSOCIATIONS_FOR_UI = {"COLLABORATOR", "MEMBER", "OWNER"}
-
-
-def _has_demo_evidence(body: str | None) -> bool:
-    """Check if PR body contains screenshots, images, or video links."""
-    if not body:
-        return False
-    for pattern in _DEMO_EVIDENCE_PATTERNS:
-        if re.search(pattern, body, re.IGNORECASE):
-            return True
-    return False
-
-
-def assess_pr_ui_demo(
-    pr_number: int,
-    labels: list[str],
-    body: str | None,
-    author_association: str,
-) -> PRAssessment | None:
-    """Flag UI PRs from new contributors that lack screenshots or demo videos.
-
-    Returns None if the PR does not have the ``area:UI`` label, the author is a
-    collaborator/member/owner, or the PR body already contains demo evidence.
-    """
-    if "area:UI" not in labels:
-        return None
-
-    if author_association in _COLLABORATOR_ASSOCIATIONS_FOR_UI:
-        return None
-
-    if _has_demo_evidence(body):
-        return None
-
-    return PRAssessment(
-        should_flag=True,
-        violations=[
-            Violation(
-                category="Missing UI demo",
-                explanation=(
-                    "This PR changes UI code but the description does not include "
-                    "screenshots or a demo video."
-                ),
-                severity="warning",
-                details=(
-                    "For UI changes, please add screenshots or a short screen recording "
-                    "directly to the PR description (not in comments) so reviewers can "
-                    "verify the visual changes. You can paste images directly into the "
-                    "GitHub PR description or drag-and-drop a screen recording. "
-                    f"See [pull request guidelines]({_CONTRIBUTING_DOCS_URL}/05_pull_requests.rst)."
-                ),
-            )
-        ],
-        summary=f"PR #{pr_number} changes UI code but has no screenshots or demo.",
-    )

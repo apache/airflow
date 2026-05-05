@@ -44,6 +44,10 @@ import msgspec
 import psutil
 import pytest
 import structlog
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
@@ -64,7 +68,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
@@ -141,9 +145,10 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessTestSupervisor,
     _make_process_nondumpable,
     _remote_logging_conn,
+    in_process_api_server,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
-    supervise,
+    supervise_task,
 )
 from airflow.sdk.execution_time.task_runner import run
 
@@ -230,7 +235,7 @@ class TestSupervisor:
 
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
-                supervise(**kw)
+                supervise_task(**kw)
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -516,11 +521,21 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
-    def test_last_chance_exception_handling(self, capfd):
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(None, id="start_date_is_none"),
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+        ],
+    )
+    def test_last_chance_exception_handling(self, capfd, start_date, make_ti_context):
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context(start_date=start_date)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -528,7 +543,7 @@ class TestWatchedSubprocess:
             what=TaskInstance(
                 id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
             ),
-            client=MagicMock(spec=sdk_client.Client),
+            client=mock_client,
             target=subprocess_main,
         )
 
@@ -539,6 +554,53 @@ class TestWatchedSubprocess:
         captured = capfd.readouterr()
         assert "Last chance exception handler" in captured.err
         assert "RuntimeError: Fake syntax error" in captured.err
+
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+            pytest.param(None, id="start_date_missing_in_context"),
+        ],
+    )
+    def test_resume_start_date_from_context(self, mocker, make_ti_context, start_date, time_machine):
+        """Verify that start_date from ti_context (e.g. for deferral resume) is used in the
+        StartupDetails message instead of computing a new datetime.now(). This test is kept
+        separate from test_last_chance_exception_handling as their purposes do not overlap.
+        """
+        fallback_now = timezone.datetime(2026, 1, 1, tzinfo=timezone.utc)
+        time_machine.move_to(fallback_now, tick=False)
+
+        mock_client = MagicMock(spec=sdk_client.Client)
+        ti_context = make_ti_context()
+        ti_context.start_date = start_date
+        mock_client.task_instances.start.return_value = ti_context
+
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        rc = proc.wait()
+        assert rc == 0
+
+        # The startup message is sent via send_msg(StartupDetails(...), request_id=0)
+        startup_calls = [
+            c for c in mock_send.call_args_list if len(c.args) > 1 and hasattr(c.args[1], "start_date")
+        ]
+        assert len(startup_calls) >= 1
+        msg = startup_calls[0].args[1]
+        expected_start_date = start_date or fallback_now
+        assert msg.start_date == expected_start_date
 
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
@@ -624,7 +686,7 @@ class TestWatchedSubprocess:
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
-            exit_code = supervise(
+            exit_code = supervise_task(
                 ti=ti,
                 dag_rel_path=dagfile_path,
                 token="",
@@ -679,7 +741,7 @@ class TestWatchedSubprocess:
             patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)),
             patch("airflow.sdk.execution_time.supervisor.time.monotonic", side_effect=mock_monotonic),
         ):
-            exit_code = supervise(
+            exit_code = supervise_task(
                 ti=ti,
                 dag_rel_path="super_basic_deferred_run.py",
                 token="",
@@ -723,12 +785,13 @@ class TestWatchedSubprocess:
             "exit_code": 0,
             "duration": 0.0,
             "final_state": "deferred",
-            "event": "Task finished",
+            "event": "Workload finished",
+            "workload_type": "ExecuteTask",
+            "workload_id": str(ti.id),
             "timestamp": mocker.ANY,
             "level": "info",
             "logger": "supervisor",
             "loc": mocker.ANY,
-            "task_instance_id": str(ti.id),
         } in captured_logs
 
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
@@ -1683,6 +1746,8 @@ REQUEST_TEST_CASES = [
                 "id": TI_ID,
                 "end_date": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test retry task",
+                "retry_delay_seconds": None,
+                "retry_reason": None,
             },
             response=OKResponse(ok=True),
         ),
@@ -2097,15 +2162,24 @@ REQUEST_TEST_CASES = [
             run_id="test_run",
             conf={"key": "value"},
             logical_date=timezone.datetime(2025, 1, 1),
+            run_after=timezone.datetime(2025, 1, 1, 12, 0, 0),
             reset_dag_run=True,
         ),
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, None),
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                timezone.datetime(2025, 1, 1, 12, 0, 0),
+                True,
+                None,
+            ),
             response=OKResponse(ok=True),
         ),
-        test_id="dag_run_trigger",
+        test_id="dag_run_trigger_with_run_after",
     ),
     RequestTestCase(
         message=TriggerDagRun(
@@ -2119,7 +2193,31 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True, "Test Note"),
+            args=(
+                "test_dag",
+                "test_run",
+                {"key": "value"},
+                timezone.datetime(2025, 1, 1),
+                None,
+                True,
+                "Test Note",
+            ),
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), None, True, None),
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2129,7 +2227,7 @@ REQUEST_TEST_CASES = [
         expected_body={"error": "DAGRUN_ALREADY_EXISTS", "detail": None, "type": "ErrorResponse"},
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
-            args=("test_dag", "test_run", None, None, False, None),
+            args=("test_dag", "test_run", None, None, None, False, None),
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",
@@ -2154,6 +2252,7 @@ REQUEST_TEST_CASES = [
             "triggering_user_name": None,
             "type": "DagRunResult",
             "note": None,
+            "team_name": None,
         },
         client_mock=ClientMock(
             method_path="dag_runs.get_detail",
@@ -2205,6 +2304,7 @@ REQUEST_TEST_CASES = [
                 "conf": None,
                 "triggering_user_name": None,
                 "note": None,
+                "team_name": None,
             },
             "type": "PreviousDagRunResult",
         },
@@ -2575,7 +2675,7 @@ class TestHandleRequest:
 
         return subprocess, read_end
 
-    @patch("airflow.sdk.execution_time.supervisor.mask_secret")
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
     @pytest.mark.parametrize("test_case", REQUEST_TEST_CASES, ids=lambda tc: tc.test_id)
     def test_handle_requests(
         self,
@@ -2911,6 +3011,31 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                     f"Connection {expected_env} was not available during upload_to_remote call"
                 )
                 assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+def test_log_upload_failures_are_non_fatal(mocker):
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(),
+        client=mocker.MagicMock(),
+        process=mocker.MagicMock(),
+    )
+    proc.ti = mocker.MagicMock()
+
+    mocker.patch(
+        "airflow.sdk.execution_time.supervisor._remote_logging_conn",
+        side_effect=RuntimeError("upload failed"),
+    )
+
+    proc._upload_logs()
+
+    proc.process_log.exception.assert_called_once_with(
+        "Failed to upload remote logs",
+        ti_id=TI_ID,
+        pid=12345,
+    )
 
 
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
@@ -3297,3 +3422,142 @@ def test_nondumpable_noop_on_non_linux():
     """On non-Linux, _make_process_nondumpable returns without error."""
 
     _make_process_nondumpable()
+
+
+def test_in_process_api_server_caches_instance():
+    """in_process_api_server() returns the same instance on repeated calls."""
+    in_process_api_server.cache_clear()
+    try:
+        first = in_process_api_server()
+        second = in_process_api_server()
+        assert first is second
+
+        in_process_api_server.cache_clear()
+        third = in_process_api_server()
+        assert third is not first
+    finally:
+        in_process_api_server.cache_clear()
+
+
+def test_api_client_clears_dag_bag_override_when_dag_is_none():
+    """_api_client(dag=None) removes stale dag_bag_from_app overrides set by a previous call."""
+    from unittest.mock import MagicMock
+
+    from airflow.api_fastapi.common.dagbag import dag_bag_from_app
+
+    in_process_api_server.cache_clear()
+    try:
+        # First call with a dag sets the override
+        mock_dag = MagicMock()
+        InProcessTestSupervisor._api_client(dag=mock_dag)
+        api = in_process_api_server()
+        assert dag_bag_from_app in api.app.dependency_overrides
+
+        # Second call with dag=None should remove it
+        InProcessTestSupervisor._api_client(dag=None)
+        assert dag_bag_from_app not in api.app.dependency_overrides
+    finally:
+        in_process_api_server.cache_clear()
+
+
+@pytest.mark.usefixtures("disable_capturing")
+class TestChildExecMain:
+    """Test the macOS fork+exec child entry point."""
+
+    def test_uses_fds_012_and_requests_log_channel(self, monkeypatch):
+        """_child_exec_main wraps FDs 0/1/2 as sockets, passes log_fd=0, sets _AIRFLOW_FORK_EXEC."""
+        # _child_exec_main expects FDs 0/1/2 to be sockets (dup2'd by the
+        # parent before exec).  It passes log_fd=0 to _fork_main (structured
+        # logging is requested later via ResendLoggingFD).
+        req_a, req_b = socket.socketpair()
+        out_a, out_b = socket.socketpair()
+        err_a, err_b = socket.socketpair()
+
+        # Save originals so we can restore after the test.
+        saved_0 = os.dup(0)
+        saved_1 = os.dup(1)
+        saved_2 = os.dup(2)
+
+        try:
+            os.dup2(req_a.fileno(), 0)
+            os.dup2(out_a.fileno(), 1)
+            os.dup2(err_a.fileno(), 2)
+
+            captured = {}
+
+            def mock_fork_main(requests, stdout, stderr, log_fd, target):
+                captured["requests_fd"] = requests.fileno()
+                captured["stdout_fd"] = stdout.fileno()
+                captured["stderr_fd"] = stderr.fileno()
+                captured["log_fd"] = log_fd
+                captured["target"] = target
+                # Detach so the mock return doesn't double-close FDs that
+                # _child_exec_main's socket objects also own.
+                requests.detach()
+                stdout.detach()
+                stderr.detach()
+
+            monkeypatch.setattr(supervisor, "_fork_main", mock_fork_main)
+
+            supervisor._child_exec_main()
+
+            assert captured["requests_fd"] == 0
+            assert captured["stdout_fd"] == 1
+            assert captured["stderr_fd"] == 2
+            assert captured["log_fd"] == 0
+            assert captured["target"] is supervisor._subprocess_main
+            # _child_exec_main sets this so the task runner knows to request
+            # the log channel via ResendLoggingFD.
+            assert os.environ.pop("_AIRFLOW_FORK_EXEC") == "1"
+        finally:
+            # Restore original FDs.
+            os.dup2(saved_0, 0)
+            os.dup2(saved_1, 1)
+            os.dup2(saved_2, 2)
+            os.close(saved_0)
+            os.close(saved_1)
+            os.close(saved_2)
+            for s in [req_a, req_b, out_a, out_b, err_a, err_b]:
+                s.close()
+
+
+def test_ipc_trace_context_propagation(mocker):
+    """Full IPC propagation chain: _make_frame injects the active span; handle_requests restores it."""
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(InMemorySpanExporter()))
+    tracer = provider.get_tracer("test")
+
+    # Task-runner side: _make_frame injects the active span via the real propagator.
+    with tracer.start_as_current_span("task_span") as span:
+        frame = CommsDecoder(socket=None)._make_frame(GetVariable(key="k"))  # type: ignore[arg-type]
+        expected_span_id = span.get_span_context().span_id
+
+    assert frame.context_carrier is not None
+    assert f"{expected_span_id:016x}" in frame.context_carrier.get("traceparent", "")
+
+    # Supervisor side: handle_requests extracts and restores the context before dispatch.
+    # Capture the active span from inside the client call — exercises the full dispatch path.
+    _, write_end = socket.socketpair()
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=write_end,
+        client=mocker.Mock(),
+        process=mocker.Mock(),
+    )
+    captured: list[int] = []
+
+    def capture_on_get(key):
+        captured.append(get_current_span().get_span_context().span_id)
+        return VariableResult(key=key, value="v")
+
+    proc.client.variables.get.side_effect = capture_on_get
+
+    generator = proc.handle_requests(log=mocker.Mock())
+    next(generator)
+    generator.send(frame)
+
+    assert captured == [expected_span_id]
+    # Context is detached after dispatch — no leak.
+    assert get_current_span().get_span_context().span_id != expected_span_id

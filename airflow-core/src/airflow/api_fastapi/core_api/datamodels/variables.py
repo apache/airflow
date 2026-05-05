@@ -24,6 +24,7 @@ from pydantic import Field, JsonValue, model_validator
 
 from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
+from airflow.configuration import conf
 from airflow.models.base import ID_LEN
 from airflow.typing_compat import Self
 
@@ -59,6 +60,14 @@ class VariableBody(StrictBaseModel):
     value: JsonValue = Field(serialization_alias="val")
     description: str | None = Field(default=None)
     team_name: str | None = Field(max_length=50, default=None)
+
+    @model_validator(mode="after")
+    def validate_team_name(self) -> VariableBody:
+        if self.team_name is not None and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            )
+        return self
 
 
 VariableBodyPartial = make_partial_model(VariableBody)

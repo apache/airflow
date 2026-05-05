@@ -148,11 +148,12 @@ class WorkerStateBody(WorkerQueuesBase):
         ),
     ] = None
     sysinfo: Annotated[
-        dict[str, str | int],
+        dict[str, str | int | float | datetime],
         Field(
             description="System information of the worker.",
             examples=[
                 {
+                    "status": 20,
                     "concurrency": 4,
                     "free_concurrency": 3,
                     "airflow_version": "2.0.0",
@@ -191,6 +192,14 @@ class WorkerRegistrationReturn(BaseModel):
     """The return class for the worker registration."""
 
     last_update: Annotated[datetime, Field(description="Time of the last update of the worker.")]
+    versions_match: Annotated[
+        bool,
+        Field(
+            description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
+            "If False, the worker version is not matching and might need to be upgraded. But version is still "
+            "compatible enough to work. If True, worker and server versions match.",
+        ),
+    ] = False  # If not explicitly given assume it is not compatible
 
 
 class WorkerSetStateReturn(BaseModel):
@@ -214,3 +223,11 @@ class WorkerSetStateReturn(BaseModel):
             "None means no remote override; the worker uses its startup value.",
         ),
     ] = None
+    versions_match: Annotated[
+        bool,
+        Field(
+            description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
+            "If False, the worker version is not matching and might need to be upgraded. But version is still "
+            "compatible enough to work. If True, worker and server versions match.",
+        ),
+    ] = False  # If not explicitly given assume it is not compatible

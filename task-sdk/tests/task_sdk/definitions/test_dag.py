@@ -941,3 +941,44 @@ class TestCycleTester:
                 op1 >> Label("label") >> op2
 
         assert not dag.check_cycle()
+
+
+class TestDagGetItem:
+    def test_getitem_returns_task(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            op = DoNothingOperator(task_id="my_task")
+        assert dag["my_task"] is op
+
+    def test_getitem_returns_task_group(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            with TaskGroup(group_id="section") as tg:
+                DoNothingOperator(task_id="t")
+        assert dag["section"] is tg
+
+    def test_getitem_nested_task_by_qualified_id(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            with TaskGroup(group_id="section"):
+                op = DoNothingOperator(task_id="t")
+        assert dag["section.t"] is op
+
+    def test_getitem_nested_task_via_chained_access(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            with TaskGroup(group_id="section"):
+                op = DoNothingOperator(task_id="t")
+        assert dag["section"]["t"] is op
+
+    def test_getitem_missing_raises_node_not_found(self):
+        from airflow.sdk.exceptions import NodeNotFound
+
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with pytest.raises(NodeNotFound):
+            dag["nonexistent"]
+
+    def test_getitem_missing_is_key_error(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with pytest.raises(KeyError):
+            dag["nonexistent"]

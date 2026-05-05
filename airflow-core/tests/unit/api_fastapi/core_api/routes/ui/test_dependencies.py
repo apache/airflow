@@ -399,3 +399,31 @@ class TestGetDependencies:
             assert node_id in nodes_by_id
         for node_id in expected_absent:
             assert node_id not in nodes_by_id
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
+    def test_data_dependencies_hides_unrelated_asset(
+        self, mock_get_authorized_dag_ids, test_client, asset1_id, asset2_id
+    ):
+        # User only has read access to dags in the primary component, but asks for an asset
+        # belonging exclusively to a disjoint (secondary) component. The graph must not
+        # leak the asset's existence, name, or topology.
+        mock_get_authorized_dag_ids.return_value = {"upstream", "downstream"}
+
+        response = test_client.get(
+            "/dependencies",
+            params={"node_id": f"asset:{asset2_id}", "dependency_type": "data"},
+        )
+        assert response.status_code == 404
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value=set(),
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_data_dependencies_hides_asset_when_user_has_no_dag_access(self, _, test_client, asset1_id):
+        response = test_client.get(
+            "/dependencies",
+            params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"},
+        )
+        assert response.status_code == 404

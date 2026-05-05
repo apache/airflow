@@ -43,6 +43,7 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     _clean_date,
     _format_error_detail,
     _render_log_id,
+    _strip_userinfo,
     get_es_kwargs_from_config,
     getattr_nested,
 )
@@ -227,6 +228,21 @@ class TestElasticsearchTaskHandler:
                 ElasticsearchTaskHandler.format_url(host)
         else:
             assert ElasticsearchTaskHandler.format_url(host) == expected
+
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("https://user:pass@elk.example.com:9200", "https://elk.example.com:9200"),
+            ("http://USER:PASS@elk.example.com", "http://elk.example.com"),
+            ("https://elk.example.com:9200", "https://elk.example.com:9200"),
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://user@elk.example.com", "https://elk.example.com"),
+            ("not-a-url", "not-a-url"),
+            ("", ""),
+        ],
+    )
+    def test_strip_userinfo(self, host, expected):
+        assert _strip_userinfo(host) == expected
 
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)

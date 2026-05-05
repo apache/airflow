@@ -207,9 +207,9 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[str]:
+    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[int]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
-        from airflow.models.callback import Callback
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
         query = select(AssetWatcherModel.trigger_id).union_all(
             select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))
@@ -409,7 +409,7 @@ class Trigger(Base):
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
         """
-        from airflow.models.callback import Callback
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
         result: list[Row[Any]] = []
 
@@ -427,7 +427,12 @@ class Trigger(Base):
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
-            select(cls.id).where(cls.assets.any()).order_by(cls.created_date),
+            select(cls.id)
+            .where(
+                cls.assets.any(),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
+            .order_by(cls.created_date),
         ]
 
         # Process each query while avoiding unnecessary queries when capacity is reached

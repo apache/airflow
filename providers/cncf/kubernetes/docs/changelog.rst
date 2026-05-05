@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+10.17.0
+.......
+
+Features
+~~~~~~~~
+* ``Move KubernetesPodTrigger pod cleanup from cleanup() to on_kill() (#65741)``
+* ``Add multi-team lookup to Kubernetes secrets backend (#65694)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+10.16.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Treat registry 5xx errors as transient during KubernetesPodOperator pod startup (#65490)``
+* ``Fix KubernetesPodOperator to forward pod log levels to Airflow task logs (#64829)``
+* ``Catch TypeError for non-datetime since_time in _write_logs (#65232)``
+* ``Do not cache kubeconfig for exec based auth in AsyncKubernetesHook (#65212)``
+* ``Consider XCOM sidecar container during pod cleanup (#64962)``
+* ``Handle unknown pod phase in KubernetesPodOperator (#65202)``
+* ``Allow string conversion to datetime for since_time in KPO logs (#65498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 10.16.0
 .......
 

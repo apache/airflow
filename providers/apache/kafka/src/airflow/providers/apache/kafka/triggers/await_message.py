@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from functools import partial
 from typing import Any
@@ -33,6 +34,8 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger
 else:
     from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
+
+log = logging.getLogger(__name__)
 
 
 class AwaitMessageTrigger(BaseEventTrigger):
@@ -87,6 +90,7 @@ class AwaitMessageTrigger(BaseEventTrigger):
         self.poll_timeout = poll_timeout
         self.poll_interval = poll_interval
         self.commit_offset = commit_offset
+        self._consumer = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -107,10 +111,10 @@ class AwaitMessageTrigger(BaseEventTrigger):
         consumer_hook = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
 
         async_get_consumer = sync_to_async(consumer_hook.get_consumer)
-        consumer = await async_get_consumer()
+        self._consumer = await async_get_consumer()
 
-        async_poll = sync_to_async(consumer.poll)
-        async_commit = sync_to_async(consumer.commit)
+        async_poll = sync_to_async(self._consumer.poll)
+        async_commit = sync_to_async(self._consumer.commit)
 
         async_message_process = None
         if self.apply_function:
@@ -141,3 +145,12 @@ class AwaitMessageTrigger(BaseEventTrigger):
                     if self.commit_offset:
                         await async_commit(message=message, asynchronous=False)
                     await asyncio.sleep(self.poll_interval)
+
+    async def cleanup(self) -> None:
+        consumer = self._consumer
+        if consumer is not None:
+            self._consumer = None
+            try:
+                await sync_to_async(consumer.close)()
+            except Exception:
+                log.warning("Failed to close Kafka consumer", exc_info=True)

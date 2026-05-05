@@ -36,6 +36,7 @@ from airflow_e2e_tests.constants import (
     ELASTICSEARCH_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
+    OPENSEARCH_PATH,
     TEST_REPORT_FILE,
     XCOM_BUCKET,
 )
@@ -62,6 +63,11 @@ def _copy_localstack_files(tmp_dir):
 def _copy_elasticsearch_files(tmp_dir):
     """Copy Elasticsearch compose file into the temp directory."""
     copyfile(ELASTICSEARCH_PATH, tmp_dir / "elasticsearch.yml")
+
+
+def _copy_opensearch_files(tmp_dir):
+    """Copy OpenSearch compose file into the temp directory."""
+    copyfile(OPENSEARCH_PATH, tmp_dir / "opensearch.yml")
 
 
 def _setup_s3_integration(dot_env_file, tmp_dir):
@@ -91,6 +97,26 @@ def _setup_elasticsearch_integration(dot_env_file, tmp_dir):
         "AIRFLOW__ELASTICSEARCH__JSON_FORMAT=true\n"
         "AIRFLOW__ELASTICSEARCH__WRITE_TO_ES=true\n"
         "AIRFLOW__ELASTICSEARCH__TARGET_INDEX=airflow-e2e-logs\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _setup_opensearch_integration(dot_env_file, tmp_dir):
+    _copy_opensearch_files(tmp_dir)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
+        "AIRFLOW__OPENSEARCH__HOST=http://opensearch:9200\n"
+        "AIRFLOW__OPENSEARCH__PORT=9200\n"
+        "AIRFLOW__OPENSEARCH__USERNAME=admin\n"
+        "AIRFLOW__OPENSEARCH__PASSWORD=admin\n"
+        "AIRFLOW__OPENSEARCH__WRITE_STDOUT=false\n"
+        "AIRFLOW__OPENSEARCH__JSON_FORMAT=true\n"
+        "AIRFLOW__OPENSEARCH__WRITE_TO_OS=true\n"
+        "AIRFLOW__OPENSEARCH__TARGET_INDEX=airflow-e2e-logs\n"
+        "AIRFLOW__OPENSEARCH__HOST_FIELD=host\n"
+        "AIRFLOW__OPENSEARCH__OFFSET_FIELD=offset\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
@@ -148,6 +174,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "remote_log_elasticsearch":
         compose_file_names.append("elasticsearch.yml")
         _setup_elasticsearch_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "remote_log_opensearch":
+        compose_file_names.append("opensearch.yml")
+        _setup_opensearch_integration(dot_env_file, tmp_dir)
     elif E2E_TEST_MODE == "xcom_object_storage":
         compose_file_names.append("localstack.yml")
         _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
@@ -190,7 +219,7 @@ def _print_logs(compose_instance: DockerCompose):
         if service:
             stdout, _ = compose_instance.get_logs(service)
             console.print(f"::group:: {service} Logs")
-            console.print(stdout, style="red", soft_wrap=True)
+            console.print(stdout, style="red", soft_wrap=True, markup=False)
             console.print("::endgroup::")
 
 

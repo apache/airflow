@@ -37,13 +37,20 @@ async def has_variable_access(
 ):
     """Check if the task has access to the variable."""
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
-    # TODO: Placeholder for actual implementation
+
     log.debug(
         "Checking %s access for task instance with key '%s' to variable '%s'",
         "write" if write else "read",
         token.id,
         variable_key,
     )
+
+    # The current version of Airflow does not support true
+    # multi-tenancy yet (this is well-documented at
+    # https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#limiting-dag-author-access-to-subset-of-dags),
+    # so for now we always return 'True' here.
+    # When we introduce true multi-tenancy in the future
+    # this would be the place to do add a check.
     return True
 
 

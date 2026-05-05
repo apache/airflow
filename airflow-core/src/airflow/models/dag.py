@@ -386,6 +386,8 @@ class DagModel(Base):
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Whether the timetable do partitioning.
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Whether the timetable is periodic (supports backfilling).
+    timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information

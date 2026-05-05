@@ -42,7 +42,13 @@ from enum import Enum
 from pathlib import Path
 
 import requests
-from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
+from common_prek_utils import (
+    AIRFLOW_CORE_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    console,
+    read_default_python_major_minor_version_for_images,
+    retrieve_gh_token,
+)
 from packaging.version import Version
 
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
@@ -61,7 +67,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
@@ -74,11 +79,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd-arm.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
@@ -408,6 +408,13 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.abrd]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    # Intentionally NOT matching `[tool.uv] required-version = ">=X.Y.Z"` in the root
+    # pyproject.toml. That value is a hard minimum contributors must have installed —
+    # not the exact uv version CI ships with. Bumping it on every uv release would force
+    # the whole contributor base to upgrade uv in lockstep, which is far more churn than
+    # the check is worth. `required-version` stays a deliberate, manual bump only. If
+    # you're tempted to auto-track it here, don't — the breeze/prek uv version check
+    # reads it dynamically and tolerates a stale floor.
     (
         re.compile(
             r"(\")([0-9.abrc]+)(\" {2}# Keep this comment to "
@@ -490,7 +497,7 @@ UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
-DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
+DEFAULT_PROD_IMAGE_PYTHON_VERSION = read_default_python_major_minor_version_for_images()
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:

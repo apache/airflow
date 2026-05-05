@@ -33,9 +33,11 @@ Misc
 
 * ``Add OpenLineage parent and transport info injection to 'EmrServerlessStartJobOperator' (#64807)``
 * ``Add OpenLineage parent info injection to GlueJobOperator (#64513)``
+* ``Fix RESOURCE_ASSET compatibility with Airflow 2.x in common-compat (#64933)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-04-07 (#64864)``
 
 1.14.2
 ......

@@ -42,6 +42,28 @@ DEFAULT_LOG_SUFFIX = "output"
 ERROR_LOG_SUFFIX = "error"
 
 
+def get_glue_log_group_names(job_run: dict[str, Any]) -> tuple[str, str]:
+    """Extract the output and error CloudWatch log group names from a Glue job run response."""
+    log_group_prefix = job_run["LogGroupName"]
+    return (
+        f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}",
+        f"{log_group_prefix}/{ERROR_LOG_SUFFIX}",
+    )
+
+
+def format_glue_logs(fetched_logs: list[str], log_group: str) -> str:
+    """
+    Format fetched CloudWatch log messages for display.
+
+    Shared between ``GlueJobHook.print_job_logs`` and ``GlueJobCompleteTrigger._forward_logs``
+    so that both the sync and async paths produce identical output.
+    """
+    if fetched_logs:
+        messages = "\t".join(line.rstrip() + "\n" for line in fetched_logs)
+        return f"Glue Job Run {log_group} Logs:\n\t{messages}"
+    return f"No new log from the Glue Job in {log_group}"
+
+
 class GlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue.
@@ -350,22 +372,14 @@ class GlueJobHook(AwsBaseHook):
                 else:
                     raise
 
-            if len(fetched_logs):
-                # Add a tab to indent those logs and distinguish them from airflow logs.
-                # Log lines returned already contain a newline character at the end.
-                messages = "\t".join(fetched_logs)
-                self.log.info("Glue Job Run %s Logs:\n\t%s", log_group, messages)
-            else:
-                self.log.info("No new log from the Glue Job in %s", log_group)
+            self.log.info(format_glue_logs(fetched_logs, log_group))
             return next_token
 
-        log_group_prefix = job_run["LogGroupName"]
-        log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
-        log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
+        log_group_output, log_group_error = get_glue_log_group_names(job_run)
         # one would think that the error log group would contain only errors, but it actually contains
         # a lot of interesting logs too, so it's valuable to have both
         continuation_tokens.output_stream_continuation = display_logs_from(
-            log_group_default, continuation_tokens.output_stream_continuation
+            log_group_output, continuation_tokens.output_stream_continuation
         )
         continuation_tokens.error_stream_continuation = display_logs_from(
             log_group_error, continuation_tokens.error_stream_continuation

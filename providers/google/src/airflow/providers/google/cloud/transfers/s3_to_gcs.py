@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
@@ -57,6 +58,13 @@ except ImportError:
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+_RETURN_GCS_URIS_FALSE_DEPRECATION_MSG = (
+    "S3ToGCSOperator currently returns a list of S3 object keys to preserve backward "
+    "compatibility. This default will change in a future release: the operator will return "
+    "a list of destination 'gs://' URIs instead. Pass 'return_gcs_uris=True' to opt into "
+    "the new behavior now and silence this warning."
+)
 
 
 class S3ToGCSOperator(S3ListOperator):
@@ -108,6 +116,11 @@ class S3ToGCSOperator(S3ListOperator):
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: time in seconds between polling for job completion.
         The value is considered only when running in deferrable mode. Must be greater than 0.
+    :param return_gcs_uris: If ``True``, ``execute`` and deferrable ``execute_complete`` return a list of
+        destination ``gs://`` URIs for copied objects. Defaults to ``False`` for backward
+        compatibility, which returns the raw S3 object keys and emits a deprecation warning;
+        this default will change to ``True`` in a future release. Set ``return_gcs_uris=True``
+        to opt into the new behavior now and silence the warning.
 
     **Example**:
 
@@ -154,6 +167,7 @@ class S3ToGCSOperator(S3ListOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         deferrable=conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
+        return_gcs_uris: bool = False,
         **kwargs,
     ):
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
@@ -168,6 +182,13 @@ class S3ToGCSOperator(S3ListOperator):
         if poll_interval <= 0:
             raise ValueError("Invalid value for poll_interval. Expected value greater than 0")
         self.poll_interval = poll_interval
+        self.return_gcs_uris = return_gcs_uris
+        if not return_gcs_uris:
+            warnings.warn(
+                _RETURN_GCS_URIS_FALSE_DEPRECATION_MSG,
+                FutureWarning,
+                stacklevel=2,
+            )
 
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
@@ -180,6 +201,11 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
+    def _destination_uris_for_s3_keys(self, s3_keys: list[str]) -> list[str]:
+        """Build ``gs://`` URIs for each transferred S3 object key."""
+        gcs_bucket, _ = _parse_gcs_url(self.dest_gcs)
+        return [f"gs://{gcs_bucket}/{self.s3_to_gcs_object(s3_object=k)}" for k in s3_keys]
+
     def _get_files(self, context: Context, gcs_hook: GCSHook) -> list[str]:
         # use the super method to list all the files in an S3 bucket/key
         s3_objects = super().execute(context)
@@ -189,7 +215,7 @@ class S3ToGCSOperator(S3ListOperator):
 
         return s3_objects
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         self._check_inputs()
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -206,6 +232,8 @@ class S3ToGCSOperator(S3ListOperator):
         else:
             self.transfer_files(s3_objects, gcs_hook, s3_hook)
 
+        if self.return_gcs_uris:
+            return self._destination_uris_for_s3_keys(s3_objects)
         return s3_objects
 
     def exclude_existing_objects(self, s3_objects: list[str], gcs_hook: GCSHook) -> list[str]:
@@ -339,14 +367,20 @@ class S3ToGCSOperator(S3ListOperator):
         """
         Handle the trigger callback when transfer jobs complete.
 
-        Returns the list of copied file paths when available (deferrable mode with
-        files passed via trigger), so subsequent tasks can consume them via XCom.
-        Returns None when event does not contain files (e.g. legacy triggers).
+        Returns a list of copied files when available (deferrable mode with files passed via trigger),
+        so subsequent tasks can consume them via XCom. When ``return_gcs_uris`` is ``True``, the list
+        contains destination ``gs://`` URIs; otherwise it contains the S3 object keys transferred.
+        Returns ``None`` when the event does not contain files (e.g. legacy triggers).
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info("%s completed with response %s ", self.task_id, event["message"])
-        return event.get("files")
+        files = event.get("files")
+        if files is None:
+            return None
+        if self.return_gcs_uris:
+            return self._destination_uris_for_s3_keys(files)
+        return files
 
     def get_transfer_hook(self):
         return CloudDataTransferServiceHook(

@@ -38,6 +38,7 @@ from airflow.providers.opensearch.log.os_task_handler import (
     _build_log_fields,
     _format_error_detail,
     _render_log_id,
+    _strip_userinfo,
     get_os_kwargs_from_config,
     getattr_nested,
 )
@@ -221,6 +222,21 @@ class TestOpensearchTaskHandler:
                 OpensearchTaskHandler.format_url(host)
         else:
             assert OpensearchTaskHandler.format_url(host) == expected
+
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("https://user:pass@opensearch.example.com:9200", "https://opensearch.example.com:9200"),
+            ("http://USER:PASS@opensearch.example.com", "http://opensearch.example.com"),
+            ("https://opensearch.example.com:9200", "https://opensearch.example.com:9200"),
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://user@opensearch.example.com", "https://opensearch.example.com"),
+            ("not-a-url", "not-a-url"),
+            ("", ""),
+        ],
+    )
+    def test_strip_userinfo(self, host, expected):
+        assert _strip_userinfo(host) == expected
 
     def test_client(self):
         assert isinstance(self.os_task_handler.client, opensearchpy.OpenSearch)

@@ -3,14 +3,15 @@
 /airflow-core/src/airflow/jobs/ @ashb @XD-DENG
 /airflow-core/src/airflow/models/ @XD-DENG @ashb
 
-# DAG Serialization
+# Dag Serialization
 /airflow-core/src/airflow/serialization/ @ashb @bolkedebruin
 
-# DAG Parsing
+# Dag Parsing
 /airflow-core/src/airflow/dag_processing @jedcunningham @ephraimbuddy
 
 # Helm Chart
 /chart/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
+/helm-tests/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
 
 # Docs
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
@@ -49,7 +50,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/hi/ @vatsrahul1001
 airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl @potiuk # +@majorosdonat
 airflow-core/src/airflow/ui/public/i18n/locales/it/ @bbovenzi # + @aoelvp94
 airflow-core/src/airflow/ui/public/i18n/locales/ja/ @uranusjr @sekikn # + @rsanda
-airflow-core/src/airflow/ui/public/i18n/locales/ko/ @choo121600 # + @kgw7401 @onestn @noeunkim
+airflow-core/src/airflow/ui/public/i18n/locales/ko/ @choo121600 # + @onestn @noeunkim
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
 airflow-core/src/airflow/ui/public/i18n/locales/pt/ @potiuk  # + @aoelvp94 @victoru2
@@ -86,6 +87,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /airflow-core/src/airflow/secrets @dstandish @ashb
 
 # Providers
+/providers/akeyless/ @eladkal # + @baraka-akeyless @deanshak
 /providers/amazon/ @o-nikolas
 /providers/apache/iceberg/ @Fokko
 /providers/celery/ @hussein-awala @dheerajturaga
@@ -105,6 +107,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/openlineage/ @mobuchowski
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
+/providers/vespa/ @potiuk # + @radu-gheorghe @thomasht86
 
 
 # Generated metadata
@@ -120,10 +123,10 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 /dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496 @jedcunningham @ephraimbuddy @choo121600 @vatsrahul1001
+/dev/mypy/ @hussein-awala
 /dev/react-plugin-tools/ @pierrejeambrun @bbovenzi
 /docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
-/helm-tests/ @dstandish @jedcunningham
 /scripts/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 Dockerfile @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
@@ -171,6 +174,7 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 /airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
 /providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
 /.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/.claude/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
 
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93

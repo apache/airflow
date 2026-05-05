@@ -101,7 +101,9 @@ PARTITION_2 = f"{COLUMN}=debit".lower()
 SOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 SOURCE_DATA_PATH = "dataproc/hive"
 SOURCE_DATA_FILE_NAME = "part-00000.parquet"
-EXTERNAL_TABLE_BUCKET = "{{task_instance.xcom_pull(task_ids='get_hive_warehouse_bucket_task', key='bucket')}}"
+EXTERNAL_TABLE_BUCKET = (
+    "{{ task_instance.xcom_pull(task_ids='get_hive_warehouse_bucket_task', key='bucket') }}"
+)
 QUERY_CREATE_EXTERNAL_TABLE = f"""
 CREATE EXTERNAL TABLE IF NOT EXISTS transactions
 (SubmissionDate DATE, TransactionAmount DOUBLE, TransactionType STRING)
@@ -251,5 +253,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

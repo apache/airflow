@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The SMTP STARTTLS upgrade performed by ``SmtpHook.get_conn`` and ``SmtpHook.aget_conn`` now
+validates the SMTP server's certificate against the system's trusted CA bundle by default.
+Previously the ``starttls()`` call was made without an SSL context, so any certificate was
+accepted.
+
+Deployments that intentionally point ``SmtpHook`` at an SMTP server with a self-signed or
+otherwise non-validating certificate and need to preserve the previous behaviour must set the
+``ssl_context`` field in the SMTP connection extras to ``"none"``. Leaving the field unset (or
+setting it to ``"default"``) now applies ``ssl.create_default_context()`` to the STARTTLS
+upgrade as well as to the existing ``SMTP_SSL`` path.
+
+* ``Validate SMTP server certificate on STARTTLS upgrade (#65346)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 2.4.5
 .....

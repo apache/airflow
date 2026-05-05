@@ -280,7 +280,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.json().get("detail") == "Could not find dag DAG_NOT_EXIST"
 
     def test_no_schedule_dag(self, session, dag_maker, test_client):
-        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="None") as dag:
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule=None) as dag:
             EmptyOperator(task_id="mytask")
         session.scalars(select(DagModel)).all()
         session.commit()
@@ -303,7 +303,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             json=data,
         )
         assert response.status_code == 422
-        assert response.json().get("detail") == f"{dag.dag_id} has no schedule"
+        assert "has a non-periodic schedule that does not support backfills" in response.json().get("detail")
 
     @pytest.mark.parametrize(
         ("repro_act", "repro_exp", "run_backwards", "status_code"),
