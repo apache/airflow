@@ -5029,3 +5029,43 @@ class TestTaskInstanceStateOperations:
         mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+    def test_asset_state_keyed_access_single_inlet(self, create_runtime_ti, mock_supervisor_comms):
+        watched = Asset(name="my_asset", uri="s3://bucket/data")
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                # accessing via asset name key
+                context["asset_state"][watched].set("watermark", "2026-05-01")
+
+        task = WatcherOperator(task_id="t", inlets=[watched])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
+
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(
+            SetAssetStateByName(name="my_asset", key="watermark", value="2026-05-01")
+        )
+
+    def test_asset_state_multi_inlet(self, create_runtime_ti, mock_supervisor_comms):
+        asset_a = Asset(name="asset_a", uri="s3://bucket/a")
+        asset_b = Asset(name="asset_b", uri="s3://bucket/b")
+
+        class MultiInletOperator(BaseOperator):
+            def execute(self, context):
+                context["asset_state"][asset_a].set("watermark_a", "2026-05-01")
+                context["asset_state"][asset_b].set("watermark_b", "2026-05-02")
+
+        task = MultiInletOperator(task_id="t", inlets=[asset_a, asset_b])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
+
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(
+            SetAssetStateByName(name="asset_a", key="watermark_a", value="2026-05-01")
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            SetAssetStateByName(name="asset_b", key="watermark_b", value="2026-05-02")
+        )

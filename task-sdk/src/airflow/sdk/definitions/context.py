@@ -30,7 +30,11 @@ if TYPE_CHECKING:
 
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.execution_time.context import AssetStateAccessor, InletEventsAccessors, TaskStateAccessor
+    from airflow.sdk.execution_time.context import (
+        AssetStateAccessors,
+        InletEventsAccessors,
+        TaskStateAccessor,
+    )
     from airflow.sdk.types import (
         DagRunProtocol,
         Operator,
@@ -73,7 +77,7 @@ class Context(TypedDict, total=False):
     task_instance: RuntimeTaskInstanceProtocol
     task_instance_key_str: str
     task_state: TaskStateAccessor
-    asset_state: AssetStateAccessor
+    asset_state: AssetStateAccessors
     # `templates_dict` is only set in PythonOperator
     templates_dict: NotRequired[dict[str, Any] | None]
     test_mode: bool

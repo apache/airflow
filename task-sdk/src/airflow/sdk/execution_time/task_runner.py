@@ -111,7 +111,7 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStateAccessor,
+    AssetStateAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
@@ -253,16 +253,10 @@ class RuntimeTaskInstance(TaskInstance):
                 "conn": ConnectionAccessor(),
                 "task_state": TaskStateAccessor(ti_id=self.id),
             }
-            # TODO: right now, asset_state is only provided for single-inlet tasks.
-            # Multi-inlet support is deferred — see AssetStateAccessor docstring.
-            if len(self.task.inlets) == 1:
-                inlet = self.task.inlets[0]
-                if isinstance(inlet, (Asset, AssetNameRef)):
-                    self._cached_template_context["asset_state"] = AssetStateAccessor(name=inlet.name)
-                elif isinstance(inlet, AssetUriRef):
-                    self._cached_template_context["asset_state"] = AssetStateAccessor(uri=inlet.uri)
-                # TODO: AssetAlias maps to multiple concrete assets so there is no single state to bind.
-                # Revisit if/when alias-scoped state access is needed.
+            if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef)) for i in self.task.inlets):
+                self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
+                # AssetAlias inlets are skipped inside AssetStateAccessors — an alias maps to
+                # multiple concrete assets so there is no single state to bind.
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

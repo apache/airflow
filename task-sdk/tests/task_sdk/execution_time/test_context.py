@@ -31,7 +31,9 @@ from airflow.sdk.definitions.asset import (
     AssetAlias,
     AssetAliasEvent,
     AssetAliasUniqueKey,
+    AssetNameRef,
     AssetUniqueKey,
+    AssetUriRef,
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
@@ -70,6 +72,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     AssetStateAccessor,
+    AssetStateAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     OutletEventAccessor,
@@ -1205,3 +1208,87 @@ class TestAssetStateAccessor:
         AssetStateAccessor(uri=self.ASSET_URI).clear()
 
         mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByUri(uri=self.ASSET_URI))
+
+
+class TestAssetStateAccessors:
+    ASSET_NAME = "my_asset"
+    ASSET_URI = "s3://bucket/key"
+
+    def test_subscript_by_asset_routes_by_name(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v1")
+
+        result = AssetStateAccessors([asset])[asset].get("watermark")
+
+        assert result == "v1"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_subscript_by_asset_name_ref(self, mock_supervisor_comms):
+        ref = AssetNameRef(name=self.ASSET_NAME)
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v2")
+
+        result = AssetStateAccessors([ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_subscript_by_uri_ref(self, mock_supervisor_comms):
+        ref = AssetUriRef(uri=self.ASSET_URI)
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v3")
+
+        result = AssetStateAccessors([ref])[ref].get("watermark")
+
+        assert result == "v3"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_get_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v4")
+
+        result = AssetStateAccessors([asset]).get("watermark")
+
+        assert result == "v4"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_set_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessors([asset]).set("watermark", "2026-05-01")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
+        )
+
+    def test_delete_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessors([asset]).delete("watermark")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_clear_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessors([asset]).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByName(name=self.ASSET_NAME))
+
+    def test_double_reference_raises(self):
+        a1 = Asset(name="asset_one", uri="s3://one")
+        a2 = Asset(name="asset_two", uri="s3://two")
+
+        with pytest.raises(ValueError, match="2 concrete inlets"):
+            AssetStateAccessors([a1, a2]).get("watermark")

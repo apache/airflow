@@ -468,15 +468,11 @@ class TaskStateAccessor:
 
 class AssetStateAccessor:
     """
-    Accessor for asset state scoped to an asset.
+    Accessor for asset state scoped to a single asset.
 
-    Available as ``context['asset_state']`` when the task has exactly one inlet
-    asset - asset watcher pattern. The accessor is bound to that Asset at context construction time.
+    Obtained via ``context['asset_state'][MY_ASSET]`` or, as sugar for single-inlet
+    tasks, directly as ``context['asset_state']``.
     """
-
-    # TODO: When the task has zero or more than one inlet — the key
-    # will not be present in ``context`` in those cases. Multi-inlet support
-    # ie: ``context['asset_state'][MY_ASSET].get(...)`` can be developed as needed.
 
     def __init__(self, *, name: str | None = None, uri: str | None = None) -> None:
         self._name = name
@@ -565,6 +561,79 @@ class AssetStateAccessor:
         else:
             raise ValueError("Either `name` or `uri` must be provided")
         SUPERVISOR_COMMS.send(msg)
+
+
+class AssetStateAccessors:
+    """
+    Mapping of asset state accessors for all concrete inlets of a task.
+
+    Available as ``context['asset_state']``. Subscript by asset to get a per asset
+    accessor as: ``context['asset_state'][MY_ASSET].get('watermark')``.
+
+    For tasks with exactly one concrete inlet, the accessor methods (``get``, ``set``,
+    ``delete``, ``clear``) can be called directly without subscripting.
+    """
+
+    def __init__(self, inlets: list) -> None:
+        self._by_name: dict[str, AssetStateAccessor] = {}
+        self._by_uri: dict[str, AssetStateAccessor] = {}
+
+        for inlet in inlets:
+            if isinstance(inlet, (Asset, AssetNameRef)):
+                self._by_name[inlet.name] = AssetStateAccessor(name=inlet.name)
+            elif isinstance(inlet, AssetUriRef):
+                self._by_uri[inlet.uri] = AssetStateAccessor(uri=inlet.uri)
+
+    def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateAccessor:
+        if isinstance(key, (Asset, AssetNameRef)):
+            try:
+                return self._by_name[key.name]
+            except KeyError:
+                raise KeyError(f"{key!r} is not in this task's inlets")
+        if isinstance(key, AssetUriRef):
+            try:
+                return self._by_uri[key.uri]
+            except KeyError:
+                raise KeyError(f"{key!r} is not in this task's inlets")
+        raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
+
+    def _single(self) -> AssetStateAccessor:
+        total = len(self._by_name) + len(self._by_uri)
+        if total != 1:
+            raise ValueError(
+                f"Task has {total} concrete inlets — use context['asset_state'][MY_ASSET] to specify which"
+            )
+        if self._by_name:
+            return next(iter(self._by_name.values()))
+        return next(iter(self._by_uri.values()))
+
+    def get(self, key: str) -> str | None:
+        """Return the stored value for the single-inlet task, or ``None`` if not found."""
+        return self._single().get(key)
+
+    def set(self, key: str, value: str) -> None:
+        """Write or overwrite the value for the single-inlet task."""
+        self._single().set(key, value)
+
+    def delete(self, key: str) -> None:
+        """Delete a single key for the single-inlet task."""
+        self._single().delete(key)
+
+    def clear(self) -> None:
+        """Delete all state keys for the single-inlet task."""
+        self._single().clear()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AssetStateAccessors):
+            return False
+        return self._by_name == other._by_name and self._by_uri == other._by_uri
+
+    def __hash__(self) -> int:
+        return hash((tuple(self._by_name.keys()), tuple(self._by_uri.keys())))
+
+    def __repr__(self) -> str:
+        names = list(self._by_name.keys()) + list(self._by_uri.keys())
+        return f"<AssetStateAccessors {names!r}>"
 
 
 class MacrosAccessor:
