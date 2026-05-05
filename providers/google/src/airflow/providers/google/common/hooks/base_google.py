@@ -38,6 +38,7 @@ import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from gcloud.aio.auth.token import Token, TokenResponse
+from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
@@ -425,6 +426,34 @@ class GoogleBaseHook(BaseHook):
                 "Project IDs must be 6-30 characters long, start with a lowercase letter, "
                 "and can contain only lowercase letters, digits, and hyphens."
             )
+
+    def is_default_universe(self) -> bool:
+        global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
+        if global_universe_domain in ("googleapis.com", "", None):
+            return True
+        return False
+
+    def get_client_options(
+        self,
+        api_endpoint_override: str | None = None,
+    ) -> ClientOptions:
+        """Return the ClientOptions object for Google API."""
+        global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
+
+        if api_endpoint_override:
+            if self.is_default_universe():
+                return ClientOptions(
+                    api_endpoint=api_endpoint_override,
+                )
+            self.log.info(
+                "Ignoring api_endpoint_override because the universe domain is not Google default universe."
+            )
+        if global_universe_domain:
+            return ClientOptions(
+                universe_domain=global_universe_domain,
+            )
+
+        return ClientOptions()
 
     def get_credentials(self) -> Credentials:
         """

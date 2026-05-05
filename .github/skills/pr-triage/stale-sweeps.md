@@ -4,7 +4,7 @@
 # Stale sweeps
 
 The stale-sweep phase runs after the interactive triage is
-done (Step 6 in [`SKILL.md`](SKILL.md)). Its job is to clear
+done (Step 5 in [`SKILL.md`](SKILL.md)). Its job is to clear
 three categories of PRs that have gone silent:
 
 1. **Stale drafts** — drafts that haven't moved in weeks; either

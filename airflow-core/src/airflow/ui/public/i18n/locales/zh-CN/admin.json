@@ -61,7 +61,7 @@
       "standardFields": {
         "description": "描述",
         "host": "主机地址",
-        "login": "登录",
+        "login": "账号",
         "password": "密码",
         "port": "端口",
         "url_schema": "Schema"

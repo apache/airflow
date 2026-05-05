@@ -288,6 +288,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                     "entity_id": cast("ConnectionDetails", request["details"]).conn_id
                     if request.get("details")
                     else None,
+                    "team_name": self._get_team_name(cast("ConnectionDetails", request["details"]))
+                    if request.get("details")
+                    else None,
                 },
             )
             for request in requests
@@ -307,6 +310,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                     "method": request["method"],
                     "entity_type": AvpEntities.DAG,
                     "entity_id": cast("DagDetails", request["details"]).id
+                    if request.get("details")
+                    else None,
+                    "team_name": self._get_team_name(cast("DagDetails", request["details"]))
                     if request.get("details")
                     else None,
                     "context": {
@@ -337,6 +343,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                     "entity_id": cast("PoolDetails", request["details"]).name
                     if request.get("details")
                     else None,
+                    "team_name": self._get_team_name(cast("PoolDetails", request["details"]))
+                    if request.get("details")
+                    else None,
                 },
             )
             for request in requests
@@ -356,6 +365,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                     "method": request["method"],
                     "entity_type": AvpEntities.VARIABLE,
                     "entity_id": cast("VariableDetails", request["details"]).key
+                    if request.get("details")
+                    else None,
+                    "team_name": self._get_team_name(cast("VariableDetails", request["details"]))
                     if request.get("details")
                     else None,
                 },

@@ -31,6 +31,7 @@ runtime inspection inside breeze for accurate class discovery.
 
 from __future__ import annotations
 
+import concurrent.futures
 import datetime
 import json
 import re
@@ -104,6 +105,35 @@ def fetch_pypi_dates(package_name: str) -> dict[str, str]:
     except Exception as e:
         print(f"    Warning: Could not fetch PyPI dates for {package_name}: {e}")
         return {"first_released": "", "last_updated": ""}
+
+
+def fetch_pypi_data_parallel(
+    package_names: list[str], max_workers: int = 16
+) -> dict[str, tuple[dict[str, int], dict[str, str]]]:
+    """Fetch downloads + dates for many packages concurrently.
+
+    Returns ``{package_name: (downloads_dict, dates_dict)}``. Each per-package
+    failure is isolated -- ``fetch_pypi_downloads`` / ``fetch_pypi_dates``
+    already return zero-value defaults on error, so a flaky pypistats response
+    only zeroes that one package instead of stalling or crashing the build.
+
+    Concurrency: ~86 providers * 2 endpoints, but pypistats.org and pypi.org
+    each tolerate 16 parallel connections without rate-limiting in practice.
+    Matches the ``max_workers=8`` shape used in extract_parameters.py for
+    inventory fetches; bumped slightly because PyPI calls are simpler/faster.
+    """
+    results: dict[str, tuple[dict[str, int], dict[str, str]]] = {}
+
+    def _fetch_one(pkg: str) -> tuple[str, dict[str, int], dict[str, str]]:
+        return pkg, fetch_pypi_downloads(pkg), fetch_pypi_dates(pkg)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_fetch_one, pkg) for pkg in package_names]
+        for future in concurrent.futures.as_completed(futures):
+            pkg, downloads, dates = future.result()
+            results[pkg] = (downloads, dates)
+
+    return results
 
 
 def _parse_inventory_lines(inv_path: Path) -> list[str]:
@@ -496,6 +526,18 @@ def main():
             )
     skipped_unreleased: list[str] = []
 
+    # Pre-fetch PyPI download stats and release dates for every provider in
+    # parallel. This used to be ~2N sequential urlopen calls inside the loop
+    # below (5-10s timeouts each), which dominated wall-clock and serialised
+    # any pypistats slowdowns into a multi-minute build delay. Doing it once
+    # up-front turns ~86 sequential calls into ~6 batches of 16.
+    pypi_package_names = sorted(
+        all_provider_yamls[pid].get("package-name", f"apache-airflow-providers-{pid}")
+        for pid in extraction_ids
+    )
+    print(f"Fetching PyPI metadata for {len(pypi_package_names)} packages (parallel)...")
+    pypi_data = fetch_pypi_data_parallel(pypi_package_names)
+
     # Second pass: Extract full metadata (only for providers in extraction_ids)
     for provider_id in extraction_ids:
         provider_yaml = all_provider_yamls[provider_id]
@@ -664,9 +706,12 @@ def main():
                     }
                 )
 
-        # Fetch PyPI download statistics and release dates
-        pypi_downloads = fetch_pypi_downloads(package_name)
-        pypi_dates = fetch_pypi_dates(package_name)
+        # Pre-fetched in parallel before this loop; missing entries fall back
+        # to zero-value defaults so a never-published provider doesn't crash.
+        pypi_downloads, pypi_dates = pypi_data.get(
+            package_name,
+            ({"weekly": 0, "monthly": 0, "total": 0}, {"first_released": "", "last_updated": ""}),
+        )
 
         # Parse pyproject.toml for requires-python and dependencies
         pyproject_path = provider_path / "pyproject.toml"

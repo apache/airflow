@@ -133,7 +133,13 @@ class CloudSQLHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("sqladmin", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "sqladmin",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=self.get_client_options(),
+            )
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
