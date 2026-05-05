@@ -141,6 +141,7 @@ class TestGKEStartPodTrigger:
             "impersonation_chain": IMPERSONATION_CHAIN,
             "last_log_time": None,
             "logging_interval": None,
+            "use_dns_endpoint": False,
         }
 
     @pytest.mark.asyncio
@@ -342,6 +343,7 @@ class TestGKEOperationTrigger:
             "gcp_conn_id": GCP_CONN_ID,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "poll_interval": POLL_INTERVAL,
+            "use_dns_endpoint": False,
         }
 
     @pytest.mark.asyncio
@@ -495,6 +497,7 @@ class TestGKEStartJobTrigger:
             "impersonation_chain": IMPERSONATION_CHAIN,
             "get_logs": GET_LOGS,
             "do_xcom_push": XCOM_PUSH,
+            "use_dns_endpoint": False,
         }
 
     @pytest.mark.asyncio
@@ -588,6 +591,7 @@ class TestGKEStartJobTrigger:
             ssl_ca_cert=SSL_CA_CERT,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            use_dns_endpoint=False,
         )
         assert hook_actual == hook_expected
 

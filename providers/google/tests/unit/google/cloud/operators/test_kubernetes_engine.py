@@ -334,6 +334,7 @@ class TestGKEDeleteClusterOperator:
             gcp_conn_id=TEST_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poll_interval=10,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger_instance,
@@ -683,6 +684,7 @@ class TestGKECreateClusterOperator:
             gcp_conn_id=TEST_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poll_interval=10,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger_instance,
@@ -900,6 +902,7 @@ class TestGKEStartPodOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             logging_interval=None,
             last_log_time=mock_last_log_time,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
@@ -1031,6 +1034,7 @@ class TestGKEStartJobOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             get_logs=mock_get_logs,
             do_xcom_push=False,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
@@ -1091,6 +1095,7 @@ class TestGKEStartJobOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             get_logs=mock_get_logs,
             do_xcom_push=False,
+            use_dns_endpoint=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
