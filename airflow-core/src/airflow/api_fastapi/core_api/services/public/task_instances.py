@@ -84,6 +84,7 @@ def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInsta
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    failure_details=None,
                 )
             elif new_state == TaskInstanceState.SKIPPED:
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
