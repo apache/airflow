@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import time
 
 import pytest
@@ -40,10 +41,8 @@ def mongodb_container():
             container.start()
         except Exception as exc:
             last_exc = exc
-            try:
+            with contextlib.suppress(Exception):
                 container.stop()
-            except Exception:
-                pass
             if attempt < 2:
                 time.sleep(5 * (attempt + 1))
                 continue

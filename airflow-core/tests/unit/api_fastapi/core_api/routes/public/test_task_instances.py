@@ -4646,7 +4646,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {
-            "detail": "Task 'non_existent_task' not found in DAG 'example_python_operator'"
+            "detail": "Task 'non_existent_task' not found in Dag 'example_python_operator'"
         }
 
     def test_should_raise_404_not_found_dag(self, test_client):
@@ -5415,7 +5415,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json() == {
-            "detail": "Task 'non_existent_task' not found in DAG 'example_python_operator'"
+            "detail": "Task 'non_existent_task' not found in Dag 'example_python_operator'"
         }
 
     def test_should_raise_404_not_found_dag(self, test_client):

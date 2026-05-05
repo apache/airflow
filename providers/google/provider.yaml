@@ -171,7 +171,7 @@ integrations:
     external-doc-url: https://cloud.google.com/
     tags: [gcp]
     logo: /docs/integration-logos/Google.png
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
@@ -495,9 +495,10 @@ operators:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_build
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_composer
+      - airflow.providers.google.cloud.operators.managed_airflow
   - integration-name: Google Cloud Run
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_run
@@ -651,7 +652,7 @@ sensors:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.sensors.bigtable
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_composer
   - integration-name: Google Cloud Storage Transfer Service
@@ -757,7 +758,7 @@ hooks:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_build
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_composer
   - integration-name: Google Cloud Run
@@ -946,7 +947,7 @@ triggers:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_build
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
   - integration-name: Google Cloud Run

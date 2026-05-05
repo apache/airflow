@@ -147,7 +147,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         sql = self._strip_llm_output(result.output)
 

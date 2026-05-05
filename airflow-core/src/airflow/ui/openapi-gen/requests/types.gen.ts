@@ -524,7 +524,7 @@ export type CreateAssetEventsBody = {
 };
 
 /**
- * DAG Collection serializer for responses.
+ * Dag Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
     dags: Array<DAGResponse>;
@@ -532,7 +532,7 @@ export type DAGCollectionResponse = {
 };
 
 /**
- * Specific serializer for DAG Details responses.
+ * Specific serializer for Dag Details responses.
  */
 export type DAGDetailsResponse = {
     dag_id: string;
@@ -588,7 +588,7 @@ export type DAGDetailsResponse = {
     is_favorite?: boolean;
     active_runs_count?: number;
     /**
-     * Whether this DAG's schedule supports backfilling.
+     * Whether this Dag's schedule supports backfilling.
      */
     readonly is_backfillable: boolean;
     /**
@@ -616,7 +616,7 @@ export type DAGPatchBody = {
 };
 
 /**
- * DAG serializer for responses.
+ * Dag serializer for responses.
  */
 export type DAGResponse = {
     dag_id: string;
@@ -648,7 +648,7 @@ export type DAGResponse = {
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
     /**
-     * Whether this DAG's schedule supports backfilling.
+     * Whether this Dag's schedule supports backfilling.
      */
     readonly is_backfillable: boolean;
     /**
@@ -658,13 +658,13 @@ export type DAGResponse = {
 };
 
 /**
- * DAG Run serializer for clear endpoint body.
+ * Dag Run serializer for clear endpoint body.
  */
 export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
-     * Only queue newly added tasks in the latest DAG version without clearing existing tasks.
+     * Only queue newly added tasks in the latest Dag version without clearing existing tasks.
      */
     only_new?: boolean;
     /**
@@ -674,7 +674,7 @@ export type DAGRunClearBody = {
 };
 
 /**
- * DAG Run collection response supporting both offset and cursor pagination.
+ * Dag Run collection response supporting both offset and cursor pagination.
  *
  * A single flat model is used instead of a discriminated union
  * (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
@@ -700,7 +700,7 @@ export type DAGRunCollectionResponse = {
 };
 
 /**
- * DAG Run Serializer for PATCH requests.
+ * Dag Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
     state?: DAGRunPatchStates | null;
@@ -708,12 +708,12 @@ export type DAGRunPatchBody = {
 };
 
 /**
- * Enum for DAG Run states when updating a DAG Run.
+ * Enum for Dag Run states when updating a Dag Run.
  */
 export type DAGRunPatchStates = 'queued' | 'success' | 'failed';
 
 /**
- * DAG Run serializer for responses.
+ * Dag Run serializer for responses.
  */
 export type DAGRunResponse = {
     dag_run_id: string;
@@ -742,7 +742,7 @@ export type DAGRunResponse = {
 };
 
 /**
- * List DAG Runs body for batch endpoint.
+ * List Dag Runs body for batch endpoint.
  */
 export type DAGRunsBatchBody = {
     order_by?: string | null;
@@ -774,7 +774,7 @@ export type DAGRunsBatchBody = {
 };
 
 /**
- * DAG Source serializer for responses.
+ * Dag Source serializer for responses.
  */
 export type DAGSourceResponse = {
     content: string | null;
@@ -784,7 +784,7 @@ export type DAGSourceResponse = {
 };
 
 /**
- * DAG Tags Collection serializer for responses.
+ * Dag Tags Collection serializer for responses.
  */
 export type DAGTagCollectionResponse = {
     tags: Array<(string)>;
@@ -792,7 +792,7 @@ export type DAGTagCollectionResponse = {
 };
 
 /**
- * DAG Version Collection serializer for responses.
+ * Dag Version Collection serializer for responses.
  */
 export type DAGVersionCollectionResponse = {
     dag_versions: Array<DagVersionResponse>;
@@ -800,7 +800,7 @@ export type DAGVersionCollectionResponse = {
 };
 
 /**
- * DAG warning collection serializer for responses.
+ * Dag warning collection serializer for responses.
  */
 export type DAGWarningCollectionResponse = {
     dag_warnings: Array<DAGWarningResponse>;
@@ -808,7 +808,7 @@ export type DAGWarningCollectionResponse = {
 };
 
 /**
- * DAG Warning serializer for responses.
+ * Dag Warning serializer for responses.
  */
 export type DAGWarningResponse = {
     dag_id: string;
@@ -861,7 +861,7 @@ export type DagRunTriggeredByType = 'cli' | 'operator' | 'rest_api' | 'ui' | 'te
 export type DagRunType = 'backfill' | 'scheduled' | 'manual' | 'operator_triggered' | 'asset_triggered' | 'asset_materialization';
 
 /**
- * DAG schedule reference serializer for assets.
+ * Dag schedule reference serializer for assets.
  */
 export type DagScheduleAssetReference = {
     dag_id: string;
@@ -870,7 +870,7 @@ export type DagScheduleAssetReference = {
 };
 
 /**
- * DAG Stats Collection serializer for responses.
+ * Dag Stats Collection serializer for responses.
  */
 export type DagStatsCollectionResponse = {
     dags: Array<DagStatsResponse>;
@@ -878,7 +878,7 @@ export type DagStatsCollectionResponse = {
 };
 
 /**
- * DAG Stats serializer for responses.
+ * Dag Stats serializer for responses.
  */
 export type DagStatsResponse = {
     dag_id: string;
@@ -895,7 +895,7 @@ export type DagStatsStateResponse = {
 };
 
 /**
- * DAG Tag serializer for responses.
+ * Dag Tag serializer for responses.
  */
 export type DagTagResponse = {
     name: string;
@@ -1642,7 +1642,7 @@ export type TimeDelta = {
 };
 
 /**
- * Trigger DAG Run Serializer for POST body.
+ * Trigger Dag Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
     dag_run_id?: string | null;
@@ -1989,7 +1989,7 @@ export type DAGWithLatestDagRunsResponse = {
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**
-     * Whether this DAG's schedule supports backfilling.
+     * Whether this Dag's schedule supports backfilling.
      */
     readonly is_backfillable: boolean;
     /**

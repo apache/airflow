@@ -88,7 +88,8 @@ class GKEClusterAuthDetails:
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param project_id: The Google Developers Console project id.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param cluster_hook: airflow hook for working with kubernetes cluster.
     """
 
@@ -209,7 +210,8 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -281,6 +283,7 @@ class GKEDeleteClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
+                    use_dns_endpoint=self.use_dns_endpoint,
                 ),
                 method_name="execute_complete",
             )
@@ -338,7 +341,8 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     :param location: The name of the Google Kubernetes Engine zone or region in which the
         cluster resides, e.g. 'us-central1-a'
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -571,6 +575,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     poll_interval=self.poll_interval,
+                    use_dns_endpoint=self.use_dns_endpoint,
                 ),
                 method_name="execute_complete",
             )
@@ -608,7 +613,8 @@ class GKEStartKueueInsideClusterOperator(GKEOperatorMixin, KubernetesInstallKueu
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -691,7 +697,8 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -767,6 +774,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 ssl_ca_cert=self.ssl_ca_cert,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
+                schedule_timeout=self.schedule_timeout_seconds,
                 cluster_context=self.cluster_context,
                 poll_interval=self.poll_interval,
                 in_cluster=self.in_cluster,
@@ -776,6 +784,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 impersonation_chain=self.impersonation_chain,
                 logging_interval=self.logging_interval,
                 last_log_time=last_log_time,
+                use_dns_endpoint=self.use_dns_endpoint,
             ),
             method_name="trigger_reentry",
         )
@@ -804,7 +813,8 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -888,6 +898,7 @@ class GKEStartJobOperator(GKEOperatorMixin, KubernetesJobOperator):
                 impersonation_chain=self.impersonation_chain,
                 get_logs=self.get_logs,
                 do_xcom_push=self.do_xcom_push,
+                use_dns_endpoint=self.use_dns_endpoint,
             ),
             method_name="execute_complete",
         )
@@ -907,7 +918,8 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -985,7 +997,8 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1072,7 +1085,8 @@ class GKECreateCustomResourceOperator(GKEOperatorMixin, KubernetesCreateResource
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1145,7 +1159,8 @@ class GKEDeleteCustomResourceOperator(GKEOperatorMixin, KubernetesDeleteResource
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1207,7 +1222,8 @@ class GKEStartKueueJobOperator(GKEOperatorMixin, KubernetesStartKueueJobOperator
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1270,7 +1286,8 @@ class GKEDeleteJobOperator(GKEOperatorMixin, KubernetesDeleteJobOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1336,7 +1353,8 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
@@ -1416,7 +1434,8 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         cluster resides, e.g. 'us-central1-a'
     :param cluster_name: The name of the Google Kubernetes Engine cluster.
     :param use_internal_ip: Use the internal IP address as the endpoint.
-    :param use_dns_endpoint: Use the DNS address as the endpoint.
+    :param use_dns_endpoint: Use the DNS address as the endpoint. This needs to set to True for the Sovereign
+        Cloud from Google.
     :param project_id: The Google Developers Console project id
     :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
