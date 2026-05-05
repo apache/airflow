@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import itertools
 import os
@@ -1671,10 +1672,9 @@ class TestTriggererJobRunner:
         # We don't need to run the full _execute, just verify stats.initialize is called
         # before TriggerRunnerSupervisor.start
         with patch.object(job_runner, "register_signals"):
-            try:
+            # We expect this to fail since we're mocking
+            with contextlib.suppress(Exception):
                 job_runner._execute()
-            except Exception:
-                pass  # We expect this to fail since we're mocking
 
         # Verify stats.initialize was called with the expected configuration parameters
         stats_init_mock.assert_called_once()

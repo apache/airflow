@@ -36,16 +36,20 @@ class TestGoogleBidManagerHook:
             self.hook = GoogleBidManagerHook(api_version=API_VERSION, gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.bid_manager.GoogleBidManagerHook.get_client_options"
+    )
+    @mock.patch(
         "airflow.providers.google.marketing_platform.hooks.bid_manager.GoogleBidManagerHook._authorize"
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.bid_manager.build")
-    def test_gen_conn(self, mock_build, mock_authorize):
+    def test_gen_conn(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "doubleclickbidmanager",
             API_VERSION,
             http=mock_authorize.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
 

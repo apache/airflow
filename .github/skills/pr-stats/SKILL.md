@@ -50,7 +50,7 @@ Detail files:
 
 **Golden rule 1 — no mutations, ever.** This skill only reads. It must not post comments, add labels, close, rebase, or approve anything. If the maintainer asks for stats and also wants an action, decline the mutation and redirect to `pr-triage`.
 
-**Golden rule 2 — reuse pr-triage's triage-detection.** The "triaged" count and "responded" count depend on the same `Pull Request quality criteria` marker string and the same collaborator set (`OWNER`/`MEMBER`/`COLLABORATOR`) that drive `pr-triage/classify.md#c4-already_triaged`. Don't invent a second definition — both skills must agree on "is this PR triaged".
+**Golden rule 2 — reuse pr-triage's triage-detection.** The "triaged" count and "responded" count depend on the same `Pull Request quality criteria` marker string and the same collaborator set (`OWNER`/`MEMBER`/`COLLABORATOR`) that drive the triage-marker rows in `pr-triage/classify-and-act.md` (rows 3–4 — `already_triaged`). Don't invent a second definition — both skills must agree on "is this PR triaged".
 
 **Golden rule 3 — one GraphQL call per batch, not per PR.** Same rule as `pr-triage/fetch-and-batch.md`. One aliased query covers the open-PR list for a whole page; the closed/merged fetch is paginated by GitHub's search cursor. Never call `gh pr view` per PR.
 

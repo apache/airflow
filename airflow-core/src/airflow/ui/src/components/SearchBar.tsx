@@ -46,14 +46,21 @@ export const SearchBar = ({
   placeholder,
   ...props
 }: Props) => {
-  const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
+  const lastSentValue = useRef(defaultValue);
+  const handleSearchChange = useDebouncedCallback((val: string) => {
+    lastSentValue.current = val;
+    onChange(val);
+  }, debounceDelay);
   const searchRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(defaultValue);
   const metaKey = getMetaKey();
   const { t: translate } = useTranslation(["dags"]);
 
   useEffect(() => {
-    setValue(defaultValue);
+    if (defaultValue !== lastSentValue.current) {
+      setValue(defaultValue);
+      lastSentValue.current = defaultValue;
+    }
   }, [defaultValue]);
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -62,6 +69,7 @@ export const SearchBar = ({
   };
   const clearSearch = () => {
     handleSearchChange.cancel();
+    lastSentValue.current = "";
     setValue("");
     onChange("");
   };

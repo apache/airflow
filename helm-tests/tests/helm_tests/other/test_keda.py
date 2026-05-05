@@ -26,10 +26,7 @@ class TestKeda:
 
     def test_keda_disabled_by_default(self):
         """Disabled by default."""
-        docs = render_chart(
-            values={},
-            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
-        )
+        docs = render_chart(show_only=["templates/workers/worker-kedaautoscaler.yaml"])
         assert docs == []
 
     def test_keda_disabled_overwrite(self):

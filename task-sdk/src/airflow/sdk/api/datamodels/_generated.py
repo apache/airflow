@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-04-17"
+API_VERSION: Final[str] = "2026-06-16"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -61,6 +61,28 @@ class AssetProfile(BaseModel):
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     type: Annotated[str, Field(title="Type")]
+
+
+class AssetStatePutBody(BaseModel):
+    """
+    Request body for setting an asset state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class AssetStateResponse(BaseModel):
+    """
+    Asset state value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
 
 
 class ConnectionResponse(BaseModel):
@@ -275,6 +297,8 @@ class TIRetryStatePayload(BaseModel):
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    retry_delay_seconds: Annotated[float | None, Field(title="Retry Delay Seconds")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -341,6 +365,28 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+
+
+class TaskStatePutBody(BaseModel):
+    """
+    Request body for setting a task state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class TaskStateResponse(BaseModel):
+    """
+    Task state value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
 
 
 class TaskStatesResponse(BaseModel):

@@ -649,10 +649,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         return list(resp.iter_asset_event_results())
 
     def _reset_cache(self) -> None:
-        try:
+        with contextlib.suppress(AttributeError):
             del self._asset_events
-        except AttributeError:
-            pass
 
     def __iter__(self) -> Iterator[AssetEventResult]:
         return iter(self._asset_events)
