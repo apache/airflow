@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import resource
 import signal
@@ -90,10 +91,8 @@ class TestPreventCoreDump:
             assert soft == 0
             assert hard == 0
         finally:
-            try:
+            with contextlib.suppress(ValueError):
                 resource.setrlimit(resource.RLIMIT_CORE, original)
-            except ValueError:
-                pass
 
 
 class TestGetMaximumFileDescriptors:
