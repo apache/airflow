@@ -70,6 +70,15 @@ dagrun:
   get: "Retrieve a Dag run by Dag ID and run ID"
   list: "List Dag runs, optionally filtered by state and date range"
 
+tasks:
+  list: "List tasks for a Dag"
+
+taskinstances:
+  list: "List task instances for a Dag run"
+  get: "Retrieve a task instance by Dag ID, run ID, and task ID"
+  get-dependencies: "List failed dependencies for a task instance"
+  clear: "Clear task instances for a Dag run"
+
 jobs:
   list: "List scheduler, triggerer, and other Airflow jobs"
 
