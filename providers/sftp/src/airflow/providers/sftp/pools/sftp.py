@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from threading import Lock
 from typing import TYPE_CHECKING
 from weakref import WeakKeyDictionary
 
-from airflow.providers.common.compat.sdk import conf
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -51,7 +51,7 @@ class SFTPClientPool(LoggingMixin):
 
     @staticmethod
     def _resolve_pool_size(pool_size: int | None) -> int:
-        resolved_pool_size = conf.getint("core", "parallelism") if pool_size is None else pool_size
+        resolved_pool_size = (os.cpu_count() or 1) if pool_size is None else pool_size
         if resolved_pool_size < 1:
             raise ValueError(f"pool_size must be greater than or equal to 1, got {resolved_pool_size}.")
         return resolved_pool_size

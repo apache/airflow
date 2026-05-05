@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import threading
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -46,6 +44,7 @@ class TestSFTPClientPool:
             ssh2, sftp2 = await pool.acquire()
             assert ssh2 is not None
             assert sftp2 is not None
+            await pool.release((ssh2, sftp2))
 
     @pytest.mark.asyncio
     async def test_get_sftp_client_context_manager(self, sftp_hook_mocked):
@@ -147,8 +146,8 @@ class TestSFTPClientPool:
 
     def test_pool_size_consistency_with_default(self, sftp_hook_mocked, monkeypatch):
         """Test that creating a pool with default pool_size and then explicit different pool_size raises ValueError."""
-        # Mock the config to return a specific default pool_size
-        monkeypatch.setattr("airflow.providers.sftp.pools.sftp.conf.getint", lambda *args: 3)
+        # Mock os.cpu_count() default used by the pool when pool_size is not provided.
+        monkeypatch.setattr("airflow.providers.sftp.pools.sftp.os.cpu_count", lambda: 3)
 
         # Create first instance without explicit pool_size (uses default)
         pool1 = SFTPClientPool("default_conn")
@@ -157,6 +156,13 @@ class TestSFTPClientPool:
         # Attempt to create another instance with explicit different pool_size should fail
         with pytest.raises(ValueError, match="has already been initialised with pool_size=3"):
             SFTPClientPool("default_conn", pool_size=10)
+
+    def test_pool_size_defaults_to_one_when_cpu_count_is_none(self, sftp_hook_mocked, monkeypatch):
+        """Default pool size falls back to 1 when os.cpu_count() is unavailable."""
+        monkeypatch.setattr("airflow.providers.sftp.pools.sftp.os.cpu_count", lambda: None)
+
+        pool = SFTPClientPool("none_cpu_conn")
+        assert pool.pool_size == 1
 
     def test_pool_size_consistency_same_pool_size(self, sftp_hook_mocked):
         """Test that creating a pool with same pool_size for same conn_id succeeds."""
@@ -271,4 +277,3 @@ class TestSFTPClientPool:
 
         asyncio.run(acquire_in_loop1())
         asyncio.run(release_in_loop2())
-
