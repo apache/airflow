@@ -606,7 +606,7 @@ firstPRWelcomeComment: >
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
   Adding a new operator? Check this short
   [guide](https://github.com/apache/airflow/blob/main/airflow-core/docs/howto/custom-operator.rst)
-  Consider adding an example DAG that shows how users should use it.
+  Consider adding an example Dag that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
   for testing locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.

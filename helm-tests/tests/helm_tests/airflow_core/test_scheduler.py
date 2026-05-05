@@ -1005,6 +1005,20 @@ class TestSchedulerNetworkPolicy:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_should_allow_api_server_to_read_scheduler_logs(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "networkPolicies": {"enabled": True},
+            },
+            show_only=["templates/scheduler/scheduler-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
+
 
 class TestSchedulerLogGroomer(LogGroomerTestBase):
     """Scheduler log groomer."""

@@ -56,7 +56,6 @@ describe("Dag Documentation Modal", () => {
   it("Do not display documentation button only doc_md is not present", () => {
     render(
       <Wrapper>
-        {/* eslint-disable-next-line unicorn/no-null */}
         <Header dag={{ ...MOCK_DAG, doc_md: null } as unknown as DAGDetailsResponse} />
       </Wrapper>,
     );

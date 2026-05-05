@@ -54,7 +54,7 @@ class TestLLMDecoratedOperator:
 
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
-        mock_agent.run_sync.assert_called_once_with("Summarize this text")
+        mock_agent.run_sync.assert_called_once_with("Summarize this text", usage_limits=None)
 
     @pytest.mark.parametrize(
         "return_value",
@@ -90,4 +90,4 @@ class TestLLMDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Summarize quantum computing"
-        mock_agent.run_sync.assert_called_once_with("Summarize quantum computing")
+        mock_agent.run_sync.assert_called_once_with("Summarize quantum computing", usage_limits=None)

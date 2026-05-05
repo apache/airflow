@@ -212,10 +212,10 @@ or you can define the same sensor in the deferrable mode:
     :start-after: [START howto_sensor_dag_run_deferrable_mode]
     :end-before: [END howto_sensor_dag_run_deferrable_mode]
 
-Trigger a DAG run
+Trigger a Dag run
 -----------------
 
-You can trigger a DAG in another Composer environment, use:
+You can trigger a Dag in another Composer environment, use:
 :class:`~airflow.providers.google.cloud.operators.cloud_composer.CloudComposerTriggerDAGRunOperator`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py
@@ -224,10 +224,10 @@ You can trigger a DAG in another Composer environment, use:
     :start-after: [START howto_operator_trigger_dag_run]
     :end-before: [END howto_operator_trigger_dag_run]
 
-Waits for a different DAG, task group, or task to complete
+Waits for a different Dag, task group, or task to complete
 ----------------------------------------------------------
 
-You can use sensor that waits for a different DAG, task group, or task to complete for a specific composer environment, use:
+You can use sensor that waits for a different Dag, task group, or task to complete for a specific composer environment, use:
 :class:`~airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerExternalTaskSensor`
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/composer/example_cloud_composer.py

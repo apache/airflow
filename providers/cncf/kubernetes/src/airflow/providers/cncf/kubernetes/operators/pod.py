@@ -29,7 +29,7 @@ import re
 import shlex
 import string
 from collections.abc import Callable, Container, Iterable, Sequence
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
@@ -657,10 +657,8 @@ class KubernetesPodOperator(BaseOperator):
                 finally:
                     # Stop watching events
                     events_task.cancel()
-                    try:
+                    with suppress(asyncio.CancelledError):
                         await events_task
-                    except asyncio.CancelledError:
-                        pass
 
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:

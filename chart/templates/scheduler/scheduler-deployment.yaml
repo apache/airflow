@@ -26,7 +26,7 @@
 # This is important because in $local mode, the scheduler assumes the role of the worker
 {{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 {{- $stateful := and $local $persistence }}
-# We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
+# We can skip Dags mounts on scheduler if dagProcessor is enabled, except with $local mode
 {{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
 {{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
 {{- $nodeSelector := or .Values.scheduler.nodeSelector .Values.nodeSelector }}
@@ -272,11 +272,11 @@ spec:
           env:
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
-          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          {{- if ne .Values.scheduler.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if .Values.scheduler.logGroomerSidecar.retentionMinutes }}
+          {{- if ne .Values.scheduler.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionMinutes }}"
           {{- end }}

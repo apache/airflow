@@ -1416,6 +1416,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 id=self.id,
                 end_date=msg.end_date,
                 rendered_map_index=self._rendered_map_index,
+                retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
+                retry_reason=getattr(msg, "retry_reason", None),
             )
         elif isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
@@ -1523,7 +1525,7 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
-                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.reset_dag_run, msg.note
+                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
             )
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)

@@ -164,9 +164,9 @@ def get_dag_structure(
             depth=depth,
         )
 
-    # Retrieve, sort the previous DAG Runs
+    # Retrieve, sort the previous Dag Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
-    # This comparison is to fall back to DAG timetable when no order_by is provided
+    # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
@@ -217,7 +217,7 @@ def get_dag_structure(
 
     for serdag in session.scalars(serdags_query):
         filtered_dag = serdag.dag
-        # Apply the same filtering to historical DAG versions
+        # Apply the same filtering to historical Dag versions
         if root:
             filtered_dag = filtered_dag.partial_subset(
                 task_ids=root,
@@ -225,7 +225,7 @@ def get_dag_structure(
                 include_downstream=include_downstream,
                 depth=depth,
             )
-        # Merge immediately instead of collecting all DAGs in memory
+        # Merge immediately instead of collecting all Dags in memory
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
 
@@ -284,7 +284,7 @@ def get_grid_runs(
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    # Retrieve, sort the previous DAG Runs
+    # Retrieve, sort the previous Dag Runs
     has_missed_deadline = (
         exists()
         .where(Deadline.dagrun_id == DagRun.id, Deadline.missed.is_(True))
@@ -311,7 +311,7 @@ def get_grid_runs(
         )
     )
 
-    # This comparison is to fall back to DAG timetable when no order_by is provided
+    # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
         latest_dag = latest_serdag.dag

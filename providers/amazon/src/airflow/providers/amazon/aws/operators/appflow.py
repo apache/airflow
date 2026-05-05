@@ -43,7 +43,7 @@ NOT_SUPPORTED_SOURCE_MSG = "Source {source} is not supported for {entity}!"
 
 class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
     """
-    Amazon AppFlow Base Operator class (not supposed to be used directly in DAGs).
+    Amazon AppFlow Base Operator class (not supposed to be used directly in Dags).
 
     :param source: The source name (Supported: salesforce, zendesk)
     :param flow_name: The flow name
