@@ -18,13 +18,24 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.definitions.timetables._cron import CRON_PRESETS, CronMixin
+from airflow.sdk.definitions.timetables._cron import CronMixin
+from airflow.sdk.definitions.timetables.interval import CronDataIntervalTimetable
 from airflow.sdk.exceptions import AirflowTimetableInvalid
 
 SAMPLE_TZ = "UTC"
 
+# Static table so a typo in CRON_PRESETS is caught by the test.
+PRESET_CASES = [
+    ("@hourly", "0 * * * *"),
+    ("@daily", "0 0 * * *"),
+    ("@weekly", "0 0 * * 0"),
+    ("@monthly", "0 0 1 * *"),
+    ("@quarterly", "0 0 1 */3 *"),
+    ("@yearly", "0 0 1 1 *"),
+]
 
-@pytest.mark.parametrize(("preset", "expected"), CRON_PRESETS.items())
+
+@pytest.mark.parametrize(("preset", "expected"), PRESET_CASES)
 def test_cron_preset_resolved(preset, expected):
     cm = CronMixin(expression=preset, timezone=SAMPLE_TZ)
     assert cm.expression == expected
@@ -32,7 +43,7 @@ def test_cron_preset_resolved(preset, expected):
 
 def test_cron_preset_validate_does_not_raise():
     cm = CronMixin(expression="@quarterly", timezone=SAMPLE_TZ)
-    cm.validate()  # should not raise
+    cm.validate()
 
 
 def test_invalid_cron_expression_raises():
@@ -44,3 +55,10 @@ def test_invalid_cron_expression_raises():
 def test_valid_cron_expression_does_not_raise():
     cm = CronMixin(expression="0 0 * * *", timezone=SAMPLE_TZ)
     cm.validate()
+
+
+def test_cron_data_interval_timetable_quarterly_preset():
+    """Regression test for #66101: CronDataIntervalTimetable must accept @quarterly."""
+    timetable = CronDataIntervalTimetable(expression="@quarterly", timezone=SAMPLE_TZ)
+    assert timetable.expression == "0 0 1 */3 *"
+    timetable.validate()
