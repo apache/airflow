@@ -403,6 +403,17 @@ class TestCliDb:
                 b"ssl-ca = /etc/ssl/ca.crtmalicious=evilmore=bad",
                 id="cr_lf_in_query_value_is_stripped_no_option_injection",
             ),
+            pytest.param(
+                # SQLAlchemy returns a tuple when the same query key repeats;
+                # mysql's option file is one value per key, so the last wins
+                # (mirroring command-line override semantics) and any CR/LF
+                # in the chosen value is still stripped.
+                "mysql://root@mysql:3306/airflow?ssl_ca=/etc/ssl/old.crt&ssl_ca=/etc/ssl/new.crt%0Ainjected=x",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-ca = /etc/ssl/new.crtinjected=x",
+                id="repeated_query_key_collapses_to_last_value",
+            ),
         ],
     )
     def test_build_mysql_cnf(self, sql_alchemy_conn, expected_cnf):
