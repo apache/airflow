@@ -1,6 +1,10 @@
-AIP-96 (Resumable Operators) foundation — adds the ``CHECKPOINTED`` task
-instance state and the ``AirflowTaskCheckpointed`` exception so an operator
-can signal "I have reached a stable checkpoint and intend to pause":
+Add the ``CHECKPOINTED`` task instance state and the ``AirflowTaskCheckpointed`` exception (AIP-96 foundation).
+
+An operator can raise ``AirflowTaskCheckpointed(checkpoint_data=...)`` from
+``execute()`` to signal "I have reached a stable checkpoint and intend to
+pause". The worker catches the exception and reports the ``CHECKPOINTED``
+state. ``CHECKPOINTED`` is an intermediate state and is included in
+``State.unfinished``.
 
 .. code-block:: python
 
@@ -13,13 +17,8 @@ can signal "I have reached a stable checkpoint and intend to pause":
                     raise AirflowTaskCheckpointed(checkpoint_data={"step": step})
                 self.do_work(step)
 
-The worker catches the exception and reports ``CHECKPOINTED`` state.
-``CHECKPOINTED`` is an intermediate state and is included in
-``State.unfinished``.
-
-This change intentionally ships only the vocabulary plus the
-worker-side state transition. ``checkpoint_data`` persistence,
-scheduler auto-resume semantics, the listener hook, and downstream
-trigger-rule integration are deferred to follow-up PRs so the API
-shape can be discussed against a real artifact before committing to a
-single resumption policy.
+This change intentionally ships only the vocabulary plus the worker-side
+state transition. ``checkpoint_data`` persistence, scheduler auto-resume
+semantics, the listener hook, and downstream trigger-rule integration are
+deferred to follow-up PRs so the API shape can be discussed against a real
+artifact before committing to a single resumption policy.
