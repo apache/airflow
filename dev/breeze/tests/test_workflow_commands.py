@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from subprocess import CompletedProcess
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -35,7 +35,7 @@ def _make_gh_response(ref: str | None) -> CompletedProcess:
 class TestPublishDocsTagValidation:
     """Tests for the ref validation logic in `breeze workflow-run publish-docs`."""
 
-    @pytest.fixture()
+    @pytest.fixture
     def runner(self):
         return CliRunner()
 
@@ -51,9 +51,7 @@ class TestPublishDocsTagValidation:
         tag_response = _make_gh_response("refs/tags/providers/2026-04-26")
         mock_run_command.return_value = tag_response
 
-        with patch(
-            "airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor"
-        ) as mock_trigger:
+        with patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor") as mock_trigger:
             result = self._invoke(runner, "providers/2026-04-26")
 
         assert result.exit_code == 0
@@ -95,9 +93,7 @@ class TestPublishDocsTagValidation:
     @patch("airflow_breeze.commands.workflow_commands.run_command")
     def test_skip_tag_validation_bypasses_checks(self, mock_run_command, runner):
         """With --skip-tag-validation, no gh api calls are made and the workflow proceeds."""
-        with patch(
-            "airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor"
-        ) as mock_trigger:
+        with patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor") as mock_trigger:
             result = self._invoke(runner, "some-branch", extra_args=["--skip-tag-validation"])
 
         assert result.exit_code == 0
