@@ -52,6 +52,9 @@
     "buttons": {
       "advanced": "進階功能",
       "dagDocs": "Dag 文件"
+    },
+    "status": {
+      "deactivated": "已停用"
     }
   },
   "logs": {
