@@ -23,11 +23,19 @@ Date: 2026-04-30
 
 ## Status
 
-Accepted as the option register. The decision is recorded in
-[ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md): Option H
-(Go 1.24 `tool` directive) for delivery, paired with Option A (standalone
-`airflow-go-pack` binary) and Option D (standardised
+Accepted as the option register. The packer-mechanism decision is
+recorded in [ADR 0002](0002-use-go-tool-directive-for-bundle-packer.md):
+Option H (Go 1.24 `tool` directive) for delivery, paired with Option A
+(standalone `airflow-go-pack` binary) and Option D (standardised
 `--dump-bundle-spec` introspection contract).
+
+The container-format assumption running through this ADR — that the
+output is a ZIP archive — is superseded by
+[ADR 0004](0004-self-contained-executable-bundle.md), which embeds the
+source and manifest in a footer appended to the executable. The
+options below still describe valid *packer mechanisms*; only the
+artefact each one writes has changed from a ZIP to a footer-augmented
+executable.
 
 ## Context
 
