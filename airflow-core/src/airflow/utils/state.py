@@ -56,6 +56,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    CHECKPOINTED = "checkpointed"
 
     def __str__(self) -> str:
         return self.value
@@ -87,6 +88,10 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
+    # Operator reached a stable checkpoint and paused; resume requires explicit
+    # action (manual API call) for now. AIP-96 will define automatic resume
+    # semantics; this state is the foundation for that discussion.
+    CHECKPOINTED = IntermediateTIState.CHECKPOINTED
 
     def __str__(self) -> str:
         return self.value
@@ -130,6 +135,7 @@ class State:
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
+    CHECKPOINTED = TaskInstanceState.CHECKPOINTED
 
     finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
     unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
@@ -157,6 +163,7 @@ class State:
         TaskInstanceState.REMOVED: "lightgrey",
         TaskInstanceState.SCHEDULED: "tan",
         TaskInstanceState.DEFERRED: "mediumpurple",
+        TaskInstanceState.CHECKPOINTED: "lightyellow",
     }
 
     @classmethod
@@ -200,6 +207,7 @@ class State:
             TaskInstanceState.UP_FOR_RETRY,
             TaskInstanceState.UP_FOR_RESCHEDULE,
             TaskInstanceState.DEFERRED,
+            TaskInstanceState.CHECKPOINTED,
         ]
     )
     """
