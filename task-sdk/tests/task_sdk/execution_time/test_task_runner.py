@@ -4023,7 +4023,7 @@ class TestTaskRunnerCallsListeners:
         assert listener.msgs == ["started", "skipped"]
 
     @pytest.mark.parametrize(
-        "should_retry, expected_state, expected_failure_msg",
+        ("should_retry", "expected_state", "expected_failure_msg"),
         [
             pytest.param(
                 True,
