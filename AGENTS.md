@@ -3,6 +3,33 @@
 
 # AGENTS instructions
 
+## Naming
+
+Always write **Dag** (title case) in prose — documentation, markdown, comments,
+docstrings, commit messages, PR titles and descriptions, code review comments,
+issue bodies, and chat replies. Never write "DAG" (all caps) or "dag"
+(lowercase) outside of literal code tokens.
+
+Exceptions where the literal form is required and must be preserved as-is:
+
+- **Python source code** where a legacy class or variable is literally named
+  `DAG` (e.g., `from airflow.sdk import DAG`, `dag = DAG("my_dag", ...)`). The
+  class is spelt `DAG`; that token cannot be renamed in documentation that
+  shows it. Same applies to lowercase identifiers like `dag_id`, `dag`,
+  `my_dag`.
+- **CLI subcommands** that are literally named `dags` (e.g.,
+  `airflow dags list`, `airflow dags test`). Lowercase is the actual command
+  name.
+- **File / directory / config tokens** that are literally those identifiers
+  (`dag_processing/`, `dagprocessor`, `get_dag`, etc.).
+- **Anti-pattern callouts** that quote the wrong form to teach the rule (e.g.,
+  `Use "DAG" — always write "Dag"`). The literal `DAG` is required to convey
+  what to avoid; this is the rule's spirit, not a violation.
+
+Do not write **Directed Acyclic Graph** in documentation. The only exception is
+when describing what the term originally meant (historical / etymological
+context). In current prose, just use "Dag".
+
 ## Environment Setup
 
 - Install prek: `uv tool install prek`
