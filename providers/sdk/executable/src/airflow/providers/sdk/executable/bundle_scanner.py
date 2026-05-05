@@ -18,60 +18,158 @@
 """
 Scan directories for native executable Airflow SDK bundles.
 
-Each executable bundle is expected to have a sidecar metadata file
-(``airflow-metadata.yaml``) that declares the bundle's DAG IDs.  Detection
-is based on file executability and the presence of this metadata file.
+A bundle is a single self-contained executable with a fixed-format trailer
+appended after the binary.  The last 32 bytes of the file form the trailer
+and locate two preceding regions: the embedded DAG source and the
+``airflow-metadata.yaml`` manifest.  See :doc:`bundle-spec` for the wire
+format.
+
+Detection is by the trailer magic ``AFBNDL01``; files without it are
+silently ignored, so non-bundle entries (READMEs, dotfiles, ...) MAY share
+the directory.
 """
 
 from __future__ import annotations
 
 import os
+import struct
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import yaml
 
-_METADATA_FILENAME = "airflow-metadata.yaml"
+FOOTER_MAGIC = b"AFBNDL01"
+FOOTER_SIZE = 32
+FOOTER_VERSION = 1
 
 
-class ResolvedExecutableBundle(NamedTuple):
-    """A resolved native executable DAG bundle: everything needed to start the bundle process."""
+class _Footer(NamedTuple):
+    source_len: int
+    metadata_len: int
+    footer_ver: int
 
-    executable_path: str
+
+def _read_footer(path: Path) -> _Footer | None:
+    """
+    Parse the trailer at the end of *path*.
+
+    :returns: a :class:`_Footer` when the trailer's magic matches and the
+        declared regions are within bounds; ``None`` when the file is too
+        small or the magic does not match (i.e. it is not a bundle).
+    :raises ValueError: when the magic matches but the trailer is otherwise
+        malformed (unknown ``footer_ver`` or out-of-bounds region offsets).
+    """
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return None
+    if size < FOOTER_SIZE:
+        return None
+    try:
+        with open(path, "rb") as f:
+            f.seek(size - FOOTER_SIZE)
+            trailer = f.read(FOOTER_SIZE)
+    except OSError:
+        return None
+    if len(trailer) != FOOTER_SIZE or trailer[24:32] != FOOTER_MAGIC:
+        return None
+    source_len, metadata_len, footer_ver = struct.unpack_from("<III", trailer, 0)
+    if footer_ver != FOOTER_VERSION:
+        raise ValueError(
+            f"Unsupported bundle footer_ver={footer_ver} in {path}; "
+            f"this runtime supports footer_ver={FOOTER_VERSION}."
+        )
+    metadata_start = size - FOOTER_SIZE - metadata_len
+    source_start = metadata_start - source_len
+    if source_start < 0:
+        raise ValueError(f"Bundle trailer in {path} declares regions that extend past the start of file.")
+    # Per the spec, the binary region [0, source_start) MUST be non-empty.
+    if source_start == 0:
+        raise ValueError(f"Bundle trailer in {path} leaves no room for the executable region.")
+    return _Footer(source_len=source_len, metadata_len=metadata_len, footer_ver=footer_ver)
+
+
+def read_bundle_metadata(path: Path) -> dict[str, Any] | None:
+    """
+    Return the parsed ``airflow-metadata.yaml`` manifest embedded in *path*.
+
+    Returns ``None`` when *path* is not a bundle, when the metadata bytes
+    are not valid UTF-8 YAML, or when the manifest does not deserialise to
+    a mapping.
+    """
+    try:
+        footer = _read_footer(path)
+    except ValueError:
+        return None
+    if footer is None:
+        return None
+    metadata_start = path.stat().st_size - FOOTER_SIZE - footer.metadata_len
+    with open(path, "rb") as f:
+        f.seek(metadata_start)
+        metadata_bytes = f.read(footer.metadata_len)
+    try:
+        data = yaml.safe_load(metadata_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def read_source_code(path: Path) -> str | None:
+    """
+    Return the embedded DAG source from a bundle, decoded as UTF-8.
+
+    Returns ``None`` when *path* is not a bundle or carries an empty source
+    region (``source_len == 0``).
+    """
+    try:
+        footer = _read_footer(path)
+    except ValueError:
+        return None
+    if footer is None or footer.source_len == 0:
+        return None
+    source_start = path.stat().st_size - FOOTER_SIZE - footer.metadata_len - footer.source_len
+    with open(path, "rb") as f:
+        f.seek(source_start)
+        source_bytes = f.read(footer.source_len)
+    try:
+        return source_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _dag_ids(metadata: dict[str, Any]) -> set[str]:
+    dags = metadata.get("dags")
+    if not isinstance(dags, dict):
+        return set()
+    return set(dags.keys())
 
 
 class BundleScanner:
     """
-    Locate Airflow native executable bundles inside a directory tree.
+    Locate Airflow native executable bundles inside a directory.
 
-    Supports two directory layouts:
-
-    - **Nested** — each immediate subdirectory of *bundles_dir* is a bundle home
-      containing the executable and its ``airflow-metadata.yaml``.
-    - **Flat** — *bundles_dir* itself contains the executables and metadata files.
-
-    Within a bundle home, the scanner looks for files that are executable
-    (``os.access(path, os.X_OK)``) and have a corresponding metadata file.
+    The scanner enumerates every regular, executable file in *bundles_dir*,
+    reads the last 32 bytes of each, and treats files whose magic matches
+    ``AFBNDL01`` as bundles.  Non-bundle files are silently ignored.
     """
 
     def __init__(self, bundles_dir: Path) -> None:
         self._bundles_dir = bundles_dir
 
-    def resolve(self, dag_id: str) -> ResolvedExecutableBundle:
+    def resolve(self, dag_id: str) -> str:
         """
-        Find the bundle whose metadata YAML lists *dag_id*.
+        Return the executable path of the bundle whose manifest declares *dag_id*.
 
         :raises FileNotFoundError: if no matching bundle is found.
         """
-        for bundle_home in self._candidate_homes():
-            executables = _executable_files(bundle_home)
-            if not executables:
+        for candidate in self._candidate_files():
+            metadata = read_bundle_metadata(candidate)
+            if metadata is None:
                 continue
-
-            metadata_path = bundle_home / _METADATA_FILENAME
-            dag_ids = _read_metadata_dag_ids(metadata_path)
-            if dag_id in dag_ids and executables:
-                return ResolvedExecutableBundle(executable_path=str(executables[0].resolve()))
+            if dag_id in _dag_ids(metadata):
+                return str(candidate.resolve())
 
         raise FileNotFoundError(
             f"No executable bundle containing dag_id={dag_id!r} found in {self._bundles_dir}"
@@ -80,95 +178,23 @@ class BundleScanner:
     @staticmethod
     def resolve_executable(path: Path) -> str | None:
         """
-        Validate that *path* is a valid Airflow executable bundle.
+        Validate that *path* is an Airflow executable bundle.
 
-        Returns the executable path string if valid (the file is executable
-        and has a companion ``airflow-metadata.yaml``), ``None`` otherwise.
+        Returns the resolved executable path when *path* is a regular,
+        executable file whose trailer matches ``AFBNDL01`` and whose
+        embedded manifest declares at least one DAG; ``None`` otherwise.
         """
         resolved = path.resolve()
+        if not resolved.is_file() or not os.access(resolved, os.X_OK):
+            return None
+        metadata = read_bundle_metadata(resolved)
+        if metadata is None:
+            return None
+        if not _dag_ids(metadata):
+            return None
+        return str(resolved)
 
-        if resolved.is_file() and os.access(resolved, os.X_OK):
-            # Check for metadata in the same directory
-            metadata_path = resolved.parent / _METADATA_FILENAME
-            if metadata_path.is_file():
-                dag_ids = _read_metadata_dag_ids(metadata_path)
-                if dag_ids:
-                    return str(resolved)
-
-        # path might be a directory containing the executable and metadata
-        if resolved.is_dir():
-            metadata_path = resolved / _METADATA_FILENAME
-            if metadata_path.is_file():
-                executables = _executable_files(resolved)
-                if executables:
-                    return str(executables[0].resolve())
-
-        return None
-
-    def _candidate_homes(self) -> list[Path]:
-        """Return normalised bundle-home directories to inspect."""
-        candidates: list[Path] = []
-
-        # Each subdirectory is a potential bundle home (nested layout).
-        if self._bundles_dir.is_dir():
-            for child in sorted(self._bundles_dir.iterdir()):
-                if child.is_dir():
-                    candidates.append(child)
-
-        # The directory itself (flat layout).
-        candidates.append(self._bundles_dir)
-        return candidates
-
-
-def _executable_files(directory: Path) -> list[Path]:
-    """List all executable files in *directory*, sorted by name."""
-    if not directory.is_dir():
-        return []
-    return sorted(
-        p
-        for p in directory.iterdir()
-        if p.is_file() and os.access(p, os.X_OK) and p.name != _METADATA_FILENAME
-    )
-
-
-def _read_metadata_dag_ids(metadata_path: Path) -> set[str]:
-    """Parse dag IDs from an ``airflow-metadata.yaml`` file."""
-    if not metadata_path.is_file():
-        return set()
-    try:
-        with open(metadata_path) as f:
-            data = yaml.safe_load(f)
-    except (OSError, yaml.YAMLError):
-        return set()
-    if not isinstance(data, dict) or "dags" not in data:
-        return set()
-    return set(data["dags"].keys())
-
-
-def read_source_code(executable_path: Path) -> str | None:
-    """
-    Read source code from a sidecar file alongside the executable.
-
-    Looks for common source file patterns in the same directory:
-    ``main.go``, ``main.rs``, ``<name>.go``, ``<name>.rs``, or a generic
-    ``source`` file.  Returns ``None`` if no source file is found.
-    """
-    parent = executable_path.parent
-    stem = executable_path.stem
-
-    candidates = [
-        parent / f"{stem}.go",
-        parent / "main.go",
-        parent / f"{stem}.rs",
-        parent / "main.rs",
-        parent / "source",
-    ]
-
-    for candidate in candidates:
-        if candidate.is_file():
-            try:
-                return candidate.read_text()
-            except OSError:
-                continue
-
-    return None
+    def _candidate_files(self) -> list[Path]:
+        if not self._bundles_dir.is_dir():
+            return []
+        return sorted(p for p in self._bundles_dir.iterdir() if p.is_file() and os.access(p, os.X_OK))

@@ -43,10 +43,10 @@ config:
         description: |
           Path to the directory containing native executable DAG bundles.
           When using Python stub DAGs that delegate task execution to a
-          native runtime, the coordinator scans this directory to find the
-          executable matching the target dag_id. Each immediate subdirectory
-          is treated as a separate bundle home, and the directory itself is
-          also checked (flat layout).
+          native runtime, the coordinator scans this directory for files
+          whose AFBNDL01 trailer marks them as Airflow executable bundles
+          and selects the one whose embedded manifest declares the target
+          dag_id.
         type: string
         version_added: ~
         example: ~/airflow/executable-bundles

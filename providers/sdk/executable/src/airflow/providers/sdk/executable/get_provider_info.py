@@ -38,7 +38,7 @@ def get_provider_info():
                 "description": "Options for the native executable language provider.",
                 "options": {
                     "bundles_folder": {
-                        "description": "Path to the directory containing native executable DAG bundles.\nWhen using Python stub DAGs that delegate task execution to a\nnative runtime, the coordinator scans this directory to find the\nexecutable matching the target dag_id. Each immediate subdirectory\nis treated as a separate bundle home, and the directory itself is\nalso checked (flat layout).\n",
+                        "description": "Path to the directory containing native executable DAG bundles.\nWhen using Python stub DAGs that delegate task execution to a\nnative runtime, the coordinator scans this directory for files\nwhose AFBNDL01 trailer marks them as Airflow executable bundles\nand selects the one whose embedded manifest declares the target\ndag_id.\n",
                         "type": "string",
                         "version_added": None,
                         "example": "~/airflow/executable-bundles",
