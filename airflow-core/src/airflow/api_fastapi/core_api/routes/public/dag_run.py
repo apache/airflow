@@ -224,7 +224,7 @@ def patch_dag_run(
                 try:
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
                 except Exception:
-                    log.exception("error calling listener")
+                    log.exception("error calling listener for hook %r", "on_dag_run_success")
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
@@ -233,7 +233,7 @@ def patch_dag_run(
                 try:
                     get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
                 except Exception:
-                    log.exception("error calling listener")
+                    log.exception("error calling listener for hook %r", "on_dag_run_failed")
         elif attr_name == "note":
             updated_dag_run = session.get(DagRun, dag_run.id)
             if updated_dag_run and updated_dag_run.dag_run_note is None:

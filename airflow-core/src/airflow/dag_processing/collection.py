@@ -396,7 +396,7 @@ def _update_import_errors(
                         filename=import_error.full_file_path(), stacktrace=stacktrace
                     )
             except Exception:
-                log.exception("error calling listener")
+                log.exception("error calling listener for hook %r", "on_existing_dag_import_error")
         else:
             import_error = ParseImportError(
                 filename=relative_fileloc,
@@ -411,7 +411,7 @@ def _update_import_errors(
                     filename=import_error.full_file_path(), stacktrace=stacktrace
                 )
             except Exception:
-                log.exception("error calling listener")
+                log.exception("error calling listener for hook %r", "on_new_dag_import_error")
         session.execute(
             update(DagModel)
             .where(

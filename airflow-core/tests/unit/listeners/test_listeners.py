@@ -121,6 +121,24 @@ def test_listener_suppresses_exceptions(create_task_instance, session, cap_struc
     assert "error calling listener" in cap_structlog
 
 
+def test_listener_lifecycle_error_log_includes_hook_name(cap_structlog, listener_manager):
+    """When a lifecycle listener raises, the log identifies the hook so plugin
+    authors can debug across multiple registered listeners."""
+    from airflow.listeners import hookimpl
+
+    class ThrowingLifecycleListener:
+        @hookimpl
+        def on_starting(self, component):
+            raise RuntimeError("listener boom")
+
+    listener_manager(ThrowingLifecycleListener())
+
+    Job()  # instantiating a Job fires the on_starting hook
+
+    assert "error calling listener" in cap_structlog
+    assert "on_starting" in cap_structlog
+
+
 @provide_session
 def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session, listener_manager):
     listener_manager(full_listener)
