@@ -387,7 +387,10 @@ export class ConnectionsPage extends BasePage {
 
   private async findConnectionRow(connectionId: string): Promise<Locator | undefined> {
     // Try search first (faster)
-    const hasSearch = await this.searchInput.waitFor({ state: "visible", timeout: 3000 }).then(() => true).catch(() => false);
+    const hasSearch = await this.searchInput
+      .waitFor({ state: "visible", timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
 
     if (hasSearch) {
       return await this.findConnectionRowUsingSearch(connectionId);
