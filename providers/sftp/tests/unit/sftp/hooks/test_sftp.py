@@ -1135,6 +1135,88 @@ class TestSFTPHookAsync:
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
+    async def test_walktree_skips_disappearing_subdirectory(self, sftp_hook_mocked):
+        """walktree should continue when a subdirectory disappears during traversal."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class File:
+                    filename = "file1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                class Subdir:
+                    filename = "subdir"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [File(), Subdir()]
+            if path == "/dir/subdir":
+                raise SFTPNoSuchFile("gone")
+            return []
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = lambda path: path
+
+        files: list[str] = []
+        dirs: list[str] = []
+        unknowns: list[str] = []
+
+        await hook.walktree(
+            path="/dir",
+            fcallback=files.append,
+            dcallback=dirs.append,
+            ucallback=unknowns.append,
+        )
+
+        assert files == ["/dir/file1"]
+        assert dirs == ["/dir/subdir"]
+        assert unknowns == []
+
+    @pytest.mark.asyncio
+    async def test_walktree_avoids_cycle_via_canonical_path(self, sftp_hook_mocked):
+        """walktree should avoid infinite recursion when two directory paths resolve to one target."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class Link:
+                    filename = "link"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [Link()]
+            if path == "/dir/link":
+
+                class LinkBack:
+                    filename = "again"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [LinkBack()]
+            return []
+
+        async def realpath_side_effect(path):
+            # Both paths resolve to same canonical target, which should stop recursion.
+            if path in {"/dir/link", "/dir/link/again"}:
+                return "/dir/link"
+            return path
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = realpath_side_effect
+
+        dirs: list[str] = []
+        await hook.walktree(
+            path="/dir",
+            fcallback=lambda _: None,
+            dcallback=dirs.append,
+            ucallback=lambda _: None,
+        )
+
+        assert dirs == ["/dir/link", "/dir/link/again"]
+
+    @pytest.mark.asyncio
     async def test_list_directory_non_recursive(self, sftp_hook_mocked):
         """Assert that default list_directory returns one-level entry names only."""
         hook, sftp_client_mock = sftp_hook_mocked

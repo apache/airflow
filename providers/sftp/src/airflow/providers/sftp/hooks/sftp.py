@@ -908,9 +908,25 @@ class SFTPHookAsync(BaseHook):
 
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
+                visited_dirs: set[str] = set()
+
+                async def _canonical_dir(dir_path: str) -> str:
+                    with suppress(asyncssh.SFTPError):
+                        return os.fsdecode(await sftp.realpath(dir_path))
+                    return posixpath.normpath(dir_path)
 
                 async def _walk(dir_path: str) -> None:
-                    entries = await sftp.readdir(dir_path)
+                    canonical_dir = await _canonical_dir(dir_path)
+                    if canonical_dir in visited_dirs:
+                        return
+                    visited_dirs.add(canonical_dir)
+
+                    try:
+                        entries = await sftp.readdir(dir_path)
+                    except asyncssh.SFTPNoSuchFile:
+                        # Directory may disappear mid-walk on busy drops; skip and continue.
+                        return
+
                     for entry in sorted(entries, key=lambda file: os.fsdecode(file.filename)):
                         filename = os.fsdecode(entry.filename)
                         if filename in {".", ".."}:
