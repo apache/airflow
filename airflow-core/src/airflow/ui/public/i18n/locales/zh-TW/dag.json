@@ -40,9 +40,37 @@
     "parseDuration": "解析時長：",
     "parsedAt": "解析時間："
   },
+  "deadlineAlerts": {
+    "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "count_one": "{{count}} 個期限",
+    "count_other": "{{count}} 個期限",
+    "referenceType": {
+      "AverageRuntimeDeadline": "平均執行時間",
+      "DagRunLogicalDateDeadline": "邏輯日期",
+      "DagRunQueuedAtDeadline": "排隊時間"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "實際",
+    "expected": "預期",
+    "finishedEarly": "提前 {{duration}} 達成期限",
+    "finishedLate": "逾期 {{duration}} 完成",
+    "label": "期限",
+    "met": "已達成",
+    "missed": "已逾期",
+    "missedCount_one": "{{count}} 個已逾期的期限",
+    "missedCount_other": "{{count}} 個已逾期的期限",
+    "mixedCount": "{{missedCount}} 個已逾期，{{upcomingCount}} 個即將到期",
+    "stillRunning": "仍在執行中",
+    "upcoming": "即將到期",
+    "upcomingCount_one": "{{count}} 個即將到期的期限",
+    "upcomingCount_other": "{{count}} 個即將到期的期限"
+  },
   "extraLinks": "額外連結",
   "grid": {
     "buttons": {
+      "newerRuns": "較新的執行",
+      "olderRuns": "較舊的執行",
       "resetToLatest": "重設為最新",
       "toggleGroup": "切換群組狀態"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "進階功能",
       "dagDocs": "Dag 文件"
+    },
+    "status": {
+      "deactivated": "已停用"
     }
   },
   "logs": {
@@ -66,12 +97,18 @@
     },
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
+    "search": {
+      "matchCount": "{{total}} 中第 {{current}} 筆",
+      "noMatches": "無符合結果",
+      "placeholder": "搜尋日誌..."
+    },
     "settings": "日誌設定",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
   },
   "navigation": {
     "navigation": "導航: {{arrow}}",
+    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },
   "notFound": {
@@ -92,6 +129,10 @@
     "charts": {
       "assetEvent_one": "已建立資源事件",
       "assetEvent_other": "已建立資源事件"
+    },
+    "deadlines": {
+      "showAll": "顯示全部",
+      "title": "期限"
     },
     "failedLogs": {
       "hideLogs": "隱藏日誌",
@@ -125,7 +166,9 @@
     "graphFilters": {
       "clearFilters": "清除篩選條件",
       "durationGte": "最短持續時間 (秒)",
+      "durationGteHint": "對於映射任務，會計算所有實例的總時間範圍",
       "mapIndex": "映射索引",
+      "mapIndexHint": "至少展開到此索引的映射任務",
       "selectStatus": "選擇狀態",
       "selectTaskGroup": "選擇任務群組",
       "title": "任務篩選條件"

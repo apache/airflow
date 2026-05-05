@@ -398,7 +398,7 @@ def materialize_asset(
     session: SessionDep,
     body: MaterializeAssetBody | None = None,
 ) -> DAGRunResponse:
-    """Materialize an asset by triggering a DAG run that produces it."""
+    """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
         session.scalars(
             select(TaskOutletAssetReference.dag_id)
@@ -409,11 +409,11 @@ def materialize_asset(
     )
 
     if (dag_id := next(dag_id_it, None)) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No DAG materializes asset with ID: {asset_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No Dag materializes asset with ID: {asset_id}")
     if next(dag_id_it, None) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"More than one DAG materializes asset with ID: {asset_id}",
+            f"More than one Dag materializes asset with ID: {asset_id}",
         )
 
     if not get_auth_manager().is_authorized_dag(
@@ -424,7 +424,7 @@ def materialize_asset(
     ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            f"User is not authorized to trigger a run for DAG: {dag_id} that materializes this asset",
+            f"User is not authorized to trigger a run for Dag: {dag_id} that materializes this asset",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -562,7 +562,7 @@ def get_dag_asset_queued_events(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
-    """Get queued asset events for a DAG."""
+    """Get queued asset events for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -599,7 +599,7 @@ def get_dag_asset_queued_event(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventResponse:
-    """Get a queued asset event for a DAG."""
+    """Get a queued asset event for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -702,7 +702,7 @@ def delete_dag_asset_queued_event(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
-    """Delete a queued asset event for a DAG."""
+    """Delete a queued asset event for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
     )

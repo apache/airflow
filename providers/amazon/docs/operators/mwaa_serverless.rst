@@ -22,6 +22,20 @@ Amazon MWAA Serverless (Managed Workflows)
 Amazon MWAA Serverless provides a serverless execution environment for Apache Airflow
 workflows. Use the operators below to manage MWAA Serverless workflow runs.
 
+.. _howto/operator:MwaaServerlessCreateWorkflowOperator:
+
+Create a Workflow
+-----------------
+
+To create an Amazon MWAA Serverless workflow, use
+:class:`~airflow.providers.amazon.aws.operators.mwaa_serverless.MwaaServerlessCreateWorkflowOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_mwaa_serverless_create_workflow]
+    :end-before: [END howto_operator_mwaa_serverless_create_workflow]
+
 .. _howto/operator:MwaaServerlessStartWorkflowRunOperator:
 
 Start a Workflow Run
