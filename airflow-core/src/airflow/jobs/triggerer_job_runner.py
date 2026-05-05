@@ -30,7 +30,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict, cast
 from uuid import uuid4
 
 import anyio
@@ -131,11 +131,17 @@ def _make_trigger_span(
             span_name += f"_{ti.map_index}"
         attributes = {
             **attributes,
-            "airflow.dag_id": ti.dag_id,
-            "airflow.task_id": ti.task_id,
-            "airflow.dag_run.run_id": ti.run_id,
-            "airflow.task_instance.try_number": ti.try_number,
-            "airflow.task_instance.map_index": ti.map_index,
+            **{
+                k: cast("str | int", v)
+                for k, v in {
+                    "airflow.dag_id": ti.dag_id,
+                    "airflow.task_id": ti.task_id,
+                    "airflow.dag_run.run_id": ti.run_id,
+                    "airflow.task_instance.try_number": ti.try_number,
+                    "airflow.task_instance.map_index": ti.map_index,
+                }.items()
+                if v is not None
+            },
         }
     else:
         span_name = f"trigger.{name}"
