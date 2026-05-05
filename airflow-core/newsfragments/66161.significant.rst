@@ -1,65 +1,12 @@
 Provider example DAGs are exposed as dedicated bundles
 
-Example DAGs that ship with provider distributions are now discovered via
+Example DAGs shipped by provider distributions are now discovered via
 ``ProvidersManager`` and registered as their own DAG bundles, one per
-provider that ships an ``example_dags/`` folder. Bundle names follow the
-shape ``apache-airflow-providers-<distribution>-example-dags`` (for
-canonical Apache providers) or ``<distribution-name>-example-dags`` (for
-third-party providers). The ``[core] load_examples`` configuration option
-remains the single switch that controls whether any example bundles are
-registered.
+provider, named ``apache-airflow-providers-<distribution>-example-dags``
+(or ``<distribution>-example-dags`` for third-party providers). The
+``[core] load_examples`` option still gates whether they are registered.
 
-**What changed:**
-
-- Example DAGs that previously came in under the implicit ``dags-folder``
-  bundle are now persisted in ``DagBundleModel`` rows and emitted in REST
-  API responses (``GET /api/v2/dags/{dag_id}/dag-versions`` and the
-  ``bundle_name`` field on task-instance responses) under the new
-  per-provider bundle names.
-- Nested providers such as ``apache-airflow-providers-common-sql`` are
-  discovered correctly (previously they were missed because discovery
-  walked ``airflow.providers.__path__`` directly).
-
-**Behaviour changes:**
-
-- Clients filtering or tracking bundles by ``"dags-folder"`` for
-  previously-shipped example DAGs (e.g. ``example_python_operator``) need
-  to update to the new per-provider bundle names. The DAG identifiers
-  themselves are unchanged.
-
-**Removals:**
-
-- The ``include_examples`` parameter has been removed from
-  ``DagBag.__init__``, ``DagBag.collect_dags``, ``BundleDagBag.__init__``,
-  and ``tests_common.test_utils.db.parse_and_sync_to_db``. Example DAG
-  loading is now controlled exclusively by the ``[core] load_examples``
-  configuration option, which gates whether the per-provider example
-  bundles are registered. Callers that previously passed
-  ``include_examples=True`` should set
-  ``conf_vars({("core", "load_examples"): "true"})`` (or equivalent
-  configuration). Callers that previously passed
-  ``include_examples=False`` can drop the argument: it matches the new
-  default behaviour where ``DagBag`` only walks the configured
-  ``dag_folder`` and example DAGs come in via dedicated bundles.
-
-* Types of change
-
-  * [ ] Dag changes
-  * [x] Config changes
-  * [x] API changes
-  * [ ] CLI changes
-  * [x] Behaviour changes
-  * [ ] Plugin changes
-  * [ ] Dependency changes
-  * [x] Code interface changes
-
-* Migration rules needed
-
-  * Update clients that filter REST API responses by ``bundle_name`` to
-    match the new per-provider bundle names for example DAGs.
-  * Replace ``include_examples=True`` calls to ``DagBag`` /
-    ``parse_and_sync_to_db`` with
-    ``conf_vars({("core", "load_examples"): "true"})`` (or equivalent
-    configuration). The argument has been removed.
-  * Drop ``include_examples=False`` arguments from ``DagBag`` /
-    ``parse_and_sync_to_db`` calls; the default behaviour is unchanged.
+REST API clients that filtered ``bundle_name`` by ``"dags-folder"`` for
+provider-shipped example DAGs (e.g. ``example_python_operator``) must
+update to the new per-provider bundle names. DAG identifiers are
+unchanged.
