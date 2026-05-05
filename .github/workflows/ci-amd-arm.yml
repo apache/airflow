@@ -378,6 +378,46 @@ jobs:
           RUFF_FORMAT: "github"
           INCLUDE_MYPY_VOLUME: "false"
 
+  migration-round-trip:
+    timeout-minutes: 20
+    name: "Migration round-trip check"
+    needs: [build-info, build-ci-images]
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    if: needs.build-info.outputs.has-migrations == 'true'
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ needs.build-info.outputs.platform }}
+          python: "${{ needs.build-info.outputs.default-python-version }}"
+          use-uv: ${{ needs.build-info.outputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          python-version: ${{steps.breeze.outputs.host-python-version}}
+          platform: ${{ needs.build-info.outputs.platform }}
+          save-cache: false
+      - name: "Migration round-trip check"
+        run: prek --color always --verbose --stage manual migration-round-trip --all-files
+        env:
+          VERBOSE: "false"
+          COLUMNS: "202"
+          SKIP_GROUP_OUTPUT: "true"
+          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+
   providers:
     name: "provider distributions tests"
     uses: ./.github/workflows/test-providers.yml
@@ -941,6 +981,7 @@ jobs:
       - build-prod-images
       - ci-image-checks
       - generate-constraints
+      - migration-round-trip
       - mypy-providers
       - providers
       - tests-helm
