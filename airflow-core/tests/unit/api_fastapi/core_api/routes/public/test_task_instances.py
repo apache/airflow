@@ -4411,6 +4411,11 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.status_code == 200
         assert response2.json()["state"] == state
         assert listener.state == listener_state
+        if state == "failed":
+            # The manual-set FAILED path wraps its human-readable reason in a
+            # RuntimeError so listener authors always receive an exception type.
+            assert isinstance(listener.last_error, RuntimeError)
+            assert "manually set to" in str(listener.last_error)
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):

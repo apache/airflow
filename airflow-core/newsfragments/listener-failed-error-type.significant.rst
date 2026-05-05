@@ -1,0 +1,11 @@
+The ``error`` argument on the ``on_task_instance_failed`` listener hook is now
+typed as ``BaseException | None`` (previously ``None | str | BaseException``).
+The manual-set FAILED state path on the API server now wraps its human-readable
+reason in a ``RuntimeError`` instead of passing a plain string, so listeners
+always receive an exception type and ``str(error)`` continues to yield the
+human-readable message.
+
+Listener implementations that rely on ``isinstance(error, str)`` to detect
+the manual-set path should switch to the ``msg`` keyword argument introduced
+in #66394 (``msg == "manually_set_to_failed"``); the message text remains
+accessible via ``str(error)``.

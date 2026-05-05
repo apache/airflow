@@ -51,9 +51,19 @@ def on_task_instance_success(
 def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
-    error: None | str | BaseException,
+    error: BaseException | None,
 ):
-    """Execute when task state changes to FAIL. previous_state can be None."""
+    """
+    Execute when task state changes to FAIL. previous_state can be None.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object (RuntimeTaskInstance when called
+        from task execution context, TaskInstance when called from API server)
+    :param error: The exception that caused the failure. ``None`` only when the
+        cause is unavailable. Manual API-driven state transitions wrap their
+        human-readable reason in ``RuntimeError`` so listeners always receive an
+        exception type and ``str(error)`` yields the message.
+    """
 
 
 @hookspec
