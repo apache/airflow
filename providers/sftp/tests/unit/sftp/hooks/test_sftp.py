@@ -1089,10 +1089,8 @@ class TestSFTPHookAsync:
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_list_directory_recursive(self, sftp_hook_mocked):
-        """
-        Assert that list_directory recursively lists files in subdirectories
-        """
+    async def test_walktree_recursive(self, sftp_hook_mocked):
+        """Assert that walktree recursively traverses files and directories."""
         hook, sftp_client_mock = sftp_hook_mocked
 
         sftp_client = sftp_client_mock.__aenter__.return_value
@@ -1120,9 +1118,20 @@ class TestSFTPHookAsync:
 
         sftp_client.readdir.side_effect = readdir_side_effect
 
-        files = await hook.list_directory("/dir", recursive=True)
-        assert files is not None
+        files: list[str] = []
+        dirs: list[str] = []
+        unknowns: list[str] = []
+
+        await hook.walktree(
+            path="/dir",
+            fcallback=files.append,
+            dcallback=dirs.append,
+            ucallback=unknowns.append,
+        )
+
         assert sorted(files) == sorted(["/dir/file1", "/dir/subdir/file2"])
+        assert dirs == ["/dir/subdir"]
+        assert unknowns == []
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio

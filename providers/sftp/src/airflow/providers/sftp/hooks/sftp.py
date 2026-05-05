@@ -875,48 +875,60 @@ class SFTPHookAsync(BaseHook):
             async with ssh_conn.start_sftp_client() as sftp:
                 await sftp.makedirs(path)
 
-    async def list_directory(self, path: str = "", recursive: bool = False) -> list[str] | None:
+    async def list_directory(self, path: str = "") -> list[str] | None:
         """
         List files in a directory on the remote system asynchronously.
 
-        Lists entries under the given directory path.
-
-        If ``recursive=True``, descendants are returned as full paths.
-        If ``recursive=False`` (default), only one-level filenames are returned.
+        Lists one-level entry names under the given directory path.
 
         :param path: Full path to the remote directory to list.
-        :param recursive: Whether to recursively list descendants.
-        :return: List of file paths found under the directory, or None if the directory does not exist.
+        :return: List of entry names found under the directory, or None if the directory does not exist.
         """
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
-                if not recursive:
-                    try:
-                        files = await sftp.readdir(path)
-                    except asyncssh.SFTPNoSuchFile:
-                        return None
-                    return sorted([os.fsdecode(file.filename) for file in files])
-
-                async def walk(dir_path: str) -> list[str]:
-                    results: list[str] = []
-                    files = await sftp.readdir(dir_path)
-
-                    for file in sorted(files, key=lambda file: os.fsdecode(file.filename)):
-                        filename = os.fsdecode(file.filename)
-                        if filename not in {".", ".."}:
-                            file_path = posixpath.join(dir_path, filename)
-                            permissions = file.attrs.permissions
-                            if permissions is not None and stat.S_ISDIR(permissions):
-                                results.extend(await walk(file_path))
-                            else:
-                                results.append(file_path)
-
-                    return sorted(results)
-
                 try:
-                    return await walk(path)
+                    files = await sftp.readdir(path)
                 except asyncssh.SFTPNoSuchFile:
                     return None
+                return sorted([os.fsdecode(file.filename) for file in files])
+
+    async def walktree(
+        self,
+        path: str,
+        fcallback: Callable[[str], Any | None],
+        dcallback: Callable[[str], Any | None],
+        ucallback: Callable[[str], Any | None],
+        recurse: bool = True,
+    ) -> None:
+        """Recursively descend, depth first, the directory tree at ``path``.
+
+        This mirrors :meth:`SFTPHook.walktree` contract and calls callback functions for
+        regular files, directories, and unknown file types.
+        """
+
+        async with await self._get_conn() as ssh_conn:
+            async with ssh_conn.start_sftp_client() as sftp:
+
+                async def _walk(dir_path: str) -> None:
+                    entries = await sftp.readdir(dir_path)
+                    for entry in sorted(entries, key=lambda file: os.fsdecode(file.filename)):
+                        filename = os.fsdecode(entry.filename)
+                        if filename in {".", ".."}:
+                            continue
+
+                        pathname = posixpath.join(dir_path, filename)
+                        permissions = entry.attrs.permissions
+
+                        if permissions is not None and stat.S_ISDIR(permissions):
+                            dcallback(pathname)
+                            if recurse:
+                                await _walk(pathname)
+                        elif permissions is not None and stat.S_ISREG(permissions):
+                            fcallback(pathname)
+                        else:
+                            ucallback(pathname)
+
+                await _walk(path)
 
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
