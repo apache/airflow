@@ -190,7 +190,6 @@ providers/databricks/tests/unit/databricks/hooks/test_databricks_base.py::1
 providers/datadog/src/airflow/providers/datadog/hooks/datadog.py::2
 providers/datadog/src/airflow/providers/datadog/sensors/datadog.py::1
 providers/dbt/cloud/src/airflow/providers/dbt/cloud/hooks/dbt.py::3
-providers/dbt/cloud/src/airflow/providers/dbt/cloud/operators/dbt.py::1
 providers/dbt/cloud/src/airflow/providers/dbt/cloud/sensors/dbt.py::1
 providers/dingding/src/airflow/providers/dingding/hooks/dingding.py::2
 providers/discord/src/airflow/providers/discord/operators/discord_webhook.py::1
