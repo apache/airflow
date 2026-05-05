@@ -23,6 +23,7 @@ import os
 import shutil
 import stat
 from io import BytesIO, StringIO
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
 import paramiko
@@ -1051,7 +1052,7 @@ class TestSFTPHookAsync:
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
-    @patch("aiofiles.open", new_callable=MagicMock)
+    @patch("aiofiles.open", new_callable=AsyncMock)
     async def test_retrieve_file_to_path(self, mock_aiofiles_open, sftp_hook_mocked):
         """
         Assert that retrieve_file writes to a local file using aiofiles
@@ -1062,8 +1063,12 @@ class TestSFTPHookAsync:
         mock_remote_file = AsyncMock()
         mock_remote_file.read = AsyncMock(side_effect=[b"abc", b"", StopAsyncIteration])
         sftp_client.open.return_value.__aenter__.return_value = mock_remote_file
+
         mock_file = AsyncMock()
-        mock_aiofiles_open.return_value.__aenter__.return_value = mock_file
+        aiofiles_cm = AsyncMock()
+        aiofiles_cm.__aenter__.return_value = mock_file
+        aiofiles_cm.__aexit__.return_value = None
+        mock_aiofiles_open.return_value = aiofiles_cm
 
         await hook.retrieve_file("/remote/file", "/local/file")
         sftp_client.open.assert_called_once_with("/remote/file", "rb")
@@ -1118,7 +1123,7 @@ class TestSFTPHookAsync:
         hook, _ = sftp_hook_mocked
 
         with pytest.raises(TypeError, match="Wrap raw bytes in BytesIO"):
-            await hook.store_file("/remote/new/dir/file.txt", b"abc")
+            await hook.store_file("/remote/new/dir/file.txt", cast("Any", b"abc"))
 
     @pytest.mark.asyncio
     async def test_walktree_recursive(self, sftp_hook_mocked):
