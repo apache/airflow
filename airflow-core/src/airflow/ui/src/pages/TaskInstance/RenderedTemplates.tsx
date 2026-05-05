@@ -62,6 +62,7 @@ const RenderedTemplatesContent = () => {
                       <Box as="pre" borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
                         <SyntaxHighlighter
                           language={language}
+                          lineProps={{ style: { display: "block" } }}
                           PreTag="div" // Prevents double <pre> nesting
                           showLineNumbers
                           style={style}
