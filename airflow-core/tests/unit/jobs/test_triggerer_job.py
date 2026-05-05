@@ -1778,6 +1778,7 @@ class TestTriggererMessageTypes:
             "TriggerDagRun",
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
+            "SetExecutionTimeout",
             "SetRenderedMapIndex",
             "GetDag",
         }

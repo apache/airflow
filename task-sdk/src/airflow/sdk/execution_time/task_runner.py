@@ -95,6 +95,7 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
@@ -1156,6 +1157,11 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
+
+    execution_timeout = ti.task.execution_timeout
+    timeout_seconds = execution_timeout.total_seconds() if execution_timeout else None
+    if timeout_seconds is not None and timeout_seconds > 0:
+        SUPERVISOR_COMMS.send(msg=SetExecutionTimeout(execution_timeout=timeout_seconds))
 
     # Try to render map_index_template early with available context (will be re-rendered after execution)
     # This provides a partial label during task execution for templates using pre-execution context
