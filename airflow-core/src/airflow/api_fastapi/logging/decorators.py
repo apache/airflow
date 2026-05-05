@@ -28,6 +28,7 @@ from pendulum.parsing.exceptions import ParserError
 from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 
 logger = logging.getLogger(__name__)
@@ -170,5 +171,6 @@ def action_logging(event: str | None = None):
         # Explicit commit to persist the access log independently if the path operation fails or not.
         # Also it cannot be deferred to a 'function' scoped dependency because of the `request` parameter.
         session.commit()
+        get_listener_manager().hook.on_audit_log_created(log=log)
 
     return log_action
