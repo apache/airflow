@@ -47,6 +47,22 @@ class TestSFTPClientPool:
             await pool.release((ssh2, sftp2))
 
     @pytest.mark.asyncio
+    async def test_acquire_blocks_when_pool_full(self, sftp_hook_mocked):
+        async with SFTPClientPool("blocking_conn", pool_size=2) as pool:
+            first = await pool.acquire()
+            second = await pool.acquire()
+
+            # Third acquire should block until one of the held connections is released.
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(pool.acquire(), timeout=0.1)
+
+            await pool.release(first)
+            third = await asyncio.wait_for(pool.acquire(), timeout=1)
+
+            await pool.release(second)
+            await pool.release(third)
+
+    @pytest.mark.asyncio
     async def test_get_sftp_client_context_manager(self, sftp_hook_mocked, mocker):
         async with SFTPClientPool("test_conn", pool_size=1) as pool:
             release_spy = mocker.spy(pool, "_release_pair")
