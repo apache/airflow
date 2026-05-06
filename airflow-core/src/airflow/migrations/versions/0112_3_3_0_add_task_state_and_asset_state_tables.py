@@ -65,6 +65,11 @@ def upgrade():
         sa.Column("run_id", StringID(), nullable=False),
         sa.Column("value", sa.Text().with_variant(mysql.MEDIUMTEXT(), "mysql"), nullable=False),
         sa.Column("updated_at", UtcDateTime(), nullable=False),
+        # Optional early-expiry override. When set, GC deletes this row when expires_at < now()
+        # even if updated_at is recent. NULL means no early expiry — the row is still cleaned
+        # up by the global updated_at + default_retention_days check. Populated via
+        # task_state.set(retention_days=N) for keys that should expire sooner than the default.
+        sa.Column("expires_at", UtcDateTime(), nullable=True),
         sa.ForeignKeyConstraint(
             ["dag_run_id"], ["dag_run.id"], name="task_state_dag_run_fkey", ondelete="CASCADE"
         ),

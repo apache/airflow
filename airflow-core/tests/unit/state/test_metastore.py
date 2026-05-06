@@ -17,13 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.asset import AssetModel
+from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state import TaskStateModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
@@ -234,6 +237,52 @@ class TestMetastoreStateBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) is None
         assert backend.get(scope1, "job_id", session=session) is None
 
+    def test_cleanup_removes_expired_rows(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "old_key", "old_value", session=session)
+        session.flush()
+
+        old_row = session.scalar(
+            select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "old_key")
+        )
+        assert old_row is not None
+        old_row.updated_at = timezone.utcnow() - timedelta(days=40)
+        session.flush()
+
+        backend.set(scope, "new_key", "new_value", session=session)
+        session.flush()
+        session.commit()
+
+        backend.cleanup()
+
+        session.expire_all()
+        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "old_key")) is None
+        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "new_key")) is not None
+
+    def test_cleanup_removes_expires_at_rows(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "short_lived", "value", session=session)
+        session.flush()
+
+        row = session.scalar(
+            select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "short_lived")
+        )
+        assert row is not None
+        row.expires_at = timezone.utcnow() - timedelta(hours=1)
+        session.flush()
+        session.commit()
+
+        backend.cleanup()
+
+        session.expire_all()
+
+        # cleaned up via expires_at, even though updated_at is recent
+        assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "short_lived")) is None
+
 
 class TestMetastoreStateBackendAssetScope:
     def test_get_returns_none_for_missing_key(
@@ -305,6 +354,19 @@ class TestMetastoreStateBackendAssetScope:
         session.flush()
 
         assert backend.get(scope2, "watermark", session=session) is None
+
+    def test_cleanup_does_not_touch_asset_state(
+        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
+    ):
+        scope = AssetScope(asset_id=asset.id)
+        backend.set(scope, "watermark", "2026-01-01", session=session)
+        session.flush()
+        session.commit()
+
+        backend.cleanup()
+
+        session.expire_all()
+        assert session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id)) is not None
 
 
 @pytest.mark.asyncio(loop_scope="class")
@@ -378,6 +440,17 @@ class TestMetastoreStateBackendAsync:
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
         with pytest.raises(ValueError, match="No DagRun found"):
             await backend.aset(scope, "job_id", "app_async")
+
+
+class TestStateStoreConfig:
+    def test_defaults(self):
+        assert conf.getint("state_store", "default_retention_days") == 30
+        assert conf.getboolean("state_store", "clear_on_success") is False
+
+    @conf_vars({("state_store", "default_retention_days"): "7", ("state_store", "clear_on_success"): "True"})
+    def test_overrides(self):
+        assert conf.getint("state_store", "default_retention_days") == 7
+        assert conf.getboolean("state_store", "clear_on_success") is True
 
 
 class TestResolveStateBackend:

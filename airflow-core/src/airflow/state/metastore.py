@@ -17,17 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import structlog
 from sqlalchemy import delete, select
 
 from airflow._shared.state import AssetScope, BaseStateBackend, StateScope, TaskScope
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.typing_compat import assert_never
-from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
@@ -36,6 +39,9 @@ if TYPE_CHECKING:
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
+
+
+log = structlog.get_logger(__name__)
 
 
 def _build_upsert_stmt(
@@ -251,6 +257,73 @@ class MetastoreStateBackend(BaseStateBackend):
                 AssetStateModel.asset_id == scope.asset_id,
             )
         )
+
+    def cleanup(self) -> None:
+        """
+        Remove expired task state rows.
+
+        Reads ``[state_store] default_retention_days`` from config for the time-based threshold.
+        Set to 0 to disable time-based cleanup (expires_at cleanup still runs).
+
+        Two passes:
+        a. Rows where updated_at < now() - default_retention_days (global retention)
+        b. Rows where expires_at < now() (per-key early expiry set by the operator)
+
+        Asset state orphan cleanup is handled separately by the scheduler's
+        _cleanup_orphaned_asset_state(), which runs alongside asset deregistration.
+        """
+        retention_days = conf.getint("state_store", "default_retention_days")
+        now = timezone.utcnow()
+        older_than = now - timedelta(days=retention_days) if retention_days > 0 else None
+        with create_session() as session:
+            if older_than:
+                result = session.execute(  # type: ignore[assignment]
+                    delete(TaskStateModel)
+                    .where(TaskStateModel.updated_at < older_than)
+                    .execution_options(synchronize_session="fetch")
+                )
+                log.info(
+                    "Deleted stale task_state rows",
+                    rows_deleted=getattr(result, "rowcount", None),
+                    older_than=older_than,
+                )
+            result = session.execute(  # type: ignore[assignment]
+                delete(TaskStateModel)
+                .where(TaskStateModel.expires_at.isnot(None), TaskStateModel.expires_at < now)
+                .execution_options(synchronize_session="fetch")
+            )
+            log.info("Deleted expired task_state rows", rows_deleted=getattr(result, "rowcount", None))
+
+    def _dry_run_summary(self) -> dict[str, list]:
+        """
+        Return rows that would be deleted by cleanup(), without deleting anything.
+
+        Returns a dict with keys 'stale' and 'expired', each containing a list of
+        (dag_id, run_id, task_id, map_index, key) tuples.
+        """
+        retention_days = conf.getint("state_store", "default_retention_days")
+        now = timezone.utcnow()
+        older_than = now - timedelta(days=retention_days) if retention_days > 0 else None
+
+        cols = (
+            TaskStateModel.dag_id,
+            TaskStateModel.run_id,
+            TaskStateModel.task_id,
+            TaskStateModel.map_index,
+            TaskStateModel.key,
+        )
+
+        with create_session() as session:
+            stale = (
+                session.execute(select(*cols).where(TaskStateModel.updated_at < older_than)).all()
+                if older_than
+                else []
+            )
+            expired = session.execute(
+                select(*cols).where(TaskStateModel.expires_at.isnot(None), TaskStateModel.expires_at < now)
+            ).all()
+
+        return {"stale": list(stale), "expired": list(expired)}
 
     async def _aget_task_state(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
         row = await session.scalar(

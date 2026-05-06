@@ -33,7 +33,22 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import CTE, and_, case, delete, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import (
+    CTE,
+    and_,
+    case,
+    delete,
+    delete as _delete,
+    exists,
+    func,
+    inspect,
+    or_,
+    select,
+    select as _select,
+    text,
+    tuple_,
+    update,
+)
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -58,10 +73,12 @@ from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
+    AssetActive as _AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetModel as _AssetModel,
     AssetPartitionDagRun,
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
@@ -70,6 +87,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
@@ -3080,6 +3098,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
+        self._cleanup_orphaned_asset_state(session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3187,6 +3206,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
+
+    @staticmethod
+    def _cleanup_orphaned_asset_state(*, session: Session) -> None:
+        """
+        Delete asset_state rows for assets no longer active in any DAG.
+
+        When _orphan_unreferenced_assets removes an asset from asset_active, its
+        asset_state rows become unreachable — no task can write to them anymore.
+        This runs in the same pass as asset orphanage to keep the table clean.
+        """
+        active_asset_ids = _select(_AssetModel.id).join(
+            _AssetActive,
+            (_AssetActive.name == _AssetModel.name) & (_AssetActive.uri == _AssetModel.uri),
+        )
+        session.execute(_delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
 
     def _executor_to_workloads(
         self,

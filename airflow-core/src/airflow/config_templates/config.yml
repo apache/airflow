@@ -3014,6 +3014,23 @@ state_store:
       type: string
       example: "mypackage.state.CustomStateBackend"
       default: "airflow.state.metastore.MetastoreStateBackend"
+    default_retention_days:
+      description: |
+        Number of days to retain task_state rows after their last update.
+        Rows older than this are removed by the scheduler's periodic cleanup.
+        This config does not affect asset_state rows.
+        Set to 0 to disable time-based cleanup entirely.
+      version_added: 3.3.0
+      type: integer
+      example: "7"
+      default: "30"
+    clear_on_success:
+      description: |
+        If True, task state is automatically cleared when a task instance succeeds.
+      version_added: 3.3.0
+      type: boolean
+      example: "True"
+      default: "False"
 
 profiling:
   description: |
