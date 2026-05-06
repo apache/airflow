@@ -457,6 +457,8 @@ class EdgeWorker:
         if self._execution_api_server_url:
             env["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"] = self._execution_api_server_url
 
+        # Keep stderr off a PIPE: the worker only inspects stderr after the task finishes,
+        # so a verbose child could otherwise fill the pipe buffer and block forever.
         with tempfile.NamedTemporaryFile(
             prefix="airflow-edge-task-stderr-", suffix=".log", delete=False
         ) as stderr_file:
@@ -657,6 +659,8 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
+        # Fork path: keep pushing logs while the child is running and has not sent a result yet.
+        # Subprocess path: keep pushing logs while the child is running; status comes from Popen.
         while job.is_running and (results_queue is None or results_queue.empty()):
             await self._push_logs_in_chunks(job)
             for _ in range(0, self.job_poll_interval * 10):
@@ -664,16 +668,18 @@ class EdgeWorker:
                 if not job.is_running:
                     break
         await self._push_logs_in_chunks(job)
-        # Fork path: drain the queue BEFORE waiting for the child to fully exit.
-        # results_queue.get() reads the remaining bytes from the OS pipe, which
-        # unblocks the child's feeder thread so the child process can terminate.
-        # subprocess path: results_queue is None, so we skip this step.
+        # Fork path: drain the result queue BEFORE waiting for the child to fully exit.
+        # A large exception travels through multiprocessing's pipe-backed queue; reading it
+        # here lets the child's feeder thread flush and avoids deadlocking on process exit.
+        # Fresh-interpreter subprocesses do not share Python exception objects with the parent.
         fork_result = None if (results_queue is None or results_queue.empty()) else results_queue.get()
         # Wait for the child process to fully exit (fork path: queue is already drained above).
         while job.is_running:  # noqa: ASYNC110
             await sleep(0.1)
 
         self.jobs.remove(job)
+        # Subprocess stderr is keyed by PID because Job intentionally stores only the process
+        # object. Pop it once the process is done so every completion path owns cleanup.
         stderr_file_path = (
             self._subprocess_stderr_files.pop(job.process.pid, None)
             if isinstance(job.process, subprocess.Popen)
@@ -686,6 +692,8 @@ class EdgeWorker:
                 stderr_file_path.unlink(missing_ok=True)
         else:
             if isinstance(job.process, subprocess.Popen):
+                # The subprocess cannot send a Python exception object back to this process;
+                # stderr is the diagnostic channel that preserves errors and tracebacks.
                 stderr_output = ""
                 if stderr_file_path:
                     try:
