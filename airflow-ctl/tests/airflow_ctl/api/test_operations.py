@@ -2012,7 +2012,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.get(
+        response = client.task_instances.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2029,7 +2029,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(200, json=[json.loads(self.task_instance_response.model_dump_json())])
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.get(
+        response = client.task_instances.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2048,7 +2048,7 @@ class TestTaskInstanceOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.get(
+        response = client.task_instances.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2065,7 +2065,7 @@ class TestTaskInstanceOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.list(
+        response = client.task_instances.list(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
         )
@@ -2084,7 +2084,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = ClearTaskInstancesBody(dry_run=True)
-        response = client.tasks.clear(
+        response = client.task_instances.clear(
             dag_id=self.dag_id,
             body=body,
         )
@@ -2111,7 +2111,7 @@ class TestTaskInstanceOperations:
             task_ids=[self.task_id],
             dag_run_id=self.dag_run_id,
         )
-        response = client.tasks.clear(
+        response = client.task_instances.clear(
             dag_id=self.dag_id,
             body=body,
         )
