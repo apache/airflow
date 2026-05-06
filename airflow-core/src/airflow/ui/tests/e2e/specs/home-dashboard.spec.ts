@@ -21,7 +21,7 @@ import { expect } from "tests/e2e/fixtures";
 import { test } from "tests/e2e/fixtures/dashboard-data";
 
 test.describe("Dashboard Metrics Display", () => {
-  test("should display dashboard stats section with DAG metrics", async ({ homePage }) => {
+  test("should display dashboard stats section with Dag metrics", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
@@ -53,7 +53,7 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.triggererHealth).toBeVisible();
   });
 
-  test("should navigate to filtered DAGs list when clicking stats cards", async ({ homePage }) => {
+  test("should navigate to filtered Dags list when clicking stats cards", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
@@ -74,7 +74,7 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.welcomeHeading).toBeVisible();
   });
 
-  test("should update metrics when DAG is triggered", async ({ dagRunCleanup, dagsPage, homePage }) => {
+  test("should update metrics when Dag is triggered", async ({ dagRunCleanup, dagsPage, homePage }) => {
     test.slow();
 
     await homePage.navigate();
@@ -103,13 +103,13 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.taskInstanceMetrics).toBeVisible();
   });
 
-  test("should handle DAG import errors display when errors exist", async ({ homePage }) => {
+  test("should handle Dag import errors display when errors exist", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
     const isDagImportErrorsVisible = await homePage.isDagImportErrorsVisible();
 
-    test.skip(!isDagImportErrorsVisible, "No DAG import errors present in test environment");
+    test.skip(!isDagImportErrorsVisible, "No Dag import errors present in test environment");
 
     await expect(homePage.dagImportErrorsCard).toBeVisible();
   });

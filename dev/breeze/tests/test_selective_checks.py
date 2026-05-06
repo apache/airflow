@@ -107,7 +107,7 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -120,7 +120,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
@@ -131,7 +131,7 @@ ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
@@ -142,7 +142,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -154,7 +154,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -166,7 +166,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -179,7 +179,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -191,7 +191,7 @@ ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
@@ -202,7 +202,7 @@ ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
@@ -405,7 +405,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                        "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "upgrade-to-newer-dependencies": "false",
@@ -678,7 +678,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                        "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk-integration-tests,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "false",
@@ -716,7 +716,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                        "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
@@ -753,7 +753,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                        "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
@@ -789,7 +789,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                         "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                         "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                        "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
                     "skip-providers-tests": "true",
@@ -1130,7 +1130,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
@@ -1294,7 +1294,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
@@ -1454,7 +1454,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         "mypy-shared-module_loading,mypy-shared-observability,"
                         "mypy-shared-plugins_manager,mypy-shared-providers_discovery,"
                         "mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                        "mypy-shared-serialization,mypy-shared-template_rendering,"
+                        "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,"
                         "mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                         "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                     ),
@@ -1603,9 +1603,9 @@ def test_excluded_providers():
             pytest.param(
                 ("scripts/ci/prek/file.sh",),
                 {
-                    "full-tests-needed": "false",
+                    "full-tests-needed": "true",
                 },
-                id="No full tests needed when prek scripts change",
+                id="Full tests needed when prek scripts change",
             )
         ),
         (
@@ -2191,7 +2191,7 @@ def test_expected_output_push(
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "upgrade-to-newer-dependencies": "false",
@@ -2232,7 +2232,7 @@ def test_expected_output_push(
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "true",
@@ -2278,7 +2278,7 @@ def test_expected_output_push(
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
                     "mypy-shared-module_loading,mypy-shared-observability,mypy-shared-plugins_manager,"
                     "mypy-shared-providers_discovery,mypy-shared-secrets_backend,mypy-shared-secrets_masker,"
-                    "mypy-shared-serialization,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
+                    "mypy-shared-serialization,mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,mypy-task-sdk-integration-tests,"
                     "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
                 ),
                 "run-kubernetes-tests": "false",

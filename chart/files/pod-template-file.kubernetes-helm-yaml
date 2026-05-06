@@ -89,14 +89,8 @@ spec:
         {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
           {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
-        {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-          {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
-            {{- include "airflow_api_server_config_mount" . | nindent 8 }}
-          {{- end }}
-        {{- else }}
-          {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-            {{- include "airflow_webserver_config_mount" . | nindent 8 }}
-          {{- end }}
+        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+          {{- include "airflow_api_server_config_mount" . | nindent 8 }}
         {{- end }}
       envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
@@ -195,14 +189,8 @@ spec:
         {{- if or .Values.workers.extraVolumeMounts .Values.workers.kubernetes.extraVolumeMounts }}
           {{- tpl (toYaml (.Values.workers.kubernetes.extraVolumeMounts | default .Values.workers.extraVolumeMounts)) . | nindent 8 }}
         {{- end }}
-        {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-          {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
-            {{- include "airflow_api_server_config_mount" . | nindent 8 }}
-          {{- end }}
-        {{- else }}
-          {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-            {{- include "airflow_webserver_config_mount" . | nindent 8 }}
-          {{- end }}
+        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+          {{- include "airflow_api_server_config_mount" . | nindent 8 }}
         {{- end }}
       envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
@@ -264,18 +252,10 @@ spec:
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
-  {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-    {{- if and (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) (or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kerberosSidecar.enabled) }}
+  {{- if and (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) (or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kerberosSidecar.enabled) }}
   - name: api-server-config
     configMap:
       name: {{ template "airflow_api_server_config_configmap_name" . }}
-    {{- end }}
-  {{- else }}
-    {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kerberosSidecar.enabled) }}
-  - name: webserver-config
-    configMap:
-      name: {{ template "airflow_webserver_config_configmap_name" . }}
-    {{- end }}
   {{- end }}
   {{- if .Values.volumes }}
     {{- toYaml .Values.volumes | nindent 2 }}

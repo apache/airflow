@@ -208,7 +208,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_conn(self) -> BigQueryConnection:
         """Get a BigQuery PEP 249 connection object."""
         http_authorized = self._authorize()
-        service = build("bigquery", "v2", http=http_authorized, cache_discovery=False)
+        service = build(
+            "bigquery",
+            "v2",
+            http=http_authorized,
+            cache_discovery=False,
+            client_options=self.get_client_options(),
+        )
         return BigQueryConnection(
             service=service,
             project_id=self.project_id,
@@ -230,6 +236,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             project=project_id,
             location=location,
             credentials=self.get_credentials(),
+            client_options=self.get_client_options(),
         )
 
     def get_uri(self) -> str:

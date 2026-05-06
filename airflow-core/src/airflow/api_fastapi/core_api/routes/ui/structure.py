@@ -114,8 +114,8 @@ def structure_data(
                 # Dependencies not related to `dag_id` are ignored
                 if dependency_dag_id != dag_id and dependency.target != dag_id:
                     continue
-                # When target is a real DAG ID (not a type label), hide it
-                # if the caller cannot read that DAG.
+                # When target is a real Dag ID (not a type label), hide it
+                # if the caller cannot read that Dag.
                 if (
                     readable_dag_ids is not None
                     and dependency.target != dependency.dependency_type

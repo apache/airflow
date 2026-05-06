@@ -38,7 +38,6 @@ Possible containers where resources can be configured include:
    * ``scheduler.logGroomerSidecar.resources``
    * ``dags.gitSync.resources``
    * ``apiServer.resources``
-   * ``webserver.resources``
    * ``flower.resources``
    * ``dagProcessor.resources``
    * ``dagProcessor.logGroomerSidecar.resources``

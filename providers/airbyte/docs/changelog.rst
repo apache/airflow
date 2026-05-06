@@ -27,6 +27,24 @@ Changelog
 ---------
 
 
+5.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make OAuth credentials optional for Airbyte OSS deployments (#64986)``
+
+Misc
+~~~~
+
+* ``Add tests for execute_complete success and error paths (#64119)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 5.4.1
 .....
 

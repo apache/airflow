@@ -20,7 +20,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import PredictionServiceClient
 
@@ -35,6 +34,14 @@ if TYPE_CHECKING:
 class PredictionServiceHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Prediction API."""
 
+    def _get_api_endpoint(
+        self,
+        region: str | None = None,
+    ) -> str | None:
+        if region and region != "global" and self.is_default_universe():
+            return f"{region}-aiplatform.googleapis.com:443"
+        return None
+
     def get_prediction_service_client(self, region: str | None = None) -> PredictionServiceClient:
         """
         Return PredictionServiceClient object.
@@ -43,13 +50,12 @@ class PredictionServiceHook(GoogleBaseHook):
 
         :return: `google.cloud.aiplatform_v1.services.prediction_service.client.PredictionServiceClient` instance.
         """
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
-
         return PredictionServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(region=region)
+            ),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id

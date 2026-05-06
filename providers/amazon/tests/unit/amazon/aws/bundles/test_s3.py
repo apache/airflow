@@ -194,7 +194,7 @@ class TestS3DagBundle:
         bundle._log.debug = MagicMock()
         # Create a pytest Call object to compare against the call_args_list of the _log.debug mock
         download_log_call = call(
-            "Downloading DAGs from s3://%s/%s to %s", S3_BUCKET_NAME, S3_BUCKET_PREFIX, bundle.s3_dags_dir
+            "Downloading Dags from s3://%s/%s to %s", S3_BUCKET_NAME, S3_BUCKET_PREFIX, bundle.s3_dags_dir
         )
         bundle.initialize()
         assert bundle._log.debug.call_count == 1
@@ -214,7 +214,7 @@ class TestS3DagBundle:
         )
         bundle._log.debug = MagicMock()
         download_log_call = call(
-            "Downloading DAGs from s3://%s/%s to %s", S3_BUCKET_NAME, "", bundle.s3_dags_dir
+            "Downloading Dags from s3://%s/%s to %s", S3_BUCKET_NAME, "", bundle.s3_dags_dir
         )
         assert bundle.prefix == ""
         bundle.initialize()

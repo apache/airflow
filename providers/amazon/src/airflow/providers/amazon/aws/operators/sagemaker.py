@@ -2101,8 +2101,8 @@ class SageMakerConditionOperator(BaseBranchOperator):
         Cast Jinja-rendered string values to appropriate Python types.
 
         This is a compatibility shim for environments where
-        ``render_template_as_native_obj=True`` is not available at the DAG or
-        task level (e.g., YAML DAGs). Once task-level native rendering
+        ``render_template_as_native_obj=True`` is not available at the Dag or
+        task level (e.g., YAML Dags). Once task-level native rendering
         is widely supported, this method can be removed in favor of letting
         Airflow handle the casting natively.
 

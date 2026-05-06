@@ -115,4 +115,75 @@ describe("Test SearchBar", () => {
 
     expect((input as HTMLInputElement).value).toBe("user-typing");
   });
+
+  it("does not rewind in-flight typing when defaultValue echoes a stale value", () => {
+    vi.useFakeTimers();
+
+    const onChange = vi.fn();
+    const { rerender } = render(<SearchBar defaultValue="" onChange={onChange} placeholder="Search Dags" />, {
+      wrapper: Wrapper,
+    });
+    const input = screen.getByTestId("search-dags");
+
+    // Type "ab" and let the debounce flush so the parent receives onChange("ab").
+    fireEvent.change(input, { target: { value: "ab" } });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(onChange).toHaveBeenLastCalledWith("ab");
+
+    // The user keeps typing before the parent's URL state has propagated back.
+    fireEvent.change(input, { target: { value: "abc" } });
+    expect((input as HTMLInputElement).value).toBe("abc");
+
+    // The lagging echo of our own send arrives: parent rerenders with the
+    // previously-sent value. The in-flight character must not be clobbered.
+    rerender(<SearchBar defaultValue="ab" onChange={onChange} placeholder="Search Dags" />);
+
+    expect((input as HTMLInputElement).value).toBe("abc");
+  });
+
+  it("does not render advanced toggle by default", () => {
+    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search" />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.queryByTestId("advanced-search-toggle")).toBeNull();
+  });
+
+  it("renders advanced toggle and reflects enabled state", () => {
+    const onToggle = vi.fn();
+
+    render(
+      <SearchBar
+        advancedSearch={{ enabled: false, onToggle }}
+        defaultValue=""
+        onChange={vi.fn()}
+        placeholder="Search"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const toggle = screen.getByTestId("advanced-search-toggle");
+
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(toggle);
+
+    expect(onToggle).toHaveBeenCalledWith(true);
+  });
+
+  it("shows advanced toggle as pressed when enabled", () => {
+    render(
+      <SearchBar
+        advancedSearch={{ enabled: true, onToggle: vi.fn() }}
+        defaultValue=""
+        onChange={vi.fn()}
+        placeholder="Search"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByTestId("advanced-search-toggle").getAttribute("aria-pressed")).toBe("true");
+  });
 });

@@ -48,7 +48,7 @@ spec:
         matchLabels:
           tier: airflow
           release: {{ .Release.Name }}
-          component: webserver
+          component: api-server
     ports:
     - protocol: TCP
       port: {{ .Values.ports.triggererLogs }}

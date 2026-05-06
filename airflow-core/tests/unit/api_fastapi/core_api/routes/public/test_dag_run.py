@@ -806,6 +806,10 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # run_id_prefix_pattern counterpart
+            (DAG1_ID, {"run_id_prefix_pattern": DAG1_RUN1_ID}, [DAG1_RUN1_ID]),
+            ("~", {"run_id_prefix_pattern": f"{DAG1_RUN1_ID}|{DAG1_RUN2_ID}"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("~", {"run_id_prefix_pattern": "nonexistent"}, []),
             # Test triggering_user_name_pattern filter
             (DAG1_ID, {"triggering_user_name_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
             (DAG1_ID, {"triggering_user_name_pattern": "bob_service"}, [DAG1_RUN2_ID]),
@@ -821,6 +825,10 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # triggering_user_name_prefix_pattern counterpart
+            (DAG1_ID, {"triggering_user_name_prefix_pattern": "alice_admin"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_prefix_pattern": "alice"}, [DAG1_RUN1_ID]),
+            ("~", {"triggering_user_name_prefix_pattern": "nonexistent"}, []),
             # Test dag_id_pattern filter
             ("~", {"dag_id_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
             ("~", {"dag_id_pattern": "test_dag2"}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
@@ -837,6 +845,14 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID],
             ),
+            # dag_id_prefix_pattern counterpart
+            ("~", {"dag_id_prefix_pattern": "test_dag1"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            (
+                "~",
+                {"dag_id_prefix_pattern": "test_"},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            ("~", {"dag_id_prefix_pattern": "nonexistent"}, []),
             # Test dag_version filter
             (
                 DAG1_ID,
@@ -2206,7 +2222,7 @@ class TestTriggerDagRun:
         self._dags_for_trigger_tests(session)
         response = test_client.post("/dags/inactive/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
-        assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
+        assert response.json()["detail"] == "Dag with dag_id: 'inactive' not found"
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
@@ -2215,7 +2231,7 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert (
             response.json()["detail"]
-            == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
+            == "Dag with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
 
     def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
@@ -2312,7 +2328,7 @@ class TestTriggerDagRun:
         now = timezone.utcnow().isoformat()
         response = test_client.post("/dags/randoms/dagRuns", json={"logical_date": now})
         assert response.status_code == 404
-        assert response.json()["detail"] == "DAG with dag_id: 'randoms' not found"
+        assert response.json()["detail"] == "Dag with dag_id: 'randoms' not found"
 
     def test_response_409(self, test_client):
         now = timezone.utcnow().isoformat()

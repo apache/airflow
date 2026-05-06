@@ -95,7 +95,8 @@ with DAG(
     # [START howto_sensor_wait_for_job_status_deferrable]
     wait_for_beam_python_pipeline_job_status_def = DataflowJobStatusSensor(
         task_id="wait_for_beam_python_pipeline_job_status_def",
-        job_id="{{task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id']}}",
+        # verbose form: "{{ task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id'] }}"
+        job_id=start_beam_python_pipeline.output["dataflow_job_id"],
         expected_statuses=DataflowJobStatus.JOB_STATE_DONE,
         location=LOCATION,
         deferrable=True,
@@ -120,7 +121,8 @@ with DAG(
 
     wait_for_beam_python_pipeline_job_metric_def = DataflowJobMetricsSensor(
         task_id="wait_for_beam_python_pipeline_job_metric_def",
-        job_id="{{task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id']}}",
+        # verbose form: "{{ task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id'] }}"
+        job_id=start_beam_python_pipeline.output["dataflow_job_id"],
         location=LOCATION,
         callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
         fail_on_terminal_state=False,
@@ -138,7 +140,8 @@ with DAG(
 
     wait_for_beam_python_pipeline_job_message_def = DataflowJobMessagesSensor(
         task_id="wait_for_beam_python_pipeline_job_message_def",
-        job_id="{{task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id']}}",
+        # verbose form: "{{ task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id'] }}"
+        job_id=start_beam_python_pipeline.output["dataflow_job_id"],
         location=LOCATION,
         callback=check_job_message,
         fail_on_terminal_state=False,
@@ -156,7 +159,8 @@ with DAG(
 
     wait_for_beam_python_pipeline_job_autoscaling_event_def = DataflowJobAutoScalingEventsSensor(
         task_id="wait_for_beam_python_pipeline_job_autoscaling_event_def",
-        job_id="{{task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id']}}",
+        # verbose form: "{{ task_instance.xcom_pull('start_beam_python_pipeline')['dataflow_job_id'] }}"
+        job_id=start_beam_python_pipeline.output["dataflow_job_id"],
         location=LOCATION,
         callback=check_autoscaling_event,
         fail_on_terminal_state=False,

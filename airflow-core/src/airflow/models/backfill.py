@@ -487,6 +487,7 @@ def _create_backfill_dag_run_partitioned(
         ),
         logical_date=info.logical_date,
         partition_key=info.partition_key,
+        partition_date=info.partition_date,
         data_interval=info.data_interval if info.logical_date else None,
         run_after=info.run_after,
         conf=dag_run_conf,

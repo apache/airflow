@@ -165,15 +165,18 @@ Step 4: Prepare PR
      `How to sync your fork <10_working_with_git.rst#how-to-sync-your-fork>`_ for details.
 
    * Create a local branch for your development. Make sure to use latest
-     ``apache/main`` as base for the branch. See `How to Rebase PR </contributing-docs/10_working_with_git.rst#how-to-rebase-pr>`_ for some details
-     on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
-     ``main`` branches - this is OK and you can make PR from your main to ``apache/main`` but we
+     ``upstream/main`` as base for the branch. See `How to Rebase PR </contributing-docs/10_working_with_git.rst#how-to-rebase-pr>`_ for details
+     on setting up the ``upstream`` remote (Airflow standardises on ``upstream`` →
+     ``apache/airflow`` and ``origin`` → your fork — see
+     `Git remote naming conventions </contributing-docs/10_working_with_git.rst#git-remote-naming-conventions>`_).
+     Note, some people develop their changes directly in their own
+     ``main`` branches - this is OK and you can make PR from your main to ``upstream/main`` but we
      recommend to always create a local branch for your development. This allows you to easily compare
      changes, have several changes that you work on at the same time and many more.
-     If you have ``apache`` set as remote then you can make sure that you have latest changes in your main
-     by ``git pull apache main`` when you are in the local ``main`` branch. If you have conflicts and
+     With ``upstream`` configured you can make sure that you have the latest changes in your main
+     by ``git pull upstream main`` when you are in the local ``main`` branch. If you have conflicts and
      want to override your locally changed main you can override your local changes with
-     ``git fetch apache; git reset --hard apache/main``.
+     ``git fetch upstream; git reset --hard upstream/main``.
 
    * Modify the class and add necessary code and unit tests.
 
