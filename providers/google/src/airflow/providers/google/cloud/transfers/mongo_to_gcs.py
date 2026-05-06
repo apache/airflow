@@ -148,6 +148,7 @@ class MongoToGCSOperator(BaseSQLToGCSOperator):
     def query(self) -> _MongoCursorAdapter:
         """Execute the configured find/aggregate and return a DB-API style cursor."""
         coll = self.db_hook.get_conn()[self.mongo_db][self.mongo_collection]
+        cursor: Any
         if isinstance(self.mongo_query, list):
             self.log.info("Executing aggregate: %s", self.mongo_query)
             cursor = coll.aggregate(self.mongo_query, allowDiskUse=self.allow_disk_use)
