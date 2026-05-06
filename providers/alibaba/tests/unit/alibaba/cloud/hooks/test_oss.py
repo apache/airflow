@@ -198,3 +198,37 @@ class TestOSSHook:
 
     def test_get_default_region(self):
         assert self.hook.get_default_region() == "mock_region"
+
+    @mock.patch(OSS_STRING.format("oss.config.load_default"))
+    def test_get_client_uses_default_endpoint(self, mock_load_default):
+        mock_config = mock.MagicMock()
+        mock_load_default.return_value = mock_config
+
+        self.hook._get_client()
+
+        assert mock_config.endpoint == f"oss-{self.hook.region}.aliyuncs.com"
+
+    @mock.patch(OSS_STRING.format("oss.config.load_default"))
+    def test_get_client_uses_custom_endpoint_from_connection(self, mock_load_default):
+        import json as json_mod
+
+        from airflow.models import Connection
+
+        mock_config = mock.MagicMock()
+        mock_load_default.return_value = mock_config
+        custom_ep = "oss-eu-central-1-internal.aliyuncs.com"
+        self.hook.oss_conn = Connection(
+            extra=json_mod.dumps(
+                {
+                    "auth_type": "AK",
+                    "access_key_id": "mock_access_key_id",
+                    "access_key_secret": "mock_access_key_secret",
+                    "region": "mock_region",
+                    "endpoint": custom_ep,
+                }
+            )
+        )
+
+        self.hook._get_client()
+
+        assert mock_config.endpoint == custom_ep
