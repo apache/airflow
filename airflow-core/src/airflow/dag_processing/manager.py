@@ -537,7 +537,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         return self._claim_priority_files()
 
-    def request_bundle_refresh(self, bundle_names: Iterable[str]) -> None:
+    def request_bundle_refresh(self, bundle_names: str | Iterable[str]) -> None:
         """
         Request that the given bundles be refreshed on the next refresh tick.
 
@@ -545,6 +545,9 @@ class DagFileProcessorManager(LoggingMixin):
         bundles as needing refresh; the next call to :meth:`_refresh_dag_bundles`
         will not skip them via :meth:`should_skip_refresh`.
         """
+        if isinstance(bundle_names, str):
+            self._force_refresh_bundles.add(bundle_names)
+            return
         self._force_refresh_bundles.update(bundle_names)
 
     def should_skip_refresh(
@@ -703,7 +706,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def purge_inactive_dag_warnings(self) -> None:
         """
-        Purge expired DAG warnings.
+        Purge warnings for inactive/stale DAGs.
 
         Default implementation deletes records from the metadata DB; override to
         source warnings from an API or skip the cleanup entirely.
