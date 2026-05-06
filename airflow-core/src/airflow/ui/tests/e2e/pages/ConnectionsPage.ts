@@ -145,18 +145,11 @@ export class ConnectionsPage extends BasePage {
     await expect(deleteButton).toBeEnabled({ timeout: 5000 });
     await deleteButton.click();
 
-    // Wait for the dialog to finish its open animation (data-state="open" is set by
-    // Ark UI once the transition completes). Without this, the backdrop can cover the
-    // confirm button during the animation and cause the click to time out.
     const deleteDialog = this.page.locator('[role="dialog"][data-state="open"]');
 
-    await deleteDialog.waitFor({ state: "visible", timeout: 10_000 });
-    const confirmButton = deleteDialog.getByRole("button", { name: "Yes, Delete" });
+    await expect(deleteDialog).toBeVisible({ timeout: 10_000 });
 
-    await expect(confirmButton).toBeVisible({ timeout: 5000 });
-
-    await expect(confirmButton).toBeEnabled({ timeout: 5000 });
-    await confirmButton.click();
+    await deleteDialog.getByRole("button", { name: "Yes, Delete" }).click();
 
     await expect(this.getConnectionRow(connectionId)).not.toBeVisible({ timeout: 15_000 });
   }
