@@ -50,7 +50,9 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.postgres.hooks.postgres.PostgresHook",
+                "hook-name": "Postgres",
                 "connection-type": "postgres",
+                "ui-field-behaviour": {"relabeling": {"schema": "Database"}},
             }
         ],
         "asset-uris": [

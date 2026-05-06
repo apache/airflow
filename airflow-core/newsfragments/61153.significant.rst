@@ -1,0 +1,19 @@
+Add synchronous callback support (``SyncCallback``) for Deadline Alerts
+
+Deadline Alerts now support synchronous callbacks via ``SyncCallback`` in addition to the existing
+asynchronous ``AsyncCallback``. Synchronous callbacks are executed by the executor (rather than
+the triggerer), and can optionally target a specific executor via the ``executor`` parameter.
+
+A DAG can also define multiple Deadline Alerts by passing a list to the ``deadline`` parameter,
+and each alert can use either callback type.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

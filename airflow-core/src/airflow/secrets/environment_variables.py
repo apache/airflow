@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 from airflow.secrets import BaseSecretsBackend
 
@@ -31,6 +32,9 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
+        if self._is_team_specific_accessed_as_global(conn_id, team_name):
+            return None
+
         if team_name and (
             team_var := os.environ.get(f"{CONN_ENV_PREFIX}_{team_name.upper()}___" + conn_id.upper())
         ):
@@ -47,6 +51,9 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
+        if self._is_team_specific_accessed_as_global(key, team_name):
+            return None
+
         if team_name and (
             team_var := os.environ.get(f"{VAR_ENV_PREFIX}_{team_name.upper()}___" + key.upper())
         ):
@@ -54,3 +61,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
             return team_var
 
         return os.environ.get(VAR_ENV_PREFIX + key.upper())
+
+    @staticmethod
+    def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
+        return team_name is None and bool(re.fullmatch(r"_[^_]+___.+", secret_id))

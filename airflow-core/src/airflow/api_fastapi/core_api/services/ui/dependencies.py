@@ -84,14 +84,17 @@ def extract_single_connected_component(
     return {"nodes": nodes, "edges": edges}
 
 
-def get_scheduling_dependencies() -> dict[str, list[dict]]:
-    """Get scheduling dependencies between DAGs."""
+def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dict[str, list[dict]]:
+    """Get scheduling dependencies between Dags."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
 
-    for dag, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
+    dag_dependencies = SerializedDagModel.get_dag_dependencies()
+    for dag, dependencies in sorted(dag_dependencies.items()):
+        if readable_dag_ids is not None and dag not in readable_dag_ids:
+            continue
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
@@ -123,14 +126,36 @@ def get_scheduling_dependencies() -> dict[str, list[dict]]:
     }
 
 
-def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dict]]:
+def get_data_dependencies(
+    asset_id: int, session: Session, readable_dag_ids: set[str] | None = None
+) -> dict[str, list[dict]]:
     """Get full task dependencies for an asset."""
-    from sqlalchemy import select
+    from sqlalchemy import select, union_all
     from sqlalchemy.orm import selectinload
 
-    from airflow.models.asset import TaskInletAssetReference, TaskOutletAssetReference
+    from airflow.models.asset import (
+        DagScheduleAssetReference,
+        TaskInletAssetReference,
+        TaskOutletAssetReference,
+    )
 
     SEPARATOR = "__SEPARATOR__"
+
+    # Hide the asset entirely if the user has no read access to any dag that produces,
+    # consumes, or is scheduled by it. Without this check, visiting the asset graph page
+    # for an unrelated asset would leak its existence and name (and of connected nodes
+    # reachable through other readable dags) even though the user has no legitimate
+    # lineage connection to it. A readable_dag_ids value of None means no filter is
+    # applied (the user has unrestricted dag read access).
+    if readable_dag_ids is not None:
+        connected_dag_ids_query = union_all(
+            select(TaskOutletAssetReference.dag_id).where(TaskOutletAssetReference.asset_id == asset_id),
+            select(TaskInletAssetReference.dag_id).where(TaskInletAssetReference.asset_id == asset_id),
+            select(DagScheduleAssetReference.dag_id).where(DagScheduleAssetReference.asset_id == asset_id),
+        )
+        connected_dag_ids = set(session.scalars(select(connected_dag_ids_query.subquery().c.dag_id)))
+        if not connected_dag_ids & readable_dag_ids:
+            return {"nodes": [], "edges": []}
 
     nodes_dict: dict[str, dict] = {}
     edge_set: set[tuple[str, str]] = set()
@@ -166,6 +191,9 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
 
         # Process producing tasks (tasks that output this asset)
         for ref in asset.producing_tasks:
+            # Filter out tasks from Dags the user doesn't have access to
+            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                continue
             task_key = (ref.dag_id, ref.task_id)
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
@@ -195,6 +223,9 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
 
         # Process consuming tasks (tasks that input this asset)
         for ref in asset.consuming_tasks:
+            # Filter out tasks from Dags the user doesn't have access to
+            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                continue
             task_key = (ref.dag_id, ref.task_id)
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 

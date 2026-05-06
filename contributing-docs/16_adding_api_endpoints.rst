@@ -20,7 +20,9 @@ Adding a New API Endpoint in Apache Airflow
 
 This documentation outlines the steps required to add a new API endpoint in Apache Airflow. It includes implementing the logic, running prek hooks, and documenting the changes.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 
 Introduction

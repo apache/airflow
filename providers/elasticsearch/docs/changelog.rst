@@ -27,6 +27,100 @@
 Changelog
 ---------
 
+When the ``[elasticsearch] host`` config embeds credentials
+(``https://user:password@elk.example.com:9200``), the log-source label
+shown in task logs is now the host URL with the ``user:password@`` portion
+stripped. Previously the full URL (including credentials) could appear as
+a dictionary key in the task-log output when log-hits did not carry a
+``host`` field. The Elasticsearch client is still connected using the
+full URL, so authentication is unaffected.
+
+6.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Strip userinfo from OpenSearch host URL before using it as task-log label (#65509)``
+* ``Strip userinfo from ES host URL before using it as task-log label (#65349)``
+* ``Fix elasticsearch provider to use SDK imports for Airflow 3.2+ (#64931)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+6.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ElasticsearchTaskHandler: Request only required source fields for task logs (#64562)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Optimize 'ElasticsearchTaskHandler' by removing redundant 'count()' call before 'search()' (#64372)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document expected Elasticsearch document schema for external log shippers (#64363)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: refactor unit test of elasticsearch (#64200)``
+
+6.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Elasticsearch / opensearch logging exception details are missing in task log tab (#63739)``
+* ``Fix conf import to common.compat in 'ElasticsearchTaskHandler' (#64118)``
+* ``Remove self parameter from resolve_nested (#64146)``
+
+Misc
+~~~~
+
+* ``Support elasticsearch 9 (#64070)``
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Enable Elasticsearch provider integration tests in CI (#62942)``
+
+6.5.0
+.....
+
+.. note::
+  The write_to_es Elasticsearch task logging feature, was incompatible with Airflow 3. This is now fixed.
+  Users must upgrade apache-airflow-providers-elasticsearch>=6.5.0 to pick up the new ElasticsearchRemoteLogIO class required by the fixed logging path.
+  No configuration changes are needed — existing settings such as write_to_es, target_index, json_format, host_field, and offset_field continue to work as before.
+  This fix will work with any airflow-airflow>=3.0 version.
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix the write-to-es feature for Airflow 3 (#53821)``
+* ``add max_line_per_pages setting to ElasticsearchTaskHandler (#61492)``
+* ``Fix max_lines_per_page config setting for ElasticsearchRemoteLogIO (#62562)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Providers ad-hoc 2026-02-20 (#62209)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
 6.4.4
 .....
 

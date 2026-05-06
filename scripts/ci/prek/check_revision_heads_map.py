@@ -28,9 +28,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_PROVIDERS_ROOT_PATH, console
 
 DB_FILE = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "utils" / "db.py"
@@ -39,6 +37,10 @@ MIGRATION_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "migrations" / "version
 FAB_PROVIDER_SRC_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "fab" / "src"
 FAB_DB_FILE = FAB_PROVIDER_SRC_PATH / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
 FAB_MIGRATION_PATH = FAB_PROVIDER_SRC_PATH / "airflow" / "providers" / "fab" / "migrations" / "versions"
+
+EDGE3_PROVIDER_SRC_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / "edge3" / "src"
+EDGE3_DB_FILE = EDGE3_PROVIDER_SRC_PATH / "airflow" / "providers" / "edge3" / "models" / "db.py"
+EDGE3_MIGRATION_PATH = EDGE3_PROVIDER_SRC_PATH / "airflow" / "providers" / "edge3" / "migrations" / "versions"
 
 
 def revision_heads_map(migration_path):
@@ -49,6 +51,8 @@ def revision_heads_map(migration_path):
         version_pattern = r'airflow_version = "\d+\.\d+\.\d+"'
     elif migration_path == FAB_MIGRATION_PATH:
         version_pattern = r'fab_version = "\d+\.\d+\.\d+"'
+    elif migration_path == EDGE3_MIGRATION_PATH:
+        version_pattern = r'edge3_version = "\d+\.\d+\.\d+"'
     filenames = os.listdir(migration_path)
 
     def sorting_key(filen):
@@ -72,7 +76,11 @@ def revision_heads_map(migration_path):
 
 
 if __name__ == "__main__":
-    paths = [(DB_FILE, MIGRATION_PATH), (FAB_DB_FILE, FAB_MIGRATION_PATH)]
+    paths = [
+        (DB_FILE, MIGRATION_PATH),
+        (FAB_DB_FILE, FAB_MIGRATION_PATH),
+        (EDGE3_DB_FILE, EDGE3_MIGRATION_PATH),
+    ]
     for dbfile, mpath in paths:
         with open(dbfile) as file:
             content = file.read()

@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import * as ChakraUI from "@chakra-ui/react";
+import * as EmotionReact from "@emotion/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
@@ -37,13 +39,31 @@ import { getRedirectPath } from "src/utils/links.ts";
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
 
-// Set React, ReactDOM, and ReactJSXRuntime on globalThis to share them with the dynamically imported React plugins.
-// Only one instance of React should be used.
-// Reflect will avoid type checking.
+// Set React, ReactDOM, Chakra UI, and Emotion on globalThis so dynamically imported React
+// plugins (e.g. HITL Review) use the host's copies instead of bundling their own.
 Reflect.set(globalThis, "React", React);
 Reflect.set(globalThis, "ReactDOM", ReactDOM);
 Reflect.set(globalThis, "ReactJSXRuntime", ReactJSXRuntime);
 Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
+Reflect.set(globalThis, "ChakraUI", ChakraUI);
+Reflect.set(globalThis, "EmotionReact", EmotionReact);
+
+// URLs that returned 403 Forbidden. Permissions won't change mid-session,
+// so we block further requests to avoid spamming the server with polling.
+const forbidden403Urls = new Set<string>();
+
+// Block outgoing requests to URLs that previously returned 403.
+// The request is aborted immediately so no network traffic occurs.
+axios.interceptors.request.use((config) => {
+  if (config.url !== undefined && forbidden403Urls.has(config.url)) {
+    const controller = new AbortController();
+
+    controller.abort();
+    config.signal = controller.signal;
+  }
+
+  return config;
+});
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
@@ -59,6 +79,16 @@ axios.interceptors.response.use(
       const loginPath = getRedirectPath("api/v2/auth/login");
 
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
+    }
+
+    // Track permission-based 403 URLs so future polling requests are blocked at the request interceptor.
+    // Only block "Forbidden" (missing permissions), not other auth-related 403s.
+    if (
+      error.response?.status === 403 &&
+      error.response.data.detail === "Forbidden" &&
+      error.config?.url !== undefined
+    ) {
+      forbidden403Urls.add(error.config.url);
     }
 
     return Promise.reject(error);

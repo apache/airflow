@@ -54,6 +54,7 @@ const BackfillBanner = ({ dagId }: Props) => {
 
   const { data, isLoading } = useBackfillServiceListBackfillsUi(
     {
+      active: true,
       dagId,
     },
     undefined,
@@ -108,7 +109,7 @@ const BackfillBanner = ({ dagId }: Props) => {
         <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
         <Text fontSize="sm">
           {" "}
-          <Time datetime={data?.backfills[0]?.from_date} /> - <Time datetime={data?.backfills[0]?.to_date} />
+          <Time datetime={backfill.from_date} /> - <Time datetime={backfill.to_date} />
         </Text>
 
         <Spacer flex="max-content" />

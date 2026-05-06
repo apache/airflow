@@ -58,7 +58,7 @@ class AzureDataLakeHook(BaseHook):
     ``{"tenant": "<TENANT>", "account_name": "ACCOUNT_NAME"}``.
 
     :param azure_data_lake_conn_id: Reference to
-        :ref:`Azure Data Lake connection<howto/connection:adl>`.
+        :ref:`Azure Data Lake connection<howto/connection:azure_data_lake>`.
     """
 
     conn_name_attr = "azure_data_lake_conn_id"
@@ -278,7 +278,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     conn_name_attr = "adls_conn_id"
     default_conn_name = "adls_default"
     conn_type = "adls"
-    hook_name = "Azure Date Lake Storage V2"
+    hook_name = "Azure Data Lake Storage V2"
 
     @classmethod
     @add_managed_identity_connection_widgets

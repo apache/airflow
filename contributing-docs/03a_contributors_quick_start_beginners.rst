@@ -67,11 +67,11 @@ Option A – Breeze on Your Laptop
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
-    uv tool install -e ./dev/breeze
+    ./scripts/tools/setup_breeze
 
 2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
-.. code-block:: text
+.. code-block:: bash
 
     # For IntelliJ IDEA and PyCharm
     uv run dev/ide_setup/setup_idea.py
@@ -79,7 +79,13 @@ Option A – Breeze on Your Laptop
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
-3.  **Start the development container** (first run builds the image)
+3. Create a branch for your change
+
+.. code-block:: bash
+
+    git checkout -b <your-branch-name>
+
+4.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
@@ -87,38 +93,49 @@ Option A – Breeze on Your Laptop
 
 The command starts a shell and launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at |http://localhost:28080| with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
+check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
 of the tmux panes and hit Enter
 
-**Working with DAGs in Breeze:**
+**Working with Dags in Breeze:**
 
-- **Adding your own DAGs**: Place your DAG files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your DAGs will be visible in the Airflow UI.
+- **Adding your own Dags**: Place your Dag files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your Dags will be visible in the Airflow UI.
 
-- **Loading example DAGs**: Use the ``--load-example-dags`` flag to load all example DAGs from the repository:
+- **Loading example Dags**: Use the ``--load-example-dags`` flag to load all example Dags from the repository:
 
 .. code-block:: bash
 
     breeze start-airflow --load-example-dags
 
-This flag enables configuration to load example DAGs when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
+This flag enables configuration to load example Dags when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-4.  **Make a tiny change** – e.g. fix a typo in docs
+5.  **Make a tiny change** – e.g. fix a typo in docs
 
-5.  **Run local checks**
+6.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-6.  **Commit & push**
+7.  **Run tests**
+
+Run tests related to your change **before** pushing:
 
 .. code-block:: bash
 
-    git checkout -b docs-typo
-    git commit -am "fix typo in README"
-    git push -u origin docs-typo
+    # Example: run core tests
+    breeze testing core-tests
 
-7.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+Run ``breeze testing --help`` to see all available test groups.
+For more on testing, see the `Testing Guide <09_testing.rst>`_.
+
+8.  **Commit & push**
+
+.. code-block:: bash
+
+    git commit -am "fix typo in README"
+    git push -u origin <your-branch-name>
+
+9.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 
@@ -148,7 +165,17 @@ Option B – One-Click GitHub Codespaces
     chmod +x ~/.docker/cli-plugins/docker-compose
     docker compose version
 
-4. Install Breeze and start the development container
+4. Verify Docker is accessible
+
+.. code-block:: bash
+
+      docker info
+
+   If ``docker info`` fails, try rebuilding the Codespace container
+   (Command Palette → *Codespaces: Rebuild Container*) or restarting
+   the Codespace from the GitHub Codespaces dashboard.
+
+5. Install Breeze and start the development container
 
 .. code-block:: bash
 
@@ -156,14 +183,14 @@ Option B – One-Click GitHub Codespaces
       uv tool install prek
       prek install -f
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
-      uv tool install -e ./dev/breeze
+      ./scripts/tools/setup_breeze
       uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
 
-5. Edit a file in the editor, save, and commit via the Source Control sidebar.
+6. Edit a file in the editor, save, and commit via the Source Control sidebar.
    Push when prompted.
 
-6. Press **Create pull request** when GitHub offers.
+7. Press **Create pull request** when GitHub offers.
 
 
 

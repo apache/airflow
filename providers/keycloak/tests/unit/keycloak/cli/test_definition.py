@@ -48,7 +48,7 @@ class TestKeycloakCliDefinition:
                 self.arg_parser = cli_parser.get_parser()
 
     def test_keycloak_auth_manager_cli_commands(self):
-        assert len(KEYCLOAK_AUTH_MANAGER_COMMANDS) == 4
+        assert len(KEYCLOAK_AUTH_MANAGER_COMMANDS) == 6
 
     @pytest.mark.parametrize(
         "command",

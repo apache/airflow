@@ -18,12 +18,11 @@
 
 from __future__ import annotations
 
-import logging
 import os
-import textwrap
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
+import structlog
 from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
@@ -32,13 +31,15 @@ from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
+from airflow.utils.db_manager import _callable_accepts_use_migration_files
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine.url import URL
     from tenacity import RetryCallState
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 @providers_configuration_loaded
@@ -47,7 +48,7 @@ def resetdb(args):
     print(f"DB: {settings.get_engine().url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
-    db.resetdb(skip_init=args.skip_init)
+    db.resetdb(skip_init=args.skip_init, use_migration_files=args.use_migration_files)
 
 
 def _get_version_revision(version: str, revision_heads_map: dict[str, str] | None = None) -> str | None:
@@ -94,7 +95,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
 
     :meta private:
     """
-    print(f"DB: {settings.get_engine().url!r}")
+    db_url = str(settings.get_engine().url)
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
@@ -127,17 +128,28 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
     elif args.to_revision:
         to_revision = args.to_revision
 
+    use_migration_files = getattr(args, "use_migration_files", False)
+
     if not args.show_sql_only:
-        print(f"Performing upgrade to the metadata database {settings.get_engine().url!r}")
+        log.info("Performing upgrade to the metadata database", url=db_url)
     else:
-        print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-    command(
-        to_revision=to_revision,
-        from_revision=from_revision,
-        show_sql_only=args.show_sql_only,
-    )
+        log.info("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
+
+    kwargs: dict = {
+        "to_revision": to_revision,
+        "from_revision": from_revision,
+        "show_sql_only": args.show_sql_only,
+    }
+    if _callable_accepts_use_migration_files(command):
+        kwargs["use_migration_files"] = use_migration_files
+    elif use_migration_files:
+        log.warning(
+            "The upgrade command %r does not support '--use-migration-files'; the flag will be ignored.",
+            getattr(command, "__qualname__", repr(command)),
+        )
+    command(**kwargs)
     if not args.show_sql_only:
-        print("Database migration done!")
+        log.info("Database migration done!")
 
 
 def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
@@ -171,10 +183,11 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
         to_revision = args.to_revision
+    db_url = str(settings.get_engine().url)
     if not args.show_sql_only:
-        print(f"Performing downgrade with database {settings.get_engine().url!r}")
+        log.info("Performing downgrade with database", url=db_url)
     else:
-        print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
+        log.info("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
 
     if args.show_sql_only or (
         args.yes
@@ -187,7 +200,7 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     ):
         command(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
         if not args.show_sql_only:
-            print("Downgrade complete")
+            log.info("Downgrade complete")
     else:
         raise SystemExit("Cancelled")
 
@@ -227,6 +240,49 @@ def _quote_mysql_password_for_cnf(password: str | None) -> str:
     return f'"{val}"'
 
 
+# SQLAlchemy MySQL URL query params that are safe to forward into the my.cnf
+# ``[client]`` section written by ``airflow db shell``. Keys differ between the
+# URL (underscore) and the mysql client option file (hyphen), so we translate.
+#
+# Without this, cert-based authentication (e.g. MySQL users created with
+# ``CREATE USER ... REQUIRE X509`` or fronted by a proxy that maps cert SANs
+# to MySQL users) cannot be used by ``airflow db shell`` even when the rest
+# of Airflow connects successfully with the same ``sql_alchemy_conn``.
+_MYSQL_URL_QUERY_TO_CNF: dict[str, str] = {
+    "ssl_ca": "ssl-ca",
+    "ssl_cert": "ssl-cert",
+    "ssl_key": "ssl-key",
+    "ssl_cipher": "ssl-cipher",
+    "ssl_mode": "ssl-mode",
+    "charset": "default-character-set",
+}
+
+
+def _build_mysql_cnf(url: URL) -> bytes:
+    """
+    Render the ``[client]`` section of a mysql option file from a SQLAlchemy URL.
+
+    Produces the bytes that ``airflow db shell`` writes to the temporary file
+    passed to ``mysql --defaults-extra-file=…``. Beyond the core connection
+    fields, any query-string keys listed in :data:`_MYSQL_URL_QUERY_TO_CNF`
+    are forwarded so that cert-based authentication flows work end-to-end.
+    """
+    lines: list[str] = [
+        "[client]",
+        f"host     = {url.host or ''}",
+        f"user     = {url.username or ''}",
+        f"password = {_quote_mysql_password_for_cnf(url.password)}",
+        f"port     = {url.port or '3306'}",
+        f"database = {url.database or ''}",
+    ]
+    lines.extend(
+        f"{cnf_key} = {url.query[url_key]}"
+        for url_key, cnf_key in _MYSQL_URL_QUERY_TO_CNF.items()
+        if url_key in url.query
+    )
+    return "\n".join(lines).encode()
+
+
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def shell(args):
@@ -236,17 +292,7 @@ def shell(args):
 
     if url.get_backend_name() == "mysql":
         with NamedTemporaryFile(suffix="my.cnf") as f:
-            content = textwrap.dedent(
-                f"""
-                [client]
-                host     = {(url.host or "")}
-                user     = {(url.username or "")}
-                password = {_quote_mysql_password_for_cnf(url.password)}
-                port     = {url.port or "3306"}
-                database = {(url.database or "")}
-                """
-            ).strip()
-            f.write(content.encode())
+            f.write(_build_mysql_cnf(url))
             f.flush()
             execute_interactive(["mysql", f"--defaults-extra-file={f.name}"])
     elif url.get_backend_name() == "sqlite":

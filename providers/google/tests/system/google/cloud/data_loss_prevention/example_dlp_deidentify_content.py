@@ -139,7 +139,8 @@ with DAG(
     deidentify_content_with_template = CloudDLPDeidentifyContentOperator(
         project_id=PROJECT_ID,
         item=ITEM,
-        deidentify_template_name="{{ task_instance.xcom_pull('create_template')['name'] }}",
+        # verbose form: "{{ task_instance.xcom_pull('create_template')['name'] }}"
+        deidentify_template_name=create_template.output["name"],
         inspect_config=INSPECT_CONFIG,
         task_id="deidentify_content_with_template",
     )
@@ -171,5 +172,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

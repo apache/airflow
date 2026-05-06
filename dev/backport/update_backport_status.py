@@ -24,24 +24,37 @@ import requests
 
 def get_success_comment(branch: str, pr_url: str, pr_number: str):
     shield_url = f"https://img.shields.io/badge/PR-{pr_number}-blue"
-    comment = f"""### Backport successfully created: {branch}\n\n<table>
-                <tr>
-                    <th>Status</th>
-                    <th>Branch</th>
-                    <th>Result</th>
-                </tr>
-                <tr>
-                    <td>✅</td>
-                    <td>{branch}</td>
-                    <td><a href="{pr_url}"><img src="{shield_url}" alt="PR Link"></a></td>
-                </tr>
-            </table>"""
+    comment = f"""### Backport successfully created: {branch}
+
+Note: As of [Merging PRs targeted for Airflow 3.X](https://github.com/apache/airflow/blob/main/dev/README_AIRFLOW3_DEV.md#merging-prs-targeted-for-airflow-3x)
+the committer who merges the PR is responsible for backporting the PRs that are bug fixes (generally speaking) to the maintenance branches.
+
+In matter of doubt please ask in [#release-management](https://apache-airflow.slack.com/archives/C03G9H97MM2) Slack channel.
+
+<table>
+        <tr>
+        <th>Status</th>
+        <th>Branch</th>
+        <th>Result</th>
+    </tr>
+    <tr>
+        <td>✅</td>
+        <td>{branch}</td>
+        <td><a href="{pr_url}"><img src="{shield_url}" alt="PR Link"></a></td>
+    </tr>
+</table>"""
     return comment
 
 
 def get_failure_comment(branch: str, commit_sha_url: str, commit_sha: str):
     commit_shield_url = f"https://img.shields.io/badge/Commit-{commit_sha[:7]}-red"
-    comment = f"""### Backport failed to create: {branch}. View the failure log <a href='https://github.com/{os.getenv("REPOSITORY")}/actions/runs/{os.getenv("RUN_ID")}'> Run details </a>\n
+    comment = f"""### Backport failed to create: {branch}. View the failure log <a href='https://github.com/{os.getenv("REPOSITORY")}/actions/runs/{os.getenv("RUN_ID")}'> Run details </a>
+
+Note: As of [Merging PRs targeted for Airflow 3.X](https://github.com/apache/airflow/blob/main/dev/README_AIRFLOW3_DEV.md#merging-prs-targeted-for-airflow-3x)
+the committer who merges the PR is responsible for backporting the PRs that are bug fixes (generally speaking) to the maintenance branches.
+
+In matter of doubt please ask in [#release-management](https://apache-airflow.slack.com/archives/C03G9H97MM2) Slack channel.
+
 <table>
     <tr>
         <th>Status</th>

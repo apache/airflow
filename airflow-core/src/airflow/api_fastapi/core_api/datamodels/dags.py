@@ -20,6 +20,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
@@ -32,14 +33,34 @@ from pydantic import (
     field_validator,
 )
 
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow._shared.module_loading import qualname
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.param import SerializedParamsDict
+
+
+def _is_response_safe_pod_override(value: Any) -> bool:
+    """Whether a pod_override value is already safe to preserve in the response."""
+    return value is None or isinstance(value, str | int | float | Mapping | list)
+
+
+@cache
+def _get_file_token_serializer() -> URLSafeSerializer:
+    """
+    Return a cached URLSafeSerializer instance.
+
+    Uses @cache for lazy initialization - the serializer is created on first
+    call rather than at module import time. This avoids issues if the module
+    is imported before configuration is fully loaded.
+    """
+    return URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
+
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -51,7 +72,7 @@ DAG_ALIAS_MAPPING: dict[str, str] = {
 
 
 class DAGResponse(BaseModel):
-    """DAG serializer for responses."""
+    """Dag serializer for responses."""
 
     model_config = ConfigDict(
         alias_generator=AliasGenerator(
@@ -73,6 +94,8 @@ class DAGResponse(BaseModel):
     description: str | None
     timetable_summary: str | None
     timetable_description: str | None
+    timetable_partitioned: bool
+    timetable_periodic: bool
     tags: list[DagTagResponse]
     max_active_tasks: int
     max_active_runs: int | None
@@ -83,6 +106,7 @@ class DAGResponse(BaseModel):
     next_dagrun_data_interval_start: datetime | None
     next_dagrun_data_interval_end: datetime | None
     next_dagrun_run_after: datetime | None
+    allowed_run_types: list[DagRunType] | None
     owners: list[str]
 
     @field_serializer("tags")
@@ -93,7 +117,7 @@ class DAGResponse(BaseModel):
     @field_validator("owners", mode="before")
     @classmethod
     def get_owners(cls, v: Any) -> list[str] | None:
-        """Convert owners attribute to DAG representation."""
+        """Convert owners attribute to Dag representation."""
         if not (v is None or isinstance(v, str)):
             return v
 
@@ -114,14 +138,24 @@ class DAGResponse(BaseModel):
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[prop-decorator]
     @property
+    def is_backfillable(self) -> bool:
+        """Whether this Dag's schedule supports backfilling."""
+        if not self.timetable_periodic:
+            return False
+        if self.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in self.allowed_run_types:
+            return False
+        return True
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def file_token(self) -> str:
         """Return file token."""
-        serializer = URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
         payload = {
             "bundle_name": self.bundle_name,
             "relative_fileloc": self.relative_fileloc,
         }
-        return serializer.dumps(payload)
+        return _get_file_token_serializer().dumps(payload)
 
 
 class DAGPatchBody(StrictBaseModel):
@@ -130,15 +164,18 @@ class DAGPatchBody(StrictBaseModel):
     is_paused: bool
 
 
+DAGPatchBodyPartial = make_partial_model(DAGPatchBody)
+
+
 class DAGCollectionResponse(BaseModel):
-    """DAG Collection serializer for responses."""
+    """Dag Collection serializer for responses."""
 
     dags: Iterable[DAGResponse]
     total_entries: int
 
 
 class DAGDetailsResponse(DAGResponse):
-    """Specific serializer for DAG Details responses."""
+    """Specific serializer for Dag Details responses."""
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -184,6 +221,37 @@ class DAGDetailsResponse(DAGResponse):
         if doc_md is None:
             return None
         return inspect.cleandoc(doc_md)
+
+    @field_validator("default_args", mode="before")
+    @classmethod
+    def get_default_args(cls, default_args: Mapping | None) -> Mapping | None:
+        """
+        Sanitize default_args for the API response.
+
+        Targets the common case where ``executor_config["pod_override"]`` is a
+        Kubernetes ``V1Pod``: when the value is not a JSON primitive
+        (``None``/``str``/``int``/``float``) or a ``Mapping``/``list``, it is
+        rewritten to a fully-qualified type-name string so the response stays
+        valid JSON. The container check is shallow — a ``Mapping`` or ``list``
+        whose contents are themselves non-serializable (e.g. nested ``V1Pod``)
+        will still raise during response serialization, as will any other
+        non-JSON values elsewhere in ``default_args``.
+        """
+        if default_args is None:
+            return None
+        executor_config = default_args.get("executor_config")
+        if not (isinstance(executor_config, Mapping) and "pod_override" in executor_config):
+            return default_args
+
+        pod_override = executor_config["pod_override"]
+        if _is_response_safe_pod_override(pod_override):
+            return default_args
+
+        sanitized_executor_config = dict(executor_config)
+        sanitized_executor_config["pod_override"] = qualname(pod_override)
+        result = dict(default_args)
+        result["executor_config"] = sanitized_executor_config
+        return result
 
     @field_validator("params", mode="before")
     @classmethod

@@ -26,24 +26,31 @@ from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariablePostBody,
     VariableResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.models.variable import Variable
 
 
 async def has_variable_access(
     request: Request,
-    variable_key: str = Path(),
-    token=JWTBearerDep,
+    variable_key: Annotated[str, Path(min_length=1)],
+    token=CurrentTIToken,
 ):
     """Check if the task has access to the variable."""
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
-    # TODO: Placeholder for actual implementation
+
     log.debug(
         "Checking %s access for task instance with key '%s' to variable '%s'",
         "write" if write else "read",
         token.id,
         variable_key,
     )
+
+    # The current version of Airflow does not support true
+    # multi-tenancy yet (this is well-documented at
+    # https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#limiting-dag-author-access-to-subset-of-dags),
+    # so for now we always return 'True' here.
+    # When we introduce true multi-tenancy in the future
+    # this would be the place to do add a check.
     return True
 
 
@@ -63,12 +70,10 @@ log = logging.getLogger(__name__)
     },
 )
 def get_variable(
-    variable_key: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]
+    variable_key: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> VariableResponse:
     """Get an Airflow Variable."""
-    if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
-
     try:
         variable_value = Variable.get(variable_key, team_name=team_name)
     except KeyError:
@@ -92,12 +97,11 @@ def get_variable(
     },
 )
 def put_variable(
-    variable_key: str, body: VariablePostBody, team_name: Annotated[str | None, Depends(get_team_name_dep)]
+    variable_key: Annotated[str, Path(min_length=1)],
+    body: VariablePostBody,
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ):
     """Set an Airflow Variable."""
-    if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
-
     Variable.set(key=variable_key, value=body.value, description=body.description, team_name=team_name)
     return {"message": "Variable successfully set"}
 
@@ -110,9 +114,9 @@ def put_variable(
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def delete_variable(variable_key: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]):
+def delete_variable(
+    variable_key: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
+):
     """Delete an Airflow Variable."""
-    if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
-
     Variable.delete(key=variable_key, team_name=team_name)

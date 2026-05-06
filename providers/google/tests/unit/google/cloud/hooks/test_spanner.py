@@ -48,14 +48,16 @@ class TestGcpSpannerHookDefaultProjectId:
         ):
             self.spanner_hook_default_project_id = SpannerHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.Client")
-    def test_spanner_client_creation(self, mock_client, mock_get_creds):
+    def test_spanner_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.spanner_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
             client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
         assert self.spanner_hook_default_project_id._client == result
@@ -436,6 +438,32 @@ class TestGcpSpannerHookDefaultProjectId:
     def test_execute_dml_oqueries_row_count(self, get_client):
         pass
 
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.send_sql_hook_lineage")
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client")
+    def test_execute_dml_hook_lineage(self, get_client, mock_project_id, mock_send_lineage):
+        instance_method = get_client.return_value.instance
+        database_method = instance_method.return_value.database
+        run_in_tx = database_method.return_value.run_in_transaction
+        run_in_tx.return_value = OrderedDict([("INSERT INTO T VALUES (1)", 1)])
+
+        self.spanner_hook_default_project_id.execute_dml(
+            instance_id=SPANNER_INSTANCE,
+            database_id=SPANNER_DATABASE,
+            queries=["INSERT INTO T VALUES (1)"],
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+        )
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.spanner_hook_default_project_id
+        assert call_kw["sql"] == "INSERT INTO T VALUES (1)"
+        assert call_kw["row_count"] == 1
+
     @pytest.mark.parametrize(
         ("returned_items", "expected_counts"),
         [
@@ -518,17 +546,19 @@ class TestGcpSpannerHookNoDefaultProjectID:
         ):
             self.spanner_hook_no_default_project_id = SpannerHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook.get_client_options")
     @mock.patch(
         "airflow.providers.google.cloud.hooks.spanner.SpannerHook.get_credentials",
         return_value="CREDENTIALS",
     )
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.Client")
-    def test_spanner_client_creation(self, mock_client, mock_get_creds):
+    def test_spanner_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.spanner_hook_no_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
         mock_client.assert_called_once_with(
             project=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             credentials=mock_get_creds.return_value,
             client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
         assert self.spanner_hook_no_default_project_id._client == result

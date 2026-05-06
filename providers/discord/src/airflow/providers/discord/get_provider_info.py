@@ -49,7 +49,11 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook",
+                "hook-name": "Discord",
                 "connection-type": "discord",
+                "conn-fields": {
+                    "webhook_endpoint": {"label": "Webhook Endpoint", "schema": {"type": ["string", "null"]}}
+                },
             }
         ],
         "notifications": ["airflow.providers.discord.notifications.discord.DiscordNotifier"],

@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { JobsService, LogsService, MonitorService, UiService, WorkerService } from "../requests/services.gen";
-import { EdgeWorkerState, MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
+import { ConcurrencyRequest, EdgeWorkerState, MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
 import * as Common from "./common";
 export const useLogsServiceLogfilePath = <TData = Common.LogsServiceLogfilePathDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ authorization, dagId, mapIndex, runId, taskId, tryNumber }: {
   authorization: string;
@@ -18,7 +18,14 @@ export const useUiServiceWorker = <TData = Common.UiServiceWorkerDefaultResponse
   state?: EdgeWorkerState[];
   workerNamePattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceWorkerKeyFn({ queueNamePattern, state, workerNamePattern }, queryKey), queryFn: () => UiService.worker({ queueNamePattern, state, workerNamePattern }) as TData, ...options });
-export const useUiServiceJobs = <TData = Common.UiServiceJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceJobsKeyFn(queryKey), queryFn: () => UiService.jobs() as TData, ...options });
+export const useUiServiceJobs = <TData = Common.UiServiceJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }: {
+  dagIdPattern?: string;
+  runIdPattern?: string;
+  taskIdPattern?: string;
+  state?: TaskInstanceState[];
+  queuePattern?: string;
+  workerNamePattern?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceJobsKeyFn({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }, queryKey), queryFn: () => UiService.jobs({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }) as TData, ...options });
 export const useJobsServiceFetch = <TData = Common.JobsServiceFetchMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   authorization: string;
   requestBody: WorkerQueuesBody;
@@ -132,3 +139,10 @@ export const useUiServiceRemoveWorkerQueue = <TData = Common.UiServiceRemoveWork
   queueName: string;
   workerName: string;
 }, TContext>({ mutationFn: ({ queueName, workerName }) => UiService.removeWorkerQueue({ queueName, workerName }) as unknown as Promise<TData>, ...options });
+export const useUiServiceSetWorkerConcurrencyLimit = <TData = Common.UiServiceSetWorkerConcurrencyLimitMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: ConcurrencyRequest;
+  workerName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: ConcurrencyRequest;
+  workerName: string;
+}, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.setWorkerConcurrencyLimit({ requestBody, workerName }) as unknown as Promise<TData>, ...options });

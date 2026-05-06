@@ -20,7 +20,7 @@
 ######################################
 ## Airflow LOGs PersistentVolumeClaim
 ######################################
-{{- if and (not .Values.logs.persistence.existingClaim ) .Values.logs.persistence.enabled }}
+{{- if and (not .Values.logs.persistence.existingClaim) .Values.logs.persistence.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

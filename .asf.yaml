@@ -65,6 +65,8 @@ github:
   pull_requests:
     # allow auto-merge
     allow_auto_merge: false
+    # enable updating head branches of pull requests
+    allow_update_branch: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
 
@@ -149,11 +151,21 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_signatures: false
+    v3-2-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
     providers-fab/v1-5:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+      required_signatures: false
+    airflow-ctl/v0-1-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
       required_signatures: false
   collaborators:
     # Max 10 collaborators allowed
@@ -169,6 +181,7 @@ github:
     - gyli
     - jroachgolf84
     - Dev-iL
+    - kacpermuda
 
 notifications:
   jobs: jobs@airflow.apache.org

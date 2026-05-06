@@ -17,18 +17,21 @@
  under the License.
  -->
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 Small tool to update status of all AIP-47 issues.
 
 Simply:
 
-1) Activate dev environment based on [requirements](../../dev/requirements.txt)
+1) Set `GITHUB_TOKEN` to a repo-writeable token.
 
-2) Set GITHUB_TOKEN to repo-writeable token
-
-3) Run this:
+2) Run the script via `uv` (it pulls in the few third-party deps it
+   needs — `PyGithub`, `rich-click`, `rich`):
 
 ```bash
-python dev/system_tests/update_issue_status.py
+uv run --with PyGithub --with rich-click --with rich python dev/system_tests/update_issue_status.py
 ```
 
 

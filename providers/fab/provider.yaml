@@ -27,14 +27,22 @@ description: |
 # The provider is not yet ready to be released, we will skip it by default when preparing new release waves
 # For providers until we think it should be released.
 state: ready
+lifecycle: production
 
-source-date-epoch: 1770751867
+source-date-epoch: 1777990777
+build-system: hatchling
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.6.3
+  - 3.6.2
+  - 3.6.1
+  - 3.6.0
+  - 3.5.0
+  - 3.4.0
   - 3.3.0
   - 3.2.0
   - 3.1.2
@@ -73,9 +81,6 @@ versions:
   - 1.0.2
   - 1.0.1
   - 1.0.0
-
-excluded-python-versions:
-  - "3.13"
 
 config:
   fab:
@@ -260,9 +265,28 @@ config:
         type: integer
         example: ~
         default: "30"
+      auth_role_public:
+        description: |
+          Role that Anonymous (unauthenticated) users are granted. When set, the FAB auth manager
+          will allow access to the API server and UI without requiring a login, and anonymous
+          requests will be treated as members of the given role. Leave empty (the default) to
+          require authentication.
+
+          This replaces the previous ``AUTH_ROLE_PUBLIC`` setting in ``webserver_config.py``. When
+          both are set, this ``[fab] auth_role_public`` config takes precedence. Setting this
+          config also applies the equivalent ``AUTH_ROLE_PUBLIC`` to the Flask app used by the FAB
+          auth manager, so all FAB auth code paths (FastAPI-based API server and legacy Flask
+          views) honor it consistently.
+        version_added: 3.6.2
+        type: string
+        example: "Admin"
+        default: ""
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
+db-managers:
+  - airflow.providers.fab.auth_manager.models.db.FABDBManager
 
 cli:
   - airflow.providers.fab.cli.definition.get_fab_cli_commands

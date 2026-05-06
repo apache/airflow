@@ -37,11 +37,27 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook",
+                "hook-name": "Pagerduty",
                 "connection-type": "pagerduty",
+                "conn-fields": {
+                    "routing_key": {
+                        "label": "Routing Key",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    }
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "login", "schema", "host", "extra"],
+                    "relabeling": {"password": "Pagerduty API token"},
+                },
             },
             {
                 "hook-class-name": "airflow.providers.pagerduty.hooks.pagerduty_events.PagerdutyEventsHook",
+                "hook-name": "Pagerduty Events",
                 "connection-type": "pagerduty_events",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "login", "schema", "host", "extra"],
+                    "relabeling": {"password": "Pagerduty Integration key"},
+                },
             },
         ],
         "hooks": [

@@ -26,7 +26,7 @@ import json
 import logging
 import traceback
 import warnings
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, Iterator, MutableMapping
 from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files as resource_files
@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast
 from airflow import DeprecatedImportWarning
 from airflow._shared.module_loading import import_string
 from airflow._shared.providers_discovery import discover_all_providers_from_packages
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -243,6 +243,15 @@ class HookInfo(NamedTuple):
     dialects: list[str] = []
 
 
+class ConnectionTypeHookUIMetadata(NamedTuple):
+    """Hook metadata for one connection type (connection UI); ``field_behaviour`` is standard fields."""
+
+    connection_type: str
+    hook_name: str
+    hook_class_name: str | None
+    field_behaviour: dict | None
+
+
 class ConnectionFormWidgetInfo(NamedTuple):
     """Connection Form Widget information."""
 
@@ -413,6 +422,8 @@ class ProvidersManager(LoggingMixin):
         self._dialect_provider_dict: dict[str, DialectInfo] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
+        # Keeps hook display names read from provider.yaml (hook-name field)
+        self._hook_name_dict: dict[str, str] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -427,6 +438,7 @@ class ProvidersManager(LoggingMixin):
         self._executor_class_name_set: set[str] = set()
         self._executor_without_check_set: set[tuple[str, str]] = set()
         self._queue_class_name_set: set[str] = set()
+        self._db_manager_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._trigger_info_set: set[TriggerInfo] = set()
         self._notification_info_set: set[NotificationInfo] = set()
@@ -583,6 +595,12 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         self._discover_queues()
 
+    @provider_info_cache("db_managers")
+    def initialize_providers_db_managers(self):
+        """Lazy initialization of providers db_managers information."""
+        self.initialize_providers_list()
+        self._discover_db_managers()
+
     @provider_info_cache("notifications")
     def initialize_providers_notifications(self):
         """Lazy initialization of providers notifications information."""
@@ -603,26 +621,9 @@ class ProvidersManager(LoggingMixin):
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
-        """Lazy initialization of providers configuration information."""
-        self._initialize_providers_configuration()
-
-    def _initialize_providers_configuration(self):
-        """
-        Initialize providers configuration information.
-
-        Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
-        In some cases we might want to make sure that the configuration is initialized, but we do not want
-        to cache the initialization method - for example when we just want to write configuration with
-        providers, but it is used in the context where no providers are loaded yet we will eventually
-        restore the original configuration and we want the subsequent ``initialize_providers_configuration``
-        method to be run in order to load the configuration for providers again.
-        """
+        """Lazy initialization of provider configuration metadata and merge it into ``conf``."""
         self.initialize_providers_list()
         self._discover_config()
-        # Now update conf with the new provider configuration from providers
-        from airflow.configuration import conf
-
-        conf.load_providers_configuration()
 
     @provider_info_cache("plugins")
     def initialize_providers_plugins(self):
@@ -989,6 +990,9 @@ class ProvidersManager(LoggingMixin):
                 if not connection_type or not hook_class_name:
                     continue
 
+                if hook_name := conn_config.get("hook-name"):
+                    self._hook_name_dict[connection_type] = hook_name
+
                 if conn_fields := conn_config.get("conn-fields"):
                     self._add_widgets(package_name, hook_class_name, connection_type, conn_fields)
 
@@ -1054,6 +1058,14 @@ class ProvidersManager(LoggingMixin):
                 # inherited from parent hook. This way we add form fields only once for the whole
                 # hierarchy and we add it only from the parent hook that provides those!
                 if "get_connection_form_widgets" in hook_class.__dict__:
+                    warning = AirflowProviderDeprecationWarning(
+                        f"Hook '{hook_class_name}' defines get_connection_form_widgets(). "
+                        "This method is deprecated. Define connection fields declaratively in "
+                        "provider.yaml under 'conn-fields' instead. See "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html"
+                    )
+                    warning.deprecated_provider_since = "3.2.0"
+                    warnings.warn(warning, stacklevel=2)
                     widgets = hook_class.get_connection_form_widgets()
                     if widgets:
                         for widget in widgets.values():
@@ -1068,6 +1080,14 @@ class ProvidersManager(LoggingMixin):
                                 return None
                         self._add_widgets_from_hook(package_name, hook_class, widgets)
                 if "get_ui_field_behaviour" in hook_class.__dict__:
+                    warning = AirflowProviderDeprecationWarning(
+                        f"Hook '{hook_class_name}' defines get_ui_field_behaviour(). "
+                        "This method is deprecated. Define field behaviour declaratively in "
+                        "provider.yaml under 'ui-field-behaviour' instead. See "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html"
+                    )
+                    warning.deprecated_provider_since = "3.2.0"
+                    warnings.warn(warning, stacklevel=2)
                     field_behaviours = hook_class.get_ui_field_behaviour()
                     if field_behaviours:
                         self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
@@ -1246,6 +1266,14 @@ class ProvidersManager(LoggingMixin):
                     if _correctness_check(provider_package, queue_class_name, provider):
                         self._queue_class_name_set.add(queue_class_name)
 
+    def _discover_db_managers(self) -> None:
+        """Retrieve all DB managers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("db-managers"):
+                for db_manager_class_name in provider.data["db-managers"]:
+                    if _correctness_check(provider_package, db_manager_class_name, provider):
+                        self._db_manager_class_name_set.add(db_manager_class_name)
+
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1335,6 +1363,45 @@ class ProvidersManager(LoggingMixin):
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict
 
+    def iter_connection_type_hook_ui_metadata(self) -> Iterator[ConnectionTypeHookUIMetadata]:
+        """
+        Yield hook metadata per connection type for the connection UI.
+
+        Does not import hook classes.
+        """
+        self.initialize_providers_hooks()
+        all_types = frozenset(self._hooks_lazy_dict) | frozenset(self._hook_provider_dict)
+        for conn_type in sorted(all_types):
+            raw_entry = self._hooks_lazy_dict._raw_dict.get(conn_type)
+            provider_entry = self._hook_provider_dict.get(conn_type)
+            if isinstance(raw_entry, HookInfo):
+                hook_name = raw_entry.hook_name
+                hook_class_name = raw_entry.hook_class_name
+            elif provider_entry:
+                hook_name = self._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = provider_entry.hook_class_name
+            else:
+                hook_name = self._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = None
+            yield ConnectionTypeHookUIMetadata(
+                connection_type=conn_type,
+                hook_name=hook_name,
+                hook_class_name=hook_class_name,
+                field_behaviour=self._field_behaviours.get(conn_type),
+            )
+
+    @property
+    def _connection_form_widgets_from_metadata(self) -> dict[str, ConnectionFormWidgetInfo]:
+        """Return connection form widgets from metadata without importing every hook."""
+        self.initialize_providers_hooks()
+        return self._connection_form_widgets
+
+    @property
+    def _field_behaviours_from_metadata(self) -> dict[str, dict]:
+        """Return field behaviour dicts from metadata without importing every hook."""
+        self.initialize_providers_hooks()
+        return self._field_behaviours
+
     @property
     def dialects(self) -> MutableMapping[str, DialectInfo]:
         """Return dictionary of connection_type-to-dialect mapping."""
@@ -1406,6 +1473,11 @@ class ProvidersManager(LoggingMixin):
         return sorted(self._queue_class_name_set)
 
     @property
+    def db_managers(self) -> list[str]:
+        self.initialize_providers_db_managers()
+        return sorted(self._db_manager_class_name_set)
+
+    @property
     def filesystem_module_names(self) -> list[str]:
         self.initialize_providers_filesystems()
         return sorted(self._fs_set)
@@ -1434,6 +1506,18 @@ class ProvidersManager(LoggingMixin):
 
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        """
+        Return provider configs that have already been initialized.
+
+        .. deprecated:: 3.2.0
+            Use ``provider_configs`` instead.  This property is kept for backwards
+            compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "already_initialized_provider_configs is deprecated. Use `provider_configs` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
 
     def _cleanup(self):
@@ -1455,6 +1539,12 @@ class ProvidersManager(LoggingMixin):
         self._executor_without_check_set.clear()
         self._queue_class_name_set.clear()
         self._provider_configs.clear()
+
+        # Imported lazily to avoid a configuration/providers_manager import cycle during cleanup.
+        from airflow.configuration import conf
+
+        conf.invalidate_cache()
+
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()

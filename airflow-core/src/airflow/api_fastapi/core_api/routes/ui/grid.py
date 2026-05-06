@@ -17,19 +17,24 @@
 
 from __future__ import annotations
 
-import collections
+from collections.abc import Generator, Iterable
 from typing import TYPE_CHECKING, Annotated, Any
+from uuid import UUID
 
 import structlog
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from fastapi import Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy import exists, select
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryDagRunTriggeringUserPrefixSearch,
     QueryDagRunTriggeringUserSearch,
     QueryIncludeDownstream,
     QueryIncludeUpstream,
@@ -50,6 +55,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.grid import (
+    GridNodeAgg,
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
@@ -60,8 +66,14 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.session import create_session
+
+if TYPE_CHECKING:
+    from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -84,32 +96,28 @@ def _get_latest_serdag(dag_id, session):
     return serdag
 
 
-def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
-    # this is a simplification - we account for structure based on the first task
-    version = session.scalar(
-        select(DagVersion)
-        .where(DagVersion.id == dag_version_id)
-        .options(joinedload(DagVersion.serialized_dag))
+def _get_serdag(
+    dag_bag: DBDagBag,
+    dag_id: str,
+    dag_version_id: UUID | str | None,
+    session: Session,
+) -> SerializedDAG | None:
+    """Resolve the serialized Dag for a grid TI summary via the shared (cached) ``DBDagBag``."""
+    if dag_version_id is not None:
+        serdag = dag_bag.get_dag(dag_version_id, session=session)
+        if serdag is None:
+            log.error("No serialized dag found", dag_id=dag_id, version_id=dag_version_id)
+        return serdag
+
+    # Fallback: pre-3.0 upgrade — pick the oldest DagVersion for this dag_id.
+    oldest_version_id = session.scalar(
+        select(DagVersion.id).where(DagVersion.dag_id == dag_id).order_by(DagVersion.id).limit(1)
     )
-    if not version:
-        version = session.scalar(
-            select(DagVersion)
-            .where(
-                DagVersion.dag_id == dag_id,
-            )
-            .options(joinedload(DagVersion.serialized_dag))
-            .order_by(DagVersion.id)  # ascending cus this is mostly for pre-3.0 upgrade
-            .limit(1)
-        )
-    if not version:
+    if oldest_version_id is None:
         return None
-    if not (serdag := version.serialized_dag):
-        log.error(
-            "No serialized dag found",
-            dag_id=dag_id,
-            version_id=version.id,
-            version_number=version.version_number,
-        )
+    serdag = dag_bag.get_dag(oldest_version_id, session=session)
+    if serdag is None:
+        log.error("No serialized dag found", dag_id=dag_id, version_id=oldest_version_id)
     return serdag
 
 
@@ -135,6 +143,7 @@ def get_dag_structure(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -155,9 +164,9 @@ def get_dag_structure(
             depth=depth,
         )
 
-    # Retrieve, sort the previous DAG Runs
+    # Retrieve, sort the previous Dag Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
-    # This comparison is to fall back to DAG timetable when no order_by is provided
+    # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
         order_by = SortParam(
@@ -168,7 +177,7 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user],
+        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -208,7 +217,7 @@ def get_dag_structure(
 
     for serdag in session.scalars(serdags_query):
         filtered_dag = serdag.dag
-        # Apply the same filtering to historical DAG versions
+        # Apply the same filtering to historical Dag versions
         if root:
             filtered_dag = filtered_dag.partial_subset(
                 task_ids=root,
@@ -216,7 +225,7 @@ def get_dag_structure(
                 include_downstream=include_downstream,
                 depth=depth,
             )
-        # Merge immediately instead of collecting all DAGs in memory
+        # Merge immediately instead of collecting all Dags in memory
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(filtered_dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
 
@@ -272,21 +281,37 @@ def get_grid_runs(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    # Retrieve, sort the previous DAG Runs
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-    ).where(DagRun.dag_id == dag_id)
+    # Retrieve, sort the previous Dag Runs
+    has_missed_deadline = (
+        exists()
+        .where(Deadline.dagrun_id == DagRun.id, Deadline.missed.is_(True))
+        .correlate(DagRun)
+        .label("has_missed_deadline")
+    )
+    base_query = (
+        select(DagRun, has_missed_deadline)
+        .where(DagRun.dag_id == dag_id)
+        .options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.run_id,
+                DagRun.queued_at,
+                DagRun.start_date,
+                DagRun.end_date,
+                DagRun.run_after,
+                DagRun.state,
+                DagRun.run_type,
+                DagRun.bundle_version,
+            ),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.dag_model),
+        )
+    )
 
-    # This comparison is to fall back to DAG timetable when no order_by is provided
+    # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         latest_serdag = _get_latest_serdag(dag_id, session)
         latest_dag = latest_serdag.dag
@@ -299,20 +324,111 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user],
+        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
         limit=limit,
+        return_total_entries=False,
     )
-    return [GridRunsResponse(**row._mapping) for row in session.execute(dag_runs_select_filter)]
+    results = session.execute(dag_runs_select_filter).unique().all()
+    dag_runs = [run for run, _ in results]
+    attach_dag_versions_to_runs(dag_runs, session=session)
+    grid_runs = []
+    for run, has_missed in results:
+        grid_runs.append(
+            GridRunsResponse.model_validate(
+                {
+                    "dag_id": run.dag_id,
+                    "run_id": run.run_id,
+                    "queued_at": run.queued_at,
+                    "start_date": run.start_date,
+                    "end_date": run.end_date,
+                    "run_after": run.run_after,
+                    "state": run.state,
+                    "run_type": run.run_type,
+                    "dag_versions": run.dag_versions,
+                    "has_missed_deadline": has_missed,
+                }
+            )
+        )
+    return grid_runs
+
+
+def _build_ti_summaries(
+    dag_id: str,
+    run_id: str,
+    task_instances: Iterable[Any],
+    session: Session,
+    *,
+    dag_bag: DBDagBag,
+) -> dict[str, Any] | None:
+    ti_details: dict[str, GridNodeAgg] = {}
+    dag_version_id = None
+    for ti in task_instances:
+        # this is a simplification - we account for structure based on the first task
+        dag_version_id = dag_version_id or ti.dag_version_id
+        summary = ti_details.get(ti.task_id)
+        if summary is None:
+            summary = ti_details[ti.task_id] = GridNodeAgg()
+        summary.add_ti(
+            state=ti.state,
+            start_date=ti.start_date,
+            end_date=ti.end_date,
+            dag_version_number=getattr(ti, "version_number", None),
+        )
+    if not ti_details:
+        return None
+
+    serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
+    if TYPE_CHECKING:
+        assert serdag
+
+    def get_node_summaries() -> Iterable[dict[str, Any]]:
+        yielded_task_ids: set[str] = set()
+        for node, _ in _find_aggregates(
+            node=serdag.task_group,
+            parent_node=None,
+            ti_details=ti_details,
+        ):
+            if node["type"] in {"task", "mapped_task"}:
+                yielded_task_ids.add(node["task_id"])
+                if node["type"] == "task":
+                    node["child_states"] = None
+            yield node
+        missing_task_ids = set(ti_details.keys()) - yielded_task_ids
+        for task_id in sorted(missing_task_ids):
+            detail = ti_details[task_id]
+            agg = _get_aggs_for_node(detail)
+            yield {
+                "task_id": task_id,
+                "task_display_name": task_id,
+                "type": "task",
+                "parent_id": None,
+                **agg,
+                "child_states": None,
+            }
+
+    nodes = list(get_node_summaries())
+    # If a group id and a task id collide, prefer the group record
+    group_ids = {n.get("task_id") for n in nodes if n.get("type") == "group"}
+    filtered = [n for n in nodes if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
+    return {"run_id": run_id, "dag_id": dag_id, "task_instances": filtered}
 
 
 @grid_router.get(
-    "/ti_summaries/{dag_id}/{run_id}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_404_NOT_FOUND,
-        ]
-    ),
+    "/ti_summaries/{dag_id}",
+    response_class=StreamingResponse,
+    response_model=GridTISummaries,
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_404_NOT_FOUND,
+            ]
+        ),
+        200: {
+            "content": {"application/x-ndjson": {"schema": {"type": "string"}}},
+            "description": "NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run",
+        },
+    },
     dependencies=[
         Depends(
             requires_access_dag(
@@ -328,109 +444,55 @@ def get_grid_runs(
         ),
     ],
 )
-def get_grid_ti_summaries(
+def get_grid_ti_summaries_stream(
     dag_id: str,
-    run_id: str,
-    session: SessionDep,
-) -> GridTISummaries:
+    dag_bag: DagBagDep,
+    run_ids: Annotated[list[str] | None, Query()] = None,
+) -> StreamingResponse:
     """
-    Get states for TIs / "groups" of TIs.
+    Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
 
-    Essentially this is to know what color to put in the squares in the grid.
+    Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+    run's task instances have been processed, so the client can render columns
+    progressively without waiting for all runs to complete.
 
-    The tricky part here is that we aggregate the state for groups and mapped tasks.
-
-    We don't add all the TIs for mapped TIs -- we only add one entry for the mapped task and
-    its state is an aggregate of its TI states.
-
-    And for task groups, we add a "task" for that which is not really a task but is just
-    an entry that represents the group (so that we can show a filled in box when the group
-    is not expanded) and its state is an agg of those within it.
+    The serialized Dag structure is served from the app-wide ``DBDagBag`` cache
+    (keyed by ``dag_version_id``), which avoids repeated deserialization across
+    runs of the same version *and* across requests.
     """
-    tis_of_dag_runs, _ = paginated_select(
-        statement=(
-            select(
-                TaskInstance.task_id,
-                TaskInstance.state,
-                TaskInstance.dag_version_id,
-                TaskInstance.start_date,
-                TaskInstance.end_date,
-            )
-            .where(TaskInstance.dag_id == dag_id)
-            .where(
-                TaskInstance.run_id == run_id,
-            )
-        ),
-        filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value(["task_id"]),
-        limit=None,
-        return_total_entries=False,
-    )
-    task_instances = list(session.execute(tis_of_dag_runs))
-    if not task_instances:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
-        )
-    ti_details = collections.defaultdict(list)
-    for ti in task_instances:
-        ti_details[ti.task_id].append(
-            {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-            }
-        )
-    serdag = _get_serdag(
-        dag_id=dag_id,
-        dag_version_id=task_instances[0].dag_version_id,
-        session=session,
-    )
-    if TYPE_CHECKING:
-        assert serdag
 
-    def get_node_sumaries():
-        yielded_task_ids: set[str] = set()
+    def _generate() -> Generator[str, None, None]:
+        # Each iteration opens and closes its own DB session so the connection is
+        # released between yields.  This prevents a slow client from holding a
+        # database connection open for the entire stream duration.
+        # See https://github.com/apache/airflow/issues/65010.
 
-        # Yield all nodes discoverable from the serialized DAG structure
-        for node in _find_aggregates(
-            node=serdag.dag.task_group,
-            parent_node=None,
-            ti_details=ti_details,
-        ):
-            if node["type"] in {"task", "mapped_task"}:
-                yielded_task_ids.add(node["task_id"])
-                if node["type"] == "task":
-                    node["child_states"] = None
-                    node["min_start_date"] = None
-                    node["max_end_date"] = None
-            yield node
+        for run_id in run_ids or []:
+            with create_session(scoped=False) as session:
+                tis = session.execute(
+                    select(
+                        TaskInstance.task_id,
+                        TaskInstance.state,
+                        TaskInstance.dag_version_id,
+                        TaskInstance.start_date,
+                        TaskInstance.end_date,
+                        DagVersion.version_number,
+                    )
+                    .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                    .where(TaskInstance.dag_id == dag_id)
+                    .where(TaskInstance.run_id == run_id)
+                    .order_by(TaskInstance.task_id)
+                    .execution_options(yield_per=1000)
+                )
+                summary = _build_ti_summaries(
+                    dag_id,
+                    run_id,
+                    tis,
+                    session,
+                    dag_bag=dag_bag,
+                )
+            if summary is None:
+                continue
+            yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
-        # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
-        # but are not present in the current DAG structure (e.g. removed tasks)
-        missing_task_ids = set(ti_details.keys()) - yielded_task_ids
-        for task_id in sorted(missing_task_ids):
-            detail = ti_details[task_id]
-            # Create a leaf task node with aggregated state from its TIs
-            agg = _get_aggs_for_node(detail)
-            yield {
-                "task_id": task_id,
-                "task_display_name": task_id,
-                "type": "task",
-                "parent_id": None,
-                **agg,
-                # Align with leaf behavior
-                "child_states": None,
-                "min_start_date": None,
-                "max_end_date": None,
-            }
-
-    task_instances = list(get_node_sumaries())
-    # If a group id and a task id collide, prefer the group record
-    group_ids = {n.get("task_id") for n in task_instances if n.get("type") == "group"}
-    filtered = [n for n in task_instances if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
-
-    return {  # type: ignore[return-value]
-        "run_id": run_id,
-        "dag_id": dag_id,
-        "task_instances": filtered,
-    }
+    return StreamingResponse(content=_generate(), media_type="application/x-ndjson")

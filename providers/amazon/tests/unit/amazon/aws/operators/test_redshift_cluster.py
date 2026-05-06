@@ -22,6 +22,7 @@ from unittest.mock import Mock
 import boto3
 import pytest
 from botocore.exceptions import ClientError, WaiterError
+from tenacity import wait_fixed
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
@@ -176,6 +177,7 @@ class TestRedshiftCreateClusterOperator:
             cluster_type="single-node",
             wait_for_completion=True,
             delete_cluster_on_failure=True,
+            cleanup_timeout_seconds=300,
         )
 
         with pytest.raises(WaiterError):
@@ -184,10 +186,11 @@ class TestRedshiftCreateClusterOperator:
         # Cluster creation happened.
         mock_conn.create_cluster.assert_called_once()
 
-        # Cleanup attempted.
-        mock_delete_cluster.assert_called_once_with(
+        # Cleanup attempted at least once.
+        mock_delete_cluster.assert_called_with(
             cluster_identifier="test-cluster",
         )
+        assert mock_delete_cluster.call_count >= 1
 
     @mock.patch.object(RedshiftHook, "delete_cluster")
     @mock.patch.object(RedshiftHook, "conn")
@@ -226,6 +229,7 @@ class TestRedshiftCreateClusterOperator:
             cluster_type="single-node",
             wait_for_completion=True,
             delete_cluster_on_failure=True,
+            cleanup_timeout_seconds=300,
         )
 
         with pytest.raises(WaiterError) as exc:
@@ -238,9 +242,71 @@ class TestRedshiftCreateClusterOperator:
         mock_conn.create_cluster.assert_called_once()
 
         # Cleanup attempted despite failure.
-        mock_delete_cluster.assert_called_once_with(
+        mock_delete_cluster.assert_called_with(
             cluster_identifier="test-cluster",
         )
+
+        # Cleanup attempted despite failure.
+        mock_delete_cluster.assert_called_with(
+            cluster_identifier="test-cluster",
+        )
+        assert mock_delete_cluster.call_count >= 1
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.redshift_cluster.wait_fixed",
+    )
+    @mock.patch.object(RedshiftHook, "delete_cluster")
+    @mock.patch.object(RedshiftHook, "conn")
+    def test_create_cluster_cleanup_retries_on_active_operation(
+        self,
+        mock_conn,
+        mock_delete_cluster,
+        mock_wait_fixed,
+    ):
+
+        mock_wait_fixed.return_value = wait_fixed(0)
+        # Simulate waiter failure (e.g. DescribeClusters denied).
+        waiter_error = WaiterError(
+            name="ClusterAvailable",
+            reason="AccessDenied for DescribeClusters",
+            last_response={},
+        )
+        mock_conn.get_waiter.return_value.wait.side_effect = waiter_error
+
+        # First deletion attempt fails due to cluster still modifying.
+        active_operation_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "InvalidClusterStateFault",
+                    "Message": "Cluster currently modifying",
+                }
+            },
+            operation_name="DeleteCluster",
+        )
+
+        # Second attempt succeeds.
+        mock_delete_cluster.side_effect = [
+            active_operation_error,
+            None,
+        ]
+
+        operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="ra3.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="single-node",
+            wait_for_completion=True,
+            delete_cluster_on_failure=True,
+            cleanup_timeout_seconds=300,
+        )
+
+        with pytest.raises(WaiterError):
+            operator.execute({})
+
+        # Retry should occur.
+        assert mock_delete_cluster.call_count == 2
 
 
 class TestRedshiftCreateClusterSnapshotOperator:

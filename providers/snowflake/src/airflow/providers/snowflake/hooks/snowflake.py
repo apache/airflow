@@ -34,9 +34,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError, Timeout
-from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.providers.common.compat.sdk import (
@@ -45,7 +42,9 @@ from airflow.providers.common.compat.sdk import (
     Connection,
     conf,
 )
+from airflow.providers.common.sql.hooks import handlers as sql_handlers
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils import timezone
@@ -53,10 +52,15 @@ from airflow.utils.strings import to_boolean
 
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
 OAUTH_EXPIRY_BUFFER = 30
+SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials"}
+
 T = TypeVar("T")
 
 
 if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes
+    from snowflake.connector import SnowflakeConnection
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -134,6 +138,7 @@ class SnowflakeHook(DbApiHook):
         )
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, PasswordField, StringField
+        from wtforms.validators import Optional
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -149,7 +154,11 @@ class SnowflakeHook(DbApiHook):
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
             "proxy_host": StringField(lazy_gettext("Proxy Host"), widget=BS3TextFieldWidget()),
-            "proxy_port": IntegerField(lazy_gettext("Proxy Port")),
+            "proxy_port": IntegerField(
+                lazy_gettext("Proxy Port"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional()],
+            ),
             "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget()),
             "proxy_password": PasswordField(lazy_gettext("Proxy Password"), widget=BS3PasswordFieldWidget()),
         }
@@ -240,6 +249,18 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    def _validate_grant_type(self, grant_type: str | None) -> str:
+        """Validate OAuth grant_type."""
+        if not grant_type:
+            raise ValueError("Grant type must be provided for OAuth authentication.")
+
+        if grant_type not in SUPPORTED_GRANT_TYPES:
+            supported = ", ".join(sorted(SUPPORTED_GRANT_TYPES))
+
+            raise ValueError(f"Unsupported grant_type '{grant_type}'. Supported values: {supported}")
+
+        return grant_type
+
     @property
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
@@ -318,9 +339,8 @@ class SnowflakeHook(DbApiHook):
             if azure_conn_id:
                 conn_config["token"] = self.get_azure_oauth_token(azure_conn_id)
             else:
-                grant_type = conn_config.get("grant_type")
-                if not grant_type:
-                    raise ValueError("Grant_type not provided")
+                grant_type = self._validate_grant_type(conn_config.get("grant_type"))
+
                 conn_config["token"] = self._get_valid_oauth_token(
                     conn_config=conn_config,
                     token_endpoint=conn_config.get("token_endpoint"),
@@ -388,40 +408,9 @@ class SnowflakeHook(DbApiHook):
         if client_store_temporary_credential:
             conn_config["client_store_temporary_credential"] = client_store_temporary_credential
 
-        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
-        # If private_key_content is specified in the extra json, use it as a private key.
-        # As a next step, specify this private key in the connection configuration.
-        # The connection password then becomes the passphrase for the private key.
-        # If your private key is not encrypted (not recommended), then leave the password empty.
+        p_key = self.get_private_key()
 
-        private_key_file = self._get_field(extra_dict, "private_key_file")
-        private_key_content = self._get_field(extra_dict, "private_key_content")
-
-        private_key_pem = None
-        if private_key_content and private_key_file:
-            raise AirflowException(
-                "The private_key_file and private_key_content extra fields are mutually exclusive. "
-                "Please remove one."
-            )
-        if private_key_file:
-            private_key_file_path = Path(private_key_file)
-            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
-                raise ValueError("The private_key_file path points to an empty or invalid file.")
-            if private_key_file_path.stat().st_size > 4096:
-                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
-            private_key_pem = Path(private_key_file_path).read_bytes()
-        elif private_key_content:
-            private_key_pem = base64.b64decode(private_key_content)
-
-        if private_key_pem:
-            passphrase = None
-            if conn.password:
-                passphrase = conn.password.strip().encode()
-
-            p_key = serialization.load_pem_private_key(
-                private_key_pem, password=passphrase, backend=default_backend()
-            )
-
+        if p_key:
             pkb = p_key.private_bytes(
                 encoding=serialization.Encoding.DER,
                 format=serialization.PrivateFormat.PKCS8,
@@ -516,14 +505,12 @@ class SnowflakeHook(DbApiHook):
         if scope:
             data["scope"] = scope
 
+        grant_type = self._validate_grant_type(grant_type)
+
         if grant_type == "refresh_token":
             data |= {
                 "refresh_token": conn_config["refresh_token"],
             }
-        elif grant_type == "client_credentials":
-            pass  # no setup necessary for client credentials grant.
-        else:
-            raise ValueError(f"Unknown grant_type: {grant_type}")
 
         response = self._request_oauth_token(
             url=url,
@@ -577,12 +564,63 @@ class SnowflakeHook(DbApiHook):
         response.raise_for_status()
         return response
 
+    def get_private_key(self) -> PrivateKeyTypes | None:
+        """Get the private key from snowflake connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra_dict = conn.extra_dejson
+
+        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
+        # If private_key_content is specified in the extra json, use it as a private key.
+        # As a next step, specify this private key in the connection configuration.
+        # The connection password then becomes the passphrase for the private key.
+        # If your private key is not encrypted (not recommended), then leave the password empty.
+
+        private_key_file = self._get_field(extra_dict, "private_key_file")
+        private_key_content = self._get_field(extra_dict, "private_key_content")
+
+        passphrase = None
+        if conn.password:
+            passphrase = conn.password.strip().encode()
+
+        private_key_pem = None
+        p_key = None
+
+        if private_key_content and private_key_file:
+            raise AirflowException(
+                "The private_key_file and private_key_content extra fields are mutually exclusive. "
+                "Please remove one."
+            )
+        if private_key_file:
+            private_key_file_path = Path(private_key_file)
+            if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
+                raise ValueError("The private_key_file path points to an empty or invalid file.")
+            if private_key_file_path.stat().st_size > 4096:
+                raise ValueError("The private_key_file size is too big. Please keep it less than 4 KB.")
+            private_key_pem = Path(private_key_file_path).read_bytes()
+        elif private_key_content:
+            try:
+                p_key = serialization.load_pem_private_key(
+                    private_key_content.encode(), password=passphrase, backend=default_backend()
+                )
+            except (TypeError, ValueError):
+                # Assume base64 encoding if string is not valid private key
+                private_key_pem = base64.b64decode(private_key_content)
+
+        if private_key_pem:
+            p_key = serialization.load_pem_private_key(
+                private_key_pem, password=passphrase, backend=default_backend()
+            )
+
+        return p_key
+
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
+        from snowflake.sqlalchemy import URL
+
         return URL(
             **{
                 k: v
@@ -607,8 +645,10 @@ class SnowflakeHook(DbApiHook):
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
+        from snowflake.connector import connect
+
         conn_config = self._get_conn_params()
-        conn = connector.connect(**conn_config)
+        conn = connect(**conn_config)
         return conn
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
@@ -664,6 +704,62 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
+    @staticmethod
+    def _session_params_has_autocommit(session_params: Any) -> bool:
+        """Check if AUTOCOMMIT is present in a session_parameters dict (case-insensitive)."""
+        if not isinstance(session_params, dict):
+            return False
+        return any(k.upper() == "AUTOCOMMIT" for k in session_params)
+
+    def _has_autocommit_session_parameter(self) -> bool:
+        """Check if AUTOCOMMIT is configured in session_parameters."""
+        # Check hook-level session_parameters first (avoids connection lookup)
+        if isinstance(self.session_parameters, dict):
+            return self._session_params_has_autocommit(self.session_parameters)
+        # Fall back to connection-level session_parameters using the cached
+        # static config to avoid triggering OAuth token refresh.
+        try:
+            static_config = self._get_static_conn_params
+        except Exception:
+            self.log.debug("Could not read connection params to check AUTOCOMMIT session parameter")
+            return False
+        return self._session_params_has_autocommit(static_config.get("session_parameters"))
+
+    def _run_command(self, cur, sql_statement, parameters, *, num_statements=None):
+        """
+        Run a statement using an already open cursor.
+
+        Extends the base implementation to support Snowflake's ``num_statements``
+        parameter for multi-statement execution.
+
+        :param cur: The database cursor.
+        :param sql_statement: The SQL statement to execute.
+        :param parameters: The parameters to bind to the SQL statement.
+        :param num_statements: Number of statements for Snowflake multi-statement
+            execution. Set to 0 to auto-detect. None means single-statement mode.
+        """
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+
+        execute_kwargs: dict[str, Any] = {}
+        if num_statements is not None:
+            execute_kwargs["num_statements"] = num_statements
+
+        if parameters:
+            cur.execute(sql_statement, parameters, **execute_kwargs)
+        else:
+            cur.execute(sql_statement, **execute_kwargs)
+
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql_statement,
+            sql_parameters=parameters,
+            cur=cur,
+        )
+
+        if (row_count := sql_handlers.get_row_count(cur)) is not None:
+            self.log.info("Rows affected: %s", row_count)
+
     @overload
     def run(
         self,
@@ -713,7 +809,13 @@ class SnowflakeHook(DbApiHook):
         :param handler: The result handler which is called with the result of
             each statement.
         :param split_statements: Whether to split a single SQL string into
-            statements and run separately
+            statements and run separately. When False and sql is a string,
+            the entire SQL block is sent to Snowflake in a single execute()
+            call with ``num_statements=0`` (auto-detect), enabling
+            multi-statement execution (e.g., ``BEGIN; INSERT ...; COMMIT;``
+            transaction blocks). Note that the handler only receives the
+            first result set, and a single query ID is recorded for the
+            entire block.
         :param return_last: Whether to return result for only last statement or
             for all after split.
         :param return_dictionaries: Whether to return dictionaries rather than
@@ -722,6 +824,8 @@ class SnowflakeHook(DbApiHook):
         :return: Result of the last SQL statement if *handler* is set.
             *None* otherwise.
         """
+        from snowflake.connector import util_text
+
         self.query_ids = []
 
         if isinstance(sql, str):
@@ -740,14 +844,33 @@ class SnowflakeHook(DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
 
+        # When split_statements=False and sql is a string, the entire SQL
+        # block is sent as one cursor.execute() call. Snowflake requires
+        # num_statements to be set for multi-statement execution.
+        # See: https://github.com/apache/airflow/issues/48233
+        is_multi_statement = isinstance(sql, str) and not split_statements
+
         with closing(self.get_conn()) as conn:
-            self.set_autocommit(conn, autocommit)
+            # Respect AUTOCOMMIT in session_parameters when autocommit is
+            # False (the default). When autocommit=True, always override.
+            # See: https://github.com/apache/airflow/issues/30236
+            if autocommit or not self._has_autocommit_session_parameter():
+                self.set_autocommit(conn, autocommit)
+            else:
+                # AUTOCOMMIT is set in session_parameters and was applied
+                # during connect(). Record the mode so get_autocommit()
+                # returns True and we skip the redundant conn.commit().
+                setattr(conn, "autocommit_mode", True)
 
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(
+                        cur,
+                        sql_statement,
+                        parameters,
+                        num_statements=0 if is_multi_statement else None,
+                    )
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
@@ -759,7 +882,6 @@ class SnowflakeHook(DbApiHook):
                             self.descriptions.append(cur.description)
 
                     query_id = cur.sfqid
-                    self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", query_id)
                     self.query_ids.append(query_id)
 
@@ -776,6 +898,8 @@ class SnowflakeHook(DbApiHook):
 
     @contextmanager
     def _get_cursor(self, conn: Any, return_dictionaries: bool):
+        from snowflake.connector import DictCursor
+
         cursor = None
         try:
             if return_dictionaries:
@@ -790,7 +914,7 @@ class SnowflakeHook(DbApiHook):
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-        database = self.database or self._get_field(connection.extra_dejson, "database")
+        database = self._get_conn_params()["database"]
 
         return DatabaseInfo(
             scheme=self.get_openlineage_database_dialect(connection),
@@ -803,7 +927,7 @@ class SnowflakeHook(DbApiHook):
                 "data_type",
                 "table_catalog",
             ],
-            database=database,
+            database=database or None,
             is_information_schema_cross_db=True,
             is_uppercase_names=True,
         )
@@ -812,7 +936,7 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        return self._get_conn_params()["schema"]
+        return self._get_conn_params()["schema"] or None
 
     def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())

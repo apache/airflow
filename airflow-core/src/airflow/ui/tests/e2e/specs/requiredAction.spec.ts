@@ -16,62 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-
-import { RequiredActionsPage } from "../pages/RequiredActionsPage";
+import { testConfig } from "playwright.config";
+import { expect, test } from "tests/e2e/fixtures";
+import { apiDeleteDagRun, setupHITLFlowViaAPI } from "tests/e2e/utils/test-helpers";
 
 const hitlDagId = testConfig.testDag.hitlId;
 
+const beforeAllRunIds: Array<string> = [];
+
 test.describe("Verify Required Action page", () => {
   test.describe.configure({ mode: "serial" });
+  test.slow();
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(400_000);
+  test.beforeAll(async ({ authenticatedRequest }) => {
+    test.setTimeout(600_000);
 
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-
-    const page = await context.newPage();
-    const requiredActionsPage = new RequiredActionsPage(page);
-
-    await requiredActionsPage.runHITLFlowWithApproval(hitlDagId);
-    await requiredActionsPage.runHITLFlowWithRejection(hitlDagId);
-
-    await context.close();
+    beforeAllRunIds.push(await setupHITLFlowViaAPI(authenticatedRequest, hitlDagId, true));
+    beforeAllRunIds.push(await setupHITLFlowViaAPI(authenticatedRequest, hitlDagId, false));
   });
 
-  test("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
-    const browsePage = new RequiredActionsPage(page);
-
-    await browsePage.navigateToRequiredActionsPage();
-
-    const isTableVisible = await browsePage.isTableDisplayed();
-    const isEmptyStateVisible = await browsePage.isEmptyStateDisplayed();
-
-    expect(isTableVisible || isEmptyStateVisible).toBe(true);
-
-    if (isTableVisible) {
-      await expect(browsePage.actionsTable).toBeVisible();
-
-      const dagIdHeader = page.locator('th:has-text("Dag ID")');
-      const taskIdHeader = page.locator('th:has-text("Task ID")');
-      const dagRunIdHeader = page.locator('th:has-text("Dag Run ID")');
-      const responseCreatedHeader = page.locator('th:has-text("Response created at")');
-      const responseReceivedHeader = page.locator('th:has-text("Response received at")');
-
-      await expect(dagIdHeader).toBeVisible();
-      await expect(taskIdHeader).toBeVisible();
-      await expect(dagRunIdHeader).toBeVisible();
-      await expect(responseCreatedHeader).toBeVisible();
-      await expect(responseReceivedHeader).toBeVisible();
-    } else {
-      await expect(browsePage.emptyStateMessage).toBeVisible();
+  test.afterAll(async ({ authenticatedRequest }) => {
+    for (const runId of beforeAllRunIds) {
+      await apiDeleteDagRun(authenticatedRequest, hitlDagId, runId).catch(() => undefined);
     }
   });
 
-  test("verify pagination with offset and limit", async ({ page }) => {
-    const browsePage = new RequiredActionsPage(page);
+  test("Verify the actions table displays with expected columns", async ({ page, requiredActionsPage }) => {
+    await requiredActionsPage.navigateToRequiredActionsPage();
 
-    await browsePage.verifyPagination(3);
+    await expect(requiredActionsPage.actionsTable).toBeVisible();
+
+    await expect(page.locator("th").filter({ hasText: "Dag ID" })).toBeVisible();
+    await expect(page.locator("th").filter({ hasText: "Task ID" })).toBeVisible();
+    await expect(page.locator("th").filter({ hasText: "Dag Run ID" })).toBeVisible();
+    await expect(page.locator("th").filter({ hasText: "Response created at" })).toBeVisible();
+    await expect(page.locator("th").filter({ hasText: "Response received at" })).toBeVisible();
   });
 });

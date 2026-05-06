@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -44,7 +42,9 @@ import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
+import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
@@ -55,6 +55,7 @@ import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
+import { useTagFilter } from "./useTagFilter";
 
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
@@ -85,19 +86,15 @@ const createColumns = (
   },
   {
     accessorKey: "timetable_description",
-    cell: ({ row: { original } }) => {
-      const [latestRun] = original.latest_dag_runs;
-
-      return (
-        <Schedule
-          assetExpression={original.asset_expression}
-          dagId={original.dag_id}
-          latestRunAfter={latestRun?.run_after}
-          timetableDescription={original.timetable_description}
-          timetableSummary={original.timetable_summary}
-        />
-      );
-    },
+    cell: ({ row: { original } }) => (
+      <Schedule
+        assetExpression={original.asset_expression}
+        dagId={original.dag_id}
+        timetableDescription={original.timetable_description}
+        timetablePartitioned={original.timetable_partitioned}
+        timetableSummary={original.timetable_summary}
+      />
+    ),
     enableSorting: false,
     header: () => translate("dagDetails.schedule"),
   },
@@ -152,6 +149,7 @@ const createColumns = (
     accessorKey: "trigger",
     cell: ({ row: { original } }) => (
       <TriggerDAGButton
+        allowedRunTypes={original.allowed_run_types}
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
         isPaused={original.is_paused}
@@ -187,8 +185,6 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
-  TAGS,
-  TAGS_MATCH_MODE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
@@ -198,12 +194,10 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   },
 };
 
-const DAGS_LIST_DISPLAY = "dags_list_display";
-
 export const DagsList = () => {
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY, "card");
+  const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -213,8 +207,7 @@ export const DagsList = () => {
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
-  const selectedTags = searchParams.getAll(TAGS);
-  const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
 
@@ -222,6 +215,7 @@ export const DagsList = () => {
 
   const { pagination, sorting } = tableURLState;
   const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
+  const advancedSearch = useAdvancedSearch("dags");
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
@@ -267,6 +261,7 @@ export const DagsList = () => {
   }
 
   const { data, error, isLoading } = useDags({
+    advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
@@ -297,6 +292,7 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
           placeholder={translate("dags:search.dags")}
@@ -314,7 +310,7 @@ export const DagsList = () => {
           ) : undefined}
         </HStack>
       </VStack>
-      <Box overflow="auto" pb={8}>
+      <Box pb={8}>
         <DataTable
           cardDef={cardDef}
           columns={columns}

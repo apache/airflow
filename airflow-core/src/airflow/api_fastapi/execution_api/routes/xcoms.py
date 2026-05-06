@@ -32,7 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -44,11 +44,9 @@ async def has_xcom_access(
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
-    token=JWTBearerDep,
+    token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
-
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
 
     log.debug(
@@ -57,6 +55,13 @@ async def has_xcom_access(
         token.id,
         xcom_key,
     )
+
+    # The current version of Airflow does not support true
+    # multi-tenancy yet (this is well-documented at
+    # https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#limiting-dag-author-access-to-subset-of-dags),
+    # so for now we always return 'True' here.
+    # When we introduce true multi-tenancy in the future
+    # this would be the place to do add a check.
     return True
 
 
@@ -345,6 +350,7 @@ def set_xcom(
         ),
     ] = None,
     map_index: Annotated[int, Query()] = -1,
+    dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
         int | None, Query(description="Number of mapped tasks this value expands into")
     ] = None,
@@ -397,6 +403,7 @@ def set_xcom(
             dag_id=dag_id,
             map_index=map_index,
             serialize=False,
+            dag_result=dag_result,
             session=session,
         )
     except ValueError as e:

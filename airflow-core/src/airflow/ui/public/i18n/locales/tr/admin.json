@@ -3,6 +3,7 @@
     "description": "Açıklama",
     "key": "Anahtar",
     "name": "Ad",
+    "team": "Takım",
     "value": "Değer"
   },
   "config": {
@@ -79,6 +80,23 @@
   },
   "formActions": {
     "save": "Kaydet"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Yürütücü Sınıfı",
+      "hostname": "Sunucu Adı",
+      "id": "Kimlik",
+      "jobType": "İş Tipi",
+      "latestHeartbeat": "Son Kalp Atışı",
+      "unixname": "Unix Adı"
+    },
+    "filters": {
+      "allStates": "Bütün Durumlar",
+      "allTypes": "Bütün Tipler",
+      "dagProcessorJob": "Dag İşlemcisi İşi",
+      "schedulerJob": "Zamanlayıcı İşi",
+      "triggererJob": "Tetikleyici İşi"
+    }
   },
   "plugins": {
     "columns": {

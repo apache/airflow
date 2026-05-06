@@ -76,7 +76,7 @@ class SlackWebhookHook(BaseHook):
     This hook allows you to post messages to Slack by using Incoming Webhooks.
 
     .. seealso::
-        - :ref:`Slack Incoming Webhook connection <howto/connection:slack-incoming-webhook>`
+        - :ref:`Slack Incoming Webhook connection <howto/connection:slackwebhook>`
         - https://api.slack.com/messaging/webhooks
         - https://slack.dev/python-slack-sdk/webhook/index.html
 

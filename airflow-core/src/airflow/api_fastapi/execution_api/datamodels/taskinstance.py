@@ -29,6 +29,7 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    model_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -183,6 +184,8 @@ class TIRetryStatePayload(StrictBaseModel):
     ]
     end_date: UtcDateTime
     rendered_map_index: str | None = None
+    retry_delay_seconds: float | None = None
+    retry_reason: str | None = None
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
@@ -295,7 +298,7 @@ class DagRun(StrictBaseModel):
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
     run_after: UtcDateTime
-    start_date: UtcDateTime
+    start_date: UtcDateTime | None
     end_date: UtcDateTime | None
     clear_number: int = 0
     run_type: DagRunType
@@ -304,6 +307,54 @@ class DagRun(StrictBaseModel):
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    note: str | None = None
+    team_name: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def safe_extract_from_orm(cls, data: Any) -> Any:
+        """
+        Safely extract data from SQLAlchemy DagRun instances.
+
+        Handles the 'note' association proxy and provides defaults for unloaded relationships
+        to prevent DetachedInstanceError when the instance is not bound to a session.
+        """
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.exc import NoInspectionAvailable
+        from sqlalchemy.orm.state import InstanceState
+
+        if isinstance(data, dict):
+            return data
+
+        # Check if this is a SQLAlchemy model by looking for the inspection interface
+        try:
+            insp: InstanceState = sa_inspect(data)
+        except NoInspectionAvailable:
+            # Not a SQLAlchemy object, return as-is for Pydantic to handle
+            return data
+
+        values = {}
+
+        for field_name in cls.model_fields:
+            if field_name in insp.dict:
+                values[field_name] = insp.dict[field_name]
+            elif field_name == "state":
+                if "_state" in insp.dict:
+                    values["state"] = insp.dict["_state"]
+                elif not insp.detached and (state_val := data._state) is not None:
+                    values["state"] = state_val
+
+        if "consumed_asset_events" not in values:
+            values["consumed_asset_events"] = []
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "note" not in values:
+            if "dag_run_note" in insp.dict:
+                values["note"] = data.note
+            else:
+                values["note"] = None
+
+        return values
 
 
 class TIRunContext(BaseModel):
@@ -338,6 +389,15 @@ class TIRunContext(BaseModel):
 
     should_retry: bool = False
     """If the ti encounters an error, whether it should enter retry or failed state."""
+
+    start_date: UtcDateTime | None = None
+    """
+    The original start date of the task instance.
+
+    When resuming from deferral, this is set to the task's original ``start_date`` so the
+    supervisor uses it instead of ``datetime.now()``.  This ensures ``context["ti"].start_date``
+    always reflects when the task *first* started, not when it was rescheduled/resumed.
+    """
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

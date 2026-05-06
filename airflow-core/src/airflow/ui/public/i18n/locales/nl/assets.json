@@ -2,7 +2,6 @@
   "additional_data": "Extra data",
   "asset_many": "Assets",
   "asset_one": "Asset",
-  "asset_other": "Asset",
   "consumingDags": "Consumerende Dags",
   "consumingTasks": "Consumerende taken",
   "createEvent": {
@@ -32,5 +31,7 @@
   "name": "Naam",
   "producingTasks": "Producerende taken",
   "scheduledDags": "Geplande Dags",
-  "searchPlaceholder": "Assets zoeken"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "Assets zoeken",
+  "taskDependencies": "Taak afhankelijkheden"
 }

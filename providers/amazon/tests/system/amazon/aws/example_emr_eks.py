@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from datetime import datetime
 
 import boto3
@@ -49,6 +50,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_emr_eks"
 
@@ -57,6 +59,7 @@ ROLE_ARN_KEY = "ROLE_ARN"
 JOB_ROLE_ARN_KEY = "JOB_ROLE_ARN"
 JOB_ROLE_NAME_KEY = "JOB_ROLE_NAME"
 SUBNETS_KEY = "SUBNETS"
+UPDATE_TRUST_POLICY_WAIT_TIME_KEY = "UPDATE_TRUST_POLICY_WAIT_TIME"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -64,6 +67,7 @@ sys_test_context_task = (
     .add_variable(JOB_ROLE_ARN_KEY)
     .add_variable(JOB_ROLE_NAME_KEY)
     .add_variable(SUBNETS_KEY, split_string=True)
+    .add_variable(UPDATE_TRUST_POLICY_WAIT_TIME_KEY, optional=True, default_value="10")
     .build()
 )
 
@@ -123,7 +127,7 @@ def run_eksctl_commands(cluster_name, ns):
         raise RuntimeError(err)
 
 
-@task
+@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_iam_oidc_identity_provider(cluster_name):
     oidc_provider_issuer_url = boto3.client("eks").describe_cluster(
         name=cluster_name,
@@ -137,7 +141,7 @@ def delete_iam_oidc_identity_provider(cluster_name):
 
 
 @task
-def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_name):
+def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_name, wait_time):
     # Remove any already existing trusted entities added with "update-role-trust-policy"
     # Prevent getting an error "Cannot exceed quota for ACLSizePerRole"
     client = boto3.client("iam")
@@ -173,6 +177,9 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
     if build.returncode != 0:
         raise RuntimeError(err)
 
+    # Wait for IAM changes to propagate to avoid authentication failures
+    time.sleep(int(wait_time))
+
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_virtual_cluster(virtual_cluster_id):
@@ -193,6 +200,7 @@ with DAG(
     subnets = test_context[SUBNETS_KEY]
     job_role_arn = test_context[JOB_ROLE_ARN_KEY]
     job_role_name = test_context[JOB_ROLE_NAME_KEY]
+    update_trust_policy_wait_time = test_context[UPDATE_TRUST_POLICY_WAIT_TIME_KEY]
 
     s3_bucket_name = f"{env_id}-bucket"
     eks_cluster_name = f"{env_id}-cluster"
@@ -285,6 +293,10 @@ with DAG(
     )
     # [END howto_sensor_emr_container]
 
+    # Describe pods only on failure to help diagnose EMR on EKS job issues.
+    describe_pod = get_describe_pod_operator(cluster_name=eks_cluster_name, namespace=eks_namespace)
+    describe_pod.trigger_rule = TriggerRule.ONE_FAILED
+
     delete_eks_cluster = EksDeleteClusterOperator(
         task_id="delete_eks_cluster",
         cluster_name=eks_cluster_name,
@@ -316,11 +328,14 @@ with DAG(
         create_cluster_and_nodegroup,
         await_create_nodegroup,
         run_eksctl_commands(eks_cluster_name, eks_namespace),
-        update_trust_policy_execution_role(eks_cluster_name, eks_namespace, job_role_name),
+        update_trust_policy_execution_role(
+            eks_cluster_name, eks_namespace, job_role_name, update_trust_policy_wait_time
+        ),
         # TEST BODY
         create_emr_eks_cluster,
         job_starter,
         job_waiter,
+        describe_pod,
         # TEST TEARDOWN
         delete_iam_oidc_identity_provider(eks_cluster_name),
         delete_virtual_cluster(str(create_emr_eks_cluster.output)),
@@ -338,5 +353,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

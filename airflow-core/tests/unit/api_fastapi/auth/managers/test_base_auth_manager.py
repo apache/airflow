@@ -33,6 +33,9 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.models.team import Team
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -150,6 +153,33 @@ def auth_manager():
 
 
 class TestBaseAuthManager:
+    def test_init_non_multi_team_mode(self, auth_manager):
+        assert auth_manager.init() is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(
+        ("auth_manager_teams", "db_teams", "expected"),
+        [
+            ({"teamA", "teamB"}, {"teamA", "teamB"}, True),
+            ({"teamA", "teamB"}, {"teamA", "teamB", "teamC"}, True),
+            (set(), set(), True),
+            ({"teamA", "teamB"}, {"teamA", "teamC"}, False),
+        ],
+    )
+    @patch.object(Team, "get_all_team_names")
+    @patch.object(EmptyAuthManager, "_get_teams")
+    def test_init_multi_team_mode(
+        self, mock_get_teams, mock_get_all_team_names, auth_manager_teams, db_teams, expected, auth_manager
+    ):
+        mock_get_teams.return_value = auth_manager_teams
+        mock_get_all_team_names.return_value = db_teams
+
+        if expected:
+            assert auth_manager.init() is None
+        else:
+            with pytest.raises(ValueError, match="Teams defined in the auth manager"):
+                auth_manager.init()
+
     def test_get_cli_commands_return_empty_list(self, auth_manager):
         assert auth_manager.get_cli_commands() == []
 

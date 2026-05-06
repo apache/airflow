@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import importlib
 import logging
-import re
 import time
+from collections.abc import Callable
 from unittest import mock
 from unittest.mock import Mock
 
@@ -31,6 +31,8 @@ import airflow_shared
 import airflow_shared.observability.metrics.stats
 import airflow_shared.observability.metrics.validators
 from airflow_shared.observability.exceptions import InvalidStatsNameException
+from airflow_shared.observability.metrics import datadog_logger, statsd_logger
+from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow_shared.observability.metrics.validators import (
@@ -38,7 +40,6 @@ from airflow_shared.observability.metrics.validators import (
     PatternBlockListValidator,
 )
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
@@ -46,14 +47,21 @@ class CustomStatsd(statsd.StatsClient):
     pass
 
 
-class InvalidCustomStatsd:
-    """
-    This custom Statsd class is invalid because it does not subclass
-    statsd.StatsClient.
-    """
-
-    def __init__(self, host=None, port=None, prefix=None):
-        pass
+def get_statsd_logger_factory(
+    stats_class,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+):
+    return lambda: statsd_logger.get_statsd_logger(
+        stats_class=stats_class,
+        host="localhost",
+        port="1234",
+        prefix="airflow",
+        metrics_allow_list=metrics_allow_list,
+        metrics_block_list=metrics_block_list,
+        stat_name_handler=stat_name_handler,
+    )
 
 
 class TestStats:
@@ -102,127 +110,73 @@ class TestStats:
 
     def test_enabled_by_config(self):
         """Test that enabling this sets the right instance properties"""
-        with conf_vars({("metrics", "statsd_on"): "True"}):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, statsd.StatsClient)
-            assert not hasattr(airflow_shared.observability.metrics.stats.Stats, "dogstatsd")
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        stats = airflow_shared.observability.metrics.stats
+        stats.initialize(
+            factory=get_statsd_logger_factory(stats_class=statsd.StatsClient), export_legacy_names=True
+        )
+        backend = stats._get_backend()
+        assert isinstance(backend.statsd, statsd.StatsClient)
+        assert not hasattr(backend, "dogstatsd")
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
 
     def test_load_custom_statsd_client(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_custom_client_path"): f"{__name__}.CustomStatsd",
-            }
-        ):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, CustomStatsd)
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        stats = airflow_shared.observability.metrics.stats
+        stats.initialize(
+            factory=get_statsd_logger_factory(stats_class=CustomStatsd), export_legacy_names=True
+        )
+        assert isinstance(stats._get_backend().statsd, CustomStatsd)
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
 
-    def test_load_invalid_custom_stats_client(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
-            }
-        ):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            error_message = re.escape(
-                "Your custom StatsD client must extend the statsd."
-                "StatsClient in order to ensure backwards compatibility."
-            )
-            # we assert for Exception here instead of AirflowConfigException to not import from shared configuration
-            with pytest.raises(Exception, match=error_message):
-                airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        importlib.reload(airflow_shared.observability.metrics.stats)
-
     def test_load_allow_list_validator(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "metrics_allow_list"): "name1,name2",
-            }
-        ):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            assert isinstance(
-                airflow_shared.observability.metrics.stats.Stats.metrics_validator,
-                PatternAllowListValidator,
-            )
-            assert airflow_shared.observability.metrics.stats.Stats.metrics_validator.validate_list == (
-                "name1",
-                "name2",
-            )
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        stats = airflow_shared.observability.metrics.stats
+        stats.initialize(
+            factory=get_statsd_logger_factory(
+                stats_class=statsd.StatsClient,
+                metrics_allow_list="name1,name2",
+            ),
+            export_legacy_names=True,
+        )
+        backend = stats._get_backend()
+        assert isinstance(backend.metrics_validator, PatternAllowListValidator)
+        assert backend.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
 
     def test_load_block_list_validator(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "metrics_block_list"): "name1,name2",
-            }
-        ):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            assert isinstance(
-                airflow_shared.observability.metrics.stats.Stats.metrics_validator,
-                PatternBlockListValidator,
-            )
-            assert airflow_shared.observability.metrics.stats.Stats.metrics_validator.validate_list == (
-                "name1",
-                "name2",
-            )
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        stats = airflow_shared.observability.metrics.stats
+        stats.initialize(
+            factory=get_statsd_logger_factory(
+                stats_class=statsd.StatsClient,
+                metrics_block_list="name1,name2",
+            ),
+            export_legacy_names=True,
+        )
+        backend = stats._get_backend()
+        assert isinstance(backend.metrics_validator, PatternBlockListValidator)
+        assert backend.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
 
     def test_load_allow_and_block_list_validator_loads_only_allow_list_validator(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "metrics_allow_list"): "name1,name2",
-                ("metrics", "metrics_block_list"): "name1,name2",
-            }
-        ):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            assert isinstance(
-                airflow_shared.observability.metrics.stats.Stats.metrics_validator,
-                PatternAllowListValidator,
-            )
-            assert airflow_shared.observability.metrics.stats.Stats.metrics_validator.validate_list == (
-                "name1",
-                "name2",
-            )
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        stats = airflow_shared.observability.metrics.stats
+        stats.initialize(
+            factory=get_statsd_logger_factory(
+                stats_class=statsd.StatsClient,
+                metrics_allow_list="name1,name2",
+                metrics_block_list="name1,name2",
+            ),
+            export_legacy_names=True,
+        )
+        backend = stats._get_backend()
+        assert isinstance(backend.metrics_validator, PatternAllowListValidator)
+        assert backend.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
 
@@ -305,41 +259,6 @@ class TestDogStats:
             metric="empty", sample_rate=1, value=1, tags=[]
         )
 
-    def test_enabled_by_config(self):
-        """Test that enabling this sets the right instance properties"""
-        from datadog import DogStatsd
-
-        with conf_vars({("metrics", "statsd_datadog_enabled"): "True"}):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=True,
-                is_statsd_on=False,
-                is_otel_on=False,
-            )
-            assert isinstance(airflow_shared.observability.metrics.stats.Stats.dogstatsd, DogStatsd)
-            assert not hasattr(airflow_shared.observability.metrics.stats.Stats, "statsd")
-        # Avoid side-effects
-        importlib.reload(airflow_shared.observability.metrics.stats)
-
-    def test_does_not_send_stats_using_statsd_when_statsd_and_dogstatsd_both_on(self):
-        from datadog import DogStatsd
-
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_datadog_enabled"): "True",
-            }
-        ):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=True,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
-            assert isinstance(airflow_shared.observability.metrics.stats.Stats.dogstatsd, DogStatsd)
-            assert not hasattr(airflow_shared.observability.metrics.stats.Stats, "statsd")
-        importlib.reload(airflow_shared.observability.metrics.stats)
-
 
 class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
@@ -399,64 +318,65 @@ class TestPatternValidatorConfigOption:
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
 
-    stats_on = {("metrics", "statsd_on"): "True"}
-    allow_list = {("metrics", "metrics_allow_list"): "foo,bar"}
-    block_list = {("metrics", "metrics_block_list"): "foo,bar"}
-
     @pytest.mark.parametrize(
-        ("config", "expected"),
+        ("allow_list", "block_list", "expected"),
         [
             pytest.param(
-                {**stats_on},
+                None,
+                None,
                 PatternAllowListValidator,
                 id="pattern_allow_by_default",
             ),
             pytest.param(
-                {**stats_on, **allow_list},
+                "foo,bar",
+                None,
                 PatternAllowListValidator,
                 id="pattern_allow_list_provided",
             ),
             pytest.param(
-                {**stats_on, **block_list},
+                None,
+                "foo,bar",
                 PatternBlockListValidator,
                 id="pattern_block_list_provided",
             ),
             pytest.param(
-                {**stats_on, **allow_list, **block_list},
+                "foo,bar",
+                "foo,bar",
                 PatternAllowListValidator,
-                id="pattern_block_list_provided",
+                id="pattern_both_lists_provided",
             ),
         ],
     )
-    def test_pattern_picker(self, config, expected):
-        with conf_vars(config):
-            importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
-            )
+    def test_pattern_picker(self, allow_list, block_list, expected):
+        importlib.reload(airflow_shared.observability.metrics.stats)
+        airflow_shared.observability.metrics.stats.initialize(
+            factory=get_statsd_logger_factory(
+                stats_class=statsd.StatsClient,
+                metrics_allow_list=allow_list,
+                metrics_block_list=block_list,
+            ),
+            export_legacy_names=True,
+        )
 
-            assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, statsd.StatsClient)
-            assert isinstance(
-                airflow_shared.observability.metrics.stats.Stats.instance.metrics_validator, expected
-            )
+        backend = airflow_shared.observability.metrics.stats._get_backend()
+        assert isinstance(backend.statsd, statsd.StatsClient)
+        assert isinstance(backend.metrics_validator, expected)
 
-    @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "baz,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
         with caplog.at_level(logging.WARNING):
             importlib.reload(airflow_shared.observability.metrics.stats)
-            airflow_shared.observability.metrics.stats.Stats.initialize(
-                is_statsd_datadog_enabled=False,
-                is_statsd_on=True,
-                is_otel_on=False,
+            airflow_shared.observability.metrics.stats.initialize(
+                factory=get_statsd_logger_factory(
+                    stats_class=statsd.StatsClient,
+                    metrics_allow_list="baz,qux",
+                    metrics_block_list="foo,bar",
+                ),
+                export_legacy_names=True,
             )
 
-            assert isinstance(airflow_shared.observability.metrics.stats.Stats.statsd, statsd.StatsClient)
-            assert isinstance(
-                airflow_shared.observability.metrics.stats.Stats.instance.metrics_validator,
-                PatternAllowListValidator,
-            )
+            backend = airflow_shared.observability.metrics.stats._get_backend()
+            assert isinstance(backend.statsd, statsd.StatsClient)
+            assert isinstance(backend.metrics_validator, PatternAllowListValidator)
             assert "Ignoring metrics_block_list" in caplog.text
 
 
@@ -523,18 +443,13 @@ class TestDogStatsWithDisabledMetricsTags:
 
 class TestStatsWithInfluxDBEnabled:
     def setup_method(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-            }
-        ):
-            self.statsd_client = Mock(spec=statsd.StatsClient)
-            self.stats = SafeStatsdLogger(
-                self.statsd_client,
-                influxdb_tags_enabled=True,
-                metric_tags_validator=PatternBlockListValidator("key2,key3"),
-                statsd_influxdb_enabled=True,
-            )
+        self.statsd_client = Mock(spec=statsd.StatsClient)
+        self.stats = SafeStatsdLogger(
+            self.statsd_client,
+            influxdb_tags_enabled=True,
+            metric_tags_validator=PatternBlockListValidator("key2,key3"),
+            statsd_influxdb_enabled=True,
+        )
 
     def test_increment_counter(self):
         self.stats.incr(
@@ -569,78 +484,287 @@ def always_valid(stat_name):
     return stat_name
 
 
+class TestStatsHelpers:
+    """Tests for internal stats helper functions, used for exporting legacy metric names."""
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            pytest.param({"x": 1}, {"x": 1}, id="number"),
+            pytest.param({"x": False}, {"x": False}, id="boolean"),
+            pytest.param({"x": None}, {}, id="None"),
+            pytest.param({"x": {}}, {}, id="empty_dict"),
+        ],
+    )
+    def test_defined_filters_values(self, kwargs, expected):
+        from airflow_shared.observability.metrics.stats import _defined
+
+        assert _defined(**kwargs) == expected
+
+    @pytest.mark.parametrize(
+        ("count", "rate", "delta", "tags", "expected"),
+        [
+            pytest.param(
+                1,
+                1,
+                False,
+                {},
+                {"count": 1, "rate": 1, "delta": False},
+                id="all_params_empty_tags",
+            ),
+            pytest.param(
+                1,
+                1,
+                False,
+                {"test": True},
+                {"count": 1, "rate": 1, "delta": False, "tags": {"test": True}},
+                id="provide_tags",
+            ),
+            pytest.param(
+                None,
+                1,
+                False,
+                {},
+                {"rate": 1, "delta": False},
+                id="no_count",
+            ),
+            pytest.param(
+                1,
+                None,
+                False,
+                {},
+                {"count": 1, "delta": False},
+                id="no_rate",
+            ),
+            pytest.param(
+                1,
+                1,
+                None,
+                {},
+                {"count": 1, "rate": 1},
+                id="no_delta",
+            ),
+            pytest.param(
+                1,
+                1,
+                False,
+                None,
+                {"count": 1, "rate": 1, "delta": False},
+                id="no_tags",
+            ),
+        ],
+    )
+    def test_defined_with_stat_args(
+        self,
+        count: int | None,
+        rate: int | None,
+        delta: bool | None,
+        tags: dict | None,
+        expected: dict,
+    ):
+        from airflow_shared.observability.metrics.stats import _defined
+
+        assert _defined(count=count, rate=rate, delta=delta, tags=tags) == expected
+
+    @pytest.mark.parametrize(
+        ("stat", "tags", "expected_result"),
+        [
+            pytest.param(
+                "operator_failures",
+                {"operator_name": "exec1"},
+                ("operator_failures_exec1", {}),
+                id="name_vars_only_no_extra_tags",
+            ),
+            pytest.param(
+                "operator_failures",
+                {"operator_name": "exec1", "dag_id": "my_dag"},
+                ("operator_failures_exec1", {"dag_id": "my_dag"}),
+                id="name_vars_with_extra_tags",
+            ),
+            pytest.param(
+                "missing_metric",
+                {},
+                (None, {}),
+                id="missing_metric_returns_none",
+            ),
+        ],
+    )
+    def test_get_legacy_stat_name_and_tags(
+        self,
+        stat: str,
+        tags: dict,
+        expected_result: tuple[str | None, dict],
+    ):
+        from airflow_shared.observability.metrics.stats import _get_legacy_stat_name_and_tags
+
+        assert _get_legacy_stat_name_and_tags(stat, tags) == expected_result
+
+    def test_get_legacy_stat_name_and_tags_missing_variables_raises(self):
+        from airflow_shared.observability.metrics.stats import _get_legacy_stat_name_and_tags
+
+        with pytest.raises(ValueError, match="Missing required variables for metric"):
+            _get_legacy_stat_name_and_tags("operator_failures", {})
+
+
+class TestLegacyExport:
+    """
+    Tests for the dual stats export behavior driven by the contents of the YAML registry.
+
+    When _export_legacy_names is True, and a metric has a legacy name in the registry,
+    both the legacy stat (with name variables consumed from tags) and the modern stat
+    (with all tags) are emitted.
+    """
+
+    @pytest.fixture
+    def mock_backend(self):
+        with mock.patch("airflow_shared.observability.metrics.stats._get_backend") as m:
+            backend = mock.MagicMock(spec=StatsLogger)
+            m.return_value = backend
+            yield backend
+
+    def test_incr_emits_both_when_legacy_name_exists(self, mock_backend):
+        airflow_shared.observability.metrics.stats.incr(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
+        )
+        assert mock_backend.incr.call_count == 2
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags={"dag_id": "test_dag"})
+        mock_backend.incr.assert_any_call(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
+        )
+
+    def test_incr_no_extra_tags_legacy_has_no_tags(self, mock_backend):
+        airflow_shared.observability.metrics.stats.incr(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator"},
+        )
+        assert mock_backend.incr.call_count == 2
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator")
+        mock_backend.incr.assert_any_call(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator"},
+        )
+
+    def test_incr_legacy_export_disabled_emits_once(self, mock_backend, monkeypatch):
+        monkeypatch.setattr(airflow_shared.observability.metrics.stats, "_export_legacy_names", False)
+        airflow_shared.observability.metrics.stats.incr(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
+        )
+        mock_backend.incr.assert_called_once_with(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
+        )
+
+    def test_decr_emits_both_when_legacy_name_exists(self, mock_backend):
+        airflow_shared.observability.metrics.stats.decr(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
+        )
+        assert mock_backend.decr.call_count == 2
+        mock_backend.decr.assert_any_call("operator_failures_EmptyOperator", tags={"dag_id": "test_dag"})
+        mock_backend.decr.assert_any_call(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
+        )
+
+    def test_gauge_emits_both_when_legacy_name_exists(self, mock_backend):
+        airflow_shared.observability.metrics.stats.gauge(
+            "ti.scheduled",
+            42,
+            tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
+        )
+        assert mock_backend.gauge.call_count == 2
+        mock_backend.gauge.assert_any_call("ti.scheduled.default.test_dag.test_task", 42)
+        mock_backend.gauge.assert_any_call(
+            "ti.scheduled",
+            42,
+            tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
+        )
+
+    def test_timing_emits_both_when_legacy_name_exists(self, mock_backend):
+        airflow_shared.observability.metrics.stats.timing(
+            "operator_failures",
+            1.5,
+            tags={"operator_name": "EmptyOperator"},
+        )
+        assert mock_backend.timing.call_count == 2
+        mock_backend.timing.assert_any_call("operator_failures_EmptyOperator", 1.5)
+        mock_backend.timing.assert_any_call("operator_failures", 1.5, tags={"operator_name": "EmptyOperator"})
+
+    def test_timer_times_both_when_legacy_name_exists(self, mock_backend):
+        with airflow_shared.observability.metrics.stats.timer(
+            "operator_failures",
+            tags={"operator_name": "EmptyOperator"},
+        ):
+            pass
+        assert mock_backend.timer.call_count == 2
+        mock_backend.timer.assert_any_call("operator_failures_EmptyOperator")
+        mock_backend.timer.assert_any_call("operator_failures", tags={"operator_name": "EmptyOperator"})
+
+
 class TestCustomStatsName:
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "unit.observability.metrics.test_stats.always_invalid",
-        }
-    )
-    @mock.patch("statsd.StatsClient")
-    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_statsd.return_value.assert_not_called()
+    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self):
+        with mock.patch("statsd.StatsClient") as mock_statsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.initialize(
+                factory=get_statsd_logger_factory(
+                    stats_class=mock_statsd,
+                    stat_name_handler=always_invalid,
+                ),
+                export_legacy_names=True,
+            )
+            airflow_shared.observability.metrics.stats.incr("empty_key")
+            mock_statsd.return_value.assert_not_called()
 
     @skip_if_force_lowest_dependencies_marker
-    @conf_vars(
-        {
-            ("metrics", "statsd_datadog_enabled"): "True",
-            (
-                "metrics",
-                "stat_name_handler",
-            ): "observability.metrics.test_stats.always_invalid",
-        }
-    )
-    @mock.patch("datadog.DogStatsd")
-    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_dogstatsd.return_value.assert_not_called()
+    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.initialize(
+                factory=lambda: datadog_logger.get_dogstatsd_logger(
+                    host="localhost",
+                    port="1234",
+                    namespace="airflow",
+                    stat_name_handler=always_invalid,
+                ),
+                export_legacy_names=True,
+            )
+            airflow_shared.observability.metrics.stats.incr("empty_key")
+            mock_dogstatsd.return_value.assert_not_called()
 
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            (
-                "metrics",
-                "stat_name_handler",
-            ): "observability.metrics.test_stats.always_valid",
-        }
-    )
-    @mock.patch("statsd.StatsClient")
-    def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.initialize(
-            is_statsd_datadog_enabled=False,
-            is_statsd_on=True,
-            is_otel_on=False,
-        )
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
+    def test_does_send_stats_using_statsd_when_the_name_is_valid(self):
+        with mock.patch("statsd.StatsClient") as mock_statsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.initialize(
+                factory=get_statsd_logger_factory(
+                    stats_class=mock_statsd,
+                    stat_name_handler=always_valid,
+                ),
+                export_legacy_names=True,
+            )
+            airflow_shared.observability.metrics.stats.incr("empty_key")
+            mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
 
     @skip_if_force_lowest_dependencies_marker
-    @conf_vars(
-        {
-            ("metrics", "statsd_datadog_enabled"): "True",
-            (
-                "metrics",
-                "stat_name_handler",
-            ): "observability.metrics.test_stats.always_valid",
-        }
-    )
-    @mock.patch("datadog.DogStatsd")
-    def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self, mock_dogstatsd):
-        importlib.reload(airflow_shared.observability.metrics.stats)
-        airflow_shared.observability.metrics.stats.Stats.initialize(
-            is_statsd_datadog_enabled=True,
-            is_statsd_on=False,
-            is_otel_on=False,
-        )
+    def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            importlib.reload(airflow_shared.observability.metrics.stats)
+            airflow_shared.observability.metrics.stats.initialize(
+                factory=lambda: datadog_logger.get_dogstatsd_logger(
+                    host="localhost",
+                    port="1234",
+                    namespace="airflow",
+                    stat_name_handler=always_valid,
+                ),
+                export_legacy_names=True,
+            )
 
-        airflow_shared.observability.metrics.stats.Stats.incr("empty_key")
-        mock_dogstatsd.return_value.increment.assert_called_once_with(
-            metric="empty_key", sample_rate=1, tags=[], value=1
-        )
+            airflow_shared.observability.metrics.stats.incr("empty_key")
+            mock_dogstatsd.return_value.increment.assert_called_once_with(
+                metric="empty_key", sample_rate=1, tags=[], value=1
+            )
 
     def teardown_method(self) -> None:
         # To avoid side-effect

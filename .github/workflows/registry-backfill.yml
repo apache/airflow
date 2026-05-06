@@ -1,0 +1,333 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Registry Backfill
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: >
+          Publish to live or staging S3 bucket
+        required: true
+        type: choice
+        options:
+          - staging
+          - live
+        default: staging
+      provider-versions:
+        description: >
+          Space-separated provider/version pairs
+          (e.g. 'amazon/9.24.0 google/21.0.0 celery/3.17.2').
+          Multiple versions per provider are grouped into one job.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build-ci-image:
+    name: "Build CI image"
+    uses: ./.github/workflows/ci-image-build.yml
+    permissions:
+      contents: read
+      packages: write
+    if: >
+      contains(fromJSON('[
+        "ashb",
+        "bugraoz93",
+        "eladkal",
+        "ephraimbuddy",
+        "jedcunningham",
+        "jscheffl",
+        "kaxil",
+        "pierrejeambrun",
+        "shahar1",
+        "potiuk",
+        "utkarsharma2",
+        "vincbeck"
+        ]'), github.event.sender.login)
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      push-image: "false"
+      upload-image-artifact: "true"
+      upload-mount-cache-artifact: "false"
+      python-versions: '["3.12"]'
+      branch: "main"
+      constraints-branch: "constraints-main"
+      use-uv: "true"
+      upgrade-to-newer-dependencies: "false"
+      docker-cache: "registry"
+      disable-airflow-repo-cache: "false"
+
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      bucket: ${{ steps.destination.outputs.bucket }}
+    steps:
+      - name: "Build provider matrix"
+        id: matrix
+        env:
+          PROVIDER_VERSIONS: ${{ inputs.provider-versions }}
+        run: |
+          # Parse provider/version pairs, group by provider
+          # Input: "amazon/9.24.0 google/21.0.0 amazon/9.23.0"
+          # Output: {"include": [{"provider":"amazon","versions":"9.24.0 9.23.0"}, ...]}
+          MATRIX=$(echo "${PROVIDER_VERSIONS}" | tr ' ' '\n' | grep '/' | \
+            jq -R 'split("/") | {provider: .[0], version: .[1]}' | \
+            jq -cs 'group_by(.provider) | map({
+              provider: .[0].provider,
+              versions: (map(.version) | join(" "))
+            }) | {include: .}')
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+          echo "Matrix: ${MATRIX}"
+
+      - name: "Determine S3 destination"
+        id: destination
+        env:
+          DESTINATION: ${{ inputs.destination }}
+        run: |
+          if [[ "${DESTINATION}" == "live" ]]; then
+            URL="s3://live-docs-airflow-apache-org"
+          else
+            URL="s3://staging-docs-airflow-apache-org"
+          fi
+          echo "bucket=${URL}/registry/" \
+            >> "${GITHUB_OUTPUT}"
+
+  backfill:
+    needs: [prepare, build-ci-image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    name: "Backfill ${{ matrix.provider }} (${{ matrix.versions }})"
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: "Fetch provider tags"
+        env:
+          VERSIONS: ${{ matrix.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          for VERSION in ${VERSIONS}; do
+            TAG="providers-${PROVIDER}/${VERSION}"
+            echo "Fetching tag: ${TAG}"
+            git fetch origin tag "${TAG}" \
+              2>/dev/null || echo "Tag not found: ${TAG}"
+          done
+
+      - name: "Prepare breeze & CI image"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          python: "3.12"
+          platform: "linux/amd64"
+          use-uv: "true"
+          make-mnt-writeable-and-cleanup: "true"
+
+      - name: "Install AWS CLI v2"
+        run: |
+          curl -sSf \
+            "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+            -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6.1.0
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: "Download existing providers.json"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            dev/registry/providers.json || true
+
+      - name: "Run breeze registry backfill"
+        env:
+          VERSIONS: ${{ matrix.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          VERSION_ARGS=""
+          for VERSION in ${VERSIONS}; do
+            VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
+          done
+          breeze registry backfill \
+            --provider "${PROVIDER}" --python 3.12 ${VERSION_ARGS}
+
+      - name: "Download data files from S3 for build"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            registry/src/_data/providers.json
+          aws s3 cp \
+            "${S3_BUCKET}api/modules.json" \
+            registry/src/_data/modules.json
+
+      - name: "Patch providers.json with backfill version(s)"
+        env:
+          VERSIONS: ${{ matrix.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          # The S3-cached providers.json predates the backfilled version, so
+          # provider.versions[] doesn't list it. providerVersions.js then
+          # filters the on-disk metadata.json out and Eleventy emits no page.
+          # Patch the version into the array so the build picks it up.
+          VERSION_ARGS=""
+          for VERSION in ${VERSIONS}; do
+            VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
+          done
+          uv run --project dev/registry python dev/registry/patch_providers_json.py \
+            --providers-json registry/src/_data/providers.json \
+            --provider "${PROVIDER}" ${VERSION_ARGS}
+
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e  # v6.0.3
+        with:
+          version: 10
+
+      - name: "Setup Node.js"
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: 'registry/pnpm-lock.yaml'
+
+      - name: "Install Node.js dependencies"
+        working-directory: registry
+        run: pnpm install --frozen-lockfile
+
+      - name: "Build registry site"
+        working-directory: registry
+        env:
+          REGISTRY_PATH_PREFIX: "/registry/"
+        run: pnpm build
+
+      - name: "Sync backfilled version pages to S3"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+          CACHE_CONTROL: "public, max-age=300"
+          VERSIONS: ${{ matrix.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          # Guard against silent no-op syncs. `aws s3 sync` exits 0 when the
+          # source dir is missing, so without this guard a build that didn't
+          # emit pages (e.g. providers.json filter dropped the version) would
+          # report green while uploading nothing.
+          for VERSION in ${VERSIONS}; do
+            LOCAL_PAGE="registry/_site/providers/${PROVIDER}/${VERSION}/index.html"
+            LOCAL_API_DIR="registry/_site/api/providers/${PROVIDER}/${VERSION}/"
+            LOCAL_PARAMS="${LOCAL_API_DIR}parameters.json"
+
+            if [ ! -f "${LOCAL_PAGE}" ]; then
+              echo "::error::Build did not emit ${LOCAL_PAGE} -- aborting sync."
+              exit 1
+            fi
+            if [ ! -d "${LOCAL_API_DIR}" ]; then
+              echo "::error::Missing API directory ${LOCAL_API_DIR} -- aborting sync."
+              exit 1
+            fi
+            if [ ! -s "${LOCAL_PARAMS}" ]; then
+              echo "::error::${LOCAL_PARAMS} is empty or missing -- aborting sync."
+              exit 1
+            fi
+
+            echo "Syncing ${PROVIDER}/${VERSION}..."
+            aws s3 sync \
+              "registry/_site/providers/${PROVIDER}/${VERSION}/" \
+              "${S3_BUCKET}providers/${PROVIDER}/${VERSION}/" \
+              --cache-control "${CACHE_CONTROL}"
+            aws s3 sync \
+              "${LOCAL_API_DIR}" \
+              "${S3_BUCKET}api/providers/${PROVIDER}/${VERSION}/" \
+              --cache-control "${CACHE_CONTROL}"
+          done
+
+  publish-versions:
+    needs: [prepare, backfill]
+    runs-on: ubuntu-latest
+    name: "Publish versions.json"
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: "3.12"
+
+      - name: "Install AWS CLI v2"
+        run: |
+          curl -sSf \
+            "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+            -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6.1.0
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: "Download providers.json from S3"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          # `breeze registry publish-versions` calls publish_registry_versions.py,
+          # which reads providers.json (lines 119-127) to know which provider
+          # IDs to iterate. The job runs in a fresh checkout where providers.json
+          # is gitignored, so without this step the publish raises FileNotFoundError.
+          # Download to dev/registry/ -- the function's inline path fallback
+          # resolves the file from there.
+          mkdir -p dev/registry
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            dev/registry/providers.json
+
+      - name: "Publish version metadata"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: >
+          breeze registry publish-versions
+          --s3-bucket "${S3_BUCKET}"

@@ -1592,7 +1592,126 @@ class TestBigQueryInsertJobOperator:
             run_after=ANY,
             configuration=configuration,
             force_rerun=True,
+            try_number=None,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_generate_job_id_with_ti_try_number(self, mock_hook):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        # Setup context with try_number > 2
+        context = MagicMock()
+        context["ti"].try_number = 3
+
+        mock_hook.return_value.get_run_after_or_logical_date.return_value = None
+        mock_hook.return_value.generate_job_id.return_value = "generated_job_id_with_try_number"
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id="generated_job_id_with_try_number", error_result=False
+        )
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=None,  # job_id must be None to trigger the try_number logic
+            project_id=TEST_GCP_PROJECT_ID,
+            force_rerun=False,
+        )
+
+        op.execute(context=context)
+
+        mock_hook.return_value.generate_job_id.assert_called_once_with(
+            job_id=None,
+            dag_id=op.dag_id,
+            task_id=op.task_id,
+            logical_date=None,
+            configuration=configuration,
+            run_after=None,
+            force_rerun=False,
+            try_number=2,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_conflict_429_retry_resubmits_job(self, mock_hook):
+        """
+        Tests that if a Conflict occurs and the retrieved job failed with a 429 error,
+        a new job_id is generated and the job is resubmitted.
+        """
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        # Setup context with try_number > 1
+        context = MagicMock()
+        context["ti"].try_number = 2
+
+        mock_hook.return_value.get_run_after_or_logical_date.return_value = None
+
+        # We need generate_job_id to return two different IDs for the two attempts
+        first_job_id = "initial_generated_job_id"
+        second_job_id = "retry_generated_job_id"
+        mock_hook.return_value.generate_job_id.side_effect = [first_job_id, second_job_id]
+
+        # First insert_job raises Conflict, second one succeeds
+        success_job = MagicMock(state="DONE", job_id=second_job_id, error_result=False)
+        mock_hook.return_value.insert_job.side_effect = [Conflict("already exists"), success_job]
+
+        # get_job returns a job in DONE state with a 429 error
+        failed_429_job = MagicMock(
+            job_id=first_job_id,
+            state="DONE",
+            error_result="Quota exceeded: Your project exceeded quota for... HTTP 429 Too Many Requests",
+        )
+        mock_hook.return_value.get_job.return_value = failed_429_job
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=None,
+            project_id=TEST_GCP_PROJECT_ID,
+            force_rerun=False,
+        )
+
+        result = op.execute(context=context)
+
+        # 1. Assert generate_job_id was called twice (initial + retry)
+        assert mock_hook.return_value.generate_job_id.call_count == 2
+
+        # Check the arguments of the second generate_job_id call (the retry)
+        mock_hook.return_value.generate_job_id.assert_called_with(
+            job_id=None,
+            dag_id=op.dag_id,
+            task_id=op.task_id,
+            logical_date=None,
+            configuration=configuration,
+            run_after=None,
+            force_rerun=False,
+            try_number=2,  # Should pass context["ti"].try_number exactly
+        )
+
+        # 2. Assert insert_job was called twice (initial submit + resubmit)
+        assert mock_hook.return_value.insert_job.call_count == 2
+        mock_hook.return_value.insert_job.assert_called_with(
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=second_job_id,  # Ensure the second call used the newly generated job_id
+            nowait=True,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
+        # 3. Assert the operator returns the final successful job_id
+        assert result == second_job_id
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_openlineage_events(self, mock_hook):
@@ -1771,6 +1890,7 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": None,
         }
+        mock_hook.return_value.labels = {"airflow-env": "test-env-2"}
         mock_hook.return_value.insert_job.return_value = MagicMock(
             state="DONE", job_id=real_job_id, error_result=False
         )
@@ -1785,6 +1905,57 @@ class TestBigQueryInsertJobOperator:
         )
         op.execute(context=MagicMock())
         assert configuration["labels"] is None
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_inherits_labels_from_connection(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        mock_hook.return_value.labels = {"airflow-env": "test-env-2"}
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id=real_job_id, error_result=False
+        )
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op.execute(context=MagicMock())
+
+        assert configuration["labels"]["airflow-env"] == "test-env-2"
+        assert configuration["labels"]["airflow-task"] == "insert_query_job"
+
+    def test_add_job_labels_merges_connection_labels(self):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": {"manual-label": "manual-value"},
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        op._add_job_labels(hook=MagicMock(labels={"airflow-env": "test-env-2"}))
+
+        assert configuration["labels"]["airflow-env"] == "test-env-2"
+        assert configuration["labels"]["manual-label"] == "manual-value"
+        assert configuration["labels"]["airflow-task"] == "insert_query_job"
 
     def test_task_label_too_big(self):
         configuration = {

@@ -31,6 +31,7 @@ def impala_hook_fixture() -> ImpalaHook:
     mock_get_conn.return_value.cursor = MagicMock()
     mock_get_conn.return_value.cursor.return_value.rowcount = 2
     hook.get_conn = mock_get_conn  # type:ignore[method-assign]
+    hook.get_connection = MagicMock(return_value=Connection(conn_type="impala"))  # type:ignore[method-assign]
 
     return hook
 
@@ -136,3 +137,56 @@ def test_get_df_polars(impala_hook_fixture):
     assert column == df.columns[0]
     assert result_sets[0][0] == df.row(0)[0]
     assert result_sets[1][0] == df.row(1)[0]
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_run_hook_lineage(mock_send_lineage, impala_hook_fixture):
+    sql = "SELECT 1"
+    impala_hook_fixture.run(sql)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is impala_hook_fixture
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+    assert call_kw["cur"] is impala_hook_fixture.get_conn.return_value.cursor.return_value
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+def test_insert_rows_hook_lineage(mock_send_lineage, impala_hook_fixture):
+    table = "table"
+    rows = [("hello",), ("world",)]
+    impala_hook_fixture.insert_rows(table, rows)
+
+    mock_send_lineage.assert_called()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is impala_hook_fixture
+    assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+    assert call_kw["row_count"] == 2
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+def test_get_df_hook_lineage(mock_get_pandas_df, mock_send_lineage, impala_hook_fixture):
+    sql = "SELECT 1"
+    impala_hook_fixture.get_df(sql, df_type="pandas")
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is impala_hook_fixture
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+def test_get_df_by_chunks_hook_lineage(mock_get_pandas_df_by_chunks, mock_send_lineage, impala_hook_fixture):
+    sql = "SELECT 1"
+    parameters = ("x",)
+    impala_hook_fixture.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is impala_hook_fixture
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters

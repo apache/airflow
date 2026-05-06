@@ -24,7 +24,7 @@ This document describes how to set up your IDE to work with Airflow.
 Local development environments
 ------------------------------
 
-- `PyCharm/IntelliJ <contributors_quick_start_pycharm.rst>`__ quick start instructions
+- `PyCharm/IntelliJ <contributors_quick_start_pycharm_intellij.rst>`__ quick start instructions
 - `VSCode <contributors_quick_start_vscode.rst>`__ quick start instructions
 
 

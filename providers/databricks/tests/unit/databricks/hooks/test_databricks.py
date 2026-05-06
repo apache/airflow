@@ -62,6 +62,7 @@ CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
 JOB_NAME = "job-name"
+TASK_KEY = "task-key"
 PIPELINE_NAME = "some pipeline name"
 PIPELINE_ID = "its-a-pipeline-id"
 STATEMENT_ID = "statement_id"
@@ -87,6 +88,7 @@ GET_RUN_RESPONSE = {
     "job_id": JOB_ID,
     "run_page_url": RUN_PAGE_URL,
     "state": {"life_cycle_state": LIFE_CYCLE_STATE, "state_message": STATE_MESSAGE},
+    "tasks": [{"task_key": TASK_KEY}],
 }
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 CLUSTER_STATE = "TERMINATED"
@@ -693,6 +695,29 @@ class TestDatabricksHook:
         assert state_message == STATE_MESSAGE
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_run_tasks_success_multiple_pages(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({**GET_RUN_RESPONSE, "next_page_token": "PAGETOKEN"}),
+            create_successful_response_mock(GET_RUN_RESPONSE),
+        ]
+
+        tasks = self.hook.get_run_tasks(RUN_ID)
+
+        assert mock_requests.get.call_count == 2
+
+        first_call_args = mock_requests.method_calls[0]
+        assert first_call_args[1][0] == get_run_endpoint(HOST)
+        assert first_call_args[2]["params"] == {"run_id": RUN_ID}
+
+        second_call_args = mock_requests.method_calls[1]
+        assert second_call_args[1][0] == get_run_endpoint(HOST)
+        assert second_call_args[2]["params"] == {"run_id": RUN_ID, "page_token": "PAGETOKEN"}
+
+        assert len(tasks) == 2
+        assert tasks == GET_RUN_RESPONSE["tasks"] * 2
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
 
@@ -1226,6 +1251,31 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_post_sql_statement_hook_lineage(self, mock_requests, mock_send_lineage):
+        mock_requests.post.return_value.json.return_value = {
+            "statement_id": "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        }
+        json_payload = {
+            "statement": "select * from test.test;",
+            "warehouse_id": WAREHOUSE_ID,
+            "catalog": "some_catalog",
+            "schema": "some_schema",
+            "parameters": {"a": 1},
+            "wait_timeout": "0s",
+        }
+        self.hook.post_sql_statement(json_payload)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.hook
+        assert call_kw["sql"] == "select * from test.test;"
+        assert call_kw["job_id"] == "01f00ed2-04e2-15bd-a944-a8ae011dac69"
+        assert call_kw["sql_parameters"] == {"a": 1}
+        assert call_kw["default_db"] == "some_catalog"
+        assert call_kw["default_schema"] == "some_schema"
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_get_sql_statement_state(self, mock_requests):
         mock_requests.codes.ok = 200
@@ -1309,6 +1359,18 @@ class TestDatabricksHook:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+    def test_openlineage_methods(self):
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        db_info = self.hook.get_openlineage_database_info(None)
+        assert isinstance(db_info, DatabaseInfo)
+        assert db_info.scheme == "databricks"
+        assert db_info.authority == HOST
+        assert db_info.is_information_schema_cross_db is True
+
+        assert self.hook.get_openlineage_database_dialect(None) == "databricks"
+        assert self.hook.get_openlineage_default_schema() == "default"
 
 
 @pytest.mark.db_test
@@ -2191,7 +2253,7 @@ class TestDatabricksHookSpToken:
         run_id = self.hook.submit_run(data)
 
         ad_call_args = mock_requests.method_calls[0]
-        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(HOST)
+        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(f"https://{HOST}")
         assert ad_call_args[2]["data"] == "grant_type=client_credentials&scope=all-apis"
 
         assert run_id == "1"

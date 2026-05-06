@@ -59,7 +59,6 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
     setSelectedOptions(updatedOptions);
 
     // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-    // eslint-disable-next-line unicorn/no-null
     const newValueArray = updatedOptions.length ? updatedOptions.map((option) => option.value) : null;
 
     if (paramsDict[name]) {
@@ -76,13 +75,16 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
       isClearable
       isDisabled={disabled}
       isMulti
+      menuPosition="fixed"
       name={`element_${name}`}
       onChange={handleChange}
       options={
-        (param.schema.examples ?? param.schema.enum)?.map((value) => ({
-          label: labelLookup(value, param.schema.values_display),
-          value,
-        })) ?? []
+        (param.schema.examples ?? param.schema.enum)
+          ?.filter((value): value is boolean | number | string => value !== null)
+          .map((value) => ({
+            label: labelLookup(String(value), param.schema.values_display),
+            value: String(value),
+          })) ?? []
       }
       placeholder={translate("flexibleForm.placeholderMulti")}
       size="sm"

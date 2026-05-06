@@ -85,6 +85,7 @@
 
 # Setup/version configuration
 !pyproject.toml
+!uv.lock
 !manifests
 !generated
 

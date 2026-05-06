@@ -1,0 +1,3 @@
+The SMTP STARTTLS upgrade performed by ``airflow.utils.email.send_email`` now validates the SMTP server's certificate against the system's trusted CA bundle by default. Previously the ``starttls()`` call was made without an SSL context, so any certificate was accepted.
+
+Deployments that intentionally point Airflow at an SMTP server with a self-signed or otherwise non-validating certificate and need to preserve the previous behaviour must set ``email.ssl_context = "none"`` in ``airflow.cfg``. The ``"default"`` value (now also the default when the option is unset) uses :func:`ssl.create_default_context`. Previously this option applied only to the ``SMTP_SSL`` path; it now applies to the STARTTLS path as well.

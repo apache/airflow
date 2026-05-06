@@ -26,6 +26,8 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -33,11 +35,14 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
+    QueryAssetAliasNamePrefixPatternSearch,
     QueryAssetDagIdPatternSearch,
     QueryAssetNamePatternSearch,
+    QueryAssetNamePrefixPatternSearch,
     QueryLimit,
     QueryOffset,
     QueryUriPatternSearch,
+    QueryUriPrefixPatternSearch,
     RangeFilter,
     SortParam,
     datetime_range_filter_factory,
@@ -52,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventResponse,
     AssetResponse,
     CreateAssetEventsBody,
+    MaterializeAssetBody,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
 )
@@ -66,6 +72,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
+from airflow.configuration import conf
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -130,7 +137,9 @@ def get_assets(
     limit: QueryLimit,
     offset: QueryOffset,
     name_pattern: QueryAssetNamePatternSearch,
+    name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     uri_pattern: QueryUriPatternSearch,
+    uri_prefix_pattern: QueryUriPrefixPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
@@ -174,7 +183,7 @@ def get_assets(
 
     assets_select, total_entries = paginated_select(
         statement=assets_select_statement,
-        filters=[only_active, name_pattern, uri_pattern, dag_ids],
+        filters=[only_active, name_pattern, name_prefix_pattern, uri_pattern, uri_prefix_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -232,6 +241,7 @@ def get_asset_aliases(
     limit: QueryLimit,
     offset: QueryOffset,
     name_pattern: QueryAssetAliasNamePatternSearch,
+    name_prefix_pattern: QueryAssetAliasNamePrefixPatternSearch,
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["id", "name"], AssetAliasModel).dynamic_depends()),
@@ -241,7 +251,7 @@ def get_asset_aliases(
     """Get asset aliases."""
     asset_aliases_select, total_entries = paginated_select(
         statement=select(AssetAliasModel),
-        filters=[name_pattern],
+        filters=[name_pattern, name_prefix_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -309,12 +319,13 @@ def get_asset_events(
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
     name_pattern: QueryAssetNamePatternSearch,
+    name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
     base_statement = select(AssetEvent)
-    if name_pattern.value:
+    if name_pattern.value or name_prefix_pattern.value:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
     assets_event_select, total_entries = paginated_select(
@@ -326,6 +337,7 @@ def get_asset_events(
             source_run_id,
             source_map_index,
             name_pattern,
+            name_prefix_pattern,
             timestamp_range,
         ],
         order_by=order_by,
@@ -353,6 +365,7 @@ def get_asset_events(
 def create_asset_event(
     body: CreateAssetEventsBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> AssetEventResponse:
     """Create asset events."""
     asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
@@ -360,11 +373,17 @@ def create_asset_event(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
     timestamp = timezone.utcnow()
 
+    api_user_teams: set[str] = set()
+    if conf.getboolean("core", "multi_team"):
+        api_user_teams = get_auth_manager().get_authorized_teams(user=user)
+
     assets_event = asset_manager.register_asset_change(
         asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
         partition_key=body.partition_key,
+        source_is_api=True,
+        api_user_teams=api_user_teams,
         session=session,
     )
 
@@ -375,7 +394,9 @@ def create_asset_event(
 
 @assets_router.post(
     "/assets/{asset_id}/materialize",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
@@ -383,8 +404,9 @@ def materialize_asset(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
+    body: MaterializeAssetBody | None = None,
 ) -> DAGRunResponse:
-    """Materialize an asset by triggering a DAG run that produces it."""
+    """Materialize an asset by triggering a Dag run that produces it."""
     dag_id_it = iter(
         session.scalars(
             select(TaskOutletAssetReference.dag_id)
@@ -395,32 +417,51 @@ def materialize_asset(
     )
 
     if (dag_id := next(dag_id_it, None)) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No DAG materializes asset with ID: {asset_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No Dag materializes asset with ID: {asset_id}")
     if next(dag_id_it, None) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"More than one DAG materializes asset with ID: {asset_id}",
+            f"More than one Dag materializes asset with ID: {asset_id}",
+        )
+
+    if not get_auth_manager().is_authorized_dag(
+        method="POST",
+        access_entity=DagAccessEntity.RUN,
+        details=DagDetails(id=dag_id),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User is not authorized to trigger a run for Dag: {dag_id} that materializes this asset",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+
+    if dag.allowed_run_types is not None and DagRunType.ASSET_MATERIALIZATION not in dag.allowed_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
+        )
+
+    params = (body or MaterializeAssetBody()).validate_context(dag)
     return dag.create_dagrun(
-        run_id=dag.timetable.generate_run_id(
-            run_type=DagRunType.MANUAL,
-            run_after=(run_after := timezone.coerce_datetime(timezone.utcnow())),
-            data_interval=None,
-        ),
-        run_after=run_after,
-        run_type=DagRunType.MANUAL,
+        run_id=params["run_id"],
+        logical_date=params["logical_date"],
+        data_interval=params["data_interval"],
+        run_after=params["run_after"],
+        conf=params["conf"],
+        run_type=DagRunType.ASSET_MATERIALIZATION,
         triggered_by=DagRunTriggeredByType.REST_API,
         triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
+        partition_key=params["partition_key"],
+        note=params["note"],
         session=session,
     )
 
 
 @assets_router.get(
     "/assets/{asset_id}/queuedEvents",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_queued_events(
@@ -437,12 +478,6 @@ def get_asset_queued_events(
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
-
-    if not adrqs:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Queue event with asset_id: `{asset_id}` was not found",
-        )
 
     queued_events = [
         QueuedEventResponse(
@@ -527,7 +562,6 @@ def get_asset(
 
 @assets_router.get(
     "/dags/{dag_id}/assets/queuedEvents",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_events(
@@ -536,7 +570,7 @@ def get_dag_asset_queued_events(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
-    """Get queued asset events for a DAG."""
+    """Get queued asset events for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -544,8 +578,6 @@ def get_dag_asset_queued_events(
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
-    if not adrqs:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
     queued_events = [
         QueuedEventResponse(
@@ -575,7 +607,7 @@ def get_dag_asset_queued_event(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventResponse:
-    """Get a queued asset event for a DAG."""
+    """Get a queued asset event for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
@@ -678,7 +710,7 @@ def delete_dag_asset_queued_event(
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
-    """Delete a queued asset event for a DAG."""
+    """Delete a queued asset event for a Dag."""
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
     )

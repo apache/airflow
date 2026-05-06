@@ -16,44 +16,70 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, type BoxProps } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridTI } from "./GridTI";
+import { DagVersionIndicator } from "./VersionIndicator";
+import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
 type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly run: GridRunsResponse;
+  readonly showVersionIndicatorMode?: VersionIndicatorOptions;
+  readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
-const ROW_HEIGHT = 20;
+type CellBorderProps = Pick<BoxProps, "borderBottomWidth" | "borderColor" | "borderTopWidth">;
 
-export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: Props) => {
+const taskInstanceCellBorderProps = (hideRowBorders: boolean, rowIndex: number): CellBorderProps =>
+  hideRowBorders
+    ? { borderBottomWidth: 0, borderTopWidth: 0 }
+    : {
+        borderBottomWidth: 1,
+        borderColor: "border",
+        borderTopWidth: rowIndex === 0 ? 1 : 0,
+      };
+
+export const TaskInstancesColumn = ({
+  nodes,
+  onCellClick,
+  run,
+  showVersionIndicatorMode,
+  tiSummaries,
+  virtualItems,
+}: Props) => {
   const { dagId = "", runId } = useParams();
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
+  const isSelected = runId === run.run_id;
+
   const { hoveredRunId, setHoveredRunId } = useHover();
 
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  const taskInstances = gridTISummaries?.task_instances ?? [];
+  const taskInstances = tiSummaries?.task_instances ?? [];
   const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
 
   for (const ti of taskInstances) {
     taskInstanceMap.set(ti.task_id, ti);
   }
 
-  const isSelected = runId === run.run_id;
+  const versionNumbers = new Set(
+    taskInstances.map((ti) => ti.dag_version_number).filter((vn) => vn !== null && vn !== undefined),
+  );
+  const hasMixedVersions = versionNumbers.size > 1;
+
   const isHovered = hoveredRunId === run.run_id;
+  const hideRowBorders = isSelected || isHovered;
 
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
   const handleMouseLeave = () => setHoveredRunId(undefined);
@@ -67,7 +93,7 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
       transition="background-color 0.2s"
       width="18px"
     >
-      {itemsToRender.map((virtualItem) => {
+      {itemsToRender.map((virtualItem, idx) => {
         const node = nodes[virtualItem.index];
 
         if (!node) {
@@ -79,6 +105,7 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
         if (!taskInstance) {
           return (
             <Box
+              {...taskInstanceCellBorderProps(hideRowBorders, virtualItem.index)}
               height={`${ROW_HEIGHT}px`}
               key={`${node.id}-${run.run_id}`}
               left={0}
@@ -90,14 +117,39 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
           );
         }
 
+        let hasVersionChangeFlag = false;
+
+        if (
+          hasMixedVersions &&
+          (showVersionIndicatorMode === VersionIndicatorOptions.DAG_VERSION ||
+            showVersionIndicatorMode === VersionIndicatorOptions.ALL) &&
+          idx > 0
+        ) {
+          const prevVirtualItem = itemsToRender[idx - 1];
+          const prevNode = prevVirtualItem ? nodes[prevVirtualItem.index] : undefined;
+          const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
+
+          hasVersionChangeFlag = Boolean(
+            prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+          );
+        }
+
         return (
           <Box
+            {...taskInstanceCellBorderProps(hideRowBorders, virtualItem.index)}
+            height={`${ROW_HEIGHT}px`}
             key={node.id}
             left={0}
             position="absolute"
             top={0}
             transform={`translateY(${virtualItem.start}px)`}
           >
+            {hasVersionChangeFlag && (
+              <DagVersionIndicator
+                dagVersionNumber={taskInstance.dag_version_number ?? undefined}
+                orientation="horizontal"
+              />
+            )}
             <GridTI
               dagId={dagId}
               instance={taskInstance}

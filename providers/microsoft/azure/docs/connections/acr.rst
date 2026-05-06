@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:acr:
+.. _howto/connection:azure_container_registry:
 
 Microsoft Azure Container Registry Connection
 ==============================================

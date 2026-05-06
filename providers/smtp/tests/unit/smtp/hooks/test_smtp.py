@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import smtplib
+import ssl
 import tempfile
 from email.mime.application import MIMEApplication
 from unittest import mock
@@ -486,6 +487,65 @@ class TestSmtpHook:
 
         assert not mock_conn.auth.called
 
+    @patch(smtplib_string)
+    def test_oauth2_uses_auth_type_property(self, mock_smtplib, create_connection_without_db):
+        """Test that get_conn reads auth_type from connection extras, not just __init__ arg."""
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=False)
+
+        create_connection_without_db(
+            Connection(
+                conn_id="smtp_oauth2_extra",
+                conn_type=CONN_TYPE,
+                host=SMTP_HOST,
+                login=SMTP_LOGIN,
+                password=SMTP_PASSWORD,
+                port=NONSSL_PORT,
+                extra=json.dumps(
+                    dict(
+                        disable_ssl=True,
+                        from_email=FROM_EMAIL,
+                        auth_type="oauth2",
+                        access_token=ACCESS_TOKEN,
+                    )
+                ),
+            )
+        )
+
+        # Note: auth_type NOT passed to constructor -- should be read from extras
+        with SmtpHook(smtp_conn_id="smtp_oauth2_extra") as smtp_hook:
+            smtp_hook.send_email_smtp(
+                to=TO_EMAIL,
+                subject=TEST_SUBJECT,
+                html_content=TEST_BODY,
+                from_email=FROM_EMAIL,
+            )
+
+        assert mock_conn.auth.called
+        args, _ = mock_conn.auth.call_args
+        assert args[0] == "XOAUTH2"
+
+    @patch(smtplib_string)
+    def test_ehlo_called_after_starttls(self, mock_smtplib):
+        """Test that ehlo() is called after starttls() to re-establish session state."""
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=False)
+        manager = Mock()
+        mock_conn.starttls = manager.starttls
+        mock_conn.ehlo = manager.ehlo
+        mock_conn.login = manager.login
+
+        with SmtpHook(smtp_conn_id=CONN_ID_NONSSL):
+            pass
+
+        # Verify ehlo is called after starttls and before login,
+        # and starttls is invoked with an SSL context so certificate validation
+        # happens on the TLS upgrade.
+        assert len(manager.mock_calls) == 3
+        starttls_call, ehlo_call, login_call = manager.mock_calls
+        assert starttls_call[0] == "starttls"
+        assert isinstance(starttls_call.kwargs.get("context"), ssl.SSLContext)
+        assert ehlo_call == call.ehlo()
+        assert login_call == call.login(SMTP_LOGIN, SMTP_PASSWORD)
+
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Async support was added to BaseNotifier in 3.1.0")
@@ -523,6 +583,7 @@ class TestSmtpHookAsync:
         mock_client = AsyncMock(spec=aiosmtplib.SMTP)
         mock_client.starttls = AsyncMock()
         mock_client.auth_login = AsyncMock()
+        mock_client.auth_xoauth2 = AsyncMock()
         mock_client.sendmail = AsyncMock()
         mock_client.quit = AsyncMock()
         return mock_client
@@ -552,6 +613,7 @@ class TestSmtpHookAsync:
         mock_client = AsyncMock(spec=aiosmtplib.SMTP)
         mock_client.starttls = AsyncMock()
         mock_client.auth_login = AsyncMock()
+        mock_client.auth_xoauth2 = AsyncMock()
         mock_client.sendmail = AsyncMock()
         mock_client.quit = AsyncMock()
         mock_smtp.return_value = mock_client
@@ -571,13 +633,14 @@ class TestSmtpHookAsync:
         async with SmtpHook(smtp_conn_id=conn_id) as hook:
             assert hook is not None
 
-        mock_smtp.assert_called_once_with(
-            hostname=SMTP_HOST,
-            port=expected_port,
-            timeout=DEFAULT_TIMEOUT,
-            use_tls=expected_ssl,
-            start_tls=None if expected_ssl else True,
-        )
+        mock_smtp.assert_called_once()
+        call_kwargs = mock_smtp.call_args.kwargs
+        assert call_kwargs["hostname"] == SMTP_HOST
+        assert call_kwargs["port"] == expected_port
+        assert call_kwargs["timeout"] == DEFAULT_TIMEOUT
+        assert call_kwargs["use_tls"] == expected_ssl
+        assert call_kwargs["start_tls"] == (None if expected_ssl else True)
+        assert isinstance(call_kwargs["tls_context"], ssl.SSLContext)
 
         if expected_ssl:
             assert mock_smtp_client.starttls.await_count == 1
@@ -650,3 +713,46 @@ class TestSmtpHookAsync:
             )
 
         mock_smtp_client.sendmail.assert_not_awaited()
+
+    async def test_async_ehlo_called_after_starttls(self, mock_smtp, mock_smtp_client, mock_get_connection):
+        """Test that ehlo() is called after starttls() in async path."""
+        async with SmtpHook(smtp_conn_id=CONN_ID_NONSSL):
+            pass
+
+        # For non-SSL, starttls is called followed by ehlo
+        assert mock_smtp_client.starttls.await_count == 1
+        assert mock_smtp_client.ehlo.await_count >= 2  # once in _abuild_client + once after starttls
+
+    async def test_async_oauth2_auth(
+        self, mock_smtp, mock_smtp_client, mock_get_connection, create_connection_without_db
+    ):
+        """Test that async path supports OAuth2 authentication."""
+        create_connection_without_db(
+            Connection(
+                conn_id=CONN_ID_OAUTH,
+                conn_type=CONN_TYPE,
+                host=SMTP_HOST,
+                login=SMTP_LOGIN,
+                password=SMTP_PASSWORD,
+                port=NONSSL_PORT,
+                extra=json.dumps(
+                    dict(
+                        disable_ssl=True,
+                        from_email=FROM_EMAIL,
+                        auth_type="oauth2",
+                        access_token=ACCESS_TOKEN,
+                    )
+                ),
+            )
+        )
+
+        async with SmtpHook(smtp_conn_id=CONN_ID_OAUTH) as hook:
+            await hook.asend_email_smtp(
+                to=TO_EMAIL,
+                subject=TEST_SUBJECT,
+                html_content=TEST_BODY,
+                from_email=FROM_EMAIL,
+            )
+
+        assert mock_smtp_client.auth_xoauth2.called
+        mock_smtp_client.auth_xoauth2.assert_awaited_once_with(SMTP_LOGIN, ACCESS_TOKEN)

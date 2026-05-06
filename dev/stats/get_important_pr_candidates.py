@@ -285,7 +285,7 @@ class PRFetcher:
         if not pr_body:
             return {"issue_comments": 0, "issue_reactions": 0, "issue_users": set()}
 
-        regex = r"(?<=closes: #|elated: #)\d{5}"
+        regex = r"(?:closes|related): #(\d+)"
         issue_nums = re.findall(regex, pr_body)
 
         total_issue_comments = 0
@@ -735,9 +735,9 @@ class SuperFastPRFinder:
                 return False
 
             first_pr_merged = parsed_date
-            two_months_ago = pendulum.now().subtract(months=2)
+            last_30_days = pendulum.now().subtract(days=30)
 
-            is_rookie = first_pr_merged >= two_months_ago
+            is_rookie = first_pr_merged >= last_30_days
             self.author_cache[author] = {
                 "is_rookie": is_rookie,
                 "total_prs": total_prs,
@@ -778,6 +778,7 @@ class SuperFastPRFinder:
             if len(all_prs) >= limit:
                 break
 
+            is_protm_query = "protm" in query.lower()
             console.print(f"[blue]Searching: {query}[/]")
 
             try:
@@ -802,6 +803,7 @@ class SuperFastPRFinder:
                         "created_at": issue.created_at,
                         "updated_at": issue.updated_at,
                         "reactions_count": getattr(issue, "reactions", {}).get("total_count", 0),
+                        "found_by_protm_search": is_protm_query,
                     }
 
                     all_prs.append(pr_info)
@@ -829,10 +831,10 @@ class SuperFastPRFinder:
             body_len = len(pr.get("body", ""))
             if body_len > 2000:
                 score *= 1.4
-            elif body_len < 1000:
-                score *= 0.8
             elif body_len < 20:
                 score *= 0.4
+            elif body_len < 1000:
+                score *= 0.8
 
             comments = pr.get("comments_count", 0)
             if comments > 30:
@@ -855,7 +857,7 @@ class SuperFastPRFinder:
                 score *= 1.2
 
             full_text = f"{pr.get('title', '')} {pr.get('body', '')}".lower()
-            if "protm" in full_text:
+            if "protm" in full_text or pr.get("found_by_protm_search"):
                 score *= 20
                 console.print(f"[magenta]🔥 Found PROTM PR: #{pr['number']} - {pr['title']}[/]")
 
@@ -1042,7 +1044,21 @@ def main(
     # Format date range for display
     date_range_str = f"{date_start.strftime('%Y-%m-%d')} to {date_end.strftime('%Y-%m-%d')}"
     console.print(f"\n[bold green]🏆 Top {top_number} PRs ({date_range_str}):[/bold green]\n")
-    top_final = heapq.nlargest(top_number, scores.items(), key=lambda x: x[1])
+
+    if rookie:
+        # One PR per author to ensure fair representation of different rookies
+        seen_authors: set[str] = set()
+        selected = []
+        for pr_num, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
+            pr_stat = next((pr for pr in pr_stats if pr.number == pr_num), None)
+            if pr_stat and pr_stat.author not in seen_authors:
+                selected.append((pr_num, score))
+                seen_authors.add(pr_stat.author)
+            if len(selected) >= top_number:
+                break
+        top_final = selected
+    else:
+        top_final = heapq.nlargest(top_number, scores.items(), key=lambda x: x[1])
 
     for i, (pr_num, score) in enumerate(top_final, 1):
         pr_stat = next((pr for pr in pr_stats if pr.number == pr_num), None)

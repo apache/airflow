@@ -28,9 +28,11 @@ class TriggerDAGRunPayload(StrictBaseModel):
     """Schema for Trigger DAG Run API request."""
 
     logical_date: UtcDateTime | None = None
+    run_after: UtcDateTime | None = None
     conf: dict = Field(default_factory=dict)
     reset_dag_run: bool = False
     partition_key: str | None = None
+    note: str | None = None
 
 
 class DagRunStateResponse(BaseModel):

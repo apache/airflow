@@ -49,7 +49,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         though priority is given to the params passed during init.
     :param shell_id: The shell id on the remote machine.
     :param command_id: The command id executed on the remote machine.
-    :param output_encoding: the encoding used to decode stout and stderr, defaults to utf-8.
     :param return_output: Whether to accumulate and return the stdout or not, defaults to True.
     :param poll_interval: How often, in seconds, the trigger should poll the output command of the launched command,
         defaults to 1.
@@ -62,7 +61,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         ssh_conn_id: str,
         shell_id: str,
         command_id: str,
-        output_encoding: str = "utf-8",
         return_output: bool = True,
         poll_interval: float = 1,
         max_output_chunks: int = 100,
@@ -71,7 +69,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         self.ssh_conn_id = ssh_conn_id
         self.shell_id = shell_id
         self.command_id = command_id
-        self.output_encoding = output_encoding
         self.return_output = return_output
         self.poll_interval = poll_interval
         self._stdout: deque[str] = deque(maxlen=max_output_chunks)
@@ -85,7 +82,6 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                 "ssh_conn_id": self.ssh_conn_id,
                 "shell_id": self.shell_id,
                 "command_id": self.command_id,
-                "output_encoding": self.output_encoding,
                 "return_output": self.return_output,
                 "poll_interval": self.poll_interval,
                 "max_output_chunks": self._stdout.maxlen,
@@ -115,9 +111,14 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                 ) = await self.get_command_output(conn)
 
                 if self.return_output and stdout:
-                    self._stdout.append(base64.standard_b64encode(stdout).decode(self.output_encoding))
+                    # Base64 output is ASCII text regardless of the command output encoding.
+                    # Decode using ASCII to avoid producing non-ASCII strings when a
+                    # different output_encoding (e.g. UTF-16) is used for decoding
+                    # the original command bytes.
+                    self._stdout.append(base64.standard_b64encode(stdout).decode("ascii"))
                 if stderr:
-                    self._stderr.append(base64.standard_b64encode(stderr).decode(self.output_encoding))
+                    # Same reasoning for stderr as for stdout.
+                    self._stderr.append(base64.standard_b64encode(stderr).decode("ascii"))
 
                 if not command_done:
                     await asyncio.sleep(self.poll_interval)

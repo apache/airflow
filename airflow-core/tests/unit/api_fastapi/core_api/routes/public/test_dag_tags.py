@@ -208,6 +208,25 @@ class TestDagTags(TestDagEndpoint):
                 ["tag_1", "tag_2"],
                 2,
             ),
+            # tag_name_prefix_pattern counterpart
+            (
+                {"tag_name_prefix_pattern": "invalid"},
+                200,
+                [],
+                0,
+            ),
+            (
+                {"tag_name_prefix_pattern": "tag"},
+                200,
+                ["tag_1", "tag_2"],
+                2,
+            ),
+            (
+                {"tag_name_prefix_pattern": "~"},
+                200,
+                ["example", "tag_1", "tag_2"],
+                3,
+            ),
             # test order_by
             (
                 {"order_by": "-name"},

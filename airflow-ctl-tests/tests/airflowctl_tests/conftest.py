@@ -21,6 +21,7 @@ import subprocess
 import sys
 
 import pytest
+import requests
 from python_on_whales import DockerClient, docker
 
 from airflowctl_tests import console
@@ -35,16 +36,31 @@ from airflowctl_tests.constants import (
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
 
+@pytest.fixture(scope="module")
+def api_token():
+    url = "http://localhost:8080/auth/token"
+    payload = {"username": "airflow", "password": "airflow"}
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        token = response.json().get("access_token")
+        if not token:
+            raise ValueError("Response did not contain an access_token")
+        return token
+    except requests.exceptions.RequestException as e:
+        pytest.fail(f"Failed to obtain token: {e}")
+
+
 @pytest.fixture
 def run_command():
     """Fixture that provides a helper to run airflowctl commands."""
 
-    def _run_command(command: str, skip_login: bool = False) -> str:
+    def _run_command(command: str, env_vars: dict, skip_login: bool = False) -> str:
         import os
         from subprocess import PIPE, STDOUT, Popen
 
         host_envs = os.environ.copy()
-        host_envs["AIRFLOW_CLI_DEBUG_MODE"] = "true"
+        host_envs.update(env_vars)
 
         command_from_config = f"airflowctl {command}"
 
@@ -231,8 +247,6 @@ def docker_compose_up(tmp_path_factory):
     dot_env_file = tmp_dir / ".env"
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
-        # To enable debug mode for airflowctl CLI
-        "AIRFLOW_CTL_CLI_DEBUG_MODE=true\n"
         # To enable config operations to work
         "AIRFLOW__API__EXPOSE_CONFIG=true\n"
     )

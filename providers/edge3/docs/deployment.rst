@@ -66,8 +66,51 @@ Minimum Airflow configuration settings for the Edge Worker to make it running is
   - ``api_url``: Must be set to the URL which exposes the api endpoint as it is reachable from the
     worker. Typically this looks like ``https://your-hostname-and-port/edge_worker/v1/rpcapi``.
 
+**Airflow 3.2 and newer:** Once the provider is installed on the **central Airflow instance**,
+the ``EdgeDBManager`` is automatically registered via the provider's built-in ``db-managers``
+entry. Airflow's ``ProvidersManager`` discovers it at startup — no manual configuration is needed.
+
+**Airflow versions earlier than 3.2:** You must explicitly register the ``EdgeDBManager`` on the
+**central Airflow instance** so that edge3 database tables (``edge_worker``, ``edge_job``,
+``edge_logs``) are created and migrated when running ``airflow db migrate``:
+
+- Section ``[database]``
+
+  - ``external_db_managers``: Must include ``airflow.providers.edge3.models.db.EdgeDBManager``.
+
+    .. code-block:: ini
+
+        [database]
+        external_db_managers = airflow.providers.edge3.models.db.EdgeDBManager
+
+    Or via environment variable:
+
+    .. code-block:: bash
+
+        export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS="airflow.providers.edge3.models.db.EdgeDBManager"
+
+    .. note::
+
+        If you are also using ``FabAuthManager``, include both managers as a comma-separated list:
+
+        .. code-block:: ini
+
+            [database]
+            external_db_managers = airflow.providers.fab.auth_manager.models.db.FABDBManager,airflow.providers.edge3.models.db.EdgeDBManager
+
+To create or migrate the edge3 database tables (``edge_worker``, ``edge_job``, ``edge_logs``),
+run on the central Airflow instance:
+
+.. code-block:: bash
+
+    airflow db migrate
+
 To kick off a worker, you need to setup Airflow and kick off the worker
-subcommand
+subcommand.
+
+If your Airflow deployment uses Multi-Team mode, assign the worker to its team with
+the ``--team-name`` option so it only picks up jobs for that team. See
+:ref:`edge_executor:multi_team` for setup details and security considerations.
 
 .. code-block:: bash
 
@@ -86,6 +129,12 @@ subcommand
 
     2025-09-27T12:28:33.171525Z [info     ] No new job to process
 
+
+To start a worker assigned to a specific team:
+
+.. code-block:: bash
+
+    airflow edge worker --team-name team_a -q remote,wisconsin_site
 
 You can also start this worker in the background by running
 it as a daemonized process. Additionally, you can redirect stdout
@@ -205,3 +254,49 @@ instance. The commands are:
 - ``airflow edge remove-remote-edge-worker``: Remove a worker instance from the cluster
 - ``airflow edge add-worker-queues``: Add queues to an edge worker
 - ``airflow edge remove-worker-queues``: Remove queues from an edge worker
+- ``airflow edge set-worker-concurrency``: Set the concurrency of a running remote edge worker
+
+Workers are identified by hostname. See the :doc:`cli-ref` for the full list of
+arguments.
+
+Worker Monitoring
+-----------------
+
+The workers send a regular heartbeat to the central site with their status and the status of the tasks running on them.
+This information is stored in the database and can be used to monitor the workers and their tasks as well as is displayed
+in the web UI.
+
+Basic information that is provided by the workers includes:
+
+- Time of being first online
+- Time of last heartbeat
+- Airflow version
+- Edge provider version
+- Python version
+- Worker start time
+- Concurrency (Jobs that the worker can run in parallel)
+- Free concurrency (Jobs that the worker can run in parallel but are currently free)
+
+In order to extend the basic information provided by the worker, you can implement a custom function and register it via the
+``[edge]`` section property ``extended_system_info_function`` setting in your Airflow configuration.
+The function needs to be implemented in Python asyncio and returns a dictionary with string keys and values that are JSON serializable.
+The returned information will be merged with the basic system information and transported to the central site where it is stored
+in the database and extend the worker's system information.
+
+All numeric values (int and float) that are returned by the function will be populated to the telemetry subsystem (StatsD or OTel)
+in the form ``edge_worker.{key}``. Note this requires to add the respective keys to the list of monitored metrics in your telemetry
+configuration. This allows you to create custom metrics based on the information returned by the function.
+
+In the returned dictionary there are two special keys that are used to display the health:
+
+- ``status``: This is a numeric value that is used to determine the health status of the worker. It is expected to be one of the
+  logging levels defined in the logging module (e.g. logging.INFO, logging.WARNING, logging.ERROR). Based on this value the health
+  status of the worker is determined and displayed in the web UI.
+- ``status_text``: This is a string value that is used to display additional information about the health status of the worker in
+  the web UI. It can be used to provide more context about the health status of the worker and overrides the default status text.
+
+See https://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/cli/example_extended_sysinfo.py
+for an example implementation of such a function.
+
+.. image:: img/edge_sysinfo.png
+   :alt: Example of the extended system information provided by the worker on the UI plugin

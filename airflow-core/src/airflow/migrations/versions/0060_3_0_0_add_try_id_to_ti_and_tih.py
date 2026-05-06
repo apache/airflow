@@ -78,16 +78,19 @@ def upgrade():
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
     # Update task_instance_id
     if dialect_name == "postgresql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history SET task_instance_id = task_instance.id
             FROM task_instance
             WHERE task_instance_history.task_id = task_instance.task_id
             AND task_instance_history.dag_id = task_instance.dag_id
             AND task_instance_history.run_id = task_instance.run_id
             AND task_instance_history.map_index = task_instance.map_index
-            """)
+            """
+        )
     elif dialect_name == "mysql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history tih
             JOIN task_instance ti ON
                 tih.task_id = ti.task_id
@@ -95,15 +98,18 @@ def upgrade():
                 AND tih.run_id = ti.run_id
                 AND tih.map_index = ti.map_index
             SET tih.task_instance_id = ti.id
-            """)
+            """
+        )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history
             SET task_instance_id = (SELECT id FROM task_instance WHERE task_instance_history.task_id = task_instance.task_id
             AND task_instance_history.dag_id = task_instance.dag_id
             AND task_instance_history.run_id = task_instance.run_id
             AND task_instance_history.map_index = task_instance.map_index)
-            """)
+            """
+        )
     with op.batch_alter_table("task_instance_history") as batch_op:
         batch_op.alter_column(
             "try_id",
@@ -140,6 +146,18 @@ def downgrade():
             ALTER TABLE task_instance_history DROP COLUMN row_num;
         """
         )
+        # Restore the id column's sequence and default
+        op.execute(
+            "CREATE SEQUENCE IF NOT EXISTS task_instance_history_id_seq OWNED BY task_instance_history.id"
+        )
+        op.execute(
+            "SELECT setval('task_instance_history_id_seq', "
+            "COALESCE((SELECT MAX(id) FROM task_instance_history), 1), true)"
+        )
+        op.execute(
+            "ALTER TABLE task_instance_history "
+            "ALTER COLUMN id SET DEFAULT nextval('task_instance_history_id_seq')"
+        )
     elif dialect_name == "mysql":
         op.execute(
             """
@@ -150,11 +168,26 @@ def downgrade():
             """
         )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_instance_history
             SET id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
-        """)
+        """
+        )
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.alter_column("id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")
         batch_op.create_primary_key("task_instance_history_pkey", ["id"])
+
+    if dialect_name == "mysql":
+        # Restore AUTO_INCREMENT and set next value to MAX(id)+1 to avoid id collisions
+        conn = op.get_bind()
+        result = conn.execute(sa.text("SELECT COALESCE(MAX(id), 0) + 1 FROM task_instance_history"))
+        next_id = result.scalar()
+        op.execute(
+            sa.text(
+                f"ALTER TABLE task_instance_history "
+                f"MODIFY COLUMN id INTEGER NOT NULL AUTO_INCREMENT, "
+                f"AUTO_INCREMENT = {next_id}"
+            )
+        )

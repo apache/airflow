@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:synapse:
+.. _howto/connection:azure_synapse:
 
 Microsoft Azure Synapse
 =======================

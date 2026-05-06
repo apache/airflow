@@ -18,10 +18,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from flask_appbuilder import Model
+from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.fab.auth_manager.models import model_metadata
 from airflow.utils.db import _offline_migration, print_happy_cat
 from airflow.utils.db_manager import BaseDBManager
 
@@ -29,7 +30,14 @@ PACKAGE_DIR = Path(__file__).parents[2]
 
 _REVISION_HEADS_MAP: dict[str, str] = {
     "1.4.0": "6709f7a774b9",
+    "3.5.0": "02ca36b0235b",
 }
+
+
+def _release_metadata_locks_if_supported(manager: BaseDBManager) -> None:
+    release_metadata_locks = getattr(manager, "_release_metadata_locks_if_needed", None)
+    if callable(release_metadata_locks):
+        release_metadata_locks()
 
 
 def _get_flask_db(sql_database_uri):
@@ -49,7 +57,7 @@ def _get_flask_db(sql_database_uri):
 class FABDBManager(BaseDBManager):
     """Manages FAB database."""
 
-    metadata = Model.metadata
+    metadata = model_metadata
     version_table_name = "alembic_version_fab"
     migration_dir = (PACKAGE_DIR / "migrations").as_posix()
     alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
@@ -67,23 +75,40 @@ class FABDBManager(BaseDBManager):
         # And ensure it's at the oldest version
         self.downgrade(_REVISION_HEADS_MAP["1.4.0"])
 
-    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
+    def upgradedb(
+        self,
+        to_revision=None,
+        from_revision=None,
+        show_sql_only=False,
+        use_migration_files: bool = False,
+    ):
         """Upgrade the database."""
         if from_revision and not show_sql_only:
             raise AirflowException("`from_revision` only supported with `sql_only=True`.")
+
+        _release_metadata_locks_if_supported(self)
 
         # alembic adds significant import time, so we import it lazily
         if not settings.SQL_ALCHEMY_CONN:
             raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
         from alembic import command
 
+        current_revision = self.get_current_revision()
+        # MySQL can reacquire metadata locks during the revision lookup above.
+        # Release them again before Alembic opens its migration connection.
+        _release_metadata_locks_if_supported(self)
+
+        if not current_revision and not to_revision and not use_migration_files and not show_sql_only:
+            self.create_db_from_orm()
+            return
+
         config = self.get_alembic_config()
 
         if show_sql_only:
-            if settings.engine.dialect.name == "sqlite":
+            if make_url(settings.SQL_ALCHEMY_CONN).get_backend_name() == "sqlite":
                 raise SystemExit("Offline migration not supported for SQLite.")
             if not from_revision:
-                from_revision = self.get_current_revision()
+                from_revision = current_revision
 
             if not to_revision:
                 script = self.get_script_object(config)
@@ -118,6 +143,10 @@ class FABDBManager(BaseDBManager):
             self.log.warning("Generating sql scripts for manual migration.")
             if not from_revision:
                 from_revision = self.get_current_revision()
+            if from_revision is None:
+                # No live DB revision — fall back to the script head so offline SQL can still
+                # be generated even when the database has not been initialised yet.
+                from_revision = self.get_script_object(config).get_current_head()
             if from_revision is None:
                 self.log.info("No revision found")
                 return

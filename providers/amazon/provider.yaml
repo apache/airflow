@@ -22,12 +22,19 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1770750957
+lifecycle: production
+source-date-epoch: 1777990018
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.28.0
+  - 9.27.0
+  - 9.26.0
+  - 9.25.0
+  - 9.24.0
+  - 9.23.0
   - 9.22.0
   - 9.21.0
   - 9.20.0
@@ -175,6 +182,8 @@ integrations:
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
     logo: /docs/integration-logos/Amazon-Elastic-Container-Service_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ecs.rst
     tags: [aws]
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     external-doc-url: https://aws.amazon.com/eks/
@@ -271,7 +280,7 @@ integrations:
     external-doc-url: https://aws.amazon.com/ses/
     logo: /docs/integration-logos/Amazon-Simple-Email-Service-SES_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/ecs.rst
+      - /docs/apache-airflow-providers-amazon/operators/ses.rst
     tags: [aws]
   - integration-name: Amazon Simple Notification Service (SNS)
     external-doc-url: https://aws.amazon.com/sns/
@@ -290,6 +299,12 @@ integrations:
     logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/s3/s3.rst
+    tags: [aws]
+  - integration-name: Amazon S3 Tables
+    external-doc-url: https://aws.amazon.com/s3/features/tables/
+    logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/s3_tables.rst
     tags: [aws]
   - integration-name: Amazon Systems Manager (SSM)
     external-doc-url: https://aws.amazon.com/systems-manager/
@@ -316,6 +331,7 @@ integrations:
     logo: /docs/integration-logos/AWS-Glue_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glue.rst
+      - /docs/apache-airflow-providers-amazon/operators/glue_catalog.rst
     tags: [aws]
   - integration-name: AWS Lambda
     external-doc-url: https://aws.amazon.com/lambda/
@@ -361,6 +377,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/verified-permissions/
     logo: /docs/integration-logos/Amazon-Verified-Permissions.png
     tags: [aws]
+  - integration-name: Amazon MWAA Serverless
+    external-doc-url: https://docs.aws.amazon.com/mwaa/latest/userguide/mwaa-serverless.html
+    logo: /docs/integration-logos/Amazon-MWAA.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/mwaa_serverless.rst
+    tags: [aws]
   - integration-name: Amazon Neptune
     external-doc-url: https://aws.amazon.com/neptune/
     logo: /docs/integration-logos/Amazon-Neptune_64.png
@@ -378,6 +400,12 @@ integrations:
     logo: /docs/integration-logos/Amazon-MWAA.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/mwaa.rst
+    tags: [aws]
+  - integration-name: Amazon S3 Vectors
+    external-doc-url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html
+    logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/s3_vectors.rst
     tags: [aws]
 
 
@@ -430,6 +458,7 @@ operators:
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
+      - airflow.providers.amazon.aws.operators.glue_catalog
       - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: AWS Lambda
     python-modules:
@@ -440,15 +469,25 @@ operators:
   - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
     python-modules:
       - airflow.providers.amazon.aws.operators.mwaa
+  - integration-name: Amazon MWAA Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.operators.mwaa_serverless
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
+  - integration-name: Amazon S3 Tables
+    python-modules:
+      - airflow.providers.amazon.aws.operators.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook
+  - integration-name: Amazon Simple Email Service (SES)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.ses
   - integration-name: Amazon Simple Notification Service (SNS)
     python-modules:
       - airflow.providers.amazon.aws.operators.sns
@@ -480,6 +519,9 @@ operators:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.operators.neptune
+  - integration-name: Amazon S3 Vectors
+    python-modules:
+      - airflow.providers.amazon.aws.operators.s3_vectors
 
 sensors:
   - integration-name: Amazon Athena
@@ -538,6 +580,9 @@ sensors:
   - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
     python-modules:
       - airflow.providers.amazon.aws.sensors.mwaa
+  - integration-name: Amazon MWAA Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.mwaa_serverless
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -556,6 +601,7 @@ sensors:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.sqs
@@ -683,12 +729,16 @@ hooks:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
+  - integration-name: Amazon S3 Tables
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
@@ -772,6 +822,7 @@ triggers:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
@@ -924,18 +975,115 @@ extra-links:
 
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
+    hook-name: "Amazon Web Services"
     connection-type: aws
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - port
+      relabeling:
+        login: AWS Access Key ID
+        password: AWS Secret Access Key
+      placeholders:
+        login: YOUR_AWS_ACCESS_KEY_ID
+        password: YOUR_AWS_SECRET_ACCESS_KEY
+        extra: |
+          {
+            "region_name": "us-east-1",
+            "session_kwargs": {"profile_name": "default"},
+            "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+            "role_arn": "arn:aws:iam::123456789098:role/role-name",
+            "assume_role_method": "assume_role",
+            "assume_role_kwargs": {"RoleSessionName": "airflow"},
+            "aws_session_token": "YOUR_AWS_SESSION_TOKEN",
+            "endpoint_url": "http://localhost:4566"
+          }
   - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
+    hook-name: "Amazon Chime Webhook"
     connection-type: chime
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - port
+        - extra
+      relabeling:
+        host: Chime Webhook Endpoint
+        password: Chime Webhook token
+      placeholders:
+        schema: https
+        host: hooks.chime.aws/incomingwebhook/
+        password: T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
+    hook-name: "Amazon Elastic MapReduce"
     connection-type: emr
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - schema
+        - port
+        - login
+        - password
+      relabeling:
+        extra: Run Job Flow Configuration
+      placeholders:
+        extra: |
+          {
+            "Name": "MyClusterName",
+            "ReleaseLabel": "emr-5.36.0",
+            "Applications": [{"Name": "Spark"}],
+            "Instances": {
+              "InstanceGroups": [{
+                "Name": "Primary node",
+                "Market": "SPOT",
+                "InstanceRole": "MASTER",
+                "InstanceType": "m5.large",
+                "InstanceCount": 1
+              }],
+              "KeepJobFlowAliveWhenNoSteps": false,
+              "TerminationProtected": false
+            },
+            "StepConcurrencyLevel": 2
+          }
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
+    hook-name: "Amazon Redshift"
     connection-type: redshift
+    ui-field-behaviour:
+      relabeling:
+        login: User
+        schema: Database
   - hook-class-name: airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook
+    hook-name: "Amazon Athena"
     connection-type: athena
+    ui-field-behaviour:
+      hidden-fields:
+        - host
+        - port
+      relabeling:
+        login: AWS Access Key ID
+        password: AWS Secret Access Key
+      placeholders:
+        login: YOUR_AWS_ACCESS_KEY_ID
+        password: YOUR_AWS_SECRET_ACCESS_KEY
+        extra: |
+          {
+            "aws_domain": "amazonaws.com",
+            "driver": "rest",
+            "s3_staging_dir": "s3://bucket_name/staging/",
+            "work_group": "primary",
+            "region_name": "us-east-1",
+            "session_kwargs": {"profile_name": "default"},
+            "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},
+            "role_arn": "arn:aws:iam::123456789098:role/role-name",
+            "assume_role_method": "assume_role",
+            "assume_role_kwargs": {"RoleSessionName": "airflow"},
+            "aws_session_token": "YOUR_AWS_SESSION_TOKEN",
+            "endpoint_url": "http://localhost:4566"
+          }
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
+  - airflow.providers.amazon.aws.notifications.ses.SesNotifier
   - airflow.providers.amazon.aws.notifications.sns.SnsNotifier
   - airflow.providers.amazon.aws.notifications.sqs.SqsNotifier
 
@@ -1302,6 +1450,8 @@ config:
         default: ~
 
 executors:
+  - airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor
+  - airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor
 
 auth-managers:

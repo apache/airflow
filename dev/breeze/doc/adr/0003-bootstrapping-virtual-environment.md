@@ -68,7 +68,7 @@ of the user who is developing Airflow.
 
 ./Breeze should use the version of Breeze that is available in this version
 
-* git rebase --onto apache/main
+* git rebase --onto upstream/main
 
 ./Breeze should be automatically updated to the latest version available
 in main (including dependencies)

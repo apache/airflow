@@ -16,4 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import importlib.metadata
+
+import werkzeug
+
 pytest_plugins = "tests_common.pytest_plugin"
+
+# Flask's test client in older Flask branches reads the Werkzeug version attribute to build
+# the default HTTP_USER_AGENT. Werkzeug 3 removed that attribute.
+if not hasattr(werkzeug, "__version__"):
+    werkzeug_version = importlib.metadata.version("werkzeug")
+    setattr(werkzeug, "__version__", werkzeug_version)

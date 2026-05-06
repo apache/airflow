@@ -87,6 +87,16 @@ function common::get_airflow_version_specification() {
 }
 
 function common::get_constraints_location() {
+    # When installing from sources without upgrade, generate constraints from uv.lock
+    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -z "${UPGRADE_RANDOM_INDICATOR_STRING=}" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing from sources with uv.lock - generating constraints from uv.lock${COLOR_RESET}"
+        echo
+        uv export --frozen --no-hashes --no-emit-project --no-editable --no-header \
+            --no-annotate > "${HOME}/constraints.txt" 2>/dev/null || true
+        return
+    fi
+
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
@@ -107,7 +117,15 @@ function common::get_constraints_location() {
         echo
         echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
         echo
-        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+        if ! curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"; then
+            echo
+            echo "${COLOR_YELLOW}Constraints file not found at ${AIRFLOW_CONSTRAINTS_LOCATION} (new Python version being bootstrapped?).${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            AIRFLOW_CONSTRAINTS_LOCATION=""
+            # Create an empty constraints file so --constraint flag still works
+            touch "${HOME}/constraints.txt"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
@@ -204,27 +222,8 @@ function common::import_trusted_gpg() {
 
     local key=${1:?${COLOR_RED}First argument expects OpenPGP Key ID${COLOR_RESET}}
     local name=${2:?${COLOR_RED}Second argument expected trust storage name${COLOR_RESET}}
-    # Please note that not all servers could be used for retrieve keys
-    #  sks-keyservers.net: Unmaintained and DNS taken down due to GDPR requests.
-    #  keys.openpgp.org: User ID Mandatory, not suitable for APT repositories
-    #  keyring.debian.org: Only accept keys in Debian keyring.
-    #  pgp.mit.edu: High response time.
-    local keyservers=(
-        "hkps://keyserver.ubuntu.com"
-        "hkps://pgp.surf.nl"
-    )
+    local key_file="/scripts/docker/keys/${name}.asc"
 
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e "${keyservers[@]}"); do
-        echo "${COLOR_BLUE}Try to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-        echo "${COLOR_YELLOW}Unable to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
+    echo "${COLOR_BLUE}Installing GPG public key ${key} from ${key_file}${COLOR_RESET}"
+    gpg --dearmor < "${key_file}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
 }

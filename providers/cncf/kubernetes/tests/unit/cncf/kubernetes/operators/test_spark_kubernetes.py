@@ -166,11 +166,12 @@ def _get_expected_application_dict_with_labels(task_name="default_yaml"):
     }
 
 
-def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml"):
+def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml", app_name=None):
     """Create expected application dict without task context labels (only original file labels)."""
     original_file_labels = {
         "version": "2.4.5",
     }
+    app_name = app_name or task_name
 
     return {
         "apiVersion": "sparkoperator.k8s.io/v1beta2",
@@ -193,6 +194,7 @@ def _get_expected_application_dict_without_task_context_labels(task_name="defaul
                 "labels": original_file_labels.copy(),
                 "serviceAccount": "spark",
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+                "env": [{"name": "SPARK_APPLICATION_NAME", "value": app_name}],
             },
             "executor": {
                 "cores": 1,
@@ -200,6 +202,7 @@ def _get_expected_application_dict_without_task_context_labels(task_name="defaul
                 "memory": "512m",
                 "labels": original_file_labels.copy(),
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+                "env": [{"name": "SPARK_APPLICATION_NAME", "value": app_name}],
             },
         },
     }
@@ -378,7 +381,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         assert isinstance(done_op.name, str)
         assert done_op.name != ""
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -424,7 +429,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -467,7 +474,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -504,6 +513,8 @@ class TestSparkKubernetesOperatorCreateApplication:
 
         expected_dict = _get_expected_k8s_dict()
         expected_dict["metadata"]["name"] = done_op.name
+        expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
+        expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
             **self.call_commons,
@@ -540,6 +551,8 @@ class TestSparkKubernetesOperatorCreateApplication:
 
         expected_dict = _get_expected_k8s_dict()
         expected_dict["metadata"]["name"] = done_op.name
+        expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
+        expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
             **self.call_commons,
@@ -625,9 +638,11 @@ class TestSparkKubernetesOperator:
             task_name, mock_create_job_name, job_spec=job_spec, mock_get_kube_client=mock_get_kube_client
         )
         assert op.launcher.body["spec"]["driver"]["env"] == [
+            {"name": "SPARK_APPLICATION_NAME", "value": "default_env"},
             k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
         ]
         assert op.launcher.body["spec"]["executor"]["env"] == [
+            {"name": "SPARK_APPLICATION_NAME", "value": "default_env"},
             k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
         ]
 
@@ -1227,6 +1242,68 @@ class TestSparkKubernetesOperator:
 
         assert returned_pod is valid_mock_pod
 
+    def test_execute_deferrable_does_not_call_super(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+        mocker,
+    ):
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        mock_create_job_name.return_value = "test_deferrable"
+        op = SparkKubernetesOperator(
+            task_id="test_deferrable",
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            deferrable=True,
+            reattach_on_restart=False,
+        )
+        context = create_context(op)
+        mock_execute_async = mocker.patch.object(op, "execute_async")
+
+        result = op.execute(context)
+
+        mock_execute_async.assert_called_once_with(context)
+        mock_parent_execute.assert_not_called()
+        assert result is None
+
+    def test_execute_non_deferrable_calls_super(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        mock_create_job_name.return_value = "test_non_deferrable"
+        op = SparkKubernetesOperator(
+            task_id="test_non_deferrable",
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            deferrable=False,
+            reattach_on_restart=False,
+        )
+        context = create_context(op)
+
+        op.execute(context)
+
+        mock_parent_execute.assert_called_once_with(context)
+
     @pytest.mark.asyncio
     def test_execute_deferrable(
         self,
@@ -1520,3 +1597,58 @@ class TestSparkKubernetesLifecycle:
             # And verify delete works
             op.on_kill()
             mock_launcher_cls.return_value.delete_spark_job.assert_called()
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_spark_application_name_env_injected(self, mock_client):
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {},
+                    "executor": {},
+                },
+            },
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        body = op.launcher.body
+        for component in ["driver", "executor"]:
+            env = body["spec"][component].get("env", [])
+            names = [e["name"] for e in env]
+            assert "SPARK_APPLICATION_NAME" in names
+            value = next(e["value"] for e in env if e["name"] == "SPARK_APPLICATION_NAME")
+            assert value == "my-spark-app-abc123"
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_spark_application_name_env_not_duplicated(self, mock_client):
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {"env": [{"name": "SPARK_APPLICATION_NAME", "value": "user-defined"}]},
+                    "executor": {"env": [{"name": "SPARK_APPLICATION_NAME", "value": "user-defined"}]},
+                },
+            },
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        body = op.launcher.body
+        for component in ["driver", "executor"]:
+            env = body["spec"][component].get("env", [])
+            app_name_envs = [e for e in env if e["name"] == "SPARK_APPLICATION_NAME"]
+            assert len(app_name_envs) == 1  # not duplicated
+            assert app_name_envs[0]["value"] == "user-defined"

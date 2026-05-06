@@ -60,6 +60,44 @@ JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
 LEVEL_TO_FILTERING_LOGGER: dict[int, type[Logger]] = {}
 
 
+# ``_parse_path`` was introduced in Python 3.12; older versions use a different
+# parsing path (``_flavour.parse_parts``) that does not call ``sys.intern``,
+# so the patch is neither necessary nor applicable there. Python 3.14 removed
+# the ``sys.intern`` call upstream, so the patch is unnecessary there too.
+if sys.version_info < (3, 12) or sys.version_info >= (3, 14):
+    _PatchedPath = Path  # type: ignore[misc, assignment]
+else:
+
+    class _PatchedPath(Path):
+        """
+        Backport of Python 3.14's ``PurePath._parse_path`` without ``sys.intern``.
+
+        The ``sys.intern`` call in the stock ``_parse_path`` causes memory
+        to grow unboundedly in long-running processes. Upstream removed it
+        in Python 3.14 (https://github.com/python/cpython/issues/119518);
+        this class applies the same fix for earlier versions.
+        """
+
+        @classmethod
+        def _parse_path(cls, path: str) -> tuple[str, str, list[str]]:
+            if not path:
+                return "", "", []
+            sep = os.path.sep
+            altsep = os.path.altsep
+            if altsep:
+                path = path.replace(altsep, sep)
+            drv, root, rel = os.path.splitroot(path)
+            if not root and drv.startswith(sep) and not drv.endswith(sep):
+                drv_parts = drv.split(sep)
+                if len(drv_parts) == 4 and drv_parts[2] not in "?.":
+                    # e.g. //server/share
+                    root = sep
+                elif len(drv_parts) == 6:
+                    # e.g. //?/unc/server/share
+                    root = sep
+            return drv, root, [x for x in rel.split(sep) if x and x != "."]
+
+
 def _make_airflow_structlogger(min_level):
     # This uses https://github.com/hynek/structlog/blob/2f0cc42d/src/structlog/_native.py#L126
     # as inspiration
@@ -95,10 +133,15 @@ def _make_airflow_structlogger(min_level):
             if not args:
                 return self._proxy_to_logger(name, event, **kw)
 
-            # See https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326 for reason
-            if args and len(args) == 1 and isinstance(args[0], Mapping) and args[0]:
-                return self._proxy_to_logger(name, event % args[0], **kw)
-            return self._proxy_to_logger(name, event % args, **kw)
+            # Match CPython's stdlib logging behavior: try positional formatting first,
+            # fall back to named substitution only if that fails.
+            # See https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326
+            try:
+                return self._proxy_to_logger(name, event % args, **kw)
+            except (TypeError, KeyError):
+                if len(args) == 1 and isinstance(args[0], Mapping) and args[0]:
+                    return self._proxy_to_logger(name, event % args[0], **kw)
+                raise
 
         meth.__name__ = name
         return meth
@@ -216,6 +259,30 @@ def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -
     return event_dict
 
 
+def positional_arguments_formatter(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
+    """
+    Format positional arguments matching CPython's stdlib logging behavior.
+
+    Replaces structlog's built-in PositionalArgumentsFormatter to correctly handle the case
+    where a single dict is passed as a positional argument (e.g. ``log.warning('%s', {'a': 1})``).
+
+    CPython tries positional formatting first (``msg % args``), and only falls back to named
+    substitution (``msg % args[0]``) if that raises TypeError or KeyError. structlog's built-in
+    formatter does it the other way around, causing TypeError for ``%s`` format specifiers.
+    """
+    args = event_dict.get("positional_args")
+    if args:
+        try:
+            event_dict["event"] = event_dict["event"] % args
+        except (TypeError, KeyError):
+            if len(args) == 1 and isinstance(args[0], Mapping) and args[0]:
+                event_dict["event"] = event_dict["event"] % args[0]
+            else:
+                raise
+        del event_dict["positional_args"]
+    return event_dict
+
+
 # This is a placeholder fn, that is "edited" in place via the `suppress_logs_and_warning` decorator
 # The reason we need to do it this way is that structlog caches loggers on first use, and those include the
 # configured processors, so we can't get away with changing the config as it won't have any effect once the
@@ -224,12 +291,27 @@ def respect_stdlib_disable(logger: Any, method_name: Any, event_dict: EventDict)
     return event_dict
 
 
+def _make_safe_enc_hook(default):
+    """Wrap an enc_hook so that serialization failures fall back to ``str()``."""
+
+    def safe_enc_hook(obj):
+        if default is not None:
+            try:
+                return default(obj)
+            except (TypeError, ValueError):
+                pass
+        return str(obj)
+
+    return safe_enc_hook
+
+
 @cache
 def structlog_processors(
     json_output: bool,
     log_format: str = "",
     colors: bool = True,
     callsite_parameters: tuple[CallsiteParameter, ...] = (),
+    log_timestamp_format: str = "iso",
 ):
     """
     Create the correct list of structlog processors for the given config.
@@ -245,7 +327,7 @@ def structlog_processors(
 
     :meta private:
     """
-    timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+    timestamper = structlog.processors.MaybeTimeStamper(fmt=log_timestamp_format)
 
     # Processors shared between stdlib handlers and structlog processors
     shared_processors: list[structlog.typing.Processor] = [
@@ -253,7 +335,7 @@ def structlog_processors(
         timestamper,
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
+        positional_arguments_formatter,
         logger_name,
         redact_jwt,
         structlog.processors.StackInfoRenderer(),
@@ -316,7 +398,17 @@ def structlog_processors(
                 "event": msg.pop("event"),
                 **msg,
             }
-            return msgspec.json.encode(msg, enc_hook=default)
+
+            try:
+                return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
+            except UnicodeEncodeError:
+                # Surrogate characters in strings can't be encoded to UTF-8 JSON.
+                # Replace them and retry.
+                def _sanitize(v):
+                    return v.encode("utf-8", errors="replace").decode("utf-8") if isinstance(v, str) else v
+
+                msg = {k: _sanitize(v) for k, v in msg.items()}
+                return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
@@ -387,6 +479,7 @@ def configure_logging(
     json_output: bool = False,
     log_level: str = "DEBUG",
     log_format: str = "",
+    log_timestamp_format: str = "iso",
     stdlib_config: dict | None = None,
     extra_processors: Sequence[Processor] | None = None,
     callsite_parameters: Iterable[CallsiteParameter] | None = None,
@@ -404,6 +497,9 @@ def configure_logging(
     :param json_output: Set to true to write all logs as JSON (one per line)
     :param log_level: The default log level to use for most logs
     :param log_format: A percent-style log format to write non JSON logs with.
+    :param log_timestamp_format: Timestamp format for component logs. Use ``"iso"`` for ISO 8601 format
+        (the default), or a strftime format string such as ``"%Y-%m-%d %H:%M:%S"``. Note: this only
+        applies to component logs rendered via structlog (scheduler, api-server, triggerer, etc.).
     :param output: Where to write the logs to. If ``json_output`` is true this must be a binary stream
     :param colors: Whether to use colors for non-JSON logs. This only works if standard out is a TTY (that is,
         an interactive session), unless overridden by environment variables described below.
@@ -465,6 +561,7 @@ def configure_logging(
         log_format=log_format,
         colors=colors,
         callsite_parameters=tuple(callsite_parameters or ()),
+        log_timestamp_format=log_timestamp_format,
     )
     shared_pre_chain += list(extra_processors)
     pre_chain: list[structlog.typing.Processor] = [structlog.stdlib.add_logger_name] + shared_pre_chain
@@ -539,7 +636,7 @@ def configure_logging(
                 "level": log_level.upper(),
                 "class": "logging.StreamHandler",
                 "formatter": "structlog",
-                "stream": output,
+                "stream": output if output is not None else sys.stdout,
             },
         }
     )
@@ -559,6 +656,79 @@ def configure_logging(
     }
 
     logging.config.dictConfig(config)
+
+    if json_output:
+        _install_excepthook()
+
+    _WarningsInterceptor.register(_showwarning)
+
+
+class _WarningsInterceptor:
+    """Holds a reference to the original ``warnings.showwarning`` so it can be restored."""
+
+    _original_showwarning: Callable | None = None
+
+    @staticmethod
+    def register(new_callable: Callable) -> None:
+        import warnings
+
+        if _WarningsInterceptor._original_showwarning is None:
+            _WarningsInterceptor._original_showwarning = warnings.showwarning
+        warnings.showwarning = new_callable
+
+    @staticmethod
+    def reset() -> None:
+        import warnings
+
+        if _WarningsInterceptor._original_showwarning is not None:
+            warnings.showwarning = _WarningsInterceptor._original_showwarning
+            _WarningsInterceptor._original_showwarning = None
+
+    @staticmethod
+    def emit_warning(*args: Any) -> None:
+        if _WarningsInterceptor._original_showwarning is not None:
+            _WarningsInterceptor._original_showwarning(*args)
+
+
+def _showwarning(
+    message: Warning | str,
+    category: type[Warning],
+    filename: str,
+    lineno: int,
+    file: TextIO | None = None,
+    line: str | None = None,
+) -> None:
+    """
+    Redirect Python warnings to structlog.
+
+    If ``file`` is not None the warning is forwarded to the original handler
+    (e.g. when warnings are written directly to a file handle). Otherwise the
+    warning is emitted as a structured log event on the ``py.warnings`` logger
+    so it flows through the same processor chain as all other log output.
+    """
+    if file is not None:
+        _WarningsInterceptor.emit_warning(message, category, filename, lineno, file, line)
+    else:
+        warning_log = reconfigure_logger(
+            structlog.get_logger("py.warnings").bind(),
+            structlog.processors.CallsiteParameterAdder,
+        )
+        warning_log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
+
+
+def _install_excepthook() -> None:
+    """Replace sys.excepthook so unhandled exceptions are emitted via structlog."""
+    _original = sys.excepthook
+
+    def _excepthook(exc_type: type, exc_value: BaseException, exc_tb) -> None:
+        if issubclass(exc_type, KeyboardInterrupt):
+            _original(exc_type, exc_value, exc_tb)
+            return
+        structlog.get_logger("unhandled_exception").critical(
+            "Unhandled exception", exc_info=(exc_type, exc_value, exc_tb)
+        )
+
+    sys.excepthook = _excepthook
 
 
 def init_log_folder(directory: str | os.PathLike[str], new_folder_permissions: int):
@@ -585,8 +755,8 @@ def init_log_folder(directory: str | os.PathLike[str], new_folder_permissions: i
     sure that the same group is set as default group for both - impersonated user and main airflow
     user.
     """
-    directory = Path(directory)
-    for parent in reversed(Path(directory).parents):
+    directory = _PatchedPath(directory)
+    for parent in reversed(_PatchedPath(directory).parents):
         parent.mkdir(mode=new_folder_permissions, exist_ok=True)
     directory.mkdir(mode=new_folder_permissions, exist_ok=True)
 
@@ -605,7 +775,7 @@ def init_log_file(
 
     See above ``init_log_folder`` method for more detailed explanation.
     """
-    full_path = Path(base_log_folder, local_relative_path)
+    full_path = _PatchedPath(base_log_folder, local_relative_path)
     init_log_folder(full_path.parent, new_folder_permissions)
 
     try:

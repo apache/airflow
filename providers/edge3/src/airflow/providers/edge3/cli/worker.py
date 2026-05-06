@@ -20,10 +20,13 @@ import logging
 import os
 import signal
 import sys
+import time
 import traceback
-from asyncio import Task, create_task, get_running_loop, sleep
+from asyncio import Task, create_task, gather, get_running_loop, sleep
+from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from datetime import datetime
-from functools import cache
+from functools import cached_property
 from http import HTTPStatus
 from multiprocessing import Process, Queue
 from pathlib import Path
@@ -35,8 +38,7 @@ from aiohttp import ClientResponseError
 from lockfile.pidlockfile import remove_existing_pidfile
 
 from airflow import __version__ as airflow_version
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
     jobs_fetch,
@@ -57,16 +59,15 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from airflow.configuration import AirflowConfigParser
     from airflow.executors.workloads import ExecuteTask
 
 logger = logging.getLogger(__name__)
-base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-push_logs = conf.getboolean("edge", "push_logs")
-push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
 
 if sys.platform == "darwin":
     setproctitle = lambda title: logger.debug("Mac OS detected, skipping setproctitle")
@@ -79,16 +80,23 @@ def _edge_hostname() -> str:
     return os.environ.get("HOSTNAME", getfqdn())
 
 
-@cache
-def _execution_api_server_url() -> str:
-    """Get the execution api server url from config or environment."""
-    api_url = conf.get("edge", "api_url")
-    execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-    if not execution_api_server_url and api_url:
-        # Derive execution api url from edge api url as fallback
-        execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
-    logger.info("Using execution api server url: %s", execution_api_server_url)
-    return execution_api_server_url
+def _reset_parent_signal_state() -> None:
+    """
+    Detach a forked child from the parent's asyncio signal plumbing.
+
+    The parent installs asyncio signal handlers for SIGTERM/SIGINT/SIG_STATUS
+    via ``loop.add_signal_handler``, which internally uses
+    ``signal.set_wakeup_fd`` on one end of a shared socketpair. On Linux
+    ``fork()`` duplicates that fd into the child; signals delivered to the
+    child then write bytes into the socketpair the parent is reading from,
+    re-firing the parent's handlers. Reset the inherited state before the
+    child runs any supervised code.
+    """
+    signal.set_wakeup_fd(-1)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    with suppress(ValueError, OSError):
+        signal.signal(SIG_STATUS, signal.SIG_DFL)
 
 
 class EdgeWorker:
@@ -98,10 +106,16 @@ class EdgeWorker:
     """List of jobs that the worker is running currently."""
     drain: bool = False
     """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
+    drain_started_at: float | None = None
+    """``time.monotonic()`` timestamp of when drain was first requested."""
+    drain_timed_out: bool = False
+    drain_kill_deadline: float | None = None
     maintenance_mode: bool = False
     """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
     maintenance_comments: str | None = None
     """Comments for maintenance mode."""
+    versions_match: bool = True
+    """Whether the worker and the server have matching versions of Airflow and the Edge Provider."""
     background_tasks: set[Task] = set()
 
     def __init__(
@@ -110,17 +124,71 @@ class EdgeWorker:
         hostname: str,
         queues: list[str] | None,
         concurrency: int,
-        job_poll_interval: int,
-        heartbeat_interval: int,
         daemon: bool = False,
+        team_name: str | None = None,
     ):
         self.pid_file_path = pid_file_path
-        self.job_poll_interval = job_poll_interval
-        self.hb_interval = heartbeat_interval
         self.hostname = hostname
         self.queues = queues
         self.concurrency = concurrency
         self.daemon = daemon
+        self.team_name = team_name
+
+        self.worker_start_time: datetime = datetime.now()
+
+        if TYPE_CHECKING:
+            self.conf: ExecutorConf | AirflowConfigParser
+
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.executors.base_executor import ExecutorConf
+
+            self.conf = ExecutorConf(team_name)
+
+        else:
+            self.conf = conf
+
+        self.job_poll_interval = self.conf.getint("edge", "job_poll_interval")
+        self.hb_interval = self.conf.getint("edge", "heartbeat_interval")
+        self.drain_timeout_sec = self.conf.getint("edge", "drain_timeout_sec")
+        self.drain_kill_grace_sec = self.conf.getint("edge", "drain_kill_grace_sec")
+        self.base_log_folder: str = (
+            self.conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE") or ""
+        )
+        self.push_logs = self.conf.getboolean("edge", "push_logs")
+        self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
+        self.automatic_maintenance_on = (
+            self.conf.get("edge", "automatic_maintenance_on", fallback="Off") or "Off"
+        ).lower()
+        self.automatic_maintenance_exit = (
+            self.conf.get("edge", "automatic_maintenance_exit", fallback="Off") or "Off"
+        ).lower()
+
+        self.extended_sysinfo: Callable[[], Awaitable[dict[str, str | int | float | datetime]]] | None = None
+        extended_sysinfo_func_path = self.conf.get("edge", "extended_system_info_function", fallback=None)
+        if extended_sysinfo_func_path:
+            module_path, func_name = extended_sysinfo_func_path.rsplit(".", 1)
+            try:
+                module = __import__(module_path, fromlist=[func_name])
+                self.extended_sysinfo = getattr(module, func_name)
+                logger.info("Using extended sysinfo function: %s", extended_sysinfo_func_path)
+            except Exception:
+                logger.exception(
+                    "Failed to import extended sysinfo function %s, skipping it.",
+                    extended_sysinfo_func_path,
+                )
+
+    @cached_property
+    def _execution_api_server_url(self) -> str | None:
+        """Get the execution api server url from config or environment."""
+        execution_api_server_url = self.conf.get("core", "execution_api_server_url", fallback="")
+        if not execution_api_server_url:
+            # Derive execution api url from edge api url as fallback
+            api_url = self.conf.get("edge", "api_url")
+            execution_api_server_url = (
+                api_url.replace("edge_worker/v1/rpcapi", "execution") if api_url is not None else None
+            )
+        logger.info("Using execution api server url: %s", execution_api_server_url)
+        return execution_api_server_url
 
     @property
     def free_concurrency(self) -> int:
@@ -157,26 +225,175 @@ class EdgeWorker:
         )
 
     def signal_drain(self):
-        self.drain = True
-        logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
+        if self._start_draining():
+            logger.info(
+                "Request to shut down Edge Worker received, waiting for jobs to complete. %s",
+                self._drain_policy_description(),
+            )
 
     def shutdown_handler(self):
+        if not self._start_draining():
+            return
+        logger.info("SIGTERM received. Sending SIGTERM to all jobs and quit")
+        try:
+            loop = get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            task = loop.create_task(
+                self._push_drain_notice_to_all_jobs(
+                    "Edge worker received external SIGTERM; terminating task supervisor."
+                )
+            )
+            self.background_tasks.add(task)
+            task.add_done_callback(self.background_tasks.discard)
+        self._terminate_jobs(signal.SIGTERM)
+
+    def _start_draining(self) -> bool:
+        """Mark drain start. Returns ``True`` on the first call, ``False`` on subsequent calls."""
+        if self.drain:
+            return False
         self.drain = True
-        msg = "SIGTERM received. Sending SIGTERM to all jobs and quit"
-        logger.info(msg)
+        self.drain_started_at = time.monotonic()
+        return True
+
+    def _drain_policy_description(self) -> str:
+        """One-line description of the configured drain-timeout policy for logging."""
+        if self.drain_timeout_sec <= 0:
+            return "Drain timeout disabled; will wait indefinitely."
+        return (
+            f"Drain timeout: {self.drain_timeout_sec}s (then SIGTERM), "
+            f"kill grace: {self.drain_kill_grace_sec}s (then SIGKILL)."
+        )
+
+    def _terminate_jobs(self, sig: int) -> None:
+        """Send ``sig`` to every running job process. Safe to call repeatedly."""
         for job in self.jobs:
             if job.process.pid:
-                os.setpgid(job.process.pid, 0)
-                os.kill(job.process.pid, signal.SIGTERM)
+                with suppress(ProcessLookupError, PermissionError):
+                    os.kill(job.process.pid, sig)
 
-    def _get_sysinfo(self) -> dict:
+    async def _push_drain_notice_to_all_jobs(self, message: str) -> None:
+        """Best-effort push of ``message`` into each running job's task log stream."""
+
+        async def push_one(job: Job) -> None:
+            try:
+                await logs_push(
+                    task=job.edge_job.key,
+                    log_chunk_time=timezone.utcnow(),
+                    log_chunk_data=f"{message}\n",
+                )
+            except Exception:
+                logger.exception("Failed to push drain notice to task log for %s", job.edge_job.identifier)
+
+        await gather(*(push_one(job) for job in list(self.jobs)))
+
+    async def _enforce_drain_timeout(self) -> bool:
+        """
+        Apply drain-timeout policy when configured.
+
+        Two-phase escalation: once ``drain_timeout_sec`` elapses, SIGTERM remaining jobs;
+        after ``drain_kill_grace_sec`` more, SIGKILL and return ``True`` so the loop exits.
+        Returns ``False`` otherwise (not configured, not draining, deadline not hit, or waiting out grace).
+        """
+        if self.drain_timeout_sec <= 0:
+            return False
+        if not self.drain or not self.jobs or self.drain_started_at is None:
+            return False
+        now = time.monotonic()
+        if now - self.drain_started_at < self.drain_timeout_sec:
+            return False
+        if not self.drain_timed_out:
+            self.drain_timed_out = True
+            self.drain_kill_deadline = now + self.drain_kill_grace_sec
+            logger.warning(
+                "Drain timeout of %ds exceeded with %d job(s) still running. Sending SIGTERM.",
+                self.drain_timeout_sec,
+                len(self.jobs),
+            )
+            await self._push_drain_notice_to_all_jobs(
+                f"Edge worker drain timeout of {self.drain_timeout_sec}s expired; "
+                f"sending SIGTERM to task supervisor. "
+                f"Will escalate to SIGKILL after {self.drain_kill_grace_sec}s grace."
+            )
+            self._terminate_jobs(signal.SIGTERM)
+            return False
+        if self.drain_kill_deadline is not None and now >= self.drain_kill_deadline:
+            logger.warning(
+                "Drain kill grace of %ds exceeded with %d job(s) still running. Sending SIGKILL and exiting.",
+                self.drain_kill_grace_sec,
+                len(self.jobs),
+            )
+            await self._push_drain_notice_to_all_jobs(
+                f"Edge worker drain kill-grace of {self.drain_kill_grace_sec}s expired; "
+                f"sending SIGKILL and exiting worker."
+            )
+            self._terminate_jobs(signal.SIGKILL)
+            return True
+        return False
+
+    def _adjust_maintenance_mode_based_on_sysinfo(
+        self, sysinfo: dict[str, str | int | float | datetime]
+    ) -> None:
+        """Adjust maintenance mode based on sysinfo status and config."""
+        status: int = sysinfo.get("status")  # type: ignore
+        if not self.maintenance_mode and (
+            (status >= logging.WARNING and self.automatic_maintenance_on == "warning")
+            or (status >= logging.ERROR and self.automatic_maintenance_on == "error")
+        ):
+            logger.info(
+                "Entering maintenance mode due to status %s in sysinfo.", logging.getLevelName(status)
+            )
+            self.maintenance_mode = True
+            self.maintenance_comments = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - Automatic maintenance mode entered due to status {logging.getLevelName(status)} in sysinfo."
+        elif (
+            self.maintenance_mode
+            and self.maintenance_comments
+            and "] - Automatic maintenance mode entered due to status " in self.maintenance_comments
+            and (
+                (status < logging.WARNING and self.automatic_maintenance_exit == "info")
+                or (status < logging.ERROR and self.automatic_maintenance_exit == "warning")
+            )
+        ):
+            logger.info("Exiting maintenance mode due to status %s in sysinfo.", logging.getLevelName(status))
+            self.maintenance_mode = False
+            self.maintenance_comments = None
+
+    async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
-        return {
+        sysinfo: dict[str, str | int | float | datetime] = {
+            **(
+                {
+                    "status": logging.INFO,
+                }
+                if self.versions_match
+                else {
+                    "status": logging.WARNING,
+                    "status_text": "Healthy but version mismatch",
+                    "version_mismatch_description": "The version between the Edge Worker and the "
+                    "Airflow Core is not matching for either the edge or airflow package version. "
+                    "Please check if the Edge Provider version is compatible with your Airflow "
+                    "version. The worker will still operate but you might miss some features or "
+                    "have issues. Please consider upgrading the Edge Provider to a compatible "
+                    "version.",
+                }
+            ),
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
+            "python_version": sys.version,
+            "worker_start_time": self.worker_start_time,
             "concurrency": self.concurrency,
             "free_concurrency": self.free_concurrency,
         }
+        if self.extended_sysinfo:
+            try:
+                sysinfo.update(await self.extended_sysinfo())
+            except Exception:
+                logger.exception("Failed to get extended sysinfo, skipping it.")
+
+        # After grabbing status, check if we need to enter/exit maintenance mode
+        self._adjust_maintenance_mode_based_on_sysinfo(sysinfo)
+        return sysinfo
 
     def _get_state(self) -> EdgeWorkerState:
         """State of the Edge Worker."""
@@ -197,6 +414,8 @@ class EdgeWorker:
         return EdgeWorkerState.IDLE
 
     def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
+        _reset_parent_signal_state()
+
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
@@ -213,14 +432,15 @@ class EdgeWorker:
         try:
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                # Same like in airflow/executors/local_executor.py:_execute_work()
+                # Same like in airflow/executors/local_executor.py:_execute_workload()
                 ti=ti,  # type: ignore[arg-type]
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=_execution_api_server_url(),
+                server=self._execution_api_server_url,
                 log_path=workload.log_path,
             )
+            results_queue.put("OK")
             return 0
         except Exception as e:
             logger.exception("Task execution failed")
@@ -240,7 +460,7 @@ class EdgeWorker:
 
     async def _push_logs_in_chunks(self, job: Job):
         aio_logfile = anyio.Path(job.logfile)
-        if push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
+        if self.push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
             async with aio_open(job.logfile, mode="rb") as logf:
                 await logf.seek(job.logsize, os.SEEK_SET)
                 read_data = await logf.read()
@@ -249,8 +469,8 @@ class EdgeWorker:
                 # replace null with question mark to fix issue during DB push
                 log_data = read_data.decode(errors="backslashreplace").replace("\x00", "\ufffd")
                 while True:
-                    chunk_data = log_data[:push_log_chunk_size]
-                    log_data = log_data[push_log_chunk_size:]
+                    chunk_data = log_data[: self.push_log_chunk_size]
+                    log_data = log_data[self.push_log_chunk_size :]
                     if not chunk_data:
                         break
 
@@ -263,7 +483,15 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
-            await worker_register(self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo())
+            sysinfo = await self._get_sysinfo()
+            register_result = await worker_register(
+                self.hostname,
+                EdgeWorkerState.MAINTENANCE_MODE if self.maintenance_mode else EdgeWorkerState.STARTING,
+                self.queues,
+                sysinfo,
+                self.team_name,
+            )
+            self.versions_match = register_result.versions_match
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -291,12 +519,17 @@ class EdgeWorker:
 
             logger.info("Quitting worker, signal being offline.")
             try:
+                sysinfo = await self._get_sysinfo()
+                sysinfo["status"] = logging.NOTSET
+                if "status_text" in sysinfo:
+                    del sysinfo["status_text"]  # Remove old status text if exists
                 await worker_set_state(
                     self.hostname,
                     EdgeWorkerState.OFFLINE_MAINTENANCE if self.maintenance_mode else EdgeWorkerState.OFFLINE,
                     0,
                     self.queues,
-                    self._get_sysinfo(),
+                    sysinfo,
+                    team_name=self.team_name,
                 )
             except EdgeWorkerVersionException:
                 logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
@@ -329,12 +562,15 @@ class EdgeWorker:
             else:
                 logger.info("%i %s running", len(self.jobs), "job is" if len(self.jobs) == 1 else "jobs are")
 
+            if await self._enforce_drain_timeout():
+                break
+
             await self.interruptible_sleep()
 
     async def fetch_and_run_job(self) -> None:
         """Fetch, start and monitor a new job."""
         logger.debug("Attempting to fetch a new job...")
-        edge_job = await jobs_fetch(self.hostname, self.queues, self.free_concurrency)
+        edge_job = await jobs_fetch(self.hostname, self.queues, self.free_concurrency, self.team_name)
         if not edge_job:
             logger.info(
                 "No new job to process%s",
@@ -348,7 +584,7 @@ class EdgeWorker:
         process, results_queue = self._launch_job(workload)
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
-        logfile = Path(base_log_folder, workload.log_path)
+        logfile = Path(self.base_log_folder, workload.log_path)
         job = Job(edge_job, process, logfile)
         self.jobs.append(job)
         await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
@@ -359,37 +595,44 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
-        while job.is_running:
+        while job.is_running and results_queue.empty():
             await self._push_logs_in_chunks(job)
             for _ in range(0, self.job_poll_interval * 10):
                 await sleep(0.1)
                 if not job.is_running:
                     break
         await self._push_logs_in_chunks(job)
+        supervisor_msg = (
+            "(Unknown error, no exception details available)"
+            if results_queue.empty()
+            else results_queue.get()
+        )
+        # Ensure that supervisor really ended after we grabbed results from queue
+        while True:
+            if not job.is_running:
+                break
+            await sleep(0.1)
 
         self.jobs.remove(job)
         if job.is_success:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
         else:
-            if results_queue.empty():
-                ex_txt = "(Unknown error, no exception details available)"
-            else:
-                ex = results_queue.get()
-                ex_txt = "\n".join(traceback.format_exception(ex))
-            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
+            if isinstance(supervisor_msg, Exception):
+                supervisor_msg = "\n".join(traceback.format_exception(supervisor_msg))
+            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, supervisor_msg)
             # Push it upwards to logs for better diagnostic as well
             await logs_push(
                 task=job.edge_job.key,
                 log_chunk_time=timezone.utcnow(),
-                log_chunk_data=f"Error starting job:\n{ex_txt}",
+                log_chunk_data=f"Error executing job:\n{supervisor_msg}",
             )
             await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
+        sysinfo = await self._get_sysinfo()
         state = self._get_state()
-        sysinfo = self._get_sysinfo()
         worker_state_changed: bool = False
         try:
             worker_info = await worker_set_state(
@@ -398,9 +641,18 @@ class EdgeWorker:
                 len(self.jobs),
                 self.queues,
                 sysinfo,
-                new_maintenance_comments,
+                new_maintenance_comments or self.maintenance_comments,
+                team_name=self.team_name,
             )
+            self.versions_match = worker_info.versions_match
             self.queues = worker_info.queues
+            if worker_info.concurrency is not None and worker_info.concurrency != self.concurrency:
+                logger.info(
+                    "Concurrency updated from %d to %d by remote request.",
+                    self.concurrency,
+                    worker_info.concurrency,
+                )
+                self.concurrency = worker_info.concurrency
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
                 self.maintenance_mode = True
@@ -413,14 +665,13 @@ class EdgeWorker:
                 self.maintenance_comments = worker_info.maintenance_comments
             else:
                 self.maintenance_comments = None
-            if worker_info.state == EdgeWorkerState.SHUTDOWN_REQUEST:
+            if worker_info.state == EdgeWorkerState.SHUTDOWN_REQUEST and self._start_draining():
                 logger.info("Shutdown requested!")
-                self.drain = True
 
             worker_state_changed = worker_info.state != state
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
-            self.drain = True
+            self._start_draining()
         return worker_state_changed
 
     async def interruptible_sleep(self):

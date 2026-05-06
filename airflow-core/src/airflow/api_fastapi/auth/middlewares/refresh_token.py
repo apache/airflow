@@ -21,7 +21,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.app import get_auth_manager, get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -61,15 +61,29 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
 
             if new_token is not None:
-                secure = bool(conf.get("api", "ssl_cert", fallback=""))
+                cookie_path = get_cookie_path()
+                secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
                 response.set_cookie(
                     COOKIE_NAME_JWT_TOKEN,
                     new_token,
+                    path=cookie_path,
                     httponly=True,
                     secure=secure,
                     samesite="lax",
                     max_age=0 if new_token == "" else None,
                 )
+                # Clear any stale _token cookie at root path "/".
+                # Older Airflow instances may have set the cookie there;
+                # without this, the root-path cookie keeps being sent on
+                # every request, causing an infinite redirect loop.
+                if cookie_path != "/":
+                    response.delete_cookie(
+                        key=COOKIE_NAME_JWT_TOKEN,
+                        path="/",
+                        httponly=True,
+                        secure=secure,
+                        samesite="lax",
+                    )
         except HTTPException as exc:
             # If any HTTPException is raised during user resolution or refresh, return it as response
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})

@@ -25,6 +25,117 @@
 Changelog
 ---------
 
+.. warning::
+   **Breaking Change:** The default execution mode for paginated (``page_size`` + string SQL) GenericTransfer tasks has changed. Previously, these tasks always ran in deferred mode (using deferrable execution). Starting with this release, they now run synchronously by default unless you explicitly opt in to deferrable mode.
+
+   This is a silent behavior change for any existing DAG using paginated GenericTransfer. If you want to restore the old behavior (always defer execution):
+
+   1. Pass ``deferrable=True`` to each affected GenericTransfer task, **or**
+   2. Set the global config option ``[operators] default_deferrable = true`` to make all operators deferrable by default.
+
+   Review your DAGs and configuration if you rely on deferred execution for paginated GenericTransfer tasks.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.36.0
+......
+
+Features
+~~~~~~~~
+
+* ``GenericTransfer: switch paginated mode to non-deferred default with opt-in deferral (#64321)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+1.35.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'accept_none' to 'SQLTableCheckOperator' (#63210)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+1.34.0
+......
+
+Features
+~~~~~~~~
+
+* ``Simplify default rows limit return result (#64183)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Removed logging of rows length in SQLInsertRowsOperator to avoid crash on non materialized rows (#63346)``
+* ``Fix provider YAML validation for common SQL analytics operator (#63393)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky test_run_no_log in DbApiHook by verifying caplog text instead of length. (#63860)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+1.33.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Iceberg support to AnalyticsOperator (#62754)``
+* ``Add @task.analytics Decorator (#62648)``
+* ``Add ObjectStorage support to LLMSQLQueryOperator via DataFusion (#62640)``
+* ``Add 'LLMSQLQueryOperator' and '@task.llm_sql' to common.ai provider (#62599)``
+* ``AIP-99: Add AnalyticsOperator (#62232)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache DbApiHook.inspector to avoid creating N engines (#62594)``
+
+Misc
+~~~~
+
+* ``Consolidate 'SkipMixin' imports through 'common-compat' layer (#62776)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix removal of '__str__' method from Datafusion Format enums (#62830)``
+   * ``Explicitly set extra for connections in generic transfer tests (#62581)``
+
+1.32.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``'task-sql-decorator': Introducing the '@task.sql' decorator (#60851)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Providers ad-hoc 2026-02-20 (#62209)``
+
 1.31.0
 ......
 

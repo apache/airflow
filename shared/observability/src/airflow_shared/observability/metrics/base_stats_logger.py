@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .protocols import Timer
@@ -28,16 +29,11 @@ if TYPE_CHECKING:
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    instance: StatsLogger | NoStatsLogger | None = None
-
     @classmethod
     def initialize(
         cls,
         *,
-        is_statsd_datadog_enabled: bool,
-        is_statsd_on: bool,
-        is_otel_on: bool,
-        reset_instance: bool = True,
+        factory: Callable,
     ) -> None:
         """Initialize the StatsLogger instance."""
 
@@ -98,10 +94,7 @@ class NoStatsLogger:
     def initialize(
         cls,
         *,
-        is_statsd_datadog_enabled: bool,
-        is_statsd_on: bool,
-        is_otel_on: bool,
-        reset_instance: bool = True,
+        factory: Callable,
     ) -> None:
         """Initialize the NoStatsLogger instance."""
 
@@ -117,7 +110,7 @@ class NoStatsLogger:
     def gauge(
         cls,
         stat: str,
-        value: int,
+        value: float,
         rate: int = 1,
         delta: bool = False,
         *,

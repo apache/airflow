@@ -55,6 +55,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--github-actor",
                 "--github-context",
+                "--github-context-input",
             ],
         },
     ],
@@ -74,9 +75,23 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--target-branch",
                 "--create-pr",
+                "--draft",
                 "--switch-to-base",
+                "--airflow-site",
+                "--force-k8s-schema-sync",
+                "--github-token",
             ],
-        }
+        },
+        {
+            "name": "Upgrade steps",
+            "options": [
+                "--autoupdate",
+                "--update-chart-dependencies",
+                "--upgrade-important-versions",
+                "--update-uv-lock",
+                "--k8s-schema-sync",
+            ],
+        },
     ],
     "breeze ci set-milestone": [
         {

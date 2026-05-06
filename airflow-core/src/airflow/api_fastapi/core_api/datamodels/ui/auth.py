@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -33,3 +35,24 @@ class AuthenticatedMeResponse(BaseModel):
 
     id: str
     username: str
+
+
+class TokenType(str, Enum):
+    """Type of token to generate."""
+
+    API = "api"
+    CLI = "cli"
+
+
+class GenerateTokenBody(BaseModel):
+    """Request body for generating a token."""
+
+    token_type: TokenType = TokenType.API
+
+
+class GenerateTokenResponse(BaseModel):
+    """Response for a generated token."""
+
+    access_token: str
+    token_type: TokenType
+    expires_in_seconds: int

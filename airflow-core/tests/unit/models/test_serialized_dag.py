@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from unittest import mock
 
 import pendulum
@@ -31,11 +32,14 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.deadline_alert import DeadlineAlert as DAM
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -48,15 +52,21 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db
+from unit.models import DEFAULT_DATE
 
 logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.db_test
 
 
+async def empty_callback_for_deadline():
+    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
+
+
 # To move it to a shared module.
 def make_example_dags(module):
-    """Loads DAGs from a module for test."""
+    """Loads Dags from a module for test."""
     from airflow.models.dagbundle import DagBundleModel
     from airflow.utils.session import create_session
 
@@ -514,6 +524,48 @@ class TestSerializedDagModel:
         )
         assert did_write is should_write
 
+    def test_prefetch_dag_write_metadata_multiple_dags(self, dag_maker, session):
+        """Test that _prefetch_dag_write_metadata returns correct metadata for multiple DAGs."""
+        with dag_maker("prefetch_multi_dag1"):
+            EmptyOperator(task_id="task1")
+        with dag_maker("prefetch_multi_dag2"):
+            EmptyOperator(task_id="task1")
+
+        result = SDM._prefetch_dag_write_metadata(
+            ["prefetch_multi_dag1", "prefetch_multi_dag2"], session=session
+        )
+
+        assert len(result) == 2
+        for dag_id in ("prefetch_multi_dag1", "prefetch_multi_dag2"):
+            metadata = result[dag_id]
+            assert metadata.last_updated is not None
+            assert metadata.dag_hash is not None
+            assert metadata.dag_version is not None
+            assert metadata.dag_version.dag_id == dag_id
+
+    def test_prefetch_dag_write_metadata_returns_latest_version(self, dag_maker, session):
+        """Test that _prefetch_dag_write_metadata returns the latest DagVersion."""
+        with dag_maker("prefetch_version_dag") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        # Create a dagrun so that writing a changed DAG creates a new version
+        dag_maker.create_dagrun(run_id="run1", logical_date=pendulum.datetime(2025, 1, 1))
+
+        # Modify the DAG (add a task) and write again to create version 2
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag.dag_id)
+            )
+            == 2
+        )
+
+        result = SDM._prefetch_dag_write_metadata([dag.dag_id], session=session)
+        metadata = result[dag.dag_id]
+        assert metadata.dag_version is not None
+        assert metadata.dag_version.version_number == 2
+
     def test_new_dag_version_created_when_bundle_name_changes_and_hash_unchanged(self, dag_maker, session):
         """Test that new dag_version is created if bundle_name changes but DAG is unchanged."""
         # Create and write initial DAG
@@ -753,3 +805,110 @@ class TestSerializedDagModel:
                 assert len(sdag.dag.task_dict) == 1, (
                     "SerializedDagModel should not be updated when write fails"
                 )
+
+    def test_deadline_interval_change_triggers_new_serdag(self, testing_dag_bundle, session):
+        dag_id = "test_interval_change"
+
+        # Create a new Dag with a deadline and create a dagrun as a baseline.
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+
+        # Modify the Dag's deadline interval.
+        dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=10),
+            callback=AsyncCallback(empty_callback_for_deadline),
+        )
+
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        new_serdag_count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        new_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        new_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == new_serdag.id))
+
+        # There should be a second serdag with a new hash and the new interval.
+        assert new_serdag_count == 2
+        assert new_serdag.dag_hash != orig_serdag.dag_hash
+        assert new_alert.interval == 600.0
+
+    def test_deadline_name_change_updates_db_and_returns_true(self, testing_dag_bundle, session):
+        """Name-only deadline change: UUID reused, DB row updated, write_dag returns True."""
+        dag_id = "test_deadline_name_change"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+                name="original name",
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        orig_hash = orig_serdag.dag_hash
+        orig_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        orig_uuid = orig_alert.id
+
+        # Change only the name — reference, interval, and callback are identical.
+        dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=5),
+            callback=AsyncCallback(empty_callback_for_deadline),
+            name="updated name",
+        )
+
+        did_write = SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        # write_dag must report True because a DB write (name UPDATE) did occur.
+        assert did_write is True
+
+        serdag_count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        latest_serdag = session.scalar(
+            select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc())
+        )
+        updated_alert = session.scalar(select(DAM).where(DAM.id == orig_uuid))
+
+        # No new SerializedDagModel row — UUID was reused so the hash is unchanged.
+        assert serdag_count == 1
+        assert latest_serdag.dag_hash == orig_hash
+
+        # The DeadlineAlert row must still use the same UUID.
+        assert updated_alert is not None
+        assert updated_alert.id == orig_uuid
+
+        # The name must have been updated in the DB.
+        assert updated_alert.name == "updated name"

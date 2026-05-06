@@ -22,11 +22,13 @@
   "backfill_other": "回填",
   "browse": {
     "auditLog": "審計日誌",
+    "jobs": "工作",
     "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "收合所有額外 JSON",
   "collapseDetailsPanel": "收起詳細資訊",
+  "consumingAsset": "消費者資源",
   "createdAssetEvent_one": "已建立資源事件",
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
@@ -60,7 +62,8 @@
     "dataIntervalEnd": "資料區間結束",
     "dataIntervalStart": "資料區間起始",
     "lastSchedulingDecision": "最後排程決策",
-    "partitionKey": "資產分割鍵",
+    "mappedPartitionKey": "映射分區鍵",
+    "partitionKey": "資產分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
@@ -101,6 +104,12 @@
     "notFound": "找不到頁面",
     "title": "錯誤"
   },
+  "errors": {
+    "forbidden": {
+      "description": "您沒有執行此操作的權限。",
+      "title": "存取被拒"
+    }
+  },
   "expand": {
     "collapse": "收合",
     "expand": "展開",
@@ -123,9 +132,11 @@
     "logicalDateTo": "到邏輯日期",
     "runAfterFrom": "從最早可執行時間",
     "runAfterTo": "從最早可執行時間",
+    "searchAsset": "搜尋資源",
     "selectDateRange": "選擇日期範圍",
     "startTime": "起始時間"
   },
+  "generateToken": "產生權杖",
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -159,9 +170,17 @@
     "placeholder": "新增筆記...",
     "taskInstance": "任務實例筆記"
   },
+  "partitionedDagRun_one": "分區的 Dag 執行",
+  "partitionedDagRun_other": "分區的 Dag 執行",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "收到的資源事件"
+  },
+  "pendingDagRun_one": "待執行的 Dag 執行",
+  "pendingDagRun_other": "待執行的 Dag 執行",
   "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
+    "asset_materialization": "資源實體化",
     "asset_triggered": "資源觸發",
     "backfill": "回填",
     "manual": "手動觸發",
@@ -174,6 +193,12 @@
     },
     "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "在值中任意位置進行匹配 (子字串搜尋)。在大型部署上會較慢，因為無法使用預設的 B-tree 索引。詳情請參閱文件中關於自訂中繼資料索引的章節。",
+      "title": "任意位置匹配"
+    }
+  },
   "security": {
     "actions": "操作",
     "permissions": "權限",
@@ -182,6 +207,7 @@
     "users": "使用者"
   },
   "selectLanguage": "選擇語言",
+  "selected": "已選取",
   "showDetailsPanel": "顯示詳細資訊",
   "signedInAs": "登入身分：",
   "source": {
@@ -237,6 +263,8 @@
   "task_one": "任務",
   "task_other": "任務",
   "taskGroup": "任務群組",
+  "taskGroup_one": "任務群組",
+  "taskGroup_other": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",
@@ -282,11 +310,25 @@
     "utc": "UTC"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "批次清除 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "已成功清除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "title": "已提交批次清除 {{resourceName}} 請求"
+      }
+    },
     "bulkDelete": {
       "error": "批次刪除 {{resourceName}} 請求失敗",
       "success": {
         "description": "已成功刪除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次刪除 {{resourceName}} 請求"
+      }
+    },
+    "bulkUpdate": {
+      "error": "批次更新 {{resourceName}} 請求失敗",
+      "success": {
+        "description": "已成功更新 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "title": "已提交批次更新 {{resourceName}} 請求"
       }
     },
     "create": {
@@ -318,10 +360,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API 權杖",
+    "cliToken": "CLI 權杖",
+    "errorDescription": "產生權杖時發生錯誤，請再試一次。",
+    "errorTitle": "權杖產生失敗",
+    "generate": "產生",
+    "selectType": "選擇要產生的權杖類型。",
+    "title": "產生權杖",
+    "tokenExpiresIn": "此權杖將在 {{duration}} 後過期。",
+    "tokenGenerated": "您的權杖已產生。",
+    "tokenShownOnce": "此權杖僅會顯示一次，請立即複製。"
+  },
   "total": "總計 {{state}}",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
   "user": "使用者",
+  "validation": {
+    "mustBeAtLeast": "必須至少為 {{min}}。",
+    "mustBeValidNumber": "必須為有效的數字。"
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",

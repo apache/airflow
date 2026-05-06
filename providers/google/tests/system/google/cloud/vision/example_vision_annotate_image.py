@@ -110,8 +110,7 @@ with DAG(
 
     # [START howto_operator_vision_annotate_image_result]
     annotate_image_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('annotate_image')"
-        "['logoAnnotations'][0]['description'] }}",
+        bash_command="echo {{ task_instance.xcom_pull('annotate_image')['logoAnnotations'][0]['description'] }}",
         task_id="annotate_image_result",
     )
     # [END howto_operator_vision_annotate_image_result]
@@ -205,5 +204,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

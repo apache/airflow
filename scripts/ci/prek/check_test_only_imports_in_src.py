@@ -42,7 +42,6 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import console
 
 # Top-level modules that are dev-only and must never be imported at runtime.

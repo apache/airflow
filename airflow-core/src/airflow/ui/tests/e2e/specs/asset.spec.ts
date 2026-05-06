@@ -16,90 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-
-import { AssetDetailPage } from "../pages/AssetDetailPage";
-import { AssetListPage } from "../pages/AssetListPage";
-import { DagsPage } from "../pages/DagsPage";
+import { testConfig } from "playwright.config";
+import { expect } from "tests/e2e/fixtures";
+import { test } from "tests/e2e/fixtures/asset-data";
 
 test.describe("Assets Page", () => {
-  let assets: AssetListPage;
-
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const dagsPage = new DagsPage(page);
-
-    await dagsPage.triggerDag("asset_produces_1");
-    await expect
-      .poll(
-        async () => {
-          const response = await page.request.get(
-            `/api/v2/dags/asset_produces_1/dagRuns?order_by=-start_date&limit=1`,
-          );
-          const data = (await response.json()) as { dag_runs: Array<{ state: string }> };
-
-          return data.dag_runs[0]?.state ?? "pending";
-        },
-        { intervals: [2000], timeout: 120_000 },
-      )
-      .toBe("success");
-    await context.close();
+  // assetData is triggered once per worker via beforeEach.
+  test.beforeEach(async ({ assetData: _data, assetListPage }) => {
+    await assetListPage.navigate();
   });
 
-  test.beforeEach(async ({ page }) => {
-    assets = new AssetListPage(page);
-    await assets.navigate();
-    await assets.waitForLoad();
+  test("verify assets page heading", async ({ assetListPage }) => {
+    await expect(assetListPage.heading).toBeVisible();
   });
 
-  test("verify assets page heading", async () => {
-    await expect(assets.heading).toBeVisible();
+  test("verify assets table", async ({ assetListPage }) => {
+    await expect(assetListPage.table).toBeVisible();
   });
 
-  test("verify assets table", async () => {
-    await expect(assets.table).toBeVisible();
+  test("verify asset rows when data exists", async ({ assetListPage }) => {
+    await expect(assetListPage.rows.first()).toBeVisible();
   });
 
-  test("verify asset rows when data exists", async () => {
-    const count = await assets.assetCount();
-
-    expect(count).toBeGreaterThanOrEqual(0);
+  test("verify asset has a visible name link", async ({ assetListPage }) => {
+    await expect(assetListPage.rows.locator("td a").first()).toBeVisible();
   });
 
-  test("verify asset has a visible name link", async () => {
-    const names = await assets.assetNames();
-
-    for (const name of names) {
-      expect(name.trim().length).toBeGreaterThan(0);
-    }
-  });
-
-  test("verify clicking an asset navigates to detail page", async ({ page }) => {
-    const name = await assets.openFirstAsset();
+  test("verify clicking an asset navigates to detail page", async ({ assetListPage, page }) => {
+    const name = await assetListPage.openFirstAsset();
 
     await expect(page).toHaveURL(/\/assets\/.+/);
     await expect(page.getByRole("heading", { name: new RegExp(name, "i") })).toBeVisible();
   });
 
-  test("verify assets using search", async () => {
-    const initialCount = await assets.assetCount();
-
-    expect(initialCount).toBeGreaterThan(0);
+  test("verify assets using search", async ({ assetListPage }) => {
+    await expect(assetListPage.rows.first()).toBeVisible();
 
     const searchTerm = testConfig.asset.name;
 
-    await assets.searchInput.fill(searchTerm);
+    await assetListPage.searchInput.fill(searchTerm);
 
-    // Wait for filtered results - count should decrease OR stay same if search matches all
     await expect
       .poll(
         async () => {
-          const links = await assets.rows.locator("td a").allTextContents();
+          const links = await assetListPage.rows.locator("td a").allTextContents();
 
-          // Return true when we have results that match the search
           return (
             links.length > 0 && links.every((name) => name.toLowerCase().includes(searchTerm.toLowerCase()))
           );
@@ -107,48 +68,15 @@ test.describe("Assets Page", () => {
         { intervals: [500], timeout: 30_000 },
       )
       .toBe(true);
-
-    const names = await assets.assetNames();
-
-    expect(names.length).toBeGreaterThan(0);
-
-    for (const name of names) {
-      expect(name.toLowerCase()).toContain(searchTerm.toLowerCase());
-    }
   });
 
-  test("verify pagination controls navigate between pages", async () => {
-    await assets.navigateTo("/assets?limit=5&offset=0");
-    await assets.waitForLoad();
-
-    const page1Initial = await assets.assetNames();
-
-    expect(page1Initial.length).toBeGreaterThan(0);
-
-    const pagination = assets.page.locator('[data-scope="pagination"]');
-
-    await pagination.getByRole("button", { name: /page 2/i }).click();
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
-
-    const page2Assets = await assets.assetNames();
-
-    await pagination.getByRole("button", { name: /page 1/i }).click();
-
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
-  });
-
-  test("verify asset details and dependencies", async ({ page }) => {
-    const assetDetailPage = new AssetDetailPage(page);
+  test("verify asset details and dependencies", async ({ assetDetailPage }) => {
     const assetName = testConfig.asset.name;
 
     await assetDetailPage.goto();
-
     await assetDetailPage.clickOnAsset(assetName);
-
-    await assetDetailPage.verifyAssetDetails(assetName);
-
-    await assetDetailPage.verifyProducingTasks(1);
-
-    await assetDetailPage.verifyScheduledDags(1);
+    await expect(assetDetailPage.getHeading(assetName)).toBeVisible();
+    await assetDetailPage.verifyProducingTasks();
+    await assetDetailPage.verifyScheduledDags();
   });
 });

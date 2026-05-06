@@ -167,6 +167,37 @@ class TestSparkSubmitHook:
                 extra='{"keytab": "privileged_user.keytab"}',
             )
         )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_uri_with_protocol",
+                uri="spark://spark-master:7077",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_uri_yarn",
+                uri="yarn://yarn-master",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="mesos_uri",
+                uri="mesos://mesos-host:5050",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="k8s_uri",
+                uri="k8s://https://k8s-host:443",
+            )
+        )
+
+        create_connection_without_db(
+            Connection(
+                conn_id="local_uri",
+                uri="spark://local",
+            )
+        )
 
     @pytest.mark.db_test
     @patch(
@@ -531,6 +562,31 @@ class TestSparkSubmitHook:
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
+
+    def test_resolve_connection_spark_uri_with_protocol(self):
+        hook = SparkSubmitHook(conn_id="spark_uri_with_protocol")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "spark://spark-master:7077"
+
+    def test_resolve_connection_spark_uri_yarn(self):
+        hook = SparkSubmitHook(conn_id="spark_uri_yarn")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "yarn://yarn-master"
+
+    def test_resolve_connection_mesos_uri(self):
+        hook = SparkSubmitHook(conn_id="mesos_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "mesos://mesos-host:5050"
+
+    def test_resolve_connection_k8s_uri(self):
+        hook = SparkSubmitHook(conn_id="k8s_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "k8s://https://k8s-host:443"
+
+    def test_resolve_connection_local_uri(self):
+        hook = SparkSubmitHook(conn_id="local_uri")
+        connection = hook._resolve_connection()
+        assert connection["master"] == "local"
 
     def test_resolve_connection_custom_spark_binary_allowed_in_hook(self):
         SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
@@ -1211,3 +1267,72 @@ class TestSparkSubmitHook:
         mock_open.assert_called_with(Path(f"resolved_path/airflow_keytab-{principal}"), "rb")
         _mock_open.read.assert_called_once()
         assert not _mock_open.write.called, "Keytab file should not be written"
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.run")
+    def test_run_post_submit_commands_success(self, mock_run):
+        """Test that post_submit_commands are run with shell=False and shlex.split."""
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.returncode = 0
+        mock_result.stdout = "sidecar terminated"
+        mock_run.return_value = mock_result
+
+        hook = SparkSubmitHook(
+            conn_id="",
+            post_submit_commands=["curl -X POST localhost:15020/quitquitquit"],
+        )
+        hook._run_post_submit_commands()
+
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args
+        assert (
+            call_args.kwargs.get("shell") is False
+            or call_args.args[1:2] == (False,)
+            or not call_args.kwargs.get("shell", True)
+        )
+        # Verify shlex.split was applied — cmd was split into a list
+        assert isinstance(call_args.args[0], list)
+        assert call_args.args[0] == ["curl", "-X", "POST", "localhost:15020/quitquitquit"]
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.run")
+    def test_run_post_submit_commands_nonzero_exit_warns(self, mock_run):
+        """Test that a non-zero exit code logs a warning but does not raise."""
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock(spec=subprocess.CompletedProcess)
+        mock_result.returncode = 1
+        mock_result.stdout = "error output"
+        mock_run.return_value = mock_result
+
+        hook = SparkSubmitHook(conn_id="", post_submit_commands=["false"])
+        # Should not raise
+        hook._run_post_submit_commands()
+        mock_run.assert_called_once()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.run")
+    def test_run_post_submit_commands_timeout_warns(self, mock_run):
+        """Test that a timeout logs a warning but does not raise."""
+        import subprocess
+
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="sleep 100", timeout=30)
+
+        hook = SparkSubmitHook(conn_id="", post_submit_commands=["sleep 100"])
+        # Should not raise
+        hook._run_post_submit_commands()
+
+    def test_post_submit_commands_list_is_copied(self):
+        """Test that the commands list is copied, not stored by reference."""
+        original = ["cmd1", "cmd2"]
+        hook = SparkSubmitHook(conn_id="", post_submit_commands=original)
+        original.append("cmd3")
+        assert hook._post_submit_commands == ["cmd1", "cmd2"], (
+            "Hook should not be affected by mutations to the original list"
+        )
+
+    def test_post_submit_commands_none_gives_empty_list(self):
+        """Test that None post_submit_commands results in an empty list."""
+        hook = SparkSubmitHook(conn_id="")
+        assert hook._post_submit_commands == []

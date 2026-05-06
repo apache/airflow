@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-null */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -56,6 +54,7 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
 );
 
 const mockDag = {
+  allowed_run_types: null,
   asset_expression: null,
   bundle_name: "dags-folder",
   bundle_version: "1",
@@ -66,6 +65,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  is_backfillable: true,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -108,6 +108,8 @@ const mockDag = {
   relative_fileloc: "nested_task_groups.py",
   tags: [],
   timetable_description: "Every minute",
+  timetable_partitioned: false,
+  timetable_periodic: true,
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
 

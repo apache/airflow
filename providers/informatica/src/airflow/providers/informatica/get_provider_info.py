@@ -24,7 +24,7 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-informatica",
-        "name": "Informatica Airflow",
+        "name": "Informatica",
         "description": "`Informatica <https://www.informatica.com//>`__\n",
         "integrations": [
             {
@@ -40,6 +40,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.informatica.hooks.edc.InformaticaEDCHook",
+                "hook-name": "Informatica EDC",
                 "connection-type": "informatica_edc",
             }
         ],
@@ -53,7 +54,7 @@ def get_provider_info():
             "informatica": {
                 "description": "This section applies settings for Informatica integration.\nMore about configuration and its precedence can be found in the `usage's guide\n<https://airflow.apache.org/docs/apache-airflow-providers-informatica/stable/guides/usage.html#transport-setup>`_.\n",
                 "options": {
-                    "disabled": {
+                    "listener_disabled": {
                         "description": "Disable sending events without uninstalling the Informatica Provider by setting this to true.\n",
                         "type": "boolean",
                         "example": None,

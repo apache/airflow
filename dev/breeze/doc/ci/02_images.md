@@ -108,7 +108,7 @@ it uses the latest installed version of airflow and providers. However,
 you can choose different installation methods as described in [Building
 PROD docker images from released PIP packages](#building-prod-docker-images-from-released-pip-packages). Detailed
 reference for building production image from different sources can be
-found in: [Build Args reference](../../../../docs/docker-stack/build-arg-ref.rst#installing-airflow-using-different-methods)
+found in: [Build Args reference](../../../../docker-stack-docs/build-arg-ref.rst#installing-airflow-using-different-methods)
 
 You can build the CI image using current sources this command:
 
@@ -342,7 +342,7 @@ faster. It is enough to download and uncompress the artifact that stores the
 image and run ``breeze ci-image load -i <path-to-image.tar>`` to load the
 image and mark the image as refreshed in the local cache.
 
-You can see more details and examples in[Breeze](../06_managing_docker_images.rst)
+You can see more details and examples in [Breeze](../06_managing_docker_images.rst).
 
 # Customizing the CI image
 
@@ -350,7 +350,7 @@ Customizing the CI image allows to add your own dependencies to the
 image.
 
 The easiest way to build the customized image is to use `breeze` script,
-but you can also build suc customized image by running appropriately
+but you can also build such customized image by running appropriately
 crafted docker build in which you specify all the `build-args` that you
 need to add to customize it. You can read about all the args and ways
 you can build the image in the
@@ -442,9 +442,9 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                             | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                             | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `26.0.1`                    | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`              | `0.10.2`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.3.2`                     | `prek` version used.                                                                                              |
+| `AIRFLOW_PIP_VERSION`             | `26.1`                      | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`              | `0.11.8`                     | `uv` version used.                                                                                                |
+| `AIRFLOW_PREK_VERSION`            | `0.3.11`                    | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 
@@ -566,7 +566,7 @@ percent-encoded when you access them via UI (/ = %2F)
 | PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>  | faster to build or pull. Production image optimized for size. |
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
-- \<X.Y\> - Python version (Major + Minor).Should be one of \["3.10", "3.11", "3.12", "3.13" \].
+- \<X.Y\> - Python version (Major + Minor).Should be one of \["3.10", "3.11", "3.12", "3.13", "3.14" \].
 
 
 ----

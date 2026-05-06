@@ -45,12 +45,16 @@
     "buttons": {
       "resetToLatest": "Auf Letzten zurücksetzen",
       "toggleGroup": "Gruppen umschalten"
-    }
+    },
+    "runTypeLegend": "Legende für Lauf-Typen"
   },
   "header": {
     "buttons": {
       "advanced": "Erweitert",
       "dagDocs": "Dag Dokumentation"
+    },
+    "status": {
+      "deactivated": "Deaktiviert"
     }
   },
   "logs": {
@@ -65,6 +69,11 @@
     },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
+    "search": {
+      "matchCount": "{{current}} von {{total}}",
+      "noMatches": "Keine Treffer",
+      "placeholder": "Protokolle durchsuchen..."
+    },
     "settings": "Protokoll-Ansicht",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
@@ -120,6 +129,15 @@
     },
     "graphDirection": {
       "label": "Richtung des Graph"
+    },
+    "showVersionIndicator": {
+      "label": "Versionsindikator anzeigen",
+      "options": {
+        "hideAll": "Alle ausblenden",
+        "showAll": "Alle anzeigen",
+        "showBundleVersion": "Bündelversion anzeigen",
+        "showDagVersion": "Dag-Version anzeigen"
+      }
     },
     "taskStreamFilter": {
       "activeFilter": "Aktiver Filter",

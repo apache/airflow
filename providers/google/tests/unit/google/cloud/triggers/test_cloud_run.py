@@ -36,6 +36,7 @@ GCP_CONNECTION_ID = "gcp_connection_id"
 POLL_SLEEP = 0.01
 TIMEOUT = 0.02
 IMPERSONATION_CHAIN = "impersonation_chain"
+USE_REGIONAL_ENDPOINT = True
 
 
 @pytest.fixture
@@ -45,6 +46,7 @@ def trigger():
         job_name=JOB_NAME,
         project_id=PROJECT_ID,
         location=LOCATION,
+        use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         gcp_conn_id=GCP_CONNECTION_ID,
         polling_period_seconds=POLL_SLEEP,
         timeout=TIMEOUT,
@@ -65,6 +67,7 @@ class TestCloudBatchJobFinishedTrigger:
             "gcp_conn_id": GCP_CONNECTION_ID,
             "polling_period_seconds": POLL_SLEEP,
             "timeout": TIMEOUT,
+            "use_regional_endpoint": USE_REGIONAL_ENDPOINT,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "transport": None,
         }
@@ -78,7 +81,7 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudRunJobFinishedTrigger fires once the job execution reaches a successful state.
         """
 
-        async def _mock_operation(name):
+        async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
             operation.done = True
             operation.name = "name"
@@ -108,7 +111,7 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudRunJobFinishedTrigger raises an exception once the job execution fails.
         """
 
-        async def _mock_operation(name):
+        async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
             operation.done = True
             operation.name = "name"
@@ -138,7 +141,7 @@ class TestCloudBatchJobFinishedTrigger:
         Tests the CloudRunJobFinishedTrigger fires once the job execution times out with an error message.
         """
 
-        async def _mock_operation(name):
+        async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
             operation.done = False
             operation.error = mock.MagicMock()

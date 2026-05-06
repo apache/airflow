@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useState } from "react";
@@ -29,11 +29,13 @@ import { DataTable } from "src/components/DataTable";
 import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { SearchBar } from "src/components/SearchBar";
 import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { TrimText } from "src/utils/TrimText";
 
@@ -43,14 +45,20 @@ import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
 
+type ColumnProps = {
+  readonly open: boolean;
+  readonly translate: TFunction;
+};
+
 const getColumns = ({
   allRowsSelected,
   multiTeam,
   onRowSelect,
   onSelectAll,
+  open,
   selectedRows,
   translate,
-}: { translate: TFunction } & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
   const columns: Array<ColumnDef<VariableResponse>> = [
     {
       accessorKey: "select",
@@ -83,12 +91,28 @@ const getColumns = ({
     },
     {
       accessorKey: "value",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.value} />,
+      cell: ({ row }) => (
+        <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
+          <TrimText
+            charLimit={open ? row.original.value.length : undefined}
+            showTooltip
+            text={row.original.value}
+          />
+        </Box>
+      ),
       header: translate("columns.value"),
     },
     {
       accessorKey: "description",
-      cell: ({ row }) => <TrimText showTooltip text={row.original.description} />,
+      cell: ({ row }) => (
+        <Box minWidth={0} overflowWrap="anywhere" wordBreak="break-word">
+          <TrimText
+            charLimit={open ? row.original.description?.length : undefined}
+            showTooltip
+            text={row.original.description}
+          />
+        </Box>
+      ),
       header: translate("columns.description"),
     },
     {
@@ -129,8 +153,10 @@ export const Variables = () => {
     sorting: [{ desc: false, id: "key" }],
   }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const advancedSearch = useAdvancedSearch("variables");
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
@@ -140,7 +166,9 @@ export const Variables = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    variableKeyPattern: variableKeyPattern ?? undefined,
+    ...(advancedSearch.enabled
+      ? { variableKeyPattern: variableKeyPattern ?? undefined }
+      : { variableKeyPrefixPattern: variableKeyPattern ?? undefined }),
   });
 
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
@@ -154,6 +182,7 @@ export const Variables = () => {
     multiTeam: multiTeamEnabled,
     onRowSelect: handleRowSelect,
     onSelectAll: handleSelectAll,
+    open,
     selectedRows,
     translate,
   });
@@ -177,30 +206,36 @@ export const Variables = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={variableKeyPattern ?? ""}
           onChange={handleSearchChange}
           placeholder={translate("variables.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
-          <ImportVariablesButton disabled={selectedRows.size > 0} />
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:expand.collapse")}
+            expandLabel={translate("common:expand.expand")}
+            isExpanded={open}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
           <Spacer />
+          <ImportVariablesButton disabled={selectedRows.size > 0} />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
-      <Box overflow="auto">
-        <DataTable
-          columns={columns}
-          data={data?.variables ?? []}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isFetching={isFetching}
-          isLoading={isLoading}
-          modelName="admin:variables.variable"
-          noRowsMessage={translate("variables.noRowsMessage")}
-          onStateChange={setTableURLState}
-          total={data?.total_entries ?? 0}
-        />
-      </Box>
+      <DataTable
+        columns={columns}
+        data={data?.variables ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="admin:variables.variable"
+        noRowsMessage={translate("variables.noRowsMessage")}
+        onStateChange={setTableURLState}
+        total={data?.total_entries ?? 0}
+      />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>

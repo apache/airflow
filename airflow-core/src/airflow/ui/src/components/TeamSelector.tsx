@@ -59,9 +59,9 @@ export const TeamSelector = <T extends FieldValues = FieldValues>({ control }: P
               ) : undefined}
               <Select
                 {...Field}
+                data-testid="team-selector"
                 isClearable
                 isDisabled={isLoading}
-                // eslint-disable-next-line unicorn/no-null
                 onChange={(val) => onChange(val?.value ?? null)}
                 options={options}
                 placeholder={translate("team.selector.placeHolder")}

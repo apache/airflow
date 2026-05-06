@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-03-31"
+API_VERSION: Final[str] = "2026-06-16"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -63,6 +63,28 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class AssetStatePutBody(BaseModel):
+    """
+    Request body for setting an asset state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class AssetStateResponse(BaseModel):
+    """
+    Asset state value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -76,6 +98,21 @@ class ConnectionResponse(BaseModel):
     password: Annotated[str | None, Field(title="Password")] = None
     port: Annotated[int | None, Field(title="Port")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class DagResponse(BaseModel):
+    """
+    Schema for DAG response.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
+    owners: Annotated[str | None, Field(title="Owners")] = None
+    tags: Annotated[list[str], Field(title="Tags")]
+    next_dagrun: Annotated[AwareDatetime | None, Field(title="Next Dagrun")] = None
 
 
 class DagRunAssetReference(BaseModel):
@@ -128,7 +165,9 @@ class DagRunType(str, Enum):
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
+    OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
+    ASSET_MATERIALIZATION = "asset_materialization"
 
 
 class HITLUser(BaseModel):
@@ -258,6 +297,8 @@ class TIRetryStatePayload(BaseModel):
     state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    retry_delay_seconds: Annotated[float | None, Field(title="Retry Delay Seconds")] = None
+    retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -326,6 +367,28 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
+class TaskStatePutBody(BaseModel):
+    """
+    Request body for setting a task state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class TaskStateResponse(BaseModel):
+    """
+    Task state value returned to a worker.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
 class TaskStatesResponse(BaseModel):
     """
     Response for task states with run_id, task and state.
@@ -354,9 +417,11 @@ class TriggerDAGRunPayload(BaseModel):
         extra="forbid",
     )
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    run_after: Annotated[AwareDatetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    note: Annotated[str | None, Field(title="Note")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -619,7 +684,7 @@ class DagRun(BaseModel):
     data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[AwareDatetime, Field(title="Run After")]
-    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
     clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
     run_type: DagRunType
@@ -628,6 +693,8 @@ class DagRun(BaseModel):
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    note: Annotated[str | None, Field(title="Note")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TIRunContext(BaseModel):
@@ -644,3 +711,4 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None

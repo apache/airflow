@@ -372,9 +372,93 @@ class TestPytestSnowflakeHook:
             assert SnowflakeHook(snowflake_conn_id="test_conn").get_uri() == expected_uri
             assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params() == expected_conn_params
 
-    def test_get_conn_params_should_support_private_auth_in_connection(
-        self, base64_encoded_encrypted_private_key: Path
+    def test_plain_text_unencrypted_private_key_is_not_base64_encoded(
+        self, unencrypted_temporary_private_key: Path
     ):
+        """Test get_private_key function skips base64 encoding if private key is plain text."""
+        private_key_content = unencrypted_temporary_private_key.read_text()
+
+        p_key = serialization.load_pem_private_key(
+            private_key_content.encode(),
+            password=None,
+            backend=default_backend(),
+        )
+
+        pkb = p_key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+
+        connection_kwargs: Any = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "private_key_content": private_key_content,
+            },
+        }
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in conn_params
+            assert pkb == conn_params["private_key"]
+
+    def test_plain_text_encrypted_private_key_is_not_base64_encoded(
+        self, encrypted_temporary_private_key: Path
+    ):
+        """Test get_private_key function skips base64 encoding if private key is plain text."""
+        private_key_content = encrypted_temporary_private_key.read_text()
+
+        p_key = serialization.load_pem_private_key(
+            private_key_content.encode(),
+            password=_PASSWORD.encode(),
+            backend=default_backend(),
+        )
+
+        pkb = p_key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+
+        connection_kwargs: Any = {
+            **BASE_CONNECTION_KWARGS,
+            "password": _PASSWORD,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "private_key_content": private_key_content,
+            },
+        }
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in conn_params
+            assert pkb == conn_params["private_key"]
+
+    def test_get_conn_params_should_support_private_auth_in_connection(
+        self, base64_encoded_encrypted_private_key: str, encrypted_temporary_private_key: Path
+    ):
+        private_key_content = encrypted_temporary_private_key.read_text()
+
+        p_key = serialization.load_pem_private_key(
+            private_key_content.encode(),
+            password=_PASSWORD.encode(),
+            backend=default_backend(),
+        )
+
+        pkb = p_key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+
         connection_kwargs: Any = {
             **BASE_CONNECTION_KWARGS,
             "password": _PASSWORD,
@@ -388,7 +472,9 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+            assert "private_key" in conn_params
+            assert conn_params["private_key"] == pkb
 
     @pytest.mark.parametrize("include_params", [True, False])
     def test_hook_param_beats_extra(self, include_params):
@@ -756,12 +842,12 @@ class TestPytestSnowflakeHook:
             mock.patch.dict(
                 "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
             ),
-            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+            mock.patch("snowflake.connector.connect") as mock_connect,
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_conn()
-            mock_connector.connect.assert_called_once_with(**hook._get_conn_params())
-            assert mock_connector.connect.return_value == conn
+            mock_connect.assert_called_once_with(**hook._get_conn_params())
+            assert mock_connect.return_value == conn
 
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
         with (
@@ -957,6 +1043,143 @@ class TestPytestSnowflakeHook:
             with pytest.raises(ValueError, match="List of SQL statements is empty"):
                 hook.run(sql=empty_statement)
 
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_multi_statement_with_split_statements_false(self, mock_conn):
+        """When split_statements=False, cursor.execute() receives num_statements=0."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="multi_query_id")
+
+        sql = "BEGIN; CREATE TABLE t(id INT); INSERT INTO t VALUES(1); COMMIT;"
+        hook.run(sql, split_statements=False)
+
+        # Entire SQL block sent as one execute with num_statements=0
+        cur.execute.assert_called_once_with(
+            "BEGIN; CREATE TABLE t(id INT); INSERT INTO t VALUES(1); COMMIT",
+            num_statements=0,
+        )
+        assert hook.query_ids == ["multi_query_id"]
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_split_statements_true_does_not_pass_num_statements(self, mock_conn):
+        """When split_statements=True, cursor.execute() does not receive num_statements."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=["id1", "id2"])
+
+        hook.run("SELECT 1; SELECT 2", split_statements=True)
+
+        assert cur.execute.call_count == 2
+        for call in cur.execute.call_args_list:
+            assert "num_statements" not in call.kwargs
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_sql_list_does_not_pass_num_statements(self, mock_conn):
+        """When sql is a list, cursor.execute() does not receive num_statements."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=["id1", "id2"])
+
+        hook.run(["SELECT 1;", "SELECT 2;"])
+
+        assert cur.execute.call_count == 2
+        for call in cur.execute.call_args_list:
+            assert "num_statements" not in call.kwargs
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_respects_autocommit_session_parameter(self, mock_conn):
+        """When session_parameters has AUTOCOMMIT, set_autocommit is skipped and no commit."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = {"AUTOCOMMIT": True}
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook()
+            conn = mock_conn.return_value
+            cur = mock.MagicMock(rowcount=0)
+            conn.cursor.return_value = cur
+            type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+            hook.run("SELECT 1", autocommit=False)
+
+            # set_autocommit should NOT have been called
+            conn.autocommit.assert_not_called()
+            # No manual commit since AUTOCOMMIT session param is in effect
+            conn.commit.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_respects_autocommit_session_parameter_case_insensitive(self, mock_conn):
+        """AUTOCOMMIT check is case-insensitive (Snowflake params are case-insensitive)."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = {"autocommit": True}
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook()
+            conn = mock_conn.return_value
+            cur = mock.MagicMock(rowcount=0)
+            conn.cursor.return_value = cur
+            type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+            hook.run("SELECT 1", autocommit=False)
+
+            conn.autocommit.assert_not_called()
+            conn.commit.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_respects_autocommit_from_hook_session_parameters(self, mock_conn):
+        """AUTOCOMMIT from hook constructor session_parameters is respected."""
+        hook = SnowflakeHook(session_parameters={"AUTOCOMMIT": True})
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+        hook.run("SELECT 1", autocommit=False)
+
+        conn.autocommit.assert_not_called()
+        conn.commit.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_explicit_autocommit_true_overrides_session_parameter(self, mock_conn):
+        """When autocommit=True is explicit, it overrides session_parameters."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = {"AUTOCOMMIT": False}
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_SNOWFLAKE_DEFAULT=Connection(**connection_kwargs).get_uri(),
+        ):
+            hook = SnowflakeHook()
+            conn = mock_conn.return_value
+            cur = mock.MagicMock(rowcount=0)
+            conn.cursor.return_value = cur
+            type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+            hook.run("SELECT 1", autocommit=True)
+
+            conn.autocommit.assert_called_once_with(True)
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_default_autocommit_without_session_parameter(self, mock_conn):
+        """Without AUTOCOMMIT in session_parameters, default (False) is applied."""
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(return_value="qid")
+
+        hook.run("SELECT 1")
+
+        conn.autocommit.assert_called_once_with(False)
+
     def test_get_openlineage_default_schema_with_no_schema_set(self):
         connection_kwargs = {
             **BASE_CONNECTION_KWARGS,
@@ -1076,6 +1299,24 @@ class TestPytestSnowflakeHook:
                     "airflow_provider_version": provider_version,
                 }
             )
+
+    @pytest.mark.parametrize(
+        ("grant_type", "expected", "match"),
+        [
+            ("refresh_token", "refresh_token", None),
+            ("client_credentials", "client_credentials", None),
+            ("invalid_grant", ValueError, r"Unsupported grant_type"),
+            (None, ValueError, r"Grant type must be provided"),
+        ],
+    )
+    def test_validate_grant_type(self, grant_type, expected, match):
+        hook = SnowflakeHook(snowflake_conn_id="test")
+
+        if expected is ValueError:
+            with pytest.raises(ValueError, match=match):
+                hook._validate_grant_type(grant_type)
+        else:
+            assert hook._validate_grant_type(grant_type) == expected
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
@@ -1503,12 +1744,12 @@ class TestPytestSnowflakeHook:
 
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
-            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+            mock.patch("snowflake.connector.connect") as mock_connect,
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             hook.get_conn()
 
-            call_args = mock_connector.connect.call_args[1]
+            call_args = mock_connect.call_args[1]
             assert call_args["proxy_host"] == "proxy.example.com"
             assert call_args["proxy_port"] == 8080
             assert call_args["proxy_user"] == "proxy_user"
@@ -1546,3 +1787,37 @@ class TestPytestSnowflakeHook:
             # Check that the URI doesn't contain proxy params
             called_uri = mock_create_engine.call_args[0][0]
             assert "proxy_host" not in str(called_uri)
+
+    def test_get_connection_form_widgets_proxy_port_is_optional(self):
+        """Proxy Port is an IntegerField and must remain optional.
+
+        Regression test for the Snowflake connection form silently rejecting
+        save when `Proxy Port` is left blank. `IntegerField` fails WTForms
+        validation on empty input by default, so `Optional()` is required to
+        preserve the documented optional semantics.
+        """
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+        Form = pytest.importorskip("wtforms").Form
+        Optional = pytest.importorskip("wtforms.validators").Optional
+        MultiDict = pytest.importorskip("werkzeug.datastructures").MultiDict
+
+        widgets = SnowflakeHook.get_connection_form_widgets()
+        assert "proxy_port" in widgets
+
+        proxy_port_field = widgets["proxy_port"]
+        assert any(isinstance(v, Optional) for v in proxy_port_field.kwargs.get("validators", []))
+
+        form_cls = type("_SnowflakeConnForm", (Form,), dict(widgets))
+
+        empty_form = form_cls(MultiDict([("proxy_port", "")]))
+        assert empty_form.validate() is True, empty_form.errors
+        assert empty_form.proxy_port.data is None
+
+        populated_form = form_cls(MultiDict([("proxy_port", "8080")]))
+        assert populated_form.validate() is True, populated_form.errors
+        assert populated_form.proxy_port.data == 8080
+
+        invalid_form = form_cls(MultiDict([("proxy_port", "not-an-int")]))
+        assert invalid_form.validate() is False
+        assert "proxy_port" in invalid_form.errors

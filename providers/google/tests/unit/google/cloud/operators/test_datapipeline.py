@@ -21,6 +21,9 @@ from unittest import mock
 
 import pytest
 
+# TODO: Remove below skip once beam provider changed to ready state
+pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
+
 from airflow.providers.google.cloud.operators.dataflow import (
     DataflowCreatePipelineOperator,
     DataflowRunPipelineOperator,

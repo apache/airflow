@@ -41,7 +41,15 @@ it's important to keep in mind the order in which OpenLineage looks for lineage 
 
 1. **Extractor** - check if there is a custom Extractor specified for Operator class name. Any custom Extractor registered by the user will take precedence over default Extractors defined in Airflow Provider source code (f.e. BashExtractor).
 2. **OpenLineage methods** - if there is no Extractor explicitly specified for Operator class name, DefaultExtractor is used, that looks for OpenLineage methods in Operator.
-3. **Inlets and Outlets** - if there are no OpenLineage methods defined in the Operator, inlets and outlets are checked.
+3. **Hook Level Lineage** - when extractor or Openlineage methods return no inputs and no outputs, hook lineage is merged
+   with any other metadata produced (e.g. run facets, job facets). When neither extractor nor Openlineage methods
+   are present, hook lineage is used directly as the full lineage result. In both cases it takes precedence over inlets
+   and outlets.
+4. **Inlets and Outlets** - only consulted as a last resort when all of the above yield no datasets. This step
+   attempts to convert inlets and outlets into OpenLineage input/output datasets, which has limited support.
+   Note that inlets and outlets defined as Airflow Assets are always included in the ``airflow`` run facet
+   (under ``task.inlets`` / ``task.outlets``) regardless of whether this conversion succeeds —
+   so the ``airflow`` run facet is the most reliable place to look for inlet/outlet information.
 
 If all the above options are missing, no lineage data is extracted from the Operator. You will still receive OpenLineage events
 enriched with things like general Airflow facets, proper event time and type, but the inputs/outputs will be empty

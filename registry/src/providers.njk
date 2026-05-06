@@ -1,0 +1,87 @@
+---
+layout: base.njk
+title: Providers
+description: Browse all Apache Airflow providers
+mainClass: providers-page
+---
+
+<div class="container">
+    <!-- Page Header -->
+    <header class="page-header">
+      <h1>Providers</h1>
+      <p>Browse {{ providers.providers.length }} official and community providers</p>
+    </header>
+
+    <!-- Filters Section -->
+    <div class="filters">
+      <!-- Search Input -->
+      <div class="search-wrapper">
+        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input id="provider-search" type="text" placeholder="Search providers..." aria-label="Search providers">
+      </div>
+
+      <!-- Lifecycle Filter -->
+      <div class="filter-group">
+        <label id="lifecycle-label">Lifecycle:</label>
+        <div class="lifecycle-buttons" role="group" aria-labelledby="lifecycle-label">
+          <button class="lifecycle-btn active" data-lifecycle="all" aria-pressed="true">All</button>
+          <button class="lifecycle-btn" data-lifecycle="stable" aria-pressed="false">Stable</button>
+          <button class="lifecycle-btn" data-lifecycle="incubation" aria-pressed="false">Incubation</button>
+          <button class="lifecycle-btn" data-lifecycle="deprecated" aria-pressed="false">Deprecated</button>
+        </div>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="filter-group">
+        <label for="category-filter">Category:</label>
+        <select id="category-filter" aria-label="Filter by category">
+          <option value="all">All Categories</option>
+          {% for cat in exploreCategories %}
+          <option value="{{ cat.id }}">{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Sort Dropdown -->
+      <div class="filter-group">
+        <label for="provider-sort">Sort:</label>
+        <select id="provider-sort" aria-label="Sort providers">
+          <option value="downloads">Most Downloads</option>
+          <option value="name">Name A-Z</option>
+          <option value="updated">Recently Updated</option>
+        </select>
+      </div>
+    </div>
+
+    <div aria-live="polite" class="sr-only" id="filter-status"></div>
+
+    <!-- Provider Grid -->
+    <ul id="provider-grid" class="provider-grid">
+      {% for provider in providers.providers %}
+      {% set lc = provider.lifecycle or "production" %}
+      {% set lcDisplay = "incubation" if lc == "incubation" else ("deprecated" if lc == "deprecated" else "stable") %}
+      {% set cats = providerCategoryMap[provider.id] or [] %}
+      <li class="provider-item"
+          data-lifecycle="{{ lcDisplay }}"
+          data-name="{{ provider.name | lower }}"
+          data-downloads="{{ provider.pypi_downloads.monthly }}"
+          data-updated="{{ provider.last_updated or '' }}"
+          data-categories="{{ cats | join(',') }}">
+        {% include "provider-card.njk" %}
+      </li>
+      {% endfor %}
+    </ul>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <h3>No providers found</h3>
+      <p>Try adjusting your search or filters</p>
+    </div>
+</div>
+
+<script src="{{ '/js/provider-filters.js' | url }}"></script>

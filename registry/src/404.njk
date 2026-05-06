@@ -1,0 +1,18 @@
+---
+layout: base.njk
+title: Page Not Found
+permalink: /404.html
+eleventyExcludeFromCollections: true
+---
+
+<section class="error-page">
+  <div class="container">
+    <h1>404</h1>
+    <p>The page you're looking for doesn't exist or has been moved.</p>
+    <nav class="error-links">
+      <a href="{{ '/' | url }}">Back to Home</a>
+      <a href="{{ '/providers/' | url }}">Browse Providers</a>
+      <a href="{{ '/explore/' | url }}">Explore by Category</a>
+    </nav>
+  </div>
+</section>

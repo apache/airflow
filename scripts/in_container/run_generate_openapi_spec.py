@@ -21,13 +21,12 @@ import os
 import sys
 from pathlib import Path
 
+from in_container_utils import console, generate_openapi_file, validate_openapi_file
+
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 from airflow.api_fastapi.auth.managers.simple import __file__ as SIMPLE_AUTH_MANAGER_PATH
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.core_api import __file__ as CORE_API_PATH
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from in_container_utils import console, generate_openapi_file, validate_openapi_file
 
 OPENAPI_SPEC_FILE = Path(CORE_API_PATH).parent / "openapi" / "v2-rest-api-generated.yaml"
 # We need a "combined" spec file to generate the UI code with, but we don't want to include this in the repo

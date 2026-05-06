@@ -27,14 +27,17 @@ from airflow.providers.fab.www.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import delete_user
+from unit.fab.auth_manager.test_utils import delete_user
 from unit.fab.decorators import dont_initialize_flask_app_submodules
 from unit.fab.utils import client_with_login
 
 
 @pytest.fixture(autouse=True, scope="module")
 def session():
-    settings.configure_orm()
+    # reconfigure_orm() disposes any pre-existing engine before creating a new
+    # one. Plain configure_orm() leaks the previous engine's connection pool,
+    # which exhausts Postgres max_connections in long parallel CI runs.
+    settings.reconfigure_orm()
     return settings.Session
 
 
@@ -49,11 +52,8 @@ def examples_dag_bag(session):
 def app(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
-            "init_api_connexion",
             "init_appbuilder",
-            "init_appbuilder_links",
             "init_appbuilder_views",
-            "init_flash_views",
             "init_jinja_globals",
             "init_plugins",
             "init_airflow_session_interface",
@@ -105,6 +105,12 @@ def app(examples_dag_bag):
 
     for user_dict in test_users:
         delete_user(app, user_dict["username"])
+    # flask_sqlalchemy creates a per-app engine in init_app(); without disposal
+    # its pooled connections survive the fixture and accumulate across modules
+    # in long CI runs.
+    with app.app_context():
+        for fab_engine in app.extensions["sqlalchemy"].engines.values():
+            fab_engine.dispose()
 
 
 @pytest.fixture

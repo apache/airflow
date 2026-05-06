@@ -147,7 +147,7 @@ with DAG(
     create_batch_prediction_job = CreateBatchPredictionJobOperator(
         task_id="create_batch_prediction_job",
         job_display_name=JOB_DISPLAY_NAME,
-        model_name="{{ti.xcom_pull('auto_ml_forecasting_task')['name']}}",
+        model_name="{{ task_instance.xcom_pull('auto_ml_forecasting_task')['name'] }}",
         predictions_format="csv",
         bigquery_source=BIGQUERY_SOURCE,
         gcs_destination_prefix=GCS_DESTINATION_PREFIX,
@@ -161,7 +161,7 @@ with DAG(
     create_batch_prediction_job_def = CreateBatchPredictionJobOperator(
         task_id="create_batch_prediction_job_def",
         job_display_name=JOB_DISPLAY_NAME,
-        model_name="{{ti.xcom_pull('auto_ml_forecasting_task')['name']}}",
+        model_name="{{ task_instance.xcom_pull('auto_ml_forecasting_task')['name'] }}",
         predictions_format="csv",
         bigquery_source=BIGQUERY_SOURCE,
         gcs_destination_prefix=GCS_DESTINATION_PREFIX,
@@ -244,5 +244,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

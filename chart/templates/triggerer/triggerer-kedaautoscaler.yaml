@@ -19,8 +19,7 @@
 
 ################################
 ## Airflow Triggerer KEDA Scaler
-#################################
-{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+################################
 {{- if and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -33,7 +32,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     deploymentName: {{ .Release.Name }}-triggerer
-    {{- if or (.Values.labels) (.Values.triggerer.labels) }}
+    {{- if or .Values.labels .Values.triggerer.labels }}
       {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
@@ -41,7 +40,7 @@ spec:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.triggerer.persistence.enabled }}
     name: {{ include "airflow.fullname" . }}-triggerer
     envSourceContainerName: triggerer
-  pollingInterval:  {{ .Values.triggerer.keda.pollingInterval }}
+  pollingInterval: {{ .Values.triggerer.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.triggerer.keda.cooldownPeriod }}
   minReplicaCount: {{ .Values.triggerer.keda.minReplicaCount }}
   maxReplicaCount: {{ .Values.triggerer.keda.maxReplicaCount }}
@@ -66,5 +65,4 @@ spec:
         {{- end }}
         query: {{ tpl .Values.triggerer.keda.query . | quote }}
   {{- end }}
-{{- end }}
 {{- end }}

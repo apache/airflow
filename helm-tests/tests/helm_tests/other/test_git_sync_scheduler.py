@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -25,7 +26,10 @@ class TestGitSyncSchedulerTest:
 
     def test_should_add_dags_volume(self):
         docs = render_chart(
-            values={"airflowVersion": "2.10.5", "dags": {"gitSync": {"enabled": True}}},
+            values={
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
+                "dags": {"gitSync": {"enabled": True}},
+            },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
@@ -53,7 +57,7 @@ class TestGitSyncSchedulerTest:
     def test_validate_the_git_sync_container_spec(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
@@ -108,15 +112,24 @@ class TestGitSyncSchedulerTest:
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                {"name": "GIT_SYNC_HTTP_BIND", "value": ":1234"},
+                {"name": "GITSYNC_HTTP_BIND", "value": ":1234"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
+            "startupProbe": {
+                "failureThreshold": 10,
+                "httpGet": {"path": "/", "port": 1234},
+                "initialDelaySeconds": 0,
+                "periodSeconds": 5,
+                "timeoutSeconds": 1,
+            },
         }
 
     def test_validate_the_git_sync_container_spec_if_wait_specified(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
@@ -168,19 +181,28 @@ class TestGitSyncSchedulerTest:
                 {"name": "GITSYNC_LINK", "value": "repo"},
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GITSYNC_ADD_USER", "value": "true"},
-                {"name": "GIT_SYNC_WAIT", "value": "66"},
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                {"name": "GIT_SYNC_WAIT", "value": "66"},
+                {"name": "GIT_SYNC_HTTP_BIND", "value": ":1234"},
+                {"name": "GITSYNC_HTTP_BIND", "value": ":1234"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
+            "startupProbe": {
+                "failureThreshold": 10,
+                "httpGet": {"path": "/", "port": 1234},
+                "initialDelaySeconds": 0,
+                "periodSeconds": 5,
+                "timeoutSeconds": 1,
+            },
         }
 
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -220,7 +242,7 @@ class TestGitSyncSchedulerTest:
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -269,7 +291,7 @@ class TestGitSyncSchedulerTest:
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -303,7 +325,7 @@ class TestGitSyncSchedulerTest:
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -339,11 +361,13 @@ class TestGitSyncSchedulerTest:
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
-    def test_extra_volume_and_git_sync_extra_volume_mount(self):
+    @pytest.mark.parametrize(
+        ("executor", "git_sync_mount"), [("CeleryExecutor", False), ("LocalExecutor", True)]
+    )
+    def test_extra_volume_and_git_sync_extra_volume_mount(self, executor, git_sync_mount):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
-                "executor": "CeleryExecutor",
+                "executor": executor,
                 "scheduler": {
                     "extraVolumes": [{"name": "test-volume-{{ .Values.executor }}", "emptyDir": {}}],
                 },
@@ -359,20 +383,27 @@ class TestGitSyncSchedulerTest:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "test-volume-CeleryExecutor", "emptyDir": {}} in jmespath.search(
+        assert {"name": f"test-volume-{executor}", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
-            "spec.template.spec.containers[1].volumeMounts", docs[0]
-        )
-        assert {"name": "test-volume-CeleryExecutor", "mountPath": "/opt/test"} in jmespath.search(
-            "spec.template.spec.containers[1].volumeMounts", docs[0]
-        )
+        # Git sync is not needed on the scheduler when using CeleryExecutor,
+        # so the extra volume mount should not be added to the git-sync container
+        if git_sync_mount:
+            assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
+                "spec.template.spec.containers[1].volumeMounts", docs[0]
+            )
+            assert {"name": f"test-volume-{executor}", "mountPath": "/opt/test"} in jmespath.search(
+                "spec.template.spec.containers[1].volumeMounts", docs[0]
+            )
+        else:
+            assert {"mountPath": "/git", "name": "dags"} not in jmespath.search(
+                "spec.template.spec.containers[1].volumeMounts", docs[0]
+            )
 
     def test_should_add_env(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -390,7 +421,7 @@ class TestGitSyncSchedulerTest:
     def test_resources_are_configurable(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -409,7 +440,7 @@ class TestGitSyncSchedulerTest:
         )
         assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"
 
-    def test_liveliness_and_readiness_probes_are_configurable(self):
+    def test_liveness_probe_configuration(self):
         livenessProbe = {
             "failureThreshold": 10,
             "exec": {"command": ["/bin/true"]},
@@ -418,6 +449,25 @@ class TestGitSyncSchedulerTest:
             "successThreshold": 1,
             "timeoutSeconds": 5,
         }
+
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "livenessProbe": livenessProbe,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert livenessProbe == jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
+        )
+
+    def test_readiness_probe_configuration(self):
         readinessProbe = {
             "failureThreshold": 10,
             "exec": {"command": ["/bin/true"]},
@@ -426,28 +476,141 @@ class TestGitSyncSchedulerTest:
             "successThreshold": 1,
             "timeoutSeconds": 5,
         }
+
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "livenessProbe": livenessProbe,
                         "readinessProbe": readinessProbe,
                     },
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        container_search_result = jmespath.search(
-            "spec.template.spec.containers[?name == 'git-sync']", docs[0]
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].readinessProbe", docs[0]
+            )
+            is None
         )
-        init_container_search_result = jmespath.search(
-            "spec.template.spec.initContainers[?name == 'git-sync-init']", docs[0]
+
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].readinessProbe", docs[0])
+            == readinessProbe
         )
-        assert "livenessProbe" in container_search_result[0]
-        assert "readinessProbe" in container_search_result[0]
-        assert "readinessProbe" not in init_container_search_result[0]
-        assert "readinessProbe" not in init_container_search_result[0]
-        assert livenessProbe == container_search_result[0]["livenessProbe"]
-        assert readinessProbe == container_search_result[0]["readinessProbe"]
+
+    def test_readiness_probe_configuration_recommended(self):
+        readinessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "recommendedProbeSetting": True,
+                        "readinessProbe": readinessProbe,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].readinessProbe", docs[0]
+            )
+            is None
+        )
+
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].readinessProbe", docs[0])
+            is None
+        )
+
+    def test_liveness_probe_configuration_recommended(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "httpPort": 10,
+                        "recommendedProbeSetting": True,
+                        "livenessProbe": {
+                            "enabled": True,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].livenessProbe", docs[0]
+            )
+            is None
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].livenessProbe", docs[0]
+        ) == {
+            "httpGet": {"path": "/", "port": 10},
+            "timeoutSeconds": 11,
+            "initialDelaySeconds": 12,
+            "periodSeconds": 13,
+            "failureThreshold": 14,
+        }
+
+    def test_startup_probe_configuration(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "httpPort": 10,
+                        "startupProbe": {
+                            "enabled": True,
+                            "timeoutSeconds": 11,
+                            "initialDelaySeconds": 12,
+                            "periodSeconds": 13,
+                            "failureThreshold": 14,
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.initContainers[?name=='git-sync-init'] | [0].startupProbe", docs[0]
+            )
+            is None
+        )
+
+        assert jmespath.search(
+            "spec.template.spec.containers[?name=='git-sync'] | [0].startupProbe", docs[0]
+        ) == {
+            "httpGet": {"path": "/", "port": 10},
+            "timeoutSeconds": 11,
+            "initialDelaySeconds": 12,
+            "periodSeconds": 13,
+            "failureThreshold": 14,
+        }

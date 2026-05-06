@@ -30,7 +30,7 @@ export const DagVersionDetails = ({ dagVersion }: { readonly dagVersion?: DagVer
   }
 
   return (
-    <Table.Root striped>
+    <Table.Root data-testid="dag-version-details" striped>
       <Table.Body>
         <Table.Row>
           <Table.Cell>{translate("versionDetails.versionId")}</Table.Cell>

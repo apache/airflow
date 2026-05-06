@@ -178,6 +178,7 @@ class TestPowerBITrigger:
     async def test_powerbi_trigger_run_trigger_refresh(self, mock_trigger_dataset_refresh, powerbi_trigger):
         """Assert event is triggered upon successful new refresh trigger."""
         powerbi_trigger.dataset_refresh_id = None
+        powerbi_trigger.wait_for_termination = False
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         task = [i async for i in powerbi_trigger.run()]
@@ -354,4 +355,58 @@ class TestPowerBITrigger:
             }
         )
 
+        assert expected == actual
+
+    @pytest.mark.asyncio
+    @mock.patch.object(PowerBIHook, "get_refresh_details_by_refresh_id")
+    @mock.patch.object(PowerBIHook, "trigger_dataset_refresh")
+    async def test_powerbi_trigger_waits_for_completion_when_wait_for_termination_true(
+        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id
+    ):
+        # Create trigger without dataset_refresh_id (simulating first-time trigger)
+        trigger = PowerBITrigger(
+            conn_id=POWERBI_CONN_ID,
+            proxies=None,
+            api_version=API_VERSION,
+            dataset_id=DATASET_ID,
+            dataset_refresh_id=None,  # No refresh ID - will trigger new refresh
+            group_id=GROUP_ID,
+            check_interval=CHECK_INTERVAL,
+            wait_for_termination=True,
+            timeout=TIMEOUT,
+            request_body=REQUEST_BODY,
+        )
+
+        # Mock trigger_dataset_refresh to return a new refresh ID
+        mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
+
+        # Mock get_refresh_details to simulate the refresh completing
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.COMPLETED,
+            "error": None,
+        }
+
+        # Run the trigger
+        generator = trigger.run()
+        actual = await generator.asend(None)
+
+        # Verify trigger was called
+        mock_trigger_dataset_refresh.assert_called_once_with(
+            dataset_id=DATASET_ID,
+            group_id=GROUP_ID,
+            request_body=REQUEST_BODY,
+        )
+
+        # Verify get_refresh_details was called (proving it's polling, not returning immediately)
+        assert mock_get_refresh_details_by_refresh_id.call_count >= 1
+
+        # Verify the final event shows COMPLETED status (not None)
+        expected = TriggerEvent(
+            {
+                "status": "success",
+                "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
+                "message": f"The dataset refresh {DATASET_REFRESH_ID} has {PowerBIDatasetRefreshStatus.COMPLETED}.",
+                "dataset_refresh_id": DATASET_REFRESH_ID,
+            }
+        )
         assert expected == actual

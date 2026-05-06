@@ -47,7 +47,14 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="md" unmountOnExit>
+    <Dialog.Root
+      data-testid="delete-dialog"
+      lazyMount
+      onOpenChange={onClose}
+      open={open}
+      size="md"
+      unmountOnExit
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="lg">{title}</Heading>
@@ -61,10 +68,15 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
         </Dialog.Body>
         <Dialog.Footer>
           <HStack justifyContent="flex-end" width="100%">
-            <Button onClick={onClose} variant="outline">
+            <Button data-testid="delete-cancel-button" onClick={onClose} variant="outline">
               {translate("modal.cancel")}
             </Button>
-            <Button colorPalette="danger" loading={isDeleting} onClick={onDelete}>
+            <Button
+              colorPalette="danger"
+              data-testid="delete-confirm-button"
+              loading={isDeleting}
+              onClick={onDelete}
+            >
               <FiTrash2 style={{ marginRight: "8px" }} />{" "}
               {deleteButtonText ?? translate("modal.delete.button")}
             </Button>

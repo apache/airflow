@@ -17,12 +17,30 @@
 
 from __future__ import annotations
 
+import argparse
 from argparse import BooleanOptionalAction
 from textwrap import dedent
 
+import httpx
 import pytest
 
-from airflowctl.ctl.cli_config import ActionCommand, CommandFactory, GroupCommand, merge_commands
+from airflowctl.api.operations import ServerResponseError
+from airflowctl.ctl.cli_config import (
+    ARG_AUTH_TOKEN,
+    ActionCommand,
+    Arg,
+    CommandFactory,
+    GroupCommand,
+    add_auth_token_to_all_commands,
+    merge_commands,
+    safe_call_command,
+)
+from airflowctl.exceptions import (
+    AirflowCtlConnectionException,
+    AirflowCtlCredentialNotFoundException,
+    AirflowCtlKeyringException,
+    AirflowCtlNotFoundException,
+)
 
 
 @pytest.fixture
@@ -278,8 +296,111 @@ class TestCommandFactory:
                         assert arg.kwargs["default"] == test_arg[1]["default"]
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
+    def test_command_factory_optional_bool_uses_boolean_optional_action(self):
+        """Optional bool parameters should support --flag and --no-flag forms."""
+        temp_file = "test_command.py"
+        self._save_temp_operations_py(
+            temp_file=temp_file,
+            file_content="""
+                class JobsOperations(BaseOperations):
+                    def list(self, is_alive: bool | None = None) -> JobCollectionResponse | ServerResponseError:
+                        self.response = self.client.get("jobs")
+                        return JobCollectionResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=temp_file)
+        generated_group_commands = command_factory.group_commands
+
+        jobs_list_args = []
+        for generated_group_command in generated_group_commands:
+            if generated_group_command.name != "jobs":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "list":
+                    jobs_list_args = list(sub_command.args)
+                    break
+
+        is_alive_arg = next(arg for arg in jobs_list_args if arg.flags == ("--is-alive",))
+        assert is_alive_arg.kwargs["action"] == BooleanOptionalAction
+        assert is_alive_arg.kwargs["default"] is None
+        assert is_alive_arg.kwargs["type"] is bool
+
 
 class TestCliConfigMethods:
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            AirflowCtlCredentialNotFoundException("missing credentials"),
+            AirflowCtlConnectionException("connection failed"),
+            AirflowCtlKeyringException("keyring failure"),
+            AirflowCtlNotFoundException("resource not found"),
+        ],
+        ids=["credential-not-found", "connection-error", "keyring-error", "not-found"],
+    )
+    def test_safe_call_command_exits_non_zero_for_airflowctl_exceptions(self, raised_exception):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            httpx.RemoteProtocolError("remote protocol error"),
+            httpx.ReadError("read error"),
+        ],
+        ids=["remote-protocol-error", "read-error"],
+    )
+    def test_safe_call_command_exits_non_zero_for_httpx_protocol_errors(self, raised_exception):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    def test_safe_call_command_exits_non_zero_for_httpx_read_timeout(self):
+        def raise_error(_args):
+            raise httpx.ReadTimeout("timed out")
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    def test_safe_call_command_exits_non_zero_for_server_response_error(self):
+        request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+        response = httpx.Response(500, request=request, json={"detail": "boom"})
+
+        def raise_error(_args):
+            raise ServerResponseError("server error", request=request, response=response)
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+
+    def test_add_to_parser_drops_type_for_boolean_optional_action(self):
+        """Test add_to_parser removes type for BooleanOptionalAction."""
+        parser = argparse.ArgumentParser()
+        arg = Arg(
+            flags=("--run-backwards",),
+            action=BooleanOptionalAction,
+            default=False,
+            help="run_backwards for backfill operation",
+            type=bool,
+        )
+
+        arg.add_to_parser(parser)
+
+        assert parser.parse_args(["--run-backwards"]).run_backwards is True
+        assert parser.parse_args(["--no-run-backwards"]).run_backwards is False
+
     def test_merge_commands(self, no_op_method):
         """Test the merge_commands method."""
         # Create two Command objects with different names and help texts
@@ -355,6 +476,68 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_add_auth_token_to_all_commands(self, no_op_method):
+        """Test the add_auth_token_to_all_commands method."""
+        ARG_1 = Arg(
+            flags=("--arg1",),
+        )
+        ARG_2 = Arg(
+            flags=("--arg1",),
+        )
+        action_commands_1 = (
+            ActionCommand(
+                name="subcommand1",
+                help="This is subcommand 1",
+                func=no_op_method,
+                args=(),
+            ),
+            ActionCommand(
+                name="subcommand2",
+                help="This is subcommand 2",
+                func=no_op_method,
+                args=(ARG_1,),
+            ),
+        )
+        command_list = [
+            GroupCommand(
+                name="command1",
+                help="This is command 1 new help",
+                description="This is command 1 new description",
+                subcommands=action_commands_1,
+            ),
+            ActionCommand(
+                name="command2",
+                help="This is command 2",
+                func=no_op_method,
+                args=(ARG_1, ARG_2),
+            ),
+        ]
+
+        command_list = add_auth_token_to_all_commands(command_list)
+
+        merged_command_names = [command.name for command in command_list]
+        assert "command1" in merged_command_names
+        assert "command2" in merged_command_names
+        assert len(command_list) == 2
+
+        expected_subcommand_1_args = [ARG_AUTH_TOKEN]
+        expected_subcommand_2_args = [ARG_1, ARG_AUTH_TOKEN]
+        expected_command_2_args = [ARG_1, ARG_2, ARG_AUTH_TOKEN]
+
+        for command in command_list:
+            if command.name == "command1":
+                sub_command_names = [sc.name for sc in list(command.subcommands)]
+                assert "subcommand1" in sub_command_names
+                assert "subcommand2" in sub_command_names
+                assert len(sub_command_names) == 2
+                for sub_command in command.subcommands:
+                    if sub_command.name == "subcommand1":
+                        assert sub_command.args == expected_subcommand_1_args
+                    if sub_command.name == "subcommand2":
+                        assert sub_command.args == expected_subcommand_2_args
+            if command.name == "command2":
+                assert command.args == expected_command_2_args
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""
@@ -467,3 +650,22 @@ class TestCliConfigMethods:
 
         # Should return params unchanged for other datamodels
         assert result == params, "Params should be unchanged for non-TriggerDAGRunPostBody datamodels"
+
+    @pytest.mark.parametrize(
+        ("group_name", "subcommand_name", "expected_help"),
+        [
+            ("assets", "get", "Retrieve an asset by its ID"),
+            ("connections", "get", "Retrieve a connection by its ID"),
+        ],
+    )
+    def test_help_texts_used_for_auto_generated_commands(self, group_name, subcommand_name, expected_help):
+        """Test that help texts from YAML are used for auto-generated commands."""
+        command_factory = CommandFactory()
+        for group_command in command_factory.group_commands:
+            if group_command.name == group_name:
+                for subcommand in group_command.subcommands:
+                    if subcommand.name == subcommand_name:
+                        assert subcommand.help == expected_help, (
+                            "Help message should match the help_text.yaml"
+                        )
+                        return

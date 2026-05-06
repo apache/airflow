@@ -53,7 +53,21 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.docker.hooks.docker.DockerHook",
+                "hook-name": "Docker",
                 "connection-type": "docker",
+                "conn-fields": {
+                    "reauth": {
+                        "label": "Reauthenticate",
+                        "schema": {"type": ["boolean", "null"]},
+                        "description": "Whether or not to refresh existing authentication on the Docker server.",
+                    },
+                    "email": {"label": "Email", "schema": {"type": ["string", "null"]}},
+                },
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"host": "Registry URL", "login": "Username"},
+                    "placeholders": {"extra": '{"reauth": false, "email": "Jane.Doe@example.org"}'},
+                },
             }
         ],
         "task-decorators": [

@@ -159,7 +159,7 @@ The method ``HITLOperator.generate_link_to_ui_from_context`` can be used to gene
 
 - ``context`` – automatically passed to ``notify`` by the notifier
 - ``base_url`` – (optional) the base URL of the Airflow UI; if not provided, ``api.base_url`` in the configuration will be used
-- ``options`` – (optional) pre-selected options for the UI page
+- ``options`` – (optional) preselected options for the UI page
 - ``params_inputs`` – (optional) pre-loaded inputs for the UI page
 
 This makes it easy to include actionable links in notifications or logs.

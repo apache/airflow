@@ -21,11 +21,11 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskCollectionResponse } from "openapi/requests";
+import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { SearchBar } from "src/components/SearchBar.tsx";
 import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams.ts";
 import { AttrSelectFilter } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilter.tsx";
-import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti.tsx";
 
 export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
   const { MAPPED, NAME_PATTERN, OFFSET, OPERATOR, RETRIES, TRIGGER_RULE }: SearchParamsKeysType =
@@ -105,6 +105,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
       </HStack>
       <HStack justifyContent="space-between">
         <AttrSelectFilterMulti
+          dataTestId="operator-filter"
           displayPrefix={undefined}
           handleSelect={handleSelectedOperators}
           placeholderText={translate("selectOperator")}
@@ -112,6 +113,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           values={allOperatorNames}
         />
         <AttrSelectFilterMulti
+          dataTestId="trigger-rule-filter"
           displayPrefix={undefined}
           handleSelect={handleSelectedTriggerRules}
           placeholderText={translate("selectTriggerRules")}
@@ -119,6 +121,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           values={allTriggerRules}
         />
         <AttrSelectFilterMulti
+          dataTestId="retries-filter"
           displayPrefix={translate("retries")}
           handleSelect={handleSelectedRetries}
           placeholderText={translate("selectRetryValues")}

@@ -34,6 +34,10 @@
       "error": "{{type}} törlése sikertelen",
       "title": "{{type}} törlése"
     },
+    "confirmationDialog": {
+      "description": "A feladat jelenleg '{{state}}' állapotban van, amit a(z) {{user}} indított ekkor: {{time}}.\nA felhasználó nem törölheti a feladatot, amíg az fut, vagy amíg egy felhasználó nem kapcsolja ki a \"Ne futtassa újra, ha a feladat fut\" opciót a feladat törlés párbeszédablakban.",
+      "title": "A feladatpéldány törlése nem lehetséges"
+    },
     "delete": {
       "button": "{{type}} törlése",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Jövőbeni",
       "onlyFailed": "Csak a sikertelen feladatok törlése",
       "past": "Múltbeli",
+      "preventRunningTasks": "Ne futtassa újra, ha a feladat fut",
       "queueNew": "Új feladatok sorba állítása",
       "runOnLatestVersion": "Futtatás a legújabb csomagverzióval",
       "upstream": "Felfelé mutató (upstream)"

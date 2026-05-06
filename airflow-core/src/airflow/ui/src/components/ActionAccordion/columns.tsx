@@ -46,7 +46,7 @@ export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceR
     header: translate("mapIndex"),
   },
   {
-    accessorKey: "run_id",
+    accessorKey: "dag_run_id",
     header: translate("runId"),
   },
 ];

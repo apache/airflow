@@ -46,7 +46,6 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   const handleMouseLeave = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
-      // eslint-disable-next-line unicorn/no-null
       timeoutRef.current = null;
     }
     setIsOpen(false);
@@ -101,6 +100,7 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
           borderRadius="md"
           boxShadow="md"
           color="fg.inverted"
+          data-testid="basic-tooltip"
           fontSize="sm"
           left={`${rect.left + scrollX + rect.width / 2}px`}
           paddingX="3"

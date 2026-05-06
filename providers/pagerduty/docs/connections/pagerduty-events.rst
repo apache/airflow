@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:pagerduty-events:
+.. _howto/connection:pagerduty_events:
 
 PagerDuty Events Connection
 ===========================

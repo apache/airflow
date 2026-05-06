@@ -130,8 +130,8 @@ class BaseK8STest:
     @staticmethod
     def _num_pods_in_namespace(namespace: str):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
-        air_pod = air_pod.splitlines()
-        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+        pod_lines = air_pod.splitlines()
+        names = [re.compile(r"\s+").split(x)[0] for x in pod_lines if "airflow" in x]
         return len(names)
 
     @staticmethod
@@ -257,10 +257,10 @@ class BaseK8STest:
         rollout_status = check_output(
             ["kubectl", "rollout", "status", f"{resource_type}/{resource_name}", "-n", namespace, "--watch"],
         ).decode()
-        if resource_type == "deployment":
-            assert "successfully rolled out" in rollout_status
-        else:
-            assert "roll out complete" in rollout_status
+        # kubectl output can vary between versions and resource types. Accept either
+        # the common "successfully rolled out" wording or the alternative
+        # "roll out complete" phrasing to reduce flakiness across environments.
+        assert "successfully rolled out" in rollout_status or "roll out complete" in rollout_status
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0

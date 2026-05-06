@@ -59,6 +59,7 @@ class BaseXCom:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        dag_result: bool = False,
         _mapped_length: int | None = None,
     ) -> None:
         """
@@ -91,6 +92,7 @@ class BaseXCom:
                 task_id=task_id,
                 run_id=run_id,
                 map_index=map_index,
+                dag_result=dag_result,
                 mapped_length=_mapped_length,
             ),
         )

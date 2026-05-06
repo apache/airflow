@@ -124,6 +124,9 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
     :param timeout: The amount of time, in seconds, to wait for the request to complete.
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
+    :param recreate_if_machine_type_different: When True, delete and recreate the instance if
+        the existing machine type differs from the requested body. Defaults to
+        False, in which case differences are only logged.
     """
 
     operator_extra_links = (ComputeInstanceDetailsLink(),)
@@ -156,6 +159,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         api_version: str = "v1",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
+        recreate_if_machine_type_different: bool = False,
         **kwargs,
     ) -> None:
         self.body = body
@@ -167,6 +171,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
+        self.recreate_if_machine_type_different = recreate_if_machine_type_different
 
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
@@ -206,7 +211,68 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         if self._field_validator:
             self._field_validator.validate(self.body)
 
+    def _extract_machine_type(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        return value.split("/")[-1]
+
+    def _detect_instance_drift(self, existing: Instance) -> dict[str, Any]:
+        """Detect machine type differences between the existing instance and the requested body."""
+        diffs = {}
+
+        # Compare machine_type.
+        requested_machine_type = self.body.get("machine_type")
+        existing_machine_type = getattr(existing, "machine_type", None)
+
+        requested_name = self._extract_machine_type(requested_machine_type)
+        existing_name = self._extract_machine_type(existing_machine_type)
+
+        if requested_name and existing_name and requested_name != existing_name:
+            diffs["machine_type"] = {
+                "existing": existing_name,
+                "requested": requested_name,
+            }
+
+        return diffs
+
+    def _create_instance(self, hook: ComputeEngineHook, context: Context) -> dict:
+        """Create the instance using the current body and return the created instance as dict."""
+        self._field_sanitizer.sanitize(self.body)
+
+        self.log.info("Creating Instance with specified body: %s", self.body)
+
+        hook.insert_instance(
+            body=self.body,
+            request_id=self.request_id,
+            project_id=self.project_id,
+            zone=self.zone,
+        )
+
+        self.log.info("The specified Instance has been created SUCCESSFULLY")
+
+        new_instance = hook.get_instance(
+            resource_id=self.resource_id,
+            project_id=self.project_id,
+            zone=self.zone,
+        )
+
+        ComputeInstanceDetailsLink.persist(
+            context=context,
+            project_id=self.project_id or hook.project_id,
+        )
+
+        return Instance.to_dict(new_instance)
+
     def execute(self, context: Context) -> dict:
+        """
+        Ensure that a Compute Engine instance with the given name exists.
+
+        If the instance does not exist, it is created. If it already exists,
+        presence is treated as success (presence-based idempotence).
+
+        If machine type drift is detected and ``recreate_if_machine_type_different=True``,
+        the existing instance is deleted and recreated using the requested body.
+        """
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -214,46 +280,54 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         )
         self._validate_all_body_fields()
         self.check_body_fields()
+
         try:
-            # Idempotence check (sort of) - we want to check if the new Instance
-            # is already created and if is, then we assume it was created previously - we do
-            # not check if content of the Instance is as expected.
-            # We assume success if the Instance is simply present.
             existing_instance = hook.get_instance(
                 resource_id=self.resource_id,
                 project_id=self.project_id,
                 zone=self.zone,
             )
         except exceptions.NotFound as e:
-            # We actually expect to get 404 / Not Found here as the should not yet exist
+            # We expect a 404 here if the instance does not yet exist.
             if e.code != 404:
                 raise e
-        else:
-            self.log.info("The %s Instance already exists", self.resource_id)
-            ComputeInstanceDetailsLink.persist(
-                context=context,
-                project_id=self.project_id or hook.project_id,
+
+            # Create instance if it does not exist.
+            return self._create_instance(hook, context)
+
+        # Instance already exists.
+        self.log.info("The %s Instance already exists", self.resource_id)
+
+        # Detect drift.
+        diffs = self._detect_instance_drift(existing_instance)
+        if diffs:
+            self.log.warning(
+                "Existing instance '%s' differs from requested configuration: %s",
+                self.resource_id,
+                diffs,
             )
-            return Instance.to_dict(existing_instance)
-        self._field_sanitizer.sanitize(self.body)
-        self.log.info("Creating Instance with specified body: %s", self.body)
-        hook.insert_instance(
-            body=self.body,
-            request_id=self.request_id,
-            project_id=self.project_id,
-            zone=self.zone,
-        )
-        self.log.info("The specified Instance has been created SUCCESSFULLY")
-        new_instance = hook.get_instance(
-            resource_id=self.resource_id,
-            project_id=self.project_id,
-            zone=self.zone,
-        )
+
+            if self.recreate_if_machine_type_different:
+                self.log.info(
+                    "Recreating instance '%s' because recreate_if_machine_type_different=True",
+                    self.resource_id,
+                )
+
+                hook.delete_instance(
+                    resource_id=self.resource_id,
+                    project_id=self.project_id,
+                    request_id=self.request_id,
+                    zone=self.zone,
+                )
+
+                return self._create_instance(hook, context)
+
         ComputeInstanceDetailsLink.persist(
             context=context,
             project_id=self.project_id or hook.project_id,
         )
-        return Instance.to_dict(new_instance)
+
+        return Instance.to_dict(existing_instance)
 
 
 class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator):

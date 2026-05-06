@@ -20,6 +20,7 @@ from __future__ import annotations
 from fastapi import Depends, Request, status
 from fastapi.responses import RedirectResponse
 
+from airflow.api_fastapi.app import get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
@@ -93,6 +94,7 @@ def login_all_admins(request: Request) -> RedirectResponse:
     response.set_cookie(
         COOKIE_NAME_JWT_TOKEN,
         SimpleAuthManagerLogin.create_token_all_admins(),
+        path=get_cookie_path(),
         secure=secure,
         httponly=True,
     )

@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
+from google.api_core.client_options import ClientOptions
 from google.cloud.run_v2 import (
     CreateJobRequest,
     CreateServiceRequest,
@@ -32,6 +35,7 @@ from google.cloud.run_v2 import (
     ListJobsRequest,
     RunJobRequest,
     Service,
+    ServicesAsyncClient,
     UpdateJobRequest,
 )
 from google.longrunning import operations_pb2
@@ -51,6 +55,8 @@ REGION = "region1"
 JOB_NAME = "job1"
 SERVICE_NAME = "service1"
 OPERATION_NAME = "operationname"
+USE_REGIONAL_ENDPOINT = True
+BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 
 
 @pytest.mark.db_test
@@ -64,6 +70,21 @@ class TestCloudRunHook:
         cloud_run_hook.get_credentials = self.dummy_get_credentials
         return cloud_run_hook
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+    def test_get_conn_regional_endpoint(self, mock_jobs_client_cls):
+        hook = CloudRunHook(gcp_conn_id="google_cloud_default")
+        hook.get_credentials = mock.MagicMock(return_value=mock.Mock())
+
+        with mock.patch.dict(os.environ, {}, clear=True):
+            location = "us-central1"
+            hook.get_conn(location=location, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
+            assert mock_jobs_client_cls.call_count == 1
+
+            _, kwargs = mock_jobs_client_cls.call_args
+            client_options = kwargs.get("client_options")
+            assert isinstance(client_options, ClientOptions)
+            assert client_options.api_endpoint == f"{location}-run.googleapis.com:443"
+
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
@@ -72,7 +93,12 @@ class TestCloudRunHook:
     def test_get_job(self, mock_batch_service_client, cloud_run_hook):
         get_job_request = GetJobRequest(name=f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{JOB_NAME}")
 
-        cloud_run_hook.get_job(job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID)
+        cloud_run_hook.get_job(
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
+        )
         cloud_run_hook._client.get_job.assert_called_once_with(get_job_request)
 
     @mock.patch(
@@ -88,7 +114,11 @@ class TestCloudRunHook:
         update_request.job = job
 
         cloud_run_hook.update_job(
-            job=Job.to_dict(job), job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+            job=Job.to_dict(job),
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         )
 
         cloud_run_hook._client.update_job.assert_called_once_with(update_request)
@@ -107,7 +137,11 @@ class TestCloudRunHook:
         create_request.parent = f"projects/{PROJECT_ID}/locations/{REGION}"
 
         cloud_run_hook.create_job(
-            job=Job.to_dict(job), job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+            job=Job.to_dict(job),
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         )
 
         cloud_run_hook._client.create_job.assert_called_once_with(create_request)
@@ -128,7 +162,11 @@ class TestCloudRunHook:
         )
 
         cloud_run_hook.execute_job(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=overrides
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            overrides=overrides,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         )
         cloud_run_hook._client.run_job.assert_called_once_with(request=run_job_request)
 
@@ -145,7 +183,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         for i in range(number_of_jobs):
             assert jobs_list[i].name == f"name{i}"
@@ -170,7 +210,12 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, show_deleted=True)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region,
+            project_id=project_id,
+            show_deleted=True,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
+        )
 
         for i in range(number_of_jobs):
             assert jobs_list[i].name == f"name{i}"
@@ -196,7 +241,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         assert len(jobs_list) == limit
         for i in range(limit):
@@ -212,7 +259,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         assert len(jobs_list) == 0
 
@@ -230,7 +279,9 @@ class TestCloudRunHook:
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
-        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+        jobs_list = cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         assert len(jobs_list) == number_of_jobs
         for i in range(number_of_jobs):
@@ -251,13 +302,20 @@ class TestCloudRunHook:
         mock_batch_service_client.return_value.list_jobs.return_value = page
 
         with pytest.raises(expected_exception=AirflowException):
-            cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+            cloud_run_hook.list_jobs(
+                region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+            )
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
     def test_delete_job(self, mock_batch_service_client, cloud_run_hook):
         delete_request = DeleteJobRequest(name=f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{JOB_NAME}")
 
-        cloud_run_hook.delete_job(job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID)
+        cloud_run_hook.delete_job(
+            job_name=JOB_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
+        )
         cloud_run_hook._client.delete_job.assert_called_once_with(delete_request)
 
     @mock.patch(
@@ -269,7 +327,7 @@ class TestCloudRunHook:
         """Test that transport parameter is passed to JobsClient."""
         hook = CloudRunHook(transport="rest")
         hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
+        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
@@ -284,7 +342,7 @@ class TestCloudRunHook:
         """Test that transport is not passed to JobsClient when None."""
         hook = CloudRunHook(transport=None)
         hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
+        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
@@ -301,9 +359,12 @@ class TestCloudRunHook:
 class TestCloudRunAsyncHook:
     @pytest.mark.asyncio
     async def test_get_operation(self):
+        region = "us-central1"
         hook = CloudRunAsyncHook()
         hook.get_conn = mock.AsyncMock()
-        await hook.get_operation(operation_name=OPERATION_NAME)
+        await hook.get_operation(
+            operation_name=OPERATION_NAME, location=region, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
         hook.get_conn.return_value.get_operation.assert_called_once_with(
             operations_pb2.GetOperationRequest(name=OPERATION_NAME), timeout=120
         )
@@ -318,7 +379,7 @@ class TestCloudRunAsyncHook:
         mock_sync_hook.get_credentials.return_value = "credentials"
         hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-        await hook.get_conn()
+        await hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_async_client.assert_called_once()
         call_kwargs = mock_async_client.call_args[1]
@@ -333,7 +394,7 @@ class TestCloudRunAsyncHook:
         mock_sync_hook.get_credentials.return_value = "credentials"
         hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-        await hook.get_conn()
+        await hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_sync_client.assert_called_once()
         call_kwargs = mock_sync_client.call_args[1]
@@ -350,7 +411,9 @@ class TestCloudRunAsyncHook:
         mock_conn = mock.MagicMock(spec=JobsClient)  # sync client
         hook.get_conn = mock.AsyncMock(return_value=mock_conn)
 
-        result = await hook.get_operation(operation_name=OPERATION_NAME)
+        result = await hook.get_operation(
+            operation_name=OPERATION_NAME, location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         mock_to_thread.assert_called_once_with(
             mock_conn.get_operation,
@@ -367,8 +430,10 @@ class TestCloudRunServiceHook:
 
     @pytest.fixture
     def cloud_run_service_hook(self):
+        region = "us-central1"
         cloud_run_service_hook = CloudRunServiceHook()
         cloud_run_service_hook.get_credentials = self.dummy_get_credentials
+        cloud_run_service_hook.client_options = ClientOptions(api_endpoint=f"{region}-run.googleapis.com:443")
         return cloud_run_service_hook
 
     @mock.patch(
@@ -381,7 +446,12 @@ class TestCloudRunServiceHook:
             name=f"projects/{PROJECT_ID}/locations/{REGION}/services/{SERVICE_NAME}"
         )
 
-        cloud_run_service_hook.get_service(service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID)
+        cloud_run_service_hook.get_service(
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
+        )
         cloud_run_service_hook._client.get_service.assert_called_once_with(get_service_request)
 
     @mock.patch(
@@ -398,7 +468,11 @@ class TestCloudRunServiceHook:
         create_request.parent = f"projects/{PROJECT_ID}/locations/{REGION}"
 
         cloud_run_service_hook.create_service(
-            service=service, service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID
+            service=service,
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         )
         cloud_run_service_hook._client.create_service.assert_called_once_with(create_request)
 
@@ -412,7 +486,12 @@ class TestCloudRunServiceHook:
             name=f"projects/{PROJECT_ID}/locations/{REGION}/services/{SERVICE_NAME}"
         )
 
-        cloud_run_service_hook.delete_service(service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID)
+        cloud_run_service_hook.delete_service(
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
+        )
         cloud_run_service_hook._client.delete_service.assert_called_once_with(delete_request)
 
 
@@ -423,24 +502,30 @@ class TestCloudRunServiceAsyncHook:
     def mock_service(self):
         return mock.AsyncMock()
 
+    @pytest.fixture
+    def cloud_run_service_hook(self):
+        region = "us-central1"
+        cloud_run_service_hook = CloudRunServiceAsyncHook()
+        cloud_run_service_hook.get_credentials = self.dummy_get_credentials
+        cloud_run_service_hook.client_options = ClientOptions(api_endpoint=f"{region}-run.googleapis.com:443")
+        return cloud_run_service_hook
+
     @pytest.mark.asyncio
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
-    async def test_create_service(self, mock_client):
-        mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.create_service = self.mock_service()
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.CloudRunServiceAsyncHook.get_conn")
+    async def test_create_service(self, mock_client, cloud_run_service_hook):
+        mock_env_client = AsyncMock(ServicesAsyncClient)
+        mock_client.return_value = mock_env_client
 
-        hook = CloudRunServiceAsyncHook()
-        hook.get_credentials = self.dummy_get_credentials
-
-        await hook.create_service(
+        await cloud_run_service_hook.create_service(
             service_name=SERVICE_NAME,
             service=Service(),
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         )
 
         expected_request = CreateServiceRequest(
@@ -456,18 +541,16 @@ class TestCloudRunServiceAsyncHook:
         "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
-    async def test_delete_service(self, mock_client):
-        mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.delete_service = self.mock_service()
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.CloudRunServiceAsyncHook.get_conn")
+    async def test_delete_service(self, mock_client, cloud_run_service_hook):
+        mock_env_client = AsyncMock(ServicesAsyncClient)
+        mock_client.return_value = mock_env_client
 
-        hook = CloudRunServiceAsyncHook()
-        hook.get_credentials = self.dummy_get_credentials
-
-        await hook.delete_service(
+        await cloud_run_service_hook.delete_service(
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
+            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
         )
 
         expected_request = DeleteServiceRequest(

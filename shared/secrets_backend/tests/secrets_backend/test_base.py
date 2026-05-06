@@ -22,6 +22,26 @@ import pytest
 from airflow_shared.secrets_backend.base import BaseSecretsBackend
 
 
+class MockConnection:
+    """Mock Connection class for testing deserialize_connection."""
+
+    def __init__(self, conn_id: str, uri: str | None = None, **kwargs):
+        self.conn_id = conn_id
+        self.uri = uri
+        self._kwargs = kwargs
+
+    @classmethod
+    def from_json(cls, value: str, conn_id: str):
+        import json
+
+        data = json.loads(value)
+        return cls(conn_id=conn_id, **data)
+
+    @classmethod
+    def from_uri(cls, conn_id: str, uri: str):
+        return cls(conn_id=conn_id, uri=uri)
+
+
 class _TestBackend(BaseSecretsBackend):
     def __init__(self, conn_values: dict[str, str] | None = None, variables: dict[str, str] | None = None):
         self.conn_values = conn_values or {}
@@ -93,3 +113,23 @@ class TestBaseSecretsBackend:
         backend = _TestBackend(conn_values={conn_id: f"uri_{expected}"})
         conn_value = backend.get_conn_value(conn_id)
         assert conn_value == f"uri_{expected}"
+
+    def test_deserialize_connection_json(self, sample_conn_json):
+        """Test deserialize_connection with JSON format through _TestBackend."""
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnection)
+
+        conn = backend.deserialize_connection("test_conn", sample_conn_json)
+        assert isinstance(conn, MockConnection)
+        assert conn.conn_id == "test_conn"
+        assert conn._kwargs["conn_type"] == "mysql"
+
+    def test_deserialize_connection_uri(self, sample_conn_uri):
+        """Test deserialize_connection with URI format through _TestBackend."""
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnection)
+
+        conn = backend.deserialize_connection("test_conn", sample_conn_uri)
+        assert isinstance(conn, MockConnection)
+        assert conn.conn_id == "test_conn"
+        assert conn.uri == sample_conn_uri

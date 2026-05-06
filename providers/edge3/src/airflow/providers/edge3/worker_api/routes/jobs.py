@@ -75,6 +75,7 @@ def fetch(
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))
+    query = query.where(EdgeJobModel.team_name == body.team_name)
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
     job: EdgeJobModel | None = session.scalar(query)
@@ -86,13 +87,7 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    try:
-        from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
-
-        DualStatsManager.incr("edge_worker.ti.start", tags=tags)
-    except ImportError:
-        Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
-        Stats.incr("edge_worker.ti.start", tags=tags)
+    Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
@@ -145,19 +140,7 @@ def state(
                 "queue": job.queue,
                 "state": str(state),
             }
-            try:
-                from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
-
-                DualStatsManager.incr(
-                    "edge_worker.ti.finish",
-                    tags=tags,
-                )
-            except ImportError:
-                Stats.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
-                    tags=tags,
-                )
-                Stats.incr("edge_worker.ti.finish", tags=tags)
+            Stats.incr("edge_worker.ti.finish", tags=tags)
 
     query2 = (
         update(EdgeJobModel)

@@ -53,3 +53,37 @@ Notes
 - Review query plans (e.g. via ``EXPLAIN``) to choose effective column sets and ordering for your workload.
 - Composite indexes should list columns in selectivity order appropriate to your most common predicates.
 - Indexes incur write overhead; add only those that materially improve your read paths.
+
+Enable HTTP/2 at the reverse proxy
+-----------------------------------
+
+Browsers limit concurrent HTTP/1.1 connections to six per origin. Views such as the
+Grid page can issue many API requests at once, causing some of them to queue and stall
+until a connection slot becomes available.
+
+Enabling **HTTP/2** at the reverse-proxy layer (e.g. Nginx) removes this limitation
+because HTTP/2 multiplexes many requests over a single TCP connection.
+
+Benefits
+^^^^^^^^
+
+- Eliminates the six-connection bottleneck for busy UI views.
+- Reduces latency through header compression and stream multiplexing.
+- No changes to Airflow itself are required — configuration is done entirely at the
+  proxy level.
+
+How to enable
+^^^^^^^^^^^^^
+
+HTTP/2 is configured on the reverse proxy that sits in front of the Airflow API server.
+For Nginx, add the ``http2`` directive to the ``listen`` line:
+
+.. code-block:: nginx
+
+    server {
+        listen 443 ssl http2;
+        # ... existing Airflow proxy configuration ...
+    }
+
+For details on running Airflow behind a reverse proxy, see
+:doc:`/howto/run-behind-proxy`.

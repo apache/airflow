@@ -31,7 +31,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 
 # --------------------------------------------------------------------------------
 # Caveat: This Dag will not run because of missing scripts.
-# The purpose of this is to give you a sample of a real world example DAG!
+# The purpose of this is to give you a sample of a real world example Dag!
 # --------------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ def transfer_to_db():
 with DAG(
     dag_id=DAG_ID,
     default_args={
-        "owner": "Ekhtiar",
+        "owner": "airflow",
         "retries": 1,
     },
     schedule="@daily",
@@ -154,10 +154,10 @@ with DAG(
     from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
-    # when "tearDown" task with trigger rule is part of the DAG
+    # when "tearDown" task with trigger rule is part of the Dag
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

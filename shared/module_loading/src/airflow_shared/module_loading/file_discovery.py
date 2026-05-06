@@ -79,6 +79,7 @@ class _GlobIgnoreRule(NamedTuple):
 
     wild_match_pattern: GitWildMatchPattern
     relative_to: Path | None = None
+    dir_only: bool = False
 
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
@@ -95,8 +96,15 @@ class _GlobIgnoreRule(NamedTuple):
             # > Otherwise the pattern may also match at any level below the .gitignore level.
             relative_to = definition_file.parent
 
+        # See https://git-scm.com/docs/gitignore
+        # > If there is a separator at the end of the pattern then the pattern will only match
+        # > directories, otherwise the pattern can match both files and directories.
+        # Strip the negation prefix before checking for trailing separator.
+        raw_pattern = pattern.lstrip("!")
+        dir_only = raw_pattern.rstrip() != raw_pattern.rstrip().rstrip("/")
+
         ignore_pattern = GitWildMatchPattern(pattern)
-        return _GlobIgnoreRule(wild_match_pattern=ignore_pattern, relative_to=relative_to)
+        return _GlobIgnoreRule(wild_match_pattern=ignore_pattern, relative_to=relative_to, dir_only=dir_only)
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
@@ -105,8 +113,14 @@ class _GlobIgnoreRule(NamedTuple):
         for rule in rules:
             if not isinstance(rule, _GlobIgnoreRule):
                 raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(rule)}")
+            # See https://git-scm.com/docs/gitignore
+            # > If there is a separator at the end of the pattern then the pattern will only match
+            # > directories, otherwise the pattern can match both files and directories.
+            is_dir = path.is_dir()
+            if rule.dir_only and not is_dir:
+                continue
             rel_obj = path.relative_to(rule.relative_to) if rule.relative_to else Path(path.name)
-            if path.is_dir():
+            if is_dir:
                 rel_path = f"{rel_obj.as_posix()}/"
             else:
                 rel_path = rel_obj.as_posix()

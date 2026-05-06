@@ -23,6 +23,7 @@ Much of this code is expensive to import/load, be careful where this module is i
 from __future__ import annotations
 
 import contextlib
+import gc
 import logging
 import math
 import os
@@ -32,18 +33,23 @@ import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import cache
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.signals import import_modules as celery_import_modules
+from celery.signals import import_modules as celery_import_modules, worker_ready
 from sqlalchemy import select
 
-from airflow.configuration import AirflowConfigParser, conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
+from airflow.providers.celery.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_9_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, conf, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -51,7 +57,8 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
-    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager  # type:ignore[no-redef]
+
 
 log = logging.getLogger(__name__)
 
@@ -65,17 +72,23 @@ if TYPE_CHECKING:
 
     from celery.result import AsyncResult
 
+    from airflow.configuration import AirflowConfigParser
     from airflow.executors import workloads
     from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstanceKey
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
-    # the type as the union of both kinds
+    # the type as the union of both kinds.
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[
-        TaskInstanceKey, workloads.All | CommandType, str | None, str | None
+    WorkloadInCelery: TypeAlias = tuple[WorkloadKey, workloads.All | CommandType, str | None, str | None]
+    WorkloadInCeleryResult: TypeAlias = tuple[
+        WorkloadKey, CommandType, AsyncResult | "ExceptionWithTraceback"
     ]
+
+    # Deprecated alias for backward compatibility.
+    TaskInstanceInCelery: TypeAlias = WorkloadInCelery
 
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
@@ -111,23 +124,35 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     :param team_conf: ExecutorConf instance with team-specific configuration, or global conf
     :return: Celery app instance
     """
-    from airflow.providers.celery.executors.default_celery import get_default_celery_config
+    from airflow.providers.celery.executors.default_celery import (
+        DEFAULT_CELERY_CONFIG,
+        get_default_celery_config,
+    )
 
     celery_app_name = team_conf.get("celery", "CELERY_APP_NAME")
 
-    # Make app name unique per team to ensure proper broker isolation
+    # Make app name unique per team to ensure proper broker isolation.
     # Each team's executor needs a distinct Celery app name to prevent
-    # tasks from being routed to the wrong broker
-    # Only do this if team_conf is an ExecutorConf with team_name (not global conf)
+    # tasks from being routed to the wrong broker.
+    # Only do this if team_conf is an ExecutorConf with team_name (not global conf).
     team_name = getattr(team_conf, "team_name", None)
     if team_name:
         celery_app_name = f"{celery_app_name}_{team_name}"
 
     config = get_default_celery_config(team_conf)
 
+    # Apply user-provided celery_config_options on top of team config.
+    # Skip if it resolves to DEFAULT_CELERY_CONFIG (built from global conf, not team-aware).
+    configured_path = team_conf.get("celery", "celery_config_options", fallback=None)
+    if configured_path:
+        module_path, _, attr_name = configured_path.rpartition(".")
+        user_config = getattr(import_module(module_path), attr_name)
+        if user_config is not DEFAULT_CELERY_CONFIG and isinstance(user_config, dict):
+            config.update(user_config)
+
     celery_app = Celery(celery_app_name, config_source=config)
 
-    # Register tasks with this app
+    # Register tasks with this app.
     celery_app.task(name="execute_workload")(execute_workload)
     if not AIRFLOW_V_3_0_PLUS:
         celery_app.task(name="execute_command")(execute_command)
@@ -135,7 +160,7 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     return celery_app
 
 
-# Keep module-level app for backward compatibility
+# Keep module-level app for backward compatibility.
 app = _get_celery_app()
 
 
@@ -166,14 +191,55 @@ def on_celery_import_modules(*args, **kwargs):
     with contextlib.suppress(ImportError):
         import kubernetes.client  # noqa: F401
 
+    # To prevent memory increase by COW in celery's ForkPoolWorker.
+    gc.freeze()
+
+
+@worker_ready.connect
+def on_celery_worker_ready(*args, **kwargs):
+    # Unfreeze the objects from gc freeze when the ForkPoolWorker is all loaded.
+    gc.unfreeze()
+
 
 # Once Celery 5.5 is out of beta, we can pass `pydantic=True` to the decorator and it will handle the validation
-# and deserialization for us
+# and deserialization for us.
 @app.task(name="execute_workload")
 def execute_workload(input: str) -> None:
+    if not AIRFLOW_V_3_3_PLUS:
+        return _execute_workload_pre_3_3(input)
+
+    from celery.exceptions import Ignore
     from pydantic import TypeAdapter
 
-    from airflow.configuration import conf
+    from airflow.executors.workloads import ExecutorWorkload
+
+    decoder = TypeAdapter[ExecutorWorkload](ExecutorWorkload)
+    workload = decoder.validate_json(input)
+
+    celery_task_id = app.current_task.request.id
+
+    log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
+
+    try:
+        BaseExecutor.run_workload(workload)
+    except Exception as e:
+        from airflow.sdk.exceptions import TaskAlreadyRunningError
+
+        if isinstance(e, TaskAlreadyRunningError):
+            log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+            # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+            # delivery. Without this, the broker redelivering the message (e.g. after a
+            # visibility timeout) would cause Celery to mark the task as failed, even though
+            # the original worker is still executing it successfully.
+            raise Ignore()
+        raise
+
+
+def _execute_workload_pre_3_3(input: str) -> None:
+    """Fallback for Airflow < 3.3 which lacks BaseExecutor.run_workload() and ExecutorWorkload."""
+    from celery.exceptions import Ignore
+    from pydantic import TypeAdapter
+
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
 
@@ -182,31 +248,44 @@ def execute_workload(input: str) -> None:
 
     celery_task_id = app.current_task.request.id
 
-    if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
-
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
-    # If it's a relative URL, use localhost:8080 as the default
+    # If it's a relative URL, use localhost:8080 as the default.
     if base_url.startswith("/"):
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+    try:
+        if isinstance(workload, workloads.ExecuteTask):
+            supervise(
+                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                ti=workload.ti,  # type: ignore[arg-type]
+                dag_rel_path=workload.dag_rel_path,
+                bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+                log_path=workload.log_path,
+            )
+        else:
+            raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
+    except Exception as e:
+        if AIRFLOW_V_3_1_9_PLUS:
+            from airflow.sdk.exceptions import TaskAlreadyRunningError
+
+            if isinstance(e, TaskAlreadyRunningError):
+                log.info("[%s] Task already running elsewhere, ignoring redelivered message", celery_task_id)
+                # Raise Ignore() so Celery does not record a FAILURE result for this duplicate
+                # delivery. Without this, the broker redelivering the message (e.g. after a
+                # visibility timeout) would cause Celery to mark the task as failed, even though
+                # the original worker is still executing it successfully.
+                raise Ignore()
+        raise
 
 
 if not AIRFLOW_V_3_0_PLUS:
 
-    @app.task
+    @app.task(name="execute_command")
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
         EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not hasattr(os, "fork") or conf.getboolean(
@@ -232,7 +311,7 @@ if not AIRFLOW_V_3_0_PLUS:
 def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = None) -> None:
     pid = os.fork()
     if pid:
-        # In parent, wait for the child
+        # In parent, wait for the child.
         pid, ret = os.waitpid(pid, 0)
         if ret == 0:
             return
@@ -247,7 +326,7 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         from airflow.cli.cli_parser import get_parser
 
         parser = get_parser()
-        # [1:] - remove "airflow" from the start of the command
+        # [1:] - remove "airflow" from the start of the command.
         args = parser.parse_args(command_to_exec[1:])
         args.shut_down_logging = False
         if celery_task_id:
@@ -303,68 +382,75 @@ class ExceptionWithTraceback:
         self.traceback = exception_traceback
 
 
-def send_task_to_executor(
-    task_tuple: TaskInstanceInCelery,
-) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
+def send_workload_to_executor(
+    workload_tuple: WorkloadInCelery,
+) -> WorkloadInCeleryResult:
     """
-    Send task to executor.
+    Send workload to executor (serialized and executed as a Celery task).
 
     This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
     team-specific Celery apps, we pass the team_name and reconstruct the Celery app here.
     """
-    key, args, queue, team_name = task_tuple
+    key, args, queue, team_name = workload_tuple
 
     # Reconstruct the Celery app from configuration, which may or may not be team-specific.
     # ExecutorConf wraps config access to automatically use team-specific config where present.
     if TYPE_CHECKING:
         _conf: ExecutorConf | AirflowConfigParser
-    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
+    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf.
     if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 
         _conf = ExecutorConf(team_name)
     else:
-        # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf
+        # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf.
         _conf = conf
-
-    # Create the Celery app with the correct configuration
+    # Create the Celery app with the correct configuration.
     celery_app = create_celery_app(_conf)
 
+    celery_task_id = None
     if AIRFLOW_V_3_0_PLUS:
-        # Get the task from the app
-        task_to_run = celery_app.tasks["execute_workload"]
+        # Get the task from the app.
+        celery_task = celery_app.tasks["execute_workload"]
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
+        # Extract the pre-assigned Celery task ID before serializing the workload.
+        # This ID was committed to the DB at queuing time (as external_executor_id) and is
+        # excluded from model_dump_json(), so workers never see it. Passing it to apply_async()
+        # makes the Celery task ID deterministic from DB state, closing the race window where a
+        # scheduler crash between apply_async() and event processing left external_executor_id
+        # unset and the task unadoptable.
+        if executor_id := getattr(getattr(args, "ti", None), "external_executor_id", None):
+            celery_task_id = executor_id
         args = (args.model_dump_json(),)
     else:
-        # Get the task from the app
-        task_to_run = celery_app.tasks["execute_command"]
+        # Get the task from the app.
+        celery_task = celery_app.tasks["execute_command"]
         args = [args]  # type: ignore[list-item]
 
     # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
     # If timeout fires during import, redis module gets partially cached in sys.modules
     # without the 'client' submodule bound, causing AttributeError on subsequent access.
     # See: https://github.com/apache/airflow/issues/41359
-    try:
+    # Redis not installed or not using Redis backend.
+    with contextlib.suppress(ImportError):
         import redis.client  # noqa: F401
-    except ImportError:
-        pass  # Redis not installed or not using Redis backend
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = task_to_run.apply_async(args=args, queue=queue)
+            result = celery_task.apply_async(args=args, queue=queue, task_id=celery_task_id)
     except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
-    # concurrently;
+    # concurrently.
     return key, args, result
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
     """
-    Fetch and return the state of the given celery task.
+    Fetch and return the state of the given celery task (workload execution).
 
     The scope of this function is global so that it can be called by subprocesses in the pool.
 
@@ -375,15 +461,14 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
     """
     # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
     # See: https://github.com/apache/airflow/issues/41359
-    try:
+    # Redis not installed or not using Redis backend.
+    with contextlib.suppress(ImportError):
         import redis.client  # noqa: F401
-    except ImportError:
-        pass  # Redis not installed or not using Redis backend
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            # Accessing state property of celery task will make actual network request
-            # to get the current state of the task
+            # Accessing state property of celery task (workload execution) triggers a network request
+            # to get the current state of the task.
             info = async_result.info if hasattr(async_result, "info") else None
             return async_result.task_id, async_result.state, info
     except Exception as e:
@@ -403,7 +488,7 @@ class BulkStateFetcher(LoggingMixin):
     def __init__(self, sync_parallelism: int, celery_app: Celery | None = None):
         super().__init__()
         self._sync_parallelism = sync_parallelism
-        self.celery_app = celery_app or app  # Use provided app or fall back to module-level app
+        self.celery_app = celery_app or app  # Use provided app or fall back to module-level app.
 
     def _tasks_list_to_task_ids(self, async_tasks: Collection[AsyncResult]) -> set[str]:
         return {a.task_id for a in async_tasks}

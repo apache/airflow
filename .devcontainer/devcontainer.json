@@ -4,6 +4,9 @@
         "../scripts/ci/docker-compose/devcontainer.yml",
         "../scripts/ci/docker-compose/devcontainer-sqlite.yml"
     ],
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    },
     "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"
     },

@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, XComArg
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 
 
-def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict:
+def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict | XComArg:
     """
     Normalize content or all values of content if it is a dict to a string.
 
@@ -32,8 +32,13 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
 
     The only one exception is when we have boolean values, they can not be converted
     to string type because databricks does not understand 'True' or 'False' values.
+
+    XComArg instances are passed through as-is because they are resolved at runtime
+    via template rendering.
     """
     normalise = normalise_json_content
+    if isinstance(content, XComArg):
+        return content
     if isinstance(content, (str, bool)):
         return content
     if isinstance(content, (int, float)):

@@ -25,7 +25,9 @@ deploy and run the cluster tests in our repository and into Breeze development e
 KinD has a really nice ``kind`` tool that you can use to interact with the cluster. Run ``kind --help`` to
 learn more.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 K8S test environment
 --------------------
@@ -89,6 +91,18 @@ In order to deploy Airflow, the PROD image of Airflow need to be extended and ex
 template files should be added to the image. This is done via ``build-k8s-image``, ``upload-k8s-image``.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag.
 
+.. note::
+
+   Before running ``breeze k8s build-k8s-image`` command, make sure that all UI assets are compiled by checking
+   if ``airflow-core/src/airflow/ui/dist`` is not empty. If the mentioned directory is empty, run following
+   command:
+
+   .. code-block:: shell
+
+      breeze ui compile-assets
+
+   for making sure that all assets are up-to-date, run the above command with ``--force-clean`` flag.
+
 Deploy Airflow to Kubernetes Cluster
 ------------------------------------
 
@@ -121,10 +135,10 @@ you need to deploy Airflow with the ``--executor KubernetesExecutor`` flag.
     breeze k8s deploy-airflow --executor KubernetesExecutor
 
 
-Hot-reloading DAGs and core sources
+Hot-reloading Dags and core sources
 -----------------------------------
 
-If you want to iterate on DAGs or core sources without rebuilding images, run ``breeze k8s dev`` after the
+If you want to iterate on Dags or core sources without rebuilding images, run ``breeze k8s dev`` after the
 cluster is deployed. It starts a skaffold loop that syncs local changes under ``dags/`` and
 ``airflow-core/src/airflow`` into the running pods. Scheduler, triggerer, and dag-processor run in dev
 hot-reload mode; the API server and webserver UI are not hot-reloaded by default.
@@ -213,8 +227,12 @@ You can exit k9s by pressing Ctrl-C.
 Typical testing pattern for Kubernetes tests
 --------------------------------------------
 
-The typical session for tests with Kubernetes looks like follows:
+.. note::
 
+   Steps 1-6 from below instruction can be done by using one command ``breeze k8s deploy-cluster``.
+   For details visit `Test commands <../../dev/breeze/doc/05_test_commands.rst>`__.
+
+The typical session for tests with Kubernetes looks like follows:
 
 1. Prepare the environment:
 
@@ -417,7 +435,7 @@ Should show the status of current KinD cluster.
     breeze k8s upload-k8s-image
 
 
-5. Upload the image to KinD cluster - this uploads your image to make it available for the KinD cluster.
+6. Upload the image to KinD cluster - this uploads your image to make it available for the KinD cluster.
 
 .. code-block:: bash
 

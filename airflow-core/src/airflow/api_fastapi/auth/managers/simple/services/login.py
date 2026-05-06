@@ -56,7 +56,7 @@ class SimpleAuthManagerLogin:
         found_users = [
             user
             for user in users
-            if user["username"] == body.username and passwords[user["username"]] == body.password
+            if user.username == body.username and passwords[user.username] == body.password
         ]
 
         if len(found_users) == 0:
@@ -67,7 +67,8 @@ class SimpleAuthManagerLogin:
 
         user = SimpleAuthManagerUser(
             username=body.username,
-            role=found_users[0]["role"],
+            role=found_users[0].role,
+            teams=found_users[0].teams,
         )
 
         return get_auth_manager().generate_jwt(

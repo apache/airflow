@@ -113,7 +113,7 @@ class StackdriverTaskHandler(logging.Handler):
         if name is not NOTSET:
             warnings.warn(
                 "Param `name` is deprecated and will be removed in a future release. "
-                "Please use `gcp_log_name` instead. ",
+                "Please use `gcp_log_name` instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -202,7 +202,7 @@ class StackdriverTaskHandler(logging.Handler):
         :param task_instance: Currently executed task
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
-        self.task_instance_hostname = task_instance.hostname
+        self.task_instance_hostname = task_instance.hostname or "default-hostname"
 
     def read(
         self, task_instance: TaskInstance, try_number: int | None = None, metadata: dict | None = None
