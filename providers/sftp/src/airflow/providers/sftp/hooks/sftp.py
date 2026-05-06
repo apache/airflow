@@ -201,13 +201,39 @@ class SFTPHook(SSHHook):
         }
 
     @handle_connection_management
-    def list_directory(self, path: str) -> list[str]:
+    def list_directory(self, path: str, recursive: bool = False) -> list[str] | None:
         """
         List files in a directory on the remote system.
 
+        Lists one-level entry names under the given directory path.
+
+        If ``recursive=True``, returns files recursively as paths relative to ``path``.
+
         :param path: full path to the remote directory to list
+        :param recursive: Whether to recursively list descendants.
+        :return: List of entry names found under the directory, or None if the directory does not exist.
         """
-        return sorted(self.conn.listdir(path))  # type: ignore[union-attr]
+        if recursive:
+            files: list[str] = []
+
+            def append_relative(item: str) -> None:
+                files.append(os.path.relpath(item, path))
+
+            try:
+                self.walktree(
+                    path=path,
+                    fcallback=append_relative,
+                    dcallback=lambda _: None,
+                    ucallback=lambda _: None,
+                )
+            except OSError:
+                return None
+            return sorted(files)
+
+        try:
+            return sorted(self.conn.listdir(path))  # type: ignore[union-attr]
+        except OSError:
+            return None
 
     @handle_connection_management
     def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
@@ -880,15 +906,35 @@ class SFTPHookAsync(BaseHook):
             async with ssh_conn.start_sftp_client() as sftp:
                 await sftp.makedirs(path)
 
-    async def list_directory(self, path: str = "") -> list[str] | None:
+    async def list_directory(self, path: str = "", recursive: bool = False) -> list[str] | None:
         """
         List files in a directory on the remote system asynchronously.
 
         Lists one-level entry names under the given directory path.
 
+        If ``recursive=True``, returns files recursively as paths relative to ``path``.
+
         :param path: Full path to the remote directory to list.
+        :param recursive: Whether to recursively list descendants.
         :return: List of entry names found under the directory, or None if the directory does not exist.
         """
+        if recursive:
+            files: list[str] = []
+
+            def append_relative(item: str) -> None:
+                files.append(posixpath.relpath(item, path))
+
+            try:
+                await self.walktree(
+                    path=path,
+                    fcallback=append_relative,
+                    dcallback=lambda _: None,
+                    ucallback=lambda _: None,
+                )
+            except asyncssh.SFTPNoSuchFile:
+                return None
+            return sorted(files)
+
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 try:
