@@ -572,12 +572,12 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        # Check if a provider-registered runtime coordinator should handle this file
-        logger.debug("Checking for provider-registered runtime coordinator entrypoint for file", path=path)
+        # Check if a configured runtime coordinator should handle this file
+        logger.debug("Checking for runtime coordinator entrypoint for file", path=path)
         resolved_target = cls._resolve_processor_target(path, bundle_name, bundle_path, logger)
         if resolved_target is not None:
             target = resolved_target
-            logger.debug("Resolved provider-registered runtime coordinator entrypoint for file", path=path)
+            logger.debug("Resolved runtime coordinator entrypoint for file", path=path)
         else:
             _pre_import_airflow_modules(os.fspath(path), logger)
 
@@ -600,44 +600,26 @@ class DagFileProcessorProcess(WatchedSubprocess):
         log: FilteringBoundLogger,
     ) -> Callable[[], None] | None:
         """
-        Return the entrypoint of the first provider runtime coordinator that can handle *path*.
+        Return the entrypoint of the first runtime coordinator that can handle *path*.
 
         The returned callable is a ``functools.partial`` that binds *path*, *bundle_name*
         and *bundle_path* so the supervisor can pass it as a no-arg ``target`` to
         ``WatchedSubprocess.start``.
         """
-        from airflow.providers_manager import ProvidersManager
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
-        for coordinator_cls in ProvidersManager().coordinators:
-            try:
-                log.debug(
-                    "Checking runtime coordinator %s for file %s",
-                    coordinator_cls,
-                    path,
-                )
-                if coordinator_cls.can_handle_dag_file(bundle_name, path):
-                    log.debug(
-                        "Using runtime coordinator %s for file %s",
-                        coordinator_cls,
-                        path,
-                    )
-                    return functools.partial(
-                        coordinator_cls.run_dag_parsing,
-                        path=os.fspath(path),
-                        bundle_name=bundle_name,
-                        bundle_path=os.fspath(bundle_path),
-                    )
-                log.debug(
-                    "Runtime coordinator %s cannot handle file %s with bundle name %s",
-                    coordinator_cls,
-                    path,
-                    bundle_name,
-                )
-            except Exception:
-                log.warning("Failed to check runtime coordinator %s", coordinator_cls, exc_info=True)
+        coordinator = get_coordinator_manager().for_dag_file(bundle_name, path)
+        if coordinator is None:
+            log.debug("No runtime coordinator found for file %s, using default processor", path)
+            return None
 
-        log.debug("No runtime coordinator found for file %s, using default processor", path)
-        return None
+        log.debug("Using runtime coordinator %s for file %s", type(coordinator).__qualname__, path)
+        return functools.partial(
+            coordinator.run_dag_parsing,
+            path=os.fspath(path),
+            bundle_name=bundle_name,
+            bundle_path=os.fspath(bundle_path),
+        )
 
     def _on_child_started(
         self,

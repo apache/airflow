@@ -158,6 +158,7 @@ apache-aurflow-docker-stack = false
 members = [
     "apache-airflow",
     "apache-airflow-breeze",
+    "apache-airflow-coordinators-java",
     "apache-airflow-core",
     "apache-airflow-ctl",
     "apache-airflow-ctl-tests",
@@ -1889,6 +1890,39 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "twine", specifier = ">=4.0.2" },
 ]
+
+[[package]]
+name = "apache-airflow-coordinators-java"
+version = "0.1.0"
+source = { editable = "sdk/coordinators/java" }
+dependencies = [
+    { name = "apache-airflow-task-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-core"

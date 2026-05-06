@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import socket
 import subprocess
@@ -28,9 +29,12 @@ import pytest
 
 from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
+    CoordinatorManager,
     _bridge,
     _send_startup_details,
     _start_server,
+    get_coordinator_manager,
+    reset_coordinator_manager,
 )
 
 
@@ -50,7 +54,6 @@ class TestStartServer:
         try:
             _, port1 = s1.getsockname()
             _, port2 = s2.getsockname()
-            # Two servers should get different ports
             assert port1 != port2
         finally:
             s1.close()
@@ -73,7 +76,6 @@ class TestStartServer:
 
 class TestSendStartupDetails:
     def test_sends_frame_bytes_to_socket(self):
-        """Verify _send_startup_details calls sendall with a length-prefixed msgpack frame."""
         mock_startup = MagicMock()
         mock_startup.model_dump.return_value = {"type": "StartupDetails", "ti": {}}
 
@@ -85,13 +87,11 @@ class TestSendStartupDetails:
         mock_socket.sendall.assert_called_once()
 
         sent_bytes = mock_socket.sendall.call_args[0][0]
-        # First 4 bytes are the big-endian length prefix
         assert len(sent_bytes) > 4
         length = int.from_bytes(sent_bytes[:4], "big")
         assert length == len(sent_bytes) - 4
 
     def test_frame_contains_response_id_zero(self):
-        """The frame should use id=0."""
         import msgpack
 
         mock_startup = MagicMock()
@@ -102,12 +102,10 @@ class TestSendStartupDetails:
         _send_startup_details(mock_socket, mock_startup)
 
         sent_bytes = mock_socket.sendall.call_args[0][0]
-        # Frame is encoded as [id, body, error]
         frame = msgpack.unpackb(sent_bytes[4:])
         assert frame[0] == 0
 
     def test_frame_body_matches_model_dump(self):
-        """The frame body should be the model_dump(mode='json') output."""
         import msgpack
 
         body = {"type": "StartupDetails", "ti": {"task_id": "t1"}, "dag_rel_path": "test.jar"}
@@ -119,12 +117,10 @@ class TestSendStartupDetails:
         _send_startup_details(mock_socket, mock_startup)
 
         sent_bytes = mock_socket.sendall.call_args[0][0]
-        # Frame is encoded as [id, body, error]
         frame = msgpack.unpackb(sent_bytes[4:])
         assert frame[1] == body
 
     def test_real_socket_roundtrip(self):
-        """Send through real sockets and verify the frame is receivable."""
         import msgpack
 
         server = socket.socket()
@@ -143,11 +139,9 @@ class TestSendStartupDetails:
 
             _send_startup_details(conn, mock_startup)
 
-            # Read the length prefix
             length_bytes = client.recv(4)
             length = int.from_bytes(length_bytes, "big")
 
-            # Read the payload — frame is [id, body, error]
             data = client.recv(length)
             frame = msgpack.unpackb(data)
             assert frame[0] == 0
@@ -160,15 +154,15 @@ class TestSendStartupDetails:
 
 class TestBaseCoordinatorDefaults:
     def test_can_handle_dag_file_returns_false(self):
-        assert BaseCoordinator.can_handle_dag_file("bundle", "/path/to/dag.py") is False
+        assert BaseCoordinator().can_handle_dag_file("bundle", "/path/to/dag.py") is False
 
     def test_get_code_from_file_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):
-            BaseCoordinator.get_code_from_file("/path/to/dag.jar")
+            BaseCoordinator().get_code_from_file("/path/to/dag.jar")
 
     def test_dag_parsing_cmd_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):
-            BaseCoordinator.dag_parsing_cmd(
+            BaseCoordinator().dag_parsing_cmd(
                 dag_file_path="/dag.jar",
                 bundle_name="b",
                 bundle_path="/path",
@@ -178,7 +172,7 @@ class TestBaseCoordinatorDefaults:
 
     def test_task_execution_cmd_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):
-            BaseCoordinator.task_execution_cmd(
+            BaseCoordinator().task_execution_cmd(
                 what=MagicMock(),
                 dag_file_path="/dag.jar",
                 bundle_path="/path",
@@ -217,53 +211,43 @@ class TestCoordinatorNamedTuples:
 
 class TestBridge:
     def test_bridge_forwards_comm_bidirectionally(self):
-        """Verify _bridge sets up bidirectional forwarding and processes all channels."""
-        # Use real socketpairs for the 4 channels
         sup_send, sup_recv = socket.socketpair()
         rt_send, rt_recv = socket.socketpair()
         log_send, log_recv = socket.socketpair()
         stderr_send, stderr_recv = socket.socketpair()
 
         mock_proc = MagicMock(spec=subprocess.Popen)
-        # Make the process "exit" immediately so the bridge drains and stops
         mock_proc.poll.return_value = 0
         mock_log = MagicMock()
 
         try:
-            # Send data before starting the bridge
             sup_send.sendall(b"from_supervisor")
             rt_send.sendall(b"from_runtime")
             log_send.sendall(b'{"event":"hello","level":"info"}\n')
             stderr_send.sendall(b"stderr line\n")
 
-            # Close sending sides so the bridge will see EOF
             sup_send.close()
             rt_send.close()
             log_send.close()
             stderr_send.close()
 
             _bridge(sup_recv, rt_recv, log_recv, stderr_recv, mock_proc, mock_log)
-
-            # If we got here without hanging, the bridge correctly processed all channels
         finally:
             for s in (sup_send, rt_send, log_send, stderr_send, sup_recv, rt_recv, log_recv, stderr_recv):
                 with contextlib.suppress(OSError):
                     s.close()
 
     def test_bridge_drains_after_process_exit(self):
-        """Verify _bridge drains remaining data after the subprocess exits."""
         sup_local, sup_remote = socket.socketpair()
         rt_local, rt_remote = socket.socketpair()
         log_local, log_remote = socket.socketpair()
         stderr_local, stderr_remote = socket.socketpair()
 
         mock_proc = MagicMock(spec=subprocess.Popen)
-        # First poll: still running; subsequent: exited
         mock_proc.poll.side_effect = [None, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         mock_log = MagicMock()
 
         try:
-            # Send data after bridge starts its first iteration
             stderr_local.sendall(b"error output\n")
             stderr_local.close()
             sup_local.close()
@@ -286,7 +270,6 @@ class TestBridge:
                     s.close()
 
     def test_bridge_closes_all_sockets(self):
-        """Verify _bridge closes all four sockets when done."""
         sup = MagicMock(spec=socket.socket)
         rt = MagicMock(spec=socket.socket)
         logs = MagicMock(spec=socket.socket)
@@ -296,15 +279,12 @@ class TestBridge:
         mock_proc.poll.return_value = 0
         mock_log = MagicMock()
 
-        # Patch the selector to avoid real I/O; service_selector is imported inside
-        # _bridge so we patch it on the selector_loop module
         with (
             patch("airflow.sdk.execution_time.coordinator.selectors.DefaultSelector") as mock_sel_cls,
             patch("airflow.sdk.execution_time.selector_loop.service_selector"),
         ):
             mock_sel = MagicMock()
             mock_sel_cls.return_value = mock_sel
-            # Empty selector map so the while loop exits immediately
             mock_sel.get_map.return_value = {}
 
             _bridge(sup, rt, logs, stderr, mock_proc, mock_log)
@@ -316,10 +296,26 @@ class TestBridge:
         mock_sel.close.assert_called_once()
 
 
+class _StubCoordinator(BaseCoordinator):
+    sdk = "test"
+    file_extension = ".test"
+
+    def __init__(self, *, parse_cmd: list[str] | None = None, exec_cmd: list[str] | None = None):
+        self._parse_cmd = parse_cmd or ["test-runtime", "--parse"]
+        self._exec_cmd = exec_cmd or ["test-runtime", "--execute"]
+
+    def dag_parsing_cmd(self, *, dag_file_path, **_):
+        return [*self._parse_cmd, dag_file_path]
+
+    def task_execution_cmd(self, *, dag_file_path, **_):
+        return [*self._exec_cmd, dag_file_path]
+
+
 class TestRunDagParsing:
     @patch.object(BaseCoordinator, "_runtime_subprocess_entrypoint")
     def test_run_dag_parsing_creates_dag_parsing_info(self, mock_entrypoint):
-        BaseCoordinator.run_dag_parsing(
+        coordinator = _StubCoordinator()
+        coordinator.run_dag_parsing(
             path="/bundles/my-bundle/dags/example.jar",
             bundle_name="my-bundle",
             bundle_path="/bundles/my-bundle",
@@ -341,7 +337,8 @@ class TestRunTaskExecution:
         mock_bundle_info = MagicMock()
         mock_startup = MagicMock()
 
-        BaseCoordinator.run_task_execution(
+        coordinator = _StubCoordinator()
+        coordinator.run_task_execution(
             what=mock_ti,
             dag_rel_path="dags/example.jar",
             bundle_info=mock_bundle_info,
@@ -361,9 +358,6 @@ class TestRunTaskExecution:
 class TestRuntimeSubprocessEntrypoint:
     @pytest.fixture(autouse=True)
     def _restore_process_context_env(self):
-        """``_runtime_subprocess_entrypoint`` runs inside a forked child in production
-        and sets ``_AIRFLOW_PROCESS_CONTEXT`` for the runtime subprocess. When tests
-        invoke it in-process, the env var leaks into other tests — restore it."""
         old = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
         try:
             yield
@@ -374,17 +368,12 @@ class TestRuntimeSubprocessEntrypoint:
                 os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old
 
     def test_unknown_entrypoint_info_type_raises(self):
-        class TestCoordinator(BaseCoordinator):
-            sdk = "test"
-            file_extension = ".test"
-
-        # Needs a 'mode' attribute (accessed during logging) but must not be
-        # an instance of DagParsingInfo or TaskExecutionInfo.
+        coordinator = _StubCoordinator()
         fake_info = MagicMock()
         fake_info.mode = "unknown"
 
         with pytest.raises(ValueError, match="Unknown entrypoint_info type"):
-            TestCoordinator._runtime_subprocess_entrypoint(fake_info)  # type: ignore[arg-type]
+            coordinator._runtime_subprocess_entrypoint(fake_info)  # type: ignore[arg-type]
 
     @patch("airflow.sdk.execution_time.coordinator._bridge")
     @patch("airflow.sdk.execution_time.coordinator._send_startup_details")
@@ -392,36 +381,24 @@ class TestRuntimeSubprocessEntrypoint:
     @patch("airflow.sdk.execution_time.coordinator._start_server")
     @patch("os.dup", return_value=99)
     def test_dag_parsing_flow(self, mock_dup, mock_start_server, mock_popen, mock_send_startup, mock_bridge):
-        """Verify the dag-parsing entrypoint wires up servers, spawns subprocess, and bridges."""
-        # Set up mock servers
         comm_server = MagicMock(spec=socket.socket)
         comm_server.getsockname.return_value = ("127.0.0.1", 5000)
         logs_server = MagicMock(spec=socket.socket)
         logs_server.getsockname.return_value = ("127.0.0.1", 5001)
         mock_start_server.side_effect = [comm_server, logs_server]
 
-        # The runtime connects back
         runtime_comm = MagicMock(spec=socket.socket)
         runtime_logs = MagicMock(spec=socket.socket)
         comm_server.accept.return_value = (runtime_comm, ("127.0.0.1", 9000))
         logs_server.accept.return_value = (runtime_logs, ("127.0.0.1", 9001))
 
-        # Mock socketpair for stderr
         child_stderr = MagicMock(spec=socket.socket)
         read_stderr = MagicMock(spec=socket.socket)
         child_stderr.fileno.return_value = 10
 
-        # Mock supervisor_comm created from os.dup(0)
         supervisor_comm = MagicMock(spec=socket.socket)
 
-        class TestCoordinator(BaseCoordinator):
-            sdk = "test"
-            file_extension = ".test"
-
-            @classmethod
-            def dag_parsing_cmd(cls, **kwargs):
-                return ["test-runtime", "--parse", kwargs["dag_file_path"]]
-
+        coordinator = _StubCoordinator(parse_cmd=["test-runtime", "--parse"])
         info = BaseCoordinator.DagParsingInfo(
             dag_file_path="/dag.test",
             bundle_name="test-bundle",
@@ -432,26 +409,20 @@ class TestRuntimeSubprocessEntrypoint:
             patch("socket.socketpair", return_value=(child_stderr, read_stderr)),
             patch("airflow.sdk.execution_time.coordinator.socket.socket", return_value=supervisor_comm),
         ):
-            TestCoordinator._runtime_subprocess_entrypoint(info)
+            coordinator._runtime_subprocess_entrypoint(info)
 
-        # Subprocess spawned
         mock_popen.assert_called_once()
         cmd = mock_popen.call_args[0][0]
         assert cmd == ["test-runtime", "--parse", "/dag.test"]
 
-        # Servers accepted and closed
         comm_server.accept.assert_called_once()
         logs_server.accept.assert_called_once()
         comm_server.close.assert_called_once()
         logs_server.close.assert_called_once()
 
-        # stderr child side closed after Popen
         child_stderr.close.assert_called_once()
-
-        # _send_startup_details NOT called for dag parsing
         mock_send_startup.assert_not_called()
 
-        # _bridge called with the supervisor_comm socket
         mock_bridge.assert_called_once()
         assert mock_bridge.call_args[0][0] is supervisor_comm
 
@@ -472,8 +443,6 @@ class TestRuntimeSubprocessEntrypoint:
         mock_send_startup,
         mock_bridge,
     ):
-        """Verify the task-execution entrypoint resolves bundle, sends startup details, and bridges."""
-        # Mock servers
         comm_server = MagicMock(spec=socket.socket)
         comm_server.getsockname.return_value = ("127.0.0.1", 6000)
         logs_server = MagicMock(spec=socket.socket)
@@ -489,12 +458,10 @@ class TestRuntimeSubprocessEntrypoint:
         read_stderr = MagicMock(spec=socket.socket)
         child_stderr.fileno.return_value = 10
 
-        # Mock resolved bundle
         mock_bundle_instance = MagicMock()
         mock_bundle_instance.path = Path("/resolved/bundles/test-bundle")
         mock_resolve_bundle.return_value = mock_bundle_instance
 
-        # BundleVersionLock as context manager
         mock_lock_instance = MagicMock()
         mock_bundle_lock.return_value = mock_lock_instance
         mock_lock_instance.__enter__ = MagicMock(return_value=mock_lock_instance)
@@ -506,14 +473,7 @@ class TestRuntimeSubprocessEntrypoint:
         mock_bundle_info.version = "v1"
         mock_startup = MagicMock()
 
-        class TestCoordinator(BaseCoordinator):
-            sdk = "test"
-            file_extension = ".test"
-
-            @classmethod
-            def task_execution_cmd(cls, **kwargs):
-                return ["test-runtime", "--execute", kwargs["dag_file_path"]]
-
+        coordinator = _StubCoordinator(exec_cmd=["test-runtime", "--execute"])
         info = BaseCoordinator.TaskExecutionInfo(
             what=mock_ti,
             dag_rel_path="dags/example.test",
@@ -527,23 +487,16 @@ class TestRuntimeSubprocessEntrypoint:
             patch("socket.socketpair", return_value=(child_stderr, read_stderr)),
             patch("airflow.sdk.execution_time.coordinator.socket.socket", return_value=supervisor_comm),
         ):
-            TestCoordinator._runtime_subprocess_entrypoint(info)
+            coordinator._runtime_subprocess_entrypoint(info)
 
-        # Bundle resolved
         mock_resolve_bundle.assert_called_once()
-
-        # BundleVersionLock used
         mock_bundle_lock.assert_called_once_with(bundle_name="test-bundle", bundle_version="v1")
 
-        # Subprocess spawned with resolved path
         mock_popen.assert_called_once()
         cmd = mock_popen.call_args[0][0]
         assert cmd == ["test-runtime", "--execute", "/resolved/bundles/test-bundle/dags/example.test"]
 
-        # StartupDetails forwarded to the runtime subprocess
         mock_send_startup.assert_called_once_with(runtime_comm, mock_startup)
-
-        # _bridge called
         mock_bridge.assert_called_once()
 
     @patch("airflow.sdk.execution_time.coordinator._bridge")
@@ -551,7 +504,6 @@ class TestRuntimeSubprocessEntrypoint:
     @patch("airflow.sdk.execution_time.coordinator._start_server")
     @patch("os.dup", return_value=99)
     def test_sets_process_context_env_var(self, mock_dup, mock_start_server, mock_popen, mock_bridge):
-        """Verify _AIRFLOW_PROCESS_CONTEXT is set to 'client'."""
         comm_server = MagicMock(spec=socket.socket)
         comm_server.getsockname.return_value = ("127.0.0.1", 7000)
         logs_server = MagicMock(spec=socket.socket)
@@ -567,14 +519,7 @@ class TestRuntimeSubprocessEntrypoint:
         read_stderr = MagicMock(spec=socket.socket)
         child_stderr.fileno.return_value = 10
 
-        class TestCoordinator(BaseCoordinator):
-            sdk = "test"
-            file_extension = ".test"
-
-            @classmethod
-            def dag_parsing_cmd(cls, **kwargs):
-                return ["echo", "test"]
-
+        coordinator = _StubCoordinator(parse_cmd=["echo", "test"])
         info = BaseCoordinator.DagParsingInfo(
             dag_file_path="/dag.test",
             bundle_name="b",
@@ -589,10 +534,117 @@ class TestRuntimeSubprocessEntrypoint:
                 patch("socket.socketpair", return_value=(child_stderr, read_stderr)),
                 patch("airflow.sdk.execution_time.coordinator.socket.socket", return_value=supervisor_comm),
             ):
-                TestCoordinator._runtime_subprocess_entrypoint(info)
+                coordinator._runtime_subprocess_entrypoint(info)
             assert os.environ["_AIRFLOW_PROCESS_CONTEXT"] == "client"
         finally:
             if old_val is None:
                 os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
             else:
                 os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_val
+
+
+class _CoordinatorA(BaseCoordinator):
+    sdk = "a"
+    file_extension = ".a"
+
+    def __init__(self, *, label: str = "a"):
+        self.label = label
+
+    def can_handle_dag_file(self, bundle_name, path):
+        return os.fspath(path).endswith(".a")
+
+
+class _CoordinatorB(BaseCoordinator):
+    sdk = "b"
+    file_extension = ".b"
+
+    def can_handle_dag_file(self, bundle_name, path):
+        return os.fspath(path).endswith(".b")
+
+
+class TestCoordinatorManager:
+    @pytest.fixture(autouse=True)
+    def _reset_cache(self):
+        reset_coordinator_manager()
+        yield
+        reset_coordinator_manager()
+
+    def test_from_config_loads_instances(self, monkeypatch):
+        coordinators_json = json.dumps(
+            [
+                {
+                    "name": "alpha",
+                    "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                    "kwargs": {"label": "alpha-label"},
+                },
+                {
+                    "name": "beta",
+                    "classpath": f"{_CoordinatorB.__module__}._CoordinatorB",
+                },
+            ]
+        )
+        queue_json = json.dumps({"queue-a": "alpha"})
+
+        monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", coordinators_json)
+        monkeypatch.setenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", queue_json)
+
+        from airflow.sdk.configuration import conf
+
+        conf.invalidate_cache()
+
+        manager = CoordinatorManager.from_config()
+
+        alpha = manager.get("alpha")
+        beta = manager.get("beta")
+        assert isinstance(alpha, _CoordinatorA)
+        assert isinstance(beta, _CoordinatorB)
+        assert alpha.label == "alpha-label"
+        assert {type(c) for c in manager.all()} == {_CoordinatorA, _CoordinatorB}
+
+    def test_from_config_empty(self, monkeypatch):
+        monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
+        monkeypatch.delenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", raising=False)
+
+        from airflow.sdk.configuration import conf
+
+        conf.invalidate_cache()
+
+        manager = CoordinatorManager.from_config()
+        assert manager.all() == []
+        assert manager.get("missing") is None
+
+    def test_for_queue_resolves_via_mapping(self):
+        coordinator_a = _CoordinatorA()
+        coordinator_b = _CoordinatorB()
+        manager = CoordinatorManager(
+            {"alpha": coordinator_a, "beta": coordinator_b},
+            {"queue-a": "alpha", "queue-b": "beta"},
+        )
+
+        assert manager.for_queue("queue-a") is coordinator_a
+        assert manager.for_queue("queue-b") is coordinator_b
+        assert manager.for_queue("queue-missing") is None
+
+    def test_for_dag_file_picks_first_match(self):
+        coordinator_a = _CoordinatorA()
+        coordinator_b = _CoordinatorB()
+        manager = CoordinatorManager({"alpha": coordinator_a, "beta": coordinator_b}, {})
+
+        assert manager.for_dag_file("bundle", "dag.a") is coordinator_a
+        assert manager.for_dag_file("bundle", "dag.b") is coordinator_b
+        assert manager.for_dag_file("bundle", "dag.py") is None
+
+    def test_file_extensions(self):
+        manager = CoordinatorManager({"a": _CoordinatorA(), "b": _CoordinatorB()}, {})
+        assert set(manager.file_extensions()) == {".a", ".b"}
+
+    def test_get_coordinator_manager_is_cached(self, monkeypatch):
+        monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
+
+        from airflow.sdk.configuration import conf
+
+        conf.invalidate_cache()
+
+        m1 = get_coordinator_manager()
+        m2 = get_coordinator_manager()
+        assert m1 is m2

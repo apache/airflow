@@ -2007,17 +2007,39 @@ workers:
 sdk:
   description: Settings for non-Python SDK runtime coordination
   options:
-    queue_to_sdk:
+    coordinators:
       description: |
-        JSON mapping of queue names to SDK runtime coordinator names.
+        JSON list of runtime coordinator entries.
 
-        When a task's ``language`` field is not set, this mapping is checked
-        to route the task to a non-Python runtime coordinator based on its
-        queue.  This is useful when queues are used as environment or
-        isolation identifiers (e.g. ``foo``, ``bar``).
+        Each entry is an object with ``name``, ``classpath`` and optional
+        ``kwargs``.  ``classpath`` is resolved via ``import_string`` and
+        constructed with ``kwargs`` once per process.  Entries are
+        independent instances, so the same ``classpath`` can be configured
+        multiple times with different ``kwargs`` (for example, two
+        ``JavaCoordinator`` instances pinned to different JDK versions).
       version_added: 3.1.7
       type: string
-      example: '{"foo": "java", "bar": "java", "go-queue": "go"}'
+      example: |
+        [
+          {
+            "name": "jdk-17",
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
+          }
+        ]
+      default: ~
+    queue_to_coordinator:
+      description: |
+        JSON mapping of queue names to coordinator ``name`` from
+        ``[sdk] coordinators``.
+
+        When a task's ``language`` field is not set, this mapping is checked
+        to route the task to a configured coordinator instance based on its
+        queue.  This is useful when queues are used as environment or
+        isolation identifiers (e.g. ``legacy-java``, ``modern-java``).
+      version_added: 3.1.7
+      type: string
+      example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
       default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs

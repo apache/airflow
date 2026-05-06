@@ -85,7 +85,7 @@
           {% if "\n" in example %}
       .. code-block::
 
-        {{ example }}
+        {{ example | indent(8) }}
           {% else %}
         ``{{ example }}``
           {% endif %}

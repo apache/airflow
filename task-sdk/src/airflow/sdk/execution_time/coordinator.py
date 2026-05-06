@@ -20,7 +20,9 @@ Runtime coordinator for non-Python DAG file processing and task execution.
 
 Provides :class:`BaseCoordinator`, the base class for
 SDK-specific coordinators that bridge subprocess I/O between the
-Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.).
+Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.),
+and :class:`CoordinatorManager`, the registry that loads coordinator
+instances from the ``[sdk] coordinators`` configuration.
 
 The coordinator's :meth:`~BaseCoordinator.run_dag_parsing` method
 handles the full lifecycle:
@@ -41,12 +43,15 @@ driven by :func:`~airflow.sdk.execution_time.selector_loop.service_selector`.
 from __future__ import annotations
 
 import contextlib
+import functools
 import os
 import selectors
 import socket
 import subprocess
 import time
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, ClassVar, NamedTuple
+
+from airflow.sdk._shared.module_loading import import_string
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -79,7 +84,7 @@ def _send_startup_details(runtime_comm: socket.socket, startup_details: StartupD
     from airflow.sdk.execution_time.comms import _ResponseFrame
 
     # Use mode="json" so that datetime, UUID, and other complex Python
-    # types are serialized as plain strings/numbers in msgpack — avoiding
+    # types are serialized as plain strings/numbers in msgpack -- avoiding
     # msgpack extension types (e.g. Timestamp) that non-Python decoders
     # may not support.
     frame = _ResponseFrame(id=0, body=startup_details.model_dump(mode="json"))
@@ -171,20 +176,20 @@ class BaseCoordinator:
     """
     Base coordinator for runtime-specific DAG file processing and task execution.
 
-    Providers register subclasses in their ``provider.yaml`` under
-    ``coordinators``.  Both :class:`ProvidersManager` (airflow-core)
-    and :class:`ProvidersManagerTaskRuntime` (task-sdk) discover registered
-    coordinators through this single extension point.
+    Coordinators are instantiated from the ``[sdk] coordinators`` configuration
+    (see :class:`CoordinatorManager`) — each entry's ``classpath`` is resolved
+    via :func:`~airflow.sdk._shared.module_loading.import_string` and
+    constructed with the entry's ``kwargs``.
 
-    Subclasses represent a specific SDK runtime (Java, Go, etc.) and
-    only need to implement :meth:`can_handle_dag_file`,
-    :meth:`dag_parsing_cmd` and :meth:`task_execution_cmd`.
-    The base class owns the entire bridge lifecycle: TCP servers,
-    subprocess management, selector-based I/O loop, and cleanup.
+    Subclasses represent a specific SDK runtime (Java, Go, etc.) and only
+    need to implement :meth:`can_handle_dag_file`, :meth:`dag_parsing_cmd`
+    and :meth:`task_execution_cmd`.  The base class owns the entire bridge
+    lifecycle: TCP servers, subprocess management, selector-based I/O loop,
+    and cleanup.
     """
 
-    sdk: str
-    file_extension: str
+    sdk: ClassVar[str]
+    file_extension: ClassVar[str]
 
     class DagParsingInfo(NamedTuple):
         """Information needed for runtime Dag parsing."""
@@ -203,8 +208,7 @@ class BaseCoordinator:
         startup_details: StartupDetails
         mode: str = "task-execution"
 
-    @classmethod
-    def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
+    def can_handle_dag_file(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
         """
         Return ``True`` if this coordinator should handle DAG-file parsing for *path*.
 
@@ -216,8 +220,7 @@ class BaseCoordinator:
         """
         return False
 
-    @classmethod
-    def get_code_from_file(cls, fileloc: str) -> str:
+    def get_code_from_file(self, fileloc: str) -> str:
         """
         Return the human-readable source code for a DAG file managed by this coordinator.
 
@@ -233,9 +236,8 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
-    @classmethod
     def dag_parsing_cmd(
-        cls,
+        self,
         *,
         dag_file_path: str,
         bundle_name: str,
@@ -257,9 +259,8 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
-    @classmethod
     def task_execution_cmd(
-        cls,
+        self,
         *,
         what: TaskInstanceDTO,
         dag_file_path: str,
@@ -283,28 +284,26 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
-    @classmethod
-    def run_dag_parsing(cls, *, path: str, bundle_name: str, bundle_path: str) -> None:
+    def run_dag_parsing(self, *, path: str, bundle_name: str, bundle_path: str) -> None:
         """Entry point for running runtime-specific Dag File Processing."""
-        cls._runtime_subprocess_entrypoint(
-            cls.DagParsingInfo(
+        self._runtime_subprocess_entrypoint(
+            self.DagParsingInfo(
                 dag_file_path=path,
                 bundle_name=bundle_name,
                 bundle_path=bundle_path,
             )
         )
 
-    @classmethod
     def run_task_execution(
-        cls,
+        self,
         *,
         what: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info: BundleInfo,
         startup_details: StartupDetails,
     ) -> None:
-        cls._runtime_subprocess_entrypoint(
-            cls.TaskExecutionInfo(
+        self._runtime_subprocess_entrypoint(
+            self.TaskExecutionInfo(
                 what=what,
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
@@ -312,8 +311,7 @@ class BaseCoordinator:
             )
         )
 
-    @classmethod
-    def _runtime_subprocess_entrypoint(cls, entrypoint_info: DagParsingInfo | TaskExecutionInfo) -> None:
+    def _runtime_subprocess_entrypoint(self, entrypoint_info: DagParsingInfo | TaskExecutionInfo) -> None:
         """
         Spawn the runtime subprocess and bridge I/O with the supervisor.
 
@@ -343,7 +341,7 @@ class BaseCoordinator:
         log = structlog.get_logger(logger_name="task")
         log.info(
             "Starting runtime subprocess",
-            sdk=cls.sdk,
+            sdk=self.sdk,
             mode=entrypoint_info.mode,
         )
 
@@ -365,22 +363,22 @@ class BaseCoordinator:
         # garbage-collected while the runtime process is still running.
         bundle_version_lock: contextlib.AbstractContextManager = contextlib.nullcontext()
 
-        if isinstance(entrypoint_info, cls.DagParsingInfo):
-            cmd = cls.dag_parsing_cmd(
+        if isinstance(entrypoint_info, self.DagParsingInfo):
+            cmd = self.dag_parsing_cmd(
                 dag_file_path=entrypoint_info.dag_file_path,
                 bundle_name=entrypoint_info.bundle_name,
                 bundle_path=entrypoint_info.bundle_path,
                 comm_addr=comm_addr,
                 logs_addr=logs_addr,
             )
-        elif isinstance(entrypoint_info, cls.TaskExecutionInfo):
+        elif isinstance(entrypoint_info, self.TaskExecutionInfo):
             from airflow.dag_processing.bundles.base import BundleVersionLock
             from airflow.sdk.execution_time.task_runner import resolve_bundle
 
             bundle_instance = resolve_bundle(entrypoint_info.bundle_info, log)
             resolved_dag_file_path = bundle_instance.path / entrypoint_info.dag_rel_path
 
-            cmd = cls.task_execution_cmd(
+            cmd = self.task_execution_cmd(
                 what=entrypoint_info.what,
                 dag_file_path=os.fspath(resolved_dag_file_path),
                 bundle_path=os.fspath(bundle_instance.path),
@@ -415,7 +413,7 @@ class BaseCoordinator:
             # on fd 0 and ``task_runner.main()`` consumed it before delegating
             # here.  Re-encode and forward it to the runtime subprocess so it
             # knows which task to execute.
-            if isinstance(entrypoint_info, cls.TaskExecutionInfo):
+            if isinstance(entrypoint_info, self.TaskExecutionInfo):
                 _send_startup_details(runtime_comm, entrypoint_info.startup_details)
 
             # fd 0 is the bidirectional comms socket to the supervisor.
@@ -424,39 +422,113 @@ class BaseCoordinator:
             _bridge(supervisor_comm, runtime_comm, runtime_logs, read_stderr, proc, log)
 
 
-class QueueToCoordinatorMapper:
+class CoordinatorManager:
     """
-    Map queue names to coordinator names.
+    Registry of coordinator instances loaded from the ``[sdk] coordinators`` config.
 
-    Users often use queues as environment/isolation identifiers (e.g. ``"java-11"``,
-    ``"java-12"``).  This mapper lets them reuse existing queue assignments to route
-    tasks to the correct coordinator.
+    Each entry in the JSON list takes the form::
 
-    The mapping is read from the ``[sdk] queue_to_sdk``
-    configuration option, which is a JSON dict of ``queue -> sdk``.
+        {
+            "name": "jdk-11",
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {"java_executable": "/usr/lib/jvm/jdk-11/bin/java", ...}
+        }
 
-    Example configuration::
+    The ``classpath`` is resolved via
+    :func:`~airflow.sdk._shared.module_loading.import_string` (no
+    :class:`ProvidersManager` involvement) and constructed with ``kwargs``.
 
-        [sdk]
-        queue_to_sdk = {"java-11": "java", "java-12": "java"}
+    The ``[sdk] queue_to_coordinator`` config maps queue names to a coordinator
+    ``name`` from that list, which lets users reuse existing queue assignments
+    to route tasks to a specific coordinator instance (for example, a
+    ``"legacy-java"`` queue routed to a JDK 11 coordinator and a
+    ``"modern-java"`` queue routed to a JDK 17 coordinator).
     """
 
-    def __init__(self, mapping: dict[str, str]) -> None:
-        self._mapping = mapping
+    def __init__(
+        self,
+        instances_by_name: dict[str, BaseCoordinator],
+        queue_to_coordinator: dict[str, str],
+    ) -> None:
+        self._instances_by_name = instances_by_name
+        self._queue_to_coordinator = queue_to_coordinator
 
     @classmethod
     def from_config(cls) -> Self:
-        """Load the queue-to-runtime mapping from airflow configuration."""
+        """Load coordinator instances from the ``[sdk]`` configuration."""
         from airflow.sdk.configuration import conf
 
-        mapping = conf.getjson("sdk", "queue_to_sdk", fallback={})
-        if not isinstance(mapping, dict):
-            return cls({})
-        return cls(mapping)
+        entries = conf.getjson("sdk", "coordinators", fallback=[])
+        if not isinstance(entries, list):
+            entries = []
 
-    def resolve(self, queue: str) -> str | None:
-        """Return the runtime coordinator name for *queue*, or ``None`` if unmapped."""
-        return self._mapping.get(queue)
+        instances: dict[str, BaseCoordinator] = {}
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            classpath = entry.get("classpath")
+            if not name or not classpath:
+                continue
+            kwargs = entry.get("kwargs") or {}
+            coordinator_cls = import_string(classpath)
+            instances[name] = coordinator_cls(**kwargs)
+
+        queue_mapping = conf.getjson("sdk", "queue_to_coordinator", fallback={})
+        if not isinstance(queue_mapping, dict):
+            queue_mapping = {}
+
+        return cls(instances, queue_mapping)
+
+    def all(self) -> list[BaseCoordinator]:
+        """Return all loaded coordinator instances, sorted by configured name."""
+        return [self._instances_by_name[name] for name in sorted(self._instances_by_name)]
+
+    def get(self, name: str) -> BaseCoordinator | None:
+        """Return the coordinator instance registered under *name*, or ``None``."""
+        return self._instances_by_name.get(name)
+
+    def for_queue(self, queue: str) -> BaseCoordinator | None:
+        """Return the coordinator instance routed to *queue*, or ``None``."""
+        name = self._queue_to_coordinator.get(queue)
+        if name is None:
+            return None
+        return self._instances_by_name.get(name)
+
+    def for_dag_file(self, bundle_name: str, path: str | os.PathLike[str]) -> BaseCoordinator | None:
+        """Return the first coordinator whose ``can_handle_dag_file`` matches *path*."""
+        for instance in self.all():
+            try:
+                if instance.can_handle_dag_file(bundle_name, path):
+                    return instance
+            except Exception:
+                continue
+        return None
+
+    def file_extensions(self) -> tuple[str, ...]:
+        """Return the file extensions registered by all loaded coordinators."""
+        extensions: list[str] = []
+        for instance in self.all():
+            ext = getattr(type(instance), "file_extension", None)
+            if ext:
+                extensions.append(ext)
+        return tuple(extensions)
 
 
-__all__ = ["BaseCoordinator", "QueueToCoordinatorMapper"]
+@functools.cache
+def get_coordinator_manager() -> CoordinatorManager:
+    """Return the process-wide :class:`CoordinatorManager`, loaded from config on first use."""
+    return CoordinatorManager.from_config()
+
+
+def reset_coordinator_manager() -> None:
+    """Clear the cached :class:`CoordinatorManager` (test helper)."""
+    get_coordinator_manager.cache_clear()
+
+
+__all__ = [
+    "BaseCoordinator",
+    "CoordinatorManager",
+    "get_coordinator_manager",
+    "reset_coordinator_manager",
+]

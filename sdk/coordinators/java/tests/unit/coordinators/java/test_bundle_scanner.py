@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from airflow.providers.sdk.java.bundle_scanner import (
+from airflow.sdk.coordinators.java.bundle_scanner import (
     DAG_CODE_MANIFEST_KEY,
     MAIN_CLASS_MANIFEST_KEY,
     MANIFEST_PATH,
@@ -252,7 +252,6 @@ class TestBundleScannerCandidateHomes:
 
         scanner = BundleScanner(tmp_path)
         homes = scanner._candidate_homes()
-        # Nested subdirs + the bundles_dir itself
         assert len(homes) == 3
         assert sub_a.resolve() in homes
         assert sub_b.resolve() in homes
@@ -262,7 +261,6 @@ class TestBundleScannerCandidateHomes:
         (tmp_path / "app.jar").touch()
         scanner = BundleScanner(tmp_path)
         homes = scanner._candidate_homes()
-        # Only the directory itself (no subdirectories)
         assert homes == [tmp_path.resolve()]
 
     def test_nested_with_lib_subdir(self, tmp_path: Path):
@@ -274,7 +272,6 @@ class TestBundleScannerCandidateHomes:
 
         scanner = BundleScanner(tmp_path)
         homes = scanner._candidate_homes()
-        # _normalize_bundle_home should redirect to lib/
         assert lib.resolve() in homes
 
 
@@ -303,9 +300,8 @@ class TestBundleScannerResolve:
         bundle_dir = tmp_path / "my_bundle"
         bundle_dir.mkdir()
         _create_bundle_jar(bundle_dir / "app.jar", dag_ids=["my_dag"])
-        # Create a dependency JAR (no SDK metadata, just a plain JAR)
         with zipfile.ZipFile(bundle_dir / "dep.jar", "w") as zf:
-            zf.writestr("dummy.class", b"")
+            zf.writestr("placeholder.class", b"")
 
         scanner = BundleScanner(tmp_path)
         result = scanner.resolve("my_dag")
@@ -322,9 +318,8 @@ class TestBundleScannerResolve:
     def test_skips_non_bundle_jars(self, tmp_path: Path):
         bundle_dir = tmp_path / "my_bundle"
         bundle_dir.mkdir()
-        # Non-bundle JAR (no manifest)
         with zipfile.ZipFile(bundle_dir / "plain.jar", "w") as zf:
-            zf.writestr("dummy.class", b"")
+            zf.writestr("placeholder.class", b"")
         _create_bundle_jar(bundle_dir / "real.jar", dag_ids=["real_dag"])
 
         scanner = BundleScanner(tmp_path)

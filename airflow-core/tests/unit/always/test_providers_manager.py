@@ -258,34 +258,6 @@ class TestProviderManager:
         assert len(dialect_class_names) == 3
         assert dialect_class_names == ["default", "mssql", "postgresql"]
 
-    @patch("airflow.providers_manager.import_string")
-    def test_coordinators(self, mock_import_string):
-        class ACoordinator:
-            pass
-
-        class ZCoordinator:
-            pass
-
-        mock_import_string.side_effect = lambda path: {
-            "airflow.providers.sdk.java.coordinator.ACoordinator": ACoordinator,
-            "airflow.providers.sdk.java.coordinator.ZCoordinator": ZCoordinator,
-        }[path]
-        providers_manager = ProvidersManager()
-        providers_manager._provider_dict = LazyDictWithCache()
-        providers_manager._provider_dict["apache-airflow-providers-sdk-java"] = ProviderInfo(
-            version="0.0.1",
-            data={
-                "coordinators": [
-                    "airflow.providers.sdk.java.coordinator.ZCoordinator",
-                    "airflow.providers.sdk.java.coordinator.ACoordinator",
-                    "airflow.providers.sdk.java.coordinator.ZCoordinator",
-                ]
-            },
-        )
-
-        with patch.object(providers_manager, "initialize_providers_list"):
-            assert providers_manager.coordinators == [ACoordinator, ZCoordinator]
-
 
 class TestWithoutCheckProviderManager:
     @pytest.fixture(autouse=True)
