@@ -195,7 +195,7 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
     :param idmc_task_id: IDMC internal task id.
     :param task_federated_id: Federated (organization-scoped) task id.  Use
         when the same task lives in multiple sub-orgs.
-    :param task_type: One of ``MTT`` (default, mapping task), ``DSS``,
+    :param idmc_task_type: One of ``MTT`` (default, mapping task), ``DSS``,
         ``DRS``, ``DMASK``, ``PCS``, ``RTM``, ``WORKFLOW``, or ``TASKFLOW``.
         Long-form labels (``"Mapping Task"``) are also accepted.
     :param callback_url: Optional callback URL invoked by IDMC when the run
@@ -208,7 +208,7 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
     template_fields = _BaseInformaticaIDMCRunOperator.template_fields + (
         "idmc_task_id",
         "task_federated_id",
-        "task_type",
+        "idmc_task_type",
         "callback_url",
     )
 
@@ -217,7 +217,7 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
         *,
         idmc_task_id: str | None = None,
         task_federated_id: str | None = None,
-        task_type: str = "MTT",
+        idmc_task_type: str = "MTT",
         callback_url: str | None = None,
         **kwargs: Any,
     ) -> None:
@@ -228,14 +228,14 @@ class InformaticaIDMCRunTaskOperator(_BaseInformaticaIDMCRunOperator):
             )
         self.idmc_task_id = idmc_task_id
         self.task_federated_id = task_federated_id
-        self.task_type = task_type
+        self.idmc_task_type = idmc_task_type
         self.callback_url = callback_url
 
     def _start_run(self, context: Context) -> dict[str, Any]:
         return self.hook.start_task(
             task_id=self.idmc_task_id,
             task_federated_id=self.task_federated_id,
-            task_type=self.task_type,
+            task_type=self.idmc_task_type,
             callback_url=self.callback_url,
         )
 

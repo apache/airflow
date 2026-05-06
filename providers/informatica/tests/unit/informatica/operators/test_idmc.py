@@ -43,7 +43,7 @@ def _make_task_op(**overrides) -> InformaticaIDMCRunTaskOperator:
         task_id="run_idmc_task",  # Airflow DAG-level task id
         idmc_task_id="cdi-task-1",
         task_federated_id=None,
-        task_type="MTT",
+        idmc_task_type="MTT",
         wait_for_completion=False,
         deferrable=False,
         check_interval=0,
@@ -70,7 +70,7 @@ def test_run_task_operator_requires_idmc_id_or_federated_id():
             task_id="missing_both",
             idmc_task_id=None,
             task_federated_id=None,
-            task_type="MTT",
+            idmc_task_type="MTT",
         )
 
 

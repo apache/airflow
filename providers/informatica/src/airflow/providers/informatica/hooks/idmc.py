@@ -25,10 +25,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
+import requests
 from requests.exceptions import RequestException
 
-from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.providers.http.hooks.http import HttpHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf
 
 if TYPE_CHECKING:
     from requests import Response
@@ -125,7 +125,7 @@ def _normalise_status(raw: str | None) -> str:
     return IDMCRunStatus.RUNNING.value
 
 
-class InformaticaIDMCHook(HttpHook):
+class InformaticaIDMCHook(BaseHook):
     """
     Interact with the Informatica Intelligent Data Management Cloud (IDMC).
 
@@ -169,7 +169,8 @@ class InformaticaIDMCHook(HttpHook):
         request_timeout: int | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(http_conn_id=informatica_idmc_conn_id, method="POST", **kwargs)
+        super().__init__(**kwargs)
+        self.informatica_idmc_conn_id = informatica_idmc_conn_id
         self._explicit_auth_version: IDMCAuthVersion | None = (
             IDMCAuthVersion(auth_version) if isinstance(auth_version, str) else auth_version
         )
@@ -197,7 +198,7 @@ class InformaticaIDMCHook(HttpHook):
         """Resolve the auth flow to use, preferring the constructor override."""
         if self._explicit_auth_version is not None:
             return self._explicit_auth_version
-        connection = self.get_connection(self.http_conn_id)
+        connection = self.get_connection(self.informatica_idmc_conn_id)
         extras: Mapping[str, Any] = connection.extra_dejson or {}
         return IDMCAuthVersion(str(extras.get("auth_version", "v2")).lower())
 
@@ -323,8 +324,6 @@ class InformaticaIDMCHook(HttpHook):
         verify: bool,
     ) -> Response:
         """Plain ``requests``-style POST that bypasses the cached session."""
-        import requests
-
         return requests.post(
             url,
             json=dict(json or {}),
@@ -337,7 +336,7 @@ class InformaticaIDMCHook(HttpHook):
         """Login (if necessary) and return the cached IDMC session."""
         if self._session is not None:
             return self._session
-        connection = self.get_connection(self.http_conn_id)
+        connection = self.get_connection(self.informatica_idmc_conn_id)
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
         if self.auth_version is IDMCAuthVersion.V3:
@@ -359,7 +358,7 @@ class InformaticaIDMCHook(HttpHook):
         params: Mapping[str, Any] | None = None,
     ) -> Any:
         session = self.session()
-        connection = self.get_connection(self.http_conn_id)
+        connection = self.get_connection(self.informatica_idmc_conn_id)
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
         url = self._build_url(session, endpoint)
@@ -368,8 +367,6 @@ class InformaticaIDMCHook(HttpHook):
             "Content-Type": "application/json",
             session.session_header_name: session.session_id,
         }
-        import requests
-
         try:
             response = requests.request(
                 method=method.upper(),
@@ -508,7 +505,7 @@ class InformaticaIDMCHook(HttpHook):
     # --- async path used by the trigger ----------------------------------
 
     async def _async_login(self) -> _IDMCSession:
-        connection = self.get_connection(self.http_conn_id)
+        connection = self.get_connection(self.informatica_idmc_conn_id)
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
         login_base = self._login_base_url(connection)
@@ -562,7 +559,7 @@ class InformaticaIDMCHook(HttpHook):
         params: Mapping[str, Any] | None = None,
     ) -> Any:
         session = self._session or await self._async_login()
-        connection = self.get_connection(self.http_conn_id)
+        connection = self.get_connection(self.informatica_idmc_conn_id)
         timeout = self._request_timeout(connection)
         verify = self._verify_ssl(connection)
         url = self._build_url(session, endpoint)
