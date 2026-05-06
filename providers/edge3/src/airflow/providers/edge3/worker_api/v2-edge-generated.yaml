@@ -1274,6 +1274,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - checkpointed
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
