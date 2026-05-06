@@ -17,11 +17,10 @@ to ship.
     from airflow.listeners import hookimpl
     from airflow.listeners.types import FailureDetails
 
+
     class InfraTrackingListener:
         @hookimpl
-        def on_task_instance_failed(
-            self, previous_state, task_instance, error, failure_details
-        ):
+        def on_task_instance_failed(self, previous_state, task_instance, error, failure_details):
             if failure_details and failure_details.infra_reason == "OOMKilled":
                 ...  # route to capacity-planning alert
 
