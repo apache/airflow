@@ -134,7 +134,9 @@ A complementary, **out-of-scope** future direction is parsing static (non-progra
 
 We introduce a **Coordinator** layer. When a DAG bundle is loaded, it not only tells Airflow how to find the DAGs (and tasks in them), but also how to *run* each task. Current Python tasks use a Python code path that runs them by forking. A new **Java Coordinator** instructs the task runner how to run tasks in JAR files.
 
-The base interface (`BaseCoordinator`) lives in `airflow.sdk.execution_time` and is selected automatically via `ProvidersManagerTaskRuntime`. The Java Coordinator lives in a provider under the `airflow.providers.sdk.java` namespace, and new language coordinators follow the same pattern.
+The base interface (`BaseCoordinator`) lives in `airflow.sdk.execution_time`. Concrete coordinators ship as standalone distributions — **not** as Airflow providers — under the shared `airflow.sdk.coordinators` namespace package. The Java coordinator ships as `apache-airflow-coordinators-java` and resolves to `airflow.sdk.coordinators.java.JavaCoordinator`. New language coordinators follow the same pattern: `apache-airflow-coordinators-<lang>` → `airflow.sdk.coordinators.<lang>.<Lang>Coordinator`.
+
+Coordinators are instantiated from the `[sdk] coordinators` Airflow configuration (see [Coordinator Registration](#coordinator-registration) below). Both Airflow Core (DAG processor) and Task SDK (task runner) read that config and use `import_string()` to load the configured `classpath` — no provider plumbing is involved. Decoupling coordinators from the provider system is the direction agreed in [ADR-0005](0005-coordinator-packaging.md) and tracked in [apache/airflow#66451](https://github.com/apache/airflow/issues/66451), which also motivates the per-instance `kwargs` (multiple JDK versions, JVM flags, etc.) that a class-only registration could not express.
 
 ### Architecture Overview
 
@@ -190,50 +192,54 @@ The base interface (`BaseCoordinator`) lives in `airflow.sdk.execution_time` and
     │  Task Runner                 │                                   │
     │                              │                                   │
     │  QueueToCoordinatorMapper    │                                   │
-    │  maps queue via `[sdk]       │                                   │
-    │  queue_to_sdk` config ───────┼───────────────────────────────────┘
-    │  to matching coordinator     │
+    │  resolves queue via `[sdk]   │                                   │
+    │  queue_to_coordinator` ──────┼───────────────────────────────────┘
+    │  to a coordinator instance   │
+    │  from `[sdk] coordinators`   │
     └──────────────────────────────┘
 ```
 
 ### The `BaseCoordinator` Interface
 
-This is the central abstraction that language providers implement. It lives in the Task SDK (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`) and handles both DAG parsing and task execution for a specific language runtime.
+This is the central abstraction that language SDKs implement. It lives in the Task SDK (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`) and handles both DAG parsing and task execution for a specific language runtime.
 
 ```python
 class BaseCoordinator:
     """
     Base coordinator for runtime-specific DAG file processing and task execution.
 
-    Providers register subclasses in their ``provider.yaml`` under
-    ``coordinators``. Both ProvidersManager (airflow-core) and
-    ProvidersManagerTaskRuntime (task-sdk) discover coordinators through
-    this extension point.
+    Subclasses represent a specific language runtime (Java, Go, etc.) and are
+    instantiated by Airflow Core (DAG processor) and Task SDK (task runner)
+    from the ``[sdk] coordinators`` Airflow configuration. Each entry in that
+    config carries an instance ``name``, an importable ``classpath``, and
+    free-form ``kwargs`` that the subclass accepts in ``__init__`` — this is
+    how operators express runtime variants (multiple JDK versions, custom JVM
+    flags, etc.) without needing one subclass per variant.
 
-    Subclasses represent a specific language runtime (Java, Go, etc.) and
-    implement three methods. The base class owns the full bridge lifecycle:
-    TCP servers, subprocess management, selector-based I/O loop, and cleanup.
+    The base class owns the full bridge lifecycle: TCP servers, subprocess
+    management, selector-based I/O loop, and cleanup.
     """
 
-    sdk: str  # e.g. "java", "go" — matches sdk field on operator/TI
+    name: str  # Instance name from [sdk] coordinators (e.g. "jdk-11", "jdk-17")
+
+    def __init__(self, *, name: str, **kwargs) -> None:
+        """Accept the per-instance ``kwargs`` declared in ``[sdk] coordinators``."""
+        ...
 
     # Discovery (called by DAG File Processor)
 
-    @classmethod
-    def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike) -> bool:
+    def can_handle_dag_file(self, bundle_name: str, path: str | os.PathLike) -> bool:
         """Return True if this coordinator should parse the file at *path*."""
         ...
 
-    @classmethod
-    def get_code_from_file(cls, fileloc: str) -> str:
+    def get_code_from_file(self, fileloc: str) -> str:
         """Return the actual DAG code (the content of JavaExampleBuilder.java in this case"""
         ...
 
     # DAG Parsing (called in forked DagFileProcessor child process)
 
-    @classmethod
     def dag_parsing_cmd(
-        cls,
+        self,
         *,
         dag_file_path: str,  # Absolute path to DAG file
         bundle_name: str,  # Name of the DAG bundle
@@ -246,9 +252,8 @@ class BaseCoordinator:
 
     # Task Execution (called in forked worker child process)
 
-    @classmethod
     def task_execution_cmd(
-        cls,
+        self,
         *,
         what: TaskInstance,
         dag_rel_path: str | os.PathLike,  # Relative path to DAG file within bundle
@@ -261,24 +266,44 @@ class BaseCoordinator:
 
     # Lifecycle (owned by base class, not overridden)
 
-    @classmethod
-    def run_dag_parsing(cls, *, path, bundle_name, bundle_path) -> None: ...
+    def run_dag_parsing(self, *, path, bundle_name, bundle_path) -> None: ...
 
-    @classmethod
-    def run_task_execution(cls, *, what, dag_rel_path, bundle_info, startup_details) -> None: ...
+    def run_task_execution(self, *, what, dag_rel_path, bundle_info, startup_details) -> None: ...
 ```
 
-### Provider Registration
+### Coordinator Registration
 
-Language providers register their coordinators in `provider.yaml`:
+Coordinators are registered through Airflow configuration, not through `provider.yaml` or any provider-discovery mechanism. The Java coordinator ships as the standalone distribution `apache-airflow-coordinators-java`, which contributes the `airflow.sdk.coordinators.java` subpackage to the namespace package owned by the Task SDK. As long as the distribution is on `PYTHONPATH`, both Airflow Core and the Task SDK can resolve `airflow.sdk.coordinators.java.JavaCoordinator` via `import_string()`.
 
-```yaml
-# providers/sdk/java/provider.yaml
-process-coordinators:
-  - airflow.providers.sdk.java.coordinator.JavaCoordinator
+Operators wire concrete instances in `airflow.cfg`:
+
+```ini
+[sdk]
+coordinators = [
+    {
+        "name": "jdk-11",
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+            "java_executable": "/usr/lib/jvm/java-11-openjdk-amd64/bin/java",
+            "jvm_args": ["-Xmx512m"],
+            "jdk_home": "/usr/lib/jvm/java-11-openjdk-amd64"
+        }
+    },
+    {
+        "name": "jdk-17",
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+            "java_executable": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+            "jvm_args": ["-Xmx1024m", "-Xms256m"],
+            "jdk_home": "/usr/lib/jvm/java-17-openjdk-amd64"
+        }
+    }
+]
+
+queue_to_coordinator = {"legacy-java-queue": "jdk-11", "modern-java-queue": "jdk-17"}
 ```
 
-> **Open question:** the package name, module path, and registration mechanism for coordinator providers (`apache-airflow-providers-sdk-java` vs `apache-airflow-coordinator-java`, `ProvidersManager` vs a dedicated `CoordinatorManager`) is being tracked separately in [ADR-0005](0005-coordinator-packaging.md).
+The same `JavaCoordinator` class can back several instances with different runtime configuration; the routing key is the instance `name`, not the class. This shape is the resolution to the packaging and registration questions originally raised in [ADR-0005](0005-coordinator-packaging.md), motivated by [apache/airflow#66451](https://github.com/apache/airflow/issues/66451) (multi-JDK and JVM-flag support).
 
 ### Implementation Language: Kotlin (with a Java-First Public API)
 
@@ -295,19 +320,31 @@ Because the user-facing API is Java, "Java SDK" remains the accurate name from a
 ### Example: `JavaCoordinator`
 
 ```python
+# Shipped as ``apache-airflow-coordinators-java``;
+# resolves to ``airflow.sdk.coordinators.java.JavaCoordinator``.
 class JavaCoordinator(BaseCoordinator):
-    sdk = "java"
+    def __init__(
+        self,
+        *,
+        name: str,
+        java_executable: str = "java",
+        jvm_args: list[str] | None = None,
+        jdk_home: str | None = None,
+    ) -> None:
+        self.name = name
+        self.java_executable = java_executable
+        self.jvm_args = list(jvm_args or [])
+        self.jdk_home = jdk_home
 
-    @classmethod
-    def can_handle_dag_file(cls, bundle_name, path):
+    def can_handle_dag_file(self, bundle_name, path):
         """True when path is a JAR with a Main-Class manifest entry."""
         ...
 
-    @classmethod
-    def dag_parsing_cmd(cls, *, dag_file_path, bundle_name, bundle_path, comm_addr, logs_addr):
+    def dag_parsing_cmd(self, *, dag_file_path, bundle_name, bundle_path, comm_addr, logs_addr):
         main_class = find_main_class(Path(dag_file_path))
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             f"{bundle_path}/*",
             main_class,
@@ -315,12 +352,12 @@ class JavaCoordinator(BaseCoordinator):
             f"--logs={logs_addr}",
         ]
 
-    @classmethod
-    def task_execution_cmd(cls, *, what, dag_rel_path, bundle_info, comm_addr, logs_addr):
+    def task_execution_cmd(self, *, what, dag_rel_path, bundle_info, comm_addr, logs_addr):
         jar_path = Path(dag_rel_path)
         main_class = find_main_class(jar_path)
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             f"{jar_path.parent}/*",
             main_class,
@@ -350,14 +387,17 @@ We have already added compatibility validation between the Python SDK and Java S
 
 **3. Execution API — Task Queues Routed to the Worker**
 
-A new configuration is added to map each task's `queue` to a language runtime:
+A new pair of configurations registers coordinator instances and maps each task's `queue` to one of them:
 
 ```ini
 [sdk]
-queue_to_sdk = {"java": "java"}
+coordinators = [
+    {"name": "jdk-17", "classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"java_executable": "java"}}
+]
+queue_to_coordinator = {"java": "jdk-17"}
 ```
 
-This specifies tasks in the `java` queue should be routed to `JavaCoordinator` since it has `sdk = "java"`.
+Tasks scheduled to the `java` queue are routed to the coordinator instance named `jdk-17`. Multiple instances of the same class may coexist (e.g., `jdk-11` and `jdk-17`) and bind to different queues — see [Coordinator Registration](#coordinator-registration).
 
 ## Consequences
 
@@ -366,14 +406,15 @@ This specifies tasks in the `java` queue should be routed to `JavaCoordinator` s
 | Component | New Interface | Change Type |
 |-----------|--------------|-------------|
 | `BaseCoordinator` | Abstract base defined in Task SDK | New class |
-| `coordinators` | Provider extension point in `provider.yaml` | New extension point |
+| `airflow.sdk.coordinators` | Namespace package contributed to by `apache-airflow-coordinators-<lang>` distributions | New namespace |
 | `@task.stub` decorator | `queue: str \| None` parameter | Additive |
-| `[sdk] queue_to_sdk` | Airflow configuration | New option |
-| `_resolve_runtime_entrypoint` | Route by `queue` → `sdk` match | Behavioral |
+| `[sdk] coordinators` | Airflow configuration listing instances (`name`, `classpath`, `kwargs`) | New option |
+| `[sdk] queue_to_coordinator` | Airflow configuration mapping queue → instance name | New option |
+| `_resolve_runtime_entrypoint` | Route by `queue` → coordinator instance from `[sdk] coordinators` | Behavioral |
 
 ### What Becomes Easier
 
-- Adding a new language runtime requires only a `BaseCoordinator` subclass, a language SDK, and a `provider.yaml` entry — no changes to Airflow Core.
+- Adding a new language runtime requires only a `BaseCoordinator` subclass shipped as `apache-airflow-coordinators-<lang>` and a corresponding entry in `[sdk] coordinators` — no changes to Airflow Core and no provider plumbing.
 - DAG authors can mix Python and non-Python tasks in the same pipeline.
 - The existing task-runner two-layer design is preserved, keeping all Airflow extensions in Python.
 

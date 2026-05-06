@@ -21,60 +21,105 @@
 
 ## Status
 
-Proposed — open for discussion. The packaging shipped with the initial Java SDK PRs (`apache-airflow-providers-sdk-java` under `providers/sdk/java/`, registered through `ProvidersManager`) is the *starting point*; this ADR enumerates the alternatives raised on PR #65958 so they can be decided before a second language SDK lands.
+Accepted — coordinators are a new distribution type, **not** Airflow providers, and are activated through Airflow configuration rather than `provider.yaml`. Tracked operationally in [apache/airflow#66451](https://github.com/apache/airflow/issues/66451).
 
 ## Context
 
-[ADR-0001](0001-java-sdk-airflow-integration.md) introduces a coordinator extension point and ships the Java implementation as an Airflow provider. Reviewers on PR #65958 raised three related but separable questions:
+[ADR-0001](0001-java-sdk-airflow-integration.md) introduces a coordinator extension point. Reviewers on PR #65958 raised three related but separable questions:
 
-1. **PyPI package name.** Should the Java coordinator ship as `apache-airflow-providers-sdk-java` (consistent with every other provider) or as `apache-airflow-coordinator-java` (recognizing that "language coordinator" is a structurally new kind of distribution that does not behave like operators/hooks/sensors)?
-2. **Source-tree module layout.** Should it live under `providers/sdk/java/` alongside other providers, under a nested `providers/coordinators/java/`, or at a new top-level `coordinators/` directory peer to `providers/`, `airflow-core/`, and `task-sdk/`?
-3. **Discovery / registration mechanism.** Should coordinator classes be discovered through the existing `ProvidersManager` (and its task-runtime equivalent `ProvidersManagerTaskRuntime`), or through a dedicated `CoordinatorManager` (likely living in a `_shared` library because both Airflow Core and Task SDK need to consume it)?
+1. **PyPI package name.** Should the Java coordinator ship as `apache-airflow-providers-sdk-java` (consistent with every other provider) or as `apache-airflow-coordinators-java` (recognizing that "language coordinator" is a structurally new kind of distribution that does not behave like operators/hooks/sensors)?
+2. **Source-tree module layout.** Should it live under `providers/sdk/java/` alongside other providers, or as a new top-level peer to `providers/`, `airflow-core/`, and `task-sdk/`?
+3. **Discovery / registration mechanism.** Should coordinator classes be discovered through the existing `ProvidersManager` (and its task-runtime equivalent `ProvidersManagerTaskRuntime`), or through some other mechanism?
 
-A related concern raised separately on the same PR is **discoverability and user confusion**: providers appear in the Airflow registry / docs, so "`apache-airflow-providers-sdk-java` exists but `apache-airflow-providers-sdk-go` does not" is visible to end users today (the Go SDK currently ships through Edge-Worker, not as a coordinator). The naming choice affects how prominent that asymmetry is, but it is a **transitional** problem: once Go-SDK migrates to the coordinator interface (planned for 3.3), the asymmetry disappears regardless of which name is chosen.
+A second concern, raised separately, is **runtime configuration**: a single `JavaCoordinator` class is not enough to express "use JDK 11 for the legacy queue and JDK 17 for the modern queue, with different `-Xmx` values." Class-only registration forces operators to subclass for every variant or hardcode environment lookups, which the issue calls out explicitly:
 
-## Decision (provisional)
+> How can I use different JDK version? How can I use different JVM arguments? We hardcoded the subprocess cmd … so users have to subclass another Coordinator to override the Java config.
+> — [apache/airflow#66451](https://github.com/apache/airflow/issues/66451)
 
-**Adopted for the initial PRs:** option **A1** for naming, **B1** for layout, **C1** for registration — i.e., `apache-airflow-providers-sdk-java` under `providers/sdk/java/`, registered via `ProvidersManager`. This is the path of least resistance for landing the SDK and unblocks downstream PRs.
+The existing `[sdk] queue_to_sdk` config (introduced in [ADR-0001](0001-java-sdk-airflow-integration.md)) maps a queue to a *language*, not to a *runtime variant*, and is therefore insufficient for this need.
 
-**Open to revisit before a second language SDK lands** (Go-SDK migration): the options below.
+## Decision
 
-### A. PyPI package name
+### A. Distribution name: `apache-airflow-coordinators-<lang>`
 
-| Option | Name | Argument for | Argument against |
-|---|---|---|---|
-| **A1** *(current)* | `apache-airflow-providers-sdk-java` | Consistent with the existing provider taxonomy; no new release machinery; user-installation muscle memory (`pip install apache-airflow-providers-…`) carries over. | A coordinator does not expose operators / hooks / sensors / triggers; calling it a "provider" stretches the term. |
-| **A2** | `apache-airflow-coordinator-java` | Names the component for what it is — a runtime/coordinator plugin, structurally distinct from a normal provider. Marks it as a new distribution type early, before precedent calcifies (`fab` is the cautionary example reviewers cited). | New distribution type means new release docs, new constraints handling, possibly new versioning conventions vs Airflow Core. Unfamiliar `pip install` shape for users. |
-| **A3** | `apache-airflow-sdk-java` | Cleanest from a user perspective — "I'm authoring DAGs in language X, I install the language-X SDK." | Conflicts with the in-tree Python `task-sdk` naming; ambiguous whether the package contains the *user-facing* SDK or the *coordinator* glue. |
+Coordinators are not Airflow providers; they are a separate distribution type. The Java coordinator ships as **`apache-airflow-coordinators-java`**. New language coordinators follow the same pattern (`apache-airflow-coordinators-go`, `apache-airflow-coordinators-rust`, …).
 
-### B. Source-tree layout
+A coordinator distribution exposes:
 
-| Option | Path | Argument for | Argument against |
-|---|---|---|---|
-| **B1** *(current)* | `providers/sdk/java/` | Already in the providers monorepo conventions; no new top-level directory; ProvidersManager already scans `providers/`. | Visually lumps coordinators together with op/hook/sensor providers. |
-| **B2** | `providers/coordinators/java/` | Keeps coordinators inside `providers/` (so existing tooling still finds them) but groups them as a sub-category, signaling that they are not normal providers. | Slight tooling change (provider discovery would need to recurse into the coordinator subtree). Still inherits "this is a provider" framing. |
-| **B3** | `coordinators/` (new top-level peer to `airflow-core/`, `task-sdk/`, `providers/`) | Strongest separation; matches the A2 naming. Easier to apply different release / docs rules. | New top-level directory, new uv workspace member, new CI matrix entry. Bigger change for a still-debated decision. |
+- A `BaseCoordinator` subclass under `airflow.sdk.coordinators.<lang>`.
+- No operators, hooks, sensors, triggers, or `provider.yaml`.
 
-### C. Discovery / registration
+### B. Module layout: namespace package under `airflow.sdk.coordinators`
 
-| Option | Mechanism | Argument for | Argument against |
-|---|---|---|---|
-| **C1** *(current)* | Existing `ProvidersManager` (`airflow-core`) and `ProvidersManagerTaskRuntime` (`task-sdk`) discover the `coordinators` key in `provider.yaml`. | Reuses the discovery pipeline already present in both Core and Task SDK. Zero new infrastructure. | Conceptually couples coordinators to providers even if A2/B3 are picked. |
-| **C2** | New `CoordinatorManager`, likely in a shared library (`shared/coordinator-manager/`) so both Core and Task SDK can consume it without import cycles. Coordinators self-register through this manager (e.g., entry-points group `airflow.coordinators` rather than `provider.yaml`). | Decouples coordinator discovery from provider discovery; cleaner separation aligned with A2/B3. Allows coordinator-specific lifecycle hooks (init, version-handshake, capability advertisement) without adding them to `ProvidersManager`. | New shared distribution + its symlink wiring; migration of the Java SDK off `provider.yaml` registration; doubled discovery code paths during transition. |
+Each coordinator distribution contributes a subpackage to the **namespace package** `airflow.sdk.coordinators`. The Task SDK owns the namespace; concrete coordinator distributions add `airflow.sdk.coordinators.<lang>`.
 
-## Recommendation
+The Java coordinator therefore resolves as:
 
-The three axes are correlated but not strictly tied. A reasonable consistent set is:
+```python
+from airflow.utils.module_loading import import_string
 
-- **Conservative, ship-now:** A1 + B1 + C1 (current state). Lowest risk, lowest change footprint, accepts that "provider" is a slight term-of-art stretch.
-- **Aligned-rename:** A2 + B2 + C1. Renames the distribution to `apache-airflow-coordinator-java`, keeps the source under `providers/coordinators/<lang>/`, reuses the discovery infrastructure. This is the cheapest option that clearly *signals* the new component type without re-platforming discovery.
-- **Full split:** A2 + B3 + C2. Cleanest end state for when there are multiple language coordinators plus possibly future static-source parsers (cf. the YAML / dag-factory discussion in [ADR-0001](0001-java-sdk-airflow-integration.md#coordinator-interface-subprocess-based-by-design)), but the highest churn and the option that would benefit most from being decided on the dev list as part of a follow-up AIP rather than during the Java-SDK PR review.
+JavaCoordinator = import_string("airflow.sdk.coordinators.java.JavaCoordinator")
+```
 
-The current choice (A1+B1+C1) is intended to be reversible: renaming a not-yet-released distribution and moving its source tree are both mechanical changes. The decision to defer is itself a choice — reviewers who want a different end state should call it out before the SDK ships in `3.3`, not after.
+Both Airflow Core (DAG processor) and the Task SDK (task runner) import coordinators by this path. As long as `apache-airflow-coordinators-java` is installed on a host, that `import_string` call resolves correctly without any registry lookup.
+
+### C. Discovery via `[sdk] coordinators` (Airflow configuration)
+
+Coordinators are **not** discovered through `ProvidersManager` / `ProvidersManagerTaskRuntime`, and there is no `coordinators` key in `provider.yaml`. They are registered as instance entries in `airflow.cfg`:
+
+```ini
+[sdk]
+coordinators = [
+    {
+        "name": "jdk-11",
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+            "java_executable": "/usr/lib/jvm/java-11-openjdk-amd64/bin/java",
+            "jvm_args": ["-Xmx512m"],
+            "jdk_home": "/usr/lib/jvm/java-11-openjdk-amd64"
+        }
+    },
+    {
+        "name": "jdk-17",
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+            "java_executable": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+            "jvm_args": ["-Xmx1024m", "-Xms256m"],
+            "jdk_home": "/usr/lib/jvm/java-17-openjdk-amd64"
+        }
+    }
+]
+
+queue_to_coordinator = {"legacy-java-queue": "jdk-11", "modern-java-queue": "jdk-17"}
+```
+
+The shape is intentionally similar to `AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST`: a list of self-describing entries with `name`, `classpath`, and free-form `kwargs`.
+
+**Renames vs ADR-0001's earlier draft:**
+
+| Old (`[sdk] queue_to_sdk`) | New (`[sdk] queue_to_coordinator`) |
+|---|---|
+| Maps queue → language tag (e.g., `"java"`) | Maps queue → coordinator instance name (e.g., `"jdk-17"`) |
+| One coordinator per language | Many coordinator instances per language, distinguished by `kwargs` |
+
+`queue_to_coordinator` replaces `queue_to_sdk` everywhere.
+
+### Why not `provider.yaml` / `ProvidersManager`?
+
+Coordinators are not providers in the Airflow sense:
+
+- They expose no operators / hooks / sensors / triggers.
+- They are consumed by both Airflow Core (in the DAG processor) **and** the Task SDK (in the task runner). The provider system is not designed to be loaded from inside a worker subprocess that intentionally has no Airflow-Core import.
+- They need **per-instance** runtime configuration (interpreter path, JVM flags, …). `provider.yaml` registers classes, not instances, and bolting kwargs onto provider entries would distort the provider data model.
+- A coordinator is the only thing in this distribution; there is no benefit to sharing the provider's discoverability surface (registry listings, `airflow providers list`, etc.). On the contrary, listing `apache-airflow-providers-sdk-java` next to AWS/GCP providers is misleading for users.
+
+Putting the registry in `airflow.cfg` keeps the data model honest (instances, with their kwargs) and makes the per-host opt-in (install + config-edit) explicit rather than implicit (install-implies-active).
 
 ## Consequences
 
-- The Java SDK ships under provider naming/layout in 3.3-preview; if the project later picks A2/B2/B3/C2, the rename becomes a single-PR refactor with deprecation shims (or a hard rename if the SDK is still in preview and we can break unreleased import paths).
-- The Go-SDK migration to the coordinator interface (planned for 3.3) is the natural forcing function for a final decision: a second language SDK lands, and the cost of disagreement compounds.
-- `ProvidersManager` accumulates an extra extension point (`coordinators`) that is not really an Airflow "provider" responsibility. This is acceptable as a transitional state but is the strongest argument for option C2 over time.
-- Documentation must be explicit that "Java appears in the provider list, Go does not" is a transitional quirk, not a stable property. Whichever naming option is picked, release notes for 3.3 should call out the answer for both languages together.
+- **`apache-airflow-coordinators-java`** ships as a new distribution type with its own release docs and constraints handling, distinct from providers.
+- **`airflow.sdk.coordinators`** is a namespace package owned by the Task SDK; concrete coordinator distributions contribute subpackages to it. Multiple coordinator distributions can be installed side by side without colliding.
+- **`[sdk] coordinators`** carries instance-level configuration; **`[sdk] queue_to_coordinator`** carries queue → instance routing. `[sdk] queue_to_sdk` is removed.
+- Operators can register multiple instances of the same coordinator class (e.g., `jdk-11` and `jdk-17`) and bind different queues to them — solving the multi-JDK and JVM-flag use cases raised in [apache/airflow#66451](https://github.com/apache/airflow/issues/66451) without subclassing.
+- The provider registry no longer shows coordinators, removing the "Java appears, Go does not" asymmetry that earlier drafts of this ADR flagged as a transitional UX wart.
+- Future static-source DAG parsers (e.g., YAML / `dag-factory`) that fit the same coordinator shape can use the same `[sdk] coordinators` registry without inventing a new extension point.

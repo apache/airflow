@@ -33,7 +33,7 @@ This ADR details the DAG parsing side of the coordinator architecture described 
 
 ### Extension Point: `BaseCoordinator`
 
-A single abstract base class — `BaseCoordinator` — handles both DAG parsing and task execution. It is registered in `provider.yaml` under `coordinators`. For DAG parsing, a subclass must implement two methods:
+A single abstract base class — `BaseCoordinator` — handles both DAG parsing and task execution. Concrete subclasses ship as standalone distributions (`apache-airflow-coordinators-<lang>`) under the shared `airflow.sdk.coordinators` namespace package; they are **not** Airflow providers and are not registered through `provider.yaml`. For DAG parsing, a subclass must implement two methods:
 
 | Method | Signature | Responsibility |
 |---|---|---|
@@ -42,16 +42,22 @@ A single abstract base class — `BaseCoordinator` — handles both DAG parsing 
 
 ### Registration
 
-In the provider's `provider.yaml`:
+Coordinators are configured in `airflow.cfg` (see [ADR-0001 — Coordinator Registration](0001-java-sdk-airflow-integration.md#coordinator-registration)). Each entry names a coordinator instance, points at an importable class via `classpath`, and supplies per-instance `kwargs`:
 
-```yaml
-process-coordinators:
-  - airflow.providers.sdk.<lang>.coordinator.<LangCoordinator>
+```ini
+[sdk]
+coordinators = [
+    {
+        "name": "jdk-17",
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {"java_executable": "/usr/lib/jvm/java-17/bin/java"}
+    }
+]
 ```
 
-A single registration covers both DAG parsing and task execution — there are no separate `dag-file-processors` or `task-coordinators` keys.
+A single instance entry covers both DAG parsing and task execution — there are no separate registries for the two roles.
 
-**Per-host opt-in.** A coordinator becomes available on a given DAG processor host only when its provider is installed there. A deployment can run a Python-only DAG processor pool and a separate Java-capable DAG processor pool by simply *not* installing `apache-airflow-providers-sdk-java` on the Python-only hosts. The same applies to workers ([ADR-0003](0003-workload-execution.md)). There is no requirement that every parser carry a JDK; the coordinator extension point is opt-in by package install.
+**Per-host opt-in.** A coordinator becomes available on a given DAG processor host only when its distribution is installed there *and* its instance appears in the host's `[sdk] coordinators`. A deployment can run a Python-only DAG processor pool and a separate Java-capable DAG processor pool by simply *not* installing `apache-airflow-coordinators-java` (or omitting the instance from config) on the Python-only hosts. The same applies to workers ([ADR-0003](0003-workload-execution.md)). There is no requirement that every parser carry a JDK; coordinators are opt-in per host by package install plus config entry.
 
 ### Discovery: `_resolve_processor_target()`
 
@@ -59,14 +65,15 @@ When `DagFileProcessorProcess.start()` needs to parse a file:
 
 ```
 _resolve_processor_target(path, bundle_name, bundle_path)
-  for each class_path in ProvidersManager().coordinators:
-    coordinator_cls = import_string(class_path)
-    if coordinator_cls.can_handle_dag_file(bundle_name, path):
-      return functools.partial(coordinator_cls.run_dag_parsing, path=..., bundle_name=..., bundle_path=...)
+  for entry in conf.get("sdk", "coordinators"):
+    coordinator_cls = import_string(entry["classpath"])
+    coordinator = coordinator_cls(name=entry["name"], **entry.get("kwargs", {}))
+    if coordinator.can_handle_dag_file(bundle_name, path):
+      return functools.partial(coordinator.run_dag_parsing, path=..., bundle_name=..., bundle_path=...)
   return None  # fall back to default Python parser
 ```
 
-The first coordinator whose `can_handle_dag_file()` returns `True` wins. If none match, the default Python `_parse_file_entrypoint` runs.
+The first coordinator instance whose `can_handle_dag_file()` returns `True` wins. If none match, the default Python `_parse_file_entrypoint` runs. Instances are constructed lazily from `[sdk] coordinators` and cached for the lifetime of the host process.
 
 ### Transport: Why msgpack over TCP Loopback
 
@@ -122,7 +129,7 @@ Airflow Dag-Processor
 DagFileProcessorProcess.start(path, bundle_name, bundle_path)
   │
   ├─ _resolve_processor_target()
-  │   └─ iterates process-coordinators from provider.yaml
+  │   └─ iterates instances from [sdk] coordinators (airflow.cfg)
   │   └─ first can_handle_dag_file() == True wins
   │
   ▼
@@ -264,31 +271,35 @@ For DAG parsing, a new language provider needs:
    - Sends back a `DagFileParsingResult` msgpack frame
    - Exits
 
-3. **Registration** in `provider.yaml` under `process-coordinators`
+3. **Registration** as an entry in `[sdk] coordinators` in `airflow.cfg`, pointing `classpath` at the importable subclass under `airflow.sdk.coordinators.<lang>`
 
 ### Java as a Concrete Example
 
 **JavaCoordinator:**
 
-The Java provider implements all DAG-parsing contracts in a single `BaseCoordinator` subclass:
+The Java SDK implements all DAG-parsing contracts in a single `BaseCoordinator` subclass shipped as `apache-airflow-coordinators-java`:
 
 ```python
-# providers/sdk/java/coordinator.py
+# Distribution: apache-airflow-coordinators-java
+# Module: airflow.sdk.coordinators.java.coordinator
 class JavaCoordinator(BaseCoordinator):
-    sdk = "java"
+    def __init__(self, *, name, java_executable="java", jvm_args=None, jdk_home=None):
+        self.name = name
+        self.java_executable = java_executable
+        self.jvm_args = list(jvm_args or [])
+        self.jdk_home = jdk_home
 
-    @classmethod
-    def can_handle_dag_file(cls, bundle_name, path) -> bool:
+    def can_handle_dag_file(self, bundle_name, path) -> bool:
         # Returns True when path is a JAR with a Main-Class manifest entry
         with contextlib.suppress(FileNotFoundError):
             return find_main_class(Path(path)) is not None
         return False
 
-    @classmethod
-    def dag_parsing_cmd(cls, *, dag_file_path, bundle_name, bundle_path, comm_addr, logs_addr):
+    def dag_parsing_cmd(self, *, dag_file_path, bundle_name, bundle_path, comm_addr, logs_addr):
         main_class = find_main_class(Path(dag_file_path))
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             f"{bundle_path}/*",
             main_class,
@@ -299,7 +310,7 @@ class JavaCoordinator(BaseCoordinator):
 
 `can_handle_dag_file()` checks that the file is a JAR with a `Main-Class` in its manifest. This ensures the coordinator only claims files it can actually handle.
 
-The classpath is `<bundle_path>/*` — a wildcard that includes all JARs in the directory (the application JAR plus its dependencies).
+The classpath is `<bundle_path>/*` — a wildcard that includes all JARs in the directory (the application JAR plus its dependencies). The `java_executable` and `jvm_args` come from the per-instance `kwargs` declared in `[sdk] coordinators`, so multiple instances (e.g., `jdk-11`, `jdk-17`) can launch different JVMs with different flags from the same class.
 
 No separate `JavaDagFileProcessor` class is needed — `BaseCoordinator` consolidates file detection, DAG parsing, and task execution into a single extension point.
 
@@ -395,7 +406,7 @@ Both share test cases defined in `test_dags.yaml`, ensuring the Java SDK produce
 
 ## Consequences
 
-- The DAG file processor can be extended to any language without modifying Airflow Core — only a provider with a `BaseCoordinator` subclass is needed.
+- The DAG file processor can be extended to any language without modifying Airflow Core — only a `BaseCoordinator` subclass distributed as `apache-airflow-coordinators-<lang>` plus an entry in `[sdk] coordinators` is needed.
 - The language runtime must produce exact DagSerialization v3 JSON, requiring cross-language validation infrastructure (e.g., `test_dags.yaml` + `compare.py`).
 - The base class absorbs all TCP/process plumbing, so language providers only implement two methods for DAG parsing.
 - The subprocess bridge adds latency and a process boundary; DAG parsing for non-Python files is inherently slower than in-process Python parsing.

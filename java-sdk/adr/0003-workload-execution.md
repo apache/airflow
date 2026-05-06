@@ -33,7 +33,7 @@ This ADR details the task execution side of the coordinator architecture describ
 
 ### Extension Point: `BaseCoordinator`
 
-The same `BaseCoordinator` base class that handles DAG parsing also handles task execution. It is registered in `provider.yaml` under `coordinators`. For task execution, a subclass must implement:
+The same `BaseCoordinator` base class that handles DAG parsing also handles task execution. Concrete subclasses ship as standalone distributions (`apache-airflow-coordinators-<lang>`, contributing to the `airflow.sdk.coordinators` namespace package) and are activated through `[sdk] coordinators` in `airflow.cfg` — there is no `provider.yaml` involvement. For task execution, a subclass must implement:
 
 | Method | Signature | Responsibility |
 |---|---|---|
@@ -52,11 +52,14 @@ The base class provides `run_task_execution()` as a concrete method that handles
 
 ### Registration
 
-The same `coordinators` entry in `provider.yaml` covers both DAG parsing and task execution — no separate registration needed:
+The same `[sdk] coordinators` entry covers both DAG parsing and task execution — no separate registration needed (see [ADR-0001 — Coordinator Registration](0001-java-sdk-airflow-integration.md#coordinator-registration)):
 
-```yaml
-coordinators:
-  - airflow.providers.sdk.<lang>.coordinator.<LangCoordinator>
+```ini
+[sdk]
+coordinators = [
+    {"name": "jdk-17", "classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"java_executable": "/usr/lib/jvm/java-17/bin/java", "jvm_args": ["-Xmx1024m"]}}
+]
+queue_to_coordinator = {"java": "jdk-17"}
 ```
 
 ### Discovery: `_resolve_runtime_entrypoint()`
@@ -67,20 +70,20 @@ When `task_runner.main()` starts, before any Python task execution:
 task_runner.main()
   → startup_details = get_startup_details()   # reads from fd 0
   → _resolve_runtime_entrypoint(startup_details)
-      for each class_path in ProvidersManagerTaskRuntime().process_coordinators:
-        coordinator_cls = import_string(class_path)
-        if not hasattr(coordinator_cls, "run_task_execution"):
-          continue
-        return functools.partial(coordinator_cls.run_task_execution,
-            what=..., dag_rel_path=..., bundle_info=..., startup_details=...)
-      return None  # fall back to default Python execution
+      coord_name = conf.get("sdk", "queue_to_coordinator").get(startup_details.ti.queue)
+      if coord_name is None:
+        return None  # fall back to default Python execution
+      entry = next(e for e in conf.get("sdk", "coordinators") if e["name"] == coord_name)
+      coordinator = import_string(entry["classpath"])(name=coord_name, **entry.get("kwargs", {}))
+      return functools.partial(coordinator.run_task_execution,
+          what=..., dag_rel_path=..., bundle_info=..., startup_details=...)
 
   → if runtime_entrypoint is not None:
       runtime_entrypoint()   # language-specific execution
       return                # short-circuit — skip Python execution entirely
 ```
 
-> **Note:** Currently the first coordinator with `run_task_execution` wins. `QueueToCoordinatorMapper` maps the task's `queue` to the correct coordinator via the `[sdk] queue_to_sdk` configuration.
+> **Note:** `QueueToCoordinatorMapper` resolves the task's `queue` against `[sdk] queue_to_coordinator` to pick the coordinator instance name, then looks that name up in `[sdk] coordinators` and instantiates the `classpath` with the entry's `kwargs`. Two queues mapped to two different instances of the same class (e.g., `jdk-11` and `jdk-17`) execute on different JVMs with different flags.
 
 ### Expected E2E Flow
 
@@ -98,8 +101,8 @@ task_runner.main()
   ├─ get_startup_details()           ← reads StartupDetails from fd 0
   │
   ├─ _resolve_runtime_entrypoint()
-  │   └─ iterates coordinators from provider.yaml
-  │   └─ first with run_task_execution wins
+  │   └─ resolves queue → instance name via [sdk] queue_to_coordinator
+  │   └─ instantiates the matching entry from [sdk] coordinators
   │
   ▼
 <Lang>Coordinator.run_task_execution(what, dag_rel_path, bundle_info, startup_details)
@@ -232,13 +235,13 @@ The language runtime is **ephemeral and one-process-per-task**:
 - Parallelism on a single worker therefore equals the number of concurrently running task processes. Five concurrent Java tasks on one worker means five JVMs.
 - DAG parsing has the same shape: each `DagFileProcessorProcess` child handles one parse request and exits. The language runtime spawned underneath it inherits that ephemerality.
 
-**Worker capability is opt-in.** A worker can run a non-Python task only if the corresponding `apache-airflow-providers-sdk-<lang>` provider is installed and the language toolchain (e.g., a JRE) is on the host. There is no requirement that every worker support every language. Routing relies on:
+**Worker capability is opt-in.** A worker can run a non-Python task only if the corresponding `apache-airflow-coordinators-<lang>` distribution is installed, the matching coordinator instance is declared in `[sdk] coordinators`, and the language toolchain (e.g., a JRE) is on the host. There is no requirement that every worker support every language. Routing relies on:
 
 | Layer | Mechanism |
 |---|---|
 | Author intent | Operator / `@task.stub` declares `queue="java"` (or any custom queue) |
 | Worker selection | The executor (Celery, Kubernetes, etc.) routes the task to a worker that consumes that queue, exactly as it does for Python tasks today |
-| Runtime selection | Inside the task runner, `[sdk] queue_to_sdk` maps the queue name to the coordinator's `sdk` value (`"java"`); `_resolve_runtime_entrypoint` then dispatches into `JavaCoordinator.run_task_execution` |
+| Runtime selection | Inside the task runner, `[sdk] queue_to_coordinator` maps the queue name to a coordinator instance name; that name is resolved against `[sdk] coordinators` to instantiate the configured class with its `kwargs`; `_resolve_runtime_entrypoint` then dispatches into `<instance>.run_task_execution` |
 
 The deployment model is the same one that already applies to Python providers: install what your DAGs need, on the hosts they run on. Multi-language workers are possible (install both providers and both toolchains) but not required.
 
@@ -257,12 +260,13 @@ The first message the runtime receives is `StartupDetails`, which provides full 
 | `ti_context` | `TIRunContext` | DAG run context (logical date, data interval, etc.) |
 | `sentry_integration` | string | Sentry DSN for error reporting (optional) |
 
-### What a Language Provider Must Implement
+### What a Language SDK Must Implement
 
-For task execution, a new language provider needs:
+For task execution, a new language SDK needs:
 
 1. **A `BaseCoordinator` subclass** with:
-   - `task_execution_cmd()` — returns the command to launch the runtime
+   - An `__init__` that accepts the kwargs the operator will declare in `[sdk] coordinators` (e.g., interpreter path, language-specific runtime flags)
+   - `task_execution_cmd()` — returns the command to launch the runtime, typically using attributes set in `__init__`
    - (This is the same subclass that implements `can_handle_dag_file()` and `dag_parsing_cmd()` for DAG parsing — one class covers both)
 
 2. **A runtime process** that:
@@ -278,7 +282,7 @@ For task execution, a new language provider needs:
 
 4. **A client API** that wraps the socket protocol behind a simple interface (get_connection, get_variable, get_xcom, set_xcom) so task authors don't deal with framing
 
-5. **Registration** in `provider.yaml` under `coordinators` (same entry as DAG parsing — no separate registration)
+5. **Distribution** as `apache-airflow-coordinators-<lang>`, contributing the subclass under `airflow.sdk.coordinators.<lang>` (same module path as the DAG-parsing entry — one class, one import path)
 
 ### Java as a Concrete Example
 
@@ -287,21 +291,25 @@ For task execution, a new language provider needs:
 The same `JavaCoordinator` that handles DAG parsing also handles task execution — no separate `JavaTaskCoordinator` class is needed:
 
 ```python
-# providers/sdk/java/coordinator.py
+# Distribution: apache-airflow-coordinators-java
+# Module: airflow.sdk.coordinators.java.coordinator
 class JavaCoordinator(BaseCoordinator):
-    sdk = "java"
+    def __init__(self, *, name, java_executable="java", jvm_args=None, jdk_home=None):
+        self.name = name
+        self.java_executable = java_executable
+        self.jvm_args = list(jvm_args or [])
+        self.jdk_home = jdk_home
 
-    @classmethod
-    def can_handle_dag_file(cls, bundle_name, path) -> bool:
+    def can_handle_dag_file(self, bundle_name, path) -> bool:
         with contextlib.suppress(FileNotFoundError):
             return find_main_class(Path(path)) is not None
         return False
 
-    @classmethod
-    def dag_parsing_cmd(cls, *, dag_file_path, bundle_name, bundle_path, comm_addr, logs_addr):
+    def dag_parsing_cmd(self, *, dag_file_path, bundle_name, bundle_path, comm_addr, logs_addr):
         main_class = find_main_class(Path(dag_file_path))
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             f"{bundle_path}/*",
             main_class,
@@ -309,12 +317,12 @@ class JavaCoordinator(BaseCoordinator):
             f"--logs={logs_addr}",
         ]
 
-    @classmethod
-    def task_execution_cmd(cls, *, what, dag_rel_path, bundle_info, comm_addr, logs_addr):
+    def task_execution_cmd(self, *, what, dag_rel_path, bundle_info, comm_addr, logs_addr):
         jar_path = Path(dag_rel_path)
         main_class = find_main_class(jar_path)
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             f"{jar_path.parent}/*",
             main_class,
@@ -323,7 +331,7 @@ class JavaCoordinator(BaseCoordinator):
         ]
 ```
 
-One class, one `provider.yaml` entry, covers both DAG parsing and task execution.
+One class, one importable `classpath`, covers both DAG parsing and task execution. Operators register it once per JVM variant in `[sdk] coordinators` and route queues to those instances via `[sdk] queue_to_coordinator`.
 
 **Java SDK Task Interface:**
 
