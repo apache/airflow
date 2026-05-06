@@ -66,6 +66,7 @@ class BundleInfo(BaseModel):
 
     name: str
     version: str | None = None
+    version_data: dict | None = None
 
 
 class BaseWorkloadSchema(BaseModel):
