@@ -99,6 +99,7 @@ Extra (optional)
     * ``use_default_azure_credential``: required boolean flag to specify if the `DefaultAzureCredential` class should be used to retrieve a AAD token. For example, this can be used when authenticating with workload identity within an Azure Kubernetes Service cluster. Note that this option can't be set together with the `use_azure_managed_identity` parameter.
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
+    * ``azure_managed_identity_client_id``: optional client ID of the user-assigned managed identity. This parameter is only required if you're using a user-assigned managed identity. If not specified, the hook will attempt to authenticate using a system-assigned managed identity.
 
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 

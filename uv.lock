@@ -2543,7 +2543,7 @@ requires-dist = [
     { name = "semver", marker = "extra == 'devscripts'", specifier = ">=3.0.2" },
     { name = "setuptools", marker = "extra == 'docs'", specifier = "<82.0.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7" },
-    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.9-py3-none-any.whl" },
+    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.10-py3-none-any.whl" },
     { name = "sphinx-argparse", marker = "extra == 'docs'", specifier = ">=0.4.0" },
     { name = "sphinx-autoapi", marker = "extra == 'docs'", specifier = ">=3.8.0" },
     { name = "sphinx-autobuild", marker = "extra == 'docs'", specifier = ">=2024.10.2" },
@@ -20746,15 +20746,15 @@ wheels = [
 
 [[package]]
 name = "sphinx-airflow-theme"
-version = "0.3.9"
-source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.9-py3-none-any.whl" }
+version = "0.3.10"
+source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.10-py3-none-any.whl" }
 dependencies = [
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.9-py3-none-any.whl", hash = "sha256:8e28f827963d4a48a901959a7fee194421173cb4c5fdfc00fdf0c5df825011f7" },
+    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.10-py3-none-any.whl", hash = "sha256:26a824d1a92879fb2c4830f91f9e10fa400f77f4690bf33ed74ed8d5898d2894" },
 ]
 
 [package.metadata]
