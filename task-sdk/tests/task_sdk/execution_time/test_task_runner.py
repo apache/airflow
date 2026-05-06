@@ -4767,9 +4767,7 @@ class TestTaskCheckpointed:
             pytest.param([1, 2, 3], id="list-payload"),
         ],
     )
-    def test_run_returns_checkpointed_state(
-        self, checkpoint_data, create_runtime_ti, mock_supervisor_comms
-    ):
+    def test_run_returns_checkpointed_state(self, checkpoint_data, create_runtime_ti, mock_supervisor_comms):
         """``run()`` reports CHECKPOINTED when the operator raises
         ``AirflowTaskCheckpointed``."""
         from airflow.sdk.exceptions import AirflowTaskCheckpointed
@@ -4821,6 +4819,7 @@ class TestTaskCheckpointed:
         assert state == TaskInstanceState.CHECKPOINTED
         assert received["called"] == 1
         assert received["data"] == checkpoint_data
+
 
 class TestTaskInstanceMetrics:
     def test_ti_start_metric_emitted(self, create_runtime_ti, mock_supervisor_comms):
