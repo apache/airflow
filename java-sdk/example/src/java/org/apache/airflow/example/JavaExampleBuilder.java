@@ -22,6 +22,7 @@ package org.apache.airflow.example;
 import java.util.Date;
 import java.util.List;
 import org.apache.airflow.sdk.*;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,7 @@ public class JavaExampleBuilder {
   private static final Logger logger = LoggerFactory.getLogger(JavaExampleBuilder.class);
 
   public static class Extract implements Task {
-    public void execute(Client client) throws Exception {
+    public void execute(@NotNull Context context, Client client) throws Exception {
       logger.info("Hello from task");
 
       var python_xcom = client.getXCom("python_task_1");
@@ -49,7 +50,7 @@ public class JavaExampleBuilder {
   }
 
   public static class Transform implements Task {
-    public void execute(Client client) {
+    public void execute(@NotNull Context context, Client client) {
       var extract_xcom = client.getXCom("extract");
       logger.info("Got XCom from 'extract' {}", extract_xcom);
 
@@ -62,7 +63,7 @@ public class JavaExampleBuilder {
   }
 
   public static class Load implements Task {
-    public void execute(Client client) {
+    public void execute(@NotNull Context context, Client client) {
       var xcom = client.getXCom("transform");
       logger.info("Got XCom from 'transform' {}", xcom);
       throw new RuntimeException("I failed");

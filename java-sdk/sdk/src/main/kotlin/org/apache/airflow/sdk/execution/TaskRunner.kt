@@ -21,6 +21,7 @@ package org.apache.airflow.sdk.execution
 
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
 
 object TaskRunner {
   fun run(
@@ -37,7 +38,7 @@ object TaskRunner {
     val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskState("removed")
     val instance = task.getDeclaredConstructor().newInstance()
     return try {
-      instance.execute(client)
+      instance.execute(Context.from(request), client)
       SucceedTask()
     } catch (e: Exception) {
       e.printStackTrace()

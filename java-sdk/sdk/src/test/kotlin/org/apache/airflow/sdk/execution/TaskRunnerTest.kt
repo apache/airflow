@@ -21,6 +21,7 @@ package org.apache.airflow.sdk.execution
 
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.Dag
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.execution.api.model.BundleInfo
@@ -119,11 +120,17 @@ class TaskRunnerTest {
     )
 
   class SuccessTask : Task {
-    override fun execute(client: Client) {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
     }
   }
 
   class FailingTask : Task {
-    override fun execute(client: Client): Unit = throw IllegalStateException("boom")
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw IllegalStateException("boom")
   }
 }

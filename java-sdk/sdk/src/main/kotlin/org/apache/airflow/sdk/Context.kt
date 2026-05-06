@@ -19,12 +19,30 @@
 
 package org.apache.airflow.sdk
 
-import kotlin.Throws
+import org.apache.airflow.sdk.execution.StartupDetails
 
-interface Task {
-  @Throws(Exception::class)
-  fun execute(
-    context: Context,
-    client: Client,
-  )
+data class DagRun(
+  @JvmField val dagId: String,
+  @JvmField val runId: String,
+)
+
+data class TaskInstance(
+  @JvmField val dagId: String,
+  @JvmField val runId: String,
+  @JvmField val taskId: String,
+  @JvmField val mapIndex: Int?,
+  @JvmField val tryNumber: Int,
+)
+
+data class Context(
+  @JvmField val dagRun: DagRun,
+  @JvmField val ti: TaskInstance,
+) {
+  internal companion object {
+    fun from(request: StartupDetails): Context =
+      Context(
+        dagRun = with(request.tiContext.dagRun) { DagRun(dagId, runId) },
+        ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
+      )
+  }
 }
