@@ -2570,7 +2570,7 @@ Several default configuration values have been updated in Airflow 3.0 to better 
 simplify onboarding:
 
 - ``catchup_by_default`` is now set to ``False`` by default. DAGs will not automatically backfill unless explicitly configured to do so.
-- ``create_cron_data_intervals`` is now set to ``False`` by default. As a result, cron expressions will be interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``.
+- ``create_cron_data_intervals`` is now set to ``False`` by default. As a result, cron expressions will be interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``. This only affects DAGs that pass a bare cron string to ``schedule=``; DAGs that pass an explicit timetable instance are unaffected. If you rely on the data interval semantics (``data_interval_start`` / ``data_interval_end``, or templated values like ``ds`` / ``ts`` derived from ``logical_date``), set ``create_cron_data_intervals=True`` explicitly **before** the upgrade. Flipping the value later, after Airflow 3 DAG runs already exist, will skip one scheduled run on each affected DAG to avoid colliding with the previous run's ``logical_date``.
 - ``SimpleAuthManager`` is now the default ``auth_manager``. To continue using Flask AppBuilder-based authentication, install the ``apache-airflow-providers-fab`` provider and explicitly set ``auth_manager = airflow.providers.fab.auth_manager.FabAuthManager``.
 
 These changes represent the most significant evolution of the Airflow platform since the release of 2.0 — setting the
@@ -2822,7 +2822,7 @@ Refactored Config Defaults
 Several configuration defaults have changed in Airflow 3.0 to better reflect modern usage patterns:
 
 - The default value of ``catchup_by_default`` is now ``False``. DAGs will not backfill missed intervals unless explicitly configured to do so.
-- The default value of ``create_cron_data_intervals`` is now ``False``. Cron expressions are now interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``. This change simplifies interval logic and aligns with the future direction of Airflow's scheduling system.
+- The default value of ``create_cron_data_intervals`` is now ``False``. Cron expressions are now interpreted using the ``CronTriggerTimetable`` instead of the legacy ``CronDataIntervalTimetable``. This change simplifies interval logic and aligns with the future direction of Airflow's scheduling system. Set this flag explicitly **before** upgrading from Airflow 2 if you rely on data interval semantics; flipping it later (after Airflow 3 DAG runs exist) will skip one scheduled run per affected DAG.
 
 Refactored Internal Utilities
 """""""""""""""""""""""""""""
