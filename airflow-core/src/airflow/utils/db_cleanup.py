@@ -621,6 +621,7 @@ def run_cleanup(
 def export_archived_records(
     export_format: str,
     output_path: str,
+    *,
     table_names: list[str] | None = None,
     drop_archives: bool = False,
     needs_confirm: bool = True,
@@ -652,7 +653,10 @@ def export_archived_records(
 
 @provide_session
 def drop_archived_tables(
-    table_names: list[str] | None, needs_confirm: bool, session: Session = NEW_SESSION
+    *,
+    table_names: list[str] | None,
+    needs_confirm: bool,
+    session: Session = NEW_SESSION,
 ) -> None:
     """Drop archived tables."""
     archived_table_names = _get_archived_table_names(table_names, session)

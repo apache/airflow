@@ -718,7 +718,7 @@ class TestDBCleanup:
         """
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = tables
-        drop_archived_tables(tables, needs_confirm=True, session=MagicMock())
+        drop_archived_tables(table_names=tables, needs_confirm=True, session=MagicMock())
         mock_confirm.assert_not_called()
         assert "Total dropped tables: 0" in caplog.text
 
@@ -732,7 +732,7 @@ class TestDBCleanup:
         normal_table = "dag_run"
         inspector = inspect_mock.return_value
         inspector.get_table_names.return_value = [archived_table, normal_table]
-        drop_archived_tables([normal_table], needs_confirm=confirm, session=MagicMock())
+        drop_archived_tables(table_names=[normal_table], needs_confirm=confirm, session=MagicMock())
         assert f"Dropping archived table {archived_table}" in caplog.text
         assert f"Dropping archived table {normal_table}" not in caplog.text
         assert "Total dropped tables: 1" in caplog.text
@@ -740,6 +740,16 @@ class TestDBCleanup:
             confirm_mock.assert_called()
         else:
             confirm_mock.assert_not_called()
+
+    def test_export_archived_records_positional_fails(self):
+        with pytest.raises(TypeError) as exc:
+            export_archived_records("csv", "path", ["table"], True, True, None)
+        assert "takes 2 positional arguments but 6" in str(exc.value)
+
+    def test_drop_archived_tables_positional_fails(self):
+        with pytest.raises(TypeError) as exc:
+            drop_archived_tables(["table"], True)
+        assert "takes 0 positional arguments but 2" in str(exc.value)
 
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
