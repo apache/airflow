@@ -304,10 +304,12 @@ class BaseDagBundle(ABC):
         name: str,
         refresh_interval: int = conf.getint("dag_processor", "refresh_interval"),
         version: str | None = None,
+        version_data: dict | None = None,
         view_url_template: str | None = None,
     ) -> None:
         self.name = name
         self.version = version
+        self.version_data = version_data
         self.refresh_interval = refresh_interval
         self.is_initialized: bool = False
 
