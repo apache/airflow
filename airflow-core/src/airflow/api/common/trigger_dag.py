@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Triggering DAG runs APIs."""
+"""Triggering Dag runs APIs."""
 
 from __future__ import annotations
 
@@ -56,10 +56,10 @@ def _trigger_dag(
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
-    Triggers DAG run.
+    Triggers Dag run.
 
-    :param dag_id: DAG ID
-    :param dag_bag: DAG Bag model
+    :param dag_id: Dag ID
+    :param dag_bag: Dag Bag model
     :param triggered_by: the entity which triggers the dag_run
     :param run_type: the type of dag run (default: MANUAL)
     :param triggering_user_name: the user name who triggers the dag_run
@@ -87,7 +87,7 @@ def _trigger_dag(
             if min_dag_start_date and logical_date < min_dag_start_date:
                 raise ValueError(
                     f"Logical date [{logical_date.isoformat()}] should be >= start_date "
-                    f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
+                    f"[{min_dag_start_date.isoformat()}] from Dag's default_args"
                 )
         coerced_logical_date = timezone.coerce_datetime(logical_date)
         data_interval: DataInterval | None = dag.timetable.infer_manual_data_interval(
@@ -147,9 +147,9 @@ def trigger_dag(
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
-    Triggers execution of DAG specified by dag_id.
+    Triggers execution of Dag specified by dag_id.
 
-    :param dag_id: DAG ID
+    :param dag_id: Dag ID
     :param triggered_by: the entity which triggers the dag_run
     :param run_type: the type of dag run (default: MANUAL)
     :param triggering_user_name: the user name who triggers the dag_run

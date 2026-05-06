@@ -110,6 +110,11 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
+    async def test_resolve_user_from_token_no_token_raises(self):
+        """No token always produces 401; public-user fallback is handled by middleware, not here."""
+        with pytest.raises(HTTPException, match="Not authenticated"):
+            await resolve_user_from_token(None)
+
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
     async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
         user = Mock()

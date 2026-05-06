@@ -25,6 +25,28 @@
 Changelog
 ---------
 
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add UsageLimits support to common.ai operators (#66248)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Configuration Reference docs page to Common AI provider (#66024)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``[main] CI: Upgrade important CI environment (#66068)``
+   * ``fix: update dependencies to fix dependabot alarms in providers.common.ai (#66244)``
+   * ``[main] CI: Upgrade important CI environment (#65933)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 0.1.1
 .....
 

@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable unicorn/no-null,max-lines */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
 const ti = {
@@ -197,6 +195,50 @@ export const handlers: Array<HttpHandler> = [
         {
           event: "[2025-02-28T10:49:09.920+0530] {local_task_job_runner.py:241} INFO - ::endgroup::",
           timestamp: "2025-02-28T10:49:09.920000+05:30",
+        },
+      ],
+      continuation_token: null,
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/ti_context/-1", () =>
+    HttpResponse.json({
+      ...ti,
+      dag_run_id: "manual__2025-02-18T12:19",
+      task_display_name: "ti_context",
+      task_id: "ti_context",
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/ti_context/logs/1", () =>
+    HttpResponse.json({
+      content: [
+        {
+          event: "::group::Log message source details",
+          sources: [
+            "/home/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=ti_context/attempt=1.log",
+          ],
+        },
+        { event: "::endgroup::" },
+        {
+          dag_id: "log_grouping",
+          event: "Task started",
+          level: "info",
+          map_index: -1,
+          run_id: "manual__2025-02-18T12:19",
+          task_id: "ti_context",
+          ti_id: "01951900-16f6-7c1c-ae66-91bdfe9e0cfd",
+          timestamp: "2025-02-18T12:19:56.263258Z",
+          try_number: 1,
+        },
+        {
+          dag_id: "log_grouping",
+          event: "Task finished",
+          level: "info",
+          map_index: -1,
+          run_id: "manual__2025-02-18T12:19",
+          task_id: "ti_context",
+          ti_id: "01951900-16f6-7c1c-ae66-91bdfe9e0cfd",
+          timestamp: "2025-02-18T12:19:56.467235Z",
+          try_number: 1,
         },
       ],
       continuation_token: null,

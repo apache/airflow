@@ -263,7 +263,13 @@ def assert_prek_installed():
         need_to_reinstall_prek = True
         console_print(f"\n[error]Error checking for prek installation: [/]\n{e}\n")
     if need_to_reinstall_prek:
-        console_print("[info]Reinstall breeze: 'uv tool install -e ./dev/breeze --force'[/]")
+        console_print(
+            "[info]Reinstall breeze:[/]\n"
+            "  - For the recommended uvx-based setup, clear the cached env:\n"
+            "        uv cache clean apache-airflow-breeze\n"
+            "  - For a legacy global install:\n"
+            "        uv tool install -e ./dev/breeze --force"
+        )
         sys.exit(1)
 
 

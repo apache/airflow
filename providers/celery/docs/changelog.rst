@@ -35,11 +35,20 @@ Features
 
 * ``Add SSL_MUTUAL_TLS config option to Celery provider for one-way TLS support (#64767)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery version compat logic after PR 62645 (#65844)``
+* ``Fix Celery workers not executing tasks when --celery-hostname is set (#65826)``
+* ``Fix Celery provider ImportError on airflow 3.2.x by gating ExecutorWorkload on 3.3+ (#65752)``
+* ``Pre-assign external_executor_id at queuing time to prevent duplicate execution on scheduler crash (#65594)``
+
 Misc
 ~~~~
 
 * ``Widen BaseExecutor method signatures to accept WorkloadKey (#65392)``
 * ``Move ExecutorCallback execution into a supervised process (#62645)``
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

@@ -241,6 +241,13 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     type=str,
     default="",
 )
+@click.option(
+    "--github-context-input",
+    help="File input (might be `-`) with JSON-formatted github context. "
+    "Use this instead of --github-context for large contexts that would exceed ARG_MAX as an env var.",
+    type=click.File("rt"),
+    envvar="GITHUB_CONTEXT_INPUT",
+)
 @option_verbose
 @option_dry_run
 def selective_check(
@@ -252,10 +259,16 @@ def selective_check(
     github_repository: str,
     github_actor: str,
     github_context: str,
+    github_context_input: StringIO | None,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
 
+        if github_context and github_context_input:
+            console_print("[error]You can only specify one of --github-context or --github-context-input")
+            sys.exit(1)
+        if github_context_input:
+            github_context = github_context_input.read()
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
         if commit_ref is not None:
@@ -710,7 +723,9 @@ def upgrade(
     else:
         at_apache_branch = False
         console_print(
-            "[warning]No apache remote found. The command expects remote pointing to apache/airflow[/]"
+            "[warning]No remote pointing to apache/airflow was found. "
+            "Airflow uses `upstream` for this remote by convention — "
+            "run `git remote add upstream https://github.com/apache/airflow.git` to add it.[/]"
         )
 
     # Track whether user chose to reset to target branch

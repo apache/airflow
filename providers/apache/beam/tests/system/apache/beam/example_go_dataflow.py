@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Apache Beam operators
+Example Airflow Dag for Apache Beam operators
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ with models.DAG(
             "WorkerHarnessContainerImage": "apache/beam_go_sdk:latest",
         },
         dataflow_config=DataflowConfiguration(
-            job_name="{{task.task_id}}",
+            job_name="{{ task.task_id }}",
             project_id=GCP_PROJECT_ID,
             location="us-central1",
             wait_until_finished=False,
@@ -66,7 +66,8 @@ with models.DAG(
 
     wait_for_go_job_dataflow_runner_async_done = DataflowJobStatusSensor(
         task_id="wait-for-go-job-async-done",
-        job_id="{{task_instance.xcom_pull('start_go_job_dataflow_runner_async')['dataflow_job_id']}}",
+        # verbose form: "{{ task_instance.xcom_pull('start_go_job_dataflow_runner_async')['dataflow_job_id'] }}"
+        job_id=start_go_job_dataflow_runner_async.output["dataflow_job_id"],
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         project_id=GCP_PROJECT_ID,
         location="us-central1",
@@ -78,5 +79,5 @@ with models.DAG(
 
 from tests_common.test_utils.system_tests import get_test_run
 
-# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
+# Needed to run the example Dag with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

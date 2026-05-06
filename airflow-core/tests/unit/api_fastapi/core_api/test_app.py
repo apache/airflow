@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import inspect
 import typing
 
@@ -70,10 +71,8 @@ class TestStreamingEndpointSessionScope:
                 continue
             returns_streaming = hints.get("return") is StreamingResponse
             if not returns_streaming:
-                try:
+                with contextlib.suppress(OSError, TypeError):
                     returns_streaming = "StreamingResponse" in inspect.getsource(route.endpoint)
-                except (OSError, TypeError):
-                    pass
             if not returns_streaming:
                 continue
             fqn = f"{route.endpoint.__module__}.{route.endpoint.__qualname__}"

@@ -32,6 +32,7 @@ REGISTRY_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--provider",
+                "--allow-unreleased",
             ],
         },
     ],
