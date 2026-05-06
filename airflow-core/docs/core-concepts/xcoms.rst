@@ -49,7 +49,7 @@ Many operators will auto-push their results into an XCom key called ``return_val
     # Pulls the return_value XCOM from "pushing_task"
     value = task_instance.xcom_pull(task_ids='pushing_task')
 
-If you need to pull a value from another DAG run (for example, a DAG run started by
+If you need to pull a value from a specific DAG run (for example, a DAG run triggered by
 ``TriggerDagRunOperator``), specify both ``dag_id`` and ``run_id`` explicitly::
 
     trigger_run_id = task_instance.xcom_pull(task_ids="trigger_child", key="trigger_run_id")
