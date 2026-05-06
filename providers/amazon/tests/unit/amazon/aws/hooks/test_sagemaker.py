@@ -703,6 +703,7 @@ class TestSageMakerHook:
             hook.delete_model(model_name="test")
         ex = raised_exception.value
         assert ex.operation_name == "DeleteModel"
+        # moto changed from 404 to 400 (matching real AWS) in newer versions; accept both for compat
         assert ex.response["ResponseMetadata"]["HTTPStatusCode"] in (400, 404)
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
