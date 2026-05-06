@@ -21,6 +21,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 from asyncio import Task, create_task, gather, get_running_loop, sleep
@@ -134,6 +135,7 @@ class EdgeWorker:
         self.concurrency = concurrency
         self.daemon = daemon
         self.team_name = team_name
+        self._subprocess_stderr_files: dict[int, Path] = {}
 
         self.worker_start_time: datetime = datetime.now()
 
@@ -455,18 +457,27 @@ class EdgeWorker:
         if self._execution_api_server_url:
             env["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"] = self._execution_api_server_url
 
-        process = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "airflow.sdk.execution_time.execute_workload",
-                "--json-string",
-                workload.model_dump_json(),
-            ],
-            env=env,
-            start_new_session=True,
-            stderr=subprocess.PIPE,
-        )
+        with tempfile.NamedTemporaryFile(
+            prefix="airflow-edge-task-stderr-", suffix=".log", delete=False
+        ) as stderr_file:
+            stderr_file_path = Path(stderr_file.name)
+            try:
+                process = subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-m",
+                        "airflow.sdk.execution_time.execute_workload",
+                        "--json-string",
+                        workload.model_dump_json(),
+                    ],
+                    env=env,
+                    start_new_session=True,
+                    stderr=stderr_file,
+                )
+            except Exception:
+                stderr_file_path.unlink(missing_ok=True)
+                raise
+        self._subprocess_stderr_files[process.pid] = stderr_file_path
         logger.debug(
             "Launched task subprocess pid=%d for %s",
             process.pid,
@@ -497,7 +508,7 @@ class EdgeWorker:
         ``multiprocessing.Process`` (fork) otherwise — preserving the
         original behaviour for existing deployments.
         """
-        use_new_interpreter = not hasattr(os, "fork") or conf.getboolean(
+        use_new_interpreter = not hasattr(os, "fork") or self.conf.getboolean(
             "core",
             "execute_tasks_new_python_interpreter",
             fallback=False,
@@ -663,19 +674,26 @@ class EdgeWorker:
             await sleep(0.1)
 
         self.jobs.remove(job)
+        stderr_file_path = (
+            self._subprocess_stderr_files.pop(job.process.pid, None)
+            if isinstance(job.process, subprocess.Popen)
+            else None
+        )
         if job.is_success:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
+            if stderr_file_path:
+                stderr_file_path.unlink(missing_ok=True)
         else:
             if isinstance(job.process, subprocess.Popen):
-                # Fresh subprocess path: communicate() reads remaining buffered stderr now
-                # that the process has already finished; returns tuple[bytes, bytes] for Popen[bytes]
-                _, stderr_bytes = job.process.communicate()
-                stderr_output = (
-                    stderr_bytes.decode(errors="backslashreplace").strip()
-                    if isinstance(stderr_bytes, bytes) and stderr_bytes
-                    else ""
-                )
+                stderr_output = ""
+                if stderr_file_path:
+                    try:
+                        stderr_output = (
+                            stderr_file_path.read_bytes().decode(errors="backslashreplace").strip()
+                        )
+                    finally:
+                        stderr_file_path.unlink(missing_ok=True)
                 ex_txt = f"Task subprocess exited with code {job.process.returncode}"
                 if stderr_output:
                     ex_txt = f"{ex_txt}\n{stderr_output}"
