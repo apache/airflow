@@ -19,8 +19,8 @@ from __future__ import annotations
 import pytest
 
 from airflow.listeners import hookimpl
+from airflow.listeners.listener import get_listener_manager
 from airflow.listeners.types import FailureDetails
-from airflow.plugins_manager import get_listener_manager
 
 
 class TestFailureDetails:
