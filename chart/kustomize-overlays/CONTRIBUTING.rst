@@ -42,7 +42,7 @@ A component **belongs in the chart** when all of the following are true:
   triggerer, workers).
 * Removing/adding it requires changes to Airflow's own configuration.
 * It has no external owner.
-* It is assumed that the larger majority (>80%) will need and use this function for productive use
+* It is used by the larger majority of users (>80%)
 
 A component **belongs in Kustomize** when any of the following are true:
 
