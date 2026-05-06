@@ -46,9 +46,14 @@ def stringify_encoding_keys(d: Any) -> Any:
         return {
             (k.value if isinstance(k, Encoding) else str(k)): stringify_encoding_keys(v) for k, v in d.items()
         }
-    if isinstance(d, (list, tuple)):
+    if isinstance(d, list):
+        return [stringify_encoding_keys(i) for i in d]
+    if isinstance(d, tuple):
         converted = [stringify_encoding_keys(i) for i in d]
-        return type(d)(converted)
+        # namedtuples require positional args, not a single list argument
+        if hasattr(d, "_fields"):
+            return type(d)(*converted)
+        return tuple(converted)
     return d
 
 
