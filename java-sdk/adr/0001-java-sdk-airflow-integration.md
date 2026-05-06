@@ -103,6 +103,33 @@ Both approaches are supported in parallel. A pure Java DAG needs no Python at al
 
 > **Note:** The current `BundleBuilder` interface used in pure Java DAGs is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
 
+### Public API Surface: `Client` and `Context`
+
+The Java task interface is `void execute(Client client)`. Two design choices warrant explanation.
+
+**Why `Client`, not `Context`?** The Java SDK exposes two objects, mirroring the Go SDK:
+
+| Object | Holds | Lifecycle |
+|---|---|---|
+| `Context` | Static run-time data (`ds`, `ti`, logical date, run-id, etc.) | Populated once from `StartupDetails`, read-only during execution |
+| `Client` | Active accessors that perform Execution API calls (connections, variables, XCom) | Each method call is a synchronous request/response over the comm channel |
+
+In Python, magic objects on the context (e.g., `outlet_events`) can perform Execution API calls transparently because of the language's flexibility. Java is more rigid; making `Context` itself perform background API calls would require significantly more wiring without much user-visible benefit. Splitting the two surfaces makes the API call boundary explicit at the type level.
+
+**Why is `execute` `void`?** Returning a value from `execute` would imply an automatic XCom push. Java's static type system does not have a clean equivalent of Python's "return any object, get a default-keyed XCom" pattern, and explicit `client.setXCom(...)` calls keep the wire-level behavior obvious. This is a deliberate departure from Python's `@task` semantics, not an oversight.
+
+### Coordinator Interface: Subprocess-Based by Design
+
+`BaseCoordinator` exposes both **low-level** hooks (`dag_parsing_cmd`, `task_execution_cmd`) and **high-level** lifecycle methods (`run_dag_parsing`, `run_task_execution`). Subclasses normally implement only the `*_cmd` callbacks; the base class owns the TCP servers, the subprocess spawn, and the I/O bridge.
+
+This is deliberately tight coupling to a subprocess model. The reasoning:
+
+- **DAG files written in a programming language have side effects.** Airflow already isolates Python parsing and task execution into child processes; the coordinator interface preserves that invariant for any non-Python language.
+- **`*_cmd` is the smallest possible contract for a new language.** A new SDK only needs to translate "you're being asked to parse this file / run this task" into an OS-level launch command. Everything else (TCP plumbing, framing, byte forwarding) is shared.
+- **High-level overrides are still available.** A coordinator that wants to bypass the subprocess model entirely (in-process JVM via JNI, REST call to a remote DAG repository, etc.) can override `run_dag_parsing` / `run_task_execution` directly and ignore the `*_cmd` hooks. The two-tier interface is intentional.
+
+A complementary, **out-of-scope** future direction is parsing static (non-programming-language) DAG sources such as YAML (e.g., `dag-factory`). Those do not need a child process at all — but the decision to launch a child is currently made one layer above the coordinator (`DagFileProcessorManager` → `DagFileProcessorProcess`). Hooking in a YAML parser would need a separate extension point at the manager layer; it is not blocked by this design but is also not solved by it. A follow-up AIP is expected to formalize a general "any-source DAG parser" plugin model.
+
 ### The Coordinator Layer
 
 We introduce a **Coordinator** layer. When a DAG bundle is loaded, it not only tells Airflow how to find the DAGs (and tasks in them), but also how to *run* each task. Current Python tasks use a Python code path that runs them by forking. A new **Java Coordinator** instructs the task runner how to run tasks in JAR files.
@@ -250,6 +277,20 @@ Language providers register their coordinators in `provider.yaml`:
 process-coordinators:
   - airflow.providers.sdk.java.coordinator.JavaCoordinator
 ```
+
+> **Open question:** the package name, module path, and registration mechanism for coordinator providers (`apache-airflow-providers-sdk-java` vs `apache-airflow-coordinator-java`, `ProvidersManager` vs a dedicated `CoordinatorManager`) is being tracked separately in [ADR-0005](0005-coordinator-packaging.md).
+
+### Implementation Language: Kotlin (with a Java-First Public API)
+
+The user-facing API surface (`Task`, `Client`, `Context`, `Dag`, `DagBundle`) is published as Java types and is the contract bundle authors program against. The SDK *implementation* — `CoordinatorComm`, `Serde`, `TaskSdkFrames`, `Server`, `Supervisor`, `TaskRunner`, `DagParser` — is written in Kotlin.
+
+Kotlin compiles to the same JVM bytecode as Java and is fully interoperable, so this choice is invisible to bundle authors at runtime. The practical reasons for using Kotlin internally:
+
+- **Null safety** is part of the type system, removing a large class of latent NPEs in the comm/serde paths.
+- **Coroutines and structured I/O** simplify the synchronous-over-async pattern used by `Client.getVariable()` and friends.
+- **Less boilerplate** in serialization and frame encoding code, which is the bulk of the SDK.
+
+Because the user-facing API is Java, "Java SDK" remains the accurate name from a DAG-author perspective. A future rename to "JVM SDK" has been floated but is not adopted here; it can be revisited if/when Scala or other JVM-language bindings are proposed.
 
 ### Example: `JavaCoordinator`
 

@@ -223,6 +223,22 @@ The `main()` method is the JVM entry point that the coordinator launches. It wir
 
 > **Note:** The current `BundleBuilder` interface is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
 
+### Deployment and Updates
+
+A reasonable concern about JAR-based DAGs is whether updating a bundle requires draining or restarting the DAG processor / workers — Python source files are flexible because everything is read fresh on each parse, but a long-lived JVM holding a JAR open could pin an old version.
+
+The design avoids this by leaning on the same ephemerality that Python uses:
+
+- **DAG processor.** `DagFileProcessorManager` is long-lived, but each `DagFileProcessorProcess` child is one-shot and exits after returning a `DagFileParseRequest`. The Java runtime spawned underneath it (`java -classpath <bundle>/* …`) shares that lifetime — it loads the JAR fresh on every parse, then exits. Replacing the JAR on disk takes effect on the next scheduled parse with no manager restart.
+- **Workers.** Each task instance launches its own JVM ([ADR-0003 — Runtime Lifecycle and Worker Capability](0003-workload-execution.md#runtime-lifecycle-and-worker-capability)). The classloader is process-scoped; a swapped JAR is picked up the next time a task starts. There is no warm JVM pool to invalidate.
+
+In practice, "updating a Java DAG bundle" is the same shape as "updating a Python DAG file": drop the new file (or directory of JARs) into the bundle location and let normal scheduling pick it up. The version that runs a given task instance is determined at task start, not at worker start.
+
+Two operational details worth flagging:
+
+- **Atomic swap.** Writing a JAR in place while a task happens to be loading it can yield a corrupted read. Operators should prefer the standard "write to a temp name, rename into place" pattern, which the file system handles atomically on POSIX. This is the same guidance that already applies to Python file-system bundles.
+- **Mid-run version skew.** Because the version is resolved per task launch, a long-running DAG run can in principle observe one bundle version for an upstream task and a different version for a downstream task if a swap happens between them. Bundle-version validation against `Airflow-Java-SDK-Bundle-Version` (planned — distinct from `Airflow-Java-SDK-Version`, which identifies the SDK toolkit; see [ADR-0003](0003-workload-execution.md#runtime-lifecycle-and-worker-capability)) gives operators a way to detect skew if it matters; the data-plane consequences (XCom shape changes, etc.) are the bundle author's responsibility, exactly as with Python.
+
 ## Consequences
 
 - JAR bundles are self-contained: metadata, source, and compiled code are all in one artifact, simplifying deployment (copy one directory of JARs).

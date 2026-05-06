@@ -200,6 +200,50 @@ The task execution follows a synchronous request/response pattern from the runti
 4. This repeats for each Airflow service call the task code makes
 5. When the task finishes, the runtime sends a terminal message (`SucceedTask` or `TaskState`) — no response is expected, and the process exits
 
+### IPC Forward-Compatibility Contract
+
+The supervisor-to-runtime IPC schema (the messages enumerated above plus `StartupDetails` and `DagFileParseRequest` from [ADR-0002](0002-dag-parsing.md)) is shared between Airflow Core (Python) and every language SDK. A formal AIP for this protocol is expected as follow-up work; until then, this section pins down the rules that the Java SDK assumes and that any future SDK (Go, Rust, …) must follow.
+
+**Codec rule (load-bearing).** Every SDK MUST configure its decoder to ignore unknown fields:
+
+- Python side: `msgspec` / Pydantic models are forward-compatible by default.
+- Java side: `TaskSdkFrames.kt` configures the Jackson `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES = false`. A short comment at that call site documents that this is contract, not preference — flipping it back to the Jackson default would break forward compatibility with Core.
+- Any new SDK: pick a codec configuration that mirrors this (silent drop of unknown fields).
+
+This rule is what makes additive Core changes safe to ship without bumping a version on every SDK. The analogous trap — generated clients that emit their *own* allowlist check before the configured mapper sees the bytes — has bitten downstream Java consumers in unrelated systems; flagging the contract here makes it visible to future SDK authors.
+
+**Change classification.**
+
+| Change to a message | Status | Required action |
+|---|---|---|
+| Add a new optional field | **Non-breaking.** Decoders ignore it; old SDKs unaffected. | None. Just ship it. |
+| Add a new required field | Breaking. | Deprecation cycle: ship as optional first, populate from Core, wait for SDKs to consume it, then tighten. |
+| Rename a field | Breaking. | Deprecation cycle: emit both names from Core during transition. |
+| Change a field's type | Breaking. | Deprecation cycle, typically via a new field name + parallel emission. |
+| Remove a required field | Breaking. **Especially dangerous in Java**: `lateinit var` properties on `StartupDetails` deserialize silently and only throw `UninitializedPropertyAccessException` on first access, so the failure surfaces inside user task code rather than at the protocol boundary. | Deprecation cycle. Prefer making the field optional first, then remove after a release in which all SDKs have absorbed the change. |
+
+**Recommended testing.** A small contract test on the SDK side should feed the decoder synthetic frames that exercise the rules above — an unknown field, a missing optional field, a `null` in an optional position — so that a future codec-config regression is caught before it reaches users. `SerializationCompatibilityTest` already covers DAG-payload divergence (see [ADR-0002 — Cross-SDK Serialization Compatibility](0002-dag-parsing.md#cross-sdk-serialization-compatibility)); the IPC-envelope tests are complementary and currently in the follow-up bucket.
+
+### Runtime Lifecycle and Worker Capability
+
+The language runtime is **ephemeral and one-process-per-task**:
+
+- Each task instance launches its own `java -classpath <bundle>/* <MainClass> --comm=… --logs=…` (or the equivalent for another language). The lifetime of that process is the lifetime of the task. There is no pooling or warm-pool reuse.
+- Parallelism on a single worker therefore equals the number of concurrently running task processes. Five concurrent Java tasks on one worker means five JVMs.
+- DAG parsing has the same shape: each `DagFileProcessorProcess` child handles one parse request and exits. The language runtime spawned underneath it inherits that ephemerality.
+
+**Worker capability is opt-in.** A worker can run a non-Python task only if the corresponding `apache-airflow-providers-sdk-<lang>` provider is installed and the language toolchain (e.g., a JRE) is on the host. There is no requirement that every worker support every language. Routing relies on:
+
+| Layer | Mechanism |
+|---|---|
+| Author intent | Operator / `@task.stub` declares `queue="java"` (or any custom queue) |
+| Worker selection | The executor (Celery, Kubernetes, etc.) routes the task to a worker that consumes that queue, exactly as it does for Python tasks today |
+| Runtime selection | Inside the task runner, `[sdk] queue_to_sdk` maps the queue name to the coordinator's `sdk` value (`"java"`); `_resolve_runtime_entrypoint` then dispatches into `JavaCoordinator.run_task_execution` |
+
+The deployment model is the same one that already applies to Python providers: install what your DAGs need, on the hosts they run on. Multi-language workers are possible (install both providers and both toolchains) but not required.
+
+**JAR / artifact version compatibility.** The Java SDK embeds its version in the bundle JAR via the `Airflow-Java-SDK-Version` manifest attribute (see [ADR-0004](0004-pure-java-dags.md)). Validating that a bundle's SDK version matches the installed `JavaCoordinator` version at execution time is planned but not yet wired in; this is a follow-up to add before promoting the SDK out of preview.
+
 ### StartupDetails
 
 The first message the runtime receives is `StartupDetails`, which provides full context for the task:

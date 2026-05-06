@@ -51,6 +51,8 @@ process-coordinators:
 
 A single registration covers both DAG parsing and task execution — there are no separate `dag-file-processors` or `task-coordinators` keys.
 
+**Per-host opt-in.** A coordinator becomes available on a given DAG processor host only when its provider is installed there. A deployment can run a Python-only DAG processor pool and a separate Java-capable DAG processor pool by simply *not* installing `apache-airflow-providers-sdk-java` on the Python-only hosts. The same applies to workers ([ADR-0003](0003-workload-execution.md)). There is no requirement that every parser carry a JDK; the coordinator extension point is opt-in by package install.
+
 ### Discovery: `_resolve_processor_target()`
 
 When `DagFileProcessorProcess.start()` needs to parse a file:
@@ -65,6 +67,39 @@ _resolve_processor_target(path, bundle_name, bundle_path)
 ```
 
 The first coordinator whose `can_handle_dag_file()` returns `True` wins. If none match, the default Python `_parse_file_entrypoint` runs.
+
+### Transport: Why msgpack over TCP Loopback
+
+A natural reviewer question is "why a custom-looking framed-msgpack protocol over `127.0.0.1:<random>`, and not Unix sockets / gRPC / HTTP REST?" Two clarifications are important:
+
+1. **The protocol is not new for the Java SDK.** Length-prefixed msgpack frames are the existing transport between the Airflow supervisor and the Python task runner (see `task-sdk/src/airflow/sdk/execution_time/supervisor.py` and `comms.py`). The coordinator bridge wires the language-runtime sockets onto that same byte stream — it does not define a new wire format. Migrating it would be a separate, pan-SDK change.
+2. **Forward-compat for IPC messages is treated as a contract**, not as a transport choice. The decoder rules that all SDKs must follow are stated in [ADR-0003 — IPC Forward-Compatibility Contract](0003-workload-execution.md#ipc-forward-compatibility-contract).
+
+#### Alternatives considered
+
+| Option | Why not (today) |
+|---|---|
+| **Unix domain sockets** instead of TCP loopback | Avoids the IPv6/dual-stack concern with `127.0.0.1`, and matches conventions like Docker's `/var/run/docker.sock`. Worth revisiting once a formal IPC AIP lands; not adopted now because it would diverge from the existing Python supervisor transport, which is also TCP loopback. |
+| **gRPC / Protocol Buffers** | Would require defining an intermediate IDL for `DagFileParseRequest`, `StartupDetails`, etc. The internal serialization that the language runtime returns (DagSerialization v3) is *not* expressible as a flat ProtoBuf without losing information — see "Cross-SDK serialization compatibility" below. gRPC would replace one custom-looking layer with two: ProtoBuf for transport plus a separate JSON-shaped DAG payload nested inside it. |
+| **HTTP REST** | Adds an HTTP server in every language runtime and an HTTP client in the supervisor for a strictly local, single-peer connection. None of HTTP's value (intermediaries, caching, content negotiation) applies. The Java SDK's `Supervisor.kt` already does HTTP for the *Execution API* (Edge-worker path); the comm channel between supervisor and language runtime is intentionally lower-level. |
+| **Keep msgpack-over-TCP** (chosen) | Reuses the existing supervisor transport unchanged; the bridge is a pure byte forwarder. New language SDKs only need a length-prefixed-msgpack codec, which exists in every target language. |
+
+A formal AIP for the supervisor-to-runtime comm protocol is expected as a follow-up once two or more language SDKs (Java, Go) are in tree; that AIP is the natural place to revisit transport and framing.
+
+### Cross-SDK Serialization Compatibility
+
+The `DagFileParsingResult` payload that a language runtime returns is the *Airflow internal* serialized DAG format, not an SDK-defined schema. The authoritative reference is `airflow-core/src/airflow/serialization/schema.json`, which describes `LazyDeserializedDAG` (see `airflow-core/src/airflow/dag_processing/processor.py` and `airflow-core/src/airflow/serialization/serialized_objects.py`). The scheduler reads this format directly into its internal model — any divergence is a parsing failure.
+
+**Why a per-language reimplementation rather than codegen?** The first attempt was to generate POJOs from `schema.json` (similar to how Pydantic models are generated from OpenAPI specs). That approach was abandoned because the generated types miss the wrapping/unwrapping rules that distinguish "decorated" fields (kept as `{"__type", "__var"}`) from "non-decorated" fields (unwrapped to the bare value), as well as the timetable/task encoding rules listed below. Wiring an extra translation layer on top of generated types added more code than implementing the serializer directly per language.
+
+**Compatibility strategy.** Each language SDK ships its own serializer plus a cross-SDK validator:
+
+- A shared `test_dags.yaml` defines logical fixtures.
+- Python emits `serialized_python.json` via `DagSerialization.serialize_dag()`.
+- Each language SDK emits `serialized_<lang>.json` via its own serializer.
+- `compare.py` does a field-by-field comparison and fails on divergence.
+
+This validator is planned to run as a CI gate (PR #65959). A complementary direction (suggested by reviewers, deferred): publish JSON schemas for the IPC envelope types themselves (`DagFileParsingResult`, `StartupDetails`, `TaskInstance`), which are currently undocumented because they were Python-to-Python only. That work is out of scope for the Java SDK PR but is a sensible next step once a second language SDK is in tree.
 
 ### What the Base Class Handles Automatically
 
