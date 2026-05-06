@@ -19,14 +19,7 @@ from __future__ import annotations
 
 import calendar
 
-cron_presets: dict[str, str] = {
-    "@hourly": "0 * * * *",
-    "@daily": "0 0 * * *",
-    "@weekly": "0 0 * * 0",
-    "@monthly": "0 0 1 * *",
-    "@quarterly": "0 0 1 */3 *",
-    "@yearly": "0 0 1 1 *",
-}
+from airflow.sdk.definitions.timetables._cron import CRON_PRESETS as cron_presets
 
 
 def datetime_to_nano(datetime) -> int | None:
