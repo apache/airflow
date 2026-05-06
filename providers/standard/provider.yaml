@@ -72,6 +72,7 @@ integrations:
       - /docs/apache-airflow-providers-standard/operators/datetime.rst
       - /docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst
       - /docs/apache-airflow-providers-standard/operators/latest_only.rst
+      - /docs/apache-airflow-providers-standard/operators/secure_bash.rst
       - /docs/apache-airflow-providers-standard/sensors/bash.rst
       - /docs/apache-airflow-providers-standard/sensors/python.rst
       - /docs/apache-airflow-providers-standard/sensors/datetime.rst
@@ -91,6 +92,7 @@ operators:
       - airflow.providers.standard.operators.smooth
       - airflow.providers.standard.operators.branch
       - airflow.providers.standard.operators.hitl
+      - airflow.providers.standard.operators.secure_bash
 sensors:
   - integration-name: Standard
     python-modules:
