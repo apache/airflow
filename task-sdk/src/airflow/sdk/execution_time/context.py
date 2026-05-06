@@ -622,8 +622,8 @@ class AssetStateAccessors:
         self._single_accessor().clear()
 
     def __repr__(self) -> str:
-        names = [*self._by_name, *self._by_uri]
-        return f"<AssetStateAccessors {names!r}>"
+        parts = [f"name={k!r}" for k in self._by_name] + [f"uri={k!r}" for k in self._by_uri]
+        return f"<AssetStateAccessors [{', '.join(parts)}]>"
 
 
 class MacrosAccessor:

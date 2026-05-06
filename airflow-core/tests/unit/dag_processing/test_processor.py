@@ -1969,7 +1969,7 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
-            # AIP-103 task/asset state — DAG processor has no task execution context.
+            # AIP-103 task/asset state — Dag processor has no task execution context.
             "GetTaskState",
             "SetTaskState",
             "DeleteTaskState",

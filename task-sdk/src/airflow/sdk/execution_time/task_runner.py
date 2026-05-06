@@ -255,8 +255,10 @@ class RuntimeTaskInstance(TaskInstance):
             }
             if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef)) for i in self.task.inlets):
                 self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
-                # AssetAlias inlets are skipped inside AssetStateAccessors — an alias maps to
-                # multiple concrete assets so there is no single state to bind.
+                # AssetAlias inlets are intentionally excluded from AssetStateAccessors.
+                # An alias resolves to multiple concrete assets at runtime, so there is no
+                # single asset to bind state to. Tasks with only AssetAlias inlets will not
+                # have `asset_state` in their context.
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
