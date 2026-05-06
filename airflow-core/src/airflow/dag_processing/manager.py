@@ -1012,22 +1012,31 @@ class DagFileProcessorManager(LoggingMixin):
         self.terminate_orphan_processes(present=files_set)
         self.remove_orphaned_file_stats(present=files_set)
 
+    @staticmethod
+    def _present_file_key(file: DagFileInfo) -> tuple[str, Path]:
+        """Return the stable file identity used for present/orphan checks."""
+        return file.bundle_name, file.rel_path
+
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
-        self._file_queue = deque(x for x in self._file_queue if x in present)
+        present_keys = {self._present_file_key(file) for file in present}
+        self._file_queue = deque(x for x in self._file_queue if self._present_file_key(x) in present_keys)
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
-        # todo: store stats by bundle also?
-        stats_to_remove = set(self._file_stats).difference(present)
+        present_keys = {self._present_file_key(file) for file in present}
+        stats_to_remove = {
+            file for file in self._file_stats if self._present_file_key(file) not in present_keys
+        }
         for file in stats_to_remove:
             del self._file_stats[file]
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
+        present_keys = {self._present_file_key(file) for file in present}
         for file in list(self._processors.keys()):
-            if file not in present:
+            if self._present_file_key(file) not in present_keys:
                 processor = self._processors.pop(file, None)
                 if not processor:
                     continue

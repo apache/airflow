@@ -408,6 +408,70 @@ class TestDagFileProcessorManager:
         manager.handle_removed_files(known_files={bundle_name: {file}})
         assert manager._processors == {file: mock_processor}
 
+    def test_purge_removed_files_keeps_versioned_callback_file_when_unversioned_file_is_present(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("callbacks.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+            bundle_version="v1",
+        )
+        present_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("callbacks.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+
+        manager._file_queue = deque([versioned_file])
+
+        manager.purge_removed_files_from_queue(present={present_file})
+
+        assert manager._file_queue == deque([versioned_file])
+
+    def test_terminate_orphan_processes_keeps_versioned_callback_processor_when_unversioned_file_is_present(
+        self,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("callbacks.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+            bundle_version="v1",
+        )
+        present_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("callbacks.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+        processor = MagicMock()
+
+        manager._processors[versioned_file] = processor
+
+        manager.terminate_orphan_processes(present={present_file})
+
+        assert manager._processors == {versioned_file: processor}
+        processor.kill.assert_not_called()
+
+    def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("callbacks.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+            bundle_version="v1",
+        )
+        present_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("callbacks.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+
+        manager._file_stats[versioned_file] = DagFileStat()
+
+        manager.remove_orphaned_file_stats(present={present_file})
+
+        assert manager._file_stats == {versioned_file: DagFileStat()}
+
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_files_in_queue_sorted_alphabetically(self):
         """Test dag files are sorted alphabetically"""
