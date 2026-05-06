@@ -1,1 +1,0 @@
-Prevent ``airflow db clean --skip-archive`` from hanging when a delete fails while dropping the temporary archive table.
