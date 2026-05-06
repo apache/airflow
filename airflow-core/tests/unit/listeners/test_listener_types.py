@@ -30,7 +30,9 @@ class TestFailureDetails:
         ("executor_kind", "infra_reason", "infra_metadata"),
         [
             pytest.param("kubernetes", "OOMKilled", {"exit_code": 137}, id="k8s-oom"),
-            pytest.param("kubernetes", "PodEvicted", {"node": "n-3", "evicted_by": "node-pressure"}, id="k8s-evicted"),
+            pytest.param(
+                "kubernetes", "PodEvicted", {"node": "n-3", "evicted_by": "node-pressure"}, id="k8s-evicted"
+            ),
             pytest.param("celery", "WorkerLost", {"worker_pid": 4321}, id="celery-worker-lost"),
             pytest.param("local_executor", "SIGKILL", {"signal": 9}, id="local-sigkill"),
             pytest.param("kubernetes", None, {}, id="unknown-reason"),

@@ -76,10 +76,7 @@ def on_task_instance_failed(
         the caller passed. Declare it without a default::
 
             @hookimpl
-            def on_task_instance_failed(
-                self, previous_state, task_instance, error, failure_details
-            ):
-                ...
+            def on_task_instance_failed(self, previous_state, task_instance, error, failure_details): ...
     """
 
 
