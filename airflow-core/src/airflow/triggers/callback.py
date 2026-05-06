@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import traceback
 from collections.abc import AsyncIterator
@@ -30,6 +31,21 @@ log = logging.getLogger(__name__)
 
 PAYLOAD_STATUS_KEY = "state"
 PAYLOAD_BODY_KEY = "body"
+
+
+def _is_notifier_class(callback: Any) -> bool:
+    """
+    Check if the callback is a BaseNotifier subclass (not an instance).
+
+    Uses duck-typing (checks for ``async_notify`` and ``template_fields``)
+    to avoid importing ``airflow.sdk`` in core.
+    """
+    return (
+        inspect.isclass(callback)
+        and hasattr(callback, "async_notify")
+        and hasattr(callback, "template_fields")
+        and hasattr(callback, "__await__")
+    )
 
 
 class CallbackTrigger(BaseTrigger):
@@ -52,8 +68,19 @@ class CallbackTrigger(BaseTrigger):
         try:
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)
-            # TODO: get full context and run template rendering. Right now, a simple context is included in `callback_kwargs`
+
+            # TODO: Fetch full context via the Execution API at execution time rather than
+            #  relying on the minimal context passed from the scheduler in callback_kwargs.
+            #  This will provide fresh context and use the standard Airflow Context object,
+            #  avoiding DB bloat from serialized context in trigger kwargs.
+            #  Tracked at: https://github.com/apache/airflow/pull/64984
             context = self.callback_kwargs.pop("context", None)
+
+            # Render Jinja templates in kwargs for plain function callbacks.
+            # Notifiers handle their own template rendering in __await__ via
+            # render_template_fields(), so we skip rendering here for them.
+            if context is not None and not _is_notifier_class(callback):
+                self.callback_kwargs = self.render_template(self.callback_kwargs, context)
 
             if accepts_context(callback) and context is not None:
                 result = await callback(**self.callback_kwargs, context=context)

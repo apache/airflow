@@ -238,6 +238,52 @@ class TestDeadline:
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
         assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
 
+    @pytest.mark.db_test
+    def test_handle_miss_serializes_context_through_trigger(self, dagrun, session):
+        """Verify that the enriched context can be serialized through the full trigger chain.
+
+        Exercises: handle_miss() -> TriggererCallback.queue() -> Trigger.from_object() -> serialize().
+        This catches type errors (UUIDs, datetimes, nested dicts) that would only surface at
+        trigger creation time, not when building the context dict.
+        """
+        from airflow.models.trigger import Trigger
+
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        # Call handle_miss WITHOUT mocking queue() -- let the full serialization path execute
+        deadline_orm.handle_miss(session)
+        session.flush()
+
+        assert deadline_orm.missed
+
+        # The callback should now have a trigger created via Trigger.from_object()
+        assert deadline_orm.callback.trigger is not None
+        trigger = deadline_orm.callback.trigger
+        assert isinstance(trigger, Trigger)
+
+        # Verify the trigger was persisted and can be loaded back
+        session.refresh(trigger)
+        assert trigger.classpath == "airflow.triggers.callback.CallbackTrigger"
+
+        # Verify the serialized kwargs contain the simple context
+        # (this exercises the serialize() path with UUIDs, datetimes, nested dicts)
+        trigger_kwargs = trigger.kwargs
+        assert "callback_kwargs" in trigger_kwargs
+        callback_kwargs = trigger_kwargs["callback_kwargs"]
+        assert "context" in callback_kwargs
+        context = callback_kwargs["context"]
+        assert "dag_run" in context
+        assert "deadline" in context
+        assert context["deadline"]["id"] == deadline_orm.id
+
 
 @pytest.mark.db_test
 class TestCalculatedDeadlineDatabaseCalls:

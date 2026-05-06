@@ -220,11 +220,14 @@ class Deadline(Base):
             from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
             from airflow.models import DagRun
 
-            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
-            #  from the scheduler
+            # TODO: Use the Execution API from within the triggerer/executor to fetch full context
+            #  at execution time instead of sending this minimal context from the scheduler.
+            #  This will allow template rendering with the standard Airflow Context and avoid
+            #  bloating trigger kwargs with serialized context in the DB.
+            #  Tracked at: https://github.com/apache/airflow/pull/64984
 
-            # Fetch the DagRun from the database again to avoid errors when self.dagrun's relationship fields
-            # are not in the current session.
+            # Fetch the DagRun from the database again to avoid errors when self.dagrun's
+            # relationship fields are not in the current session.
             dagrun = session.get(DagRun, self.dagrun_id)
 
             return {
