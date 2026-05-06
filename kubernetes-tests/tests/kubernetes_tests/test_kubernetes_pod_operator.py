@@ -137,7 +137,7 @@ class TestKubernetesPodOperatorSystem:
                 "affinity": {},
                 "containers": [
                     {
-                        "image": "ubuntu",
+                        "image": "ubuntu:24.04",
                         "args": ["echo 10"],
                         "command": ["bash", "-cx"],
                         "env": [],
@@ -914,7 +914,7 @@ class TestKubernetesPodOperatorSystem:
         )
         expected_init_container = {
             "name": "init-container",
-            "image": "ubuntu",
+            "image": "ubuntu:24.04",
             "command": ["bash", "-cx"],
             "args": ["echo 10"],
             "env": [{"name": "key1", "value": "value1"}, {"name": "key2", "value": "value2"}],
@@ -1037,7 +1037,7 @@ class TestKubernetesPodOperatorSystem:
                     },
                     {
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
-                        "image": "alpine",
+                        "image": "alpine:3.23",
                         "name": "airflow-xcom-sidecar",
                         "resources": {
                             "requests": {"cpu": "1m", "memory": "10Mi"},

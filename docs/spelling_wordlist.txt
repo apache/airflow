@@ -927,6 +927,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
