@@ -1201,3 +1201,10 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+      - id: ktlint
+        name: Run ktlint format
+        description: "Use ktlint (via Gradle) to format Kotlin and Java files"
+        entry: ./java-sdk/gradlew -p ./java-sdk ktlintFormat
+        language: system
+        pass_filenames: false
+        files: ^java-sdk/.*$
