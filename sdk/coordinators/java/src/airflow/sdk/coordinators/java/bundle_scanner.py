@@ -18,7 +18,7 @@
 """
 Scan directories for Airflow Java SDK bundle JARs.
 
-Mirrors the Java SDK's ``BundleScanner`` — checks each JAR's manifest for
+Mirrors the Java SDK's ``BundleScanner`` -- checks each JAR's manifest for
 ``Airflow-Java-SDK-Metadata``, reads the embedded metadata YAML, and
 resolves the main class and classpath needed to launch the bundle process.
 """
@@ -53,8 +53,8 @@ class BundleScanner:
 
     Supports two directory layouts:
 
-    - **Nested** - each immediate subdirectory of *bundles_dir* is a bundle home.
-    - **Flat** — *bundles_dir* itself contains the bundle JARs.
+    - **Nested** -- each immediate subdirectory of *bundles_dir* is a bundle home.
+    - **Flat** -- *bundles_dir* itself contains the bundle JARs.
 
     Within a bundle home the JVM convention of a ``lib/`` subdirectory for
     dependency JARs is respected automatically.
@@ -104,13 +104,11 @@ class BundleScanner:
         """Return normalised bundle-home directories to inspect."""
         candidates: list[Path] = []
 
-        # Each subdirectory is a potential bundle home (nested layout).
         if self._bundles_dir.is_dir():
             for child in sorted(self._bundles_dir.iterdir()):
                 if child.is_dir():
                     candidates.append(_normalize_bundle_home(child))
 
-        # The directory itself (flat layout).
         candidates.append(_normalize_bundle_home(self._bundles_dir))
         return candidates
 

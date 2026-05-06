@@ -51,7 +51,6 @@ if TYPE_CHECKING:
     from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
-    from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 log = structlog.getLogger(__name__)
 
@@ -151,7 +150,6 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         self._plugins_set: set[PluginInfo] = set()
-        self._coordinators: list[type[BaseCoordinator]] = []
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._init_airflow_core_hooks()
         # Populated by initialize_provider_configs(); holds provider-contributed config sections.
@@ -221,12 +219,6 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         """Lazy initialization of providers taskflow decorators."""
         self.initialize_providers_list()
         self._discover_taskflow_decorators()
-
-    @provider_info_cache("coordinators")
-    def initialize_providers_coordinators(self):
-        """Lazy initialization of providers runtime coordinators."""
-        self.initialize_providers_list()
-        self._discover_coordinators()
 
     @provider_info_cache("provider_configs")
     def initialize_provider_configs(self):
@@ -472,19 +464,6 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
             connection_testable=hasattr(hook_class, "test_connection"),
         )
 
-    def _discover_coordinators(self) -> None:
-        """Retrieve and pre-load all coordinators defined in the providers."""
-        seen: set[str] = set()
-        for provider_package, provider in self._provider_dict.items():
-            for coordinator_class_path in provider.data.get("coordinators", []):
-                if coordinator_class_path in seen:
-                    continue
-                coordinator_cls = _correctness_check(provider_package, coordinator_class_path, provider)
-                if coordinator_cls:
-                    seen.add(coordinator_class_path)
-                    self._coordinators.append(coordinator_cls)
-        self._coordinators = sorted(self._coordinators, key=lambda c: c.__qualname__)
-
     def _discover_filesystems(self) -> None:
         """Retrieve all filesystems defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -633,12 +612,6 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
     @property
-    def coordinators(self) -> list[type[BaseCoordinator]]:
-        """Returns pre-loaded runtime coordinator classes available in providers."""
-        self.initialize_providers_coordinators()
-        return self._coordinators
-
-    @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         self.initialize_provider_configs()
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
@@ -670,7 +643,6 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._asset_uri_handlers.clear()
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
-        self._coordinators.clear()
         self._provider_configs.clear()
 
         # Imported lazily to preserve SDK conf lazy initialization and avoid a configuration/runtime cycle.

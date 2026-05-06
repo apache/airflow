@@ -20,19 +20,18 @@ from __future__ import annotations
 import uuid
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
 
-from airflow.providers.sdk.java.bundle_scanner import (
+from airflow.sdk.api.datamodels._generated import BundleInfo
+from airflow.sdk.coordinators.java.bundle_scanner import (
     MAIN_CLASS_MANIFEST_KEY,
     MANIFEST_PATH,
     METADATA_MANIFEST_KEY,
     SDK_VERSION_MANIFEST_KEY,
 )
-from airflow.providers.sdk.java.coordinator import JavaCoordinator
-from airflow.sdk.api.datamodels._generated import BundleInfo
+from airflow.sdk.coordinators.java.coordinator import JavaCoordinator
 from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -102,49 +101,65 @@ class TestJavaCoordinatorAttributes:
     def test_file_extension(self):
         assert JavaCoordinator.file_extension == ".jar"
 
+    def test_default_kwargs(self):
+        coordinator = JavaCoordinator()
+        assert coordinator.java_executable == "java"
+        assert coordinator.jvm_args == []
+        assert coordinator.bundles_folder is None
+
+    def test_custom_kwargs(self):
+        coordinator = JavaCoordinator(
+            java_executable="/opt/java/bin/java",
+            jvm_args=["-Xmx512m", "-Xms256m"],
+            bundles_folder="/airflow/java-bundles",
+        )
+        assert coordinator.java_executable == "/opt/java/bin/java"
+        assert coordinator.jvm_args == ["-Xmx512m", "-Xms256m"]
+        assert coordinator.bundles_folder == "/airflow/java-bundles"
+
 
 class TestCanHandleDagFile:
     def test_valid_jar_returns_true(self, tmp_path: Path):
         jar = _create_bundle_jar(tmp_path / "valid.jar", dag_ids=["d"])
-        assert JavaCoordinator.can_handle_dag_file("bundle", str(jar)) is True
+        assert JavaCoordinator().can_handle_dag_file("bundle", str(jar)) is True
 
     def test_non_jar_file_returns_false(self, tmp_path: Path):
         py_file = tmp_path / "dag.py"
         py_file.write_text("from airflow import DAG")
-        assert JavaCoordinator.can_handle_dag_file("bundle", str(py_file)) is False
+        assert JavaCoordinator().can_handle_dag_file("bundle", str(py_file)) is False
 
     def test_missing_file_returns_false(self, tmp_path: Path):
-        assert JavaCoordinator.can_handle_dag_file("bundle", str(tmp_path / "missing.jar")) is False
+        assert JavaCoordinator().can_handle_dag_file("bundle", str(tmp_path / "missing.jar")) is False
 
     def test_bad_zip_returns_false(self, tmp_path: Path):
         bad = tmp_path / "bad.jar"
         bad.write_text("not a zip")
-        assert JavaCoordinator.can_handle_dag_file("bundle", str(bad)) is False
+        assert JavaCoordinator().can_handle_dag_file("bundle", str(bad)) is False
 
     def test_jar_without_sdk_manifest_returns_false(self, tmp_path: Path):
         jar = tmp_path / "plain.jar"
         with zipfile.ZipFile(jar, "w") as zf:
-            zf.writestr("dummy.class", b"")
-        assert JavaCoordinator.can_handle_dag_file("bundle", str(jar)) is False
+            zf.writestr("placeholder.class", b"")
+        assert JavaCoordinator().can_handle_dag_file("bundle", str(jar)) is False
 
 
 class TestGetCodeFromFile:
     def test_returns_embedded_code(self, tmp_path: Path):
         code = "from airflow import DAG\ndag = DAG('my_dag')"
         jar = _create_bundle_jar(tmp_path / "with_code.jar", dag_ids=["d"], dag_code=code)
-        assert JavaCoordinator.get_code_from_file(str(jar)) == code
+        assert JavaCoordinator().get_code_from_file(str(jar)) == code
 
     def test_raises_when_no_code(self, tmp_path: Path):
         jar = _create_bundle_jar(tmp_path / "no_code.jar", dag_ids=["d"])
         with pytest.raises(FileNotFoundError, match="No DAG source code found in JAR"):
-            JavaCoordinator.get_code_from_file(str(jar))
+            JavaCoordinator().get_code_from_file(str(jar))
 
 
 class TestDagParsingCmd:
-    def test_builds_java_command(self, tmp_path: Path):
+    def test_builds_default_java_command(self, tmp_path: Path):
         jar = _create_bundle_jar(tmp_path / "app.jar", dag_ids=["d"])
         bundle_path = str(tmp_path)
-        cmd = JavaCoordinator.dag_parsing_cmd(
+        cmd = JavaCoordinator().dag_parsing_cmd(
             dag_file_path=str(jar),
             bundle_name="my_bundle",
             bundle_path=bundle_path,
@@ -160,6 +175,31 @@ class TestDagParsingCmd:
             "--logs=localhost:5678",
         ]
 
+    def test_uses_custom_executable_and_jvm_args(self, tmp_path: Path):
+        jar = _create_bundle_jar(tmp_path / "app.jar", dag_ids=["d"])
+        bundle_path = str(tmp_path)
+        coordinator = JavaCoordinator(
+            java_executable="/opt/jdk-17/bin/java",
+            jvm_args=["-Xmx1024m", "-Xms256m"],
+        )
+        cmd = coordinator.dag_parsing_cmd(
+            dag_file_path=str(jar),
+            bundle_name="my_bundle",
+            bundle_path=bundle_path,
+            comm_addr="localhost:1234",
+            logs_addr="localhost:5678",
+        )
+        assert cmd == [
+            "/opt/jdk-17/bin/java",
+            "-Xmx1024m",
+            "-Xms256m",
+            "-classpath",
+            f"{bundle_path}/*",
+            TEST_MAIN_CLASS,
+            "--comm=localhost:1234",
+            "--logs=localhost:5678",
+        ]
+
 
 class TestTaskExecutionCmd:
     def test_pure_java_dag(self, tmp_path: Path):
@@ -168,7 +208,7 @@ class TestTaskExecutionCmd:
         ti = _make_ti()
         bundle_info = BundleInfo(name="my_bundle")
 
-        cmd = JavaCoordinator.task_execution_cmd(
+        cmd = JavaCoordinator().task_execution_cmd(
             what=ti,  # type: ignore[arg-type]
             dag_file_path=str(jar),
             bundle_path=bundle_path,
@@ -185,7 +225,7 @@ class TestTaskExecutionCmd:
             "--logs=localhost:5678",
         ]
 
-    def test_python_stub_dag_with_bundles_folder(self, tmp_path: Path):
+    def test_python_stub_dag_uses_bundles_folder_kwarg(self, tmp_path: Path):
         bundles_folder = tmp_path / "java_bundles"
         bundle_sub = bundles_folder / "my_bundle"
         bundle_sub.mkdir(parents=True)
@@ -194,11 +234,31 @@ class TestTaskExecutionCmd:
         ti = _make_ti(dag_id="stub_dag")
         bundle_info = BundleInfo(name="my_bundle")
 
-        with patch(
-            "airflow.providers.common.compat.sdk.conf.get",
-            return_value=str(bundles_folder),
-        ):
-            cmd = JavaCoordinator.task_execution_cmd(
+        coordinator = JavaCoordinator(bundles_folder=str(bundles_folder))
+        cmd = coordinator.task_execution_cmd(
+            what=ti,  # type: ignore[arg-type]
+            dag_file_path="/dags/stub_dag.py",
+            bundle_path="/some/bundle/path",
+            bundle_info=bundle_info,
+            comm_addr="localhost:1234",
+            logs_addr="localhost:5678",
+        )
+
+        assert cmd == [
+            "java",
+            "-classpath",
+            f"{bundles_folder}/my_bundle/app.jar",
+            TEST_MAIN_CLASS,
+            "--comm=localhost:1234",
+            "--logs=localhost:5678",
+        ]
+
+    def test_python_stub_dag_without_bundles_folder_raises(self):
+        ti = _make_ti()
+        bundle_info = BundleInfo(name="my_bundle")
+
+        with pytest.raises(ValueError, match="bundles_folder kwarg must be set"):
+            JavaCoordinator().task_execution_cmd(
                 what=ti,  # type: ignore[arg-type]
                 dag_file_path="/dags/stub_dag.py",
                 bundle_path="/some/bundle/path",
@@ -206,37 +266,3 @@ class TestTaskExecutionCmd:
                 comm_addr="localhost:1234",
                 logs_addr="localhost:5678",
             )
-
-            assert cmd == [
-                "java",
-                "-classpath",
-                f"{bundles_folder}/my_bundle/app.jar",
-                TEST_MAIN_CLASS,
-                "--comm=localhost:1234",
-                "--logs=localhost:5678",
-            ]
-
-    @pytest.mark.parametrize(
-        "config_value",
-        [
-            pytest.param(None, id="none"),
-            pytest.param("", id="empty_string"),
-        ],
-    )
-    def test_python_stub_dag_invalid_config_raises(self, config_value):
-        ti = _make_ti()
-        bundle_info = BundleInfo(name="my_bundle")
-
-        with patch(
-            "airflow.providers.common.compat.sdk.conf.get",
-            return_value=config_value,
-        ):
-            with pytest.raises(ValueError, match="bundles_folder config must be set"):
-                JavaCoordinator.task_execution_cmd(
-                    what=ti,  # type: ignore[arg-type]
-                    dag_file_path="/dags/stub_dag.py",
-                    bundle_path="/some/bundle/path",
-                    bundle_info=bundle_info,
-                    comm_addr="localhost:1234",
-                    logs_addr="localhost:5678",
-                )

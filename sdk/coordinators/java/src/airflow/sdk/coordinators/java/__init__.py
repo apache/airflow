@@ -14,4 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+"""Java runtime coordinator for the Apache Airflow Task SDK."""
+
+from __future__ import annotations
+
+from airflow.sdk.coordinators.java.coordinator import JavaCoordinator
+
+__all__ = ["JavaCoordinator", "__version__"]
+
+__version__ = "0.1.0"

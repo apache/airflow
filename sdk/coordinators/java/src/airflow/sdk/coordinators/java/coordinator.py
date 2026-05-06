@@ -25,7 +25,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow.providers.sdk.java.bundle_scanner import BundleScanner, read_dag_code
+from airflow.sdk.coordinators.java.bundle_scanner import BundleScanner, read_dag_code
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 if TYPE_CHECKING:
@@ -34,31 +34,61 @@ if TYPE_CHECKING:
 
 
 class JavaCoordinator(BaseCoordinator):
-    """Coordinator that launches a JVM subprocess for DAG parsing and task execution."""
+    """
+    Coordinator that launches a JVM subprocess for DAG parsing and task execution.
+
+    Configuration is taken from the ``[sdk] coordinators`` entry that constructs
+    this instance::
+
+        {
+            "name": "jdk-17",
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {
+                "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+                "jvm_args": ["-Xmx1024m"],
+                "bundles_folder": "~/airflow/java-bundles",
+            },
+        }
+
+    :param java_executable: Path to the ``java`` binary (defaults to ``"java"``,
+        which relies on ``$PATH``).
+    :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
+    :param bundles_folder: Directory scanned for JAR bundles when a Python
+        stub DAG delegates task execution to Java.  Required for the stub-DAG
+        flow; unused for pure-Java DAGs.
+    """
 
     sdk = "java"
     file_extension = ".jar"
 
-    @classmethod
-    def can_handle_dag_file(cls, bundle_name: str, path: str | os.PathLike[str]) -> bool:
+    def __init__(
+        self,
+        *,
+        java_executable: str = "java",
+        jvm_args: list[str] | None = None,
+        bundles_folder: str | None = None,
+    ) -> None:
+        self.java_executable = java_executable
+        self.jvm_args = list(jvm_args) if jvm_args else []
+        self.bundles_folder = bundles_folder
+
+    def can_handle_dag_file(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
         """Return ``True`` when *path* is a JAR with valid Airflow Java SDK manifest attributes."""
-        if not os.fspath(path).endswith(cls.file_extension):
+        if not os.fspath(path).endswith(self.file_extension):
             return False
         with contextlib.suppress(FileNotFoundError, NotADirectoryError, zipfile.BadZipFile, KeyError):
             return BundleScanner.resolve_jar(Path(path)) is not None
         return False
 
-    @classmethod
-    def get_code_from_file(cls, fileloc: str) -> str:
+    def get_code_from_file(self, fileloc: str) -> str:
         """Read embedded DAG source code from a JAR bundle."""
         code = read_dag_code(Path(fileloc))
         if code is None:
             raise FileNotFoundError(f"No DAG source code found in JAR: {fileloc}")
         return code
 
-    @classmethod
     def dag_parsing_cmd(
-        cls,
+        self,
         *,
         dag_file_path: str,
         bundle_name: str,
@@ -74,7 +104,8 @@ class JavaCoordinator(BaseCoordinator):
         # it.  Using ``<dir>/*`` lets the JVM load every JAR in the directory.
         classpath = f"{bundle_path}/*"
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             classpath,
             BundleScanner.resolve_jar(jar_path),
@@ -82,9 +113,8 @@ class JavaCoordinator(BaseCoordinator):
             f"--logs={logs_addr}",
         ]
 
-    @classmethod
     def task_execution_cmd(
-        cls,
+        self,
         *,
         what: TaskInstanceDTO,
         dag_file_path: str,
@@ -95,12 +125,13 @@ class JavaCoordinator(BaseCoordinator):
     ) -> list[str]:
         """Build the ``java`` command for executing a task in a JAR bundle."""
         if dag_file_path.endswith(".jar"):
-            # Case 1: Pure Java Dag — the dag_file_path points directly to a
+            # Case 1: Pure Java Dag -- the dag_file_path points directly to a
             # bundle JAR inside the Airflow Core Dag Bundle.
             jar_path = Path(dag_file_path)
             classpath = f"{bundle_path}/*"
             return [
-                "java",
+                self.java_executable,
+                *self.jvm_args,
                 "-classpath",
                 classpath,
                 BundleScanner.resolve_jar(jar_path),
@@ -108,21 +139,20 @@ class JavaCoordinator(BaseCoordinator):
                 f"--logs={logs_addr}",
             ]
 
-        # Case 2: Python Stub Dag — the dag_file_path is a Python file but
+        # Case 2: Python Stub Dag -- the dag_file_path is a Python file but
         # the task delegates to a Java runtime.  The actual JAR bundle lives
-        # in the provider's configured ``[java] bundles_folder``.
-        from airflow.providers.common.compat.sdk import conf
-
-        bundles_folder = conf.get("java", "bundles_folder", fallback=None)
-        if not bundles_folder:
+        # in ``bundles_folder`` (passed to __init__ from the [sdk] coordinators
+        # config entry).
+        if not self.bundles_folder:
             raise ValueError(
-                "The [java] bundles_folder config must be set for Python stub DAGs "
+                "JavaCoordinator: bundles_folder kwarg must be set for Python stub DAGs "
                 "that delegate to Java task execution."
             )
 
-        resolved = BundleScanner(Path(bundles_folder)).resolve(dag_id=what.dag_id)
+        resolved = BundleScanner(Path(self.bundles_folder)).resolve(dag_id=what.dag_id)
         return [
-            "java",
+            self.java_executable,
+            *self.jvm_args,
             "-classpath",
             resolved.classpath,
             resolved.main_class,

@@ -819,16 +819,13 @@ class DagFileProcessorManager(LoggingMixin):
         return rel_paths
 
     def _get_runtime_file_extensions(self) -> tuple[str, ...]:
-        """Collect file extensions from registered runtime coordinators (cached after first call)."""
+        """Collect file extensions from configured runtime coordinators (cached after first call)."""
         if self._runtime_file_extensions is not None:
             return self._runtime_file_extensions
 
-        from airflow.providers_manager import ProvidersManager
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
-        extensions: list[str] = []
-        for coordinator_cls in ProvidersManager().coordinators:
-            extensions.append(coordinator_cls.file_extension)
-        self._runtime_file_extensions = tuple(extensions)
+        self._runtime_file_extensions = get_coordinator_manager().file_extensions()
         return self._runtime_file_extensions
 
     def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
