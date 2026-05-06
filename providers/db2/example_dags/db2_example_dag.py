@@ -45,6 +45,22 @@ def db2_example_dag() -> None:
     Example DAG showing Db2 provider capabilities.
     """
 
+    # Task 0: Cleanup - Drop tables if they exist (for idempotent runs)
+    @task
+    def cleanup_tables():
+        """Drop tables if they exist to ensure clean state."""
+        hook = Db2Hook(db2_conn_id="db2_default")
+        
+        for table in ['EMPLOYEES_BACKUP', 'EMPLOYEES']:
+            try:
+                hook.run(f"DROP TABLE {table}")
+                print(f"✓ Dropped table {table}")
+            except Exception as e:
+                if 'SQLSTATE=42704' in str(e):  # Table doesn't exist
+                    print(f"ℹ Table {table} doesn't exist, skipping")
+                else:
+                    raise
+
     # Task 1: Create a sample table using Db2Operator
     create_table = Db2Operator(
         task_id="create_sample_table",
@@ -59,6 +75,7 @@ def db2_example_dag() -> None:
                 updated_at TIMESTAMP
             )
         """,
+        autocommit=True,  # Required for DDL statements in Db2
     )
 
     # Task 2: Insert sample data using Db2Operator with parameters
@@ -66,11 +83,12 @@ def db2_example_dag() -> None:
         task_id="insert_sample_data",
         sql="""
             INSERT INTO employees (employee_id, first_name, last_name, department, salary, hire_date, updated_at)
-            VALUES 
+            VALUES
                 (1, 'John', 'Doe', 'Engineering', 75000.00, '2023-01-15', CURRENT TIMESTAMP),
                 (2, 'Jane', 'Smith', 'Marketing', 65000.00, '2023-02-20', CURRENT TIMESTAMP),
                 (3, 'Bob', 'Johnson', 'Sales', 70000.00, '2023-03-10', CURRENT TIMESTAMP)
         """,
+        autocommit=True,  # Ensure data is committed
     )
 
     # Task 3: Query data using Db2Hook
@@ -93,11 +111,12 @@ def db2_example_dag() -> None:
     update_salary = Db2Operator(
         task_id="update_employee_salary",
         sql="""
-            UPDATE employees 
-            SET salary = salary * 1.10, 
-                updated_at = CURRENT TIMESTAMP 
+            UPDATE employees
+            SET salary = salary * 1.10,
+                updated_at = CURRENT TIMESTAMP
             WHERE department = 'Engineering'
         """,
+        autocommit=True,  # Ensure updates are committed
     )
 
     # Task 5: Calculate department statistics using Db2Operator
@@ -151,10 +170,11 @@ def db2_example_dag() -> None:
     create_backup = Db2Operator(
         task_id="create_backup_table",
         sql="""
-            CREATE TABLE employees_backup AS 
-            (SELECT * FROM employees) 
+            CREATE TABLE employees_backup AS
+            (SELECT * FROM employees)
             WITH DATA
         """,
+        autocommit=True,  # Required for DDL statements in Db2
     )
 
     # Task 8: Verify backup using Db2Hook
@@ -186,7 +206,7 @@ def db2_example_dag() -> None:
     # )
 
     # Define task dependencies
-    create_table >> insert_data >> query_employees() >> update_salary
+    cleanup_tables() >> create_table >> insert_data >> query_employees() >> update_salary
     update_salary >> calculate_stats >> display_statistics()
     display_statistics() >> create_backup >> verify_backup()
 
