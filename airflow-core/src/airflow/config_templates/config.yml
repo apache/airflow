@@ -2101,6 +2101,30 @@ api_auth:
       default: "10"
       example: ~
       type: integer
+    revoked_token_cache_size:
+      description: |
+        Maximum number of JWT JTI lookups cached in process memory to avoid a database
+        roundtrip for every authenticated API request. See ``revoked_token_cache_ttl_seconds``
+        for the entry lifetime.
+
+        Set to 0 to disable caching and revert to a database query per request.
+      version_added: 3.2.1
+      type: integer
+      example: ~
+      default: "10000"
+    revoked_token_cache_ttl_seconds:
+      description: |
+        Time-to-live in seconds for cached JWT revocation lookups. Bounds the worst-case
+        window during which a token revoked on one API server worker can still be honored
+        as valid by another worker (uvicorn workers do not share memory).
+
+        Set to 0 to disable caching and revert to a database query per request. Operators
+        needing strict cross-worker logout consistency can lower this value at the cost
+        of more frequent database lookups.
+      version_added: 3.2.1
+      type: integer
+      example: ~
+      default: "60"
 execution_api:
   description: |
     Settings related to the Execution API server.
