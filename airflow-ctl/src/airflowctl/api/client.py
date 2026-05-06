@@ -470,7 +470,13 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property
-    def tasks(self):
+    def plugins(self):
+        """Operations related to plugins."""
+        return PluginsOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def task_instances(self):
         """Operations related to task instances."""
         return TaskInstanceOperations(self)
 

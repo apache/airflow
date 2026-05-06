@@ -61,6 +61,8 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorResponse,
     JobCollectionResponse,
     PatchTaskInstanceBody,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
@@ -904,6 +906,22 @@ class XComOperations(BaseOperations):
                 params=params,
             )
             return key
+        except ServerResponseError as e:
+            raise e
+
+
+class PluginsOperations(BaseOperations):
+    """Plugins operations."""
+
+    def list(self) -> PluginCollectionResponse | ServerResponseError:
+        """List all plugins from the API server."""
+        return super().execute_list(path="plugins", data_model=PluginCollectionResponse)
+
+    def list_import_errors(self) -> PluginImportErrorCollectionResponse | ServerResponseError:
+        """List plugin import errors from the API server."""
+        try:
+            self.response = self.client.get("plugins/importErrors")
+            return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 

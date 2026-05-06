@@ -81,6 +81,10 @@ from airflowctl.api.datamodels.generated import (
     JobCollectionResponse,
     JobResponse,
     PatchTaskInstanceBody,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
+    PluginImportErrorResponse,
+    PluginResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolResponse,
@@ -1796,6 +1800,56 @@ class TestXComOperations:
         assert response == self.key
 
 
+class TestPluginsOperations:
+    plugin_response = PluginResponse(
+        name="test-plugin",
+        macros=[],
+        flask_blueprints=[],
+        fastapi_apps=[],
+        fastapi_root_middlewares=[],
+        external_views=[],
+        react_apps=[],
+        appbuilder_views=[],
+        appbuilder_menu_items=[],
+        global_operator_extra_links=[],
+        operator_extra_links=[],
+        source="test-source",
+        listeners=[],
+        timetables=[],
+    )
+    plugin_collection_response = PluginCollectionResponse(plugins=[plugin_response], total_entries=1)
+    plugin_import_error_response = PluginImportErrorResponse(
+        source="plugins/test_plugin.py", error="something went wrong"
+    )
+    plugin_import_error_collection_response = PluginImportErrorCollectionResponse(
+        import_errors=[plugin_import_error_response], total_entries=1
+    )
+
+    def test_list(self):
+        """Test listing plugins."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/plugins"
+            return httpx.Response(200, json=json.loads(self.plugin_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list()
+        assert response == self.plugin_collection_response
+
+    def test_list_import_errors(self):
+        """Test listing plugin import errors."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/plugins/importErrors"
+            return httpx.Response(
+                200, json=json.loads(self.plugin_import_error_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list_import_errors()
+        assert response == self.plugin_import_error_collection_response
+
+
 class TestTaskInstanceOperations:
     """Test suite for Task Instance operations."""
 
@@ -1845,7 +1899,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.get(
+        response = client.task_instances.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -1862,7 +1916,7 @@ class TestTaskInstanceOperations:
             return httpx.Response(200, json=[json.loads(self.task_instance_response.model_dump_json())])
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.get(
+        response = client.task_instances.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -1881,7 +1935,7 @@ class TestTaskInstanceOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.get(
+        response = client.task_instances.get(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -1898,7 +1952,7 @@ class TestTaskInstanceOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.tasks.list(
+        response = client.task_instances.list(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
         )
@@ -1917,7 +1971,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = ClearTaskInstancesBody(dry_run=True)
-        response = client.tasks.clear(
+        response = client.task_instances.clear(
             dag_id=self.dag_id,
             body=body,
         )
@@ -1944,7 +1998,7 @@ class TestTaskInstanceOperations:
             task_ids=[self.task_id],
             dag_run_id=self.dag_run_id,
         )
-        response = client.tasks.clear(
+        response = client.task_instances.clear(
             dag_id=self.dag_id,
             body=body,
         )
@@ -1963,7 +2017,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = PatchTaskInstanceBody(new_state=TaskInstanceState.FAILED)
-        response = client.tasks.update(
+        response = client.task_instances.update(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -1986,7 +2040,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = PatchTaskInstanceBody(note="Manually marked as success")
-        response = client.tasks.update(
+        response = client.task_instances.update(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2005,7 +2059,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = PatchTaskInstanceBody(new_state=TaskInstanceState.FAILED)
-        response = client.tasks.update(
+        response = client.task_instances.update(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,
@@ -2026,7 +2080,7 @@ class TestTaskInstanceOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         body = PatchTaskInstanceBody(new_state=TaskInstanceState.FAILED)
-        response = client.tasks.update(
+        response = client.task_instances.update(
             dag_id=self.dag_id,
             dag_run_id=self.dag_run_id,
             task_id=self.task_id,

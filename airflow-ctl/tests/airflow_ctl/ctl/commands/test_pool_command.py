@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import re
 from unittest import mock
 
 import pytest
@@ -174,8 +175,6 @@ class TestPoolExportCommand:
 
         # Verify output message
         captured = capsys.readouterr()
-        import re
-
         ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         out_str = ansi_escape.sub("", captured.out).replace("\n", "")
         # Since rich wraps long lines, newlines are removed, so we assert the combined text.

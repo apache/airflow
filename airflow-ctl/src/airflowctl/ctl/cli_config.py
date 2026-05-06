@@ -26,6 +26,7 @@ import datetime
 import inspect
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -50,6 +51,31 @@ from airflowctl.exceptions import (
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+
+
+def _is_list_annotation(annotation: Any) -> bool:
+    """
+    Check whether a Pydantic field annotation is a list type.
+
+    Handles ``Annotated[list[...] | None, ...]`` and similar wrapped forms
+    that ``typing.get_origin`` alone cannot detect.
+    """
+    origin = typing.get_origin(annotation)
+
+    # Direct list[...]
+    if origin is list:
+        return True
+
+    # Unwrap Annotated[X, ...]
+    if origin is typing.Annotated:
+        inner = typing.get_args(annotation)[0]
+        return _is_list_annotation(inner)
+
+    # Unwrap Union / X | None
+    if origin is typing.Union:
+        return any(_is_list_annotation(arg) for arg in typing.get_args(annotation) if arg is not type(None))
+
+    return False
 
 
 def lazy_load_command(import_path: str) -> Callable:
@@ -676,11 +702,9 @@ class CommandFactory:
                             ):
                                 val = args_dict[expanded_parameter]
                                 if isinstance(val, str) and expanded_parameter in datamodel.model_fields:
-                                    import typing
-
-                                    annotation = datamodel.model_fields[expanded_parameter].annotation
-                                    origin = typing.get_origin(annotation)
-                                    if origin is list or getattr(annotation, "__origin__", None) is list:
+                                    if _is_list_annotation(
+                                        datamodel.model_fields[expanded_parameter].annotation
+                                    ):
                                         val = [v.strip() for v in val.split(",") if v.strip()]
                                 method_params[parameter_key][
                                     self._sanitize_method_param_key(expanded_parameter)
