@@ -4769,9 +4769,7 @@ class TestTaskCheckpointed:
             pytest.param([1, 2, 3], id="list-payload"),
         ],
     )
-    def test_run_returns_checkpointed_state(
-        self, checkpoint_data, create_runtime_ti, mock_supervisor_comms
-    ):
+    def test_run_returns_checkpointed_state(self, checkpoint_data, create_runtime_ti, mock_supervisor_comms):
         """``run()`` reports CHECKPOINTED when the operator raises
         ``AirflowTaskCheckpointed``. The exception's ``checkpoint_data`` payload
         is preserved on the exception object regardless of shape; persistence
