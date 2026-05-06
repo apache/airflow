@@ -42,7 +42,7 @@ from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -135,6 +135,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.retry_policy import RetryDecision
     from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
@@ -776,14 +777,17 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
+    bundle_prepare_start = time.monotonic()
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
+    bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
+    dag_file_parse_start = time.monotonic()
     bag = BundleDagBag(
         dag_folder=dag_absolute_path,
         safe_mode=False,
@@ -791,6 +795,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
     )
+    dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
@@ -823,6 +828,20 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
 
+    # Surface the post-RUNNING startup breakdown so support engineers and DAG authors can
+    # attribute apparent slow startup to bundle prep (Airflow-side, e.g. git fetch) vs.
+    # DAG file parse (user code). Emitted before return so it lands in the task log.
+    # Under `run_as_user` impersonation, parse() runs once pre-sudo and again post-sudo,
+    # so this event fires twice for those tasks -- the two entries show impersonation overhead.
+    log.info(
+        "Worker startup parse complete",
+        bundle_name=bundle_info.name,
+        bundle_version=bundle_info.version,
+        dag_file=what.dag_rel_path,
+        dag_id=what.ti.dag_id,
+        bundle_prepare_ms=bundle_prepare_ms,
+        dag_file_parse_ms=dag_file_parse_ms,
+    )
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
@@ -1255,9 +1274,7 @@ def run(
     error: BaseException | None = None
 
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-    Stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("ti.start", tags=stats_tags)
+    stats.incr("ti.start", tags=stats_tags)
 
     try:
         # First, clear the xcom data sent from server
@@ -1346,7 +1363,7 @@ def run(
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1364,19 +1381,14 @@ def run(
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.error("Task exited", exit_code=e.code)
-        msg, state = _handle_current_task_failed(ti)
+        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     except BaseException as e:
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     finally:
-        Stats.incr(
-            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
-            tags=stats_tags,
-        )
-        # Same metric with tagging
-        Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+        stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
             # If the supervisor rejects the terminal-state report
@@ -1407,10 +1419,8 @@ def _handle_current_task_success(
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
-    Stats.incr("ti_successes", tags=stats_tags)
+    stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
+    stats.incr("ti_successes", tags=stats_tags)
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
@@ -1423,8 +1433,76 @@ def _handle_current_task_success(
     return msg, TaskInstanceState.SUCCESS
 
 
+def _evaluate_retry_policy(
+    ti: RuntimeTaskInstance,
+    exception: BaseException,
+    log: Logger,
+    context: Context | None = None,
+) -> RetryDecision | None:
+    """
+    Evaluate the task's retry policy if one is configured.
+
+    Returns ``None`` when no policy is configured so the caller falls through
+    to the standard retry logic.
+    """
+    policy = getattr(ti.task, "retry_policy", None)
+    if policy is None:
+        return None
+    try:
+        max_tries = ti._ti_context_from_server.max_tries if ti._ti_context_from_server else 0
+        decision = policy.evaluate(
+            exception=exception,
+            try_number=ti.try_number,
+            max_tries=max_tries,
+            context=context,
+        )
+        if decision.reason:
+            log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
+        return decision
+    except Exception:
+        log.exception("Retry policy evaluation failed, falling back to default behaviour")
+        return None
+
+
+def _apply_retry_policy_or_default(
+    ti: RuntimeTaskInstance,
+    exception: BaseException,
+    log: Logger,
+    context: Context | None = None,
+) -> tuple[RetryTask | TaskState, TaskInstanceState]:
+    """
+    Evaluate the retry policy (if any) and decide the task's next state.
+
+    When the policy returns FAIL the task is marked as failed immediately,
+    bypassing the normal retry-count check.  When it returns RETRY with
+    a custom delay, that delay is forwarded in the ``RetryTask`` message.
+    For DEFAULT (or when no policy is configured), the standard
+    ``_handle_current_task_failed`` logic runs.
+    """
+    from airflow.sdk.definitions.retry_policy import RetryAction
+
+    decision = _evaluate_retry_policy(ti, exception, log, context)
+    if decision is not None and decision.action == RetryAction.FAIL:
+        ti.end_date = datetime.now(tz=timezone.utc)
+        return (
+            TaskState(
+                state=TaskInstanceState.FAILED,
+                end_date=ti.end_date,
+                rendered_map_index=ti.rendered_map_index,
+            ),
+            TaskInstanceState.FAILED,
+        )
+    if decision is not None and decision.action == RetryAction.RETRY:
+        return _handle_current_task_failed(
+            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+        )
+    return _handle_current_task_failed(ti)
+
+
 def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
+    retry_delay_override: timedelta | None = None,
+    retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
@@ -1433,13 +1511,16 @@ def _handle_current_task_failed(
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-    Stats.incr(f"operator_failures_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
-    Stats.incr("ti_failures", tags=stats_tags)
+    stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
+    stats.incr("ti_failures", tags=stats_tags)
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
-        return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
+        retry_kwargs: dict[str, Any] = {"end_date": end_date}
+        if retry_delay_override is not None:
+            retry_kwargs["retry_delay_seconds"] = retry_delay_override.total_seconds()
+        if retry_reason is not None:
+            retry_kwargs["retry_reason"] = retry_reason[:500]
+        return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
     return (
         TaskState(
             state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
@@ -1789,8 +1870,7 @@ def finalize(
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
         stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
-        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+        stats.timing("task.duration", duration_ms, tags=stats_tags)
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
@@ -1881,8 +1961,10 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    stats_factory = stats_utils.get_stats_factory(Stats)
-    Stats.initialize(factory=stats_factory)
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
 
     stack = ExitStack()
     with stack:

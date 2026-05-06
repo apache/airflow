@@ -25,7 +25,7 @@ import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.listeners.types import AssetEvent as ListenerAssetEvent
@@ -173,6 +173,68 @@ class AssetManager(LoggingMixin):
         )
 
     @classmethod
+    def _filter_dags_by_team(
+        cls,
+        dags_to_queue: set[DagModel],
+        source_teams: set[str],
+        asset_model: AssetModel,
+        source_is_api: bool,
+        *,
+        session: Session,
+    ) -> set[DagModel]:
+        """
+        Filter consuming DAGs based on team membership when multi_team is enabled.
+
+        :param dags_to_queue: set of DagModel instances to potentially queue.
+        :param source_teams: set of team names the source belongs to. Empty set means teamless.
+        :param asset_model: the AssetModel whose extra may contain allow_producer_teams.
+        :param source_is_api: True if the event was triggered via the REST API (not a DAG task).
+        :param session: SQLAlchemy session.
+        """
+        if not conf.getboolean("core", "multi_team"):
+            return dags_to_queue
+
+        if not dags_to_queue:
+            return dags_to_queue
+
+        from airflow.models.dag import DagModel
+
+        allow_producer_teams: list[str] = asset_model.extra.get("allow_producer_teams", [])
+        is_teamless_source = len(source_teams) == 0
+
+        dag_ids = [dag.dag_id for dag in dags_to_queue]
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+
+        filtered = set()
+        for dag in dags_to_queue:
+            consumer_team = dag_id_to_team.get(dag.dag_id)
+
+            if consumer_team is None:
+                # Teamless consumer accepts events from any source
+                filtered.add(dag)
+                continue
+
+            if is_teamless_source:
+                if source_is_api:
+                    # Teamless API user can only trigger teamless consumers
+                    continue
+                # Teamless DAG producer is global — triggers all consumers
+                filtered.add(dag)
+                continue
+
+            if consumer_team in source_teams:
+                # Same team
+                filtered.add(dag)
+                continue
+
+            if source_teams & set(allow_producer_teams):
+                # Cross-team via allow_producer_teams
+                filtered.add(dag)
+                continue
+
+        return filtered
+
+    @classmethod
     def register_asset_change(
         cls,
         *,
@@ -182,13 +244,27 @@ class AssetManager(LoggingMixin):
         source_alias_names: Collection[str] = (),
         session: Session,
         partition_key: str | None = None,
+        source_is_api: bool = False,
+        api_user_teams: set[str] | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
         Register asset related changes.
 
         For local assets, look them up, record the asset event, queue dagruns, and broadcast
-        the asset event
+        the asset event.
+
+        When multi_team mode is enabled, team-based filtering is applied to determine which
+        consumer DAGs should be queued:
+        - For DAG-produced events (task_instance is set), source teams are resolved automatically
+          from the producing DAG's bundle.
+        - For API-produced events (source_is_api=True), ``api_user_teams`` must be provided explicitly.
+
+        :param source_is_api: True if the event originates from the REST API rather than
+            a DAG task execution.
+        :param api_user_teams: Teams of the API user triggering the event. Only used when
+            source_is_api=True. Ignored when task_instance is provided (teams are resolved
+            from the DAG's bundle instead).
         """
         from airflow.models.dag import DagModel
 
@@ -283,11 +359,26 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        Stats.incr("asset.updates")
+        stats.incr("asset.updates")
 
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
         )
+
+        if conf.getboolean("core", "multi_team"):
+            if task_instance:
+                team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
+                resolved_source_teams = {team_name} if team_name else set()
+            else:
+                resolved_source_teams = api_user_teams or set()
+            dags_to_queue = cls._filter_dags_by_team(
+                dags_to_queue=dags_to_queue,
+                source_teams=resolved_source_teams,
+                asset_model=asset_model,
+                source_is_api=source_is_api,
+                session=session,
+            )
+
         log.debug("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
         cls._queue_dagruns(
             asset_id=asset_model.id,

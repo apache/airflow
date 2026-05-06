@@ -1,18 +1,13 @@
 ---
 name: pr-stats
 description: |
-  Produce maintainer-facing statistics about open pull requests on
-  `apache/airflow` (or another target repo). Successor to
-  `breeze pr stats`: read-only, no mutations — just two summary
-  tables grouped by `area:*` label (Triaged final-state, and
-  Triaged still-open) plus per-area age-bucket breakdowns so the
-  maintainer can see where queue pressure is sitting.
-
-  Invoke when the user says "how is the PR queue doing", "run PR
-  stats", "show the area breakdown", "how many PRs are still
-  waiting on authors after triage", or any variation on the "give
-  me numbers about the open PR backlog" theme. Also appropriate
-  as a quick health check before or after a triage sweep.
+  Read-only stats on the open-PR backlog of apache/airflow — two area-grouped
+  tables (triaged final-state and triaged still-open) with age buckets, so
+  maintainers can see where queue pressure sits.
+when_to_use: |
+  When the user asks "how is the PR queue doing", "run PR stats", "show the
+  area breakdown", or "how many PRs are still waiting on authors". Good as a
+  health check before or after a triage sweep.
 ---
 
 <!-- SPDX-License-Identifier: Apache-2.0
@@ -50,7 +45,7 @@ Detail files:
 
 **Golden rule 1 — no mutations, ever.** This skill only reads. It must not post comments, add labels, close, rebase, or approve anything. If the maintainer asks for stats and also wants an action, decline the mutation and redirect to `pr-triage`.
 
-**Golden rule 2 — reuse pr-triage's triage-detection.** The "triaged" count and "responded" count depend on the same `Pull Request quality criteria` marker string and the same collaborator set (`OWNER`/`MEMBER`/`COLLABORATOR`) that drive `pr-triage/classify.md#c4-already_triaged`. Don't invent a second definition — both skills must agree on "is this PR triaged".
+**Golden rule 2 — reuse pr-triage's triage-detection.** The "triaged" count and "responded" count depend on the same `Pull Request quality criteria` marker string and the same collaborator set (`OWNER`/`MEMBER`/`COLLABORATOR`) that drive the triage-marker rows in `pr-triage/classify-and-act.md` (rows 3–4 — `already_triaged`). Don't invent a second definition — both skills must agree on "is this PR triaged".
 
 **Golden rule 3 — one GraphQL call per batch, not per PR.** Same rule as `pr-triage/fetch-and-batch.md`. One aliased query covers the open-PR list for a whole page; the closed/merged fetch is paginated by GitHub's search cursor. Never call `gh pr view` per PR.
 

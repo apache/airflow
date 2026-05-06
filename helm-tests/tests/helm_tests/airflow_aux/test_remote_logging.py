@@ -104,10 +104,7 @@ class TestElasticsearchConfig:
         assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
 
     def test_env_should_omit_elasticsearch_host_var_if_es_disabled(self):
-        docs = render_chart(
-            values={},
-            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
-        )
+        docs = render_chart(show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE])
 
         scheduler_env_keys = jmespath.search("spec.template.spec.containers[0].env[*].name", docs[0])
         assert "AIRFLOW__ELASTICSEARCH__HOST" not in scheduler_env_keys
@@ -131,10 +128,7 @@ class TestElasticsearchConfig:
         } in scheduler_env
 
     def test_airflow_cfg_should_set_remote_logging_false_if_es_disabled(self):
-        docs = render_chart(
-            values={},
-            show_only=[CONFIGMAP_TEMPLATE],
-        )
+        docs = render_chart(show_only=[CONFIGMAP_TEMPLATE])
 
         airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
 
@@ -230,10 +224,7 @@ class TestOpenSearchConfig:
         assert "ports" not in jmespath.search("spec.template.spec.containers[0]", docs[0])
 
     def test_env_should_omit_opensearch_host_var_if_os_disabled(self):
-        docs = render_chart(
-            values={},
-            show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE],
-        )
+        docs = render_chart(show_only=[SCHEDULER_DEPLOYMENT_TEMPLATE])
 
         scheduler_env_keys = jmespath.search("spec.template.spec.containers[0].env[*].name", docs[0])
         assert "AIRFLOW__OPENSEARCH__HOST" not in scheduler_env_keys
@@ -256,10 +247,7 @@ class TestOpenSearchConfig:
         } in scheduler_env
 
     def test_airflow_cfg_should_set_remote_logging_false_if_os_disabled(self):
-        docs = render_chart(
-            values={},
-            show_only=[CONFIGMAP_TEMPLATE],
-        )
+        docs = render_chart(show_only=[CONFIGMAP_TEMPLATE])
 
         airflow_cfg_text = jmespath.search('data."airflow.cfg"', docs[0])
 

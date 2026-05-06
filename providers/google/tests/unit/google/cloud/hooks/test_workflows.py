@@ -54,22 +54,26 @@ class TestWorkflowsHook:
         with mock.patch(BASE_PATH.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = WorkflowsHook(gcp_conn_id="test")
 
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_client_options"))
     @mock.patch(BASE_PATH.format("WorkflowsHook.get_credentials"))
     @mock.patch(BASE_PATH.format("WorkflowsClient"))
-    def test_get_workflows_client(self, mock_client, mock_get_credentials):
+    def test_get_workflows_client(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_workflows_client()
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(BASE_PATH.format("WorkflowsHook.get_client_options"))
     @mock.patch(BASE_PATH.format("WorkflowsHook.get_credentials"))
     @mock.patch(BASE_PATH.format("ExecutionsClient"))
-    def test_get_executions_client(self, mock_client, mock_get_credentials):
+    def test_get_executions_client(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_executions_client()
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
         )
 
     @mock.patch(BASE_PATH.format("WorkflowsHook.get_workflows_client"))

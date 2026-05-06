@@ -3,7 +3,7 @@
 
 # Classify
 
-Per-PR state determination for the stats tables. Mirrors the triage-detection logic in [`pr-triage/classify.md#c4-already_triaged`](../pr-triage/classify.md) — the two skills must agree on what "triaged" means. Any rule change here must ship simultaneously in `pr-triage`.
+Per-PR state determination for the stats tables. Mirrors the triage-detection logic in the triage-marker rows in [`pr-triage/classify-and-act.md`](../pr-triage/classify-and-act.md) (rows 3–4 — `already_triaged`) — the two skills must agree on what "triaged" means. Any rule change here must ship simultaneously in `pr-triage`.
 
 Classification is pure function of state from [`fetch.md`](fetch.md) — no network calls, no writes.
 

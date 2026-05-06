@@ -89,13 +89,20 @@ class _BigQueryBaseTestClass:
 
 @pytest.mark.db_test
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")
-    def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
+    def test_bigquery_client_creation(
+        self, mock_build, mock_authorize, mock_bigquery_connection, mock_get_client_options
+    ):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
-            "bigquery", "v2", http=mock_authorize.return_value, cache_discovery=False
+            "bigquery",
+            "v2",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         mock_bigquery_connection.assert_called_once_with(
             service=mock_build.return_value,

@@ -7,7 +7,7 @@ Every comment the skill posts comes from this file. The
 templates exist to keep the tone consistent across the project
 and to make the `Pull Request quality criteria` marker show up
 in the same place on every triage comment so
-[`classify.md#c4-already_triaged`](classify.md) can find them.
+the `already_triaged` rows in [`classify-and-act.md#decision-table`](classify-and-act.md#decision-table) (rows 3–4) can find them.
 
 Placeholders:
 
@@ -88,17 +88,13 @@ Used when the action is `draft` (see
 [`actions.md#draft`](actions.md)).
 
 ```markdown
-@<author> This PR has been converted to **draft** because it does not yet meet our [Pull Request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria).
+@<author> Converting to **draft** — this PR doesn't yet meet our [Pull Request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria).
 
-**Issues found:**
 <violations>
 
 <rebase_note_if_needed>
 
-**What to do next:**
-<what_to_do_next>
-
-Converting a PR to draft is **not** a rejection — it is an invitation to bring the PR up to the project's standards so that maintainer review time is spent productively. There is no rush — take your time and work at your own pace. We appreciate your contribution and are happy to wait for updates. If you have questions, feel free to ask on the [Airflow Slack](https://s.apache.org/airflow-slack).
+See the linked criteria for how to fix each item, then mark the PR "Ready for review". This is **not** a rejection — just an invitation to bring the PR up to standard. No rush.
 
 <ai_attribution_footer>
 ```
@@ -107,19 +103,7 @@ Converting a PR to draft is **not** a rejection — it is an invitation to bring
 `commits_behind > 50`:
 
 ```markdown
-> **Note:** Your branch is **<commits_behind> commits behind `<base>`**. Some check failures may be caused by changes in the base branch rather than by your PR. Please rebase your branch and push again to get up-to-date CI results.
-```
-
-`<what_to_do_next>` is the "what to do next" block read from
-the [Converting to draft
-section](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst)
-of the contributing docs. If unavailable at runtime, fall back
-to:
-
-```markdown
-- Fix each issue listed above.
-- Make sure static checks pass locally (`prek run --from-ref <base> --stage pre-commit`).
-- Mark the PR as "Ready for review" when you're done.
+> **Note:** Your branch is **<commits_behind> commits behind `<base>`**. Please rebase and push again to get up-to-date CI results.
 ```
 
 ---
@@ -132,25 +116,22 @@ Used when the action is `comment` for a `deterministic_flag`
 classification.
 
 ```markdown
-@<author> This PR has a few issues that need to be addressed before it can be reviewed — please see our [Pull Request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria).
+@<author> A few things need addressing before review — see our [Pull Request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria).
 
-**Issues found:**
 <violations>
 
 <rebase_note_if_needed>
 
-**What to do next:**
-<what_to_do_next>
-
-There is no rush — take your time and work at your own pace. We appreciate your contribution and are happy to wait for updates. If you have questions, feel free to ask on the [Airflow Slack](https://s.apache.org/airflow-slack).
+No rush.
 
 <ai_attribution_footer>
 ```
 
-Identical body to the `draft` variant minus the "converted to
-draft" opener. The classification marker ("Pull Request quality
-criteria" link text) is still present — re-triage logic
-recognises both.
+Same shape as the `draft` variant minus the "Converting to
+draft" opener and the "not a rejection" reassurance (nothing
+is being drafted/closed here, so it doesn't apply). The
+classification marker ("Pull Request quality criteria" link
+text) is still present — re-triage logic recognises both.
 
 ---
 
@@ -163,13 +144,12 @@ has >3 flagged PRs) — see
 [`actions.md#close`](actions.md).
 
 ```markdown
-@<author> This PR has been **closed because of multiple quality violations** — it does not meet our [Pull Request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria).
+@<author> Closing — this PR has multiple violations of our [Pull Request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria).
 
-**Issues found:**
 <violations>
-- :x: **Multiple flagged PRs**: You currently have **<flagged_count> PRs** flagged for quality issues in this repository. We recommend focusing on improving your existing PRs before opening new ones.
+- :x: **Multiple flagged PRs**: <flagged_count> of your PRs are currently flagged for quality issues. Please focus on those before opening new ones.
 
-You are welcome to open a new PR that addresses the issues listed above. There is no rush — take your time and work at your own pace. If you have questions, feel free to ask on the [Airflow Slack](https://s.apache.org/airflow-slack).
+This is **not** a rejection — you're welcome to open a new PR addressing the issues above. No rush.
 
 <ai_attribution_footer>
 ```
@@ -177,8 +157,8 @@ You are welcome to open a new PR that addresses the issues listed above. There i
 The "Multiple flagged PRs" line is appended to the violations
 list before rendering — do not re-render `<violations>` without
 it. If `flagged_count <= 3` (which shouldn't happen on this
-template per suggested-actions rules), render the close
-comment without this extra line.
+template per [`classify-and-act.md`](classify-and-act.md) row 8),
+render the close comment without this extra line.
 
 ---
 
@@ -299,7 +279,7 @@ in-thread reply.
 Used when the action is `mark-ready-with-ping` (see
 [`actions.md#mark-ready-with-ping`](actions.md)). The PR's
 only outstanding signal is unresolved review threads, the
-[`unresolved_threads_only_likely_addressed`](classify.md#sub-flag-unresolved_threads_only_likely_addressed)
+[`unresolved_threads_only_likely_addressed`](classify-and-act.md#unresolved_threads_only_likely_addressed)
 heuristic fired, and we are promoting the PR to
 `ready for maintainer review` while inviting the original
 reviewer(s) to confirm the resolution.
@@ -442,41 +422,42 @@ one bullet per violation returned by the classifier. Each
 bullet has the form:
 
 ```
-- :x: **<category>**: <explanation> <details>
+- :x: **<category>** — <explanation>. See [docs](<doc_link>).
 ```
 
 - `:x:` for severity `error`, `:warning:` for severity `warning`.
 - `<category>` — short category name, e.g.
   `Merge conflicts`, `mypy (type checking)`,
   `Unresolved review comments`.
-- `<explanation>` — one sentence stating what's wrong
+- `<explanation>` — one short clause stating what's wrong
   (e.g. *"Failing: mypy-airflow-core, mypy-providers"*).
-- `<details>` — remediation guidance with a doc link (e.g.
-  *"Run `prek run mypy-airflow-core --all-files` locally to
-  reproduce. See [mypy checks docs](…)"*).
+- `<doc_link>` — link to the canonical doc that explains how to
+  fix this category. Do **not** inline `prek` / `breeze`
+  commands or step-by-step remediation prose in the bullet —
+  the linked doc has them. Keep the bullet to one line.
 
-The category / explanation / details triples come from
+The category / explanation / doc-link triples come from
 `assess_pr_checks` / `assess_pr_conflicts` /
 `assess_pr_unresolved_comments`-equivalent logic — this skill
 reproduces those deterministic assessments without the LLM
-layer. The canonical categories are:
+layer. The canonical categories and their doc links are:
 
-| Category | Signal | Remediation pattern |
+| Category | Signal | Doc link |
 |---|---|---|
-| `Merge conflicts` | `mergeable == CONFLICTING` | `git fetch upstream <base> && git rebase upstream/<base>`, resolve, push |
-| `Failing CI checks` (fallback) | `checks_state == FAILURE`, no failed names available | `prek run --from-ref <base> --stage pre-commit`; docs links to static-checks + testing |
-| `Pre-commit / static checks` | failed check name matches `static checks`, `pre-commit`, `prek` | `prek run --from-ref <base>` |
-| `Ruff (linting / formatting)` | `ruff` | `prek run ruff --from-ref <base>` + `prek run ruff-format --from-ref <base>` |
-| `mypy (type checking)` | `mypy-*` | `prek --stage manual mypy-<hook> --all-files` for each failing hook |
-| `Unit tests` | `unit test`, `test-` | `breeze run pytest <path> -xvs` |
-| `Build docs` | `docs`, `spellcheck-docs`, `build-docs` | `breeze build-docs` |
-| `Helm tests` | `helm` | `breeze k8s run-complete-tests` |
-| `Kubernetes tests` | `k8s`, `kubernetes` | "See the K8s testing documentation." |
-| `Image build` | `build ci image`, `build prod image`, `ci-image`, `prod-image` | "Check Dockerfiles and dependencies." |
-| `Provider tests` | `provider` | `breeze run pytest <provider-test-path> -xvs` |
-| `Other failing CI checks` | anything uncategorised | `prek run --from-ref <base>` |
-| `Unaddressed Copilot review` | classification `stale_copilot_review` — unresolved review thread by a `copilot*[bot]` login older than 7 days with no author reply | "GitHub Copilot posted automated review comments on this PR that have been sitting unaddressed for more than a week. **Some of the Copilot suggestions may be irrelevant or incorrect** — that is expected. However it is the author's responsibility to go through each thread and either apply the fix, reply in-thread with a short explanation of why the suggestion does not apply, or resolve the thread if the feedback is no longer relevant. **Once you believe a thread is resolved — whether by pushing a fix or by explaining why the suggestion doesn't apply — please mark it as resolved yourself by clicking the 'Resolve conversation' button at the bottom of the thread.** Reviewers don't auto-close their own threads, so leaving threads unresolved (even when addressed) signals "still waiting on the author" and blocks the PR. Please walk through the threads: <thread_urls>." |
-| `Unresolved review comments` | `unresolved_threads > 0` | "There are unresolved review threads on this PR. For each one: either apply the suggestion in a follow-up commit, or reply in-thread with a brief explanation of why the feedback doesn't apply, or resolve the thread if the feedback is no longer relevant. **Once you believe a thread is resolved — whether by pushing a fix or by explaining why the suggestion doesn't apply — it is the author's responsibility to mark it as resolved by clicking the 'Resolve conversation' button at the bottom of the thread.** Reviewers don't auto-close their own threads, so unresolved threads read as 'still waiting on the author' and block the PR from moving forward." |
+| `Merge conflicts` | `mergeable == CONFLICTING` | [Working with git — rebasing](https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst) |
+| `Failing CI checks` (fallback) | `checks_state == FAILURE`, no failed names available | [Static checks](https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst) |
+| `Pre-commit / static checks` | failed check name matches `static checks`, `pre-commit`, `prek` | [Static checks](https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst) |
+| `Ruff (linting / formatting)` | `ruff` | [Static checks — ruff](https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst) |
+| `mypy (type checking)` | `mypy-*` | [Static checks — mypy](https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst) |
+| `Unit tests` | `unit test`, `test-` | [Testing](https://github.com/apache/airflow/blob/main/contributing-docs/09_testing.rst) |
+| `Build docs` | `docs`, `spellcheck-docs`, `build-docs` | [Building documentation](https://github.com/apache/airflow/blob/main/contributing-docs/11_documentation_building.rst) |
+| `Helm tests` | `helm` | [Helm tests](https://github.com/apache/airflow/blob/main/contributing-docs/testing/helm_unit_tests.rst) |
+| `Kubernetes tests` | `k8s`, `kubernetes` | [K8s testing](https://github.com/apache/airflow/blob/main/contributing-docs/testing/k8s_tests.rst) |
+| `Image build` | `build ci image`, `build prod image`, `ci-image`, `prod-image` | [Static checks](https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst) |
+| `Provider tests` | `provider` | [Provider testing](https://github.com/apache/airflow/blob/main/contributing-docs/12_provider_distributions.rst) |
+| `Other failing CI checks` | anything uncategorised | [Static checks](https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst) |
+| `Unaddressed Copilot review` | classification `stale_copilot_review` — unresolved review thread by a `copilot*[bot]` login older than 7 days with no author reply | [Pull request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria) |
+| `Unresolved review comments` | `unresolved_threads > 0` | [Pull request quality criteria](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-quality-criteria) |
 
 When a category has multiple matching failed check names,
 list the first 5 and summarise the rest as `(+N more)`.

@@ -20,9 +20,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
+
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.s3_tables import S3TablesHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.helpers import prune_dict
@@ -160,3 +163,167 @@ class S3TablesDeleteTableOperator(AwsBaseOperator[AwsBaseHook]):
         )
         self.hook.conn.delete_table(**kwargs)
         self.log.info("Deleted table %s", self.table_name)
+
+
+class S3TablesDeleteNamespaceOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Delete a namespace from an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesDeleteNamespaceOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param namespace: The namespace to delete. (templated)
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn", "namespace")
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        namespace: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.namespace = namespace
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting namespace %s from %s", self.namespace, self.table_bucket_arn)
+        self.hook.conn.delete_namespace(tableBucketARN=self.table_bucket_arn, namespace=self.namespace)
+        self.log.info("Deleted namespace %s", self.namespace)
+
+
+class S3TablesCreateTableBucketOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Create an Amazon S3 Tables table bucket.
+
+    A table bucket is the top-level container for S3 Tables namespaces and tables.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesCreateTableBucketOperator`
+
+    :param table_bucket_name: The name of the table bucket. (templated)
+    :param encryption_configuration: Optional encryption configuration dict with
+        ``sseAlgorithm`` and optional ``kmsKeyArn``. (templated)
+    :param if_exists: Behavior when a table bucket with the same name already exists.
+        ``"fail"`` raises an error, ``"skip"`` returns the existing bucket ARN.
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_name")
+    template_fields_renderers = {"encryption_configuration": "json"}
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_name: str,
+        encryption_configuration: dict[str, str] | None = None,
+        tags: dict[str, str] | None = None,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_name = table_bucket_name
+        self.encryption_configuration = encryption_configuration
+        self.tags = tags
+        self.if_exists = if_exists
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating S3 Tables table bucket %s", self.table_bucket_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "name": self.table_bucket_name,
+                "encryptionConfiguration": self.encryption_configuration,
+                "tags": self.tags,
+            }
+        )
+        try:
+            response = self.hook.conn.create_table_bucket(**kwargs)
+            bucket_arn = response["arn"]
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConflictException" and self.if_exists == "skip":
+                self.log.info("Table bucket %s already exists, skipping.", self.table_bucket_name)
+                bucket_arn = self.hook.get_table_bucket_arn_by_name(self.table_bucket_name)
+                if bucket_arn is None:
+                    raise
+            else:
+                raise
+        self.log.info("Table bucket %s: %s", self.table_bucket_name, bucket_arn)
+        return bucket_arn
+
+
+class S3TablesDeleteTableBucketOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Delete an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesDeleteTableBucketOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket to delete. (templated)
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn")
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting S3 Tables table bucket %s", self.table_bucket_arn)
+        self.hook.conn.delete_table_bucket(tableBucketARN=self.table_bucket_arn)
+        self.log.info("Deleted table bucket %s", self.table_bucket_arn)
+
+
+class S3TablesCreateNamespaceOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Create a namespace in an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesCreateNamespaceOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param namespace: The namespace name to create. (templated)
+    :param if_exists: Behavior when the namespace already exists.
+        ``"fail"`` raises an error, ``"skip"`` logs and returns.
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn", "namespace")
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        namespace: str,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.namespace = namespace
+        self.if_exists = if_exists
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating namespace %s in %s", self.namespace, self.table_bucket_arn)
+        try:
+            self.hook.conn.create_namespace(tableBucketARN=self.table_bucket_arn, namespace=[self.namespace])
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConflictException" and self.if_exists == "skip":
+                self.log.info("Namespace %s already exists, skipping.", self.namespace)
+            else:
+                raise
+        self.log.info("Namespace %s created.", self.namespace)
+        return self.namespace

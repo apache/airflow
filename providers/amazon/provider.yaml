@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1777234668
+source-date-epoch: 1777990018
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.28.0
   - 9.27.0
   - 9.26.0
   - 9.25.0
@@ -376,6 +377,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/verified-permissions/
     logo: /docs/integration-logos/Amazon-Verified-Permissions.png
     tags: [aws]
+  - integration-name: Amazon MWAA Serverless
+    external-doc-url: https://docs.aws.amazon.com/mwaa/latest/userguide/mwaa-serverless.html
+    logo: /docs/integration-logos/Amazon-MWAA.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/mwaa_serverless.rst
+    tags: [aws]
   - integration-name: Amazon Neptune
     external-doc-url: https://aws.amazon.com/neptune/
     logo: /docs/integration-logos/Amazon-Neptune_64.png
@@ -462,6 +469,9 @@ operators:
   - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
     python-modules:
       - airflow.providers.amazon.aws.operators.mwaa
+  - integration-name: Amazon MWAA Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.operators.mwaa_serverless
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
@@ -474,6 +484,7 @@ operators:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.operators.ses
@@ -569,6 +580,9 @@ sensors:
   - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
     python-modules:
       - airflow.providers.amazon.aws.sensors.mwaa
+  - integration-name: Amazon MWAA Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.mwaa_serverless
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -587,6 +601,7 @@ sensors:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.sqs
@@ -714,12 +729,16 @@ hooks:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
+  - integration-name: Amazon S3 Tables
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.s3_tables
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
@@ -803,6 +822,7 @@ triggers:
   - integration-name: Amazon SageMaker Unified Studio
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio
+      - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue

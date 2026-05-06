@@ -93,7 +93,7 @@ jobs:
       disable-airflow-repo-cache: "false"
 
   build-and-publish-registry:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Build & Publish Registry"
     needs: [build-ci-image]
     runs-on: ubuntu-latest
@@ -259,6 +259,52 @@ jobs:
           path: registry/_site
           retention-days: 7
           if-no-files-found: error
+
+      - name: "Verify build emitted expected content"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: |
+          # Guard against silent no-op syncs. `aws s3 sync` exits 0 when the
+          # source dir is missing or empty, so without this a partial build
+          # (e.g. extract_metadata.py errored mid-run) would report green
+          # while uploading nothing or stale state. Mirrors the per-provider
+          # guard in the "Sync backfilled version pages to S3" step in
+          # registry-backfill.yml.
+          if [[ -n "${PROVIDER}" ]]; then
+            # Incremental: verify each target provider's pages and versions JSON exist.
+            for pid in ${PROVIDER}; do
+              LOCAL_PROV_DIR="registry/_site/providers/${pid}/"
+              LOCAL_API_DIR="registry/_site/api/providers/${pid}/"
+              LOCAL_VERSIONS_JSON="${LOCAL_API_DIR}versions.json"
+              if [ ! -d "${LOCAL_PROV_DIR}" ] || [ -z "$(ls -A "${LOCAL_PROV_DIR}" 2>/dev/null)" ]; then
+                echo "::error::Build did not emit ${LOCAL_PROV_DIR} -- aborting sync."
+                exit 1
+              fi
+              if [ ! -d "${LOCAL_API_DIR}" ] || [ -z "$(ls -A "${LOCAL_API_DIR}" 2>/dev/null)" ]; then
+                echo "::error::Build did not emit ${LOCAL_API_DIR} -- aborting sync."
+                exit 1
+              fi
+              if [ ! -s "${LOCAL_VERSIONS_JSON}" ]; then
+                echo "::error::${LOCAL_VERSIONS_JSON} missing or empty -- aborting sync."
+                exit 1
+              fi
+            done
+          else
+            # Full build: verify the top-level homepage and provider listing.
+            if [ ! -s "registry/_site/index.html" ]; then
+              echo "::error::Full build did not emit registry/_site/index.html -- aborting sync."
+              exit 1
+            fi
+            if [ ! -s "registry/_site/api/providers.json" ]; then
+              echo "::error::registry/_site/api/providers.json missing or empty -- aborting sync."
+              exit 1
+            fi
+            API_PROVIDERS_DIR="registry/_site/api/providers/"
+            if [ ! -d "${API_PROVIDERS_DIR}" ] || [ -z "$(ls -A "${API_PROVIDERS_DIR}" 2>/dev/null)" ]; then
+              echo "::error::${API_PROVIDERS_DIR} is missing or empty -- aborting sync."
+              exit 1
+            fi
+          fi
 
       - name: "Sync registry to S3"
         env:

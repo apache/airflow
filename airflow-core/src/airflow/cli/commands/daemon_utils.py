@@ -74,10 +74,6 @@ def run_command_with_daemon_option(
             )
 
             with ctx:
-                # in daemon context stats client needs to be reinitialized.
-                from airflow._shared.observability.metrics.stats import Stats
-
-                Stats.instance = None
                 callback()
     else:
         signal.signal(signal.SIGINT, sigint_handler)

@@ -516,7 +516,7 @@ def get_task_instances(
     Get list of task instances.
 
     This endpoint allows specifying `~` as the dag_id, dag_run_id
-    to retrieve task instances for all DAGs and DAG runs.
+    to retrieve task instances for all Dags and Dag runs.
 
     Supports two pagination modes:
 
