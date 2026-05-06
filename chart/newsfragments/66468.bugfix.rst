@@ -1,0 +1,7 @@
+Roll api-server pods on ``apiServer.apiServerConfig`` change
+
+The api-server deployment template now carries a ``checksum/api-server-config``
+annotation. Changing ``apiServer.apiServerConfig`` (typically a custom
+``webserver_config.py``) bumps the pod template hash so ``helm upgrade`` rolls
+the api-server, instead of silently leaving running pods on the old config
+file.
