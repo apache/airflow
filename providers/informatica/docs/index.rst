@@ -95,6 +95,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-http``           ``>=4.13.2``
+``aiohttp``                                 ``>=3.9.2``
 ==========================================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -140,6 +141,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-http``           ``>=4.13.2``
+``aiohttp``                                 ``>=3.9.2``
 ==========================================  ==================
 
 Cross provider package dependencies

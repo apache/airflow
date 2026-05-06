@@ -43,11 +43,30 @@ hooks:
   - integration-name: Informatica
     python-modules:
       - airflow.providers.informatica.hooks.edc
+      - airflow.providers.informatica.hooks.idmc
+
+operators:
+  - integration-name: Informatica
+    python-modules:
+      - airflow.providers.informatica.operators.idmc
+
+sensors:
+  - integration-name: Informatica
+    python-modules:
+      - airflow.providers.informatica.sensors.idmc
+
+triggers:
+  - integration-name: Informatica
+    python-modules:
+      - airflow.providers.informatica.triggers.idmc
 
 connection-types:
   - hook-class-name: airflow.providers.informatica.hooks.edc.InformaticaEDCHook
     hook-name: "Informatica EDC"
     connection-type: informatica_edc
+  - hook-class-name: airflow.providers.informatica.hooks.idmc.InformaticaIDMCHook
+    hook-name: "Informatica IDMC"
+    connection-type: informatica_idmc
 
 plugins:
   - name: informatica
@@ -70,8 +89,15 @@ config:
         version_added: ~
       default_conn_id:
         description: |
-          The default connection ID to use for Informatica operations.
+          The default connection ID to use for Informatica EDC operations.
         type: string
         example: "informatica_edc_default"
         default: "informatica_edc_default"
+        version_added: ~
+      default_idmc_conn_id:
+        description: |
+          The default connection ID to use for Informatica IDMC operations.
+        type: string
+        example: "informatica_idmc_default"
+        default: "informatica_idmc_default"
         version_added: ~
