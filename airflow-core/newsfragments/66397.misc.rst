@@ -1,5 +1,1 @@
-Extend the listener-error-log change introduced for task instance hooks to the remaining listener call sites (DagRun state changes, DAG import errors, asset events, component lifecycle).
-
-Suppressed-listener-exception logs now identify which hook raised across every
-listener-call surface in airflow-core and the Task SDK, completing the
-observability change.
+Extend listener-error structured-log change to remaining call sites (DagRun, asset events, DAG import errors, component lifecycle).
