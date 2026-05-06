@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.execution_time.context import InletEventsAccessors
+    from airflow.sdk.execution_time.context import ExtraLinksAccessor, InletEventsAccessors
     from airflow.sdk.types import (
         DagRunProtocol,
         Operator,
@@ -83,6 +83,7 @@ class Context(TypedDict, total=False):
     ts_nodash: str
     ts_nodash_with_tz: str
     var: Any
+    extra_links: ExtraLinksAccessor
 
 
 KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())

@@ -20,6 +20,7 @@ import inspect
 import itertools
 import re
 import textwrap
+import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from contextlib import suppress
 from functools import cached_property, partial, update_wrapper
@@ -37,6 +38,7 @@ from airflow.sdk.bases.operator import (
     get_merged_defaults,
     parse_retries,
 )
+from airflow.sdk.bases.operatorlink import TaskFlowExtraLink
 from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 from airflow.sdk.definitions._internal.decorators import remove_task_decorator
 from airflow.sdk.definitions._internal.expandinput import (
@@ -56,6 +58,7 @@ from airflow.sdk.definitions.mappedoperator import (
 from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
+    from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions._internal.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
@@ -251,6 +254,24 @@ def determine_kwargs(
     :return: A dictionary which contains the keyword arguments that are compatible with the callable.
     """
     return KeywordParameters.determine(func, args, kwargs).unpacking()
+
+
+def _build_extra_links(
+    extra_links: list[str] | None,
+    existing_links: Collection[BaseOperatorLink] | None,
+) -> tuple[BaseOperatorLink, ...]:
+    links_by_name: dict[str, BaseOperatorLink] = {link.name: link for link in existing_links or ()}
+    for name in extra_links or ():
+        taskflow_link = TaskFlowExtraLink(name)
+        if name in links_by_name:
+            warnings.warn(
+                f"TaskFlow extra link '{name}' is overriding an existing operator extra link "
+                f"with the same name. The TaskFlow link will take precedence.",
+                UserWarning,
+                stacklevel=2,
+            )
+        links_by_name[name] = taskflow_link
+    return tuple(links_by_name.values())
 
 
 class DecoratedOperator(BaseOperator):
@@ -509,18 +530,28 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         update_wrapper(self, self.function)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
+        task_kwargs = self.kwargs.copy()
         if self.is_teardown:
-            if "trigger_rule" in self.kwargs:
+            if "trigger_rule" in task_kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
-            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
+            task_kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        on_failure_fail_dagrun = task_kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
+
+        extra_links = task_kwargs.pop("extra_links", [])
+
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
             op_kwargs=kwargs,
             multiple_outputs=self.multiple_outputs,
-            **self.kwargs,
+            **task_kwargs,
         )
+
+        op.operator_extra_links = _build_extra_links(
+            extra_links,
+            op.operator_extra_links,
+        )
+
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
@@ -589,6 +620,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
+        extra_links = task_kwargs.pop("extra_links", [])
         dag = task_kwargs.pop("dag", None) or DagContext.get_current()
         task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current(dag)
 
@@ -659,7 +691,10 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=partial_params,
-            operator_extra_links=self.operator_class.operator_extra_links,
+            operator_extra_links=_build_extra_links(
+                extra_links,
+                self.operator_class.operator_extra_links,
+            ),
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
             template_fields_renderers=self.operator_class.template_fields_renderers,

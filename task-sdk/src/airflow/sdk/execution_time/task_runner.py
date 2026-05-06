@@ -112,6 +112,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    ExtraLinksAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
@@ -249,6 +250,13 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
+                "extra_links": ExtraLinksAccessor.from_operator_links(
+                    self.task.operator_extra_links,
+                    dag_id=self.dag_id,
+                    task_id=self.task_id,
+                    run_id=self.run_id,
+                    map_index=self.map_index,
+                ),
             }
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
@@ -1875,6 +1883,8 @@ def finalize(
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
+        if not oe.push_link_on_finalize:
+            continue
         try:
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)

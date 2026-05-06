@@ -65,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
+from airflow.sdk.bases.operatorlink import TaskFlowExtraLink
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
@@ -126,6 +127,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    ExtraLinksAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
@@ -1755,6 +1757,7 @@ class TestRuntimeTaskInstance:
             },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
+            "extra_links": ExtraLinksAccessor(),
             "inlets": task.inlets,
             "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
@@ -1796,6 +1799,7 @@ class TestRuntimeTaskInstance:
             },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
+            "extra_links": ExtraLinksAccessor(),
             "inlets": task.inlets,
             "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
@@ -4868,3 +4872,43 @@ def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
             dag_result=True,
         )
     )
+
+
+class TestTaskFlowExtraLinksIntegration:
+    def test_finalize_skips_taskflow_extra_links(self, mock_supervisor_comms):
+        """TaskFlowExtraLinks are pushed via SUPERVISOR_COMMS on assignment, so finalize skips them."""
+        task = BaseOperator(task_id="test")
+        task.operator_extra_links = (TaskFlowExtraLink("run_log"), AirflowLink())
+
+        ti = mock.Mock(
+            task=task, start_date=None, dag_id="test_dag", task_id="test", run_id="test_run", map_index=-1
+        )
+        mock_supervisor_comms.send.reset_mock()
+        finalize(ti, "success", {}, mock.Mock())
+
+        xcom_calls = [
+            call.args[0]
+            for call in mock_supervisor_comms.send.call_args_list
+            if isinstance(call.args[0], SetXCom)
+        ]
+        assert xcom_calls == [
+            SetXCom(
+                key="_link_AirflowLink",
+                value="https://airflow.apache.org",
+                dag_id="test_dag",
+                task_id="test",
+                run_id="test_run",
+                map_index=-1,
+            )
+        ]
+
+    def test_context_extra_links_accessor_reflects_operator_links(self, create_runtime_ti):
+        task = BaseOperator(task_id="test_task")
+        task.operator_extra_links = (TaskFlowExtraLink("run_log"),)
+        ti = create_runtime_ti(task=task)
+
+        context = ti.get_template_context()
+
+        accessor = context["extra_links"]
+        assert isinstance(accessor, ExtraLinksAccessor)
+        assert list(accessor) == ["run_log"]
