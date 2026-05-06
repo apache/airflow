@@ -288,13 +288,13 @@ class TaskInstanceOperations:
         rendered_map_index: str | None = None,
     ) -> None:
         """Tell the API server that this TI has reached a stable checkpoint and paused."""
-        from airflow.sdk.api.datamodels._generated import TITargetStatePayload
+        from airflow.sdk.api.datamodels._generated import IntermediateTIState, TITargetStatePayload
 
         del (
             end_date,
             rendered_map_index,
         )  # reserved for future persistence; current API server does not store these
-        body = TITargetStatePayload(state=TaskInstanceState.CHECKPOINTED)
+        body = TITargetStatePayload(state=IntermediateTIState.CHECKPOINTED)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):
