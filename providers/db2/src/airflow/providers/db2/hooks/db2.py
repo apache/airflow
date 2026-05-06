@@ -48,6 +48,7 @@ class Db2Hook(DbApiHook):
     hook_name = "IBM Db2"
     supports_autocommit = True
     supports_executemany = True
+    _test_connection_sql = "SELECT 1 FROM SYSIBM.SYSDUMMY1"
 
     @staticmethod
     def _get_default_values(conn) -> dict[str, Any]:
