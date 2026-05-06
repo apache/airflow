@@ -29,8 +29,8 @@ class Bundle(
 private fun Iterable<Dag>.associateByDagId(): Map<String, Dag> {
   val dagMap = linkedMapOf<String, Dag>()
   for (dag in this) {
-    require(dagMap.putIfAbsent(dag.dagId, dag) == null) {
-      "Duplicate dagId in bundle: ${dag.dagId}"
+    require(dagMap.putIfAbsent(dag.id, dag) == null) {
+      "Dags in bundle have duplicate ID: ${dag.id}"
     }
   }
   return dagMap

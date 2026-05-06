@@ -42,6 +42,6 @@ internal class BundleTest {
         Bundle("0", listOf(Dag("dag"), Dag("dag")))
       }
 
-    Assertions.assertEquals("Duplicate dagId in bundle: dag", error.message)
+    Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)
   }
 }

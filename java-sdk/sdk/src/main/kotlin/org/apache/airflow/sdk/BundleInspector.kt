@@ -49,10 +49,10 @@ object BundleInspector {
     buildString {
       appendLine("dags:")
       for (dag in dags) {
-        appendLine("  ${dag.dagId}:")
+        appendLine("  ${dag.id}:")
         appendLine("    tasks:")
-        for (taskId in dag.tasks.keys) {
-          appendLine("      - $taskId")
+        for (id in dag.tasks.keys) {
+          appendLine("      - $id")
         }
       }
     }

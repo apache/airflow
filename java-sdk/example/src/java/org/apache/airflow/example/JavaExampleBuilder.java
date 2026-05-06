@@ -70,7 +70,7 @@ public class JavaExampleBuilder {
   }
 
   public static Dag build() {
-    var dag = new Dag("java_example", /* description= */ null, /* schedule= */ "@daily");
+    var dag = new Dag("java_example");
     dag.addTask("extract", Extract.class, List.of());
     dag.addTask("transform", Transform.class, List.of("extract"));
     dag.addTask("load", Load.class, List.of("transform"));

@@ -28,15 +28,13 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.io.File
-import java.time.Duration
-import java.time.Instant
 
 /**
- * Reads test_dags.yaml, constructs Dags from the parameters, serialises each
+ * Reads test_dags.yaml, constructs Dags from the parameters, serializes each
  * one with the Java SDK, and writes the result to serialized_java.json for
  * cross-language comparison with the Python output.
  *
- * Each YAML test-case is turned into a JUnit 5 dynamic test so failures are
+ * Each YAML test-case is turned into a JUnit 5 dynamic test, so failures are
  * reported individually.
  *
  * After running:
@@ -72,43 +70,7 @@ class SerializationCompatibilityTest {
   // -----------------------------------------------------------------------
 
   @Suppress("UNCHECKED_CAST")
-  private fun constructDag(params: Map<String, Any?>): Dag {
-    val dagId = params["dag_id"] as String
-
-    return Dag(
-      dagId = dagId,
-      description = params["description"] as? String,
-      schedule = params["schedule"] as? String,
-      startDate = (params["start_date"] as? String)?.let { Instant.parse(it) },
-      endDate = (params["end_date"] as? String)?.let { Instant.parse(it) },
-      defaultArgs = (params["default_args"] as? Map<String, Any>) ?: emptyMap(),
-      maxActiveTasks = (params["max_active_tasks"] as? Number)?.toInt() ?: Dag.DEFAULT_MAX_ACTIVE_TASKS,
-      maxActiveRuns = (params["max_active_runs"] as? Number)?.toInt() ?: Dag.DEFAULT_MAX_ACTIVE_RUNS,
-      maxConsecutiveFailedDagRuns =
-        (params["max_consecutive_failed_dag_runs"] as? Number)?.toInt()
-          ?: Dag.DEFAULT_MAX_CONSECUTIVE_FAILED_DAG_RUNS,
-      dagrunTimeout = (params["dagrun_timeout_seconds"] as? Number)?.let { Duration.ofSeconds(it.toLong()) },
-      catchup = params["catchup"] as? Boolean ?: false,
-      docMd = params["doc_md"] as? String,
-      accessControl =
-        (params["access_control"] as? Map<String, Map<String, Any>>)?.mapValues { (_, resources) ->
-          resources.mapValues { (_, perms) ->
-            when (perms) {
-              is List<*> -> perms.filterIsInstance<String>().toSet()
-              is Set<*> -> perms.filterIsInstance<String>().toSet()
-              else -> setOf(perms.toString())
-            }
-          }
-        },
-      isPausedUponCreation = params["is_paused_upon_creation"] as? Boolean,
-      tags = (params["tags"] as? List<*>)?.filterIsInstance<String>()?.toSet() ?: emptySet(),
-      ownerLinks = (params["owner_links"] as? Map<String, String>) ?: emptyMap(),
-      failFast = params["fail_fast"] as? Boolean ?: false,
-      dagDisplayName = params["dag_display_name"] as? String,
-      renderTemplateAsNativeObj = params["render_template_as_native_obj"] as? Boolean ?: false,
-      params = params["params"] as? Map<String, Any>,
-    )
-  }
+  private fun constructDag(params: Map<String, Any?>): Dag = Dag(params["dag_id"] as String)
 
   // -----------------------------------------------------------------------
   // Dynamic test generation
