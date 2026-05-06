@@ -959,7 +959,7 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     try:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
-        log.exception("error calling listener", hook="on_starting")
+        log.exception("error calling listener for hook %r", "on_starting")
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
@@ -1936,7 +1936,7 @@ def finalize(
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
     except Exception:
-        log.exception("error calling listener", hook="before_stopping")
+        log.exception("error calling listener for hook %r", "before_stopping")
 
     log.info("::endgroup::")
 

@@ -135,7 +135,7 @@ def test_listener_lifecycle_error_log_includes_hook_name(cap_structlog, listener
 
     Job()  # instantiating a Job fires the on_starting hook
 
-    assert {"event": "error calling listener", "hook": "on_starting"} in cap_structlog
+    assert "error calling listener for hook 'on_starting'" in cap_structlog
 
 
 @provide_session
