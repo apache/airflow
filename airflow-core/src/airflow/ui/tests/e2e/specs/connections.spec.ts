@@ -16,189 +16,171 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { testConfig, AUTH_FILE } from "playwright.config";
-import { ConnectionsPage } from "tests/e2e/pages/ConnectionsPage";
+import { expect, test } from "tests/e2e/fixtures";
+import { uniqueRunId } from "tests/e2e/utils/test-helpers";
 
 test.describe("Connections Page - List and Display", () => {
-  let connectionsPage: ConnectionsPage;
-  const { baseUrl } = testConfig.connection;
-  const timestamp = Date.now();
-  const seedConnection = {
-    conn_type: "http",
-    connection_id: `list_seed_conn_${timestamp}`,
-    host: "seed.example.com",
-  };
+  let seedConnection: { conn_type: string; connection_id: string; host: string };
 
-  test.beforeEach(({ page }) => {
-    connectionsPage = new ConnectionsPage(page);
-  });
+  test.beforeAll(async ({ authenticatedRequest }) => {
+    seedConnection = {
+      conn_type: "http",
+      connection_id: `list_seed_conn_${uniqueRunId("t")}`,
+      host: "seed.example.com",
+    };
 
-  test.beforeAll(async ({ browser }) => {
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-
-    const response = await page.request.post(`${baseUrl}/api/v2/connections`, {
+    const response = await authenticatedRequest.post(`/api/v2/connections`, {
       data: seedConnection,
       headers: { "Content-Type": "application/json" },
+      timeout: 30_000,
     });
 
     expect([200, 201, 409]).toContain(response.status());
-    await context.close();
   });
 
-  test.afterAll(async ({ browser }) => {
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
+  test.afterAll(async ({ authenticatedRequest }) => {
+    const response = await authenticatedRequest.delete(
+      `/api/v2/connections/${seedConnection.connection_id}`,
+      { timeout: 30_000 },
+    );
 
-    const response = await page.request.delete(`${baseUrl}/api/v2/connections/list_seed_conn_${timestamp}`);
-
-    expect([204, 404]).toContain(response.status());
-    await context.close();
+    if (response.status() !== 404 && !response.ok()) {
+      console.warn(`Cleanup failed for ${seedConnection.connection_id}: ${response.status()}`);
+    }
   });
 
-  test("should display connections list page", async () => {
+  test("should display connections list page", async ({ connectionsPage }) => {
     await connectionsPage.navigate();
 
-    // Verify the page is loaded
     expect(connectionsPage.page.url()).toContain("/connections");
 
-    // Verify table or list is visible
     await expect(connectionsPage.connectionsTable).toBeVisible();
   });
 
-  test("should display connections with correct columns", async () => {
+  test("should display connections with correct columns", async ({ connectionsPage }) => {
     await connectionsPage.navigate();
 
-    // Check that we have at least one row
-    const count = await connectionsPage.getConnectionCount();
+    await expect
+      .poll(async () => connectionsPage.getConnectionCount(), { intervals: [1000], timeout: 15_000 })
+      .toBeGreaterThan(0);
 
-    expect(count).toBeGreaterThan(0);
-
-    // Verify column headers exist
     await expect(connectionsPage.connectionIdHeader).toBeVisible();
     await expect(connectionsPage.connectionTypeHeader).toBeVisible();
     await expect(connectionsPage.hostHeader).toBeVisible();
 
-    // Verify the seed connection is displayed in the list
     await connectionsPage.verifyConnectionInList(seedConnection.connection_id, seedConnection.conn_type);
   });
 
-  test("should have Add button visible", async () => {
+  test("should have Add button visible", async ({ connectionsPage }) => {
     await connectionsPage.navigate();
     await expect(connectionsPage.addButton).toBeVisible();
   });
 });
 
 test.describe("Connections Page - CRUD Operations", () => {
-  let connectionsPage: ConnectionsPage;
-  const { baseUrl } = testConfig.connection;
-  const timestamp = Date.now();
-
-  // Connection created via API in beforeAll - used for edit and display tests
-  const existingConnection = {
-    conn_type: "postgres",
-    connection_id: `existing_conn_${timestamp}`,
-    host: `existing-host-${timestamp}.example.com`,
-    login: `existing_user_${timestamp}`,
+  let existingConnection: { conn_type: string; connection_id: string; host: string; login: string };
+  let updatedConnection: {
+    conn_type: string;
+    description: string;
+    host: string;
+    login: string;
+    port: number;
   };
 
-  const updatedConnection = {
-    conn_type: "postgres",
-    description: `Updated test connection at ${new Date().toISOString()}`,
-    host: `updated-host-${timestamp}.example.com`,
-    login: `updated_user_${timestamp}`,
-    port: 5433,
-  };
+  const createdConnIds: Array<string> = [];
 
-  // Connection created via UI in test - used for create and delete tests
-  const newConnection = {
-    conn_type: "postgres",
-    connection_id: `new_conn_${timestamp}`,
-    description: `Test connection created at ${new Date().toISOString()}`,
-    extra: JSON.stringify({
-      options: "-c statement_timeout=5000",
-      sslmode: "require",
-    }),
-    host: `new-host-${timestamp}.example.com`,
-    login: `new_user_${timestamp}`,
-    password: `new_password_${timestamp}`,
-    port: 5432,
-    schema: "test_db",
-  };
+  test.beforeAll(async ({ authenticatedRequest }) => {
+    const timestamp = uniqueRunId("t");
 
-  test.beforeEach(({ page }) => {
-    connectionsPage = new ConnectionsPage(page);
-  });
+    existingConnection = {
+      conn_type: "postgres",
+      connection_id: `existing_conn_${timestamp}`,
+      host: `existing-host-${timestamp}.example.com`,
+      login: `existing_user_${timestamp}`,
+    };
 
-  test.beforeAll(async ({ browser }) => {
-    // Create existing connection via API for edit and display tests
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
+    updatedConnection = {
+      conn_type: "postgres",
+      description: `Updated test connection at ${new Date().toISOString()}`,
+      host: `updated-host-${timestamp}.example.com`,
+      login: `updated_user_${timestamp}`,
+      port: 5433,
+    };
 
-    await page.request.post(`${baseUrl}/api/v2/connections`, {
+    await authenticatedRequest.post(`/api/v2/connections`, {
       data: existingConnection,
       headers: { "Content-Type": "application/json" },
+      timeout: 30_000,
     });
-
-    await context.close();
   });
 
-  test.afterAll(async ({ browser }) => {
-    // Cleanup all test connections via API
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
+  test.afterAll(async ({ authenticatedRequest }) => {
+    for (const connId of [existingConnection.connection_id, ...createdConnIds]) {
+      const response = await authenticatedRequest.delete(`/api/v2/connections/${connId}`, {
+        timeout: 30_000,
+      });
 
-    for (const connId of [
-      existingConnection.connection_id,
-      newConnection.connection_id,
-      `temp_conn_${timestamp}_delete`,
-    ]) {
-      await page.request.delete(`${baseUrl}/api/v2/connections/${connId}`);
+      if (response.status() !== 404 && !response.ok()) {
+        console.warn(`Cleanup failed for ${connId}: ${response.status()}`);
+      }
     }
-
-    await context.close();
   });
 
-  test.fixme("should create a new connection and display it in list", async () => {
-    test.setTimeout(120_000);
-    await connectionsPage.navigate();
+  test("should create a new connection and display it in list", async ({ connectionsPage }) => {
+    test.slow();
 
-    // Create connection via UI
+    const connId = `new_conn_${uniqueRunId("create")}`;
+
+    createdConnIds.push(connId);
+
+    const newConnection = {
+      conn_type: "postgres",
+      connection_id: connId,
+      description: `Test connection created at ${new Date().toISOString()}`,
+      extra: JSON.stringify({
+        options: "-c statement_timeout=5000",
+        sslmode: "require",
+      }),
+      host: `new-host-${connId}.example.com`,
+      login: `new_user_${connId}`,
+      password: `new_password_${connId}`,
+      port: 5432,
+      schema: "test_db",
+    };
+
+    await connectionsPage.navigate();
     await connectionsPage.createConnection(newConnection);
+
     const exists = await connectionsPage.connectionExists(newConnection.connection_id);
 
     expect(exists).toBeTruthy();
-    // Verify it appears in the list with correct type
     await connectionsPage.verifyConnectionInList(newConnection.connection_id, newConnection.conn_type);
   });
 
-  test.fixme("should edit an existing connection", async () => {
-    test.setTimeout(120_000);
+  test("should edit an existing connection", async ({ connectionsPage }) => {
+    test.slow();
     await connectionsPage.navigate();
 
-    // Verify connection exists before editing (created in beforeAll)
     const exists = await connectionsPage.connectionExists(existingConnection.connection_id);
 
     expect(exists).toBeTruthy();
 
-    // Edit the connection
     await connectionsPage.editConnection(existingConnection.connection_id, updatedConnection);
 
-    // Verify the connection still exists after editing
     const stillExists = await connectionsPage.connectionExists(existingConnection.connection_id);
 
     expect(stillExists).toBeTruthy();
   });
 
-  test("should delete a connection", async () => {
-    test.setTimeout(120_000);
+  test("should delete a connection", async ({ connectionsPage }) => {
+    test.slow();
 
-    // Create a temporary connection for deletion test
+    const tempConnId = `temp_conn_${uniqueRunId("del")}`;
+
     const tempConnection = {
       conn_type: "postgres",
-      connection_id: `temp_conn_${timestamp}_delete`,
-      host: `temp-host-${timestamp}.example.com`,
+      connection_id: tempConnId,
+      host: "temp-host.example.com",
       login: "temp_user",
       password: "temp_password",
     };
@@ -210,7 +192,6 @@ test.describe("Connections Page - CRUD Operations", () => {
 
     expect(exists).toBeTruthy();
 
-    // Delete the connection
     await connectionsPage.deleteConnection(tempConnection.connection_id);
 
     const stillExists = await connectionsPage.connectionExists(tempConnection.connection_id);
@@ -220,70 +201,68 @@ test.describe("Connections Page - CRUD Operations", () => {
 });
 
 test.describe("Connections Page - Search and Filter", () => {
-  let connectionsPage: ConnectionsPage;
-  const { baseUrl } = testConfig.connection;
-  const timestamp = Date.now();
+  let searchTestConnections: Array<{
+    conn_type: string;
+    connection_id: string;
+    host: string;
+    login: string;
+  }>;
 
-  const searchTestConnections = [
-    {
-      conn_type: "postgres",
-      connection_id: `production_search_${timestamp}`,
-      host: "prod-db.example.com",
-      login: "prod_user",
-    },
-    {
-      conn_type: "mysql",
-      connection_id: `staging_search_${timestamp}`,
-      host: "staging-db.example.com",
-      login: "staging_user",
-    },
-    {
-      conn_type: "http",
-      connection_id: `development_search_${timestamp}`,
-      host: "dev-api.example.com",
-      login: "dev_user",
-    },
-  ];
+  test.beforeAll(async ({ authenticatedRequest }) => {
+    const timestamp = uniqueRunId("t");
 
-  test.beforeEach(({ page }) => {
-    connectionsPage = new ConnectionsPage(page);
-  });
-
-  test.beforeAll(async ({ browser }) => {
-    // Create test connections
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
+    searchTestConnections = [
+      {
+        conn_type: "postgres",
+        connection_id: `production_search_${timestamp}`,
+        host: "prod-db.example.com",
+        login: "prod_user",
+      },
+      {
+        conn_type: "mysql",
+        connection_id: `staging_search_${timestamp}`,
+        host: "staging-db.example.com",
+        login: "staging_user",
+      },
+      {
+        conn_type: "http",
+        connection_id: `development_search_${timestamp}`,
+        host: "dev-api.example.com",
+        login: "dev_user",
+      },
+    ];
 
     for (const conn of searchTestConnections) {
-      const response = await page.request.post(`${baseUrl}/api/v2/connections`, {
+      const response = await authenticatedRequest.post(`/api/v2/connections`, {
         data: JSON.stringify(conn),
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 30_000,
       });
 
       expect([200, 201, 409]).toContain(response.status());
     }
   });
 
-  test.afterAll(async ({ browser }) => {
-    // Cleanup
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-
+  test.afterAll(async ({ authenticatedRequest }) => {
     for (const conn of searchTestConnections) {
-      const response = await page.request.delete(`${baseUrl}/api/v2/connections/${conn.connection_id}`);
+      const response = await authenticatedRequest.delete(`/api/v2/connections/${conn.connection_id}`, {
+        timeout: 30_000,
+      });
 
-      expect([204, 404]).toContain(response.status());
+      if (response.status() !== 404 && !response.ok()) {
+        console.warn(`Cleanup failed for ${conn.connection_id}: ${response.status()}`);
+      }
     }
   });
 
-  test("should filter connections by search term", async () => {
+  test("should filter connections by search term", async ({ connectionsPage }) => {
     await connectionsPage.navigate();
 
-    const initialCount = await connectionsPage.getConnectionCount();
-
-    expect(initialCount).toBeGreaterThan(0);
+    await expect
+      .poll(async () => connectionsPage.getConnectionCount(), { intervals: [1000], timeout: 30_000 })
+      .toBeGreaterThan(0);
 
     const searchTerm = "production";
 
@@ -294,10 +273,9 @@ test.describe("Connections Page - Search and Filter", () => {
         async () => {
           const ids = await connectionsPage.getConnectionIds();
 
-          // Verify we have results AND they match the search term
           return ids.length > 0 && ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
         },
-        { intervals: [500], timeout: 10_000 },
+        { intervals: [500] },
       )
       .toBe(true);
 
@@ -309,18 +287,24 @@ test.describe("Connections Page - Search and Filter", () => {
     }
   });
 
-  test("should display all connections when search is cleared", async () => {
-    test.setTimeout(120_000);
+  test("should display all connections when search is cleared", async ({ connectionsPage }) => {
+    test.slow();
     await connectionsPage.navigate();
 
-    const initialCount = await connectionsPage.getConnectionCount();
+    let initialCount = 0;
 
-    expect(initialCount).toBeGreaterThan(0);
+    await expect
+      .poll(
+        async () => {
+          initialCount = await connectionsPage.getConnectionCount();
 
-    // Search for something
+          return initialCount;
+        },
+        { intervals: [1000], timeout: 30_000 },
+      )
+      .toBeGreaterThan(0);
+
     await connectionsPage.searchConnections("production");
-
-    // Wait for search results
     await expect
       .poll(
         async () => {
@@ -328,11 +312,10 @@ test.describe("Connections Page - Search and Filter", () => {
 
           return count > 0; // Just verify we have some results
         },
-        { intervals: [500], timeout: 10_000 },
+        { intervals: [500] },
       )
       .toBe(true);
 
-    // Clear search
     await connectionsPage.searchConnections("");
 
     const finalCount = await connectionsPage.getConnectionCount();

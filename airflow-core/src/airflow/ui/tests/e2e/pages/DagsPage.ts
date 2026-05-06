@@ -232,7 +232,7 @@ export class DagsPage extends BasePage {
         : this.page.locator(`[id="${controlsId}"]`);
     const options = dropdown.locator('div[role="option"]');
 
-    await expect(options.first()).toBeVisible({ timeout: 10_000 });
+    await expect(options.first()).toBeVisible();
 
     const count = await options.count();
     const dataValues: Array<string> = [];
@@ -275,7 +275,7 @@ export class DagsPage extends BasePage {
         .or(this.page.locator(`[data-testid="dag-name"]:has-text("${dagName}")`))
         .first();
 
-      await expect(hydrationSignal).toBeVisible({ timeout: 10_000 });
+      await expect(hydrationSignal).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -343,7 +343,7 @@ export class DagsPage extends BasePage {
    */
   public async switchToCardView(): Promise<void> {
     await expect(this.cardViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.cardViewButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.cardViewButton).toBeEnabled();
     await this.cardViewButton.click();
     await this.waitForCardView();
   }
@@ -353,7 +353,7 @@ export class DagsPage extends BasePage {
    */
   public async switchToTableView(): Promise<void> {
     await expect(this.tableViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.tableViewButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.tableViewButton).toBeEnabled();
     await this.tableViewButton.click();
     await this.waitForTableView();
   }
@@ -375,7 +375,7 @@ export class DagsPage extends BasePage {
    * Wait for card view to be visible
    */
   public async waitForCardView(): Promise<void> {
-    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible();
   }
 
   /**
@@ -395,12 +395,12 @@ export class DagsPage extends BasePage {
    * Wait for table view to be visible
    */
   public async waitForTableView(): Promise<void> {
-    await expect(this.page.locator("table")).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator("table")).toBeVisible();
   }
 
   private async handleTriggerDialog(): Promise<string | null> {
     await expect(this.confirmButton).toBeVisible({ timeout: 8000 });
-    await expect(this.confirmButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.confirmButton).toBeEnabled();
 
     const responsePromise = this.page.waitForResponse(
       (response: Response) => {

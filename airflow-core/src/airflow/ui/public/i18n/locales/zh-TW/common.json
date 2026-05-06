@@ -193,6 +193,12 @@
     },
     "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "在值中任意位置進行匹配 (子字串搜尋)。在大型部署上會較慢，因為無法使用預設的 B-tree 索引。詳情請參閱文件中關於自訂中繼資料索引的章節。",
+      "title": "任意位置匹配"
+    }
+  },
   "security": {
     "actions": "操作",
     "permissions": "權限",
@@ -257,6 +263,8 @@
   "task_one": "任務",
   "task_other": "任務",
   "taskGroup": "任務群組",
+  "taskGroup_one": "任務群組",
+  "taskGroup_other": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",

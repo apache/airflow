@@ -25,10 +25,7 @@ class TestHPA:
     """Tests HPA."""
 
     def test_hpa_disabled_by_default(self):
-        docs = render_chart(
-            values={},
-            show_only=["templates/workers/worker-hpa.yaml"],
-        )
+        docs = render_chart(show_only=["templates/workers/worker-hpa.yaml"])
         assert docs == []
 
     @pytest.mark.parametrize(

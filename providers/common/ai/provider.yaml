@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1776778456
+source-date-epoch: 1777990341
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.2.0
   - 0.1.1
   - 0.1.0
 
