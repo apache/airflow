@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -465,6 +466,38 @@ class TestBaseDatabricksHook:
             mock_check_metadata.assert_called_once()
             mock_get_aad_token.assert_called_once_with(DEFAULT_DATABRICKS_SCOPE)
             mock_log_debug.assert_called_once_with("Using AAD Token for managed identity.")
+
+    @mock.patch("azure.identity.ManagedIdentityCredential")
+    def test_get_aad_token_with_managed_identity_client_id(
+        self,
+        mock_credential,
+    ):
+        conn = Connection(
+            host="example.databricks.com",
+            extra=json.dumps(
+                {
+                    "use_azure_managed_identity": True,
+                    "azure_managed_identity_client_id": "cli-id-abc",
+                }
+            ),
+        )
+
+        token_mock = mock.Mock()
+        token_mock.token = "the-token"
+        token_mock.expires_on = 8888888888
+        mock_credential.return_value.get_token.return_value = token_mock
+
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.oauth_tokens = {}
+        hook._get_retry_object = lambda: [
+            mock.Mock(__enter__=lambda s: None, __exit__=lambda s, a, b, c: None)
+        ]
+
+        token = hook._get_aad_token("https://databricks.azure.com")
+
+        assert token == "the-token"
+        mock_credential.assert_called_once_with(client_id="cli-id-abc")
 
     @mock.patch(
         "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
