@@ -229,6 +229,22 @@ class BundleUsageTrackingManager:
             self._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
 
 
+@dataclass(frozen=True)
+class BundleVersion:
+    """
+    Version information returned by a DAG bundle.
+
+    Bundles return this from ``get_current_version()`` to provide both a version
+    identifier and optional structured data (e.g., a manifest) atomically.
+
+    :param version: A string identifier for this bundle version (e.g., git SHA, content hash).
+    :param data: Optional structured data associated with this version (e.g., S3 manifest).
+    """
+
+    version: str
+    data: dict | None = None
+
+
 class BaseDagBundle(ABC):
     """
     Base class for DAG bundles.
@@ -313,9 +329,15 @@ class BaseDagBundle(ABC):
         """
 
     @abstractmethod
-    def get_current_version(self) -> str | None:
+    def get_current_version(self) -> str | BundleVersion | None:
         """
-        Retrieve a string that represents the version of the DAG bundle.
+        Retrieve the version of the DAG bundle.
+
+        May return:
+        - A ``BundleVersion`` instance (preferred) containing both a version string and
+          optional structured data (e.g., a manifest).
+        - A plain string (deprecated; will emit a warning in a future release).
+        - None if the bundle does not support versioning.
 
         Airflow can use this value to retrieve this same bundle version later.
         """
