@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Set as AbstractSet
+from collections.abc import Collection, Iterable
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
@@ -176,7 +176,7 @@ class AssetManager(LoggingMixin):
     def _filter_dags_by_team(
         cls,
         dags_to_queue: set[DagModel],
-        source_teams: AbstractSet[str],
+        source_teams: set[str],
         asset_model: AssetModel,
         source_is_api: bool,
         *,

@@ -132,11 +132,11 @@ export class XComsPage extends BasePage {
   public async verifyXComDetailsDisplay(): Promise<void> {
     const firstRow = this.tableRows.first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible();
 
     const keyCell = firstRow.locator("td").first();
 
-    await expect(keyCell).not.toBeEmpty({ timeout: 10_000 });
+    await expect(keyCell).not.toBeEmpty();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
@@ -163,7 +163,7 @@ export class XComsPage extends BasePage {
   public async verifyXComValuesDisplayed(): Promise<void> {
     const firstRow = this.tableRows.first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
-    await expect(firstRow.getByTestId("xcom-value")).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible();
+    await expect(firstRow.getByTestId("xcom-value")).toBeVisible();
   }
 }

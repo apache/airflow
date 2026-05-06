@@ -38,7 +38,7 @@ export class DagRunsPage extends BasePage {
     await expect(async () => {
       await this.navigateTo(DagRunsPage.dagRunsUrl);
       await this.page.waitForURL(/.*dag_runs/, { timeout: 15_000 });
-      await expect(this.dagRunsTable).toBeVisible({ timeout: 10_000 });
+      await expect(this.dagRunsTable).toBeVisible();
 
       const dataLink = this.dagRunsTable.locator("a[href*='/dags/']").first();
       const noDataMessage = this.page.getByText("No Dag Runs found");
@@ -90,7 +90,7 @@ export class DagRunsPage extends BasePage {
   public async verifyRunDetailsDisplay(): Promise<void> {
     const firstRow = this.dagRunsTable.locator("tbody tr").first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 

@@ -132,6 +132,11 @@ try:
 except ImportError:
     send_fds = None  # type: ignore[assignment]
 
+from opentelemetry import context as otel_context, trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+_trace_propagator = TraceContextTextMapPropagator()
+
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
     from typing_extensions import Self
@@ -738,7 +743,13 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", body=request.body)
                 continue
 
+            # Restore the task runner's trace context so that any outbound HTTP calls made while
+            # handling this request are linked to the correct task span, not the supervisor's own span.
+            token = None
             try:
+                if request.context_carrier:
+                    ctx = _trace_propagator.extract(request.context_carrier)
+                    token = otel_context.attach(ctx)
                 self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
@@ -762,6 +773,9 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
+            finally:
+                if token is not None:
+                    otel_context.detach(token)
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
@@ -2246,6 +2260,9 @@ def supervise_task(
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+            provider = trace.get_tracer_provider()
+            if hasattr(provider, "force_flush"):
+                provider.force_flush(timeout_millis=5000)  # upper bound, not a fixed wait
 
 
 def supervise(**kwargs) -> int:

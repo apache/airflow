@@ -108,7 +108,7 @@ it uses the latest installed version of airflow and providers. However,
 you can choose different installation methods as described in [Building
 PROD docker images from released PIP packages](#building-prod-docker-images-from-released-pip-packages). Detailed
 reference for building production image from different sources can be
-found in: [Build Args reference](../../../../docs/docker-stack/build-arg-ref.rst#installing-airflow-using-different-methods)
+found in: [Build Args reference](../../../../docker-stack-docs/build-arg-ref.rst#installing-airflow-using-different-methods)
 
 You can build the CI image using current sources this command:
 
@@ -442,9 +442,9 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                             | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                             | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `26.0.1`                    | `pip` version used.                                                                                               |
+| `AIRFLOW_PIP_VERSION`             | `26.1`                      | `pip` version used.                                                                                               |
 | `AIRFLOW_UV_VERSION`              | `0.11.8`                     | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.3.10`                    | `prek` version used.                                                                                              |
+| `AIRFLOW_PREK_VERSION`            | `0.3.11`                    | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 
