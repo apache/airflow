@@ -89,6 +89,15 @@ def _get_file_infos(files: list[str | Path]) -> list[DagFileInfo]:
     return [DagFileInfo(bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path(f)) for f in files]
 
 
+def _get_versioned_file_info(file: str | Path, bundle_version: str = "v1") -> DagFileInfo:
+    return DagFileInfo(
+        bundle_name="testing",
+        bundle_path=TEST_DAGS_FOLDER,
+        rel_path=Path(file),
+        bundle_version=bundle_version,
+    )
+
+
 def mock_get_mtime(file: Path):
     f = str(file)
     m = re.match(pattern=r".*ss=(.+?)\.\w+", string=f)
@@ -410,67 +419,72 @@ class TestDagFileProcessorManager:
 
     def test_purge_removed_files_keeps_versioned_callback_file_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
-        versioned_file = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("callbacks.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-            bundle_version="v1",
-        )
-        present_file = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("callbacks.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-        )
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        present_file = _get_file_infos(["callbacks.py"])[0]
 
         manager._file_queue = deque([versioned_file])
 
-        manager.purge_removed_files_from_queue(present={present_file})
+        manager.purge_removed_files_from_queue(present_keys={present_file.presence_key})
 
         assert manager._file_queue == deque([versioned_file])
+
+    def test_purge_removed_files_drops_versioned_callback_file_when_truly_absent(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+
+        manager._file_queue = deque([versioned_file])
+
+        manager.purge_removed_files_from_queue(present_keys=set())
+
+        assert manager._file_queue == deque()
 
     def test_terminate_orphan_processes_keeps_versioned_callback_processor_when_unversioned_file_is_present(
         self,
     ):
         manager = DagFileProcessorManager(max_runs=1)
-        versioned_file = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("callbacks.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-            bundle_version="v1",
-        )
-        present_file = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("callbacks.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-        )
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        present_file = _get_file_infos(["callbacks.py"])[0]
         processor = MagicMock()
 
         manager._processors[versioned_file] = processor
 
-        manager.terminate_orphan_processes(present={present_file})
+        manager.terminate_orphan_processes(present_keys={present_file.presence_key})
 
         assert manager._processors == {versioned_file: processor}
         processor.kill.assert_not_called()
 
+    def test_terminate_orphan_processes_kills_processor_when_file_is_truly_absent(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        processor = MagicMock()
+
+        manager._processors[versioned_file] = processor
+
+        manager.terminate_orphan_processes(present_keys=set())
+
+        assert manager._processors == {}
+        processor.kill.assert_called_once_with(signal.SIGKILL)
+
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
-        versioned_file = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("callbacks.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-            bundle_version="v1",
-        )
-        present_file = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("callbacks.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-        )
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        present_file = _get_file_infos(["callbacks.py"])[0]
 
         manager._file_stats[versioned_file] = DagFileStat()
 
-        manager.remove_orphaned_file_stats(present={present_file})
+        manager.remove_orphaned_file_stats(present_keys={present_file.presence_key})
 
         assert manager._file_stats == {versioned_file: DagFileStat()}
+
+    def test_remove_orphaned_file_stats_drops_versioned_callback_stats_when_truly_absent(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+
+        manager._file_stats[versioned_file] = DagFileStat()
+
+        manager.remove_orphaned_file_stats(present_keys=set())
+
+        assert manager._file_stats == {}
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_files_in_queue_sorted_alphabetically(self):
@@ -604,6 +618,30 @@ class TestDagFileProcessorManager:
         # file_1 should remain (already in queue)
         assert list(manager._file_queue) == [file_2, file_1]
 
+    def test_add_new_files_to_queue_skips_versioned_files_already_represented(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        queued_versioned_file = _get_versioned_file_info("file_1.py")
+        processed_versioned_file = _get_versioned_file_info("file_3.py")
+        parsed_versioned_file = _get_versioned_file_info("file_4.py")
+        new_file = _get_file_infos(["file_2.py"])[0]
+
+        manager._file_queue = deque([queued_versioned_file])
+        manager._processors[processed_versioned_file] = MagicMock()
+        manager._file_stats[parsed_versioned_file] = DagFileStat(num_dags=1)
+
+        known_files = {
+            "testing": {
+                _get_file_infos(["file_1.py"])[0],
+                new_file,
+                _get_file_infos(["file_3.py"])[0],
+                _get_file_infos(["file_4.py"])[0],
+            }
+        }
+
+        manager._add_new_files_to_queue(known_files)
+
+        assert list(manager._file_queue) == [new_file, queued_versioned_file]
+
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
     def test_resort_file_queue_by_mtime(self):
@@ -729,6 +767,69 @@ class TestDagFileProcessorManager:
                 manager._file_process_interval
                 > (freezed_base_time - manager._file_stats[dag_file].last_finish_time).total_seconds()
             )
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    def test_prepare_file_queue_skips_file_when_versioned_processor_is_in_progress(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("file_1.py")
+        known_file = _get_file_infos(["file_1.py"])[0]
+
+        manager._processors[versioned_file] = MagicMock()
+
+        manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert manager._file_queue == deque()
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    def test_prepare_file_queue_skips_file_when_versioned_stat_is_at_run_limit(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("file_1.py")
+        known_file = _get_file_infos(["file_1.py"])[0]
+
+        manager._file_stats[versioned_file] = DagFileStat(run_count=1)
+
+        manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert manager._file_queue == deque()
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    def test_prepare_file_queue_skips_recently_processed_file_with_versioned_stats(self):
+        manager = DagFileProcessorManager(max_runs=3)
+        versioned_file = _get_versioned_file_info("file_1.py")
+        known_file = _get_file_infos(["file_1.py"])[0]
+
+        manager._file_stats[versioned_file] = DagFileStat(
+            last_finish_time=timezone.utcnow() - timedelta(seconds=10),
+            run_count=1,
+        )
+
+        manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert manager._file_queue == deque()
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_recently_modified_file_uses_versioned_stats_without_creating_duplicate_entries(
+        self, mock_getmtime
+    ):
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        versioned_file = _get_versioned_file_info("file_1.py")
+        known_file = _get_file_infos(["file_1.py"])[0]
+        known_files = {"testing": {known_file}}
+        last_finish_time = freezed_base_time - timedelta(seconds=10)
+
+        manager = DagFileProcessorManager(max_runs=3)
+        manager._file_stats = {
+            versioned_file: DagFileStat(1, 0, last_finish_time, 1.0, 1, 1),
+        }
+
+        with time_machine.travel(freezed_base_time):
+            mock_getmtime.side_effect = [(freezed_base_time - timedelta(seconds=5)).timestamp()]
+            manager.prepare_file_queue(known_files=known_files)
+
+        assert manager._file_queue == deque([known_file])
+        assert known_file not in manager._file_stats
+        assert versioned_file in manager._file_stats
 
     def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest
