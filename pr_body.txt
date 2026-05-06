@@ -1,0 +1,39 @@
+## Description
+This PR resolves **CVE-2026-30898**, addressing a fundamental command injection vulnerability in the `BashOperator` where user-controlled inputs (via `dag_run.conf`, `params`, `var.value`, etc.) were directly inlined into shell execution strings.
+
+### The Solution: Template Lifting (Parameterized Shell Execution)
+Instead of attempting fragile regex detection or escaping, this PR introduces the `SecureBashOperator`. It implements **Template Lifting**, applying the paradigm of SQL parameterized queries to shell execution.
+
+Untrusted Jinja2 variables are "lifted" out of the bash command and passed through environment variables.
+
+**Before (Vulnerable):**
+```python
+BashOperator(
+    task_id="unsafe",
+    bash_command='echo "Hello {{ dag_run.conf["user"] }}"',
+)
+# Rendered: echo "Hello "; rm -rf / #"
+```
+
+**After (Secure):**
+```python
+SecureBashOperator(
+    task_id="safe",
+    bash_command='echo "Hello {{ dag_run.conf["user"] }}"',
+)
+# Rendered Command: echo "Hello ${_AIRFLOW_LIFTED_safe_0}"
+# Rendered Env:     _AIRFLOW_LIFTED_safe_0 = "; rm -rf / #"
+```
+Due to the POSIX execution model, the shell expansion of `${VAR}` is never re-scanned for command substitution or code execution. The injected payload is treated as literal string data.
+
+### Scope
+- **Introduces:** `SecureBashOperator` in `providers/standard`. This is built as a non-breaking opt-in replacement to allow teams to migrate without breaking backward compatibility.
+- **Coverage:** Automatically parameterizes `dag_run.conf`, `dag_run["conf"]`, `params`, `var.value`, `var.json`, and `conn`.
+- **Edge cases handled:** Warns on `eval` usage, prevents double-lifting on task retries.
+
+## Testing
+- Unit tests added covering all extraction paths and safe bypasses.
+- No changes to existing `BashOperator` to ensure 100% backward compatibility for existing DAGs.
+
+## Related Issue
+Fixes CVE-2026-30898

@@ -6,7 +6,7 @@
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-8.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -91,9 +91,11 @@ class SecureBashOperator(BashOperator):
     command injection structurally impossible.
     """
     
-    _template_lifted: bool = False
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._template_lifted: bool = False
 
-    def render_template_fields(self, context: Context, jinja_env=None):
+    def render_template_fields(self, context: Context, jinja_env: Any = None) -> None:
         if self._template_lifted:
             super().render_template_fields(context, jinja_env)
             return

@@ -43,6 +43,7 @@ Features
 
 * ``Add run_after to TriggerDagRunOperator (#62259)``
 * ``Add partition_key to Context (#65359)``
+* ``Add SecureBashOperator to mitigate CVE-2026-30898 using template lifting (#66457)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
