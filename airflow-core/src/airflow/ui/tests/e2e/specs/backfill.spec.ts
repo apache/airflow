@@ -184,10 +184,10 @@ test.describe("Backfill", () => {
       await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 15_000 });
 
       await backfillPage.togglePauseState();
-      await expect(backfillPage.pauseButton).toBeVisible({ timeout: 10_000 });
+      await expect(backfillPage.pauseButton).toBeVisible();
 
       await backfillPage.togglePauseState();
-      await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 10_000 });
+      await expect(backfillPage.unpauseButton).toBeVisible();
     });
 
     test("verify cancel backfill", async ({ backfillPage }) => {
@@ -204,8 +204,8 @@ test.describe("Backfill", () => {
       await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 15_000 });
 
       await backfillPage.clickCancelButton();
-      await expect(backfillPage.pauseOrUnpauseButton).not.toBeVisible({ timeout: 10_000 });
-      await expect(backfillPage.cancelButton).not.toBeVisible({ timeout: 10_000 });
+      await expect(backfillPage.pauseOrUnpauseButton).not.toBeVisible();
+      await expect(backfillPage.cancelButton).not.toBeVisible();
     });
 
     test("verify cancelled backfill cannot be resumed", async ({ backfillPage }) => {
@@ -223,7 +223,7 @@ test.describe("Backfill", () => {
 
       // Verify UI: no pause/resume controls visible after cancel.
       await backfillPage.navigateToDagDetail(testDagId);
-      await expect(backfillPage.pauseOrUnpauseButton).not.toBeVisible({ timeout: 10_000 });
+      await expect(backfillPage.pauseOrUnpauseButton).not.toBeVisible();
 
       // Verify: completedAt is set in backfills table.
       await backfillPage.navigateToBackfillsTab(testDagId);

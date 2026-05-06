@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multi-team lookup to Lockbox backend (#65695)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 4.4.2
 .....
 

@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateGuardrailOperator,
+    BedrockCreateGuardrailVersionOperator,
     BedrockDeleteGuardrailOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
@@ -68,9 +69,17 @@ with DAG(
     )
     # [END howto_operator_bedrock_delete_guardrail]
 
+    # [START howto_operator_bedrock_create_guardrail_version]
+    create_guardrail_version = BedrockCreateGuardrailVersionOperator(
+        task_id="create_guardrail_version",
+        guardrail_identifier=create_guardrail.output,
+    )
+    # [END howto_operator_bedrock_create_guardrail_version]
+
     chain(
         test_context,
         create_guardrail,
+        create_guardrail_version,
         delete_guardrail,
     )
 

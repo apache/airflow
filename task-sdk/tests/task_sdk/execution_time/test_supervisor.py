@@ -44,6 +44,10 @@ import msgspec
 import psutil
 import pytest
 import structlog
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
@@ -3515,3 +3519,45 @@ class TestChildExecMain:
             os.close(saved_2)
             for s in [req_a, req_b, out_a, out_b, err_a, err_b]:
                 s.close()
+
+
+def test_ipc_trace_context_propagation(mocker):
+    """Full IPC propagation chain: _make_frame injects the active span; handle_requests restores it."""
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(InMemorySpanExporter()))
+    tracer = provider.get_tracer("test")
+
+    # Task-runner side: _make_frame injects the active span via the real propagator.
+    with tracer.start_as_current_span("task_span") as span:
+        frame = CommsDecoder(socket=None)._make_frame(GetVariable(key="k"))  # type: ignore[arg-type]
+        expected_span_id = span.get_span_context().span_id
+
+    assert frame.context_carrier is not None
+    assert f"{expected_span_id:016x}" in frame.context_carrier.get("traceparent", "")
+
+    # Supervisor side: handle_requests extracts and restores the context before dispatch.
+    # Capture the active span from inside the client call — exercises the full dispatch path.
+    _, write_end = socket.socketpair()
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=write_end,
+        client=mocker.Mock(),
+        process=mocker.Mock(),
+    )
+    captured: list[int] = []
+
+    def capture_on_get(key):
+        captured.append(get_current_span().get_span_context().span_id)
+        return VariableResult(key=key, value="v")
+
+    proc.client.variables.get.side_effect = capture_on_get
+
+    generator = proc.handle_requests(log=mocker.Mock())
+    next(generator)
+    generator.send(frame)
+
+    assert captured == [expected_span_id]
+    # Context is detached after dispatch — no leak.
+    assert get_current_span().get_span_context().span_id != expected_span_id

@@ -26,7 +26,7 @@ COLOR_YELLOW=$'\e[33m'
 COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
 
-UV_VERSION="0.11.7"
+UV_VERSION="0.11.8"
 
 SHIM_DIR="${HOME}/.local/bin"
 SHIM_PATH="${SHIM_DIR}/breeze"

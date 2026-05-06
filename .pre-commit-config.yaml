@@ -400,6 +400,35 @@ repos:
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
         entry: zizmor
+  - repo: https://github.com/lycheeverse/lychee
+    rev: e85aaf5524b2f808e63bae55e594c843220f10f2  # frozen: lychee-v0.24.2
+    hooks:
+      # Use the upstream `lychee-docker` variant rather than the script-based
+      # `lychee` hook because the prebuilt lychee binaries that the script
+      # downloads are linked against newer glibc than ubuntu-22.04 runners
+      # ship with (`GLIBC_2.38` / `GLIBC_2.39` not found at runtime). The
+      # docker variant runs the official `lycheeverse/lychee` image, which
+      # bundles its own libc and is portable across runners.
+      - id: lychee-docker
+        name: Check internal Markdown links with lychee (offline mode)
+        description: >-
+          Validate intra-repo links in Markdown files (relative paths, anchors,
+          and fragments) without making any HTTP requests. Auto-generated client
+          docs are excluded because they are regenerated from OpenAPI specs.
+        types: [markdown]
+        args:
+          - --offline
+          - --no-progress
+          - --root-dir
+          - .
+          - --include-fragments
+        exclude: |
+          (?x)
+          ^clients/python/|
+          ^.*/openapi-gen/|
+          ^.*/node_modules/|
+          ^\.build/|
+          ^generated/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -471,7 +500,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.11']
+        additional_dependencies: ['ruff==0.15.12']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'

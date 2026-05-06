@@ -22,6 +22,20 @@ Amazon MWAA Serverless (Managed Workflows)
 Amazon MWAA Serverless provides a serverless execution environment for Apache Airflow
 workflows. Use the operators below to manage MWAA Serverless workflow runs.
 
+.. _howto/operator:MwaaServerlessCreateWorkflowOperator:
+
+Create a Workflow
+-----------------
+
+To create an Amazon MWAA Serverless workflow, use
+:class:`~airflow.providers.amazon.aws.operators.mwaa_serverless.MwaaServerlessCreateWorkflowOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_mwaa_serverless_create_workflow]
+    :end-before: [END howto_operator_mwaa_serverless_create_workflow]
+
 .. _howto/operator:MwaaServerlessStartWorkflowRunOperator:
 
 Start a Workflow Run
@@ -40,3 +54,17 @@ Reference
 ~~~~~~~~~
 
 * `AWS boto3 Library Documentation for MWAA Serverless <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/mwaa-serverless.html>`__
+
+.. _howto/sensor:MwaaServerlessWorkflowRunSensor:
+
+Wait for a Workflow Run
+-----------------------
+
+To wait for an Amazon MWAA Serverless workflow run to complete, use
+:class:`~airflow.providers.amazon.aws.sensors.mwaa_serverless.MwaaServerlessWorkflowRunSensor`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_mwaa_serverless_workflow_run]
+    :end-before: [END howto_sensor_mwaa_serverless_workflow_run]

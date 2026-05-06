@@ -275,7 +275,7 @@ test.describe("Connections Page - Search and Filter", () => {
 
           return ids.length > 0 && ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
         },
-        { intervals: [500], timeout: 10_000 },
+        { intervals: [500] },
       )
       .toBe(true);
 
@@ -312,7 +312,7 @@ test.describe("Connections Page - Search and Filter", () => {
 
           return count > 0; // Just verify we have some results
         },
-        { intervals: [500], timeout: 10_000 },
+        { intervals: [500] },
       )
       .toBe(true);
 

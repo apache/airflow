@@ -71,7 +71,7 @@ export class AssetListPage extends BasePage {
   }
 
   public async waitForLoad(): Promise<void> {
-    await expect(this.table).toBeVisible({ timeout: 10_000 });
-    await expect(this.rows.locator("td a").first()).toBeVisible({ timeout: 10_000 });
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.locator("td a").first()).toBeVisible();
   }
 }
