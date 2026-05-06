@@ -26,10 +26,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.airflow.sdk.ensureTrailingSlash
 import org.apache.airflow.sdk.execution.api.client.ApiClient
+import org.apache.airflow.sdk.execution.api.model.BundleInfo
 import org.apache.airflow.sdk.execution.api.model.TIEnterRunningPayload
 import org.apache.airflow.sdk.execution.api.model.TIRunContext
 import org.apache.airflow.sdk.execution.api.model.TISuccessStatePayload
 import org.apache.airflow.sdk.execution.api.model.TITerminalStatePayload
+import org.apache.airflow.sdk.execution.api.model.TaskInstance
+import org.apache.airflow.sdk.execution.api.model.TaskInstanceState
 import org.apache.airflow.sdk.execution.api.model.TerminalStateNonSuccess
 import org.apache.airflow.sdk.execution.api.route.TaskInstancesApi
 import org.apache.airflow.sdk.execution.api.route.XComsApi
@@ -42,9 +45,6 @@ import java.net.Socket
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
-import org.apache.airflow.sdk.execution.api.model.BundleInfo as ExecutionBundleInfo
-import org.apache.airflow.sdk.execution.api.model.TaskInstance as ExecutionTaskInstance
-import org.apache.airflow.sdk.execution.api.model.TaskInstanceState as ExecutionTaskInstanceState
 
 data class SupervisorTaskInstance(
   val id: UUID,
@@ -77,7 +77,7 @@ data class SupervisorRequest(
 )
 
 data class SupervisorResult(
-  val finalState: ExecutionTaskInstanceState,
+  val finalState: TaskInstanceState,
   val exitCode: Int,
 )
 
@@ -165,7 +165,7 @@ object Supervisor {
                   stderrPump.join()
 
                   SupervisorResult(
-                    finalState = if (exitCode == 0) finalState else ExecutionTaskInstanceState.FAILED,
+                    finalState = if (exitCode == 0) finalState else TaskInstanceState.FAILED,
                     exitCode = exitCode,
                   )
                 }
@@ -198,13 +198,13 @@ object Supervisor {
     execApi: ApiClient,
     execClient: HttpExecApiClient,
     taskInstanceId: UUID,
-  ): ExecutionTaskInstanceState {
+  ): TaskInstanceState {
     val input = comm.getInputStream()
     val output = comm.getOutputStream()
 
     while (true) {
       val frame = TaskSdkFrames.readFrame(input, TaskSdkFrames.toSupervisorTypes)
-      when (val message = frame.body ?: return ExecutionTaskInstanceState.FAILED) {
+      when (val message = frame.body ?: return TaskInstanceState.FAILED) {
         is GetConnection ->
           reply(frame.id, output) {
             execClient.getConnection(message.id)
@@ -231,11 +231,11 @@ object Supervisor {
           }
         is SucceedTask -> {
           succeed(execApi, taskInstanceId, message)
-          return ExecutionTaskInstanceState.SUCCESS
+          return TaskInstanceState.SUCCESS
         }
         is TaskState -> {
           finish(execApi, taskInstanceId, message)
-          return ExecutionTaskInstanceState.fromValue(message.state)
+          return TaskInstanceState.fromValue(message.state)
         }
         is ErrorResponse -> throw IllegalStateException("[${message.error}] ${message.detail}")
         else -> throw IllegalStateException("Unsupported Task SDK message type ${message::class.java.name}")
@@ -355,7 +355,7 @@ object Supervisor {
 
   private fun startTask(
     api: ApiClient,
-    taskInstance: ExecutionTaskInstance,
+    taskInstance: TaskInstance,
     startDate: OffsetDateTime,
     process: Process,
     workerName: String,
@@ -374,7 +374,7 @@ object Supervisor {
     }
 
   private fun SupervisorTaskInstance.toExecutionTaskInstance(workerName: String) =
-    ExecutionTaskInstance().also {
+    TaskInstance().also {
       it.id = id
       it.taskId = taskId
       it.dagId = dagId
@@ -387,14 +387,14 @@ object Supervisor {
     }
 
   private fun SupervisorRequest.toStartupDetails(
-    taskInstance: ExecutionTaskInstance,
+    taskInstance: TaskInstance,
     tiContext: TIRunContext,
     startDate: OffsetDateTime,
   ) = StartupDetails().also {
     it.ti = taskInstance
     it.dagRelPath = dagRelPath
     it.bundleInfo =
-      ExecutionBundleInfo().also { info ->
+      BundleInfo().also { info ->
         info.name = bundleInfo.name
         info.version = bundleInfo.version
       }

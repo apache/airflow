@@ -23,7 +23,7 @@ import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
-import org.apache.airflow.sdk.execution.api.model.TaskInstanceState as ExecutionTaskInstanceState
+import org.apache.airflow.sdk.execution.api.model.TaskInstanceState
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -169,12 +169,12 @@ class SupervisorTest {
   @Test
   @DisplayName("SupervisorResult: success and failure states")
   fun supervisorResult() {
-    val success = SupervisorResult(ExecutionTaskInstanceState.SUCCESS, 0)
-    assertEquals(ExecutionTaskInstanceState.SUCCESS, success.finalState)
+    val success = SupervisorResult(TaskInstanceState.SUCCESS, 0)
+    assertEquals(TaskInstanceState.SUCCESS, success.finalState)
     assertEquals(0, success.exitCode)
 
-    val failure = SupervisorResult(ExecutionTaskInstanceState.FAILED, 1)
-    assertEquals(ExecutionTaskInstanceState.FAILED, failure.finalState)
+    val failure = SupervisorResult(TaskInstanceState.FAILED, 1)
+    assertEquals(TaskInstanceState.FAILED, failure.finalState)
     assertEquals(1, failure.exitCode)
   }
 
@@ -320,7 +320,7 @@ class SupervisorTest {
 
       val result = Supervisor.run(request())
 
-      assertEquals(ExecutionTaskInstanceState.SUCCESS, result.finalState)
+      assertEquals(TaskInstanceState.SUCCESS, result.finalState)
       assertEquals(0, result.exitCode)
     }
 
@@ -333,7 +333,7 @@ class SupervisorTest {
 
       val result = Supervisor.run(request(mainClass = TestFailSubprocess::class.java.name))
 
-      assertEquals(ExecutionTaskInstanceState.FAILED, result.finalState)
+      assertEquals(TaskInstanceState.FAILED, result.finalState)
       assertEquals(0, result.exitCode) // process exits cleanly, but reports failed state
     }
 
@@ -346,7 +346,7 @@ class SupervisorTest {
 
       val result = Supervisor.run(request(mainClass = TestGetVariableSubprocess::class.java.name))
 
-      assertEquals(ExecutionTaskInstanceState.SUCCESS, result.finalState)
+      assertEquals(TaskInstanceState.SUCCESS, result.finalState)
       assertEquals(0, result.exitCode)
 
       // Verify the variable request was made to the mock server.
@@ -363,7 +363,7 @@ class SupervisorTest {
 
       val result = Supervisor.run(request(mainClass = TestGetConnectionSubprocess::class.java.name))
 
-      assertEquals(ExecutionTaskInstanceState.SUCCESS, result.finalState)
+      assertEquals(TaskInstanceState.SUCCESS, result.finalState)
       assertEquals(0, result.exitCode)
 
       val requests = (1..mockServer.requestCount).map { mockServer.takeRequest() }
@@ -449,7 +449,7 @@ class SupervisorTest {
       // but then exits with code 42. Supervisor should override the final state to FAILED.
       val result = Supervisor.run(request(mainClass = TestSucceedThenCrashSubprocess::class.java.name))
 
-      assertEquals(ExecutionTaskInstanceState.FAILED, result.finalState)
+      assertEquals(TaskInstanceState.FAILED, result.finalState)
       assertEquals(42, result.exitCode)
     }
 }
