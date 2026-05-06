@@ -187,7 +187,8 @@ class DagCode(Base):
             return
         new_source_code = cls.get_code_from_file(fileloc)
         new_source_code_hash = cls.dag_source_hash(new_source_code)
-        if new_source_code_hash != latest_dagcode.source_code_hash:
+        if new_source_code_hash != latest_dagcode.source_code_hash or latest_dagcode.fileloc != fileloc:
+            latest_dagcode.fileloc = fileloc
             latest_dagcode.source_code = new_source_code
             latest_dagcode.source_code_hash = new_source_code_hash
             session.merge(latest_dagcode)

@@ -25,7 +25,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, exists, func, select, update
 
 import airflow.example_dags as example_dags_module
 from airflow.dag_processing.dagbag import DagBag
@@ -34,6 +34,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.deadline_alert import DeadlineAlert as DAM
 from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -584,6 +585,91 @@ class TestSerializedDagModel:
 
         # There should now be two versions of the DAG
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+
+    def test_new_dag_version_created_when_bundle_version_changes_and_hash_unchanged(self, dag_maker, session):
+        """Test that new dag_version is created if bundle_version changes but DAG is unchanged."""
+        with dag_maker("test_dag_update_bundle_version", session=session) as dag:
+            EmptyOperator(task_id="task1")
+
+        dag_maker.create_dagrun(run_id="test_run")
+
+        dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == dag.dag_id).order_by(DagVersion.created_at.desc())
+        )
+        dag_version.bundle_name = "astro"
+        dag_version.bundle_version = "v1"
+        task_instances = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag.dag_id)).all()
+        assert task_instances
+        for ti in task_instances:
+            ti.dag_version = dag_version
+        session.flush()
+        assert session.scalar(
+            select(
+                exists().where(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.dag_version_id == dag_version.id,
+                )
+            )
+        )
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="astro",
+            bundle_version="v2",
+            session=session,
+        )
+        session.flush()
+
+        dag_versions = session.scalars(
+            select(DagVersion).where(DagVersion.dag_id == dag.dag_id).order_by(DagVersion.created_at)
+        ).all()
+        latest_serdag = SDM.get(dag.dag_id, session=session)
+
+        assert len(dag_versions) == 2
+        assert dag_versions[-1].bundle_name == "astro"
+        assert dag_versions[-1].bundle_version == "v2"
+        assert latest_serdag.dag_version_id == dag_versions[-1].id
+
+    def test_dynamic_dag_update_when_only_bundle_version_changes_updates_fileloc(self, dag_maker, session):
+        """Test that the dynamic update path refreshes fileloc when only bundle_version changes."""
+        initial_fileloc = "/tmp/astro/v1/test_dynamic_dag_update_bundle_version.py"
+        updated_fileloc = "/tmp/astro/v2/test_dynamic_dag_update_bundle_version.py"
+        with dag_maker(
+            "test_dynamic_dag_update_bundle_version",
+            fileloc=initial_fileloc,
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="task1")
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="astro",
+            bundle_version="v1",
+            session=session,
+        )
+        session.flush()
+        initial_serdag = SDM.get(dag.dag_id, session=session)
+        initial_hash = initial_serdag.dag_hash
+        initial_dag_version_id = initial_serdag.dag_version_id
+
+        dag.fileloc = updated_fileloc
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="astro",
+            bundle_version="v2",
+            session=session,
+        )
+
+        dag_versions = session.scalars(select(DagVersion).where(DagVersion.dag_id == dag.dag_id)).all()
+        updated_serdag = SDM.get(dag.dag_id, session=session)
+
+        assert did_write is True
+        assert len(dag_versions) == 1
+        assert updated_serdag.dag_hash == initial_hash
+        assert updated_serdag.dag_version_id == initial_dag_version_id
+        assert updated_serdag.data["dag"]["fileloc"] == updated_fileloc
+        assert dag_versions[0].bundle_version == "v2"
+        assert dag_versions[0].dag_code.fileloc == updated_fileloc
 
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""

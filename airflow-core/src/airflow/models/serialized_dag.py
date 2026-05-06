@@ -664,6 +664,7 @@ class SerializedDagModel(Base):
             serialized_dag_hash == new_serialized_dag.dag_hash
             and dag_version
             and dag_version.bundle_name == bundle_name
+            and dag_version.bundle_version == bundle_version
         ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
