@@ -1945,6 +1945,7 @@ class TestDagProcessingMessageTypes:
             "DeleteXCom",
             "GetAssetByName",
             "GetAssetByUri",
+            "GetAssetsByAlias",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
             "GetDagRun",
@@ -1986,6 +1987,7 @@ class TestDagProcessingMessageTypes:
 
         in_task_runner_but_not_in_dag_processing_process = {
             "AssetResult",
+            "AssetsByAliasResult",
             "AssetEventsResult",
             "DagResult",
             "DagRunResult",

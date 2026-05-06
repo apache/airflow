@@ -1705,6 +1705,7 @@ class TestTriggererMessageTypes:
             "DeferTask",
             "GetAssetByName",
             "GetAssetByUri",
+            "GetAssetsByAlias",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
             "GetDagRun",
@@ -1744,6 +1745,7 @@ class TestTriggererMessageTypes:
 
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
+            "AssetsByAliasResult",
             "AssetEventsResult",
             "DagRunResult",
             "SentFDs",

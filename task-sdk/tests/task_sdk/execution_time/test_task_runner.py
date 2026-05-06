@@ -87,6 +87,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
     AssetResult,
+    AssetsByAliasResult,
     BundleInfo,
     ClearAssetStateByName,
     ClearTaskState,
@@ -99,6 +100,7 @@ from airflow.sdk.execution_time.comms import (
     DRCount,
     ErrorResponse,
     GetAssetByUri,
+    GetAssetsByAlias,
     GetAssetStateByName,
     GetAssetStateByUri,
     GetConnection,
@@ -5017,16 +5019,47 @@ class TestTaskInstanceStateOperations:
             GetAssetStateByUri(uri="s3://bucket/data", key="watermark")
         )
 
-    def test_asset_state_absent_for_alias_inlet(self, create_runtime_ti, mock_supervisor_comms):
+    def test_asset_state_alias_as_inlet(self, create_runtime_ti, mock_supervisor_comms):
         alias = AssetAlias(name="my_alias")
+        resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
 
         class WatcherOperator(BaseOperator):
             def execute(self, context):
-                assert "asset_state" not in context
+                context["asset_state"][resolved].set("watermark", "2026-05-01")
+
+        def side_effect(msg):
+            if isinstance(msg, GetAssetsByAlias):
+                return AssetsByAliasResult(
+                    assets=[AssetResult(name=resolved.name, uri=resolved.uri, group="asset")]
+                )
+            return TestTaskInstanceStateOperations._watcher_side_effect(msg)
 
         task = WatcherOperator(task_id="t", inlets=[alias])
         runtime_ti = create_runtime_ti(task=task)
-        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
+        mock_supervisor_comms.send.side_effect = side_effect
+
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(
+            SetAssetStateByName(name="resolved_asset", key="watermark", value="2026-05-01")
+        )
+
+    def test_asset_state_alias_inlet_no_resolved_assets(self, create_runtime_ti, mock_supervisor_comms):
+        alias = AssetAlias(name="empty_alias")
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                # asset_state is in context but it is empty because alias resolved to nothing
+                assert "asset_state" in context
+
+        def side_effect(msg):
+            if isinstance(msg, GetAssetsByAlias):
+                return AssetsByAliasResult(assets=[])
+            return TestTaskInstanceStateOperations._watcher_side_effect(msg)
+
+        task = WatcherOperator(task_id="t", inlets=[alias])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = side_effect
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 

@@ -764,6 +764,11 @@ class AssetOperations:
 
         return AssetResponse.model_validate_json(resp.read())
 
+    def get_by_alias(self, alias_name: str) -> list[AssetResponse]:
+        """Get all Assets resolved from an AssetAlias."""
+        resp = self.client.get("assets/by-alias", params={"alias_name": alias_name})
+        return [AssetResponse.model_validate(a) for a in resp.json()]
+
 
 class AssetEventOperations:
     __slots__ = ("client",)

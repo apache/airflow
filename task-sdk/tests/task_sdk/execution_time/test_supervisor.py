@@ -90,6 +90,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
     GetAssetStateByName,
     GetAssetStateByUri,
     GetConnection,
@@ -1816,6 +1817,19 @@ REQUEST_TEST_CASES = [
             response=AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
         ),
         test_id="get_asset_by_uri",
+    ),
+    RequestTestCase(
+        message=GetAssetsByAlias(alias_name="my_alias"),
+        expected_body={
+            "assets": [{"name": "asset_a", "uri": "s3://bucket/a", "group": "asset"}],
+            "type": "AssetsByAliasResult",
+        },
+        client_mock=ClientMock(
+            method_path="assets.get_by_alias",
+            args=("my_alias",),
+            response=[AssetResult(name="asset_a", uri="s3://bucket/a", group="asset")],
+        ),
+        test_id="get_assets_by_alias",
     ),
     RequestTestCase(
         message=GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),

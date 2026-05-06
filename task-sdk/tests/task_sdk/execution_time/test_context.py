@@ -44,6 +44,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventSourceTaskInstance,
     AssetEventsResult,
     AssetResult,
+    AssetsByAliasResult,
     AssetStateResult,
     ClearAssetStateByName,
     ClearAssetStateByUri,
@@ -57,6 +58,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetAssetsByAlias,
     GetAssetStateByName,
     GetAssetStateByUri,
     GetDagRun,
@@ -1292,3 +1294,26 @@ class TestAssetStateAccessors:
 
         with pytest.raises(ValueError, match="2 concrete inlets"):
             AssetStateAccessors([a1, a2]).get("watermark")
+
+    def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
+        alias = AssetAlias(name="my_alias")
+        mock_supervisor_comms.send.return_value = AssetsByAliasResult(
+            assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
+        )
+        mock_supervisor_comms.send.return_value = AssetsByAliasResult(
+            assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
+        )
+
+        accessors = AssetStateAccessors([alias])
+
+        mock_supervisor_comms.send.assert_called_once_with(GetAssetsByAlias(alias_name="my_alias"))
+        resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
+        assert resolved.name in accessors._by_name
+
+    def test_alias_inlet_no_resolved_assets_contributes_nothing(self, mock_supervisor_comms):
+        alias = AssetAlias(name="empty_alias")
+        mock_supervisor_comms.send.return_value = AssetsByAliasResult(assets=[])
+
+        accessors = AssetStateAccessors([alias])
+
+        assert accessors._total == 0

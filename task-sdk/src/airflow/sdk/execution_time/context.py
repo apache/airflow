@@ -583,6 +583,14 @@ class AssetStateAccessors:
                 self._by_name[inlet.name] = AssetStateAccessor(name=inlet.name)
             elif isinstance(inlet, AssetUriRef):
                 self._by_uri[inlet.uri] = AssetStateAccessor(uri=inlet.uri)
+            elif isinstance(inlet, AssetAlias):
+                from airflow.sdk.execution_time.comms import AssetsByAliasResult, GetAssetsByAlias
+                from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+                resp = SUPERVISOR_COMMS.send(GetAssetsByAlias(alias_name=inlet.name))
+                if isinstance(resp, AssetsByAliasResult):
+                    for asset in resp.assets:
+                        self._by_name[asset.name] = AssetStateAccessor(name=asset.name)
 
         self._total = len(self._by_name) + len(self._by_uri)
 

@@ -1223,6 +1223,36 @@ class TestAssetOperations:
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.ASSET_NOT_FOUND
 
+    def test_get_by_alias_returns_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/assets/by-alias"
+            assert request.url.params["alias_name"] == "my_alias"
+            return httpx.Response(
+                status_code=200,
+                json=[
+                    {"name": "asset_a", "uri": "s3://bucket/a", "group": "asset", "extra": {}},
+                    {"name": "asset_b", "uri": "s3://bucket/b", "group": "asset", "extra": {}},
+                ],
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.assets.get_by_alias("my_alias")
+
+        assert len(result) == 2
+        assert isinstance(result[0], AssetResponse)
+        assert isinstance(result[1], AssetResponse)
+        assert result[0].name == "asset_a"
+        assert result[1].name == "asset_b"
+
+    def test_get_by_alias_returns_empty_for_unknown_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200, json=[])
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.assets.get_by_alias("unknown_alias")
+
+        assert result == []
+
 
 class TestDagRunOperations:
     def test_trigger(self):

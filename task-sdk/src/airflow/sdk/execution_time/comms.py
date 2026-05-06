@@ -567,6 +567,13 @@ class AssetStateResult(AssetStateResponse):
         return cls(**resp.model_dump(exclude_defaults=True), type="AssetStateResult")
 
 
+class AssetsByAliasResult(BaseModel):
+    """Response to GetAssetsByAlias; list of concrete assets resolved from an alias."""
+
+    assets: list[AssetResult]
+    type: Literal["AssetsByAliasResult"] = "AssetsByAliasResult"
+
+
 class DagRunResult(DagRun):
     type: Literal["DagRunResult"] = "DagRunResult"
 
@@ -734,6 +741,7 @@ class DagResult(DagResponse):
 
 ToTask = Annotated[
     AssetResult
+    | AssetsByAliasResult
     | AssetEventsResult
     | AssetStateResult
     | ConnectionResult
@@ -1038,6 +1046,11 @@ class GetAssetByUri(BaseModel):
     type: Literal["GetAssetByUri"] = "GetAssetByUri"
 
 
+class GetAssetsByAlias(BaseModel):
+    alias_name: str
+    type: Literal["GetAssetsByAlias"] = "GetAssetsByAlias"
+
+
 class GetAssetEventByAsset(BaseModel):
     name: str | None
     uri: str | None
@@ -1149,6 +1162,7 @@ ToSupervisor = Annotated[
     | DeleteXCom
     | GetAssetByName
     | GetAssetByUri
+    | GetAssetsByAlias
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
     | GetAssetStateByName
