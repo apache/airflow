@@ -4946,6 +4946,8 @@ class TestTaskInstanceStateOperations:
         if isinstance(actual, ValidateInletsAndOutlets):
             return InactiveAssetsResult(inactive_assets=[])
         if isinstance(actual, GetAssetByUri):
+            # GetAssetByUri has no .name field. Mirroring AssetModel behaviour:
+            # when only uri is provided, name defaults to uri.
             return AssetResult(name=actual.uri, uri=actual.uri, group="asset")
         return OKResponse(ok=True)
 
