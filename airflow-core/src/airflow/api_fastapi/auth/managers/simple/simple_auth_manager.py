@@ -21,7 +21,7 @@ import fcntl
 import json
 import logging
 import os
-import random
+import secrets
 from collections import namedtuple
 from enum import Enum
 from json import JSONDecodeError
@@ -440,7 +440,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _generate_password() -> str:
-        return "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+        alphabet = "abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789"
+        return "".join(secrets.choice(alphabet) for _ in range(16))
 
     @staticmethod
     def _print_output(output: str):
