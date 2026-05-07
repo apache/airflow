@@ -1408,8 +1408,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # fall back to dag_model/dag_run for legacy tasks migrated from
                     # Airflow 2 where dag_version may be None (AIP-66).
                     _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
@@ -2601,8 +2605,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _stuck_bundle_name = (
                         ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
                     )
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _stuck_bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
@@ -2959,8 +2967,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Safely extract bundle info with fallback for legacy tasks
             # (dag_version may be None after Airflow 2 → 3 migration).
             _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+            # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+            # leave the callback unpinned so it runs against the same code as the task.
             _hb_bundle_version = (
-                ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                ti.dag_version.bundle_version
+                if ti.dag_version and ti.dag_run.bundle_version is not None
+                else ti.dag_run.bundle_version
             )
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):

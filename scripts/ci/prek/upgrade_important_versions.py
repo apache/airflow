@@ -89,6 +89,79 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
     (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "go-sdk" / ".pre-commit-config.yaml", False),
+    # Files that pin Docker Hub `alpine:` / `busybox:` tags and should be
+    # auto-bumped alongside the rest of the "important versions". Adding new
+    # call sites? Add them here too — the regex in SIMPLE_VERSION_PATTERNS
+    # only mutates files in this list.
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "utils"
+        / "xcom_sidecar.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "system"
+        / "cncf"
+        / "kubernetes"
+        / "example_kubernetes.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "system"
+        / "cncf"
+        / "kubernetes"
+        / "example_kubernetes_async.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "unit"
+        / "cncf"
+        / "kubernetes"
+        / "operators"
+        / "test_pod.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "kubernetes-tests"
+        / "tests"
+        / "kubernetes_tests"
+        / "test_kubernetes_pod_operator.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "commands"
+        / "kubernetes_commands.py",
+        False,
+    ),
 ]
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
@@ -477,6 +550,8 @@ if UPGRADE_ALL_BY_DEFAULT and VERBOSE:
     console.print("[bright_blue]Upgrading all important versions")
 
 # Package upgrade flags
+UPGRADE_ALPINE: bool = get_env_bool("UPGRADE_ALPINE")
+UPGRADE_BUSYBOX: bool = get_env_bool("UPGRADE_BUSYBOX")
 UPGRADE_FLIT_CORE: bool = get_env_bool("UPGRADE_FLIT_CORE")
 UPGRADE_GITPYTHON: bool = get_env_bool("UPGRADE_GITPYTHON")
 UPGRADE_GOLANG: bool = get_env_bool("UPGRADE_GOLANG")
@@ -604,6 +679,19 @@ SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "openapi_generator": [
         (r"(OPENAPI_GENERATOR_CLI_VER = )(\"[0-9.]+\")", 'OPENAPI_GENERATOR_CLI_VER = "{version}"'),
     ],
+    # Pinning Docker Hub base-image tags used by Airflow's K8s system tests
+    # protects CI from anonymous-pull rate limits — the kind cluster
+    # `kind load`s the pre-pulled image so kubelet (default
+    # imagePullPolicy=IfNotPresent for tagged images) never reaches Docker
+    # Hub. Pattern matches both `alpine:X.Y[.Z]` literals in code and
+    # `ARG ALPINE_VERSION="X.Y[.Z]"` in chart Dockerfiles.
+    "alpine": [
+        (r"(alpine:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "alpine:{version}"),
+        (r'(ALPINE_VERSION=")([0-9.]+)(")', 'ALPINE_VERSION="{version}"'),
+    ],
+    "busybox": [
+        (r"(busybox:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "busybox:{version}"),
+    ],
     "sphinx_airflow_theme": [
         (
             r"(sphinx-airflow-theme@https://airflow\.apache\.org/sphinx-airflow-theme/sphinx_airflow_theme-)([0-9.]+)(-py3-none-any\.whl)",
@@ -640,6 +728,8 @@ def fetch_all_package_versions() -> dict[str, str]:
         "mypy": get_latest_pypi_version("mypy", UPGRADE_MYPY),
         "node_lts": get_latest_lts_node_version() if UPGRADE_NODE_LTS else "",
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
+        "alpine": get_latest_image_version("alpine") if UPGRADE_ALPINE else "",
+        "busybox": get_latest_image_version("busybox") if UPGRADE_BUSYBOX else "",
         "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
         "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
         "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
