@@ -143,3 +143,29 @@ class TestRouterLevelDefaultDeny:
             "ui_router must declare Depends(get_user) at the router level so every UI endpoint "
             "default-denies unauthenticated requests."
         )
+
+
+class TestCorsMiddlewareAllowCredentials:
+    @pytest.mark.parametrize(
+        ("config_value", "expected_allow_credentials"),
+        [(None, True), ("True", True), ("False", False)],
+    )
+    def test_init_config_passes_allow_credentials(self, config_value, expected_allow_credentials):
+        from fastapi import FastAPI
+        from fastapi.middleware.cors import CORSMiddleware
+
+        from airflow.api_fastapi.core_api.app import init_config
+
+        from tests_common.test_utils.config import conf_vars
+
+        config = {("api", "access_control_allow_origins"): "https://example.com"}
+        if config_value is not None:
+            config[("api", "access_control_allow_credentials")] = config_value
+
+        with conf_vars(config):
+            app = FastAPI()
+            init_config(app)
+
+        cors_middlewares = [m for m in app.user_middleware if m.cls is CORSMiddleware]
+        assert len(cors_middlewares) == 1
+        assert cors_middlewares[0].kwargs["allow_credentials"] is expected_allow_credentials
