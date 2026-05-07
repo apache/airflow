@@ -39,7 +39,6 @@ class TestInfluxDB3Hook:
         """Test connection to InfluxDB 3.x."""
         self.influxdb3_hook.get_connection = mock.Mock()
         self.influxdb3_hook.get_connection.return_value = self.connection
-        self.connection.extra_dejson = self.connection.extra_dejson
 
         self.influxdb3_hook.get_conn()
 
@@ -63,7 +62,6 @@ class TestInfluxDB3Hook:
 
         influxdb3_hook.get_connection = mock.Mock()
         influxdb3_hook.get_connection.return_value = connection
-        connection.extra_dejson = extra
 
         with pytest.raises(ValueError, match="database is required"):
             influxdb3_hook.get_conn()
@@ -72,10 +70,10 @@ class TestInfluxDB3Hook:
         """Test query with InfluxDB 3.x."""
         import pandas as pd
 
-        self.influxdb3_hook.get_conn = mock.Mock()
         self.influxdb3_hook.client = mock.Mock()
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         self.influxdb3_hook.client.query = mock.Mock(return_value=mock_df)
+        self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
 
         influxdb_query = 'SELECT "duration" FROM "pyexample"'
         result = self.influxdb3_hook.query(influxdb_query)
@@ -89,11 +87,9 @@ class TestInfluxDB3Hook:
 
     def test_write(self):
         """Test write with InfluxDB 3.x."""
-        self.influxdb3_hook.get_connection = mock.Mock()
-        self.influxdb3_hook.get_connection.return_value = self.connection
-        self.influxdb3_hook.get_conn = mock.Mock()
         self.influxdb3_hook.client = mock.Mock()
         self.influxdb3_hook.client.write = mock.Mock()
+        self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
 
         self.influxdb3_hook.write(
             measurement="test_measurement",
@@ -122,7 +118,6 @@ class TestInfluxDB3Hook:
         """Test that ImportError is raised when influxdb3-python is not installed."""
         self.influxdb3_hook.get_connection = mock.Mock()
         self.influxdb3_hook.get_connection.return_value = self.connection
-        self.connection.extra_dejson = self.connection.extra_dejson
 
         with pytest.raises(ImportError, match="influxdb3-python is required"):
             self.influxdb3_hook.get_conn()
