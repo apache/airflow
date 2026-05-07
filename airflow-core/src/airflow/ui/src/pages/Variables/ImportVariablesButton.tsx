@@ -38,7 +38,7 @@ const ImportVariablesButton = ({ disabled }: Props) => {
         <FiUploadCloud /> {translate("variables.import.title")}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>

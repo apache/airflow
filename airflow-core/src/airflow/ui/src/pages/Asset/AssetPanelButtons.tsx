@@ -35,7 +35,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
   return (
     <Box borderRadius="md" position="absolute" px={2} py={1} right={2} top={1} zIndex={1}>
       <Flex justifyContent="space-between">
-        <ButtonGroup attached size="sm" variant="outline">
+        <ButtonGroup attached variant="outline">
           <Button
             bg={dependencyType === "scheduling" ? "brand.500" : "bg.subtle"}
             color={dependencyType === "scheduling" ? "white" : "fg.default"}
@@ -58,7 +58,6 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
             <IconButton
               aria-label={translate("dag:panel.buttons.options")}
               colorPalette="brand"
-              size="md"
               title={translate("dag:panel.buttons.options")}
               variant="ghost"
             >

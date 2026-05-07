@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
@@ -42,6 +42,7 @@ import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { SearchDagsButton } from "src/components/SearchDags";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
+import { IconButton } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { Tooltip } from "src/components/ui/Tooltip";
@@ -243,10 +244,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   bg="fg.subtle"
                   borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
                   boxShadow="md"
-                  left={direction === "rtl" ? "-5px" : undefined}
+                  left={direction === "rtl" ? "0" : undefined}
                   onClick={() => setIsRightPanelCollapsed(false)}
                   position="absolute"
-                  right={direction === "ltr" ? "-5px" : undefined}
+                  right={direction === "ltr" ? "0" : undefined}
                   size="2xs"
                   top="50%"
                   zIndex={10}
@@ -376,10 +377,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                           bg="fg.subtle"
                           borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
                           boxShadow="md"
-                          left={direction === "ltr" ? "-5px" : undefined}
+                          left={direction === "ltr" ? "0" : undefined}
                           onClick={() => setIsRightPanelCollapsed(true)}
                           position="absolute"
-                          right={direction === "rtl" ? "-5px" : undefined}
+                          right={direction === "rtl" ? "0" : undefined}
                           size="2xs"
                           top="50%"
                           zIndex={2}
@@ -400,7 +401,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                               marginBottom="-1"
                               onClick={onOpen}
                               rounded="full"
-                              size="md"
                               variant="solid"
                             >
                               <LuFileWarning />

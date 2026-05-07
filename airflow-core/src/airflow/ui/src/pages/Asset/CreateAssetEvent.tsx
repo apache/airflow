@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";
@@ -41,8 +42,6 @@ export const CreateAssetEvent = ({ asset }: Props) => {
           colorPalette="brand"
           disabled={asset === undefined}
           onClick={onOpen}
-          size="md"
-          variant="ghost"
         >
           <FiPlay />
         </IconButton>

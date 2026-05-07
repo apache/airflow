@@ -123,7 +123,7 @@ export const SearchBar = ({
   }
 
   return (
-    <HStack alignItems="center" gap={2} w="100%">
+    <HStack alignItems="center" gap={2}>
       {inputGroup}
       <AdvancedSearchToggle {...advancedSearch} />
     </HStack>

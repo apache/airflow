@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiActivity, FiWifi, FiWifiOff } from "react-icons/fi";
 
 import type { ConnectionResponse, ConnectionBody } from "openapi/requests/types.gen";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import { useTestConnection } from "src/queries/useTestConnection";
@@ -84,8 +84,6 @@ const TestConnectionButton = ({ connection }: Props) => {
         onClick={() => {
           mutate({ requestBody: connectionBody });
         }}
-        size="md"
-        variant="ghost"
       >
         {icon}
       </IconButton>

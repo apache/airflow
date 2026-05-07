@@ -18,7 +18,6 @@
  */
 import {
   Button,
-  IconButton,
   type NumberInputValueChangeDetails,
   Portal,
   Separator,
@@ -34,6 +33,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { StateBadge } from "src/components/StateBadge";
+import { IconButton } from "src/components/ui";
 import { Select } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
@@ -155,7 +155,6 @@ export const GraphTaskFilters = () => {
         <IconButton
           aria-label={panelTitle}
           colorPalette="brand"
-          size="md"
           title={panelTitle}
           variant={hasActiveFilters ? "solid" : "ghost"}
         >
@@ -261,7 +260,7 @@ export const GraphTaskFilters = () => {
             )}
 
             {hasActiveFilters ? (
-              <Button onClick={clearAllFilters} size="sm" variant="outline" width="100%">
+              <Button onClick={clearAllFilters} variant="outline" width="100%">
                 {translate("dag:panel.graphFilters.clearFilters")}
               </Button>
             ) : undefined}

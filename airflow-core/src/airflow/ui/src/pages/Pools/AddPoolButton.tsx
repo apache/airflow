@@ -18,7 +18,7 @@
  */
 import { Button, Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiPlusCircle } from "react-icons/fi";
+import { MdAdd } from "react-icons/md";
 
 import { Dialog, Toaster } from "src/components/ui";
 import { useAddPool } from "src/queries/useAddPool";
@@ -49,10 +49,10 @@ const AddPoolButton = () => {
     <>
       <Toaster />
       <Button colorPalette="brand" onClick={onOpen}>
-        <FiPlusCircle /> {translate("pools.add")}
+        <MdAdd /> {translate("pools.add")}
       </Button>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">{translate("pools.add")}</Heading>

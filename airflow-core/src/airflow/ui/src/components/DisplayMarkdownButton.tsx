@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, IconButton, VStack } from "@chakra-ui/react";
+import { Box, Heading, VStack } from "@chakra-ui/react";
 import { type ReactElement, useState } from "react";
 
+import { IconButton } from "src/components/ui";
 import { Dialog, Tooltip } from "src/components/ui";
 import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
@@ -45,9 +46,7 @@ const DisplayMarkdownButton = ({
           colorPalette="brand"
           data-testid="markdown-button"
           onClick={() => setIsDocsOpen(true)}
-          size="md"
           title={text}
-          variant="ghost"
         >
           {icon}
         </IconButton>

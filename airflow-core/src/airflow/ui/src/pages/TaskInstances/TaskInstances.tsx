@@ -93,7 +93,6 @@ const taskInstanceColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(getRowKey(row.original))}
-        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
       />
     ),
@@ -103,7 +102,6 @@ const taskInstanceColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),

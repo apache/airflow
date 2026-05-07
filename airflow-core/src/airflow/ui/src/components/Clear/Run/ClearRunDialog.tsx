@@ -93,7 +93,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>

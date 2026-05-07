@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import DeleteDialog from "src/components/DeleteDialog";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { useDeletePool } from "src/queries/useDeletePool";
 
@@ -38,13 +39,7 @@ const DeletePoolButton = ({ poolName }: Props) => {
   return (
     <>
       <Tooltip content={translate("pools.delete.title")}>
-        <IconButton
-          aria-label={translate("pools.delete.title")}
-          colorPalette="danger"
-          onClick={onOpen}
-          size="md"
-          variant="ghost"
-        >
+        <IconButton aria-label={translate("pools.delete.title")} colorPalette="danger" onClick={onOpen}>
           <FiTrash2 />
         </IconButton>
       </Tooltip>

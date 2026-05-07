@@ -177,7 +177,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     });
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header paddingBottom={0}>
           <VStack align="start" gap={4}>

@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
+import { IconButton } from "src/components/ui";
 import { Dialog, Tooltip } from "src/components/ui";
 import { useEditVariable } from "src/queries/useEditVariable";
 
@@ -69,14 +70,12 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
           colorPalette="brand"
           disabled={disabled}
           onClick={onOpen}
-          size="md"
-          variant="ghost"
         >
           <FiEdit />
         </IconButton>
       </Tooltip>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">{translate("variables.edit")}</Heading>

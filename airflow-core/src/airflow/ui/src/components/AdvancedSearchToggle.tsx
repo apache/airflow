@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, IconButton, Stack, Text } from "@chakra-ui/react";
+import { Box, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 
 export type AdvancedSearchToggleProps = {

@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 
 import ClearRunDialog from "./ClearRunDialog";
@@ -58,8 +59,6 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
           aria-label={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
           colorPalette="brand"
           onClick={onOpen}
-          size="md"
-          variant="ghost"
         >
           <CgRedo />
         </IconButton>

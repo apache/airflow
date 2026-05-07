@@ -16,32 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from "react";
-import { useTranslation } from "react-i18next";
+import { IconButton as ChakraIconButton } from "@chakra-ui/react";
+import type { IconButtonProps } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-import { Dialog } from "src/components/ui";
-
-import LanguageSelector from "./LanguageSelector";
-
-type LanguageModalProps = {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-};
-
-const LanguageModal: React.FC<LanguageModalProps> = ({ isOpen, onClose }) => {
-  const { t: translate } = useTranslation();
-
-  return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
-      <Dialog.Content backdrop>
-        <Dialog.Header>{translate("selectLanguage")}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <LanguageSelector />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
-  );
-};
-
-export default LanguageModal;
+// Wrapper that sets Airflow's preferred defaults.
+// size="sm"    is handled globally via the button recipe in theme.ts.
+// variant="ghost" is set here since IconButton shares the button recipe with Button.
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  ({ variant = "ghost", ...props }, ref) => <ChakraIconButton ref={ref} variant={variant} {...props} />,
+);

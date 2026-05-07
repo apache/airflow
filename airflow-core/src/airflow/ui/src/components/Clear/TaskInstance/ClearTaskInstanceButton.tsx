@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
@@ -93,8 +94,6 @@ const ClearTaskInstanceButton = ({
           }
           colorPalette="brand"
           onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
-          size="md"
-          variant="ghost"
         >
           <CgRedo />
         </IconButton>

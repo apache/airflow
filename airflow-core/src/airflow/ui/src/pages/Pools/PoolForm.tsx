@@ -143,7 +143,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
-            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange} size="sm">
+            <Checkbox checked={field.value} onChange={field.onChange}>
               {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>

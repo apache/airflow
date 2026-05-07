@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -25,6 +25,7 @@ import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
+import { IconButton } from "src/components/ui";
 import { Menu, Tooltip } from "src/components/ui";
 
 import { allowedStates } from "../utils";
@@ -74,8 +75,6 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
                   type: translate("taskInstance_one"),
                 })}
                 colorPalette="brand"
-                size="md"
-                variant="ghost"
               >
                 <HStack gap={1} mx={1}>
                   <LuCheck />

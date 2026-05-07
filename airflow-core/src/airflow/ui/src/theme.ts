@@ -23,6 +23,7 @@ import {
   defaultConfig,
   defineConfig,
   mergeConfigs,
+  type ThemingConfig,
   type SystemStyleObject,
 } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
@@ -39,7 +40,7 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
 
-const defaultAirflowTheme = {
+const defaultAirflowTheme: ThemingConfig = {
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
   tokens: {
     colors: {
@@ -348,6 +349,29 @@ const defaultAirflowTheme = {
         "900": { value: "oklch(0.216 0.006 56.043)" },
         "950": { value: "oklch(0.147 0.004 49.25)" },
       },
+    },
+  },
+  recipes: {
+    // IconButton in Chakra v3 uses the button recipe (it is a Button with px/py:0).
+    // Overriding defaultVariants here sets the default size for both Button and IconButton.
+    button: {
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+  },
+  slotRecipes: {
+    // Nearly all dialogs in the app use size="xl"; make it the default.
+    dialog: {
+      slots: [],
+      defaultVariants: { size: "xl" } as Record<string, string>,
+    },
+    checkbox: {
+      slots: [],
+      defaultVariants: { colorPalette: "brand", size: "sm" } as Record<string, string>,
+    },
+    // size="sm" gives px/py:2 on cell and columnHeader vs px/py:3 for "md".
+    table: {
+      slots: [],
+      defaultVariants: { size: "sm" } as Record<string, string>,
     },
   },
   semanticTokens: {

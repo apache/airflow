@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import DeleteDialog from "src/components/DeleteDialog";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { useDeleteDag } from "src/queries/useDeleteDag";
 
@@ -51,13 +52,7 @@ export const DeleteDagButton = ({ dagDisplayName, dagId }: DeleteDagButtonProps)
   return (
     <>
       <Tooltip content={translate("dagActions.delete.button")}>
-        <IconButton
-          aria-label={translate("dagActions.delete.button")}
-          colorPalette="danger"
-          onClick={onOpen}
-          size="md"
-          variant="ghost"
-        >
+        <IconButton aria-label={translate("dagActions.delete.button")} colorPalette="danger" onClick={onOpen}>
           <FiTrash2 />
         </IconButton>
       </Tooltip>

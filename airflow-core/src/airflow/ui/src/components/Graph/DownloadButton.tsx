@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
 import { Panel, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { useTranslation } from "react-i18next";
 import { FiDownload } from "react-icons/fi";
 
+import { IconButton } from "src/components/ui";
 import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ name }: { readonly name: string }) => {
@@ -74,7 +74,6 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
         }}
         size="xs"
         title={translate("graph.downloadImage")}
-        variant="ghost"
       >
         <FiDownload />
       </IconButton>

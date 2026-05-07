@@ -84,7 +84,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
       <Menu.Root positioning={{ gutter: 0, placement: "top" }}>
         <Menu.Trigger asChild>
           <div>
-            <Button colorPalette="brand" size="sm" variant="outline">
+            <Button colorPalette="brand" variant="outline">
               <HStack gap={1} mx={1}>
                 <LuCheck />
                 <span>/</span>
@@ -121,7 +121,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
         </Menu.Content>
       </Menu.Root>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>

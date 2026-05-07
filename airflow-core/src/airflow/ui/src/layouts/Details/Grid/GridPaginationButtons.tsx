@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, IconButton } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight, FiChevronsRight } from "react-icons/fi";
+
+import { IconButton } from "src/components/ui";
 
 type Props = {
   readonly hasNewerRuns: boolean;

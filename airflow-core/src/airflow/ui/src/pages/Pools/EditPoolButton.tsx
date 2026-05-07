@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+import { IconButton } from "src/components/ui";
 import { Dialog, Tooltip } from "src/components/ui";
 import { useEditPool } from "src/queries/useEditPool";
 
@@ -52,18 +53,12 @@ const EditPoolButton = ({ pool }: Props) => {
   return (
     <>
       <Tooltip content={translate("pools.edit")}>
-        <IconButton
-          aria-label={translate("pools.edit")}
-          colorPalette="brand"
-          onClick={onOpen}
-          size="md"
-          variant="ghost"
-        >
+        <IconButton aria-label={translate("pools.edit")} colorPalette="brand" onClick={onOpen}>
           <FiEdit />
         </IconButton>
       </Tooltip>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">{translate("pools.edit")}</Heading>

@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
 
@@ -54,8 +55,6 @@ const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProp
           })}
           colorPalette="danger"
           onClick={onOpen}
-          size="md"
-          variant="ghost"
         >
           <FiTrash2 />
         </IconButton>

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
 import { flexRender, type Header, type Table } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { MdFilterList } from "react-icons/md";
+import { LuColumns3 } from "react-icons/lu";
 
+import { IconButton } from "src/components/ui";
 import { Menu } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 
@@ -37,8 +37,8 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
   return (
     <Menu.Root closeOnSelect={false} positioning={{ placement: "bottom" }}>
       <Menu.Trigger asChild>
-        <IconButton aria-label={filterLabel} margin={1} padding={0} title={filterLabel} variant="ghost">
-          <MdFilterList size="1" />
+        <IconButton aria-label={filterLabel} title={filterLabel}>
+          <LuColumns3 />
         </IconButton>
       </Menu.Trigger>
       <Menu.Content>

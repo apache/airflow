@@ -16,14 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Badge,
-  Box,
-  createListCollection,
-  HStack,
-  IconButton,
-  type SelectValueChangeDetails,
-} from "@chakra-ui/react";
+import { Badge, Box, createListCollection, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import {
   MdAccessTime,
@@ -39,6 +32,7 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
+import { IconButton } from "src/components/ui";
 import { Menu, Select } from "src/components/ui";
 import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -212,9 +206,7 @@ export const TaskLogHeader = ({
               <IconButton
                 aria-label={translate("dag:logs.settings")}
                 data-testid="log-settings-button"
-                size="md"
                 title={translate("dag:logs.settings")}
-                variant="ghost"
               >
                 <MdSettings />
               </IconButton>
@@ -250,9 +242,7 @@ export const TaskLogHeader = ({
             <IconButton
               aria-label={translate("dag:logs.fullscreen.button")}
               onClick={toggleFullscreen}
-              size="md"
               title={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
-              variant="ghost"
             >
               <MdOutlineOpenInFull />
             </IconButton>
@@ -270,9 +260,7 @@ export const TaskLogHeader = ({
             aria-label={translate("download.download")}
             data-testid="download-logs-button"
             onClick={downloadLogs}
-            size="md"
             title={translate("download.tooltip", { hotkey: "d" })}
-            variant="ghost"
           >
             <MdOutlineFileDownload />
           </IconButton>

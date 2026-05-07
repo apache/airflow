@@ -232,12 +232,7 @@ const TriggerDAGForm = ({
         )}
         {isPaused ? (
           <>
-            <Checkbox
-              checked={unpause}
-              colorPalette="brand"
-              onChange={() => setUnpause(!unpause)}
-              wordBreak="break-all"
-            >
+            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
               {translate("components:triggerDag.unpause", { dagDisplayName })}
             </Checkbox>
             <Spacer />

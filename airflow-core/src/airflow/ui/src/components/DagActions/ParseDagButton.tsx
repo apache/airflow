@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { useDagParsing } from "src/queries/useDagParsing.ts";
 
@@ -39,8 +39,6 @@ export const ParseDagButton = ({ dagId, fileToken }: Props) => {
         colorPalette="brand"
         loading={isPending}
         onClick={() => mutate({ fileToken })}
-        size="md"
-        variant="ghost"
       >
         <AiOutlineFileSync />
       </IconButton>

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Box, Button, useDisclosure } from "@chakra-ui/react";
 import type { DagRunType } from "openapi-gen/requests/types.gen";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { FiPlay } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
+import { IconButton } from "src/components/ui";
 import { Menu } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 
@@ -103,7 +104,6 @@ export const TriggerDAGButton = ({
                 colorPalette="brand"
                 data-testid="trigger-dag-button"
                 disabled={isManualRunDenied}
-                size="md"
                 variant={variant}
               >
                 <FiPlay />
@@ -147,7 +147,6 @@ export const TriggerDAGButton = ({
             data-testid="trigger-dag-button"
             disabled={isManualRunDenied}
             onClick={handleNormalTrigger}
-            size="md"
             variant={variant}
           >
             <FiPlay />
@@ -160,7 +159,6 @@ export const TriggerDAGButton = ({
             data-testid="trigger-dag-button"
             disabled={isManualRunDenied}
             onClick={onOpen}
-            size="md"
             variant={variant}
           >
             <FiPlay />
