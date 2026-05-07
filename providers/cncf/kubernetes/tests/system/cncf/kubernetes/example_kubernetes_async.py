@@ -137,7 +137,7 @@ with DAG(
         namespace="kubernetes_task_async_log",
         in_cluster=False,
         name="astro_k8s_test_pod",
-        image="ubuntu",
+        image="ubuntu:24.04",
         cmds=[
             "bash",
             "-cx",
@@ -180,7 +180,7 @@ with DAG(
     write_xcom_async = KubernetesPodOperator(
         task_id="kubernetes_write_xcom_task_async",
         namespace="default",
-        image="alpine",
+        image="alpine:3.23",
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,
