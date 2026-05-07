@@ -21,8 +21,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.informatica.hooks.idmc import IDMCRunStatus, InformaticaIDMCError
+from airflow.providers.informatica.hooks.idmc import (
+    IDMCRunStatus,
+    IDMCTimeoutException,
+    InformaticaIDMCError,
+)
 from airflow.providers.informatica.operators.idmc import (
     InformaticaIDMCRunTaskflowOperator,
     InformaticaIDMCRunTaskOperator,
@@ -170,7 +173,7 @@ def test_execute_complete_translates_terminal_event_to_status():
 def test_execute_complete_raises_on_timeout_event():
     op = _make_task_op(wait_for_completion=True, deferrable=True)
     op.run_id = "44"
-    with pytest.raises(AirflowException, match="timed out"):
+    with pytest.raises(IDMCTimeoutException, match="timed out"):
         op.execute_complete(_context(), {"status": "timeout", "run_id": "44", "message": "timed out"})
 
 

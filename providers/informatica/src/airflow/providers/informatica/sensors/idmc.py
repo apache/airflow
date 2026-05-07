@@ -23,9 +23,10 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
 from airflow.providers.informatica.hooks.idmc import (
     IDMCRunStatus,
+    IDMCTimeoutException,
     InformaticaIDMCError,
     InformaticaIDMCHook,
 )
@@ -116,7 +117,7 @@ class _BaseInformaticaIDMCRunSensor(BaseSensorOperator):
         status = event.get("status", "")
         run_id = str(event.get("run_id", self.run_id))
         if status in {"timeout"}:
-            raise AirflowException(event.get("message") or f"IDMC run {run_id} timed out.")
+            raise IDMCTimeoutException(event.get("message") or f"IDMC run {run_id} timed out.")
         if status == "error":
             raise InformaticaIDMCError(event.get("message") or f"IDMC run {run_id} errored.")
         if status == IDMCRunStatus.FAILED.value:

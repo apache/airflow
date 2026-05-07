@@ -24,9 +24,10 @@ from collections.abc import Mapping
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
+from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.informatica.hooks.idmc import (
     IDMCRunStatus,
+    IDMCTimeoutException,
     InformaticaIDMCError,
     InformaticaIDMCHook,
 )
@@ -161,7 +162,7 @@ class _BaseInformaticaIDMCRunOperator(BaseOperator):
         self.run_id = run_id
         status = event.get("status", "")
         if status == "timeout":
-            raise AirflowException(event.get("message") or f"IDMC run {run_id} timed out.")
+            raise IDMCTimeoutException(event.get("message") or f"IDMC run {run_id} timed out.")
         if status == "error":
             raise InformaticaIDMCError(event.get("message") or f"IDMC run {run_id} errored.")
         return self._handle_terminal_status(status)

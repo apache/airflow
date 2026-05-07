@@ -40,6 +40,10 @@ class InformaticaIDMCError(AirflowException):
     """Raised when an IDMC REST API call returns an error."""
 
 
+class IDMCTimeoutException(AirflowException):
+    """Raised when an IDMC run does not finish within the allowed time."""
+
+
 class IDMCAuthVersion(str, Enum):
     """Selects which IDMC login flow the hook should use."""
 
