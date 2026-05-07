@@ -32,6 +32,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_SDKS,
     ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
@@ -609,6 +610,14 @@ option_worker_types = click.option(
     type=BetterChoice(ALLOWED_WORKER_TYPES),
     multiple=True,
     envvar="WORKER_TYPE",
+)
+
+option_sdk = click.option(
+    "--sdk",
+    help="Enable an SDK integration (installs dependencies, compiles the SDK, and configures DAG bundles).",
+    type=BetterChoice(ALLOWED_SDKS),
+    multiple=True,
+    envvar="SDK",
 )
 
 # UI E2E Testing Options

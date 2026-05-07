@@ -97,6 +97,9 @@ services:
         source: ../../../go-sdk
         target: /opt/airflow/go-sdk
       - type: bind
+        source: ../../../java-sdk
+        target: /opt/airflow/java-sdk
+      - type: bind
         source: ../../../helm-tests
         target: /opt/airflow/helm-tests
       - type: bind
@@ -126,6 +129,9 @@ services:
       - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
+      - type: bind
+        source: ../../../sdk
+        target: /opt/airflow/sdk
       - type: bind
         source: ../../../shared
         target: /opt/airflow/shared

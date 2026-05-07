@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import importlib
 import logging
 import os
@@ -76,8 +77,6 @@ from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from socket import socket
-
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
@@ -86,6 +85,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.execution_time.supervisor import SelectorCallback
     from airflow.typing_compat import Self
 
 
@@ -553,7 +553,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        _pre_import_airflow_modules(os.fspath(path), logger)
+        # Check if a configured runtime coordinator should handle this file
+        logger.debug("Checking for runtime coordinator entrypoint for file", path=path)
+        resolved_target = cls._resolve_processor_target(path, bundle_name, bundle_path, logger)
+        if resolved_target is not None:
+            target = resolved_target
+            logger.debug("Resolved runtime coordinator entrypoint for file", path=path)
+        else:
+            _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(
             target=target,
@@ -565,6 +572,35 @@ class DagFileProcessorProcess(WatchedSubprocess):
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
+
+    @staticmethod
+    def _resolve_processor_target(
+        path: str | os.PathLike[str],
+        bundle_name: str,
+        bundle_path: Path,
+        log: FilteringBoundLogger,
+    ) -> Callable[[], None] | None:
+        """
+        Return the entrypoint of the first runtime coordinator that can handle *path*.
+
+        The returned callable is a ``functools.partial`` that binds *path*, *bundle_name*
+        and *bundle_path* so the supervisor can pass it as a no-arg ``target`` to
+        ``WatchedSubprocess.start``.
+        """
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+
+        coordinator = get_coordinator_manager().for_dag_file(bundle_name, path)
+        if coordinator is None:
+            log.debug("No runtime coordinator found for file %s, using default processor", path)
+            return None
+
+        log.debug("Using runtime coordinator %s for file %s", type(coordinator).__qualname__, path)
+        return functools.partial(
+            coordinator.run_dag_parsing,
+            path=os.fspath(path),
+            bundle_name=bundle_name,
+            bundle_path=os.fspath(bundle_path),
+        )
 
     def _on_child_started(
         self,
@@ -591,7 +627,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     def _create_log_forwarder(
         self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
-    ) -> Callable[[socket], bool]:
+    ) -> SelectorCallback:
         return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:

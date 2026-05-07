@@ -96,6 +96,7 @@ services:
       - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/keycloak/tests:/opt/airflow/providers/keycloak/tests
+      - ../../../providers/languages/java/tests:/opt/airflow/providers/languages/java/tests
       - ../../../providers/microsoft/azure/tests:/opt/airflow/providers/microsoft/azure/tests
       - ../../../providers/microsoft/mssql/tests:/opt/airflow/providers/microsoft/mssql/tests
       - ../../../providers/microsoft/psrp/tests:/opt/airflow/providers/microsoft/psrp/tests
@@ -120,6 +121,7 @@ services:
       - ../../../providers/redis/tests:/opt/airflow/providers/redis/tests
       - ../../../providers/salesforce/tests:/opt/airflow/providers/salesforce/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
+      - ../../../sdk/coordinators/java/tests:/opt/airflow/sdk/coordinators/java/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests
       - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
