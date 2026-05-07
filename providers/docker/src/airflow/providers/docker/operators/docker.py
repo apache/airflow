@@ -308,9 +308,7 @@ class DockerOperator(BaseOperator):
         self.mount_tmp_dir = mount_tmp_dir
         self.tmp_dir = tmp_dir
         self.user = user
-        self.mounts = [
-            mount if isinstance(mount, Mount) else Mount(**mount) for mount in (mounts or [])
-        ]
+        self.mounts = [mount if isinstance(mount, Mount) else Mount(**mount) for mount in (mounts or [])]
         for mount in self.mounts:
             mount.template_fields = ("Source", "Target", "Type")
         self.entrypoint = entrypoint
