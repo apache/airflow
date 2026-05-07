@@ -22,6 +22,14 @@ import copy
 
 from kubernetes.client import models as k8s
 
+# Pinned alpine version for the xcom sidecar default. Pinning (rather than
+# using the implicit `:latest`) makes kubelet's default imagePullPolicy
+# `IfNotPresent` instead of `Always`, so a node that has the image cached
+# does not re-pull on every task — protecting CI and disconnected
+# deployments from Docker Hub anonymous-pull rate limits. Tracked by
+# scripts/ci/prek/upgrade_important_versions.py.
+XCOM_SIDECAR_IMAGE = "alpine:3.23"
+
 
 class PodDefaults:
     """Static defaults for Pods."""
@@ -34,7 +42,7 @@ class PodDefaults:
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
         command=["sh", "-c", XCOM_CMD],
-        image="alpine",
+        image=XCOM_SIDECAR_IMAGE,
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={
