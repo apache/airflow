@@ -42,10 +42,12 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.utils.process_context import override_process_context
+from airflow.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
+    from a2wsgi.asgi_typing import ASGIApp as A2WSGIApp
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -355,7 +357,7 @@ class _RequestScopedServerContextApp:
     def __init__(self, app: FastAPI) -> None:
         self.app = app
 
-    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         with override_process_context("server"):
             await self.app(scope, receive, send)
 
@@ -369,6 +371,7 @@ class InProcessExecutionAPI:
     needed so that we can use the sync httpx client
     """
 
+    request_scoped_server_context: bool = attrs.field(default=False, kw_only=True)
     _app: FastAPI | None = None
     _cm: AsyncExitStack | None = None
 
@@ -404,8 +407,10 @@ class InProcessExecutionAPI:
         return self._app
 
     @cached_property
-    def request_scoped_app(self) -> _RequestScopedServerContextApp:
-        return _RequestScopedServerContextApp(self.app)
+    def asgi_app(self) -> ASGIApp:
+        if self.request_scoped_server_context:
+            return _RequestScopedServerContextApp(self.app)
+        return self.app
 
     @cached_property
     def transport(self) -> httpx.WSGITransport:
@@ -414,7 +419,7 @@ class InProcessExecutionAPI:
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        middleware = ASGIMiddleware(self.request_scoped_app)
+        middleware = ASGIMiddleware(cast("A2WSGIApp", self.asgi_app))
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -429,4 +434,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.request_scoped_app)
+        return httpx.ASGITransport(app=self.asgi_app)

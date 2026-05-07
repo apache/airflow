@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
@@ -265,6 +266,15 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
         )
 
 
+def _is_supervisor_comms_ready_for_mask_secret(comms: Any) -> bool:
+    """Return whether mask notifications can be sent without using stale virtualenv comms."""
+    if not comms:
+        return False
+    if os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE"):
+        return getattr(comms, "socket", None) is not None
+    return True
+
+
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     """
     Mask a secret in both task process and supervisor process.
@@ -284,7 +294,8 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
         from airflow.sdk.execution_time import task_runner
         from airflow.sdk.execution_time.comms import MaskSecret
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+        if _is_supervisor_comms_ready_for_mask_secret(getattr(task_runner, "SUPERVISOR_COMMS", None)):
+            comms = task_runner.SUPERVISOR_COMMS
             comms.send(MaskSecret(value=secret, name=name))
 
 
