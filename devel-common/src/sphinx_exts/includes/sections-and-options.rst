@@ -65,7 +65,7 @@
           {% if default and "\n" in default %}
       .. code-block::
 
-        {{ default }}
+        {{ default | indent(width=8) }}
           {% else %}
         ``{{ "''" if default == "" else default  }}``
           {% endif %}
@@ -85,7 +85,7 @@
           {% if "\n" in example %}
       .. code-block::
 
-        {{ example | indent(8) }}
+        {{ example | indent(width=8) }}
           {% else %}
         ``{{ example }}``
           {% endif %}
