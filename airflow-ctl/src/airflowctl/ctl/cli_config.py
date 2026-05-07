@@ -290,6 +290,13 @@ ARG_TASK_ID = Arg(
     required=True,
     help="The Task ID",
 )
+ARG_MAP_INDEX = Arg(
+    flags=("--map-index",),
+    type=int,
+    dest="map_index",
+    default=-1,
+    help="If set, query the mapped task instance with this map index (negative means non-mapped)",
+)
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
@@ -985,6 +992,7 @@ TASK_COMMANDS = (
             ARG_TASK_DAG_ID,
             ARG_DAG_RUN_ID,
             ARG_TASK_ID,
+            ARG_MAP_INDEX,
             ARG_OUTPUT,
         ),
     ),
