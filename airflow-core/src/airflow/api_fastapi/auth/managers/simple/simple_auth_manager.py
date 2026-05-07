@@ -120,7 +120,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             return SimpleAuthManager._get_passwords(file)
 
     @staticmethod
-    def _looks_like_production() -> bool:
+    def _looks_like_production(
+        *,
+        sql_conn: str | None = None,
+        api_host: str | None = None,
+        executor: str | None = None,
+    ) -> bool:
         """
         Best-effort heuristic for whether the Airflow deployment looks production-shaped.
 
@@ -134,14 +139,22 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         — but the cumulative signal is strong enough to justify a loud warning that
         SimpleAuthManager (which is dev-only by design) is being used in a setup
         that resembles production.
+
+        Each axis can be passed in directly (kwargs) so unit tests can probe the
+        decision logic without touching the global ``conf`` state. ``None`` (the
+        default) reads the value from ``conf``.
         """
-        sql_conn = conf.get("database", "sql_alchemy_conn", fallback="")
+        if sql_conn is None:
+            sql_conn = conf.get("database", "sql_alchemy_conn", fallback="")
+        if api_host is None:
+            api_host = conf.get("api", "host", fallback="localhost")
+        if executor is None:
+            executor = conf.get("core", "executor", fallback="LocalExecutor")
+
         if sql_conn and not sql_conn.startswith("sqlite:"):
             return True
-        api_host = conf.get("api", "host", fallback="localhost").strip()
-        if api_host not in {"localhost", "127.0.0.1", "::1", "[::1]"}:
+        if api_host.strip() not in {"localhost", "127.0.0.1", "::1", "[::1]"}:
             return True
-        executor = conf.get("core", "executor", fallback="LocalExecutor")
         # Split on '.' to get the class name only (handles fully-qualified executor paths).
         local_executors = {"LocalExecutor", "SequentialExecutor", "DebugExecutor", "InProcessExecutor"}
         if executor.split(".")[-1] not in local_executors:
