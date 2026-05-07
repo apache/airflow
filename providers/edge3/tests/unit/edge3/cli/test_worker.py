@@ -28,8 +28,9 @@ import subprocess
 import sys
 from datetime import datetime
 from io import StringIO
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pathlib import Path
+from typing import cast
 from unittest import mock
 from unittest.mock import call, patch
 
@@ -262,26 +263,30 @@ class TestEdgeWorker:
         use_new_interpreter,
         expected_launch_method,
         monkeypatch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
         if not has_fork:
             monkeypatch.delattr(os, "fork", raising=False)
         worker_with_job.conf = mock.MagicMock()
         worker_with_job.conf.getboolean.return_value = use_new_interpreter
-        workload = worker_with_job.jobs[0].edge_job.command
+        edge_job = worker_with_job.jobs[0].edge_job
+        workload = edge_job.command
+        logfile = tmp_path / "mock.log"
         subprocess_process = _MockPopen(returncode=None)
+        stderr_file_path = tmp_path / "stderr.log"
         fork_process = _MockProcess()
         results_queue = mock.MagicMock()
 
         with (
             patch.object(
-                worker_with_job, "_launch_job_subprocess", return_value=subprocess_process
+                worker_with_job, "_launch_job_subprocess", return_value=(subprocess_process, stderr_file_path)
             ) as mock_launch_subprocess,
             patch.object(
                 worker_with_job, "_launch_job_fork", return_value=(fork_process, results_queue)
             ) as mock_launch_fork,
         ):
-            process, queue = worker_with_job._launch_job(workload)
+            job = worker_with_job._launch_job(edge_job, workload, logfile)
 
         if has_fork:
             worker_with_job.conf.getboolean.assert_called_once_with(
@@ -290,13 +295,15 @@ class TestEdgeWorker:
         else:
             worker_with_job.conf.getboolean.assert_not_called()
         if expected_launch_method == "subprocess":
-            assert process is subprocess_process
-            assert queue is None
+            assert job.process is subprocess_process
+            assert job.results_queue is None
+            assert job.stderr_file_path == stderr_file_path
             mock_launch_subprocess.assert_called_once_with(workload)
             mock_launch_fork.assert_not_called()
         else:
-            assert process is fork_process
-            assert queue is results_queue
+            assert job.process is fork_process
+            assert job.results_queue is results_queue
+            assert job.stderr_file_path is None
             mock_launch_fork.assert_called_once_with(workload)
             mock_launch_subprocess.assert_not_called()
 
@@ -310,9 +317,11 @@ class TestEdgeWorker:
         mock_popen.return_value = process
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         workload = worker_with_job.jobs[0].edge_job.command
+        stderr_file_path = None
 
         try:
-            assert worker_with_job._launch_job_subprocess(workload) is process
+            returned_process, stderr_file_path = worker_with_job._launch_job_subprocess(workload)
+            assert returned_process is process
 
             popen_args, popen_kwargs = mock_popen.call_args
             assert popen_args[0] == [
@@ -328,13 +337,12 @@ class TestEdgeWorker:
             )
             assert popen_kwargs["start_new_session"] is True
             assert popen_kwargs["stderr"] is not subprocess.PIPE
-            assert Path(popen_kwargs["stderr"].name) == worker_with_job._subprocess_stderr_files[process.pid]
+            assert Path(popen_kwargs["stderr"].name) == stderr_file_path
         finally:
-            stderr_file_path = worker_with_job._subprocess_stderr_files.pop(process.pid, None)
             if stderr_file_path:
                 stderr_file_path.unlink(missing_ok=True)
 
-    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @patch("airflow.sdk.execution_time.supervisor.supervise_task")
     @pytest.mark.asyncio
     async def test_supervise_launch(
         self,
@@ -349,7 +357,7 @@ class TestEdgeWorker:
         assert result == 0
         q.put.assert_called_once()
 
-    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @patch("airflow.sdk.execution_time.supervisor.supervise_task")
     @pytest.mark.asyncio
     async def test_supervise_launch_fail(
         self,
@@ -365,7 +373,7 @@ class TestEdgeWorker:
         q.put.assert_called_once()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
-    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
     @pytest.mark.asyncio
     async def test_fetch_and_run_job_no_job(
         self,
@@ -382,7 +390,7 @@ class TestEdgeWorker:
         mock_launch_job.assert_not_called()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
-    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
@@ -396,20 +404,20 @@ class TestEdgeWorker:
         mock_jobs_set_state,
         mock_launch_job,
         mock_jobs_fetch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        mock_jobs_fetch.side_effect = [
-            EdgeJobFetched(
-                dag_id="test",
-                task_id="test",
-                run_id="test",
-                map_index=-1,
-                try_number=1,
-                concurrency_slots=1,
-                command=MOCK_COMMAND,  # type: ignore[arg-type]
-            ),
-            None,
-        ]
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
         worker_with_job.concurrency = 1  # only one job at a time
         assert worker_with_job.free_concurrency == 0
 
@@ -418,7 +426,9 @@ class TestEdgeWorker:
         mock_jobs_fetch.assert_called_once()
         fetch_args = mock_jobs_fetch.call_args
         assert fetch_args.args[3] is None  # team_name should be None
-        mock_launch_job.assert_called_once()
+        mock_launch_job.assert_called_once_with(
+            edge_job, edge_job.command, Path(worker_with_job.base_log_folder, "mock.log")
+        )
         assert mock_jobs_set_state.call_count == 2
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
@@ -446,26 +456,26 @@ class TestEdgeWorker:
         the deadlock condition. Forking a small top-level target sidesteps that and reproduces
         the actual queue-feeder/pipe-buffer deadlock the fix targets.
         """
-        mock_jobs_fetch.side_effect = [
-            EdgeJobFetched(
-                dag_id="test",
-                task_id="test",
-                run_id="test",
-                map_index=-1,
-                try_number=1,
-                concurrency_slots=1,
-                command=MOCK_COMMAND,  # type: ignore[arg-type]
-            ),
-            None,
-        ]
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
         worker_with_job.concurrency = 1  # only one job at a time
         assert worker_with_job.free_concurrency == 0
 
         ctx = multiprocessing.get_context("fork")
         results_queue = ctx.Queue()
-        process = ctx.Process(target=_emit_large_exception_target, args=(results_queue,))
+        process = cast("Process", ctx.Process(target=_emit_large_exception_target, args=(results_queue,)))
 
-        with patch.object(EdgeWorker, "_launch_job", return_value=(process, results_queue)):
+        launched_job = Job(edge_job, process, worker_with_job.jobs[0].logfile, results_queue=results_queue)
+
+        with patch.object(EdgeWorker, "_launch_job", return_value=launched_job):
             process.start()
             try:
                 await asyncio.wait_for(worker_with_job.fetch_and_run_job(), timeout=10.0)
@@ -491,43 +501,43 @@ class TestEdgeWorker:
         assert len(worker_with_job.jobs) <= 1  # new job removed, original fixture job still there
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
-    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @patch.object(Job, "is_running", property(lambda _: False))
     @patch.object(Job, "is_success", property(lambda _: False))
-    @patch("traceback.format_exception", return_value=[])
     @pytest.mark.asyncio
     async def test_fetch_and_run_job_one_job_fail(
         self,
-        mock_traceback,
         mock_logs_push,
         mock_push_log_chunks,
         mock_jobs_set_state,
         mock_launch_job,
         mock_jobs_fetch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        mock_jobs_fetch.side_effect = [
-            EdgeJobFetched(
-                dag_id="test",
-                task_id="test",
-                run_id="test",
-                map_index=-1,
-                try_number=1,
-                concurrency_slots=1,
-                command=MOCK_COMMAND,  # type: ignore[arg-type]
-            ),
-            None,
-        ]
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
         worker_with_job.concurrency = 1  # only one job at a time
         assert worker_with_job.free_concurrency == 0
 
         await worker_with_job.fetch_and_run_job()
 
         mock_jobs_fetch.assert_called_once()
-        mock_launch_job.assert_called_once()
+        mock_launch_job.assert_called_once_with(
+            edge_job, edge_job.command, Path(worker_with_job.base_log_folder, "mock.log")
+        )
         assert mock_jobs_set_state.call_count == 2
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
@@ -547,7 +557,7 @@ class TestEdgeWorker:
         tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        mock_jobs_fetch.return_value = EdgeJobFetched(
+        edge_job = EdgeJobFetched(
             dag_id="test",
             task_id="test",
             run_id="test",
@@ -556,13 +566,14 @@ class TestEdgeWorker:
             concurrency_slots=1,
             command=MOCK_COMMAND,  # type: ignore[arg-type]
         )
+        mock_jobs_fetch.return_value = edge_job
         worker_with_job.concurrency = 1
         process = _MockPopen(returncode=1, pid=5678)
         stderr_file_path = tmp_path / "subprocess-stderr.log"
         stderr_file_path.write_text("ModuleNotFoundError: No module named 'common'\n")
-        worker_with_job._subprocess_stderr_files[process.pid] = stderr_file_path
+        launched_job = Job(edge_job, process, tmp_path / "mock.log", stderr_file_path=stderr_file_path)
 
-        with patch.object(worker_with_job, "_launch_job", return_value=(process, None)):
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
             await worker_with_job.fetch_and_run_job()
 
         mock_jobs_fetch.assert_called_once()
@@ -1041,7 +1052,7 @@ class TestSignalHandling:
             ),
             mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
             mock.patch(
-                "airflow.sdk.execution_time.supervisor.supervise",
+                "airflow.sdk.execution_time.supervisor.supervise_task",
                 side_effect=lambda **_: order("supervise"),
             ),
         ):
