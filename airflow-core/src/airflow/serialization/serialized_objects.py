@@ -1587,6 +1587,14 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         elif field_name == "resources":
             return Resources.from_dict(value) if value is not None else None
         elif field_name.endswith("_date"):
+            # Handle ARG_NOT_SET (NOTSET singleton) before trying to parse as datetime.
+            # Without this, deserializing operators that store a date field as ``NOTSET``
+            # (e.g. ``TriggerDagRunOperator.logical_date``) would fail because
+            # ``_deserialize_datetime`` does not understand the ARG_NOT_SET encoding.
+            if isinstance(value, dict) and value.get(Encoding.TYPE) == DAT.ARG_NOT_SET:
+                from airflow.serialization.definitions.notset import NOTSET
+
+                return NOTSET
             return cls._deserialize_datetime(value) if value is not None else None
         else:
             # For all other fields, return as-is (strings, ints, bools, etc.)

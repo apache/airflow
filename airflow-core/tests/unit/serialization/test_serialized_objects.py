@@ -1011,6 +1011,23 @@ class TestSerializedBaseOperator:
         assert isinstance(result, datetime)
         assert result.timestamp() == timestamp
 
+    def test_deserialize_field_value_with_arg_not_set_for_date_fields(self):
+        """``_deserialize_field_value`` returns ``NOTSET`` for ARG_NOT_SET date fields.
+
+        Operators may store ``NOTSET`` (an ``ArgNotSet`` instance) on date-suffixed
+        fields such as ``logical_date`` to mean "use the default at runtime". When
+        such a field is round-tripped through serialization, the ARG_NOT_SET
+        encoding must be restored to ``NOTSET`` instead of being parsed as a
+        datetime.
+        """
+        from airflow.serialization.definitions.notset import NOTSET
+        from airflow.serialization.serialized_objects import OperatorSerialization
+
+        value = {Encoding.TYPE: DAT.ARG_NOT_SET}
+
+        for field_name in ("logical_date", "start_date", "end_date"):
+            assert OperatorSerialization._deserialize_field_value(field_name, value) is NOTSET
+
 
 class TestRetryPolicySerialization:
     """Test that retry_policy is serialized as a boolean flag (has_retry_policy)."""
