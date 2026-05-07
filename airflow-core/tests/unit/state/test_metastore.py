@@ -283,6 +283,31 @@ class TestMetastoreStateBackendTaskScope:
         # cleaned up via expires_at, even though updated_at is recent
         assert session.scalar(select(TaskStateModel).where(TaskStateModel.key == "short_lived")) is None
 
+    @conf_vars({("state_store", "state_cleanup_batch_size"): "2"})
+    def test_cleanup_batches_deletes(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
+        from unittest.mock import patch
+
+        import airflow.state.metastore as metastore_mod
+
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        for key in ("k1", "k2", "k3", "k4", "k5"):
+            backend.set(scope, key, "v", session=session)
+            session.flush()
+
+        session.execute(
+            TaskStateModel.__table__.update().values(updated_at=timezone.utcnow() - timedelta(days=40))
+        )
+        session.commit()
+
+        with patch.object(metastore_mod, "create_session", wraps=metastore_mod.create_session) as mock_cs:
+            backend.cleanup()
+            # 5 rows, batch size = 2, so 3 batches and 1 check for expired_by row
+            assert mock_cs.call_count == 4
+
+        session.expire_all()
+        remaining = session.scalars(select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID)).all()
+        assert remaining == []
+
 
 class TestMetastoreStateBackendAssetScope:
     def test_get_returns_none_for_missing_key(
@@ -445,12 +470,14 @@ class TestMetastoreStateBackendAsync:
 class TestStateStoreConfig:
     def test_defaults(self):
         assert conf.getint("state_store", "default_retention_days") == 30
-        assert conf.getboolean("state_store", "clear_on_success") is False
+        assert conf.getint("state_store", "state_cleanup_batch_size") == 0
 
-    @conf_vars({("state_store", "default_retention_days"): "7", ("state_store", "clear_on_success"): "True"})
+    @conf_vars(
+        {("state_store", "default_retention_days"): "7", ("state_store", "state_cleanup_batch_size"): "50"}
+    )
     def test_overrides(self):
         assert conf.getint("state_store", "default_retention_days") == 7
-        assert conf.getboolean("state_store", "clear_on_success") is True
+        assert conf.getint("state_store", "state_cleanup_batch_size") == 50
 
 
 class TestResolveStateBackend:

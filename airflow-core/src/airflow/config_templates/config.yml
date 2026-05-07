@@ -3024,13 +3024,14 @@ state_store:
       type: integer
       example: "7"
       default: "30"
-    clear_on_success:
+    state_cleanup_batch_size:
       description: |
-        If True, task state is automatically cleared when a task instance succeeds.
+        Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
+        Tune this on deployments with large task_state tables to improve performance per transaction.
       version_added: 3.3.0
-      type: boolean
-      example: "True"
-      default: "False"
+      type: integer
+      example: "10000"
+      default: "0"
 
 profiling:
   description: |

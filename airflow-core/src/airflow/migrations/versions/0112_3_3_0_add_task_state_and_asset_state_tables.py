@@ -79,11 +79,15 @@ def upgrade():
         batch_op.create_index(
             "idx_task_state_lookup", ["dag_id", "run_id", "task_id", "map_index"], unique=False
         )
+        batch_op.create_index("idx_task_state_updated_at", ["updated_at"], unique=False)
+        batch_op.create_index("idx_task_state_expires_at", ["expires_at"], unique=False)
 
 
 def downgrade():
     """Unapply add task_state and asset_state tables."""
     with op.batch_alter_table("task_state", schema=None) as batch_op:
+        batch_op.drop_index("idx_task_state_expires_at")
+        batch_op.drop_index("idx_task_state_updated_at")
         batch_op.drop_index("idx_task_state_lookup")
 
     op.drop_table("task_state")

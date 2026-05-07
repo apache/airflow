@@ -65,4 +65,6 @@ class TaskStateModel(Base):
             ondelete="CASCADE",
         ),
         Index("idx_task_state_lookup", "dag_id", "run_id", "task_id", "map_index"),
+        Index("idx_task_state_updated_at", "updated_at"),
+        Index("idx_task_state_expires_at", "expires_at"),
     )

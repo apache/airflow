@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import delete, select
+from sqlalchemy.sql.expression import tuple_
 
 from airflow._shared.state import AssetScope, BaseStateBackend, StateScope, TaskScope
 from airflow._shared.timezones import timezone
@@ -262,37 +263,48 @@ class MetastoreStateBackend(BaseStateBackend):
         """
         Remove expired task state rows.
 
-        Reads ``[state_store] default_retention_days`` from config for the time-based threshold.
-        Set to 0 to disable time-based cleanup (expires_at cleanup still runs).
+        Reads ``[state_store] default_retention_days`` and ``[state_store] state_cleanup_batch_size``
+        from config. Each pass runs in its own transaction so partial progress is committed even if a
+        later pass fails. Each pass is batched to avoid long-running locks on the table.
 
         Two passes:
         a. Rows where updated_at < now() - default_retention_days (global retention)
         b. Rows where expires_at < now() (per-key early expiry set by the operator)
-
-        Asset state orphan cleanup is handled separately by the scheduler's
-        _cleanup_orphaned_asset_state(), which runs alongside asset deregistration.
         """
         retention_days = conf.getint("state_store", "default_retention_days")
+        batch_size = conf.getint("state_store", "state_cleanup_batch_size")
         now = timezone.utcnow()
         older_than = now - timedelta(days=retention_days) if retention_days > 0 else None
-        with create_session() as session:
-            if older_than:
-                result = session.execute(  # type: ignore[assignment]
-                    delete(TaskStateModel)
-                    .where(TaskStateModel.updated_at < older_than)
-                    .execution_options(synchronize_session="fetch")
-                )
-                log.info(
-                    "Deleted stale task_state rows",
-                    rows_deleted=getattr(result, "rowcount", None),
-                    older_than=older_than,
-                )
-            result = session.execute(  # type: ignore[assignment]
-                delete(TaskStateModel)
-                .where(TaskStateModel.expires_at.isnot(None), TaskStateModel.expires_at < now)
-                .execution_options(synchronize_session="fetch")
-            )
-            log.info("Deleted expired task_state rows", rows_deleted=getattr(result, "rowcount", None))
+
+        pk_cols = (
+            TaskStateModel.dag_run_id,
+            TaskStateModel.task_id,
+            TaskStateModel.map_index,
+            TaskStateModel.key,
+        )
+
+        def _delete_batched(where_clause) -> int:
+            total = 0
+            while True:
+                with create_session() as session:
+                    pk_query = select(*pk_cols).where(where_clause)
+                    if batch_size > 0:
+                        pk_query = pk_query.limit(batch_size)
+                    ids = session.execute(pk_query).all()
+                    if not ids:
+                        break
+                    session.execute(delete(TaskStateModel).where(tuple_(*pk_cols).in_(ids)))
+                    total += len(ids)
+                if batch_size <= 0 or len(ids) < batch_size:
+                    break
+            return total
+
+        if older_than:
+            deleted = _delete_batched(TaskStateModel.updated_at < older_than)
+            log.info("Deleted stale task_state rows", rows_deleted=deleted, older_than=older_than)
+
+        deleted = _delete_batched((TaskStateModel.expires_at.isnot(None)) & (TaskStateModel.expires_at < now))
+        log.info("Deleted expired task_state rows", rows_deleted=deleted)
 
     def _dry_run_summary(self) -> dict[str, list]:
         """

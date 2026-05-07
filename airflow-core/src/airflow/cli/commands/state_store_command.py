@@ -20,6 +20,10 @@ import logging
 
 log = logging.getLogger(__name__)
 
+# Other state operations (list, get, delete per key) will be added here once the
+# Core API endpoints (PR 6) land. For now, inspection is available via the REST
+# API and the Task Instance detail panel in the UI.
+
 
 def cleanup(args) -> None:
     """Remove expired task state rows via the configured state backend."""
