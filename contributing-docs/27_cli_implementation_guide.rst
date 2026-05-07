@@ -96,11 +96,7 @@ Source location: ``airflow-core/src/airflow/cli/``
 3. If the required API endpoint does not exist yet, add it first
    (see `Adding API Endpoints <16_adding_api_endpoints.rst>`__).
 4. Add tests under ``airflow-core/tests/cli/`` that mock or exercise the HTTP client.
-5. Run integration tests with:
 
-   .. code-block:: bash
-
-      breeze testing airflow-ctl-integration-test
 
 Implementing a Pure Core Command
 ----------------------------------
