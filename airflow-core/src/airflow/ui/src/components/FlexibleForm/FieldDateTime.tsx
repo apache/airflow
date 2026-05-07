@@ -59,11 +59,15 @@ export const FieldDateTime = ({
       disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
-      onChange={(event) => handleChange(event.target.value)}
+      onChange={(event) => {
+        const val = event.target.value;
+        handleChange(rest.type === "time" && val.length === 5 ? `${val}:00` : val);
+      }}
       required={rest.required}
       size="sm"
+      step={rest.type === "time" ? 1 : undefined}
       type={rest.type}
-      value={((param.value ?? "") as string).slice(0, 16)}
+      value={((param.value ?? "") as string).slice(0, rest.type === "time" ? 8 : 16)}
     />
   );
 };

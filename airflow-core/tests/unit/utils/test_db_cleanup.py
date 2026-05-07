@@ -21,14 +21,16 @@ from contextlib import suppress
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, call, create_autospec, mock_open, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import func, inspect, select, text
+from sqlalchemy import Column, Integer, MetaData, Table, func, inspect, select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.orm import Session
 
 from airflow import DAG
 from airflow._shared.timezones import timezone
@@ -45,6 +47,7 @@ from airflow.utils.db_cleanup import (
     _build_query,
     _cleanup_table,
     _confirm_drop_archives,
+    _do_delete,
     _dump_table_to_file,
     _get_archived_table_names,
     config_dict,
@@ -487,6 +490,57 @@ class TestDBCleanup:
             pass
         archived_table_names = _get_archived_table_names(["dag_run"], session)
         assert len(archived_table_names) == 0
+        
+    @patch("airflow.utils.db_cleanup.reflect_tables")
+    def test_skip_archive_failure_rolls_back_before_drop_on_session_connection(self, reflect_tables_mock):
+        """
+        Verify skip_archive cleanup releases the failed transaction before dropping the archive table.
+
+        MySQL metadata locks from a failed DELETE are only released after rollback. Dropping the archive
+        table through the same session connection after rollback avoids self-deadlocking on a second
+        pooled connection.
+        """
+
+        class FakeModel:
+            name = "source_table"
+
+        source_table = Table("source_table", MetaData(), Column("id", Integer, primary_key=True))
+        archive_tables = {}
+        archive_drop = create_autospec(lambda *, bind: None)
+        session = MagicMock(spec=Session)
+        session.get_bind.return_value = SimpleNamespace(dialect=SimpleNamespace(name="mysql"))
+        session.scalars.return_value.one.return_value = 1
+        session.connection.return_value = MagicMock(name="session_connection", spec=[])
+        session.execute.side_effect = [None, None, SQLAlchemyError("delete failed")]
+
+        def reflect_side_effect(table_names, session):
+            metadata = SimpleNamespace(tables={})
+            for table_name in table_names:
+                if table_name == FakeModel.name:
+                    metadata.tables[table_name] = source_table
+                else:
+                    archive_table = archive_tables.setdefault(
+                        table_name, Table(table_name, MetaData(), Column("id", Integer, primary_key=True))
+                    )
+                    archive_table.drop = archive_drop
+                    metadata.tables[table_name] = archive_table
+            return metadata
+
+        reflect_tables_mock.side_effect = reflect_side_effect
+
+        with pytest.raises(SQLAlchemyError, match="delete failed"):
+            _do_delete(
+                query=select(source_table),
+                orm_model=FakeModel,
+                skip_archive=True,
+                session=session,
+                batch_size=None,
+            )
+
+        session.rollback.assert_called_once()
+        session.connection.assert_called_once()
+        archive_drop.assert_called_once_with(bind=session.connection.return_value)
+        assert session.mock_calls.index(call.rollback()) < session.mock_calls.index(call.connection())
 
     def test_no_models_missing(self):
         """
