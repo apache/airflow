@@ -57,7 +57,32 @@ version = "0.0.1"
 
 dependencies = [
     "apache-airflow-core",
+    "apache-airflow-devel-common",
+    "apache-airflow-providers-cncf-kubernetes",
 ]
+
+[tool.pytest]
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+]
+norecursedirs = [
+    ".eggs",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+]
+python_files = [
+    "*.py",
+]
+
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"
 
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
@@ -80,6 +105,9 @@ bypass-selection = true
 #
 docs = [
     "apache-airflow-devel-common[docs]"
+]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
 ]
 
 packages = []

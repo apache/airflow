@@ -346,7 +346,7 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -678,7 +678,7 @@ repos:
           .*/dist/.*|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
-          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^chart/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
