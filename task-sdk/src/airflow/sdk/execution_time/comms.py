@@ -573,6 +573,13 @@ class AssetsByAliasResult(BaseModel):
     assets: list[AssetResult]
     type: Literal["AssetsByAliasResult"] = "AssetsByAliasResult"
 
+    @classmethod
+    def from_asset_responses(cls, asset_responses: list[AssetResponse]) -> AssetsByAliasResult:
+        return cls(
+            assets=[AssetResult.from_asset_response(a) for a in asset_responses],
+            type="AssetsByAliasResult",
+        )
+
 
 class DagRunResult(DagRun):
     type: Literal["DagRunResult"] = "DagRunResult"

@@ -51,6 +51,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
+    AssetsByAliasResult,
     DeferTask,
     ErrorResponse,
     OKResponse,
@@ -1238,11 +1239,12 @@ class TestAssetOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.assets.get_by_alias("my_alias")
 
-        assert len(result) == 2
-        assert isinstance(result[0], AssetResponse)
-        assert isinstance(result[1], AssetResponse)
-        assert result[0].name == "asset_a"
-        assert result[1].name == "asset_b"
+        assert isinstance(result, AssetsByAliasResult)
+        assert len(result.assets) == 2
+        assert isinstance(result.assets[0], AssetResponse)
+        assert isinstance(result.assets[1], AssetResponse)
+        assert result.assets[0].name == "asset_a"
+        assert result.assets[1].name == "asset_b"
 
     def test_get_by_alias_returns_empty_for_unknown_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1251,7 +1253,7 @@ class TestAssetOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.assets.get_by_alias("unknown_alias")
 
-        assert result == []
+        assert result.assets == []
 
 
 class TestDagRunOperations:

@@ -475,6 +475,8 @@ class AssetStateAccessor:
     """
 
     def __init__(self, *, name: str | None = None, uri: str | None = None) -> None:
+        if not name and not uri:
+            raise ValueError("Either `name` or `uri` must be provided")
         self._name = name
         self._uri = uri
 
@@ -507,8 +509,6 @@ class AssetStateAccessor:
             msg = GetAssetStateByName(name=self._name, key=key)
         elif self._uri:
             msg = GetAssetStateByUri(uri=self._uri, key=key)
-        else:
-            raise ValueError("Either `name` or `uri` must be provided")
         resp = SUPERVISOR_COMMS.send(msg)
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STATE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
@@ -526,8 +526,6 @@ class AssetStateAccessor:
             msg = SetAssetStateByName(name=self._name, key=key, value=value)
         elif self._uri:
             msg = SetAssetStateByUri(uri=self._uri, key=key, value=value)
-        else:
-            raise ValueError("Either `name` or `uri` must be provided")
         SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
@@ -544,8 +542,6 @@ class AssetStateAccessor:
             msg = DeleteAssetStateByName(name=self._name, key=key)
         elif self._uri:
             msg = DeleteAssetStateByUri(uri=self._uri, key=key)
-        else:
-            raise ValueError("Either `name` or `uri` must be provided")
         SUPERVISOR_COMMS.send(msg)
 
     def clear(self) -> None:
@@ -558,8 +554,6 @@ class AssetStateAccessor:
             msg = ClearAssetStateByName(name=self._name)
         elif self._uri:
             msg = ClearAssetStateByUri(uri=self._uri)
-        else:
-            raise ValueError("Either `name` or `uri` must be provided")
         SUPERVISOR_COMMS.send(msg)
 
 

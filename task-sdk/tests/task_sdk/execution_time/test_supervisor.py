@@ -68,6 +68,7 @@ from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    AssetsByAliasResult,
     AssetStateResult,
     ClearAssetStateByName,
     ClearAssetStateByUri,
@@ -1821,13 +1822,23 @@ REQUEST_TEST_CASES = [
     RequestTestCase(
         message=GetAssetsByAlias(alias_name="my_alias"),
         expected_body={
-            "assets": [{"name": "asset_a", "uri": "s3://bucket/a", "group": "asset"}],
+            "assets": [
+                {
+                    "name": "asset_a",
+                    "uri": "s3://bucket/a",
+                    "group": "asset",
+                    "extra": None,
+                    "type": "AssetResult",
+                }
+            ],
             "type": "AssetsByAliasResult",
         },
         client_mock=ClientMock(
             method_path="assets.get_by_alias",
-            args=("my_alias",),
-            response=[AssetResult(name="asset_a", uri="s3://bucket/a", group="asset")],
+            kwargs={"alias_name": "my_alias"},
+            response=AssetsByAliasResult(
+                assets=[AssetResult(name="asset_a", uri="s3://bucket/a", group="asset", extra=None)]
+            ),
         ),
         test_id="get_assets_by_alias",
     ),

@@ -82,6 +82,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
+    AssetsByAliasResult,
     CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
@@ -764,10 +765,12 @@ class AssetOperations:
 
         return AssetResponse.model_validate_json(resp.read())
 
-    def get_by_alias(self, alias_name: str) -> list[AssetResponse]:
+    def get_by_alias(self, alias_name: str) -> AssetsByAliasResult:
         """Get all Assets resolved from an AssetAlias."""
         resp = self.client.get("assets/by-alias", params={"alias_name": alias_name})
-        return [AssetResponse.model_validate(a) for a in resp.json()]
+        return AssetsByAliasResult.from_asset_responses(
+            [AssetResponse.model_validate(a) for a in resp.json()]
+        )
 
 
 class AssetEventOperations:

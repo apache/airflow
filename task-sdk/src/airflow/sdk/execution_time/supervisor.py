@@ -64,7 +64,6 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
-    AssetsByAliasResult,
     AssetStateResult,
     ClearAssetStateByName,
     ClearAssetStateByUri,
@@ -1513,8 +1512,7 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = asset_resp
         elif isinstance(msg, GetAssetsByAlias):
-            assets = self.client.assets.get_by_alias(alias_name=msg.alias_name)
-            resp = AssetsByAliasResult(assets=[AssetResult.from_asset_response(a) for a in assets])
+            resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(
                 uri=msg.uri,
