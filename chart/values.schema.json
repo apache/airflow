@@ -17,6 +17,7 @@
         "Flower",
         "Redis",
         "StatsD",
+        "OpenTelemetry",
         "Jobs",
         "Kubernetes",
         "Ingress",
@@ -1088,6 +1089,28 @@
                             "default": "IfNotPresent"
                         }
                     }
+                },
+                "otelCollector": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "repository": {
+                            "type": "string"
+                        },
+                        "tag": {
+                            "type": "string"
+                        },
+                        "pullPolicy": {
+                            "type": "string",
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
+                            "default": "IfNotPresent"
+                        }
+                    },
+                    "description": "Configuration of the OTel Collector image."
                 }
             }
         },
@@ -8302,7 +8325,7 @@
                     }
                 },
                 "enabled": {
-                    "description": "Enable StatsD.",
+                    "description": "Enable StatsD. When `otelCollector.metricsEnabled` is true, [metrics] statsd_on is set to false in the rendered Airflow config because Airflow can only export metrics to one backend at a time.",
                     "type": "boolean",
                     "default": true
                 },
@@ -8607,6 +8630,263 @@
                             "value"
                         ],
                         "additionalProperties": false
+                    }
+                }
+            }
+        },
+        "otelCollector": {
+            "description": "OpenTelemetry Collector settings.",
+            "type": "object",
+            "x-docsSection": "OpenTelemetry",
+            "additionalProperties": false,
+            "properties": {
+                "tracesEnabled": {
+                    "description": "Send Airflow traces to the OTel Collector. Sets `[traces] otel_on` in the rendered Airflow config and deploys the collector when either `tracesEnabled` or `metricsEnabled` is true.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "metricsEnabled": {
+                    "description": "Send Airflow metrics to the OTel Collector. Sets `[metrics] otel_on` in the rendered Airflow config and forces `[metrics] statsd_on` to False because Airflow can only export metrics to one backend at a time.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "metricExportIntervalMs": {
+                    "description": "Interval (in milliseconds) at which the OTel SDK exports metrics to the collector. Sets the `OTEL_METRIC_EXPORT_INTERVAL` env var on Airflow pods.",
+                    "type": "integer",
+                    "default": 30000,
+                    "minimum": 0
+                },
+                "config": {
+                    "description": "Override the OTel Collector `config.yml`. When set (non-empty), this string replaces the chart's default collector config. The value is rendered with `tpl`, so values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or `{{ include \"airflow.fullname\" . }}` can be referenced from inside the string. Leave empty to use the chart default.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to pass to the OTel Collector container (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "--config=/etc/otel-collector/config.yml"
+                    ]
+                },
+                "revisionHistoryLimit": {
+                    "description": "Number of old ReplicaSets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": "Kubernetes"
+                },
+                "annotations": {
+                    "description": "Annotations to add to the OTel Collector deployment.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for the OTel Collector to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30,
+                    "minimum": 0
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for the OTel Collector container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before the liveness probe is initiated.",
+                            "type": "integer",
+                            "default": 10,
+                            "minimum": 0
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the liveness probe.",
+                            "type": "integer",
+                            "default": 15,
+                            "minimum": 0
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for the OTel Collector container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before the readiness probe is initiated.",
+                            "type": "integer",
+                            "default": 10,
+                            "minimum": 0
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the readiness probe.",
+                            "type": "integer",
+                            "default": 15,
+                            "minimum": 0
+                        }
+                    }
+                },
+                "resources": {
+                    "description": "Resources for the OTel Collector pod.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "service": {
+                    "description": "OTel Collector Service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "annotations": {
+                            "description": "Annotations for the OTel Collector Service.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for OTel Collector pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for OTel Collector pods.",
+                    "type": "object",
+                    "default": {},
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for OTel Collector pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for OTel Collector pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for OTel Collector pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "labels": {
+                    "description": "Labels specific to OTel Collector objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the OTel Collector pods (templated).",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the OTel Collector.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the OTel Collector.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes"
+                        },
+                        "container": {
+                            "description": "Container security context definition for the OTel Collector.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes"
+                        }
+                    }
+                },
+                "extraNetworkPolicies": {
+                    "description": "Additional NetworkPolicies as needed for the OTel Collector. Only used when `networkPolicies.enabled` is true.",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
+                    },
+                    "default": []
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if the ServiceAccount's API credentials should be auto-mounted onto OTel Collector pods. Defaults to false because the chart's default collector config does not talk to the Kubernetes API.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the OTel Collector Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -9853,6 +10133,16 @@
                     "description": "PgBouncer scrape port.",
                     "type": "integer",
                     "default": 9127
+                },
+                "otelCollectorOtlpHttp": {
+                    "description": "OTel Collector OTLP HTTP port.",
+                    "type": "integer",
+                    "default": 4318
+                },
+                "otelCollectorOtlpGrpc": {
+                    "description": "OTel Collector OTLP gRPC port.",
+                    "type": "integer",
+                    "default": 4317
                 }
             }
         },

@@ -1124,3 +1124,70 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
         result = operator.execute(None)
         assert result == [f"gs://{DESTINATION_BUCKET}/backup/file.txt"]
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_single_file_with_retention(self, mock_hook):
+        retain_until = datetime(2027, 1, 1)
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            retain_until_time=retain_until,
+            retention_mode="Locked",
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            DESTINATION_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            retain_until_time=retain_until,
+            retention_mode="Locked",
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_single_file_with_retention_without_mode(self, mock_hook):
+        retain_until = datetime(2027, 1, 1)
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            retain_until_time=retain_until,
+        )
+
+        operator.execute(None)
+        # When retention_mode is not set, only retain_until_time should be passed
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            DESTINATION_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            retain_until_time=retain_until,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_single_file_without_retention(self, mock_hook):
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+        )
+
+        operator.execute(None)
+        # When no retention is set, rewrite should be called without retention kwargs
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            DESTINATION_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+        )

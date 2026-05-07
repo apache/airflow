@@ -54,3 +54,17 @@ Reference
 ~~~~~~~~~
 
 * `AWS boto3 Library Documentation for MWAA Serverless <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/mwaa-serverless.html>`__
+
+.. _howto/sensor:MwaaServerlessWorkflowRunSensor:
+
+Wait for a Workflow Run
+-----------------------
+
+To wait for an Amazon MWAA Serverless workflow run to complete, use
+:class:`~airflow.providers.amazon.aws.sensors.mwaa_serverless.MwaaServerlessWorkflowRunSensor`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_mwaa_serverless_workflow_run]
+    :end-before: [END howto_sensor_mwaa_serverless_workflow_run]
