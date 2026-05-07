@@ -83,6 +83,11 @@ class ErrorType(enum.Enum):
     TASK_STATE_NOT_FOUND = "TASK_STATE_NOT_FOUND"
     ASSET_STATE_NOT_FOUND = "ASSET_STATE_NOT_FOUND"
     DAGRUN_ALREADY_EXISTS = "DAGRUN_ALREADY_EXISTS"
+    # Distinct from API_SERVER_ERROR: signals an explicit 401/403 from the
+    # Execution API. Callers like ExecutionAPISecretsBackend treat this as
+    # a deny rather than a "not found" so the secrets-backend dispatcher
+    # does NOT fall through to a less-restrictive backend (e.g. env vars).
+    PERMISSION_DENIED = "PERMISSION_DENIED"
     GENERIC_ERROR = "GENERIC_ERROR"
     API_SERVER_ERROR = "API_SERVER_ERROR"
 

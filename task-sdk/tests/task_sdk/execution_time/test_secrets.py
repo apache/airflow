@@ -120,6 +120,70 @@ class TestExecutionAPISecretsBackend:
         with pytest.raises(NotImplementedError, match="Use get_connection instead"):
             backend.get_conn_value("test_conn")
 
+    def test_get_connection_raises_on_permission_denied(self, mock_supervisor_comms):
+        """An explicit deny from the Execution API must raise, not fall through.
+
+        Returning None on a 401/403 would let the secrets-backend dispatcher
+        fall through to a less-restrictive backend (e.g. EnvironmentVariablesBackend).
+        """
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.PERMISSION_DENIED,
+            detail={"conn_id": "denied_conn", "status_code": 403},
+        )
+        backend = ExecutionAPISecretsBackend()
+        with pytest.raises(PermissionError, match="connection 'denied_conn'"):
+            backend.get_connection("denied_conn")
+
+    def test_get_variable_raises_on_permission_denied(self, mock_supervisor_comms):
+        """An explicit deny from the Execution API must raise for variables too."""
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.PERMISSION_DENIED,
+            detail={"key": "denied_var", "status_code": 403},
+        )
+        backend = ExecutionAPISecretsBackend()
+        with pytest.raises(PermissionError, match="variable 'denied_var'"):
+            backend.get_variable("denied_var")
+
+    @pytest.mark.asyncio
+    async def test_aget_connection_raises_on_permission_denied(self, mock_supervisor_comms):
+        """Async variant must also raise on PERMISSION_DENIED."""
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        async def asend(*_args, **_kwargs):
+            return ErrorResponse(
+                error=ErrorType.PERMISSION_DENIED,
+                detail={"conn_id": "denied_conn", "status_code": 403},
+            )
+
+        mock_supervisor_comms.asend = asend
+        backend = ExecutionAPISecretsBackend()
+        with pytest.raises(PermissionError, match="connection 'denied_conn'"):
+            await backend.aget_connection("denied_conn")
+
+    @pytest.mark.asyncio
+    async def test_aget_variable_raises_on_permission_denied(self, mock_supervisor_comms):
+        """Async variant for variables must also raise on PERMISSION_DENIED."""
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        async def asend(*_args, **_kwargs):
+            return ErrorResponse(
+                error=ErrorType.PERMISSION_DENIED,
+                detail={"key": "denied_var", "status_code": 403},
+            )
+
+        mock_supervisor_comms.asend = asend
+        backend = ExecutionAPISecretsBackend()
+        with pytest.raises(PermissionError, match="variable 'denied_var'"):
+            await backend.aget_variable("denied_var")
+
 
 class TestContextDetection:
     """Test context detection in ensure_secrets_backend_loaded."""

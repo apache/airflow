@@ -460,6 +460,21 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            if e.response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                # Surface authz failures as a distinct ErrorType so the
+                # ExecutionAPISecretsBackend can refuse to fall back to a
+                # less-restrictive backend (e.g. env vars). 401/403 must
+                # not be conflated with "not found".
+                log.debug(
+                    "Connection access denied",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.PERMISSION_DENIED,
+                    detail={"conn_id": conn_id, "status_code": e.response.status_code},
+                )
             raise
         return ConnectionResponse.model_validate_json(resp.read())
 
@@ -483,6 +498,19 @@ class VariableOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+            if e.response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                # See ConnectionOperations.get() above for rationale —
+                # authz failures must not be conflated with "not found".
+                log.debug(
+                    "Variable access denied",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.PERMISSION_DENIED,
+                    detail={"key": key, "status_code": e.response.status_code},
+                )
             raise
         return VariableResponse.model_validate_json(resp.read())
 
