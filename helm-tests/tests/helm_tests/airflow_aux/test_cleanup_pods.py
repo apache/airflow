@@ -228,6 +228,50 @@ class TestCleanupPods:
             "exec airflow kubernetes cleanup-pods --namespace=default",
         ]
 
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param(
+                {
+                    "cleanup": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "cleanup"]}}},
+                    },
+                },
+                id="component",
+            ),
+            pytest.param(
+                {
+                    "cleanup": {"enabled": True},
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "cleanup"]}}},
+                },
+                id="global-fallback",
+            ),
+            pytest.param(
+                {
+                    "cleanup": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "cleanup"]}}},
+                    },
+                    "containerLifecycleHooks": {"postStart": {"exec": {"command": ["echo", "global"]}}},
+                },
+                id="component-overrides-global",
+            ),
+        ],
+    )
+    def test_should_render_container_lifecycle_hooks(self, values):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                **values,
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].lifecycle", docs[0]) == {
+            "preStop": {"exec": {"command": ["echo", "cleanup"]}}
+        }
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={

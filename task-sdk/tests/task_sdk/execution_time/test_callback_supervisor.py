@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,10 +19,24 @@
 
 from __future__ import annotations
 
+import socket
+from dataclasses import dataclass
+from operator import attrgetter
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 import structlog
 
-from airflow.sdk.execution_time.callback_supervisor import execute_callback
+from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, execute_callback
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    GetConnection,
+    GetVariable,
+    MaskSecret,
+    VariableResult,
+    _RequestFrame,
+)
 
 
 def callback_no_args():
@@ -113,3 +128,103 @@ class TestExecuteCallback:
             assert error_contains in error
         else:
             assert error is None
+
+
+class TestCallbackHandleRequest:
+    """Verify that CallbackSubprocess._handle_request dispatches each message type to the correct handler."""
+
+    @dataclass
+    class ClientMock:
+        method_path: str
+        args: tuple = ()
+        kwargs: dict | None = None
+        response: Any = None
+
+        def __post_init__(self):
+            if self.kwargs is None:
+                self.kwargs = {}
+
+    @dataclass
+    class RequestCase:
+        message: Any
+        test_id: str
+        client_mock: Any = None  # Should be ClientMock but Python can't forward-ref sibling nested classes
+        mask_secret_args: tuple | None = None
+
+    REQUEST_CASES = [
+        RequestCase(
+            message=GetConnection(conn_id="test_conn"),
+            test_id="get_connection",
+            client_mock=ClientMock(
+                method_path="connections.get",
+                args=("test_conn",),
+                response=ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+            ),
+        ),
+        RequestCase(
+            message=GetConnection(conn_id="test_conn"),
+            test_id="get_connection_with_password",
+            client_mock=ClientMock(
+                method_path="connections.get",
+                args=("test_conn",),
+                response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="secret"),
+            ),
+            mask_secret_args=("secret",),
+        ),
+        RequestCase(
+            message=GetVariable(key="test_key"),
+            test_id="get_variable",
+            client_mock=ClientMock(
+                method_path="variables.get",
+                args=("test_key",),
+                response=VariableResult(key="test_key", value="test_value"),
+            ),
+        ),
+        RequestCase(
+            message=MaskSecret(value="super_secret", name="api_key"),
+            test_id="mask_secret",
+            mask_secret_args=("super_secret", "api_key"),
+        ),
+    ]
+
+    @pytest.fixture
+    def callback_subprocess(self, mocker):
+        read_end, write_end = socket.socketpair()
+        proc = CallbackSubprocess(
+            process_log=mocker.MagicMock(),
+            id="12345678-1234-5678-1234-567812345678",
+            pid=12345,
+            stdin=write_end,
+            client=mocker.Mock(),
+            process=mocker.Mock(),
+        )
+        return proc, read_end
+
+    @patch("airflow.sdk.execution_time.request_handlers.mask_secret")
+    @pytest.mark.parametrize("test_case", REQUEST_CASES, ids=lambda tc: tc.test_id)
+    def test_handle_requests(
+        self,
+        mock_mask_secret,
+        callback_subprocess,
+        mocker,
+        test_case,
+    ):
+        client_mock = test_case.client_mock
+
+        proc, _read_end = callback_subprocess
+
+        if client_mock:
+            mock_client_method = attrgetter(client_mock.method_path)(proc.client)
+            mock_client_method.return_value = client_mock.response
+
+        generator = proc.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        req_frame = _RequestFrame(id=42, body=test_case.message.model_dump())
+        generator.send(req_frame)
+
+        if test_case.mask_secret_args is not None:
+            mock_mask_secret.assert_called_with(*test_case.mask_secret_args)
+
+        if client_mock:
+            mock_client_method.assert_called_once_with(*client_mock.args, **client_mock.kwargs)

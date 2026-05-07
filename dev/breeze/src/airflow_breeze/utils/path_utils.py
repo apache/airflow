@@ -131,17 +131,19 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-
-    res = subprocess.run(
-        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
-        cwd=MY_BREEZE_ROOT_PATH,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    if "Modified" in res.stderr:
-        inform_about_self_upgrade()
-        return True
+    try:
+        res = subprocess.run(
+            ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+            cwd=MY_BREEZE_ROOT_PATH,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if res.returncode == 0 and "Modified" in res.stderr:
+            inform_about_self_upgrade()
+            return True
+    except FileNotFoundError:
+        pass
     return False
 
 

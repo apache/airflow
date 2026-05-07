@@ -45,13 +45,22 @@ SALESFORCE_RESPONSE = {
 INCLUDE_DELETED = True
 QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
+pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
+
+@pytest.mark.parametrize(
+    ("unwrap_single", "expected"),
+    [
+        (True, EXPECTED_GCS_URI),
+        (False, [EXPECTED_GCS_URI]),
+    ],
+)
 class TestSalesforceToGcsOperator:
     @pytest.mark.db_test
     @mock.patch.object(GCSHook, "upload")
     @mock.patch.object(SalesforceHook, "write_object_to_file")
     @mock.patch.object(SalesforceHook, "make_query")
-    def test_execute(self, mock_make_query, mock_write_object_to_file, mock_upload):
+    def test_execute(self, mock_make_query, mock_write_object_to_file, mock_upload, unwrap_single, expected):
         mock_make_query.return_value = SALESFORCE_RESPONSE
 
         operator = SalesforceToGcsOperator(
@@ -66,6 +75,7 @@ class TestSalesforceToGcsOperator:
             coerce_to_timestamp=True,
             record_time_added=True,
             task_id=TASK_ID,
+            unwrap_single=unwrap_single,
         )
         result = operator.execute({})
 
@@ -85,4 +95,4 @@ class TestSalesforceToGcsOperator:
             bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
         )
 
-        assert result == EXPECTED_GCS_URI
+        assert result == expected

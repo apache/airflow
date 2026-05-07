@@ -28,11 +28,9 @@ class TestFlowerDeployment:
         ("executor", "flower_enabled", "created"),
         [
             ("CeleryExecutor", False, False),
-            ("CeleryKubernetesExecutor", False, False),
             ("CeleryExecutor,KubernetesExecutor", False, False),
             ("KubernetesExecutor", False, False),
             ("CeleryExecutor", True, True),
-            ("CeleryKubernetesExecutor", True, True),
             ("CeleryExecutor,KubernetesExecutor", True, True),
             ("KubernetesExecutor", True, False),
         ],
@@ -88,16 +86,11 @@ class TestFlowerDeployment:
         )
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
-    @pytest.mark.parametrize(
-        "airflow_version",
-        ["2.11.0", "3.0.0"],
-    )
-    def test_args_with_airflow_version(self, airflow_version):
+    def test_args_with_airflow_version(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "flower": {"enabled": True},
-                "airflowVersion": airflow_version,
             },
             show_only=["templates/flower/flower-deployment.yaml"],
         )
@@ -481,10 +474,8 @@ class TestFlowerService:
         ("executor", "flower_enabled", "created"),
         [
             ("CeleryExecutor", False, False),
-            ("CeleryKubernetesExecutor", False, False),
             ("KubernetesExecutor", False, False),
             ("CeleryExecutor", True, True),
-            ("CeleryKubernetesExecutor", True, True),
             ("KubernetesExecutor", True, False),
         ],
     )

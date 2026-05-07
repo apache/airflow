@@ -28,6 +28,78 @@ Changelog
 ---------
 
 
+21.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add engine flag support to Dataproc ClusterGenerator and bump google-cloud-dataproc to 5.27.0 (#65130)``
+* ``Migrate DataprocSubmitTrigger and DataprocSubmitJobDirectTrigger to on_kill() (#65742)``
+* ``Add optional object-level retention support to GcsToGcsOperator (#66204)``
+* ``Add universe_domain support for GoogleBaseHook (#66159)``
+* ``Update the Kubernetes Engine components to be able to work on "Sovereign Cloud from Google" environments (#66341)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Rediscover succeeded pods in GKEJobTrigger to handle Kubernetes Job retries with XCom (#63915)``
+* ``Fix Cloud Composer create env operator (#64956)``
+* ``Fix GenAIGenerativeModelHook ignoring Airflow connection credentials (#65731)``
+* ``Fix GCSToGCSOperator ignoring replace=False for single-file copy (#66014)``
+* ``Fix Dataflow deferrable trigger handling of transient 503 (#66293)``
+* ``Fix BigQueryInsertJobTrigger not propagating CancelledError (#63730)``
+* ``Pass 'schedule_timeout_seconds' through to 'GKEStartPodTrigger' from 'GKEStartPodOperator' (#66355)``
+* ``Return list of GCS URIs from SalesforceToGcsOperator (#61659)``
+* ``Fix consistent return response from PubSubPullOperator (#66156)``
+
+Misc
+~~~~
+* ``Update Composer naming and add ManagedAirflow aliases (#66001)``
+* ``Change the name in rebranding of Google services: "TPC" -> "Sovereign Cloud from Google" (#66415)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Iterate file objects directly instead of calling readlines() (#66291)``
+   * ``Apply AIR201-style replacements (#65197)``
+   * ``Add pluggable retry policies for Airflow tasks (AIP-105) (#65474)``
+   * ``Update correct annotation for 3.3 version compat constant (#65999)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Align Dag capitalization from "DAG" to "Dag" for providers/google/ (#66155)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+21.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add quota project id support to Google cloud base hook (#56324)``
+* ``Return list of destination URIs from S3ToGCSOperator (#64851)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix passing labels to BQ job (#65663)``
+
+Misc
+~~~~
+* ``Fix Google Dataflow hook failing import when apache-beam not installed (#65659)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rename Cloud Composer service in the operator docs (#64257)``
+* ``Update Compute SSH documentation about TPC (#65662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make werkzeug import optional in Google provider test conftest (#65581)``
+   * ``Avoid unspecced MagicMock for execute_complete context in S3ToGCS test (#65087)``
+   * ``Fix stale system test documentation links (#65071)``
+   * ``Update gen ai batch api system test (#64964)``
+
 21.1.0
 ......
 

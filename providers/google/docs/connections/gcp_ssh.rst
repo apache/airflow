@@ -25,7 +25,6 @@ The :class:`~airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHo
 commands on a remote server using :class:`~airflow.providers.ssh.operators.ssh.SSHOperator` or transfer
 file from/to the remote server using :class:`~airflow.providers.sftp.operators.sftp.SFTPOperator`.
 
-
 Configuring the Connection
 --------------------------
 
@@ -72,3 +71,53 @@ For example:
     use_iap_tunnel=True&\
     use_oslogin=False&\
     expire_time=4242"
+
+
+Sovereign Cloud from Google guidance
+------------------------------------
+
+If you are running Airflow in Sovereign Cloud from Google, use the following configuration guidance for
+Compute Engine SSH.
+
+Recommended configuration for direct SSH
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use instance metadata for SSH keys and connect directly to the instance:
+
+* ``use_oslogin=False``
+* ``use_iap_tunnel=False``
+
+This is the recommended configuration when the instance is reachable directly and allows TCP traffic on
+port 22.
+
+Recommended configuration for SSH over IAP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use instance metadata for SSH keys and open the connection through IAP:
+
+* ``use_oslogin=False``
+* ``use_iap_tunnel=True``
+
+This works only when the caller has the IAM permissions needed to open an IAP tunnel. In Google Cloud
+deployments this is typically the ``IAP-secured Tunnel User`` role
+(``roles/iap.tunnelResourceAccessor``).
+
+Configuration to avoid in Sovereign Cloud from Google
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Do not use Cloud OS Login for Compute Engine SSH in the tested Sovereign Cloud from Google environment:
+
+* ``use_oslogin=True``
+
+In the tested Sovereign Cloud from Google environment, the OS Login SSH flow was not available for this hook. For users, the
+practical recommendation is to use metadata-managed SSH keys and set ``use_oslogin=False``.
+
+Instance configuration when using metadata-managed SSH keys
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When you use ``use_oslogin=False``:
+
+* do not enable instance metadata ``enable-oslogin=TRUE`` for that SSH path,
+* make sure the instance allows SSH access on port 22,
+* use ``use_iap_tunnel=True`` only when the required IAP IAM permissions are present, including
+  ``roles/iap.tunnelResourceAccessor``.

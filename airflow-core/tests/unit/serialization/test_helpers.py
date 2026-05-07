@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
+from airflow.serialization.definitions.notset import NOTSET
+from airflow.serialization.helpers import serialize_template_field
+
 
 def test_serialize_template_field_with_very_small_max_length(monkeypatch):
     """Test that truncation message is prioritized even for very small max_length."""
     monkeypatch.setenv("AIRFLOW__CORE__MAX_TEMPLATED_FIELD_LENGTH", "1")
-
-    from airflow.serialization.helpers import serialize_template_field
 
     result = serialize_template_field("This is a long string", "test")
 
@@ -29,3 +31,23 @@ def test_serialize_template_field_with_very_small_max_length(monkeypatch):
     # This ensures users always see why content is truncated
     assert result
     assert "Truncated. You can change this behaviour" in result
+
+
+def test_serialize_template_field_with_notset():
+    """NOTSET must serialize deterministically via serialize(), not str() fallback."""
+    result = serialize_template_field(NOTSET, "logical_date")
+    assert result == "NOTSET"
+
+
+def test_serialize_template_field_with_set_during_execution():
+    """SetDuringExecution must use its own serialize() override."""
+    result = serialize_template_field(SET_DURING_EXECUTION, "logical_date")
+    assert result == "DYNAMIC (set during execution)"
+
+
+def test_argnotset_repr_and_str():
+    """repr/str should return the stable serialized sentinel string."""
+    assert repr(NOTSET) == "NOTSET"
+    assert str(NOTSET) == "NOTSET"
+    assert repr(SET_DURING_EXECUTION) == "DYNAMIC (set during execution)"
+    assert str(SET_DURING_EXECUTION) == "DYNAMIC (set during execution)"

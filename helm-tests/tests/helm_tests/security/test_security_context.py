@@ -24,39 +24,6 @@ from chart_utils.helm_template_generator import render_chart
 class TestSCBackwardsCompatibility:
     """Tests SC Backward Compatibility."""
 
-    @pytest.mark.parametrize(
-        "executor",
-        [
-            "CeleryExecutor",
-            "CeleryKubernetesExecutor",
-            "CeleryExecutor,KubernetesExecutor",
-            "KubernetesExecutor",
-        ],
-    )
-    def test_uid_gid_set_for_airflow_2(self, executor):
-        docs = render_chart(
-            values={
-                "uid": 3000,
-                "gid": 30,
-                "flower": {"enabled": True},
-                "airflowVersion": "2.11.0",
-                "executor": executor,
-            },
-            show_only=[
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-            ],
-        )
-
-        for doc in docs:
-            assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 3000
-            assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 30
-
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "KubernetesExecutor"])
     def test_uid_gid_set(self, executor):
         docs = render_chart(
@@ -98,9 +65,7 @@ class TestSCBackwardsCompatibility:
 
         assert jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0]) == 3000
 
-    @pytest.mark.parametrize(
-        "executor", ["CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor", "KubernetesExecutor"]
-    )
+    @pytest.mark.parametrize("executor", ["CeleryExecutor,KubernetesExecutor", "KubernetesExecutor"])
     def test_check_cleanup_job(self, executor):
         docs = render_chart(
             values={
@@ -116,36 +81,6 @@ class TestSCBackwardsCompatibility:
             jmespath.search("spec.jobTemplate.spec.template.spec.securityContext.runAsUser", docs[0]) == 3000
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.securityContext.fsGroup", docs[0]) == 30
-
-    def test_gitsync_sidecar_and_init_container_airflow_2(self):
-        docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True, "uid": 3000}}, "airflowVersion": "2.11.0"},
-            show_only=[
-                "templates/workers/worker-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-            ],
-        )
-
-        for doc in docs:
-            assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", doc)]
-            assert "git-sync-init" in [
-                c["name"] for c in jmespath.search("spec.template.spec.initContainers", doc)
-            ]
-            assert (
-                jmespath.search(
-                    "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
-                    doc,
-                )
-                == 3000
-            )
-            assert (
-                jmespath.search(
-                    "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
-                    doc,
-                )
-                == 3000
-            )
 
     def test_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
@@ -183,31 +118,6 @@ class TestSCBackwardsCompatibility:
 class TestSecurityContext:
     """Tests security context."""
 
-    # Test securityContext setting for Pods and Containers
-    def test_default_setting_airflow_2(self):
-        docs = render_chart(
-            values={
-                "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "flower": {"enabled": True},
-                "statsd": {"enabled": False},
-                "airflowVersion": "2.11.0",
-                "executor": "CeleryKubernetesExecutor",
-            },
-            show_only=[
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-            ],
-        )
-
-        for doc in docs:
-            assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 6000
-            assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 60
-
     def test_default_setting(self):
         docs = render_chart(
             values={
@@ -230,44 +140,6 @@ class TestSecurityContext:
         for doc in docs:
             assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 6000
             assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 60
-
-    # Test priority:
-    # <local>.securityContext > securityContext > uid + gid
-    def test_check_local_setting_airflow_2(self):
-        component_contexts = {"securityContext": {"runAsUser": 9000, "fsGroup": 90}}
-        docs = render_chart(
-            values={
-                "uid": 3000,
-                "gid": 30,
-                "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "webserver": component_contexts,
-                "workers": component_contexts,
-                "flower": {"enabled": True, **component_contexts},
-                "scheduler": component_contexts,
-                "createUserJob": component_contexts,
-                "migrateDatabaseJob": component_contexts,
-                "triggerer": component_contexts,
-                "redis": component_contexts,
-                "statsd": {"enabled": True, **component_contexts},
-                "airflowVersion": "2.11.0",
-                "executor": "CeleryKubernetesExecutor",
-            },
-            show_only=[
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-                "templates/statsd/statsd-deployment.yaml",
-                "templates/redis/redis-statefulset.yaml",
-            ],
-        )
-
-        for doc in docs:
-            assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 9000
-            assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 90
 
     def test_check_local_setting(self):
         component_contexts = {"securityContext": {"runAsUser": 9000, "fsGroup": 90}}
@@ -389,7 +261,6 @@ class TestSecurityContext:
                 "templates/cleanup/cleanup-cronjob.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -431,66 +302,6 @@ class TestSecurityContext:
         )
         assert default_ctx_value_pod_statsd == jmespath.search("spec.template.spec.securityContext", docs[-2])
         assert default_ctx_value_pod_redis == jmespath.search("spec.template.spec.securityContext", docs[-1])
-
-    # Test securityContexts for main containers
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
-            {"celery": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
-            {
-                "celery": {
-                    "enableDefault": False,
-                    "sets": [
-                        {
-                            "name": "test",
-                            "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
-                        }
-                    ],
-                },
-            },
-        ],
-    )
-    def test_main_container_setting_airflow_2(self, workers_values):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        security_context = {"securityContexts": {"container": ctx_value}}
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor,KubernetesExecutor",
-                "cleanup": {"enabled": True, **security_context},
-                "scheduler": security_context,
-                "webserver": security_context,
-                "workers": workers_values,
-                "flower": {"enabled": True, **security_context},
-                "statsd": security_context,
-                "createUserJob": security_context,
-                "migrateDatabaseJob": security_context,
-                "triggerer": security_context,
-                "pgbouncer": {"enabled": True, **security_context},
-                "redis": security_context,
-                "airflowVersion": "2.11.0",
-            },
-            show_only=[
-                "templates/cleanup/cleanup-cronjob.yaml",
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/statsd/statsd-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/pgbouncer/pgbouncer-deployment.yaml",
-                "templates/redis/redis-statefulset.yaml",
-            ],
-        )
-
-        assert ctx_value == jmespath.search(
-            "spec.jobTemplate.spec.template.spec.containers[0].securityContext", docs[0]
-        )
-
-        for doc in docs[1:]:
-            assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", doc)
 
     # Test securityContexts for main containers
     @pytest.mark.parametrize(
@@ -691,55 +502,6 @@ class TestSecurityContext:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
         ) == {"runAsUser": 2000}
 
-    # Test securityContexts for the wait-for-migrations init containers
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"waitForMigrations": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
-            {
-                "celery": {
-                    "waitForMigrations": {
-                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}}
-                    }
-                }
-            },
-            {
-                "waitForMigrations": {"securityContexts": {"container": {"runAsUser": 0}}},
-                "celery": {
-                    "waitForMigrations": {
-                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}}
-                    }
-                },
-            },
-        ],
-    )
-    def test_wait_for_migrations_init_container_setting_airflow_2(self, workers_values):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        spec = {
-            "waitForMigrations": {
-                "enabled": True,
-                "securityContexts": {"container": ctx_value},
-            }
-        }
-        docs = render_chart(
-            values={
-                "scheduler": spec,
-                "webserver": spec,
-                "triggerer": spec,
-                "workers": workers_values,
-                "airflowVersion": "2.11.0",
-            },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-            ],
-        )
-
-        for doc in docs:
-            assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", doc)
-
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -828,59 +590,6 @@ class TestSecurityContext:
             "allowPrivilegeEscalation": False
         }
 
-    # Test securityContexts for main pods
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"securityContexts": {"pod": {"runAsUser": 7000}}},
-            {"celery": {"securityContexts": {"pod": {"runAsUser": 7000}}}},
-            {
-                "celery": {
-                    "enableDefault": False,
-                    "sets": [{"name": "test", "securityContexts": {"pod": {"runAsUser": 7000}}}],
-                },
-            },
-        ],
-    )
-    def test_main_pod_setting_airflow_2(self, workers_values):
-        ctx_value = {"runAsUser": 7000}
-        security_context = {"securityContexts": {"pod": ctx_value}}
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor,KubernetesExecutor",
-                "cleanup": {"enabled": True, **security_context},
-                "scheduler": security_context,
-                "webserver": security_context,
-                "workers": workers_values,
-                "flower": {"enabled": True, **security_context},
-                "statsd": security_context,
-                "createUserJob": security_context,
-                "migrateDatabaseJob": security_context,
-                "triggerer": security_context,
-                "pgbouncer": {"enabled": True, **security_context},
-                "redis": security_context,
-                "airflowVersion": "2.11.0",
-            },
-            show_only=[
-                "templates/cleanup/cleanup-cronjob.yaml",
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/statsd/statsd-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/pgbouncer/pgbouncer-deployment.yaml",
-                "templates/redis/redis-statefulset.yaml",
-            ],
-        )
-
-        assert ctx_value == jmespath.search("spec.jobTemplate.spec.template.spec.securityContext", docs[0])
-
-        for doc in docs[1:]:
-            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
-
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -926,56 +635,6 @@ class TestSecurityContext:
                 "templates/pgbouncer/pgbouncer-deployment.yaml",
                 "templates/redis/redis-statefulset.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
-            ],
-        )
-
-        assert ctx_value == jmespath.search("spec.jobTemplate.spec.template.spec.securityContext", docs[0])
-
-        for doc in docs[1:]:
-            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
-
-    # Test securityContexts for main pods
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"securityContext": {"runAsUser": 7000}},
-            {
-                "celery": {
-                    "enableDefault": False,
-                    "sets": [{"name": "test", "securityContext": {"runAsUser": 7000}}],
-                },
-            },
-        ],
-    )
-    def test_main_pod_setting_legacy_security_airflow_2(self, workers_values):
-        ctx_value = {"runAsUser": 7000}
-        security_context = {"securityContext": ctx_value}
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor,KubernetesExecutor",
-                "cleanup": {"enabled": True, **security_context},
-                "scheduler": security_context,
-                "webserver": security_context,
-                "workers": workers_values,
-                "flower": {"enabled": True, **security_context},
-                "statsd": security_context,
-                "createUserJob": security_context,
-                "migrateDatabaseJob": security_context,
-                "triggerer": security_context,
-                "redis": security_context,
-                "airflowVersion": "2.11.0",
-            },
-            show_only=[
-                "templates/cleanup/cleanup-cronjob.yaml",
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/statsd/statsd-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/redis/redis-statefulset.yaml",
             ],
         )
 

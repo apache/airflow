@@ -25,9 +25,10 @@ import time
 from contextlib import contextmanager, suppress
 from multiprocessing import Process
 
+import kombu.pools
 import psutil
 import sqlalchemy.exc
-from celery import maybe_patch_concurrency
+from celery import Celery, maybe_patch_concurrency
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.app.log import TaskFormatter
 from celery.signals import after_setup_logger
@@ -219,18 +220,27 @@ def worker(args):
     # Use team_config for config reads in multi-team mode, otherwise use global conf
     config = team_config if team_config else conf
 
-    # Check if a worker with the same hostname already exists
+    # Check if a worker with the same hostname already exists. The inspect
+    # call must run on a throwaway Celery app, not on the app handed to
+    # worker_main below: inspect opens broker connections and initializes
+    # app.amqp.producer_pool / connection_pool, and kombu.pools is a
+    # process-global registry keyed by broker URL — any pool state that
+    # leaks into the real app breaks the prefork worker's dispatch path
+    # so tasks are received but never run. The kombu.pools.reset() call
+    # is load-bearing; see https://github.com/apache/airflow/issues/59707.
     if args.celery_hostname:
-        inspect = celery_app.control.inspect()
-        active_workers = inspect.active_queues()
-        if active_workers:
-            active_worker_names = list(active_workers.keys())
-            # Check if any worker ends with @hostname
-            if any(name.endswith(f"@{args.celery_hostname}") for name in active_worker_names):
+        temp_app = Celery()
+        temp_app.conf.update(celery_app.conf)
+        try:
+            active_workers = temp_app.control.inspect().active_queues()
+            if active_workers and any(name.endswith(f"@{args.celery_hostname}") for name in active_workers):
                 raise SystemExit(
                     f"Error: A worker with hostname '{args.celery_hostname}' is already running. "
                     "Please use a different hostname or stop the existing worker first."
                 )
+        finally:
+            temp_app.close()
+            kombu.pools.reset()
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
