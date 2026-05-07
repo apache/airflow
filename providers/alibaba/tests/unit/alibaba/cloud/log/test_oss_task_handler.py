@@ -205,6 +205,18 @@ class TestOSSTaskHandler:
         handler.io.upload(str(log_file), self.ti)
         mock_oss_write.assert_called_once_with("test log content", relative_path)
 
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_read"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    def test_read_calls_io_oss_log_exists_and_io_oss_read(self, mock_io_log_exists, mock_io_read):
+        """Test that _read calls self.io.oss_log_exists and self.io.oss_read."""
+        mock_io_log_exists.return_value = True
+        mock_io_read.return_value = "log content"
+
+        self.oss_task_handler._read(self.ti, try_number=1)
+
+        mock_io_log_exists.assert_called_once()
+        mock_io_read.assert_called_once()
+
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         OSSTaskHandler(self.base_log_folder, self.oss_log_folder, filename_template=None)
