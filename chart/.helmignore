@@ -50,3 +50,6 @@ pyproject.toml
 docs/
 # towncrier source fragments used to build RELEASE_NOTES.rst at release time.
 newsfragments/
+# Reference Kustomize overlays — published in the source tree, explicitly NOT
+# distributed inside the chart .tgz (see kustomize-overlays/README.rst).
+kustomize-overlays/
