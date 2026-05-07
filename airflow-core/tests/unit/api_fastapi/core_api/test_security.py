@@ -587,6 +587,37 @@ class TestFastApiSecurity:
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("method", ["POST", "PUT"])
+    @patch.object(Team, "get_name_if_exists")
+    @patch.object(Connection, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_connection_body_parse_failure_fails_closed(
+        self, mock_get_auth_manager, mock_get_team_name, mock_get_name_if_exists, method
+    ):
+        """If the request body cannot be parsed, the auth callback must still run with team=None."""
+        from json import JSONDecodeError
+
+        auth_manager = Mock()
+        auth_manager.is_authorized_connection.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+        fastapi_request = Mock()
+        fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.json = AsyncMock(side_effect=JSONDecodeError("expecting value", "", 0))
+        user = Mock()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(HTTPException) as exc_info:
+                await requires_access_connection(method)(fastapi_request, user)
+
+        assert exc_info.value.status_code == 403
+        auth_manager.is_authorized_connection.assert_any_call(
+            method=method,
+            details=ConnectionDetails(conn_id="conn_id", team_name=None),
+            user=user,
+        )
+
     @patch.object(Connection, "get_conn_id_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     def test_requires_access_connection_bulk(

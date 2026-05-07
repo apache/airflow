@@ -757,8 +757,12 @@ async def _collect_teams_to_check(
     if method != "POST":
         teams.add(get_existing_team(resource_id) if resource_id else None)
     if method in ("POST", "PUT"):
-        with suppress(JSONDecodeError):
+        try:
             raw = (await request.json()).get("team_name")
+        except JSONDecodeError:
+            # Fail closed: ensure auth callback still runs when team can't be determined.
+            teams.add(None)
+        else:
             if raw and not Team.get_name_if_exists(raw):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
