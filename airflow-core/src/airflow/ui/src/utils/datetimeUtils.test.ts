@@ -87,7 +87,8 @@ describe("getDuration & formatDuration", () => {
   it("handles floating point milliseconds", () => {
     expect(renderDuration(dayjs.duration(10.000_499_738, "seconds"))).toBe("00:00:10");
     expect(renderDuration(10.000_499_738)).toBe("00:00:10");
-
+    expect(renderDuration(dayjs.duration(10.000_500, "seconds"))).toBe("00:00:10.001");
+    expect(renderDuration(10.000_500)).toBe("00:00:10.001");
     expect(renderDuration(dayjs.duration(10.838_999_738, "seconds"))).toBe("00:00:10.839");
     expect(renderDuration(10.838_999_738)).toBe("00:00:10.839");
   });
