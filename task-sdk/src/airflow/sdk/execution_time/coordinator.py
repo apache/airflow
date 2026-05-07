@@ -24,16 +24,17 @@ Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.),
 and :class:`CoordinatorManager`, the registry that loads coordinator
 instances from the ``[sdk] coordinators`` configuration.
 
-The coordinator's :meth:`~BaseCoordinator.run_dag_parsing` method
-handles the full lifecycle:
+The coordinator's :meth:`~BaseCoordinator.run_dag_parsing` and
+:meth:`~BaseCoordinator.run_task_execution` methods handle the full lifecycle:
 
-1. Creates TCP servers for comm and logs channels.
-2. Calls :meth:`~BaseCoordinator.dag_parsing_cmd` (provided
-   by the subclass) to obtain the subprocess command.
+1. Creates TCP servers for comm and logs channels, and a socketpair for stderr.
+2. Calls :meth:`~BaseCoordinator.dag_parsing_cmd` or
+   :meth:`~BaseCoordinator.task_execution_cmd` (provided by the subclass) to
+   obtain the subprocess command.
 3. Spawns the subprocess and accepts TCP connections from it.
 4. Runs a selector-based bridge that transparently forwards bytes
    between fd 0 (supervisor) and the subprocess comm socket, and
-   re-emits the subprocess's log output through structlog.
+   re-emits the subprocess's log and stderr output through structlog.
 
 I/O multiplexing uses the same selector-based loop as
 :class:`~airflow.sdk.execution_time.supervisor.WatchedSubprocess`,
@@ -324,7 +325,20 @@ class BaseCoordinator:
            captured via a socketpair.
         4. Runs the selector-based bridge until the subprocess exits.
 
-        fd layout (set up by ``_reopen_std_io_handles`` before this runs):
+        Two distinct IPC mechanisms are used because each channel has a
+        different initiator:
+
+        - The runtime subprocess actively *connects* to the comm and logs
+          TCP servers using ``host:port`` strings passed via the command line
+          -- portable across every language's stdlib socket API.
+        - stderr is *inherited*: the subprocess writes to fd 2 transparently
+          (its native logging framework targets stderr by default), so we
+          replace fd 2 with one end of a socketpair instead of teaching the
+          runtime about an address.  ``subprocess.PIPE`` would not work
+          because :func:`make_buffered_socket_reader` requires a real socket.
+
+        fd layout of *this* coordinator process (set up by
+        ``_reopen_std_io_handles`` before this runs):
 
         - fd 0 -- bidirectional comms socket to the supervisor
           (``DagFileParseRequest`` <-> ``DagFileParsingResult``,
@@ -333,6 +347,10 @@ class BaseCoordinator:
         - fd 2 -- stderr socket to the supervisor
         - fd N -- structured JSON log channel (``log_fd``, configured by
           ``_configure_logs_over_json_channel`` -> structlog)
+
+        The runtime subprocess gets ``stdin=DEVNULL``, inherits fd 1 (so its
+        stdout flows straight to the supervisor), and has its fd 2 replaced
+        by the coordinator-owned end of the stderr socketpair.
         """
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
 
