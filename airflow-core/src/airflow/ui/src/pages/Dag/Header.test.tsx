@@ -62,4 +62,15 @@ describe("Header", () => {
     expect(screen.queryByText(i18n.t("dag:dagDetails.nextRun"))).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reparse Dag" })).not.toBeInTheDocument();
   });
+
+  it("does not render next run timestamp for a paused Dag", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, is_paused: true, is_stale: false }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
+    expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
+  });
 });

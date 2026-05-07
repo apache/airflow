@@ -103,7 +103,7 @@ const createColumns = (
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      Boolean(original.next_dagrun_run_after) ? (
+      !original.is_paused && Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={original.next_dagrun_logical_date}
           runAfter={original.next_dagrun_run_after as string}
