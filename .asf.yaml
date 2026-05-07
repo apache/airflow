@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# `.asf.yaml` is a branch-specific YAML configuration file for Git repositories to control features such as notifications, GitHub settings, etc.
+# `.asf.yaml` is a branch-specific YAML configuration file for Git repositories to control features
+# such as notifications, GitHub settings, etc.
 # See its documentation for details: https://github.com/apache/infrastructure-asfyaml
 ---
 #
@@ -80,13 +81,14 @@ github:
 
   # Legacy branch protection is being migrated to Rulesets below.
   #
-  # `main` keeps the proven configuration here until the new ruleset is validated on other branches.
-  # We cannot test the new ruleset on `main` itself: ruleset settings are only applied from the default branch,
-  # so a broken config there would block fixing this file.
+  # `main` keeps the proven configuration here until the new ruleset is validated on other
+  # branches. We cannot test the new ruleset on `main` itself: ruleset settings are only applied
+  # from the default branch, so a broken config there would block fixing this file.
   #
   # Once the new ruleset is validated, `main` should be moved under the ruleset
   # and removed from the legacy `protected_branches` section.
-  # This section should be kept empty to properly delete the legacy branch protection rules that are currently in place:
+  # This section should be kept empty to properly delete the legacy branch protection rules that
+  # are currently in place:
   #
   # protected_branches: ~
   protected_branches:
@@ -102,9 +104,10 @@ github:
       type: branch
       branches:
         includes:
-          # `main` stays under `protected_branches` above until this ruleset is validated on the branches below.
-          # We cannot test the new ruleset on `main` itself: ruleset settings are only applied from the default branch,
-          # so a broken config there would block fixing this file.
+          # `main` stays under `protected_branches` above until this ruleset is validated on the
+          # branches below. We cannot test the new ruleset on `main` itself: ruleset settings are
+          # only applied from the default branch, so a broken config there would block fixing
+          # this file.
           #
           # Uncomment once the configuration is proven on the other branches.
           # - "~DEFAULT_BRANCH"
