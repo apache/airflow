@@ -303,12 +303,12 @@ def update_readme_badge(new_branch: str, prev_branch: str, new_version: str, pre
 
     old_badge = (
         f"[![GitHub Build {prev_version}"
-        f"](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg"
+        f"](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg"
         f"?branch={prev_branch})](https://github.com/apache/airflow/actions)"
     )
     new_badge = (
         f"[![GitHub Build {new_version}"
-        f"](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg"
+        f"](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg"
         f"?branch={new_branch})](https://github.com/apache/airflow/actions)"
     )
 

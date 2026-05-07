@@ -1594,6 +1594,12 @@ class SelectiveChecks:
     def get_job_label(self, event_type: str, branch: str):
         import requests  # type: ignore[import-untyped]
 
+        # The main CI is now split into ci-arm.yml and ci-amd.yml; the old
+        # ci-amd-arm.yml file no longer exists. This lookup is dormant for the
+        # main pipeline (which hardcodes runner-type per wrapper) and only
+        # remains here for the `is_disabled_integration` code path that still
+        # reads `runner_type`. The API call against a missing workflow returns
+        # nothing and the caller falls back to PUBLIC_AMD_RUNNERS.
         job_name = "Basic tests"
         workflow_name = "ci-amd-arm.yml"
         headers = {"Accept": "application/vnd.github.v3+json"}
