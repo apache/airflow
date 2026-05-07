@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -103,7 +103,7 @@ class TestTaskCommands:
             api_client=api_client,
         )
 
-        body = received["body"]
+        body = cast(dict[str, Any], received["body"])
         checks = dict(expected_checks)
         no_task_ids = checks.pop("_no_task_ids")
         if no_task_ids:

@@ -669,3 +669,10 @@ class TestCliConfigMethods:
                             "Help message should match the help_text.yaml"
                         )
                         return
+
+    def test_clear_task_instances_not_auto_generated(self):
+        """Regression: TasksOperations.clear_task_instances must stay out of CommandFactory."""
+        command_factory = CommandFactory()
+        for group_command in command_factory.group_commands:
+            generated_names = {sub.name for sub in group_command.subcommands}
+            assert "clear-task-instances" not in generated_names

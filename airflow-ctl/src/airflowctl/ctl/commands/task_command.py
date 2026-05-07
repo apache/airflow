@@ -40,7 +40,7 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
     )
 
     try:
-        cleared = api_client.dags.clear_task_instances(dag_id=args.dag_id, clear_body=body)
+        cleared = api_client.tasks.clear_task_instances(dag_id=args.dag_id, clear_body=body)
     except ServerResponseError as e:
         rich.print(f"[red]Error clearing tasks for DAG {args.dag_id}, run {args.dag_run_id}: {e}[/red]")
         sys.exit(1)

@@ -1029,6 +1029,10 @@ class TestDagOperations:
         response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
 
+
+class TestTasksOperations:
+    dag_id = "dag_id"
+
     def test_clear_task_instances(self):
         body_sent: dict = {}
 
@@ -1042,7 +1046,7 @@ class TestDagOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         clear_body = ClearTaskInstancesBody(dag_run_id="dr1", dry_run=True)
-        response = client.dags.clear_task_instances(dag_id=self.dag_id, clear_body=clear_body)
+        response = client.tasks.clear_task_instances(dag_id=self.dag_id, clear_body=clear_body)
         assert body_sent["dag_run_id"] == "dr1"
         assert body_sent["dry_run"] is True
         assert response.task_instances == []
