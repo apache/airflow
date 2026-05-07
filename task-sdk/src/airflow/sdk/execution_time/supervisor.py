@@ -793,6 +793,33 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
+            except Exception as e:
+                # Catch-all so a transient network error (httpx.ConnectError /
+                # httpx.TimeoutException) or any other non-ServerResponseError
+                # exception doesn't crash this generator and permanently break
+                # the IPC channel — the task subprocess would then get EOFError
+                # on every subsequent communication and the worker would be
+                # stuck. Surface the error to the task so it can decide how to
+                # react, log it loudly on the supervisor side, and keep the
+                # request loop alive.
+                log.exception(
+                    "Unhandled exception while handling task request",
+                    request_id=request.id,
+                    exception_type=type(e).__name__,
+                )
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": str(e),
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
             finally:
                 if token is not None:
                     otel_context.detach(token)
