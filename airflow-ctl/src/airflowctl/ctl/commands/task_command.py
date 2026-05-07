@@ -28,5 +28,6 @@ def task_state(args, api_client=NEW_API_CLIENT) -> None:
         dag_id=args.dag_id,
         dag_run_id=args.dag_run_id,
         task_id=args.task_id,
+        map_index=args.map_index,
     )
     AirflowConsole().print_as(data=[{"state": ti.state}], output=args.output)

@@ -91,3 +91,29 @@ class TestTaskCommands:
                 ),
                 api_client=api_client,
             )
+
+    @pytest.mark.parametrize("map_index", [0, 1, 7])
+    def test_task_state_mapped(self, api_client_maker, map_index):
+        mapped_response = self.task_instance_response.model_copy(update={"map_index": map_index})
+        api_client = api_client_maker(
+            path=(
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}"
+                f"/taskInstances/{self.task_id}/{map_index}"
+            ),
+            response_json=mapped_response.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        task_command.task_state(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "state",
+                    f"--dag-id={self.dag_id}",
+                    f"--dag-run-id={self.dag_run_id}",
+                    f"--task-id={self.task_id}",
+                    f"--map-index={map_index}",
+                ]
+            ),
+            api_client=api_client,
+        )
