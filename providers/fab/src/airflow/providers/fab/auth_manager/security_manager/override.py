@@ -28,7 +28,6 @@ import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
-import jwt
 from flask import current_app, flash, g, has_app_context, has_request_context, session
 from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
@@ -2606,7 +2605,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _cli_safe_flash(text: str, level: str) -> None:
         """Show a flash in a web context or prints a message if not."""
         if has_request_context():
-            flash(escape(text), level)
+            flash(Markup(text), level)
         else:
             getattr(log, level)(text.replace("<br>", "\n").replace("<b>", "*").replace("</b>", "*"))
 
