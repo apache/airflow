@@ -40,6 +40,32 @@
     "parseDuration": "파싱 기간:",
     "parsedAt": "파싱 시간:"
   },
+  "deadlineAlerts": {
+    "completionRule": "{{reference}} 기준 {{interval}} 이내에 완료되어야 합니다",
+    "count_one": "마감 {{count}}개",
+    "count_other": "마감 {{count}}개",
+    "referenceType": {
+      "AverageRuntimeDeadline": "평균 실행 시간",
+      "DagRunLogicalDateDeadline": "논리적 날짜",
+      "DagRunQueuedAtDeadline": "대기열에 등록된 시각"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "실제",
+    "expected": "예상",
+    "finishedEarly": "데드라인보다 {{duration}} 일찍 완료",
+    "finishedLate": "데드라인보다 {{duration}} 늦게 완료",
+    "label": "데드라인",
+    "met": "달성",
+    "missed": "초과",
+    "missedCount_one": "데드라인 초과 {{count}}건",
+    "missedCount_other": "데드라인 초과 {{count}}건",
+    "mixedCount": "데드라인 초과 {{missedCount}}건, 예정 {{upcomingCount}}건",
+    "stillRunning": "실행 중",
+    "upcoming": "예정",
+    "upcomingCount_one": "예정된 데드라인 {{count}}개",
+    "upcomingCount_other": "예정된 데드라인 {{count}}개"
+  },
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
@@ -103,6 +129,10 @@
     "charts": {
       "assetEvent_one": "생성된 에셋 이벤트",
       "assetEvent_other": "생성된 에셋 이벤트"
+    },
+    "deadlines": {
+      "showAll": "모두 표시",
+      "title": "데드라인"
     },
     "failedLogs": {
       "hideLogs": "로그 숨기기",

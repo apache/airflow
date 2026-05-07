@@ -108,7 +108,7 @@ it uses the latest installed version of airflow and providers. However,
 you can choose different installation methods as described in [Building
 PROD docker images from released PIP packages](#building-prod-docker-images-from-released-pip-packages). Detailed
 reference for building production image from different sources can be
-found in: [Build Args reference](../../../../docs/docker-stack/build-arg-ref.rst#installing-airflow-using-different-methods)
+found in: [Build Args reference](../../../../docker-stack-docs/build-arg-ref.rst#installing-airflow-using-different-methods)
 
 You can build the CI image using current sources this command:
 

@@ -81,6 +81,13 @@ repos:
         pass_filenames: false
         files: ^.*
         require_serial: true
+      - id: build-kustomize-overlays
+        name: Build and smoke-test Kustomize overlays
+        entry: ../scripts/ci/prek/build_kustomize_overlays.py
+        language: python
+        pass_filenames: false
+        files: ^kustomize-overlays/.*\.(yaml|yml)$|^kustomize-overlays/.*/STATUS$
+        require_serial: true
       - id: lint-json-schema
         name: Lint chart/values.schema.json
         entry: ../scripts/ci/prek/lint_json_schema.py

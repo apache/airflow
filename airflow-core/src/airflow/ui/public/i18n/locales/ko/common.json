@@ -263,6 +263,8 @@
   "task_one": "작업",
   "task_other": "작업들",
   "taskGroup": "작업 그룹",
+  "taskGroup_one": "작업 그룹",
+  "taskGroup_other": "작업 그룹들",
   "taskId": "작업 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",

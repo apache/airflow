@@ -20,7 +20,9 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
+    GlueCatalogDeleteTableOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -35,6 +37,7 @@ else:
 DAG_ID = "example_glue_catalog"
 
 sys_test_context_task = SystemTestContextBuilder().build()
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -62,9 +65,41 @@ with DAG(
     )
     # [END howto_operator_glue_catalog_delete_database]
 
+    table_name = f"{env_id}_tbl"
+    table_input = {
+        "StorageDescriptor": {
+            "Columns": [{"Name": "id", "Type": "int"}],
+            "Location": f"s3://{env_id}-glue/data/",
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+        },
+        "TableType": "EXTERNAL_TABLE",
+    }
+
+    # [START howto_operator_glue_catalog_create_table]
+    create_table = GlueCatalogCreateTableOperator(
+        task_id="create_table",
+        database_name=db_name,
+        table_name=table_name,
+        table_input=table_input,
+    )
+    # [END howto_operator_glue_catalog_create_table]
+
+    # [START howto_operator_glue_catalog_delete_table]
+    delete_table = GlueCatalogDeleteTableOperator(
+        task_id="delete_table",
+        database_name=db_name,
+        table_name=table_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_glue_catalog_delete_table]
+
     chain(
         test_context,
         create_database,
+        create_table,
+        delete_table,
         delete_database,
     )
 
