@@ -16,10 +16,15 @@
 # under the License.
 #
 ---
-name: Tests
+# AMD CI workflow. Triggered on every PR and on push to release branches.
+# Companion to `ci-arm.yml`, which runs the same pipeline on ARM as the
+# scheduled canary. The two workflows are physical copies of each other
+# (GitHub Actions has no cross-file YAML include), differing only in their
+# trigger surface, the hardcoded `runner-type` / `platform` values in
+# `build-info`'s outputs, and the architecture-specific print-platform job.
+# Edit both files together when changing pipeline shape.
+name: Tests (AMD)
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '28 1,3,7,9,13,15,19,21 * * *'
   push:
     branches:
       - v[0-9]+-[0-9]+-test
@@ -43,7 +48,7 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-amd-arm-${{ github.event.pull_request.number || github.ref }}
+  group: ci-amd-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -90,7 +95,9 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      platform: ${{ steps.selective-checks.outputs.platform }}
+      # platform / runner-type are hardcoded per workflow file (this is the
+      # AMD copy). The matching ARM copy lives in ci-arm.yml.
+      platform: "linux/amd64"
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
@@ -119,7 +126,7 @@ jobs:
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
-      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+      runner-type: '["ubuntu-22.04"]'
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -197,20 +204,10 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
 
-  print-platform-arm:
-    name: "Platform: ARM"
-    needs: [build-info]
-    runs-on: ["ubuntu-22.04"]
-    if: needs.build-info.outputs.platform == 'linux/arm64'
-    steps:
-      - name: "Print architecture"
-        run: "echo '## Architecture: ARM' >> $GITHUB_STEP_SUMMARY"
-
-  print-platform-amd:
+  print-platform:
     name: "Platform: AMD"
     needs: [build-info]
     runs-on: ["ubuntu-22.04"]
-    if: needs.build-info.outputs.platform == 'linux/amd64'
     steps:
       - name: "Print architecture"
         run: "echo '## Architecture: AMD' >> $GITHUB_STEP_SUMMARY"

@@ -46,7 +46,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAX_RUNS: "10"
-          WORKFLOW_NAME: "ci-amd-arm.yml"
+          # E2E test runs come from the AMD workflow (every PR / push to main
+          # goes through it). The ARM canary is too sparse to drive flakiness
+          # analysis, so we keep the report tied to AMD.
+          WORKFLOW_NAME: "ci-amd.yml"
           BRANCH: "main"
           OUTPUT_FILE: "slack-message.json"
 
