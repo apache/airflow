@@ -22,12 +22,14 @@
 #   1. Mount a pre-downloaded JDK, the Python stub bundle, and the pure Java bundle.
 #   2. Set JAVA_HOME and PATH so the Java coordinator can find the JDK.
 #
-# The Java language provider is expected to be pre-installed in the Docker image.
+# The apache-airflow-coordinators-java distribution is expected to be
+# pre-installed in the Docker image (baked in by `breeze prod-image build`
+# via the workspace `uv sync --all-packages`).
 #
 # Environment variables expected (set by conftest.py):
-#   JAVA_OPENJDK_PATH       – host path to the pre-downloaded OpenJDK directory
-#   JAVA_STUB_BUNDLE_PATH   – host path to the stub DAG bundle root (dags/ + jar-bundles/)
-#   JAVA_BUNDLES_PATH       – host path to the pure Java DAG bundle (JARs only)
+#   JAVA_OPENJDK_PATH      – host path to the pre-downloaded OpenJDK directory
+#   JAVA_STUB_BUNDLE_PATH  – host path to the stub DAG bundle root (dags/ + jar-bundles/)
+#   JAVA_BUNDLES_PATH      – host path to the pure Java DAG bundle (JARs only)
 ---
 x-java-env: &java-env
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -56,8 +58,8 @@ services:
   # Since this is a new service (not an override of the base docker-compose),
   # it needs the full service definition including the common Airflow config
   # that the base compose provides via x-airflow-common.
-  # AIRFLOW__SDK__QUEUE_TO_SDK is picked up from the .env file
-  # via env_file (set by conftest.py).
+  # AIRFLOW__SDK__COORDINATORS and AIRFLOW__SDK__QUEUE_TO_COORDINATOR are picked
+  # up from the .env file via env_file (set by conftest.py).
   airflow-java-worker:
     image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:|version|}
     env_file:

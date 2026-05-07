@@ -54,7 +54,6 @@ JAVA_SDK_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "ja
 JAVA_SDK_DAGS_FOLDER = (
     AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e2e_tests" / "java_sdk_tests" / "dags"
 )
-
 # Java SDK bundle names (used in DAG bundle config and docker-compose env vars)
 JAVA_STUB_BUNDLE_NAME = "python-stub-java-tasks"
 JAVA_PURE_BUNDLE_NAME = "pure-java"
