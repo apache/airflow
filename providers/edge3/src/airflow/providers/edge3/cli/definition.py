@@ -35,6 +35,13 @@ ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve, serve all queues if not provided.",
 )
+ARG_TEAM_NAME = Arg(
+    (
+        "-t",
+        "--team-name",
+    ),
+    help="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+)
 ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
@@ -121,6 +128,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_CONCURRENCY,
             ARG_QUEUES,
+            ARG_TEAM_NAME,
             ARG_EDGE_HOSTNAME,
             ARG_PID,
             ARG_VERBOSE,

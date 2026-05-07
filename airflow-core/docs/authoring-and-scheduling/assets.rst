@@ -402,6 +402,53 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
+.. _asset_allow_producer_teams:
+
+Cross-team asset event filtering with ``allow_producer_teams``
+--------------------------------------------------------------
+
+.. versionadded:: 3.3.0
+
+When :doc:`Multi-Team mode </core-concepts/multi-team>` is enabled, asset events are filtered by team
+membership. By default, a consuming Dag only receives asset events produced by Dags within the same team
+or by global (teamless) Dags. This prevents unintended cross-team triggers.
+
+To allow specific other teams to produce events that trigger your Dag, use the ``allow_producer_teams`` parameter
+on the ``Asset`` definition:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset
+
+    shared_data = Asset(
+        name="my_data",
+        uri="s3://bucket/shared/data.csv",
+        allow_producer_teams=["team_analytics", "team_ml"],
+    )
+
+In this example, asset events produced by Dags belonging to ``team_analytics`` or ``team_ml`` will be
+accepted by any consuming Dag that schedules on ``shared_data``, in addition to events from the consuming
+Dag's own team.
+
+Default behavior
+~~~~~~~~~~~~~~~~
+
+When ``allow_producer_teams`` is not specified (or set to an empty list), the default same-team filtering applies.
+The rules depend on whether the producer and consumer have a team association:
+
+- **Both have the same team**: The event is always delivered.
+- **Producer has a team, consumer has a different team**: The event is blocked (unless the
+  producer's team is in the asset's ``allow_producer_teams``).
+- **Producer has no team (global Dag)**: The event is delivered to all consumers, regardless of
+  the consumer's team. Global Dags act as shared infrastructure that any team can depend on.
+- **Consumer has no team (global Dag)**: The consumer accepts events from any source,
+  regardless of the producer's team. Teamless consumers act as shared infrastructure that any
+  team can feed into.
+- **Neither has a team**: The event is delivered (both are global).
+
+When Multi-Team mode is disabled, ``allow_producer_teams`` is ignored and all asset events are delivered to all
+consuming Dags, preserving backward compatibility.
+
 Asset partitions
 ----------------
 
@@ -434,13 +481,13 @@ For downstream partition-aware scheduling, use ``PartitionedAssetTimetable``:
 
 .. code-block:: python
 
-    from airflow.sdk import DAG, HourlyMapper, PartitionedAssetTimetable
+    from airflow.sdk import DAG, StartOfHourMapper, PartitionedAssetTimetable
 
     with DAG(
         dag_id="clean_and_combine_player_stats",
         schedule=PartitionedAssetTimetable(
             assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
-            default_partition_mapper=HourlyMapper(),
+            default_partition_mapper=StartOfHourMapper(),
         ),
         catchup=False,
     ):
@@ -458,17 +505,17 @@ Partition mappers define how upstream partition keys are transformed to the
 downstream Dag partition key:
 
 * ``IdentityMapper`` keeps keys unchanged.
-* Temporal mappers such as ``HourlyMapper``, ``DailyMapper``, and
-  ``YearlyMapper`` normalize time keys to a chosen grain. For input key
+* Temporal mappers such as ``StartOfHourMapper``, ``StartOfDayMapper``, and
+  ``StartOfYearMapper`` normalize time keys to a chosen grain. For input key
   ``2026-03-10T09:37:51``, the default outputs are:
 
-  * ``HourlyMapper`` -> ``2026-03-10T09``
-  * ``DailyMapper`` -> ``2026-03-10``
-  * ``YearlyMapper`` -> ``2026``
+  * ``StartOfHourMapper`` -> ``2026-03-10T09``
+  * ``StartOfDayMapper`` -> ``2026-03-10``
+  * ``StartOfYearMapper`` -> ``2026``
 * ``ProductMapper`` maps composite keys segment-by-segment.
   It applies one mapper per segment and then rejoins the mapped segments.
   For example, with key ``us|2026-03-10T09:00:00``,
-  ``ProductMapper(IdentityMapper(), DailyMapper())`` produces
+  ``ProductMapper(IdentityMapper(), StartOfDayMapper())`` produces
   ``us|2026-03-10``.
 * ``AllowedKeyMapper`` validates that keys are in a fixed allow-list and
   passes the key through unchanged if valid.
@@ -481,10 +528,10 @@ Example of per-asset mapper configuration and composite-key mapping:
 
     from airflow.sdk import (
         Asset,
-        DailyMapper,
         IdentityMapper,
         PartitionedAssetTimetable,
         ProductMapper,
+        StartOfDayMapper,
     )
 
     regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_sales")
@@ -493,7 +540,7 @@ Example of per-asset mapper configuration and composite-key mapping:
         dag_id="aggregate_regional_sales",
         schedule=PartitionedAssetTimetable(
             assets=regional_sales,
-            default_partition_mapper=ProductMapper(IdentityMapper(), DailyMapper()),
+            default_partition_mapper=ProductMapper(IdentityMapper(), StartOfDayMapper()),
         ),
     ):
         ...
@@ -503,7 +550,7 @@ You can also override mappers for specific upstream assets with
 
 .. code-block:: python
 
-    from airflow.sdk import Asset, DAG, DailyMapper, IdentityMapper, PartitionedAssetTimetable
+    from airflow.sdk import Asset, DAG, StartOfDayMapper, IdentityMapper, PartitionedAssetTimetable
 
     hourly_sales = Asset(uri="file://incoming/sales/hourly.csv", name="hourly_sales")
     daily_targets = Asset(uri="file://incoming/sales/targets.csv", name="daily_targets")
@@ -513,7 +560,7 @@ You can also override mappers for specific upstream assets with
         schedule=PartitionedAssetTimetable(
             assets=hourly_sales & daily_targets,
             # Default behavior: map timestamp-like keys to daily keys.
-            default_partition_mapper=DailyMapper(),
+            default_partition_mapper=StartOfDayMapper(),
             # Override for assets that already emit daily partition keys.
             partition_mapper_config={
                 daily_targets: IdentityMapper(),

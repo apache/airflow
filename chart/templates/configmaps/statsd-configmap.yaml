@@ -20,7 +20,7 @@
 ################################
 ## Airflow StatsD ConfigMap
 #################################
-{{- if and .Values.statsd.enabled }}
+{{- if .Values.statsd.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

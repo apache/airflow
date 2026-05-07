@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
+  "consumingAsset": "Consuming Asset",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -131,6 +132,7 @@
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
+    "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
@@ -191,6 +193,12 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
+      "title": "Match anywhere"
+    }
+  },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -199,6 +207,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "selected": "Selected",
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {
@@ -254,6 +263,8 @@
   "task_one": "Task",
   "task_other": "Tasks",
   "taskGroup": "Task Group",
+  "taskGroup_one": "Task Group",
+  "taskGroup_other": "Task Groups",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
@@ -299,11 +310,25 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Bulk Clear {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully cleared. Keys: {{keys}}",
+        "title": "Bulk Clear {{resourceName}} Request Submitted"
+      }
+    },
     "bulkDelete": {
       "error": "Bulk Delete {{resourceName}} Request Failed",
       "success": {
         "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
         "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Bulk Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully updated. Keys: {{keys}}",
+        "title": "Bulk Update {{resourceName}} Request Submitted"
       }
     },
     "create": {

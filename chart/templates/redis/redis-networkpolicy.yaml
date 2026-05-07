@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+##############################
 ## Airflow Redis NetworkPolicy
-#################################
-{{- if and .Values.redis.enabled .Values.networkPolicies.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+##############################
+{{- if and .Values.redis.enabled .Values.networkPolicies.enabled (contains "CeleryExecutor" .Values.executor) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -95,9 +95,8 @@ def _launch_worker(args):
         hostname=args.edge_hostname or getfqdn(),
         queues=args.queues.split(",") if args.queues else None,
         concurrency=args.concurrency,
-        job_poll_interval=conf.getint("edge", "job_poll_interval"),
-        heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
         daemon=args.daemon,
+        team_name=getattr(args, "team_name", None),
     )
     asyncio.run(edge_worker.start())
 

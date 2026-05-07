@@ -150,22 +150,17 @@ The current version of the EdgeExecutor is released with known limitations. It w
 
 The following features are known missing and will be implemented in increments:
 
-- API token per worker: Today there is a global API token available only
+- Per-worker or per-team authentication tokens: Today a single shared secret is used for all
+  workers and teams, so multi-team isolation is logical only (see :ref:`edge_executor:multi_team`).
 - Edge Worker Plugin
 
   - Overview about queues / jobs per queue
   - Allow starting Edge Worker REST API separate to api-server
-  - Add some hints how to setup an additional worker
 
 - Edge Worker CLI
 
   - Use WebSockets instead of HTTP calls for communication
   - Send logs also to TaskFileHandler if external logging services are used
-  - Integration into telemetry to send metrics from remote site
-  - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
-  - Be more liberal e.g. on patch version. Currently requires exact version match
-    (In current state if versions do not match, the worker will gracefully shut
-    down when jobs are completed, no new jobs will be started)
 
 - Tests
 

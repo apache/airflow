@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable unicorn/no-null */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
 const dagRunBeforeFilter = {

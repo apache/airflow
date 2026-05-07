@@ -49,8 +49,8 @@ const formatExpiration = (seconds: number): string => {
 const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onClose }) => {
   const { t: translate } = useTranslation();
   const [tokenType, setTokenType] = useState<TokenType>("api");
-  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
-  const [expiresIn, setExpiresIn] = useState<number | null>(null);
+  const [generatedToken, setGeneratedToken] = useState<string>();
+  const [expiresIn, setExpiresIn] = useState<number>();
 
   const { isPending, mutate: generateToken } = useAuthLinksServiceGenerateToken({
     onError: (error: unknown) => {
@@ -67,8 +67,8 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
   });
 
   const handleClose = useCallback(() => {
-    setGeneratedToken(null);
-    setExpiresIn(null);
+    setGeneratedToken(undefined);
+    setExpiresIn(undefined);
     setTokenType("api");
     onClose();
   }, [onClose]);
@@ -83,7 +83,7 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
         <Dialog.Header>{translate("tokenGeneration.title")}</Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>
-          {generatedToken !== null && generatedToken !== "" ? (
+          {generatedToken !== undefined && generatedToken !== "" ? (
             <Box>
               <Text fontWeight="semibold" mb={2}>
                 {translate("tokenGeneration.tokenGenerated")}
@@ -98,7 +98,7 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
                 <FiAlertTriangle />
                 <Text fontSize="sm">{translate("tokenGeneration.tokenShownOnce")}</Text>
               </HStack>
-              {expiresIn !== null && expiresIn > 0 ? (
+              {expiresIn !== undefined && expiresIn > 0 ? (
                 <Text color="fg.muted" fontSize="sm" mt={2}>
                   {translate("tokenGeneration.tokenExpiresIn", {
                     duration: formatExpiration(expiresIn),

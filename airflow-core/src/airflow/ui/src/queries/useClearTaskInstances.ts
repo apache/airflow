@@ -24,13 +24,14 @@ import {
   useDagRunServiceGetDagRunsKey,
   UseGanttServiceGetGanttDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
+  useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePostClearTaskInstances,
-  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import type { ApiError } from "openapi/requests";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
@@ -114,13 +115,16 @@ export const useClearTaskInstances = ({
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useTaskInstanceServiceGetTaskInstancesKey],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      ...gridQueryKeys(variables.dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     onSuccessConfirm();
   };

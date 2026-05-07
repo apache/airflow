@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard
 
 import attrs
 import methodtools
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
@@ -335,10 +336,6 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
-    )
-
     def __hash__(self):
         return id(self)
 
@@ -557,6 +554,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
+    def retry_policy(self) -> RetryPolicy | None:
+        return self.partial_kwargs.get("retry_policy")
+
+    @retry_policy.setter
+    def retry_policy(self, value: RetryPolicy | None) -> None:
+        self.partial_kwargs["retry_policy"] = value
+
+    @property
     def priority_weight(self) -> int:
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
@@ -651,6 +656,10 @@ class MappedOperator(AbstractOperator):
     @property
     def has_on_skipped_callback(self) -> bool:
         return bool(self.on_skipped_callback)
+
+    @property
+    def has_retry_policy(self) -> bool:
+        return bool(self.retry_policy)
 
     @property
     def run_as_user(self) -> str | None:

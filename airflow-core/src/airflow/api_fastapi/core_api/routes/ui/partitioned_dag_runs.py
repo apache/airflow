@@ -31,7 +31,11 @@ from airflow.api_fastapi.core_api.datamodels.ui.partitioned_dag_runs import (
     PartitionedDagRunDetailResponse,
     PartitionedDagRunResponse,
 )
-from airflow.api_fastapi.core_api.security import requires_access_asset
+from airflow.api_fastapi.core_api.security import (
+    ReadableDagsFilterDep,
+    requires_access_asset,
+    requires_access_dag,
+)
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetModel,
@@ -63,6 +67,7 @@ def _build_response(row, required_count: int) -> PartitionedDagRunResponse:
 )
 def get_partitioned_dag_runs(
     session: SessionDep,
+    readable_dags_filter: ReadableDagsFilterDep,
     dag_id: QueryPartitionedDagRunDagIdFilter,
     has_created_dag_run_id: QueryPartitionedDagRunHasCreatedDagRunIdFilter,
 ) -> PartitionedDagRunCollectionResponse:
@@ -123,6 +128,9 @@ def get_partitioned_dag_runs(
         received_subq.label("total_received"),
     ).outerjoin(DagRun, AssetPartitionDagRun.created_dag_run_id == DagRun.id)
     query = apply_filters_to_select(statement=query, filters=[dag_id, has_created_dag_run_id])
+    readable_dag_ids = readable_dags_filter.value
+    if readable_dag_ids is not None:
+        query = query.where(AssetPartitionDagRun.target_dag_id.in_(readable_dag_ids))
     query = query.order_by(AssetPartitionDagRun.created_at.desc())
 
     if not (rows := session.execute(query).all()):
@@ -162,7 +170,7 @@ def get_partitioned_dag_runs(
 
 @partitioned_dag_runs_router.get(
     "/pending_partitioned_dag_run/{dag_id}/{partition_key}",
-    dependencies=[Depends(requires_access_asset(method="GET"))],
+    dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_pending_partitioned_dag_run(
     dag_id: str,

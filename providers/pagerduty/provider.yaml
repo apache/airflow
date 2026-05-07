@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299571
+source-date-epoch: 1775592630
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.2.5
   - 5.2.4
   - 5.2.3
   - 5.2.2
@@ -76,6 +77,7 @@ integrations:
 
 connection-types:
   - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook
+    hook-name: "Pagerduty"
     connection-type: pagerduty
     conn-fields:
       routing_key:
@@ -95,6 +97,7 @@ connection-types:
       relabeling:
         password: Pagerduty API token
   - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty_events.PagerdutyEventsHook
+    hook-name: "Pagerduty Events"
     connection-type: pagerduty_events
     ui-field-behaviour:
       hidden-fields:

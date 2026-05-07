@@ -69,6 +69,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook",
+                "hook-name": "Yandex Cloud",
                 "connection-type": "yandexcloud",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]

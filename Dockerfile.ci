@@ -62,6 +62,8 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -376,7 +378,7 @@ function install_python() {
         GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
         local gpg_key="${keys[${major_minor_version}]}"
         echo "Using GPG key ${gpg_key}"
-        gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
         gpg --batch --verify python.tar.xz.asc python.tar.xz
         gpgconf --kill all
         rm -rf "${GNUPGHOME}" python.tar.xz.asc
@@ -433,6 +435,33 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function install_rustup() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
+    local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -448,6 +477,7 @@ else
     install_debian_dev_dependencies
     install_python
     install_additional_dev_dependencies
+    install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
     fi
@@ -868,29 +898,10 @@ function common::import_trusted_gpg() {
 
     local key=${1:?${COLOR_RED}First argument expects OpenPGP Key ID${COLOR_RESET}}
     local name=${2:?${COLOR_RED}Second argument expected trust storage name${COLOR_RESET}}
-    # Please note that not all servers could be used for retrieve keys
-    #  sks-keyservers.net: Unmaintained and DNS taken down due to GDPR requests.
-    #  keys.openpgp.org: User ID Mandatory, not suitable for APT repositories
-    #  keyring.debian.org: Only accept keys in Debian keyring.
-    #  pgp.mit.edu: High response time.
-    local keyservers=(
-        "hkps://keyserver.ubuntu.com"
-        "hkps://pgp.surf.nl"
-    )
+    local key_file="/scripts/docker/keys/${name}.asc"
 
-    GNUPGHOME="$(mktemp -d)"
-    export GNUPGHOME
-    set +e
-    for keyserver in $(shuf -e "${keyservers[@]}"); do
-        echo "${COLOR_BLUE}Try to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
-        echo "${COLOR_YELLOW}Unable to receive GPG public key ${key} from ${keyserver}${COLOR_RESET}"
-    done
-    set -e
-    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
-    gpgconf --kill all
-    rm -rf "${GNUPGHOME}"
-    unset GNUPGHOME
+    echo "${COLOR_BLUE}Installing GPG public key ${key} from ${key_file}${COLOR_RESET}"
+    gpg --dearmor < "${key_file}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
 }
 EOF
 
@@ -1453,6 +1464,20 @@ function check_run_tests() {
     fi
 }
 
+function reinstall_shared_distributions() {
+    # The shared distributions under shared/<name>/ are workspace members that are not
+    # transitively required by airflow-core or any provider, so the lowest-direct
+    # `uv sync` above wipes them out from the environment. Re-install them with
+    # --no-deps so that the `airflow_shared.*` namespace used by devel-common test
+    # utils resolves at test collection time without disturbing the lowest-direct
+    # resolution that was just applied.
+    echo
+    echo "${COLOR_BLUE}Re-installing shared distributions (airflow_shared.*) after uv sync${COLOR_RESET}"
+    echo
+    # shellcheck disable=SC2046
+    uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
+}
+
 function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
@@ -1474,8 +1499,26 @@ function check_force_lowest_dependencies() {
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-            --no-python-downloads --no-managed-python
+
+        local sync_successful="false"
+        for attempt in 1 2 3; do
+            echo "Attempt ${attempt} of syncing to lowest dependencies"
+            set -x
+            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
+                --no-python-downloads --no-managed-python; then
+                set +x
+                sync_successful="true"
+                break
+            fi
+            set +x
+            echo "Sleeping 30s"
+            sleep 30
+            echo "Attempt ${attempt} failed. Retrying..."
+        done
+        if [[ "${sync_successful}" != "true" ]]; then
+            echo "${COLOR_RED}Failed to sync lowest dependencies after 3 attempts.${COLOR_RESET}"
+            exit 1
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
@@ -1487,6 +1530,7 @@ function check_force_lowest_dependencies() {
         uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
             --no-python-downloads --no-managed-python
     fi
+    reinstall_shared_distributions
 }
 
 function check_airflow_python_client_installation() {
@@ -1625,13 +1669,17 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
 
-ARG AIRFLOW_PYTHON_VERSION="3.12.13"
+ARG AIRFLOW_PYTHON_VERSION="3.13.13"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.26.1"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.26.2"
+ENV RUSTUP_HOME="/usr/local/rustup"
+ENV CARGO_HOME="/usr/local/cargo"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 ARG PYTHON_LTO
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 
 RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh ci
 
@@ -1775,10 +1823,10 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.0.1
+ARG AIRFLOW_PIP_VERSION=26.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.1
-ARG AIRFLOW_PREK_VERSION="0.3.8"
+ARG AIRFLOW_UV_VERSION=0.11.8
+ARG AIRFLOW_PREK_VERSION="0.3.11"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
@@ -1787,7 +1835,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_PREK_VERSION=${AIRFLOW_PREK_VERSION}
 
 # The PATH is needed for python to find installed and cargo to build the wheels
-ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
+ENV PATH="/usr/python/bin:/root/.local/bin:${PATH}"
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
 ARG TARGETARCH

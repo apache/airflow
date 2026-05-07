@@ -26,12 +26,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299741
+source-date-epoch: 1775592715
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.10.0
   - 9.9.0
   - 9.8.0
   - 9.7.0
@@ -137,6 +138,7 @@ transfers:
 
 connection-types:
   - hook-class-name: airflow.providers.slack.hooks.slack.SlackHook
+    hook-name: "Slack API"
     connection-type: slack
     ui-field-behaviour:
       hidden-fields:
@@ -175,6 +177,7 @@ connection-types:
             - 'null'
         description: Optional. Proxy to make the Slack API call.
   - hook-class-name: airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
+    hook-name: "Slack Incoming Webhook"
     connection-type: slackwebhook
     ui-field-behaviour:
       hidden-fields:

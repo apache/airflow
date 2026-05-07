@@ -35,9 +35,9 @@ if TYPE_CHECKING:
 def _get_executor_conf(dag_id: str):
     """Build a team-aware ExecutorConf for the given dag_id, if multi-team is available."""
     try:
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
         from airflow.models.dag import DagModel
+        from airflow.providers.common.compat.sdk import conf
 
         if not conf.getboolean("core", "multi_team", fallback=False):
             return None

@@ -21,56 +21,59 @@ import { useEffect, useRef } from "react";
 
 import {
   useDagServiceGetDagDetailsKey,
-  UseDagRunServiceGetDagRunsKeyFn,
-  UseDagServiceGetDagDetailsKeyFn,
-  useDagServiceGetDagsUi,
-  UseTaskInstanceServiceGetTaskInstancesKeyFn,
-  UseGridServiceGetDagStructureKeyFn,
-  UseGridServiceGetGridRunsKeyFn,
+  useDagServiceGetDagsUiKey,
   useDagServiceGetLatestRunInfo,
 } from "openapi/queries";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useConfig } from "./useConfig";
 
 export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | undefined) => {
   const queryClient = useQueryClient();
-  const previousDagRunIdRef = useRef<string>("");
+  const hasSyncedLatestRunRef = useRef(false);
+  const previousLatestRunSignatureRef = useRef<string>("");
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
+  const pollIntervalMs = Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000;
+
   const { data: latestDagRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
-    enabled: Boolean(dagId) && !hasPendingRuns,
-    refetchInterval: Boolean(autoRefreshInterval) ? autoRefreshInterval * 1000 : 5000,
+    enabled: Boolean(dagId),
+    refetchInterval: Boolean(dagId) && !hasPendingRuns ? pollIntervalMs : false,
   });
 
   useEffect(() => {
-    const latestDagRunId = latestDagRun?.run_id;
+    hasSyncedLatestRunRef.current = false;
+    previousLatestRunSignatureRef.current = "";
+  }, [dagId]);
 
-    if (latestDagRunId !== undefined && previousDagRunIdRef.current === "") {
-      previousDagRunIdRef.current = latestDagRunId;
+  useEffect(() => {
+    if (!dagId) {
+      return;
+    }
+
+    if (latestDagRun === undefined) {
+      return;
+    }
+
+    const signature = latestDagRun?.run_id ?? "";
+
+    if (!hasSyncedLatestRunRef.current) {
+      hasSyncedLatestRunRef.current = true;
+      previousLatestRunSignatureRef.current = signature;
 
       return;
     }
 
-    if (
-      latestDagRunId !== undefined &&
-      previousDagRunIdRef.current !== "" &&
-      previousDagRunIdRef.current !== latestDagRunId
-    ) {
-      previousDagRunIdRef.current = latestDagRunId;
-
-      const queryKeys = [
-        [useDagServiceGetDagsUi],
-        [useDagServiceGetDagDetailsKey],
-        UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
-        UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
-        UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-        UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
-        UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-      ];
-
-      queryKeys.forEach((key) => {
-        void queryClient.invalidateQueries({ queryKey: key });
-      });
+    if (previousLatestRunSignatureRef.current === signature) {
+      return;
     }
-  }, [latestDagRun, dagId, queryClient]);
+
+    previousLatestRunSignatureRef.current = signature;
+
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagDetailsKey] }),
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
+  }, [dagId, latestDagRun, queryClient]);
 };

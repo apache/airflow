@@ -97,6 +97,7 @@ def login_all_admins(request: Request) -> RedirectResponse:
         path=get_cookie_path(),
         secure=secure,
         httponly=True,
+        samesite="lax",
     )
     return response
 

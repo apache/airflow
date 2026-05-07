@@ -60,8 +60,7 @@ from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, rel
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, override_ids
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
@@ -104,6 +103,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
 
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -404,6 +404,26 @@ class DagRun(Base, LoggingMixin):
             return run_id
         raise ValueError(
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
+        )
+
+    @property
+    def dag_run_data(self) -> DRDataModel:
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+
+        return DRDataModel(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            logical_date=self.logical_date,
+            data_interval_start=self.data_interval_start,
+            data_interval_end=self.data_interval_end,
+            run_after=self.run_after,
+            start_date=self.start_date or timezone.utcnow(),
+            end_date=self.end_date,
+            run_type=DagRunType(self.run_type),
+            state=self.state,
+            conf=self.conf,
+            consumed_asset_events=[],
+            partition_key=self.partition_key,
         )
 
     @property
@@ -844,10 +864,10 @@ class DagRun(Base, LoggingMixin):
         dag_runs = session.scalars(
             select(DagRun)
             .where(DagRun.dag_id == dag_id)
-            .order_by(DagRun.logical_date.desc())
+            .order_by(DagRun.run_after.desc(), DagRun.id.desc())
             .limit(max_consecutive_failed_dag_runs)
         ).all()
-        """ Marking dag as paused, if needed"""
+        # Mark dag as paused, if needed
         to_be_paused = len(dag_runs) >= max_consecutive_failed_dag_runs and all(
             dag_run.state == DagRunState.FAILED for dag_run in dag_runs
         )
@@ -1105,10 +1125,9 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with DualStatsManager.timer(
+        with stats.timer(
             "dagrun.dependency-check",
-            tags={},
-            extra_tags=self.stats_tags,
+            tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1357,7 +1376,6 @@ class DagRun(Base, LoggingMixin):
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-            DagRun as DRDataModel,
             TaskInstance as TIDataModel,
             TIRunContext,
         )
@@ -1367,27 +1385,11 @@ class DagRun(Base, LoggingMixin):
             last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
             task = dag.get_task(relevant_ti.task_id)
 
-            dag_run_data = DRDataModel(
-                dag_id=self.dag_id,
-                run_id=self.run_id,
-                logical_date=self.logical_date,
-                data_interval_start=self.data_interval_start,
-                data_interval_end=self.data_interval_end,
-                run_after=self.run_after,
-                start_date=self.start_date or timezone.utcnow(),
-                end_date=self.end_date,
-                run_type=DagRunType(self.run_type),
-                state=self.state,
-                conf=self.conf,
-                consumed_asset_events=[],
-                partition_key=self.partition_key,
-            )
-
             runtime_ti = RuntimeTaskInstance.model_construct(
                 **last_ti_model.model_dump(exclude_unset=True),
                 task=task,
                 _ti_context_from_server=TIRunContext(
-                    dag_run=dag_run_data,
+                    dag_run=self.dag_run_data,
                     max_tries=relevant_ti.max_tries,
                     variables=[],
                     connections=[],
@@ -1420,7 +1422,7 @@ class DagRun(Base, LoggingMixin):
                 callback(context)
             except Exception:
                 self.log.exception("Callback failed for %s", dag.dag_id)
-                Stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
+                stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
 
     def _get_ready_tis(
         self,
@@ -1587,10 +1589,10 @@ class DagRun(Base, LoggingMixin):
             else:
                 true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
-                    Stats.timing(
+                    stats.timing(
                         f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
                     )
-                    Stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
+                    stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -1605,11 +1607,10 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        DualStatsManager.timing(
+        stats.timing(
             f"dagrun.duration.{self.state}",
             dt=duration,
-            tags=self.stats_tags,
-            extra_tags={"dag_id": self.dag_id},
+            tags={**self.stats_tags, "dag_id": self.dag_id},
         )
 
     @provide_session
@@ -1686,10 +1687,9 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    DualStatsManager.incr(
+                    stats.incr(
                         "task_restored_to_dag",
-                        tags=self.stats_tags,
-                        extra_tags={"dag_id": dag.dag_id},
+                        tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = None
             except AirflowException:
@@ -1697,10 +1697,9 @@ class DagRun(Base, LoggingMixin):
                     pass  # ti has already been removed, just ignore it
                 elif self.state != DagRunState.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    DualStatsManager.incr(
+                    stats.incr(
                         "task_removed_from_dag",
-                        tags=self.stats_tags,
-                        extra_tags={"dag_id": dag.dag_id},
+                        tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = TaskInstanceState.REMOVED
                 continue
@@ -1868,11 +1867,10 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                DualStatsManager.incr(
+                stats.incr(
                     "task_instance_created",
                     count,
-                    tags=self.stats_tags,
-                    extra_tags={"task_type": task_type},
+                    tags={**self.stats_tags, "task_type": task_type},
                 )
             session.flush()
         except IntegrityError:

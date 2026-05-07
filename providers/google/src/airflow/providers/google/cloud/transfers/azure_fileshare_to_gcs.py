@@ -105,7 +105,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         if self.directory_path is None and self.directory_name is not None:
             self.directory_path = self.directory_name
             warnings.warn(
-                "Use 'directory_path' instead of 'directory_name'.",
+                "Use 'directory_path' instead of 'directory_name'. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

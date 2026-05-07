@@ -111,7 +111,7 @@ MODEL_OUTPUT_CONFIG = {
 MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 MODEL_OBJ = {
     "display_name": f"model-{ENV_ID}",
-    "artifact_uri": "{{ti.xcom_pull('custom_task')['artifactUri']}}",
+    "artifact_uri": "{{ task_instance.xcom_pull('custom_task')['artifactUri'] }}",
     "container_spec": {
         "image_uri": MODEL_SERVING_CONTAINER_URI,
         "command": [],
@@ -124,7 +124,7 @@ MODEL_OBJ = {
 }
 MODEL_OBJ_V2 = {
     "display_name": f"model-{ENV_ID}-v2",
-    "artifact_uri": "{{ti.xcom_pull('custom_task')['artifactUri']}}",
+    "artifact_uri": "{{ task_instance.xcom_pull('custom_task')['artifactUri'] }}",
     "container_spec": {
         "image_uri": MODEL_SERVING_CONTAINER_URI,
         "command": [],
@@ -374,5 +374,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

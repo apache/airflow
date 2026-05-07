@@ -27,6 +27,55 @@
 Changelog
 ---------
 
+3.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SSL_MUTUAL_TLS config option to Celery provider for one-way TLS support (#64767)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery version compat logic after PR 62645 (#65844)``
+* ``Fix Celery workers not executing tasks when --celery-hostname is set (#65826)``
+* ``Fix Celery provider ImportError on airflow 3.2.x by gating ExecutorWorkload on 3.3+ (#65752)``
+* ``Pre-assign external_executor_id at queuing time to prevent duplicate execution on scheduler crash (#65594)``
+
+Misc
+~~~~
+
+* ``Widen BaseExecutor method signatures to accept WorkloadKey (#65392)``
+* ``Move ExecutorCallback execution into a supervised process (#62645)``
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Ignore redelivered message for already-running task (#64052)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix amqps:// SSL config and celery_config_options bypass (#64392)``
+
+Misc
+~~~~
+
+* ``Clean up CeleryExecutor to use workload terminology and typing (#63888)``
+* ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Celery tests after conf-backcompat merge (#64388)``
+
 3.17.2
 ......
 

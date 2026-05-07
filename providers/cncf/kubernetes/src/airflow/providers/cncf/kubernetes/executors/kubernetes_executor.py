@@ -31,7 +31,7 @@ import multiprocessing
 import time
 from collections import Counter, defaultdict
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -39,7 +39,6 @@ from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
@@ -53,7 +52,7 @@ from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import Stats
+from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -116,6 +115,7 @@ class KubernetesExecutor(BaseExecutor):
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
         self.completed: set[KubernetesResults] = set()
+        self.create_pods_after: datetime | None = None
 
     def _list_pods(self, query_kwargs):
         query_kwargs["header_params"] = {
@@ -313,6 +313,12 @@ class KubernetesExecutor(BaseExecutor):
 
         from kubernetes.client.rest import ApiException
 
+        if self.create_pods_after and self.create_pods_after > datetime.now():
+            self.log.warning("Skipping pod creation due to kubernetes rate limit")
+            return
+
+        self.create_pods_after = None
+
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
                 task = self.task_queue.get_nowait()
@@ -339,15 +345,21 @@ class KubernetesExecutor(BaseExecutor):
                         # Use the body directly as the message instead.
                         body = {"message": e.body}
 
+                    headers = e.headers or {}
                     retries = self.task_publish_retries[key]
                     # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                    # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
+                    can_retry_publish = (
+                        self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
+                    )
                     message = body.get("message", "")
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
                         or (str(e.status) == "410" and "too old resource version" in message)
                         or str(e.status) == "500"
-                    ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
+                        or str(e.status) == "429"
+                    ) and can_retry_publish:
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
                             self.task_publish_retries[key] + 1,
@@ -356,8 +368,20 @@ class KubernetesExecutor(BaseExecutor):
                             e.reason,
                             message,
                         )
+
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
+
+                        if str(e.status) == "429":
+                            self.create_pods_after = datetime.now() + timedelta(
+                                seconds=int(headers.get("Retry-After", "0"))
+                            )
+                            self.log.warning(
+                                "Got rate limit from k8s api, skipping pod creation until %s",
+                                self.create_pods_after,
+                            )
+                            # stop pod creation to stop api requests
+                            break
                     else:
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key = task.key
@@ -657,22 +681,114 @@ class KubernetesExecutor(BaseExecutor):
         del tis_to_flush_by_key[ti_key]
         self.running.add(ti_key)
 
+    def _alive_other_scheduler_job_ids(self) -> set[int]:
+        """
+        Return job IDs of every SchedulerJob that is currently alive — excluding self.
+
+        "Alive" means ``Job.state == RUNNING`` AND its ``latest_heartbeat`` is
+        within ``[scheduler] scheduler_health_check_threshold``.
+
+        Used by ``_adopt_completed_pods`` to scope cross-scheduler pod
+        adoption to pods owned by no-longer-alive schedulers (#66396).
+        With a single scheduler the returned set is always empty — the
+        original "exclude self only" behavior is preserved. With multiple
+        schedulers each one only adopts pods whose owning scheduler is gone,
+        eliminating the relabel-thrash that PR #61839 introduced.
+
+        Returns an empty set on any DB error so the caller falls back to
+        the pre-#61839 "exclude self only" selector — a transient DB issue
+        must not break completed-pod cleanup.
+        """
+        if TYPE_CHECKING:
+            assert self.scheduler_job_id
+
+        try:
+            self_id = int(self.scheduler_job_id)
+        except (TypeError, ValueError):
+            # Tests sometimes set scheduler_job_id to a non-numeric string.
+            # In production it's always Job.id (int), but be defensive.
+            return set()
+
+        try:
+            from datetime import timedelta
+
+            from sqlalchemy import select
+
+            from airflow.jobs.job import Job
+            from airflow.utils import timezone
+            from airflow.utils.session import create_session
+            from airflow.utils.state import JobState
+
+            timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
+            cutoff = timezone.utcnow() - timedelta(seconds=timeout)
+            with create_session() as session:
+                # Iterate the scalar cursor straight into the set so we never
+                # materialize an intermediate list — keeps the memory
+                # footprint flat regardless of how many sibling schedulers
+                # are alive
+                return {
+                    jid
+                    for jid in session.scalars(
+                        select(Job.id).where(
+                            Job.job_type == "SchedulerJob",
+                            Job.state == JobState.RUNNING,
+                            Job.latest_heartbeat >= cutoff,
+                            Job.id != self_id,
+                        )
+                    )
+                }
+        except Exception as exc:
+            self.log.warning(
+                "Could not query alive SchedulerJobs for completed-pod adoption "
+                "scoping: %s. Falling back to exclude-self-only.",
+                exc,
+            )
+            return set()
+
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
-        Patch completed pods so that the KubernetesJobWatcher can delete them.
+        Patch completed pods owned by no-longer-alive schedulers so this scheduler's watcher can delete them.
+
+        Originally this method patched every Succeeded pod that did not carry
+        THIS scheduler's ``airflow-worker`` label. With multi-scheduler
+        deployments that caused thrashing — every scheduler relabeled every
+        other scheduler's completed pods on each interval tick, fighting over
+        ownership and burning kube-API and watcher cycles (see #66396).
+
+        The fix scopes the selector to also exclude pods owned by every
+        currently-alive sibling scheduler. With one scheduler, behavior is
+        unchanged (no siblings → original "exclude self only" selector). With
+        multiple schedulers, each one only adopts pods whose owning scheduler
+        is gone — preserving the original goal of #61839 (cleanup after a
+        scheduler restart) without the multi-scheduler regression.
 
         :param kube_client: kubernetes client for speaking to kube API
         """
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
+        self_label = self._make_safe_label_value(self.scheduler_job_id)
+        excluded_labels = sorted(
+            {
+                self_label,
+                *(self._make_safe_label_value(str(jid)) for jid in self._alive_other_scheduler_job_ids()),
+            }
+        )
+
+        if len(excluded_labels) == 1:
+            # Equality-based selector — preserves the pre-fix label_selector
+            # exactly when no sibling scheduler is alive, so single-scheduler
+            # deployments see no behavior change.
+            worker_filter = f"airflow-worker!={excluded_labels[0]}"
+        else:
+            # Set-based requirement: K8s parses `notin (a,b,c)` as "label
+            # value is none of these". Mixed with the surrounding
+            # equality-based requirements via comma separator.
+            worker_filter = f"airflow-worker notin ({','.join(excluded_labels)})"
+
         query_kwargs = {
             "field_selector": "status.phase=Succeeded",
-            "label_selector": (
-                "kubernetes_executor=True,"
-                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
-            ),
+            "label_selector": (f"kubernetes_executor=True,{worker_filter},{POD_EXECUTOR_DONE_KEY}!=True"),
         }
         pod_list = self._list_pods(query_kwargs)
         for pod in pod_list:
@@ -683,7 +799,7 @@ class KubernetesExecutor(BaseExecutor):
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
-                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
+                    body={"metadata": {"labels": {"airflow-worker": self_label}}},
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)

@@ -41,7 +41,7 @@ def __getattr__(name: str) -> Any:
         warnings.warn(
             (
                 "DATAPROC_JOB_LOG_LINK has been deprecated and will be removed in the next MAJOR release."
-                " Please use DATAPROC_JOB_LINK instead"
+                " Please use DATAPROC_JOB_LINK instead. Planned removal date: October 5, 2026."
             ),
             AirflowProviderDeprecationWarning,
             stacklevel=2,

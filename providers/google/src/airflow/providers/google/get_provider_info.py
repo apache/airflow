@@ -84,7 +84,7 @@ def get_provider_info():
                 "logo": "/docs/integration-logos/Google.png",
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "external-doc-url": "https://cloud.google.com/composer",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst"],
                 "tags": ["google"],
@@ -513,8 +513,11 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
-                "python-modules": ["airflow.providers.google.cloud.operators.cloud_composer"],
+                "integration-name": "Managed Service for Apache Airflow",
+                "python-modules": [
+                    "airflow.providers.google.cloud.operators.cloud_composer",
+                    "airflow.providers.google.cloud.operators.managed_airflow",
+                ],
             },
             {
                 "integration-name": "Google Cloud Run",
@@ -722,7 +725,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
             {
@@ -852,7 +855,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_composer"],
             },
             {
@@ -1104,7 +1107,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_composer"],
             },
             {
@@ -1380,6 +1383,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.google.common.hooks.base_google.GoogleBaseHook",
+                "hook-name": "Google Cloud",
                 "connection-type": "google_cloud_platform",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -1437,19 +1441,27 @@ def get_provider_info():
                 },
             },
             {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.spanner.SpannerHook",
+                "connection-type": "gcpspanner",
+            },
+            {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook",
+                "hook-name": "Google Dataprep",
                 "connection-type": "dataprep",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook",
+                "hook-name": "Google Cloud SQL",
                 "connection-type": "gcpcloudsql",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
+                "hook-name": "Google Cloud SQL Database",
                 "connection-type": "gcpcloudsqldb",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
+                "hook-name": "Google Bigquery",
                 "connection-type": "gcpbigquery",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -1519,6 +1531,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
+                "hook-name": "Google Cloud SSH",
                 "connection-type": "gcpssh",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -1528,10 +1541,12 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
+                "hook-name": "LevelDB",
                 "connection-type": "leveldb",
             },
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "hook-name": "Google Ads",
                 "connection-type": "google_ads",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "login", "schema", "port"],
@@ -1553,6 +1568,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
+                "hook-name": "Google Looker",
                 "connection-type": "gcp_looker",
             },
         ],

@@ -35,9 +35,10 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow import settings
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
@@ -726,6 +727,35 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         period = ti.end_date.add(seconds=6000) - ti.end_date.add(seconds=1200)
         assert date in period
+
+    def test_next_retry_datetime_with_retry_delay_override(self, dag_maker):
+        """When retry_delay_override is set (by a RetryPolicy), it takes precedence over the standard calculation."""
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_retry_override",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(minutes=5),
+                retry_exponential_backoff=2.0,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        # Without override: uses exponential backoff (would be > 5 minutes)
+        ti.retry_delay_override = None
+        date_normal = ti.next_retry_datetime()
+        assert date_normal > ti.end_date + datetime.timedelta(seconds=5)
+
+        # With override: uses the exact override value (10 seconds)
+        ti.retry_delay_override = 10.0
+        date_override = ti.next_retry_datetime()
+        assert date_override == ti.end_date + datetime.timedelta(seconds=10)
+
+        # Override of 0 means retry immediately
+        ti.retry_delay_override = 0.0
+        date_zero = ti.next_retry_datetime()
+        assert date_zero == ti.end_date
 
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
@@ -1546,11 +1576,11 @@ class TestTaskInstance:
         ti.state = State.SUCCESS
         assert ti.try_number == 2  # unaffected by state
 
-    def test_get_num_running_task_instances(self, dag_maker, create_task_instance):
+    def test_get_num_active_task_instances(self, dag_maker, create_task_instance):
         session = settings.Session()
 
         ti1 = create_task_instance(
-            dag_id="test_get_num_running_task_instances", task_id="task1", session=session
+            dag_id="test_get_num_active_task_instances", task_id="task1", session=session
         )
 
         logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
@@ -1569,7 +1599,7 @@ class TestTaskInstance:
         ti2.task = ti1.task
 
         ti3 = create_task_instance(
-            dag_id="test_get_num_running_task_instances_dummy", task_id="task2", session=session
+            dag_id="test_get_num_active_task_instances_dummy", task_id="task2", session=session
         )
         assert ti3 in session
         assert ti1 in session
@@ -1580,11 +1610,11 @@ class TestTaskInstance:
         assert ti3 in session
         session.commit()
 
-        assert ti1.get_num_running_task_instances(session=session) == 1
-        assert ti2.get_num_running_task_instances(session=session) == 1
-        assert ti3.get_num_running_task_instances(session=session) == 1
+        assert ti1.get_num_active_task_instances(session=session) == 1
+        assert ti2.get_num_active_task_instances(session=session) == 1
+        assert ti3.get_num_active_task_instances(session=session) == 1
 
-    def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
+    def test_get_num_active_task_instances_per_dagrun(self, create_task_instance, dag_maker):
         session = settings.Session()
 
         with dag_maker(dag_id="test_dag"):
@@ -1623,15 +1653,49 @@ class TestTaskInstance:
 
         session.commit()
 
-        assert tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis1[("task_2", 0)].get_num_running_task_instances(session=session) == 2
-        assert tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_2", 0)].get_num_active_task_instances(session=session) == 2
+        assert tis1[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
 
-        assert tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
-        assert tis2[("task_2", 0)].get_num_running_task_instances(session=session) == 2
-        assert tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 1)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_2", 0)].get_num_active_task_instances(session=session) == 2
+        assert tis2[("task_3", 0)].get_num_active_task_instances(session=session, same_dagrun=True) == 1
+
+    def test_get_num_active_task_instances_includes_deferred(self, dag_maker, create_task_instance):
+        """
+        get_num_active_task_instances should count DEFERRED TIs.
+
+        Regression test for https://github.com/apache/airflow/issues/61700
+        """
+        session = settings.Session()
+
+        ti1 = create_task_instance(
+            dag_id="test_get_num_active_task_instances_deferred", task_id="task1", session=session
+        )
+
+        logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        dr = dag_maker.create_dagrun(
+            logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
+            state=None,
+            run_id="2",
+            session=session,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        ti2 = dr.task_instances[0]
+        ti2.task = ti1.task
+
+        ti1.state = TaskInstanceState.RUNNING
+        ti2.state = TaskInstanceState.DEFERRED
+        session.commit()
+
+        # Both RUNNING and DEFERRED should be counted
+        assert ti1.get_num_active_task_instances(session=session) == 2
+        assert ti2.get_num_active_task_instances(session=session) == 2
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
@@ -2308,12 +2372,15 @@ class TestTaskInstance:
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
 
-    @patch.object(Stats, "incr")
-    def test_handle_failure_no_task(self, Stats_incr, dag_maker):
+    @patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_handle_failure_no_task(self, mock_get_backend, dag_maker):
         """
         When a task instance heartbeat timeout is detected for a DAG with a parse error,
         we need to be able to run handle_failure _without_ ti.task being set
         """
+        mock_backend = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_backend
+
         session = settings.Session()
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
@@ -2336,9 +2403,9 @@ class TestTaskInstance:
         # try_number remains at 1
         assert ti.try_number == 1
 
-        Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
-        Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
-        Stats_incr.assert_any_call(
+        mock_backend.incr.assert_any_call("ti_failures", tags=expected_stats_tags)
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
+        mock_backend.incr.assert_any_call(
             "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
@@ -2481,6 +2548,8 @@ class TestTaskInstance:
             "dag_version_id": mock.ANY,
             "context_carrier": {},
             "span_status": SpanStatus.ENDED,
+            "retry_delay_override": 60.0,
+            "retry_reason": "Rate limit, backing off",
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
@@ -2605,6 +2674,81 @@ class TestTaskInstance:
         # the new try_id should be different from what's recorded in tih
         assert tih[0].task_instance_id == try_id
 
+    @pytest.mark.parametrize(
+        ("first_ti", "second_ti"),
+        [
+            pytest.param(
+                ("dag_1", "run_1", "task_1", -1),
+                ("dag_2", "run_1", "task_1", -1),
+                id="tasks_with_different_dags",
+            ),
+            pytest.param(
+                ("dag_1", "run_1", "task_1", -1),
+                ("dag_1", "run_2", "task_1", -1),
+                id="tasks_with_different_runs",
+            ),
+            # There are no cases with equal dag_id/run_id because create_task_instance()
+            # creates a DagRun each time, and DagRun has a unique (dag_id, run_id) constraint.
+        ],
+    )
+    def test_get_task_instance_disambiguates_by_dag_id_and_run_id(
+        self, create_task_instance, session, first_ti, second_ti
+    ):
+        dag_id_1, run_id_1, task_id_1, map_index_1 = first_ti
+        dag_id_2, run_id_2, task_id_2, map_index_2 = second_ti
+
+        ti1 = create_task_instance(
+            dag_id=dag_id_1,
+            run_id=run_id_1,
+            task_id=task_id_1,
+            map_index=map_index_1,
+            session=session,
+        )
+        ti2 = create_task_instance(
+            dag_id=dag_id_2,
+            run_id=run_id_2,
+            task_id=task_id_2,
+            map_index=map_index_2,
+            session=session,
+        )
+
+        # Regression setup for #64957: if dag_id is ignored, this lookup key becomes ambiguous.
+        if dag_id_1 != dag_id_2:
+            ambiguous_count = session.scalar(
+                select(func.count())
+                .select_from(TI)
+                .filter_by(run_id=run_id_1, task_id=task_id_1, map_index=map_index_1)
+            )
+            assert ambiguous_count == 2, "Setup failure: expected two TIs matching without dag_id filter"
+
+        # This case does not target the original regression directly (run_id was already filtered),
+        # but we keep it as defense-in-depth against future changes.
+        found_1 = TI.get_task_instance(
+            dag_id=dag_id_1,
+            run_id=run_id_1,
+            task_id=task_id_1,
+            map_index=map_index_1,
+            session=session,
+        )
+        found_2 = TI.get_task_instance(
+            dag_id=dag_id_2,
+            run_id=run_id_2,
+            task_id=task_id_2,
+            map_index=map_index_2,
+            session=session,
+        )
+
+        assert found_1 is not None
+        assert found_2 is not None
+
+        assert found_1.id == ti1.id
+        assert found_2.id == ti2.id
+
+        # Keep dag_id assertions explicit to document the regression intent (#64957):
+        # get_task_instance() must disambiguate identical run/task/map_index by dag_id.
+        assert found_1.dag_id == dag_id_1
+        assert found_2.dag_id == dag_id_2
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 @pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
@@ -2651,6 +2795,26 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     ti.max_tries = expected_max_tries
     ti.refresh_from_task(ser_task)
     assert ti.max_tries == expected_max_tries
+
+
+@pytest.mark.parametrize(
+    ("weight_rule", "expected_weight"),
+    [
+        pytest.param("downstream", 10 + 5, id="downstream-sums-descendants"),
+        pytest.param("upstream", 10, id="upstream-no-ancestors"),
+        pytest.param("absolute", 10, id="absolute-self-only"),
+    ],
+)
+def test_refresh_from_task_with_non_serialized_operator(weight_rule, expected_weight):
+    """Regression: TaskInstance must work with non-serialized operators whose weight_rule is a WeightRule enum."""
+    with DAG(dag_id="test_dag"):
+        root = EmptyOperator(task_id="root", priority_weight=10, weight_rule=weight_rule)
+        child = EmptyOperator(task_id="child", priority_weight=5)
+        root >> child
+
+    ti = TI(root, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.priority_weight == expected_weight
 
 
 def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
@@ -2748,6 +2912,67 @@ def test_defer_task_with_trigger_timeout(create_task_instance):
     # Check trigger_timeout is set correctly (within a small tolerance)
     expected_timeout = now + timeout
     assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
+@pytest.mark.parametrize(
+    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    [
+        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
+        (
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            5,
+            5,
+            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
+        ),
+    ],
+)
+def test_defer_task_try_number_increment_on_state(
+    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+):
+    """
+    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
+    """
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+
+    ti = create_task_instance(
+        dag_id="test_defer_task_try_number",
+        task_id="test_defer_task_try_number_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={},
+        ),
+    )
+    ti.state = initial_state
+    ti.try_number = initial_try_number
+    ti.defer_task(session=session)
+    assert ti.try_number == expected_try_number, msg
+
+
+class TestTaskInstanceRelationships:
+    @pytest.mark.parametrize(
+        "attr",
+        ["rendered_task_instance_fields", "hitl_detail"],
+    )
+    def test_noload_relationships_raise_without_joinedload(self, dag_maker, session, attr):
+        """Accessing lazy='raise' relationships without joinedload should raise."""
+        from sqlalchemy.exc import InvalidRequestError
+
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_1")
+        session.merge(ti)
+        session.commit()
+
+        loaded_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
+
+        with pytest.raises(InvalidRequestError):
+            getattr(loaded_ti, attr)
 
 
 class TestTaskInstanceRecordTaskMapXComPush:
@@ -3380,11 +3605,6 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
     relationship is marked as loaded but unset (`None`).
     """
-    from sqlalchemy.orm.attributes import set_committed_value
-
-    from airflow.operators.empty import EmptyOperator
-    from airflow.utils.state import State
-
     with dag_maker(dag_id="test_get_dagrun_loaded_none"):
         EmptyOperator(task_id="test_task")
 

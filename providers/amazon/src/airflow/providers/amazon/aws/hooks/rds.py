@@ -61,11 +61,14 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :return: Returns the status of the DB snapshot as a string (eg. "available")
         :raises AirflowNotFoundException: If the DB instance snapshot does not exist.
         """
+        self.log.debug("Retrieving state for DB snapshot %s", snapshot_id)
         try:
             response = self.conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
         except self.conn.exceptions.DBSnapshotNotFoundFault as e:
-            raise AirflowNotFoundException(e)
-        return response["DBSnapshots"][0]["Status"].lower()
+            raise AirflowNotFoundException(e) from e
+        state = response["DBSnapshots"][0]["Status"].lower()
+        self.log.debug("DB snapshot %s state: %s", snapshot_id, state)
+        return state
 
     def wait_for_db_snapshot_state(
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -107,11 +110,14 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :return: Returns the status of the DB cluster snapshot as a string (eg. "available")
         :raises AirflowNotFoundException: If the DB cluster snapshot does not exist.
         """
+        self.log.debug("Retrieving state for DB cluster snapshot %s", snapshot_id)
         try:
             response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
         except self.conn.exceptions.DBClusterSnapshotNotFoundFault as e:
-            raise AirflowNotFoundException(e)
-        return response["DBClusterSnapshots"][0]["Status"].lower()
+            raise AirflowNotFoundException(e) from e
+        state = response["DBClusterSnapshots"][0]["Status"].lower()
+        self.log.debug("DB cluster snapshot %s state: %s", snapshot_id, state)
+        return state
 
     def wait_for_db_cluster_snapshot_state(
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -153,13 +159,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :return: Returns the status of the snapshot export task as a string (eg. "canceled")
         :raises AirflowNotFoundException: If the export task does not exist.
         """
+        self.log.debug("Retrieving state for export task %s", export_task_id)
         try:
             response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
         except self.conn.exceptions.ClientError as e:
             if e.response["Error"]["Code"] in ("ExportTaskNotFound", "ExportTaskNotFoundFault"):
-                raise AirflowNotFoundException(e)
-            raise e
-        return response["ExportTasks"][0]["Status"].lower()
+                raise AirflowNotFoundException(e) from e
+            raise
+        state = response["ExportTasks"][0]["Status"].lower()
+        self.log.debug("Export task %s state: %s", export_task_id, state)
+        return state
 
     def wait_for_export_task_state(
         self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -194,13 +203,16 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :return: Returns the status of the event subscription as a string (eg. "active")
         :raises AirflowNotFoundException: If the event subscription does not exist.
         """
+        self.log.debug("Retrieving state for event subscription %s", subscription_name)
         try:
             response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
         except self.conn.exceptions.ClientError as e:
             if e.response["Error"]["Code"] in ("SubscriptionNotFoundFault", "SubscriptionNotFound"):
-                raise AirflowNotFoundException(e)
-            raise e
-        return response["EventSubscriptionsList"][0]["Status"].lower()
+                raise AirflowNotFoundException(e) from e
+            raise
+        state = response["EventSubscriptionsList"][0]["Status"].lower()
+        self.log.debug("Event subscription %s state: %s", subscription_name, state)
+        return state
 
     def wait_for_event_subscription_state(
         self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -235,11 +247,14 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :return: Returns the status of the DB instance as a string (eg. "available")
         :raises AirflowNotFoundException: If the DB instance does not exist.
         """
+        self.log.debug("Retrieving state for DB instance %s", db_instance_id)
         try:
             response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
         except self.conn.exceptions.DBInstanceNotFoundFault as e:
-            raise AirflowNotFoundException(e)
-        return response["DBInstances"][0]["DBInstanceStatus"].lower()
+            raise AirflowNotFoundException(e) from e
+        state = response["DBInstances"][0]["DBInstanceStatus"].lower()
+        self.log.debug("DB instance %s state: %s", db_instance_id, state)
+        return state
 
     def wait_for_db_instance_state(
         self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
@@ -286,11 +301,14 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :return: Returns the status of the DB cluster as a string (eg. "available")
         :raises AirflowNotFoundException: If the DB cluster does not exist.
         """
+        self.log.debug("Retrieving state for DB cluster %s", db_cluster_id)
         try:
             response = self.conn.describe_db_clusters(DBClusterIdentifier=db_cluster_id)
         except self.conn.exceptions.DBClusterNotFoundFault as e:
-            raise AirflowNotFoundException(e)
-        return response["DBClusters"][0]["Status"].lower()
+            raise AirflowNotFoundException(e) from e
+        state = response["DBClusters"][0]["Status"].lower()
+        self.log.debug("DB cluster %s state: %s", db_cluster_id, state)
+        return state
 
     def wait_for_db_cluster_state(
         self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40

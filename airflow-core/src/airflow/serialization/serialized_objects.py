@@ -251,17 +251,11 @@ def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
 
 def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
     """Decode a StartTriggerArgs."""
-
-    def deserialize_kwargs(key: str) -> Any:
-        if (val := var[key]) is None:
-            return None
-        return BaseSerialization.deserialize(val)
-
     return StartTriggerArgs(
         trigger_cls=var["trigger_cls"],
-        trigger_kwargs=deserialize_kwargs("trigger_kwargs"),
+        trigger_kwargs=var["trigger_kwargs"],
         next_method=var["next_method"],
-        next_kwargs=deserialize_kwargs("next_kwargs"),
+        next_kwargs=var["next_kwargs"],
         timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
     )
 
@@ -491,7 +485,11 @@ class BaseSerialization:
             )
         elif isinstance(var, list):
             return [cls.serialize(v, strict=strict) for v in var]
-        elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
+        elif (
+            var.__class__.__name__ == "V1Pod"
+            and _has_kubernetes(attempt_import=True)
+            and isinstance(var, k8s.V1Pod)
+        ):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):

@@ -346,6 +346,66 @@ class TestCliDb:
             b"[client]\nhost     = mysql\nuser     = root\npassword = \nport     = 3306\ndatabase = airflow"
         )
 
+    @pytest.mark.parametrize(
+        ("sql_alchemy_conn", "expected_cnf"),
+        [
+            pytest.param(
+                "mysql://root@mysql:3306/airflow",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow",
+                id="no_query_params",
+            ),
+            pytest.param(
+                "mysql://root@mysql/airflow",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow",
+                id="missing_port_defaults_to_3306",
+            ),
+            pytest.param(
+                "mysql://airflow@mysql:3306/airflow"
+                "?ssl_ca=/etc/ssl/ca.crt&ssl_cert=/etc/ssl/client.crt"
+                "&ssl_key=/etc/ssl/client.key&ssl_mode=VERIFY_CA",
+                b"[client]\nhost     = mysql\nuser     = airflow\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-ca = /etc/ssl/ca.crt\n"
+                b"ssl-cert = /etc/ssl/client.crt\n"
+                b"ssl-key = /etc/ssl/client.key\n"
+                b"ssl-mode = VERIFY_CA",
+                id="ssl_params_forwarded_with_hyphen_translation",
+            ),
+            pytest.param(
+                "mysql://root@mysql:3306/airflow?unknown_param=something&ssl_cipher=AES256-SHA",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-cipher = AES256-SHA",
+                id="only_allowlisted_query_keys_are_forwarded",
+            ),
+            pytest.param(
+                "mysql://root@mysql:3306/airflow?charset=utf8mb4",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"default-character-set = utf8mb4",
+                id="charset_forwarded_as_default_character_set",
+            ),
+            pytest.param(
+                'mysql://root:pa"ss\\word@mysql:3306/airflow',
+                b'[client]\nhost     = mysql\nuser     = root\npassword = "pa\\"ss\\\\word"\n'
+                b"port     = 3306\ndatabase = airflow",
+                id="password_with_special_chars_is_escaped",
+            ),
+        ],
+    )
+    def test_build_mysql_cnf(self, sql_alchemy_conn, expected_cnf):
+        """
+        Pure-function test of the my.cnf builder — no mocking of ``shell()`` needed.
+
+        Exercises every behavior we care about: bare URL, missing-port default,
+        SSL params forwarded with underscore→hyphen translation, query-string
+        allowlisting, the charset rename, and password escaping. New allowlist
+        keys should be added here first — bug-regressions then fail loudly.
+        """
+        assert db_command._build_mysql_cnf(make_url(sql_alchemy_conn)) == expected_cnf
+
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",

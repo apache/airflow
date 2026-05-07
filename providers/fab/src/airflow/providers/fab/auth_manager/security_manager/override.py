@@ -17,16 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import copy
 import datetime
 import importlib
 import itertools
+import json
 import logging
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
-import jwt
 from flask import current_app, flash, g, has_app_context, has_request_context, session
 from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
@@ -411,8 +412,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return claims
 
     def _get_authentik_token_info(self, id_token):
-        me = jwt.decode(id_token, options={"verify_signature": False})
-
         verify_signature = self.oauth_remotes["authentik"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             # Validate the token using authentik certificate
@@ -426,7 +425,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         else:
             # Return the token info without validating
             log.warning("JWT token is not validated!")
-            return me
+            _parts = id_token.split(".")
+            _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
+            return json.loads(base64.urlsafe_b64decode(_payload))
 
         raise FabException("OAuth signature verify failed")
 
@@ -549,6 +550,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(current_app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
+    def _hash_password(self, password: str) -> str:
+        method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
+        return generate_password_hash(password, method=method)
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -561,7 +566,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = generate_password_hash(password)
+        user.password = self._hash_password(password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -1404,7 +1409,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if hashed_password:
                 user.password = hashed_password
             else:
-                user.password = generate_password_hash(password)
+                user.password = self._hash_password(password)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
 
@@ -1448,8 +1453,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if hashed_password:
             register_user.password = hashed_password
         else:
-            register_user.password = generate_password_hash(password)
-        register_user.registration_hash = str(uuid.uuid1())
+            register_user.password = self._hash_password(password)
+        register_user.registration_hash = str(uuid.uuid4())
         try:
             self.session.add(register_user)
             self.session.commit()
@@ -1495,14 +1500,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 new_group_ids = {grp.id for grp in user.groups}
                 if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
                     user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
-            self.session.merge(user)
+            merged_user = self.session.merge(user)
             self.session.commit()
+            self._reset_user_permissions_cache(merged_user)
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
         return True
+
+    @staticmethod
+    def _reset_user_permissions_cache(user: User) -> None:
+        """Invalidate cached permissions to avoid stale auth checks after role updates."""
+        user._perms = None
 
     def del_register_user(self, register_user) -> bool:
         """
@@ -1986,6 +1997,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             # Sync the user's roles
             if user and user_attributes and self.auth_roles_sync_at_login:
                 user.roles = self._ldap_calculate_user_roles(user_attributes)
+                self._reset_user_permissions_cache(user)
                 log.debug("Calculated new roles for user=%r as: %s", user_dn, user.roles)
 
             # If the user is new, register them
@@ -2013,6 +2025,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 if rotate_session_id:
                     self._rotate_session_id()
                 self.update_user_auth_stat(user)
+                self.session.expire(user, ["roles", "groups"])
+                self._reset_user_permissions_cache(user)
                 return user
             return None
 
@@ -2370,7 +2384,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             claims.validate()
             return claims
 
-        return jwt.decode(id_token, options={"verify_signature": False})
+        _parts = id_token.split(".")
+        _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
+        return json.loads(base64.urlsafe_b64decode(_payload))
 
     def _ldap_bind_indirect(self, ldap, con) -> None:
         """
@@ -2405,10 +2421,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
+        # escape username to prevent LDAP injection attacks
+        escaped_username = ldap.filter.escape_filter_chars(username)
         if self.auth_ldap_search_filter:
-            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={username}))"
+            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={escaped_username}))"
         else:
-            filter_str = f"({self.auth_ldap_uid_field}={username})"
+            filter_str = f"({self.auth_ldap_uid_field}={escaped_username})"
 
         # build what fields to request in the LDAP search
         request_fields = [
@@ -2478,7 +2496,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         log.debug("Nested groups for LDAP enabled.")
         # filter for microsoft active directory only
-        nested_groups_filter_str = f"(&(objectCategory=Group)(member:1.2.840.113556.1.4.1941:={user_dn}))"
+        # escape user_dn to prevent LDAP injection attacks
+        escaped_user_dn = ldap.filter.escape_filter_chars(user_dn)
+        nested_groups_filter_str = (
+            "(&(objectCategory=Group)(member:1.2.840.113556.1.4.1941:=" + escaped_user_dn + "))"
+        )
         nested_groups_request_fields = ["cn"]
 
         nested_groups_search_result = con.search_s(

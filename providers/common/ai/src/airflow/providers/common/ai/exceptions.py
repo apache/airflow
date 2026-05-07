@@ -21,3 +21,19 @@ from airflow.providers.common.compat.sdk import AirflowException
 
 class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
+
+
+class LLMFileAnalysisError(ValueError):
+    """Base class for file-analysis validation errors."""
+
+
+class LLMFileAnalysisUnsupportedFormatError(LLMFileAnalysisError):
+    """Raised when a file format is not supported by LLM file analysis."""
+
+
+class LLMFileAnalysisLimitExceededError(LLMFileAnalysisError):
+    """Raised when file-analysis safety limits are exceeded."""
+
+
+class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatError):
+    """Raised when image/PDF inputs are used without ``multi_modal=True``."""

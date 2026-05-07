@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774298564
+source-date-epoch: 1775591776
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.9.4
   - 2.9.3
   - 2.9.2
   - 2.9.1
@@ -79,6 +80,7 @@ sensors:
 
 connection-types:
   - hook-class-name: airflow.providers.arangodb.hooks.arangodb.ArangoDBHook
+    hook-name: "ArangoDB"
     connection-type: arangodb
     ui-field-behaviour:
       hidden-fields:

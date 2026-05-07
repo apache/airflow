@@ -82,7 +82,7 @@ def validate_sql(
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
     :param allow_multiple_statements: Whether to allow multiple semicolon-separated
         statements. Default ``False``.
-    :return: List of parsed sqlglot Expr objects.
+    :return: List of parsed sqlglot Expression objects.
     :raises SQLSafetyError: If the SQL is empty, contains disallowed statement types,
         or has multiple statements when not permitted.
     """
@@ -97,7 +97,7 @@ def validate_sql(
         raise SQLSafetyError(f"SQL parse error: {e}") from e
 
     # sqlglot.parse can return [None] for empty input
-    parsed: list[exp.Expr] = [s for s in statements if s is not None]
+    parsed = [s for s in statements if s is not None]
     if not parsed:
         raise SQLSafetyError("Empty SQL input.")
 

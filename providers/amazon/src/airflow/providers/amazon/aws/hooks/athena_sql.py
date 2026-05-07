@@ -106,8 +106,8 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 "password": "AWS Secret Access Key",
             },
             "placeholders": {
-                "login": "AKIAIOSFODNN7EXAMPLE",
-                "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "login": "YOUR_AWS_ACCESS_KEY_ID",
+                "password": "YOUR_AWS_SECRET_ACCESS_KEY",
                 "extra": json.dumps(
                     {
                         "aws_domain": "amazonaws.com",
@@ -120,7 +120,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                         "role_arn": "arn:aws:iam::123456789098:role/role-name",
                         "assume_role_method": "assume_role",
                         "assume_role_kwargs": {"RoleSessionName": "airflow"},
-                        "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+                        "aws_session_token": "YOUR_AWS_SESSION_TOKEN",
                         "endpoint_url": "http://localhost:4566",
                     },
                     indent=2,

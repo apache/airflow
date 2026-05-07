@@ -72,8 +72,15 @@ provides visibility for 3rd-party providers, and this approach allows service pr
 There is no difference in technical capabilities between community and 3rd-party providers.
 See `3rd-party providers <THIRD_PARTY_PROVIDERS.rst>`_ for more details.
 
-Historical examples
---------------------
+Examples
+--------
+
+* Vespa.ai - `[PROPOSAL] New Provider: Vespa.ai - AIP-95 <https://lists.apache.org/thread/6myz043vx7v57zk95qo3wd0qcwt9r9th>`_, `Missing Vote <missing>`_
+* Informatica - `[PROPOSAL] New Provider: Informatica - AIP-95 <https://lists.apache.org/thread/wsfgh23jm6hkrly4lx1m21ftllqshpgo>`_, `Missing Vote <missing>`_
+* Stripe - `[DISCUSS] Interest in adding a Stripe provider to Airflow <https://lists.apache.org/thread/r9fr6571w3ssx07bnd5lgc9m88r1xy3c>`_, `Missing Vote <missing>`_
+
+Historical examples (Before AIP-95)
+-----------------------------------
 
 * Huawei Cloud provider - `Discussion <https://lists.apache.org/thread/f5tk9c734wlyv616vyy8r34ymth3dqbc>`_
 * Cloudera provider - `Discussion <https://lists.apache.org/thread/2z0lvgj466ksxxrbvofx41qvn03jrwwb>`_, `Vote <https://lists.apache.org/thread/8b1jvld3npgzz2z0o3gv14lvtornbdrm>`_

@@ -90,7 +90,16 @@ def verify_an_image(
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
-        ["uv", "run", "--isolated", "pytest", test_path.as_posix(), *pytest_args, *extra_pytest_args],
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "--isolated",
+            "pytest",
+            test_path.as_posix(),
+            *pytest_args,
+            *extra_pytest_args,
+        ],
         env=env,
         output=output,
         check=False,
@@ -177,7 +186,7 @@ def run_docker_compose_tests(
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
     env["AIRFLOW_UID"] = str(os.getuid())
     command_result = run_command(
-        ["uv", "run", "pytest", *pytest_args],
+        ["uv", "run", "--frozen", "pytest", *pytest_args],
         env=env,
         check=False,
         cwd=cwd,
@@ -310,7 +319,7 @@ TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task-sdk/tests"],
     GroupOfTests.CTL: ["airflow-ctl/tests"],
-    GroupOfTests.HELM: ["helm-tests"],
+    GroupOfTests.HELM: ["chart/tests"],
     GroupOfTests.INTEGRATION_CORE: ["airflow-core/tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
@@ -389,7 +398,7 @@ def convert_test_type_to_pytest_args(
             sys.exit(1)
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
-            return [f"{helm_folder}/tests/helm_tests/{test_type}"]
+            return [f"{helm_folder}/helm_tests/{test_type}"]
         return [helm_folder]
     if test_type == SelectiveCoreTestType.OTHER.value and test_group == GroupOfTests.CORE:
         return find_all_other_tests()
