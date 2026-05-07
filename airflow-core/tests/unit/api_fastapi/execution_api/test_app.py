@@ -119,8 +119,8 @@ class TestCorrelationIdMiddleware:
         assert correlation_id_1 != correlation_id_2
 
 
-def test_in_process_execution_api_uses_request_scoped_server_context(monkeypatch):
-    api = InProcessExecutionAPI()
+def test_in_process_execution_api_can_opt_in_request_scoped_server_context(monkeypatch):
+    api = InProcessExecutionAPI(request_scoped_server_context=True)
     fake_task_runner = mock.Mock()
     fake_task_runner.SUPERVISOR_COMMS = object()
 

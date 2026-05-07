@@ -1741,10 +1741,10 @@ class ActivitySubprocess(WatchedSubprocess):
 
 
 @functools.lru_cache(maxsize=1)
-def in_process_api_server():
+def in_process_api_server(*, request_scoped_server_context: bool = False):
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecutionAPI()
+    api = InProcessExecutionAPI(request_scoped_server_context=request_scoped_server_context)
     return api
 
 
@@ -1901,7 +1901,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
     @staticmethod
     def _api_client(dag=None):
-        api = in_process_api_server()
+        api = in_process_api_server(request_scoped_server_context=True)
         from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 
         if dag is not None:

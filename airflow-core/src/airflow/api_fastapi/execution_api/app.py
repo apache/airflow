@@ -304,7 +304,7 @@ def get_extra_schemas() -> dict[str, dict]:
 class _RequestScopedServerContextApp:
     """Wrap an ASGI app so in-process requests behave like server-side API handling."""
 
-    def __init__(self, app: FastAPI) -> None:
+    def __init__(self, app: Any) -> None:
         self.app = app
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
@@ -321,6 +321,7 @@ class InProcessExecutionAPI:
     needed so that we can use the sync httpx client
     """
 
+    request_scoped_server_context: bool = attrs.field(default=False, kw_only=True)
     _app: CadwynWithOpenAPICustomization | None = None
     _cm: AsyncExitStack | None = None
 
@@ -356,8 +357,10 @@ class InProcessExecutionAPI:
         return self._app
 
     @cached_property
-    def request_scoped_app(self) -> _RequestScopedServerContextApp:
-        return _RequestScopedServerContextApp(self.app)
+    def asgi_app(self) -> Any:
+        if self.request_scoped_server_context:
+            return _RequestScopedServerContextApp(self.app)
+        return self.app
 
     @cached_property
     def transport(self) -> httpx.WSGITransport:
@@ -366,7 +369,7 @@ class InProcessExecutionAPI:
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        middleware = ASGIMiddleware(self.request_scoped_app)
+        middleware = ASGIMiddleware(self.asgi_app)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -381,4 +384,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.request_scoped_app)
+        return httpx.ASGITransport(app=self.asgi_app)
