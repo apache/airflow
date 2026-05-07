@@ -69,7 +69,7 @@ describe("Header", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(i18n.t("common:dagDetails.nextRun"))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
   });
 });
