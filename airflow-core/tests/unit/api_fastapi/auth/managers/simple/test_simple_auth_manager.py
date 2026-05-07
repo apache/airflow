@@ -121,6 +121,84 @@ class TestSimpleAuthManager:
             auth_manager.init()
             assert not os.path.exists(auth_manager.get_generated_password_file())
 
+    @pytest.mark.parametrize(
+        ("config_overrides", "expected"),
+        [
+            pytest.param(
+                {("database", "sql_alchemy_conn"): "sqlite:////tmp/airflow.db"},
+                False,
+                id="sqlite-only-is-dev",
+            ),
+            pytest.param(
+                {("database", "sql_alchemy_conn"): "postgresql+psycopg2://airflow@db/airflow"},
+                True,
+                id="postgres-backend-is-prod-shape",
+            ),
+            pytest.param(
+                {("database", "sql_alchemy_conn"): "mysql://airflow@db/airflow"},
+                True,
+                id="mysql-backend-is-prod-shape",
+            ),
+            pytest.param(
+                {("api", "host"): "0.0.0.0"},
+                True,
+                id="non-local-bind-is-prod-shape",
+            ),
+            pytest.param(
+                {("api", "host"): "localhost"},
+                False,
+                id="localhost-bind-is-dev",
+            ),
+            pytest.param(
+                {("core", "executor"): "CeleryExecutor"},
+                True,
+                id="celery-executor-is-prod-shape",
+            ),
+            pytest.param(
+                {("core", "executor"): "airflow.executors.local_executor.LocalExecutor"},
+                False,
+                id="fully-qualified-local-executor-is-dev",
+            ),
+        ],
+    )
+    def test_looks_like_production(self, auth_manager, config_overrides, expected):
+        # Anchor every irrelevant axis to dev defaults so the parametrised override
+        # is the only signal under test.
+        base = {
+            ("database", "sql_alchemy_conn"): "sqlite:////tmp/airflow.db",
+            ("api", "host"): "localhost",
+            ("core", "executor"): "LocalExecutor",
+        }
+        base.update(config_overrides)
+        with conf_vars(base):
+            assert SimpleAuthManager._looks_like_production() is expected
+
+    @mock.patch("airflow.api_fastapi.auth.managers.simple.simple_auth_manager.log")
+    def test_init_warns_when_production_shaped(self, mock_log, auth_manager):
+        """SimpleAuthManager.init() emits a loud warning in a production-shaped deployment."""
+        config = {
+            ("core", "simple_auth_manager_users"): "alice:admin",
+            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://airflow@db/airflow",
+            ("api", "host"): "localhost",
+            ("core", "executor"): "LocalExecutor",
+        }
+        with conf_vars(config):
+            auth_manager.init()
+        mock_log.warning.assert_called_once()
+
+    @mock.patch("airflow.api_fastapi.auth.managers.simple.simple_auth_manager.log")
+    def test_init_does_not_warn_for_dev_shape(self, mock_log, auth_manager):
+        """No production warning when the deployment shape looks like local dev."""
+        config = {
+            ("core", "simple_auth_manager_users"): "alice:admin",
+            ("database", "sql_alchemy_conn"): "sqlite:////tmp/airflow.db",
+            ("api", "host"): "localhost",
+            ("core", "executor"): "LocalExecutor",
+        }
+        with conf_vars(config):
+            auth_manager.init()
+        mock_log.warning.assert_not_called()
+
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
         assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
