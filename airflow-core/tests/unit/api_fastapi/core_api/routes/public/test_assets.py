@@ -1389,6 +1389,64 @@ class TestPostAssetEvents(TestAssets):
                 assert asset["last_asset_event"]["timestamp"] is None
 
 
+class TestPostAssetEventsTeamResolution(TestAssets):
+    """Tests for team-based filtering in create_asset_event."""
+
+    _ROUTE = "airflow.api_fastapi.core_api.routes.public.assets"
+
+    def _make_mock_event(self, asset):
+        m = mock.MagicMock(
+            spec=AssetEvent,
+            id=1,
+            asset_id=asset.id,
+            uri=asset.uri,
+            group=asset.group,
+            extra={"from_rest_api": True},
+            source_map_index=-1,
+            timestamp=DEFAULT_DATE,
+            source_task_id=None,
+            source_dag_id=None,
+            source_run_id=None,
+            partition_key=None,
+            created_dagruns=[],
+        )
+        # MagicMock uses 'name' internally for repr, so it must be set separately.
+        m.name = asset.name
+        return m
+
+    @pytest.mark.usefixtures("time_freezer")
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_teams"),
+        [
+            pytest.param(True, {"team_a", "team_b"}, id="enabled"),
+            pytest.param(False, set(), id="disabled"),
+        ],
+    )
+    def test_team_resolution(self, test_client, session, multi_team, expected_teams):
+        (asset,) = self.create_assets(session, num=1)
+        mock_auth_mgr = mock.MagicMock()
+        mock_auth_mgr.get_authorized_teams.return_value = {"team_a", "team_b"}
+
+        with (
+            mock.patch(
+                f"{self._ROUTE}.conf.getboolean",
+                side_effect=lambda s, k, **kw: multi_team if k == "multi_team" else kw.get("fallback"),
+            ),
+            mock.patch(f"{self._ROUTE}.get_auth_manager", return_value=mock_auth_mgr),
+            mock.patch(
+                f"{self._ROUTE}.asset_manager.register_asset_change",
+                spec=True,
+                return_value=self._make_mock_event(asset),
+            ) as mock_register,
+        ):
+            response = test_client.post("/assets/events", json={"asset_id": asset.id, "extra": {}})
+
+        assert response.status_code == 200
+        call_kwargs = mock_register.call_args.kwargs
+        assert call_kwargs["source_is_api"] is True
+        assert call_kwargs["api_user_teams"] == expected_teams
+
+
 @pytest.mark.need_serialized_dag
 class TestPostAssetMaterialize(TestAssets):
     DAG_ASSET1_ID = "test_dag_1"
@@ -1504,12 +1562,12 @@ class TestPostAssetMaterialize(TestAssets):
     def test_should_respond_409_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/2/materialize")
         assert response.status_code == 409
-        assert response.json()["detail"] == "More than one DAG materializes asset with ID: 2"
+        assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/3/materialize")
         assert response.status_code == 404
-        assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
+        assert response.json()["detail"] == "No Dag materializes asset with ID: 3"
 
     def test_should_respond_400_if_materialization_runs_denied(self, test_client, session):
         sdm = session.scalar(
@@ -1542,7 +1600,7 @@ class TestPostAssetMaterialize(TestAssets):
 
             assert response.status_code == 403
             assert response.json()["detail"] == (
-                f"User is not authorized to trigger a run for DAG: {self.DAG_ASSET1_ID} that materializes this asset"
+                f"User is not authorized to trigger a run for Dag: {self.DAG_ASSET1_ID} that materializes this asset"
             )
             mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
                 method="POST",

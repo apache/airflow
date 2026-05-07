@@ -14,18 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.3.4'
-default_language_version:
-  python: python3
-repos:
-  - repo: local
-    hooks:
-      - id: mypy-helm-tests
-        name: Run mypy for helm-tests
-        language: python
-        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py helm-tests
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true

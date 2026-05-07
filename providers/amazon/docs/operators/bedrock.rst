@@ -353,6 +353,20 @@ To create an Amazon Bedrock guardrail, use
     :start-after: [START howto_operator_bedrock_create_guardrail]
     :end-before: [END howto_operator_bedrock_create_guardrail]
 
+.. _howto/operator:BedrockCreateGuardrailVersionOperator:
+
+Create a Guardrail Version
+--------------------------
+
+To create a versioned snapshot of an Amazon Bedrock guardrail, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateGuardrailVersionOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_guardrail.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_create_guardrail_version]
+    :end-before: [END howto_operator_bedrock_create_guardrail_version]
+
 .. _howto/operator:BedrockDeleteGuardrailOperator:
 
 Delete a Guardrail

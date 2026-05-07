@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``21.2.0``
+Release: ``21.3.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/21.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/21.3.0/>`_.
 
 Installation
 ------------
@@ -93,7 +93,7 @@ PIP package                                 Version required
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
 ``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.25.0``
+``google-cloud-dataproc``                   ``>=5.27.0``
 ``google-cloud-dataproc-metastore``         ``>=1.12.0``
 ``google-cloud-dlp``                        ``>=3.12.0``
 ``google-cloud-kms``                        ``>=2.15.0``
@@ -205,4 +205,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/21.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/21.3.0/changelog.html>`_.

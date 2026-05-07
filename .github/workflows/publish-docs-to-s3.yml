@@ -127,7 +127,39 @@ jobs:
         env:
           INCLUDE_DOCS: ${{ inputs.include-docs }}
           REF: ${{ inputs.ref }}
-        run: python3 dev/registry/derive_wave_providers.py
+        shell: bash
+        # The registry rebuild is provider-targeted. For non-provider
+        # distributions (apache-airflow, airflow-ctl, helm-chart, etc.) the
+        # update-registry job below is a no-op anyway, so skip the derive
+        # step — that lets release tags cut before
+        # `dev/registry/derive_wave_providers.py` was added (#66100) still
+        # publish docs without the workflow tripping on the missing file.
+        # Tracked at #66436.
+        run: |
+          # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
+          # dev/registry/derive_wave_providers.py.
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "apache-airflow-task-sdk" "helm-chart" "docker-stack")
+          has_provider=false
+          for token in $INCLUDE_DOCS; do
+            is_non_provider=false
+            for np in "${NON_PROVIDER_TOKENS[@]}"; do
+              if [[ "$token" == "$np" ]]; then
+                is_non_provider=true
+                break
+              fi
+            done
+            if ! $is_non_provider; then
+              has_provider=true
+              break
+            fi
+          done
+          if ! $has_provider; then
+            echo "Non-provider distribution(s) only ('${INCLUDE_DOCS}') — skipping registry-derive."
+            echo "registry-providers=" >> "${GITHUB_OUTPUT}"
+            echo "registry-full-build=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          python3 dev/registry/derive_wave_providers.py
       - name: "Input parameters summary"
         shell: bash
         id: parameters

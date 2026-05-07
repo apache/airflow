@@ -236,7 +236,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
-            r"^helm-tests",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -303,7 +302,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/.*\.py$",
         ],
         FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES: [
-            r"^helm-tests/.*\.py$",
+            r"^chart/tests/.*\.py$",
         ],
         FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES: [
             r"^airflow-e2e-tests/.*\.py$",
@@ -328,7 +327,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/tests/.*",
             r"^devel-common/src/.*",
             r"^devel-common/tests/.*",
-            r"^helm-tests/tests/.*",
+            r"^chart/tests/.*",
             r"^kubernetes-tests/tests/.*",
             r"^docker-tests/tests/.*",
         ],

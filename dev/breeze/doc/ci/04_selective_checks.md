@@ -51,7 +51,7 @@ We have the following Groups of files for CI that determine which tests are run:
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
-* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm-tests` folder.
+* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder (which contains the chart sources and tests under `chart/tests/`).
 * `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
   build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
   The dependencies are automatically generated from the `provider.yaml` files in provider by

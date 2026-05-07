@@ -107,7 +107,7 @@ def update_dependabot(new_branch: str, prev_branch: str, new_dash: str) -> None:
       - /dev/breeze
       - /docker-tests
       - /kubernetes-tests
-      - /helm-tests
+      - /chart
       - /task-sdk
       - /
     schedule:

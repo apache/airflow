@@ -151,3 +151,122 @@ class GlueCatalogDeleteDatabaseOperator(AwsBaseOperator[AwsBaseHook]):
         )
         self.hook.conn.delete_database(**kwargs)
         self.log.info("Deleted Glue Catalog database: %s", self.database_name)
+
+
+class GlueCatalogCreateTableOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Create a table in an AWS Glue Data Catalog database.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCatalogCreateTableOperator`
+
+    :param database_name: The name of the database. (templated)
+    :param table_name: The name of the table. (templated)
+    :param table_input: The ``TableInput`` dict defining the table schema, storage, etc. (templated)
+    :param catalog_id: The ID of the Data Catalog. Defaults to the account ID. (templated)
+    :param if_exists: Behavior when the table already exists.
+        ``"fail"`` raises an error, ``"skip"`` logs and returns.
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "database_name",
+        "table_name",
+        "catalog_id",
+    )
+    template_fields_renderers = {"table_input": "json"}
+
+    def __init__(
+        self,
+        *,
+        database_name: str,
+        table_name: str,
+        table_input: dict[str, Any],
+        catalog_id: str | None = None,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.database_name = database_name
+        self.table_name = table_name
+        self.table_input = table_input
+        self.catalog_id = catalog_id
+        self.if_exists = if_exists
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "glue"}
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating Glue table %s in database %s", self.table_name, self.database_name)
+        # Ensure Name is set in TableInput
+        table_input = {**self.table_input, "Name": self.table_name}
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "DatabaseName": self.database_name,
+                "TableInput": table_input,
+                "CatalogId": self.catalog_id,
+            }
+        )
+        try:
+            self.hook.conn.create_table(**kwargs)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "AlreadyExistsException" and self.if_exists == "skip":
+                self.log.info("Table %s already exists, skipping.", self.table_name)
+            else:
+                raise
+        self.log.info("Table %s created.", self.table_name)
+        return self.table_name
+
+
+class GlueCatalogDeleteTableOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Delete a table from an AWS Glue Data Catalog database.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCatalogDeleteTableOperator`
+
+    :param database_name: The name of the database. (templated)
+    :param table_name: The name of the table to delete. (templated)
+    :param catalog_id: The ID of the Data Catalog. Defaults to the account ID. (templated)
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "database_name",
+        "table_name",
+        "catalog_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        database_name: str,
+        table_name: str,
+        catalog_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.database_name = database_name
+        self.table_name = table_name
+        self.catalog_id = catalog_id
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "glue"}
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting Glue table %s from database %s", self.table_name, self.database_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "DatabaseName": self.database_name,
+                "Name": self.table_name,
+                "CatalogId": self.catalog_id,
+            }
+        )
+        self.hook.conn.delete_table(**kwargs)
+        self.log.info("Deleted table %s", self.table_name)
