@@ -220,6 +220,10 @@ def _build_java_sdk_bundles(tmp_dir: Path) -> Path:
         "JAVA_STUB_DAG_ID": JAVA_STUB_DAG_ID,
         "JAVA_PURE_DAG_ID": JAVA_PURE_DAG_ID,
         "JAVA_SDK_DAGS_DIR": str(JAVA_SDK_DAGS_FOLDER),
+        # The build script defaults GRADLE_USER_HOME to /files/.gradle for breeze
+        # in-container caching; on the host we use the standard ~/.gradle so the
+        # Gradle wrapper can write its lock files.
+        "GRADLE_USER_HOME": os.environ.get("GRADLE_USER_HOME", str(Path.home() / ".gradle")),
     }
 
     console.print("[yellow]Building Java SDK bundles via shared build script...")
@@ -272,12 +276,24 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             },
         ]
     )
+    coordinators = json.dumps(
+        [
+            {
+                "name": "java",
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"bundles_folder": JAVA_CONTAINER_STUB_JAVA_BUNDLES_FOLDER_PATH},
+            }
+        ]
+    )
+    queue_to_coordinator = json.dumps({"java-queue": "java"})
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         "AIRFLOW__CORE__LOAD_EXAMPLES=false\n"
+        "AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG\n"
+        f"AIRFLOW__SDK__COORDINATORS={coordinators}\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR={queue_to_coordinator}\n"
         f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST={bundle_config}\n"
-        f"AIRFLOW__JAVA__BUNDLES_FOLDER={JAVA_CONTAINER_STUB_JAVA_BUNDLES_FOLDER_PATH}\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
