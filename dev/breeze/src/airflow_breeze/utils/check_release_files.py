@@ -25,7 +25,7 @@ from airflow_breeze.utils.console import get_console
 # Must satisfy the `[tool.uv] required-version` floor in the root pyproject.toml
 # that gets COPY'd into the PMC image. Kept in lockstep with that floor by the
 # `sync-uv-min-version-markers` prek hook.
-_PROVIDERS_DOCKER_UV_MIN_VERSION = "0.11.7"  # sync-uv-min-version
+_PROVIDERS_DOCKER_UV_MIN_VERSION = "0.11.8"  # sync-uv-min-version
 
 PROVIDERS_DOCKER = f"""\
 FROM ghcr.io/apache/airflow/main/ci/python3.10

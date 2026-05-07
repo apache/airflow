@@ -343,10 +343,7 @@ class TestCreateUserJob:
         assert "ttlSecondsAfterFinished" not in spec
 
     def test_default_command_and_args_airflow_version(self):
-        docs = render_chart(
-            values={},
-            show_only=["templates/jobs/create-user-job.yaml"],
-        )
+        docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [

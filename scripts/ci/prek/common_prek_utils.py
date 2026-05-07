@@ -374,19 +374,24 @@ def run_command_via_breeze_shell(
             print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
             print("With environment:")
             print(new_env)
-    result = subprocess.run(
-        subprocess_cmd,
-        check=False,
-        text=True,
-        **other_popen_kwargs,
-        env=new_env,
-    )
-    # Stop remaining containers
-    down_command = ["docker", "compose", "--progress", "quiet"]
-    if project_name:
-        down_command.extend(["--project-name", project_name])
-    down_command.extend(["down", "--remove-orphans"])
-    subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        result = subprocess.run(
+            subprocess_cmd,
+            check=False,
+            text=True,
+            **other_popen_kwargs,
+            env=new_env,
+        )
+    finally:
+        # Always clean up containers, networks, and volumes the breeze shell
+        # invocation created — even if the subprocess raised (KeyboardInterrupt,
+        # OSError, etc.). Without --volumes the next prek run inherits state
+        # from the previous run, which is the bug this finally clause prevents.
+        down_command = ["docker", "compose", "--progress", "quiet"]
+        if project_name:
+            down_command.extend(["--project-name", project_name])
+        down_command.extend(["down", "--remove-orphans", "--volumes"])
+        subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result
 
 

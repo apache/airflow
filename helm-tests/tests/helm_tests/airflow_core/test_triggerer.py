@@ -778,6 +778,23 @@ class TestTriggererServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
 
+class TestTriggererNetworkPolicy:
+    """Tests triggerer network policy."""
+
+    def test_should_allow_api_server_to_read_triggerer_logs(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+            },
+            show_only=["templates/triggerer/triggerer-networkpolicy.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            == "api-server"
+        )
+
+
 class TestTriggererLogGroomer(LogGroomerTestBase):
     """Triggerer log groomer."""
 

@@ -251,7 +251,7 @@ def get_provider_info():
                 "integration-name": "Amazon S3 Tables",
                 "external-doc-url": "https://aws.amazon.com/s3/features/tables/",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3tables/s3tables.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3_tables.rst"],
                 "tags": ["aws"],
             },
             {
@@ -284,7 +284,10 @@ def get_provider_info():
                 "integration-name": "AWS Glue",
                 "external-doc-url": "https://aws.amazon.com/glue/",
                 "logo": "/docs/integration-logos/AWS-Glue_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/glue.rst"],
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-amazon/operators/glue.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/glue_catalog.rst",
+                ],
                 "tags": ["aws"],
             },
             {
@@ -342,6 +345,13 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "external-doc-url": "https://docs.aws.amazon.com/mwaa/latest/userguide/mwaa-serverless.html",
+                "logo": "/docs/integration-logos/Amazon-MWAA.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa_serverless.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon Neptune",
                 "external-doc-url": "https://aws.amazon.com/neptune/",
                 "logo": "/docs/integration-logos/Amazon-Neptune_64.png",
@@ -360,6 +370,13 @@ def get_provider_info():
                 "external-doc-url": "https://aws.amazon.com/managed-workflows-for-apache-airflow/",
                 "logo": "/docs/integration-logos/Amazon-MWAA.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon S3 Vectors",
+                "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
+                "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3_vectors.rst"],
                 "tags": ["aws"],
             },
         ],
@@ -428,6 +445,7 @@ def get_provider_info():
                 "integration-name": "AWS Glue",
                 "python-modules": [
                     "airflow.providers.amazon.aws.operators.glue",
+                    "airflow.providers.amazon.aws.operators.glue_catalog",
                     "airflow.providers.amazon.aws.operators.glue_crawler",
                 ],
             },
@@ -444,12 +462,16 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.mwaa"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "python-modules": ["airflow.providers.amazon.aws.operators.mwaa_serverless"],
+            },
+            {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.operators.s3"],
             },
             {
                 "integration-name": "Amazon S3 Tables",
-                "python-modules": ["airflow.providers.amazon.aws.operators.s3tables"],
+                "python-modules": ["airflow.providers.amazon.aws.operators.s3_tables"],
             },
             {
                 "integration-name": "Amazon SageMaker",
@@ -457,7 +479,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.operators.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Email Service (SES)",
@@ -505,6 +530,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Neptune",
                 "python-modules": ["airflow.providers.amazon.aws.operators.neptune"],
+            },
+            {
+                "integration-name": "Amazon S3 Vectors",
+                "python-modules": ["airflow.providers.amazon.aws.operators.s3_vectors"],
             },
         ],
         "sensors": [
@@ -585,6 +614,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa_serverless"],
+            },
+            {
                 "integration-name": "Amazon OpenSearch Serverless",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.opensearch_serverless"],
             },
@@ -606,7 +639,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.sensors.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Queue Service (SQS)",
@@ -766,12 +802,19 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.hooks.s3"],
             },
             {
+                "integration-name": "Amazon S3 Tables",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.s3_tables"],
+            },
+            {
                 "integration-name": "Amazon SageMaker",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.sagemaker"],
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.hooks.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Email Service (SES)",
@@ -882,7 +925,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.triggers.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "AWS Glue",

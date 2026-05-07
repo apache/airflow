@@ -39,9 +39,9 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply rename run_type from 'dataset_triggered' to 'asset_triggered' in dag_run table."""
-    op.execute("update dag_run set run_type = 'asset_triggered' where run_type = 'dataset_triggered'")
+    op.execute("update dag_run set run_type = 'asset_triggered' where run_type = 'dataset_triggered'")  # noqa: MIG003 -- column rename data migration
 
 
 def downgrade():
     """Unapply rename run_type from 'asset_triggered' to 'dataset_triggered' in dag_run table."""
-    op.execute("update dag_run set run_type = 'dataset_triggered' where run_type = 'asset_triggered'")
+    op.execute("update dag_run set run_type = 'dataset_triggered' where run_type = 'asset_triggered'")  # noqa: MIG003 -- column rename data migration

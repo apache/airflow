@@ -73,7 +73,7 @@ TEST_COMMANDS = [
     "connections import tests/airflowctl_tests/fixtures/test_connections.json",
     "connections delete --conn-id=test_con",
     "connections delete --conn-id=test_import_conn",
-    # DAGs commands
+    # Dags commands
     "dags list",
     "dags get --dag-id=example_bash_operator",
     "dags get-details --dag-id=example_bash_operator",
@@ -88,12 +88,12 @@ TEST_COMMANDS = [
     "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
-    # DAG Run commands
+    # Dag Run commands
     'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     "dags update --dag-id=example_bash_operator --no-is-paused",
-    # DAG Run commands
+    # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
-    # XCom commands - need a DAG run with completed tasks
+    # XCom commands - need a Dag run with completed tasks
     'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"test": "value"}}\'',
     'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
     'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',

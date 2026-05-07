@@ -33,14 +33,14 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-if not AIRFLOW_V_3_3_0_PLUS:
+if not AIRFLOW_V_3_3_PLUS:
     from sqlalchemy import select
 
     from airflow.models.taskinstance import TaskInstance
@@ -132,7 +132,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             )
             self.log.info("Job: %s is cancelled.", self.job_id)
 
-    if not AIRFLOW_V_3_3_0_PLUS:
+    if not AIRFLOW_V_3_3_PLUS:
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
@@ -212,7 +212,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
             )
         except asyncio.CancelledError:
-            if not AIRFLOW_V_3_3_0_PLUS:
+            if not AIRFLOW_V_3_3_PLUS:
                 self.log.info("Task got cancelled.")
                 try:
                     if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
@@ -284,7 +284,7 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
             )
             self.log.info("Job: %s is cancelled.", self.job_id)
 
-    if not AIRFLOW_V_3_3_0_PLUS:
+    if not AIRFLOW_V_3_3_PLUS:
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
@@ -371,7 +371,7 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
                 {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
             )
         except asyncio.CancelledError:
-            if not AIRFLOW_V_3_3_0_PLUS:
+            if not AIRFLOW_V_3_3_PLUS:
                 self.log.info("Task got cancelled.")
                 try:
                     if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():

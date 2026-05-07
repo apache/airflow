@@ -160,7 +160,6 @@ class TestAirflowCommon:
                 "cleanup": {"enabled": True},
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
-                "dagProcessor": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -195,7 +194,6 @@ class TestAirflowCommon:
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
-                "dagProcessor": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -351,6 +349,10 @@ class TestAirflowCommon:
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         ]
         expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
@@ -362,7 +364,6 @@ class TestAirflowCommon:
 
     def test_have_all_variables(self):
         docs = render_chart(
-            values={},
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
@@ -380,6 +381,10 @@ class TestAirflowCommon:
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         ]
         expected_vars_no_jwt = [
             "AIRFLOW_HOME",
@@ -388,6 +393,10 @@ class TestAirflowCommon:
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__CELERY__BROKER_URL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
@@ -400,9 +409,6 @@ class TestAirflowCommon:
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
-            values={
-                "dagProcessor": {"enabled": True},
-            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
