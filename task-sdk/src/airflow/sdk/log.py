@@ -226,20 +226,42 @@ def relative_path_from_logger(logger) -> Path | None:
 
 def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     raw_logger = getattr(logger, "_logger")
+    # Dedicated logger for remote-upload visibility — operators relying on
+    # remote log handlers need a way to see when those handlers fail to load
+    # or fail to upload. The default behaviour was to silently fall through.
+    upload_log = structlog.get_logger("airflow.logging.remote")
 
     handler = load_remote_log_handler()
     if not handler:
+        upload_log.warning(
+            "remote_log_handler_unavailable",
+            ti_id=str(getattr(ti, "id", None)),
+            note="Remote log handler could not be loaded; logs will be available locally only.",
+        )
         return
 
     try:
         relative_path = relative_path_from_logger(raw_logger)
-    except Exception:
+    except Exception as exc:
+        upload_log.warning(
+            "remote_log_path_resolution_failed",
+            ti_id=str(getattr(ti, "id", None)),
+            error=str(exc),
+        )
         return
     if not relative_path:
         return
 
     log_relative_path = relative_path.as_posix()
-    handler.upload(log_relative_path, ti)
+    try:
+        handler.upload(log_relative_path, ti)
+    except Exception as exc:
+        upload_log.warning(
+            "remote_log_upload_failed",
+            ti_id=str(getattr(ti, "id", None)),
+            log_relative_path=log_relative_path,
+            error=str(exc),
+        )
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:
