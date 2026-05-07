@@ -131,7 +131,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
+      - /docs/apache-airflow-providers-amazon/operators/athena/athena_spark.rst
     tags: [aws]
+
   - integration-name: Amazon Bedrock
     external-doc-url: https://aws.amazon.com/bedrock/
     logo: /docs/integration-logos/Amazon-Bedrock_light-bg@4x.png
@@ -413,6 +415,8 @@ operators:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.operators.athena
+      - airflow.providers.amazon.aws.operators.athena_spark
+
   - integration-name: Amazon Web Services
     python-modules:
       - airflow.providers.amazon.aws.operators.base_aws
@@ -527,6 +531,8 @@ sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+      - airflow.providers.amazon.aws.sensors.athena_spark
+
   - integration-name: Amazon Web Services
     python-modules:
       - airflow.providers.amazon.aws.sensors.base_aws
