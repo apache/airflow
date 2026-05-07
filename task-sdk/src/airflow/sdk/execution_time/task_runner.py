@@ -1429,6 +1429,25 @@ def run(
                     "Failed to report terminal task state to supervisor",
                     state=state.value,
                 )
+                # Fail closed for non-success terminal states: when the
+                # supervisor never receives the terminal-state message,
+                # exiting 0 would let the supervisor's final_state property
+                # default to SUCCESS (exit_code == 0 with no _terminal_state
+                # set). For a task that actually FAILED / was SKIPPED / etc.,
+                # that turns an IPC blip into silent data-quality breakage
+                # for every downstream task. Exit non-zero so the
+                # supervisor's final_state correctly classifies this as
+                # FAILED (or UP_FOR_RETRY when retries are configured).
+                #
+                # SUCCESS is exempt: a "send the SUCCESS marker, supervisor
+                # rejects with 409 because the server already terminalised
+                # this TI" path is the legitimate scenario the existing
+                # softening targets. In that path the local state is SUCCESS
+                # and the supervisor's default-to-SUCCESS coincides with
+                # reality, so we continue to finalize() so listeners observe
+                # the task state.
+                if state != TaskInstanceState.SUCCESS:
+                    sys.exit(1)
 
     # Return the message to make unit tests easier too
     ti.state = state

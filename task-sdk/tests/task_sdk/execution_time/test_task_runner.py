@@ -475,6 +475,40 @@ def test_run_swallows_supervisor_terminal_send_failure(create_runtime_ti, mock_s
     assert error is None
 
 
+def test_run_exits_nonzero_when_failure_terminal_send_fails(create_runtime_ti, mock_supervisor_comms):
+    """
+    When the task FAILS and the terminal-state send to the supervisor fails too
+    (e.g. broken Unix socket / supervisor crashed / IPC channel dead), `run()`
+    must not silently swallow it: the supervisor's `final_state` property
+    defaults exit_code-0-with-no-terminal-state to SUCCESS, which would turn
+    a transient IPC blip into a silent data-quality bug downstream. Exit
+    non-zero so the supervisor classifies this as FAILED / UP_FOR_RETRY.
+    """
+    from airflow.sdk.execution_time.task_runner import run
+
+    class FailingOperator(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("task body failed")
+
+    task = FailingOperator(task_id="failing")
+    runtime_ti = create_runtime_ti(task=task)
+    context = runtime_ti.get_template_context()
+    log = mock.MagicMock()
+
+    # Let the terminal-state send raise an IPC-level failure.
+    def send_side_effect(msg=None, **kwargs):
+        if isinstance(msg, TaskState):
+            raise BrokenPipeError("supervisor IPC broken")
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = send_side_effect
+
+    with pytest.raises(SystemExit) as exc_info:
+        run(runtime_ti, context, log)
+
+    assert exc_info.value.code == 1
+
+
 def test_task_span_is_child_of_dag_run_span(make_ti_context):
     """Full trace hierarchy: dag_run → task_run.my_task (API server) → worker.my_task (task runner)."""
     # Single provider shared by all spans so contexts are compatible.
