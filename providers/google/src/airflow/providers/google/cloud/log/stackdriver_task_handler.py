@@ -25,7 +25,9 @@ import os
 import shutil
 import warnings
 from collections.abc import Collection
+from datetime import datetime
 from functools import cached_property
+from logging import getLogRecordFactory
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
@@ -87,7 +89,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
     labels: dict[str, str] | None = None
 
     @cached_property
-    def _credentials_and_project(self) -> tuple[Credentials, str]:
+    def credentials_and_project(self) -> tuple[Credentials, str]:
         credentials, project = get_credentials_and_project_id(
             key_path=self.gcp_key_path, scopes=self.scopes, disable_logging=True
         )
@@ -96,7 +98,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
     @cached_property
     def _client(self) -> gcp_logging.Client:
         """The Cloud Library API client."""
-        credentials, project = self._credentials_and_project
+        credentials, project = self.credentials_and_project
         return gcp_logging.Client(
             credentials=credentials,
             project=project,
@@ -106,28 +108,25 @@ class StackdriverRemoteLogIO(LoggingMixin):
     @cached_property
     def _logging_service_client(self) -> LoggingServiceV2Client:
         """The Cloud logging service v2 client."""
-        credentials, _ = self._credentials_and_project
+        credentials, _ = self.credentials_and_project
         return LoggingServiceV2Client(
             credentials=credentials,
             client_info=CLIENT_INFO,
         )
 
     @cached_property
-    def _transport(self) -> Transport:
+    def transport(self) -> Transport:
         """Object responsible for sending data to Stackdriver."""
         return self.transport_type(self._client, self.gcp_log_name)
 
     @cached_property
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
-        from datetime import datetime
-        from logging import getLogRecordFactory
-
         import structlog.stdlib
 
-        logRecordFactory = getLogRecordFactory()
-        _transport = self._transport
-
         from airflow.sdk.log import relative_path_from_logger
+
+        log_record_factory = getLogRecordFactory()
+        _transport = self.transport
 
         def proc(
             logger: structlog.typing.WrappedLogger,
@@ -144,7 +143,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
             if ts := msg.pop("timestamp", None):
                 with contextlib.suppress(Exception):
                     created = datetime.fromisoformat(ts)
-            record = logRecordFactory(
+            record = log_record_factory(
                 name,
                 level,
                 pathname="",
@@ -159,16 +158,21 @@ class StackdriverRemoteLogIO(LoggingMixin):
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0
-            _transport.send(
-                record, str(msg.get("event", "")), resource=self.resource, labels=self.labels or {}
-            )
+
+            ti = getattr(record, "task_instance", None)
+            labels: dict[str, str] = {}
+            if self.labels:
+                labels.update(self.labels)
+            if ti:
+                labels.update(_task_instance_to_labels(ti))
+            _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
 
         return (proc,)
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI) -> None:
         """Flush the transport and optionally delete local log files."""
-        self._transport.flush()
+        self.transport.flush()
         if self.delete_local_copy:
             base = self.base_log_folder.resolve()
             raw = Path(path)
@@ -189,11 +193,11 @@ class StackdriverRemoteLogIO(LoggingMixin):
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         """Read logs from Stackdriver Logging using task instance labels."""
         ti_labels = _task_instance_to_labels(ti)
-        log_filter = self._prepare_log_filter(ti_labels)
-        messages, end_of_log, _ = self._read_logs(log_filter, next_page_token=None, all_pages=True)
+        log_filter = self.prepare_log_filter(ti_labels)
+        messages, end_of_log, _ = self.read_logs(log_filter, next_page_token=None, all_pages=True)
         return [f"Reading remote log from Stackdriver for {relative_path}"], [messages] if messages else []
 
-    def _prepare_log_filter(self, ti_labels: dict[str, str]) -> str:
+    def prepare_log_filter(self, ti_labels: dict[str, str]) -> str:
         def escape_label_key(key: str) -> str:
             return f'"{key}"' if "." in key else key
 
@@ -201,7 +205,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
             escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
             return f'"{escaped_value}"'
 
-        _, project = self._credentials_and_project
+        _, project = self.credentials_and_project
         log_filters = [
             f"resource.type={escape_label_value(self.resource.type)}",
             f'logName="projects/{project}/logs/{self.gcp_log_name}"',
@@ -214,7 +218,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
             log_filters.append(f"labels.{escape_label_key(key)}={escape_label_value(value)}")
         return "\n".join(log_filters)
 
-    def _read_logs(
+    def read_logs(
         self, log_filter: str, next_page_token: str | None, all_pages: bool
     ) -> tuple[str, bool, str | None]:
         messages = []
@@ -229,8 +233,6 @@ class StackdriverRemoteLogIO(LoggingMixin):
                     log_filter=log_filter, page_token=next_page_token
                 )
                 messages.append(new_messages)
-                if not messages:
-                    break
 
             end_of_log = True
             next_page_token = None
@@ -239,7 +241,7 @@ class StackdriverRemoteLogIO(LoggingMixin):
         return "\n".join(messages), end_of_log, next_page_token
 
     def _read_single_logs_page(self, log_filter: str, page_token: str | None = None) -> tuple[str, str]:
-        _, project = self._credentials_and_project
+        _, project = self.credentials_and_project
         request = ListLogEntriesRequest(
             resource_names=[f"projects/{project}"],
             filter=log_filter,
@@ -301,6 +303,7 @@ class StackdriverTaskHandler(logging.Handler):
     :param labels: (Optional) Mapping of labels for the entry.
     """
 
+    # Re-export module-level constants for back-compat with external code reading them off the class
     LABEL_TASK_ID = LABEL_TASK_ID
     LABEL_DAG_ID = LABEL_DAG_ID
     LABEL_LOGICAL_DATE = LABEL_LOGICAL_DATE
@@ -376,7 +379,7 @@ class StackdriverTaskHandler(logging.Handler):
         if not AIRFLOW_V_3_0_PLUS and getattr(record, ctx_indiv_trigger.name, None):
             ti = getattr(record, "task_instance", None)  # trigger context
         labels = self._get_labels(ti)
-        self.io._transport.send(record, message, resource=self.resource, labels=labels)
+        self.io.transport.send(record, message, resource=self.resource, labels=labels)
 
     def set_context(self, task_instance: TaskInstance) -> None:
         """
@@ -415,11 +418,11 @@ class StackdriverTaskHandler(logging.Handler):
         else:
             del ti_labels[LABEL_TRY_NUMBER]
 
-        log_filter = self.io._prepare_log_filter(ti_labels)
+        log_filter = self.io.prepare_log_filter(ti_labels)
         next_page_token = metadata.get("next_page_token", None)
         all_pages = "download_logs" in metadata and metadata["download_logs"]
 
-        messages, end_of_log, next_page_token = self.io._read_logs(log_filter, next_page_token, all_pages)
+        messages, end_of_log, next_page_token = self.io.read_logs(log_filter, next_page_token, all_pages)
 
         new_metadata: dict[str, str | bool] = {"end_of_log": end_of_log}
 
@@ -430,7 +433,14 @@ class StackdriverTaskHandler(logging.Handler):
 
     @classmethod
     def _task_instance_to_labels(cls, ti: TaskInstance) -> dict[str, str]:
-        return _task_instance_to_labels(ti)
+        return {
+            cls.LABEL_TASK_ID: ti.task_id,
+            cls.LABEL_DAG_ID: ti.dag_id,
+            cls.LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
+            if AIRFLOW_V_3_0_PLUS
+            else str(ti.execution_date.isoformat()),
+            cls.LABEL_TRY_NUMBER: str(ti.try_number),
+        }
 
     @property
     def log_name(self):
@@ -455,12 +465,12 @@ class StackdriverTaskHandler(logging.Handler):
         :param try_number: task instance try_number to read logs from
         :return: URL to the external log collection service
         """
-        _, project_id = self.io._credentials_and_project
+        _, project_id = self.io.credentials_and_project
 
         ti_labels = _task_instance_to_labels(task_instance)
         ti_labels[LABEL_TRY_NUMBER] = str(try_number)
 
-        log_filter = self.io._prepare_log_filter(ti_labels)
+        log_filter = self.io.prepare_log_filter(ti_labels)
 
         url_query_string = {
             "project": project_id,
@@ -473,4 +483,4 @@ class StackdriverTaskHandler(logging.Handler):
         return url
 
     def close(self) -> None:
-        self.io._transport.flush()
+        self.io.transport.flush()

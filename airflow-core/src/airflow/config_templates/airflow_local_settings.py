@@ -241,25 +241,19 @@ if REMOTE_LOGGING:
         )
         _handler_kwargs = {}
     elif remote_base_log_folder.startswith("stackdriver://"):
-        from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverRemoteLogIO
-
         key_path = conf.get_mandatory_value("logging", "GOOGLE_KEY_PATH", fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
         log_name = urlsplit(remote_base_log_folder).path[1:]
+        STACKDRIVER_REMOTE_HANDLERS = {
+            "task": {
+                "class": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+                "formatter": "airflow",
+                "gcp_log_name": log_name,
+                "gcp_key_path": key_path,
+            }
+        }
 
-        REMOTE_TASK_LOG = StackdriverRemoteLogIO(
-            **cast(
-                "dict[str, Any]",
-                {
-                    "base_log_folder": BASE_LOG_FOLDER,
-                    "gcp_log_name": log_name,
-                    "gcp_key_path": key_path,
-                    "delete_local_copy": delete_local_copy,
-                }
-                | _handler_kwargs,
-            )
-        )
-        _handler_kwargs = {}
+        DEFAULT_LOGGING_CONFIG["handlers"].update(STACKDRIVER_REMOTE_HANDLERS)
     elif remote_base_log_folder.startswith("oss://"):
         from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO
 
