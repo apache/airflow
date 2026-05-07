@@ -30,41 +30,31 @@ following `AIP-94: Decoupling Remote Commands from Airflow CLI to airflowctl
 Overview
 --------
 
+Airflow ships two CLIs:
+
+- **airflow** (``airflow-core``) — bundled with the core distribution. Hosts both legacy
+  remote commands (being rewired internally) and admin/local commands that have no Public
+  API equivalent.
+- **airflowctl** (``airflow-ctl``) — a standalone CLI distributed separately that talks to a
+  running Airflow instance exclusively through the Public (Core) API.
+
 As of Airflow 3.3 (tracked via `GitHub Projects #570 and #571
-<https://github.com/orgs/apache/projects/570>`_), the ``airflow`` CLI commands are being
-rearchitected so that **remote commands delegate their implementation to the** ``airflowctl``
-**HTTP client** rather than accessing the metadata database directly.
+<https://github.com/orgs/apache/projects/570>`_), CLI work follows two rules:
 
-The user-facing ``airflow`` CLI commands remain unchanged — users keep running
-``airflow dags list``, ``airflow pools get``, and so on. What changes is the internal
-implementation: remote commands call the Public (Core) API through the ``airflowctl`` client
-instead of querying the database directly. This enforces RBAC, removes direct database exposure,
-and eliminates duplicate code paths.
+1. **New commands** that are achievable via the Public API are added to ``airflowctl``
+   **only**. Adding the same command to the ``airflow`` CLI as well is discouraged — it
+   duplicates maintenance surface without user benefit.
+2. **Existing** ``airflow`` **CLI remote commands** stay in place (so users keep running
+   ``airflow dags list``, ``airflow pools get``, …) but are rewired internally to call the
+   Public API via the ``airflowctl`` HTTP client instead of accessing the metadata
+   database directly.
 
-This builds on AIP-81, which introduced the distinction between *local* and *remote* commands.
+Both rules enforce RBAC, remove direct database exposure for remote operations, and eliminate
+duplicate code paths. This builds on AIP-81, which introduced the distinction between *local*
+and *remote* commands.
 
-Decision Rules
---------------
-
-**Adding a brand-new command**
-
-Prefer adding new commands directly to ``airflowctl`` rather than to the ``airflow`` CLI.
-If the operation is achievable via the Public API, implement it in ``airflowctl`` only unless
-there is a strong reason it must live in core (e.g., it is tightly coupled to a local process
-or a deployment concern that has no API representation). Adding it to the ``airflow`` CLI as
-well is discouraged — it creates duplicate maintenance surface without user benefit.
-
-**Modifying an existing command**
-
-For existing ``airflow`` CLI commands, apply one rule:
-
-- **Achievable via the Public API?** → rewire the implementation to use the ``airflowctl``
-  HTTP client. The command stays in ``airflow-core/src/airflow/cli/`` but delegates all data
-  access to ``airflowctl``. It must not import SQLAlchemy models or call ``session``\-based
-  helpers.
-- **Not achievable via the Public API** (database shell, migrations, process management,
-  deployment configuration) → pure core implementation inside ``airflow-core``. No API call,
-  no ``airflowctl`` dependency.
+Decision Table
+---------------
 
 .. list-table::
    :header-rows: 1
@@ -75,44 +65,85 @@ For existing ``airflow`` CLI commands, apply one rule:
      - Notes
    * - New command, achievable via Public API
      - ``airflowctl`` only
-     - Do not add to ``airflow`` CLI unless strongly needed in core
+     - Do not add to the ``airflow`` CLI unless strongly needed in core
    * - New command, not achievable via Public API
-     - ``airflow`` CLI, pure core
-     - Admin/local commands only
-   * - Existing command, achievable via Public API
-     - ``airflow`` CLI → delegates to ``airflowctl`` client
-     - Rewire; no direct DB access
-   * - Existing command, not achievable via Public API
-     - ``airflow`` CLI, pure core
-     - No change in approach
+     - ``airflow`` CLI (admin/local)
+     - Admin/local commands only — see below
+   * - Existing ``airflow`` CLI command, achievable via Public API
+     - ``airflow`` CLI → delegates to the ``airflowctl`` HTTP client
+     - Rewire; no direct DB access, no SQLAlchemy/``session`` usage
+   * - Existing ``airflow`` CLI command, not achievable via Public API
+     - ``airflow`` CLI, unchanged
+     - Stays as a pure ``airflow-core`` implementation
 
-Implementing a Command Backed by the Public API
-------------------------------------------------
+"Not achievable via the Public API" means the operation has no API representation and is
+inherently admin/local in nature — database shell, schema migrations, process management,
+or deployment configuration that requires direct infrastructure access.
 
-Source location: ``airflow-core/src/airflow/cli/``
+Adding a New Command (Public API achievable)
+---------------------------------------------
 
-1. Add or update the command in the appropriate CLI group.
-2. Use the ``airflowctl`` HTTP client (``airflow-ctl/src/airflowctl/``) for all data access.
+Add the command to ``airflowctl`` **only**. Do not also add it to the ``airflow`` CLI unless
+there is a strong reason it must live in core (e.g., it is tightly coupled to a local process
+or a deployment concern with no API representation).
+
+Source location: ``airflow-ctl/src/airflowctl/ctl/commands/``
+
+HTTP client and operations: ``airflow-ctl/src/airflowctl/api/`` (``client.py``, ``operations.py``).
+
+1. Add the command under the appropriate group module in
+   ``airflow-ctl/src/airflowctl/ctl/commands/``.
+2. Call the Public API through the ``airflowctl`` HTTP client (``airflowctl.api.client``) and
+   the operations layer in ``airflowctl.api.operations``. Do not import ``airflow-core``
+   models or touch the metadata database.
 3. If the required API endpoint does not exist yet, add it first
    (see `Adding API Endpoints <16_adding_api_endpoints.rst>`__).
-4. Add tests under ``airflow-core/tests/cli/`` that mock or exercise the HTTP client.
+4. Add tests under ``airflow-ctl/tests/``.
+5. Run integration tests with:
 
+   .. code-block:: bash
 
-Implementing a Pure Core Command
-----------------------------------
+      breeze testing airflow-ctl-integration-test
+
+Rewiring an Existing ``airflow`` CLI Command
+---------------------------------------------
+
+Use this when an existing ``airflow`` CLI remote command still talks to the database
+directly and needs to go through the Public API instead. The user-facing command name and
+arguments stay the same.
 
 Source location: ``airflow-core/src/airflow/cli/``
 
-1. Add or update the command in the appropriate admin group (e.g., ``db``, ``config``).
-2. Add ``(admin only)`` to the ``help`` string.
+1. Replace direct database access with calls through the ``airflowctl`` HTTP client
+   (``airflowctl.api.client`` / ``airflowctl.api.operations``). Remove SQLAlchemy model
+   imports and ``session``\-based helpers from the command.
+2. If the required API endpoint does not exist yet, add it first
+   (see `Adding API Endpoints <16_adding_api_endpoints.rst>`__).
+3. Update tests under ``airflow-core/tests/cli/`` to mock or exercise the HTTP client
+   instead of the database.
+
+Adding an Admin/Local Command (no Public API equivalent)
+---------------------------------------------------------
+
+Use this only when the operation cannot reasonably be exposed through the Public API —
+typically database shell, schema migrations, process management, or deployment-time
+configuration.
+
+Source location: ``airflow-core/src/airflow/cli/``
+
+1. Add the command to an appropriate admin group (e.g., ``db``, ``config``).
+2. Add ``(admin only)`` to the ``help`` string so users know the command requires direct
+   infrastructure access.
 3. Add tests under ``airflow-core/tests/cli/``.
 
 Bug Fixes
 ----------
 
-- Bug fixes for existing ``airflow`` CLI commands should target the ``v3-2-test`` branch
-  (backported to ``main`` as needed), as the CLI rearchitecture work is scheduled for 3.3.
-- Bug fixes for the ``airflowctl`` client itself target ``main``.
+- Bug fixes for existing ``airflow`` CLI commands should target the ``v3-2-test`` branch.
+  The rearchitecture in 3.3 may rewrite or replace the affected code paths on ``main``, so
+  fix on ``v3-2-test`` first and forward-port to ``main`` only if the same code path still
+  exists there.
+- Bug fixes for ``airflowctl`` itself target ``main``.
 
 References
 -----------
