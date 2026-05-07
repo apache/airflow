@@ -527,7 +527,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
         # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
         if self.function.__doc__ and not any(op_doc_attrs):
-            op.doc_md = self.function.__doc__
+            op.doc_md = textwrap.dedent(self.function.__doc__)
         return XComArg(op)
 
     def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
