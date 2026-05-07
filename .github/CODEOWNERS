@@ -11,7 +11,6 @@
 
 # Helm Chart
 /chart/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
-/helm-tests/ @jedcunningham @hussein-awala @jscheffl @bugraoz93
 
 # Docs
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496

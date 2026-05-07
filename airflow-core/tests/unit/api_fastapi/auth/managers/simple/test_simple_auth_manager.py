@@ -31,6 +31,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     TeamDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 
@@ -377,3 +378,10 @@ class TestSimpleAuthManager:
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         assert auth_manager.get_fastapi_middlewares() == [(SimpleAllAdminMiddleware, {})]
+
+    def test_generate_password_uses_expected_alphabet_and_length(self):
+        alphabet = set("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789")
+        for _ in range(50):
+            password = SimpleAuthManager._generate_password()
+            assert len(password) == 16
+            assert set(password).issubset(alphabet)
