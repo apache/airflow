@@ -346,14 +346,13 @@ providers/jenkins/src/airflow/providers/jenkins/sensors/jenkins.py::1
 providers/keycloak/src/airflow/providers/keycloak/auth_manager/keycloak_auth_manager.py::4
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/adx.py::4
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/base_azure.py::1
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/batch.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/container_instance.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_factory.py::26
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_lake.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/msgraph.py::3
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/wasb.py::2
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::10
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::8
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/container_instances.py::10
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/msgraph.py::1

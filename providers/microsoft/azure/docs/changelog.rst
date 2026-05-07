@@ -27,6 +27,51 @@
 Changelog
 ---------
 
+14.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+    The Azure Batch hook and operator have been migrated to ``azure-batch>=15.0.0``
+    (Azure SDK "track 2"). Users must update their code if they depend on Azure Batch
+    model classes or extend ``AzureBatchHook`` / ``AzureBatchOperator``. See the
+    `azure-batch CHANGELOG <https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/batch/azure-batch/CHANGELOG.md>`__
+    for the full list of upstream renames and removals.
+
+* The ``azure-batch`` dependency floor has been raised to ``>=15.0.0``. The 15.x line
+  is a full rewrite that removes ``BatchServiceClient`` (replaced by
+  ``BatchClient``), ``batch_auth.SharedKeyCredentials`` (replaced by
+  ``azure.core.credentials.AzureNamedKeyCredential``), and many model classes have
+  been renamed.
+* ``AzureBatchOperator`` constructor type hints updated to the new model names:
+  ``JobManagerTask`` -> ``BatchJobManagerTask``,
+  ``JobPreparationTask`` -> ``BatchJobPreparationTask``,
+  ``JobReleaseTask`` -> ``BatchJobReleaseTask``,
+  ``TaskContainerSettings`` -> ``BatchTaskContainerSettings``,
+  ``StartTask`` -> ``BatchStartTask``. Update Dag code that constructs and passes
+  these models accordingly.
+* The ``os_family`` and ``os_version`` parameters have been removed from
+  ``AzureBatchHook.configure_pool`` and ``AzureBatchOperator``. Cloud Service pool
+  configuration is no longer supported by Azure Batch (azure-batch 15.x removed
+  ``CloudServiceConfiguration``); passing either name as a keyword argument now
+  raises ``ValueError``. Use ``vm_publisher`` / ``vm_offer`` / ``vm_sku`` /
+  ``vm_node_agent_sku_id`` instead.
+* ``AzureBatchOperator.batch_max_retries`` is currently a no-op. The previous
+  implementation assigned an integer to ``BatchServiceClient.config.retry_policy``,
+  which expected a policy object; the new client manages retries via its own
+  pipeline. The parameter is retained to avoid signature breakage and may be wired
+  to the new client's retry kwargs in a future release.
+* Pool / job / task deletion and job termination now go through the new
+  long-running operation surface (``begin_delete_pool``, ``begin_delete_job``,
+  ``begin_terminate_job``). This is transparent to Dag authors using the operator
+  but affects subclasses that called ``connection.pool.delete`` / ``job.delete`` /
+  ``job.terminate`` directly.
+* ``AzureBatchHook`` no longer routes Azure Identity credentials through
+  ``AzureIdentityCredentialAdapter``. The new ``BatchClient`` accepts
+  ``azure-identity`` ``TokenCredential`` instances natively.
+
 13.2.0
 ......
 
