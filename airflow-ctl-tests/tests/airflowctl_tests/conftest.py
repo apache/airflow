@@ -262,7 +262,10 @@ def docker_compose_up(tmp_path_factory):
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # Initialize Docker client
-    _CtlTestState.docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
+    _CtlTestState.docker_client = DockerClient(
+        compose_files=[str(tmp_docker_compose_file)],
+        compose_project_name="breeze-airflowctl-test",
+    )
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")

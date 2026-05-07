@@ -194,7 +194,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
         _E2ETestState.compose_instance = DockerCompose(
-            tmp_dir, compose_file_name=compose_file_names, pull=pull
+            tmp_dir, compose_file_name=compose_file_names, pull=pull, project_name="breeze-e2e-test"
         )
 
         _E2ETestState.compose_instance.start()
