@@ -29,9 +29,9 @@ import ast
 import sys
 from pathlib import Path
 
-from common_prek_utils import console
+from common_prek_utils import console, has_nocheck_marker
 
-NOCHECK_MARKER = "# nocheck: sdk-imports"
+NOCHECK_MARKER = "# noqa: SDK001"
 
 
 def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
@@ -49,23 +49,13 @@ def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             if node.module and ("airflow.sdk" in node.module):
-                if _has_nocheck_marker(source_lines, node):
+                if has_nocheck_marker(source_lines, node, NOCHECK_MARKER):
                     continue
                 import_names = ", ".join(alias.name for alias in node.names)
                 statement = f"from {node.module} import {import_names}"
                 mismatches.append((node.lineno, statement))
 
     return mismatches
-
-
-def _has_nocheck_marker(source_lines: list[str], node: ast.Import | ast.ImportFrom) -> bool:
-    """Check if the import statement has the nocheck marker comment on any of its lines."""
-    start = node.lineno
-    end = node.end_lineno or start
-    for lineno in range(start, end + 1):
-        if lineno <= len(source_lines) and NOCHECK_MARKER in source_lines[lineno - 1]:
-            return True
-    return False
 
 
 def main():

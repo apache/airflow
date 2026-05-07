@@ -65,17 +65,17 @@ class TestNocheckMarker:
         "code, expected",
         [
             pytest.param(
-                "from airflow.sdk import DAG  # nocheck: sdk-imports\n",
+                "from airflow.sdk import DAG  # noqa: SDK001\n",
                 [],
                 id="from-import-suppressed",
             ),
             pytest.param(
-                "from airflow.sdk.definitions import dag  # nocheck: sdk-imports\n",
+                "from airflow.sdk.definitions import dag  # noqa: SDK001\n",
                 [],
                 id="from-submodule-suppressed",
             ),
             pytest.param(
-                "from airflow.sdk import DAG  # nocheck: sdk-imports - needed for compat\n",
+                "from airflow.sdk import DAG  # noqa: SDK001 - needed for compat\n",
                 [],
                 id="marker-with-extra-text",
             ),
@@ -84,14 +84,14 @@ class TestNocheckMarker:
                     from airflow.sdk import (
                         DAG,
                         Variable,
-                    )  # nocheck: sdk-imports
+                    )  # noqa: SDK001
                 """),
                 [],
                 id="multiline-marker-on-closing-paren",
             ),
             pytest.param(
                 textwrap.dedent("""\
-                    from airflow.sdk import (  # nocheck: sdk-imports
+                    from airflow.sdk import (  # noqa: SDK001
                         DAG,
                         Variable,
                     )
@@ -102,7 +102,7 @@ class TestNocheckMarker:
             pytest.param(
                 textwrap.dedent("""\
                     from airflow.sdk import (
-                        DAG,  # nocheck: sdk-imports
+                        DAG,  # noqa: SDK001
                         Variable,
                     )
                 """),
@@ -126,7 +126,7 @@ class TestNocheckMarker:
             ),
             pytest.param(
                 textwrap.dedent("""\
-                    from airflow.sdk import DAG  # nocheck: sdk-imports
+                    from airflow.sdk import DAG  # noqa: SDK001
                     from airflow.sdk.definitions import dag
                 """),
                 [(2, "from airflow.sdk.definitions import dag")],
