@@ -58,6 +58,32 @@ class TestOSSHook:
         self.hook.get_credential()
         mock_provider.assert_called_once_with("mock_access_key_id", "mock_access_key_secret")
 
+    @mock.patch(OSS_STRING.format("oss.Client"))
+    @mock.patch(OSS_STRING.format("oss.config.load_default"))
+    @mock.patch(OSS_STRING.format("OSSHook.get_credential"))
+    def test_get_client_default_endpoint(self, mock_cred, mock_config, mock_client):
+        self.hook._get_client()
+        _, kwargs = mock_config.call_args
+        assert kwargs["endpoint"] == "oss-mock_region.aliyuncs.com"
+
+    @mock.patch(OSS_STRING.format("oss.Client"))
+    @mock.patch(OSS_STRING.format("oss.config.load_default"))
+    @mock.patch(OSS_STRING.format("OSSHook.get_credential"))
+    def test_get_client_custom_endpoint(self, mock_cred, mock_config, mock_client):
+        with mock.patch(
+            OSS_STRING.format("OSSHook.__init__"),
+            new=mock_oss_hook_default_project_id,
+        ):
+            hook = OSSHook(
+                oss_conn_id=MOCK_OSS_CONN_ID,
+                region="mock_region",
+            )
+            # Simulate custom VPC internal endpoint via extra
+            hook.oss_conn.extra_dejson["endpoint"] = "oss-cn-hangzhou-internal.aliyuncs.com"
+            hook._get_client()
+        _, kwargs = mock_config.call_args
+        assert kwargs["endpoint"] == "oss-cn-hangzhou-internal.aliyuncs.com"
+
     @mock.patch(OSS_STRING.format("OSSHook._get_client"))
     def test_get_bucket(self, mock_get_client):
         self.hook.get_bucket("mock_bucket_name")
