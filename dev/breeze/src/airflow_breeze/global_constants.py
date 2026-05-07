@@ -166,7 +166,7 @@ KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
     "breeze",  # default `breeze shell` / `breeze start-airflow`
 ]
 KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
-    "breeze-",
+    "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
 ]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
