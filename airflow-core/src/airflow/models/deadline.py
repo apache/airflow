@@ -232,7 +232,7 @@ class Deadline(Base):
 
             return {
                 "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": self.id, "deadline_time": self.deadline_time},
+                "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
             }
 
         if isinstance(self.callback, TriggererCallback):

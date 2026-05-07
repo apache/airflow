@@ -234,7 +234,7 @@ class TestDeadline:
         context = callback_kwargs.pop("context")
         assert callback_kwargs == TEST_CALLBACK_KWARGS
 
-        assert context["deadline"]["id"] == deadline_orm.id
+        assert context["deadline"]["id"] == str(deadline_orm.id)
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
         assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
 
@@ -282,7 +282,7 @@ class TestDeadline:
         context = callback_kwargs["context"]
         assert "dag_run" in context
         assert "deadline" in context
-        assert context["deadline"]["id"] == deadline_orm.id
+        assert context["deadline"]["id"] == str(deadline_orm.id)
 
 
 @pytest.mark.db_test
