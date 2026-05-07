@@ -21,6 +21,7 @@ This example shows how to:
 1. Write data points to InfluxDB 3.x
 2. Query data using SQL
 """
+
 from __future__ import annotations
 
 import os
@@ -51,7 +52,7 @@ def write_to_influxdb3():
 # [START howto_operator_influxdb3]
 query_task = InfluxDB3Operator(
     task_id="query_data",
-    sql='SELECT * FROM "temperature" WHERE time > now() - INTERVAL \'1 hour\'',
+    sql="SELECT * FROM \"temperature\" WHERE time > now() - INTERVAL '1 hour'",
     influxdb3_conn_id="influxdb3_default",
 )
 # [END howto_operator_influxdb3]

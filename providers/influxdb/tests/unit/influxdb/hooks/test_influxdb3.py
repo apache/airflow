@@ -68,7 +68,7 @@ class TestInfluxDB3Hook:
 
     def test_query(self):
         """Test query with InfluxDB 3.x."""
-        import pandas as pd
+        pd = pytest.importorskip("pandas")
 
         self.influxdb3_hook.client = mock.Mock()
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})

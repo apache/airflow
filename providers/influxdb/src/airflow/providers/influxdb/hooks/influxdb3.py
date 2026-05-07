@@ -21,28 +21,31 @@ This module allows to connect to an InfluxDB 3 database.
 InfluxDB 3.x (Core/Enterprise/Cloud Dedicated) uses SQL queries and a different
 API compared to InfluxDB 2.x.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
 try:
     from influxdb3 import InfluxDBClient3, Point
+
     INFLUXDB_CLIENT_3_AVAILABLE = True
 except ImportError:
     try:
         # Alternative import path
         from influxdb_client_3 import InfluxDBClient3, Point
+
         INFLUXDB_CLIENT_3_AVAILABLE = True
     except ImportError:
         INFLUXDB_CLIENT_3_AVAILABLE = False
         InfluxDBClient3 = None  # type: ignore[assignment, misc]
         Point = None  # type: ignore[assignment, misc]
 
-import pandas as pd
-
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from airflow.models import Connection
 
 
@@ -188,6 +191,8 @@ class InfluxDB3Hook(BaseHook):
         :param query: SQL query string
         :return: pandas DataFrame with query results
         """
+        import pandas as pd
+
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
 
@@ -216,7 +221,7 @@ class InfluxDB3Hook(BaseHook):
             hook.write(
                 measurement="temperature",
                 tags={"location": "Prague", "sensor": "A1"},
-                fields={"value": 25.3, "unit": "celsius"}
+                fields={"value": 25.3, "unit": "celsius"},
             )
         """
         if not INFLUXDB_CLIENT_3_AVAILABLE or Point is None:

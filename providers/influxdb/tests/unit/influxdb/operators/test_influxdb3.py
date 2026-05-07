@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.influxdb.operators.influxdb3 import InfluxDB3Operator
 
 
@@ -38,9 +40,8 @@ class TestInfluxDB3Operator:
     @mock.patch("airflow.providers.influxdb.operators.influxdb3.InfluxDB3Hook")
     def test_execute(self, mock_hook_class):
         """Test operator execution."""
-        import json
 
-        import pandas as pd
+        pd = pytest.importorskip("pandas")
 
         mock_hook = mock.Mock()
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
@@ -54,4 +55,5 @@ class TestInfluxDB3Operator:
         assert isinstance(result, list)
         assert len(result) == 2
         assert isinstance(result[0], dict)
-        assert "col1" in result[0] and "col2" in result[0]
+        assert "col1" in result[0]
+        assert "col2" in result[0]

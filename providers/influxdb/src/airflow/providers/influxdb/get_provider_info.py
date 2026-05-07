@@ -41,7 +41,10 @@ def get_provider_info():
         ],
         "hooks": [
             {"integration-name": "Influxdb", "python-modules": ["airflow.providers.influxdb.hooks.influxdb"]},
-            {"integration-name": "InfluxDB 3", "python-modules": ["airflow.providers.influxdb.hooks.influxdb3"]},
+            {
+                "integration-name": "InfluxDB 3",
+                "python-modules": ["airflow.providers.influxdb.hooks.influxdb3"],
+            },
         ],
         "operators": [
             {
