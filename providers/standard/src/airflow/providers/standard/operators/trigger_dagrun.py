@@ -54,6 +54,7 @@ except ImportError:
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
+XCOM_DAG_ID = "trigger_dag_id"
 
 
 if TYPE_CHECKING:
@@ -86,21 +87,28 @@ class TriggerDagRunLink(BaseOperatorLink):
         if TYPE_CHECKING:
             assert isinstance(operator, TriggerDagRunOperator)
 
-        trigger_dag_id = operator.trigger_dag_id
-        if not AIRFLOW_V_3_0_PLUS:
-            from airflow.models.renderedtifields import RenderedTaskInstanceFields
-            from airflow.models.taskinstancekey import TaskInstanceKey as CoreTaskInstanceKey
+        # Try to get the resolved dag_id from XCom first (for dynamic dag_ids).
+        trigger_dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
 
-            core_ti_key = CoreTaskInstanceKey(
-                dag_id=ti_key.dag_id,
-                task_id=ti_key.task_id,
-                run_id=ti_key.run_id,
-                try_number=ti_key.try_number,
-                map_index=ti_key.map_index,
-            )
+        # Fallback to operator attribute and rendered fields if not in XCom.
+        # Use identity check (`is None`) instead of truthiness so that any explicit
+        # value pushed to XCom (including unusual strings) is honored.
+        if trigger_dag_id is None:
+            trigger_dag_id = operator.trigger_dag_id
+            if not AIRFLOW_V_3_0_PLUS:
+                from airflow.models.renderedtifields import RenderedTaskInstanceFields
+                from airflow.models.taskinstancekey import TaskInstanceKey as CoreTaskInstanceKey
 
-            if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
-                trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)  # type: ignore[no-redef]
+                core_ti_key = CoreTaskInstanceKey(
+                    dag_id=ti_key.dag_id,
+                    task_id=ti_key.task_id,
+                    run_id=ti_key.run_id,
+                    try_number=ti_key.try_number,
+                    map_index=ti_key.map_index,
+                )
+
+                if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
+                    trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)  # type: ignore[no-redef]
 
         # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
@@ -356,10 +364,11 @@ class TriggerDagRunOperator(BaseOperator):
                 raise e
         if dag_run is None:
             raise RuntimeError("The dag_run should be set here!")
-        # Store the run id from the dag run (either created or found above) to
-        # be used when creating the extra link on the webserver.
+        # Store the resolved dag_id and run id from the dag run (either created or
+        # found above) to be used when creating the extra link on the webserver.
         ti = context["task_instance"]
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
+        ti.xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
 
         if self.wait_for_completion:
             # Kick off the deferral process

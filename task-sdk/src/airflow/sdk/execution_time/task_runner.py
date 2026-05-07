@@ -1578,8 +1578,11 @@ def _handle_trigger_dag_run(
 
     log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
 
-    # Store the run id from the dag run (either created or found above) to
-    # be used when creating the extra link on the webserver.
+    # Store the resolved dag_id and run id from the dag run (either created or found
+    # above) to be used when creating the extra link on the webserver. Pushed here
+    # (after a successful trigger) so the XCom state stays consistent with
+    # ``trigger_run_id`` and is not written when the trigger fails.
+    ti.xcom_push(key="trigger_dag_id", value=drte.trigger_dag_id)
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
     if drte.wait_for_completion:

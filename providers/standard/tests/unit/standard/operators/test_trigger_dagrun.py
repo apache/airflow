@@ -178,8 +178,10 @@ class TestDagRunOperator:
             assert task.trigger_run_id == expected_run_id  # run_id is saved as attribute
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    @mock.patch(f"{TRIGGER_OP_PATH}.XCom.get_one")
-    def test_extra_operator_link(self, mock_xcom_get_one, dag_maker):
+    @mock.patch(f"{TRIGGER_OP_PATH}.XCom.get_value")
+    def test_extra_operator_link(self, mock_xcom_get_value, dag_maker):
+        from airflow.providers.standard.operators.trigger_dagrun import XCOM_RUN_ID
+
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -191,12 +193,51 @@ class TestDagRunOperator:
         dr = dag_maker.create_dagrun(run_id="test_run_id")
         ti = dr.get_task_instance(task_id=task.task_id)
 
-        mock_xcom_get_one.return_value = ti.run_id
+        # Return None for XCOM_DAG_ID (so get_link falls back to operator attribute)
+        # and the run_id for XCOM_RUN_ID.
+        def _get_value(ti_key, key):
+            if key == XCOM_RUN_ID:
+                return ti.run_id
+            return None
+
+        mock_xcom_get_value.side_effect = _get_value
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
         base_url = conf.get("api", "base_url", fallback="/").lower()
         expected_url = f"{base_url}dags/{TRIGGERED_DAG_ID}/runs/test_run_id"
+        assert link == expected_url, f"Expected {expected_url}, but got {link}"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @mock.patch(f"{TRIGGER_OP_PATH}.XCom.get_value")
+    def test_extra_operator_link_with_dynamic_dag_id(self, mock_xcom_get_value, dag_maker):
+        """Operator link uses the resolved ``dag_id`` from XCom when available."""
+        from airflow.providers.standard.operators.trigger_dagrun import XCOM_DAG_ID, XCOM_RUN_ID
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                # In a real scenario this would be a template like "{{ ti.xcom_pull(...) }}".
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id="test_run_id",
+            )
+
+        dr = dag_maker.create_dagrun(run_id="test_run_id")
+        ti = dr.get_task_instance(task_id=task.task_id)
+
+        def _get_value(ti_key, key):
+            if key == XCOM_DAG_ID:
+                return "dynamic_dag_id"
+            if key == XCOM_RUN_ID:
+                return "dynamic_run_id"
+            return None
+
+        mock_xcom_get_value.side_effect = _get_value
+
+        link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
+
+        base_url = conf.get("api", "base_url", fallback="/").lower()
+        expected_url = f"{base_url}dags/dynamic_dag_id/runs/dynamic_run_id"
         assert link == expected_url, f"Expected {expected_url}, but got {link}"
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
@@ -662,6 +703,47 @@ class TestDagRunOperatorAF2:
         args, _ = mock_build_url.call_args
         expected_args = {
             "dag_id": TRIGGERED_DAG_ID,
+            "dag_run_id": "test_run_id",
+        }
+        assert expected_args in args
+
+    @mock.patch(f"{TRIGGER_OP_PATH}.XCom.get_value")
+    def test_extra_operator_link_with_dynamic_dag_id(self, mock_xcom_get_value, dag_maker, session):
+        """Operator link uses the resolved ``dag_id`` from XCom when available (AF2)."""
+        from airflow.providers.standard.operators.trigger_dagrun import XCOM_DAG_ID, XCOM_RUN_ID
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id="test_run_id",
+            )
+        dag_maker.create_dagrun()
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        triggering_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.task_id == task.task_id, TaskInstance.dag_id == task.dag_id
+            )
+        )
+        assert triggering_ti is not None
+
+        def _get_value(ti_key, key):
+            if key == XCOM_DAG_ID:
+                return "dynamic_dag_id"
+            if key == XCOM_RUN_ID:
+                return "test_run_id"
+            return None
+
+        mock_xcom_get_value.side_effect = _get_value
+
+        with mock.patch("airflow.utils.helpers.build_airflow_url_with_query") as mock_build_url:
+            task.operator_extra_links[0].get_link(operator=task, ti_key=triggering_ti.key)
+            assert mock_build_url.called
+        args, _ = mock_build_url.call_args
+        # Should use the dag_id resolved from XCom, not the operator attribute.
+        expected_args = {
+            "dag_id": "dynamic_dag_id",
             "dag_run_id": "test_run_id",
         }
         assert expected_args in args

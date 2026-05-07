@@ -4540,6 +4540,16 @@ class TestTriggerDagRunOperator:
             ),
             mock.call.send(
                 msg=SetXCom(
+                    key="trigger_dag_id",
+                    value="test_dag",
+                    dag_id="test_handle_trigger_dag_run",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
+            mock.call.send(
+                msg=SetXCom(
                     key="trigger_run_id",
                     value="test_run_id",
                     dag_id="test_handle_trigger_dag_run",
@@ -4638,7 +4648,9 @@ class TestTriggerDagRunOperator:
             None,
             # Successful Dag Run trigger
             OKResponse(ok=True),
-            # Set XCOM,
+            # Set XCOM trigger_dag_id
+            None,
+            # Set XCOM trigger_run_id
             None,
             # Dag Run is still running
             DagRunStateResult(state=DagRunState.RUNNING),
@@ -4659,6 +4671,16 @@ class TestTriggerDagRunOperator:
                     dag_id="test_dag",
                     run_id="test_run_id",
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                ),
+            ),
+            mock.call.send(
+                msg=SetXCom(
+                    key="trigger_dag_id",
+                    value="test_dag",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
                 ),
             ),
             mock.call.send(
