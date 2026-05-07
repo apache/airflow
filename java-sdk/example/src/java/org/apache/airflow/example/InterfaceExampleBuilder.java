@@ -26,15 +26,15 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JavaExampleBuilder {
-  private static final Logger logger = LoggerFactory.getLogger(JavaExampleBuilder.class);
+public class InterfaceExampleBuilder {
+  private static final Logger logger = LoggerFactory.getLogger(InterfaceExampleBuilder.class);
 
   public static class Extract implements Task {
     public void execute(@NotNull Context context, Client client) throws Exception {
       logger.info("Hello from task");
 
-      var python_xcom = client.getXCom("python_task_1");
-      logger.info("Got XCom from Python Task 'python_task_1' {}", python_xcom);
+      var pythonInput = client.getXCom("python_task_1");
+      logger.info("Got XCom from Python Task 'python_task_1' {}", pythonInput);
 
       var connection = client.getConnection("test_http");
       logger.info("Got con {}", connection);
@@ -51,8 +51,8 @@ public class JavaExampleBuilder {
 
   public static class Transform implements Task {
     public void execute(@NotNull Context context, Client client) {
-      var extract_xcom = client.getXCom("extract");
-      logger.info("Got XCom from 'extract' {}", extract_xcom);
+      var extracted = client.getXCom("extract");
+      logger.info("Got XCom from 'extract' {}", extracted);
 
       var variable = client.getVariable("my_variable");
       logger.info("Got variable {}", variable);
@@ -64,8 +64,8 @@ public class JavaExampleBuilder {
 
   public static class Load implements Task {
     public void execute(@NotNull Context context, Client client) {
-      var xcom = client.getXCom("transform");
-      logger.info("Got XCom from 'transform' {}", xcom);
+      var transformed = client.getXCom("transform");
+      logger.info("Got XCom from 'transform' {}", transformed);
       throw new RuntimeException("I failed");
     }
   }

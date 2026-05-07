@@ -36,7 +36,7 @@ class Dag(
   fun addTask(
     id: String,
     definition: Class<out Task>,
-    dependsOn: List<String> = emptyList(),
+    dependsOn: Iterable<String> = emptyList(),
   ) {
     // TODO: Check duplicate key.
     tasks[id] = definition
@@ -44,4 +44,10 @@ class Dag(
       dependants.getOrPut(parent) { mutableSetOf() }.add(id)
     }
   }
+
+  fun addTask(
+    id: String,
+    definition: Class<out Task>,
+    dependsOn: Array<String>,
+  ) = addTask(id, definition, dependsOn.toSet())
 }

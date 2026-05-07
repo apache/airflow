@@ -46,6 +46,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0")
+    implementation("com.squareup:javapoet:1.13.0")
     implementation("com.squareup.retrofit2:converter-jackson:3.0.0")
     implementation("com.squareup.retrofit2:converter-scalars:3.0.0")
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
@@ -59,6 +60,7 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.11")
 
     testImplementation(kotlin("test"))
+    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
@@ -122,6 +124,7 @@ abstract class GenerateConstantsTask : DefaultTask() {
 }
 
 tasks.register<GenerateConstantsTask>("generateConstants") {
+    description = "Generate constants to use in code from build configurations."
     airflowExecApiVersionProp = airflowExecApiVersion
     outputDirProp = constantsDir
 }

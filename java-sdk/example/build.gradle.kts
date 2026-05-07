@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    annotationProcessor(project(":sdk"))
     implementation(project(":sdk"))
     implementation("org.slf4j:slf4j-simple:2.0.17")
 }
@@ -44,6 +45,7 @@ val dagCodeFileName = bundleMainClass.substringAfterLast('.') + ".java"
 
 val inspectBundle =
     tasks.register<JavaExec>("inspectBundle") {
+        description = "Collect Dag structures by inspecting the Dag bundle"
         dependsOn("classes")
         classpath = sourceSets.main.get().runtimeClasspath
         mainClass.set("org.apache.airflow.sdk.BundleInspector")
