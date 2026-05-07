@@ -205,6 +205,35 @@ class TestOSSTaskHandler:
         handler.io.upload(str(log_file), self.ti)
         mock_oss_write.assert_called_once_with("test log content", relative_path)
 
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.oss_log_exists"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSTaskHandler.oss_read"))
+    def test_read_uses_oss_log_exists_and_oss_read(self, mock_oss_read, mock_oss_log_exists):
+        """Test that _read calls oss_log_exists and oss_read on the handler itself."""
+        mock_oss_log_exists.return_value = True
+        mock_oss_read.return_value = "log content"
+
+        # _read should call self.oss_log_exists and self.oss_read (not self.io.*)
+        self.oss_task_handler._read(self.ti, try_number=1)
+
+        mock_oss_log_exists.assert_called_once()
+        mock_oss_read.assert_called_once()
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    def test_handler_oss_log_exists_proxies_to_io(self, mock_io_exists):
+        """Test that OSSTaskHandler.oss_log_exists proxies to self.io.oss_log_exists."""
+        mock_io_exists.return_value = True
+        result = self.oss_task_handler.oss_log_exists("1.log")
+        mock_io_exists.assert_called_once_with("1.log")
+        assert result is True
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_read"))
+    def test_handler_oss_read_proxies_to_io(self, mock_io_read):
+        """Test that OSSTaskHandler.oss_read proxies to self.io.oss_read."""
+        mock_io_read.return_value = "log content"
+        result = self.oss_task_handler.oss_read("1.log", return_error=True)
+        mock_io_read.assert_called_once_with("1.log", return_error=True)
+        assert result == "log content"
+
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         OSSTaskHandler(self.base_log_folder, self.oss_log_folder, filename_template=None)

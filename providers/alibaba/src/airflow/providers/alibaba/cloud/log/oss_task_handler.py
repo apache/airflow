@@ -228,6 +228,14 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
+    def oss_log_exists(self, remote_log_location: str) -> bool:
+        """Check if remote_log_location exists in OSS, proxy to self.io."""
+        return self.io.oss_log_exists(remote_log_location)
+
+    def oss_read(self, remote_log_location: str, return_error: bool = False) -> str:
+        """Read log content from OSS, proxy to self.io."""
+        return self.io.oss_read(remote_log_location, return_error=return_error)
+
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from OSS remote storage.
