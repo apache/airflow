@@ -794,8 +794,8 @@ class CloudSQLDatabaseHook(BaseHook):
     * **use_iam** - (default False) Whether IAM should be used to connect to Cloud SQL DB.
       With using IAM password field should be empty string.
     * **sql_proxy_enable_iam_login** - (default False) Whether Cloud SQL Auth Proxy should use
-      IAM database authentication. This requires ``use_proxy`` and is supported for Postgres with the
-      current Cloud SQL Auth Proxy v1 integration.
+      IAM database authentication. This requires ``use_proxy`` and is supported with the current
+      Cloud SQL Auth Proxy v1 integration for both Postgres and MySQL.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
@@ -1009,8 +1009,6 @@ class CloudSQLDatabaseHook(BaseHook):
             )
         if self.sql_proxy_enable_iam_login and not self.use_proxy:
             raise ValueError("sql_proxy_enable_iam_login requires use_proxy to be True")
-        if self.sql_proxy_enable_iam_login and self.database_type != "postgres":
-            raise ValueError("sql_proxy_enable_iam_login only supports Postgres with Cloud SQL Auth Proxy v1")
         if any([self.ssl_key, self.ssl_cert, self.ssl_root_cert]) and self.ssl_secret_id:
             raise AirflowException(
                 "Invalid SSL settings. Please use either all of parameters ['ssl_cert', 'ssl_cert', "

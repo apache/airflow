@@ -128,10 +128,10 @@ Configure ``gcpcloudsql`` connection with Cloud SQL Auth Proxy IAM authenticatio
 
 For using Cloud SQL Auth Proxy IAM authentication, enable ``"use_proxy": "True"`` and
 ``"sql_proxy_enable_iam_login": "True"`` in the ``extra`` field. With the current Cloud SQL Auth Proxy
-v1 integration this option is supported for Postgres. Airflow passes ``-enable_iam_login`` to the
-proxy, so the ``password`` field can be empty.
+v1 integration this option is supported for both Postgres and MySQL. Airflow passes
+``-enable_iam_login`` to the proxy, so the ``password`` field can be empty.
 
-Example "extras" field:
+Example "extras" field for Postgres:
 
 .. code-block:: json
 
@@ -144,6 +144,29 @@ Example "extras" field:
       "sql_proxy_use_tcp": true,
       "sql_proxy_enable_iam_login": true
    }
+
+Example "extras" field for MySQL:
+
+.. code-block:: json
+
+   {
+      "database_type": "mysql",
+      "project_id": "example-project",
+      "location": "europe-west1",
+      "instance": "testinstance",
+      "use_proxy": true,
+      "sql_proxy_use_tcp": true,
+      "sql_proxy_enable_iam_login": true
+   }
+
+.. note::
+   Cloud SQL for MySQL does not grant database-level privileges to IAM service-account users
+   automatically when the user is created. After creating the IAM service-account user (for example
+   via ``gcloud sql users create <user> --type=cloud_iam_service_account``) a database administrator
+   must grant the required privileges using SQL, for example
+   ``GRANT SELECT ON <database>.* TO '<service-account-prefix>'@'%';``. This is a Cloud SQL operational
+   step and is outside the scope of Airflow. Cloud SQL for Postgres does not have this requirement
+   for the default ``public`` schema.
 
 For example:
 
