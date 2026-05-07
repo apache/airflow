@@ -110,7 +110,7 @@ Here are links describing what should be done before the start: `PostgreSQL
 <https://cloud.google.com/sql/docs/mysql/iam-logins#before_you_begin>`_.
 
 Configure ``gcpcloudsql`` connection with direct IAM token authentication
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 For using IAM you need to enable ``"use_iam": "True"`` in the ``extra`` field. And specify IAM account in this format
 ``USERNAME@PROJECT_ID.iam.gserviceaccount.com`` in ``login`` field and empty string in the ``password`` field.
@@ -124,7 +124,7 @@ For example:
     :end-before: [END howto_operator_cloudsql_iam_connections]
 
 Configure ``gcpcloudsql`` connection with Cloud SQL Auth Proxy IAM authentication
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 For using Cloud SQL Auth Proxy IAM authentication, enable ``"use_proxy": "True"`` and
 ``"sql_proxy_enable_iam_login": "True"`` in the ``extra`` field. With the current Cloud SQL Auth Proxy
