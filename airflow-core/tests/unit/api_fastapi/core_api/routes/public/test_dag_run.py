@@ -2219,12 +2219,20 @@ class TestTriggerDagRun:
         assert response.json() == {"detail": error_message}
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
-    def test_dagrun_creation_non_validation_error_propagates_as_500(self, mock_create_dagrun, test_client):
+    def test_dagrun_creation_non_validation_error_propagates(self, mock_create_dagrun, test_client):
+        """
+        Non-ParamValidationError exceptions from create_dagrun() must not be swallowed.
+
+        TestClient's default raise_server_exceptions=True surfaces server-side
+        exceptions to the caller; in production these would become a 500. The
+        regression we are guarding against is the old behavior where any
+        ValueError got silently converted to 400.
+        """
         now = timezone.utcnow().isoformat()
         mock_create_dagrun.side_effect = RuntimeError("boom")
 
-        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
-        assert response.status_code == 500
+        with pytest.raises(RuntimeError, match="boom"):
+            test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
 
     def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()
