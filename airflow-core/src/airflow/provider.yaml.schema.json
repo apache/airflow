@@ -564,6 +564,13 @@
                 "type": "string"
             }
         },
+        "ctl": {
+            "type": "array",
+            "description": "airflowctl command functions exposed by the provider. Each entry is a fully qualified import path to a zero-argument callable returning a list of airflowctl CLICommand objects.",
+            "items": {
+                "type": "string"
+            }
+        },
         "config": {
             "type": "object",
             "additionalProperties": {

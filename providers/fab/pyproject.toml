@@ -111,6 +111,9 @@ dependencies = [
     # here so that ``pip install apache-airflow-providers-fab[oauth]`` pulls it in.
     "authlib>=1.0.0",
 ]
+"airflowctl" = [
+    "apache-airflow-ctl",
+]
 
 [dependency-groups]
 dev = [

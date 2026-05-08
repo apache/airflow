@@ -290,3 +290,6 @@ db-managers:
 
 cli:
   - airflow.providers.fab.cli.definition.get_fab_cli_commands
+
+ctl:
+  - airflow.providers.fab.auth_manager.ctl_commands.definition.get_fab_airflowctl_commands

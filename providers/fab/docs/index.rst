@@ -57,6 +57,7 @@
 
     Configuration <configurations-ref>
     CLI <cli-ref>
+    airflowctl <airflowctl-ref>
 
 .. toctree::
     :hidden:

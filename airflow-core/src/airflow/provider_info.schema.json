@@ -373,6 +373,13 @@
                 "type": "string"
             }
         },
+        "ctl": {
+            "type": "array",
+            "description": "airflowctl command functions exposed by the provider",
+            "items": {
+                "type": "string"
+            }
+        },
         "config": {
             "type": "object",
             "additionalProperties": {
