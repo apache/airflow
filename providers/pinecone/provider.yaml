@@ -94,12 +94,6 @@ connection-types:
             - boolean
             - 'null'
           default: false
-      project_id:
-        label: Project ID
-        schema:
-          type:
-            - string
-            - 'null'
 
 operators:
   - integration-name: Pinecone
