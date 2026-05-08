@@ -28,6 +28,21 @@
 Changelog
 =========
 
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add automatic SQL lineage detection via sqlglot for SQL operators``
+* ``Add per-task and per-DAG selective lineage control with disable/enable helpers``
+* ``Refactor listener to two-phase model with fail-fast pre-validation before task execution``
+* ``Add disabled_for_operators, auto_lineage_enabled, and request_timeout config options``
+* ``Add example DAG demonstrating auto, manual, disabled, and operator-excluded lineage modes``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.1.3
 .....
 
