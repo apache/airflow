@@ -28,6 +28,7 @@ import imaplib
 import os
 import re
 import ssl
+from email.header import decode_header
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -388,6 +389,21 @@ class MailPart:
         """
         return self.part.get_content_maintype() != "multipart" and self.part.get("Content-Disposition")
 
+    def _decode_filename(self, raw_filename: str | None) -> str:
+        """
+        Decode a filename that may be RFC 2047 encoded.
+
+        :param raw_filename: The raw filename from the email part (may be encoded or plain str).
+        :returns: A decoded Unicode string, or the original value if it cannot be decoded.
+        """
+        if raw_filename is None:
+            return ""
+        decoded_parts = decode_header(raw_filename)
+        return "".join(
+            part.decode(enc) if isinstance(part, bytes) else part
+            for part, enc in decoded_parts
+        )
+
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
         Check if the given name matches the part's name.
@@ -395,7 +411,7 @@ class MailPart:
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
         """
-        return re.match(name, self.part.get_filename())  # type: ignore
+        return re.match(name, self._decode_filename(self.part.get_filename()))  # type: ignore
 
     def has_equal_name(self, name: str) -> bool:
         """
@@ -404,12 +420,12 @@ class MailPart:
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
         """
-        return self.part.get_filename() == name
+        return self._decode_filename(self.part.get_filename()) == name
 
     def get_file(self) -> tuple:
         """
         Get the file including name and payload.
 
-        :returns: the part's name and payload.
+        :returns: the part's decoded name and decoded payload.
         """
-        return self.part.get_filename(), self.part.get_payload(decode=True)
+        return self._decode_filename(self.part.get_filename()), self.part.get_payload(decode=True)
