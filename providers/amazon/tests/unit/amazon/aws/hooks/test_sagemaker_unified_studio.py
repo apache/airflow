@@ -162,13 +162,13 @@ class TestSageMakerNotebookHook:
 
         status = "STOPPED"
         error_message = ""
-        with pytest.raises(AirflowException, match=f"Exiting Execution {execution_id} State: {status}"):
+        with pytest.raises(AirflowException, match=f"Execution {execution_id} ended with status {status}"):
             self.hook._handle_state(execution_id, status, error_message)
 
     def test_handle_unexpected_state(self):
         execution_id = "123456"
         status = "PENDING"
-        error_message = f"Exiting Execution {execution_id} State: {status}"
+        error_message = f"Execution {execution_id} ended with status {status}"
         with pytest.raises(AirflowException, match=error_message):
             self.hook._handle_state(execution_id, status, error_message)
 
