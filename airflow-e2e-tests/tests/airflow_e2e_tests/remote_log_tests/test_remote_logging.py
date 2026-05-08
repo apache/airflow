@@ -77,7 +77,7 @@ class TestRemoteLogging:
         )
 
         task_log_sources = [
-            source for content in task_logs.get("content", [{}]) for source in content.get("sources", [])
+            source for content in task_logs.get("content", [{}]) for source in content.get("event", [])
         ]
         response = s3_client.list_objects_v2(Bucket=bucket_name)
 
