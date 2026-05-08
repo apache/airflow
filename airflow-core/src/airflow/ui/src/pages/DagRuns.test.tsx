@@ -104,9 +104,7 @@ const selectRow = async (runText: string) => {
 // matches the label regex, which is independent of locale state (the regex
 // matches the i18n key under tests, the translated string in production).
 const findBulkActionButton = (label: RegExp) =>
-  screen
-    .getAllByRole("button", { name: label })
-    .find((btn) => label.test(btn.textContent));
+  screen.getAllByRole("button", { name: label }).find((btn) => label.test(btn.textContent));
 
 describe("DagRuns bulk delete", () => {
   it("fires one DELETE per selected run and closes the dialog on success", async () => {
