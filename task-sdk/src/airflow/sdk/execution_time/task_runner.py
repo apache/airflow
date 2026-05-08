@@ -1431,6 +1431,10 @@ def _handle_current_task_success(
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
+
+    if conf.getboolean("state_store", "clear_on_success"):
+        log.warning("Task state will be cleared by the server because clear_on_success is enabled.")
+
     msg = SucceedTask(
         end_date=end_date,
         task_outlets=task_outlets,

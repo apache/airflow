@@ -98,6 +98,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
+from airflow.api_fastapi.core_api.services.public.task_instances import _clear_task_state_on_success
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
@@ -225,6 +226,17 @@ def patch_dag_run(
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
                 except Exception:
                     log.exception("error calling listener")
+
+                # Clear state for all TIs in the run — not just the ones that were transitioned.
+                # When a run is manually marked SUCCESS, the whole run is considered done
+                # regardless of which TIs were already in SUCCESS.
+                all_tis = session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_run.dag_id,
+                        TaskInstance.run_id == dag_run.run_id,
+                    )
+                ).all()
+                _clear_task_state_on_success(all_tis, session)
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler

@@ -36,6 +36,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
@@ -47,10 +48,12 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.log import Log
+from airflow.models.task_state import TaskStateModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
+from airflow.state.metastore import MetastoreStateBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.config import conf_vars
@@ -1890,6 +1893,86 @@ class TestTIUpdateState:
         session.expire_all()
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_ti_update_state_to_success_clears_task_state(self, client, session, create_task_instance):
+        """When clear_on_success=True, task_state rows are deleted after TI transitions to SUCCESS."""
+        ti = create_task_instance(
+            task_id="test_clear_on_success",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        backend.set(scope, "checkpoint", "step_3", session=session)
+        session.commit()
+
+        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_ti_update_state_to_failed_does_not_clear_task_state(self, client, session, create_task_instance):
+        """Task state rows are preserved when a TI transitions to FAILED."""
+        ti = create_task_instance(
+            task_id="test_no_clear_on_failed",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "failed", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "False"})
+    def test_ti_update_state_to_success_skips_clear_when_config_disabled(
+        self, client, session, create_task_instance
+    ):
+        """Task state rows are preserved on SUCCESS when clear_on_success=False."""
+        ti = create_task_instance(
+            task_id="test_clear_disabled",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == ti.task_id)).all()
 
 
 class TestTISkipDownstream:
