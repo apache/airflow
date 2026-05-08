@@ -90,7 +90,7 @@ from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
 from airflow.models.connection_test import (
-    ACTIVE_STATES,
+    ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
     DISPATCHED_STATES,
     ConnectionTestKey,
     ConnectionTestRequest,
@@ -3335,7 +3335,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
 
         stale_stmt = select(ConnectionTestRequest).where(
-            ConnectionTestRequest.state.in_(ACTIVE_STATES),
+            ConnectionTestRequest.state.in_(CONNECTION_TEST_ACTIVE_STATES),
             ConnectionTestRequest.updated_at < cutoff,
         )
         stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTestRequest, skip_locked=True)
