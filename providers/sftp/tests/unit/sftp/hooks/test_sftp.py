@@ -1088,7 +1088,7 @@ class TestSFTPHookAsync:
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
-    @patch("aiofiles.open", new_callable=AsyncMock)
+    @patch("aiofiles.open")
     async def test_retrieve_file_to_path(self, mock_aiofiles_open, sftp_hook_mocked):
         """
         Assert that retrieve_file writes to a local file using aiofiles
@@ -1190,6 +1190,7 @@ class TestSFTPHookAsync:
             return []
 
         sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = lambda path: path
 
         files: list[str] = []
         dirs: list[str] = []
