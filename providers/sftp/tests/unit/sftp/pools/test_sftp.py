@@ -370,4 +370,3 @@ class TestSFTPClientPool:
         # Ensure permit is returned after failure so a later acquire can proceed.
         assert state.semaphore is not None
         assert state.semaphore._value == pool.pool_size
-
