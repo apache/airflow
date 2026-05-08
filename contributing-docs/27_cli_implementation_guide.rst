@@ -15,12 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-CLI Implementation Guide (AIP-94)
+CLI Implementation Guide
 ==================================
 
-This document describes the direction for implementing new CLI functionality in Apache Airflow
-following `AIP-94: Decoupling Remote Commands from Airflow CLI to airflowctl
-<https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=382175838>`_.
+This document describes the direction for implementing new CLI functionality in Apache Airflow.
 
 .. contents:: Table of Contents
    :depth: 2
@@ -38,7 +36,7 @@ Airflow ships two CLIs:
 - **airflowctl** (``airflow-ctl``) — a standalone CLI distributed separately that talks to a
   running Airflow instance exclusively through the Public (Core) API.
 
-As of Airflow 3.3 (tracked via `GitHub Projects #570 and #571
+Following AIP-94 (tracked via `GitHub Projects #570 and #571
 <https://github.com/orgs/apache/projects/570>`_), CLI work follows two rules:
 
 1. **New commands** that are achievable via the Public API are added to ``airflowctl``
@@ -135,15 +133,6 @@ Source location: ``airflow-core/src/airflow/cli/``
 2. Add ``(admin only)`` to the ``help`` string so users know the command requires direct
    infrastructure access.
 3. Add tests under ``airflow-core/tests/cli/``.
-
-Bug Fixes
-----------
-
-- Bug fixes for existing ``airflow`` CLI commands should target the ``v3-2-test`` branch.
-  The rearchitecture in 3.3 may rewrite or replace the affected code paths on ``main``, so
-  fix on ``v3-2-test`` first and forward-port to ``main`` only if the same code path still
-  exists there.
-- Bug fixes for ``airflowctl`` itself target ``main``.
 
 References
 -----------
