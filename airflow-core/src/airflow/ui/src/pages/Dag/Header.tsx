@@ -65,12 +65,13 @@ export const Header = ({
     : [
         {
           label: translate("dagDetails.nextRun"),
-          value: Boolean(dag?.next_dagrun_run_after) ? (
-            <DagRunInfo
-              logicalDate={dag?.next_dagrun_logical_date}
-              runAfter={dag?.next_dagrun_run_after as string}
-            />
-          ) : undefined,
+          value:
+            !dag?.is_paused && Boolean(dag?.next_dagrun_run_after) ? (
+              <DagRunInfo
+                logicalDate={dag?.next_dagrun_logical_date}
+                runAfter={dag?.next_dagrun_run_after as string}
+              />
+            ) : undefined,
         },
       ];
 
