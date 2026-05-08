@@ -91,7 +91,6 @@ class SFTPClientPool(LoggingMixin):
         self._loop_states_lock = Lock()
         self.log.info("SFTPClientPool with size %d initialised...", self.pool_size)
 
-
     def _get_loop_state(self) -> _LoopState:
         """Get or create the state container for the current event loop."""
         running_loop = asyncio.get_running_loop()
@@ -270,7 +269,6 @@ class SFTPClientPool(LoggingMixin):
 
             if active_in_use:
                 self.log.warning("Pool closed with %d active connections", active_in_use)
-
 
     async def __aenter__(self):
         await self._ensure_initialized()
