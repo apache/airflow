@@ -326,12 +326,18 @@ def _make_dag(dag_id: str) -> DagModel:
     return dag
 
 
-def _make_asset_model(allow_producer_teams: list[str] | None = None) -> AssetModel:
+def _make_asset_model(
+    scheduled_dags: dict[str, list[str]] | None = None,
+) -> AssetModel:
+    """Create a mock AssetModel.
+
+    :param scheduled_dags: mapping of dag_id -> allow_producer_teams for each consumer reference.
+    """
     model = mock.Mock(spec=AssetModel)
-    extra = {}
-    if allow_producer_teams:
-        extra["allow_producer_teams"] = allow_producer_teams
-    model.extra = extra
+    model.scheduled_dags = [
+        mock.Mock(dag_id=dag_id, allow_producer_teams=teams)
+        for dag_id, teams in (scheduled_dags or {}).items()
+    ]
     return model
 
 
@@ -390,7 +396,7 @@ class TestFilterDagsByTeam:
             result = AssetManager._filter_dags_by_team(
                 dags_to_queue={dag},
                 source_teams={"team_a"},
-                asset_model=_make_asset_model(allow_producer_teams=[]),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": []}),
                 source_is_api=False,
                 session=mock.Mock(),
             )
@@ -406,7 +412,7 @@ class TestFilterDagsByTeam:
             result = AssetManager._filter_dags_by_team(
                 dags_to_queue={dag},
                 source_teams={"team_a"},
-                asset_model=_make_asset_model(allow_producer_teams=["team_a"]),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": ["team_a"]}),
                 source_is_api=False,
                 session=mock.Mock(),
             )
@@ -490,7 +496,7 @@ class TestFilterDagsByTeam:
             result = AssetManager._filter_dags_by_team(
                 dags_to_queue={dag},
                 source_teams={"team_a"},
-                asset_model=_make_asset_model(allow_producer_teams=["team_a"]),
+                asset_model=_make_asset_model(scheduled_dags={"dag1": ["team_a"]}),
                 source_is_api=True,
                 session=mock.Mock(),
             )

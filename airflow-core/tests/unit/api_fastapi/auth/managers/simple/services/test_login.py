@@ -121,3 +121,29 @@ class TestLogin:
         with pytest.raises(HTTPException) as ex:
             SimpleAuthManagerLogin.create_token_all_admins()
         assert ex.value.status_code == 403
+
+    @pytest.mark.db_test
+    def test_create_token_wrong_password_rejected(self, auth_manager):
+        """Wrong password is rejected via constant-time comparison (CWE-208)."""
+        with conf_vars({("core", "simple_auth_manager_users"): f"{TEST_USER_1}:{TEST_ROLE_1}"}):
+            auth_manager.init()
+            with pytest.raises(HTTPException) as ex:
+                SimpleAuthManagerLogin.create_token(
+                    body=LoginBody(username=TEST_USER_1, password="wrong-password"),
+                    expiration_time_in_seconds=1,
+                )
+            assert ex.value.status_code == 401
+            assert "Invalid credentials" in ex.value.detail
+
+    @pytest.mark.db_test
+    def test_create_token_unknown_user_rejected(self, auth_manager):
+        """Unknown username is rejected without leaking timing info (CWE-208)."""
+        with conf_vars({("core", "simple_auth_manager_users"): f"{TEST_USER_1}:{TEST_ROLE_1}"}):
+            auth_manager.init()
+            with pytest.raises(HTTPException) as ex:
+                SimpleAuthManagerLogin.create_token(
+                    body=LoginBody(username="nonexistent", password="any-password"),
+                    expiration_time_in_seconds=1,
+                )
+            assert ex.value.status_code == 401
+            assert "Invalid credentials" in ex.value.detail

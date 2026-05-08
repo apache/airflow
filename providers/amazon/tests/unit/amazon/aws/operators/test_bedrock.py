@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockIngestDataOperator,
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
+    BedrockUpdateGuardrailOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -957,6 +958,36 @@ class TestBedrockCreateGuardrailVersionOperator:
             guardrailIdentifier=GUARDRAIL_ID, description="Production version"
         )
         assert result == "2"
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockUpdateGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockUpdateGuardrailOperator(
+            task_id="update_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_name="updated-guardrail",
+            blocked_input_messaging="Blocked.",
+            blocked_outputs_messaging="Blocked.",
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.update_guardrail.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "guardrailArn": "arn",
+            "version": "DRAFT",
+            "updatedAt": "now",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        assert result == GUARDRAIL_ID
+        mock_client.update_guardrail.assert_called_once()
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
