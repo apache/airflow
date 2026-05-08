@@ -145,6 +145,25 @@ class TestDBCleanup:
         cleanup_table_mock.assert_called_once()
         assert cleanup_table_mock.call_args.kwargs["batch_size"] == 1234
 
+    @patch("airflow.utils.db_cleanup.reflect_tables")
+    @patch("airflow.utils.db_cleanup._cleanup_table")
+    def test_run_cleanup_does_not_commit_after_cleanup_table(self, cleanup_table_mock, reflect_tables_mock):
+        """run_cleanup should not add an extra commit after _cleanup_table handles its own transaction."""
+        reflect_tables_mock.return_value.tables = {"log": object()}
+        session = MagicMock()
+
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=["log"],
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            session=session,
+        )
+
+        cleanup_table_mock.assert_called_once()
+        session.commit.assert_not_called()
+
     @pytest.mark.parametrize(
         "table_names",
         [
@@ -753,15 +772,24 @@ class TestDBCleanup:
     )
     def test_error_on_cleanup_failure_raises_when_flag_set(self, cleanup_table_mock):
         """When error_on_cleanup_failure=True and a table fails, RuntimeError should be raised."""
-        with pytest.raises(RuntimeError, match="airflow db clean encountered errors"):
-            run_cleanup(
-                clean_before_timestamp=None,
-                table_names=["log"],
-                dry_run=False,
-                verbose=False,
-                confirm=False,
-                error_on_cleanup_failure=True,
+        with patch("airflow.utils.db_cleanup.logger") as mock_logger:
+            with pytest.raises(RuntimeError, match="airflow db clean encountered errors"):
+                run_cleanup(
+                    clean_before_timestamp=None,
+                    table_names=["log"],
+                    dry_run=False,
+                    verbose=False,
+                    confirm=False,
+                    error_on_cleanup_failure=True,
+                )
+
+            mock_logger.warning.assert_any_call(
+                "Encountered error when attempting to clean table '%s'. ", "log"
             )
+            assert (
+                "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+                ["log"],
+            ) not in [call.args for call in mock_logger.warning.call_args_list]
 
     @patch(
         "airflow.utils.db_cleanup._cleanup_table",

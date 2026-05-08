@@ -592,8 +592,8 @@ def run_cleanup(
     :param session: Session representing connection to the metadata database.
     :param batch_size: Maximum number of rows to delete or archive in a single transaction.
     :param error_on_cleanup_failure: If True, raise a RuntimeError after processing all tables
-        if any per-table cleanup encountered an error. By default errors are suppressed and the
-        command exits 0 even if some tables were not cleaned.
+        if any per-table cleanup encountered an error. By default errors are suppressed, a warning
+        summary is logged, and the command exits 0 even if some tables were not cleaned.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
@@ -630,7 +630,6 @@ def run_cleanup(
                     session=session,
                     batch_size=batch_size,
                 )
-                session.commit()
             if ctx.failed:
                 failed_tables.append(table_name)
         else:

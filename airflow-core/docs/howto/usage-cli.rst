@@ -226,7 +226,7 @@ Detecting cleanup failures
 
 By default, ``db clean`` suppresses per-table errors (such as a database ``statement_timeout``
 being exceeded on a very large table) and exits with code 0 even if one or more tables were not
-cleaned.  A WARNING is always emitted in the logs listing which tables were skipped due to errors.
+cleaned. A WARNING is emitted in the logs listing which tables were skipped due to errors.
 
 To make the command exit with a non-zero code whenever any table cleanup fails — useful when
 ``airflow db clean`` is invoked from a DAG task and you want the task to turn red on failure —
@@ -238,6 +238,9 @@ pass ``--error-on-cleanup-failure``:
         --clean-before-timestamp "$(date -u -d '21 days ago' '+%Y-%m-%dT%H:%M:%S+00:00')" \
         --yes \
         --error-on-cleanup-failure
+
+When ``--error-on-cleanup-failure`` is set, the raised ``RuntimeError`` includes the list of
+tables that failed cleanup, so the command still surfaces which tables were not cleaned.
 
 .. tip::
 
