@@ -882,7 +882,7 @@ class SFTPHookAsync(BaseHook):
                     await sftp.put(str(local_full_path), remote_full_path)
                 elif hasattr(local_full_path, "read"):
                     async with sftp.open(remote_full_path, "wb") as f:
-                        stream = cast("IO[bytes]", local_full_path)
+                        stream = local_full_path
                         if hasattr(stream, "seek"):
                             stream.seek(0)
                         data = stream.read()
@@ -937,10 +937,12 @@ class SFTPHookAsync(BaseHook):
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 try:
-                    files = await sftp.readdir(path)
+                    entries = await sftp.readdir(path)
                 except asyncssh.SFTPNoSuchFile:
                     return None
-                return sorted([os.fsdecode(file.filename) for file in files])
+                return sorted(os.fsdecode(entry.filename) for entry in entries)
+
+        return None
 
     async def walktree(
         self,
