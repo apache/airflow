@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Sequence
-from typing import TYPE_CHECKING, Any, SupportsAbs
+from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -215,6 +215,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     self.location,
                     self.job_id,
                 )
+            raise
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -299,6 +300,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
 
     def __init__(self, as_dict: bool = False, selected_fields: str | None = None, **kwargs):
         super().__init__(**kwargs)
+
         self.as_dict = as_dict
         self.selected_fields = selected_fields
 
@@ -323,17 +325,38 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent with response data."""
         hook = self._get_async_hook()
+
         try:
             while True:
-                # Poll for job execution status
-                job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
+                job_status = await hook.get_job_status(
+                    job_id=self.job_id, project_id=self.project_id, location=self.location
+                )
+
                 if job_status["status"] == "success":
-                    query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(
-                        query_results=query_results,
-                        as_dict=self.as_dict,
-                        selected_fields=self.selected_fields,
-                    )
+                    sync_hook = await hook.get_sync_hook()
+
+                    if sync_hook.is_default_universe():
+                        query_results = await hook.get_job_output(
+                            job_id=self.job_id, project_id=self.project_id
+                        )
+                        records = hook.get_records(
+                            query_results=query_results,
+                            as_dict=self.as_dict,
+                            selected_fields=self.selected_fields,
+                        )
+                    else:
+                        if not self.location:
+                            raise ValueError(
+                                "Location cannot be empty or None. Please provide a valid location."
+                            )
+                        query_results_args = {
+                            "job_id": self.job_id,
+                            "location": self.location,
+                            "selected_fields": self.selected_fields,
+                            "project_id": self.project_id,
+                        }
+                        records = await sync_to_async(sync_hook.get_query_results)(**query_results_args)
+
                     self.log.debug("Response from hook: %s", job_status["status"])
                     yield TriggerEvent(
                         {
@@ -456,41 +479,70 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         try:
             while True:
                 first_job_response_from_hook = await hook.get_job_status(
-                    job_id=self.first_job_id, project_id=self.project_id
+                    job_id=self.first_job_id,
+                    project_id=self.project_id,
+                    location=self.location,
                 )
                 second_job_response_from_hook = await hook.get_job_status(
-                    job_id=self.second_job_id, project_id=self.project_id
+                    job_id=self.second_job_id,
+                    project_id=self.project_id,
+                    location=self.location,
                 )
 
                 if (
                     first_job_response_from_hook["status"] == "success"
                     and second_job_response_from_hook["status"] == "success"
                 ):
-                    first_query_results = await hook.get_job_output(
-                        job_id=self.first_job_id, project_id=self.project_id
-                    )
+                    sync_hook = await hook.get_sync_hook()
 
-                    second_query_results = await hook.get_job_output(
-                        job_id=self.second_job_id, project_id=self.project_id
-                    )
+                    if sync_hook.is_default_universe():
+                        first_query_results = await hook.get_job_output(
+                            job_id=self.first_job_id, project_id=self.project_id
+                        )
 
-                    first_records = hook.get_records(first_query_results)
+                        second_query_results = await hook.get_job_output(
+                            job_id=self.second_job_id, project_id=self.project_id
+                        )
 
-                    second_records = hook.get_records(second_query_results)
+                        first_records = hook.get_records(first_query_results)
 
-                    # If empty list, then no records are available
-                    if not first_records:
-                        first_job_row: str | None = None
+                        second_records = hook.get_records(second_query_results)
+
+                        # If empty list, then no records are available
+                        if not first_records:
+                            first_job_row: str | None = None
+                        else:
+                            # Extract only first record from the query results
+                            first_job_row = first_records.pop(0)
+
+                        # If empty list, then no records are available
+                        if not second_records:
+                            second_job_row: str | None = None
+                        else:
+                            # Extract only first record from the query results
+                            second_job_row = second_records.pop(0)
                     else:
-                        # Extract only first record from the query results
-                        first_job_row = first_records.pop(0)
-
-                    # If empty list, then no records are available
-                    if not second_records:
-                        second_job_row: str | None = None
-                    else:
-                        # Extract only first record from the query results
-                        second_job_row = second_records.pop(0)
+                        if not self.location:
+                            raise ValueError(
+                                "Location cannot be empty or None. Please provide a valid location."
+                            )
+                        query_args_base = {
+                            "location": self.location,
+                            "max_results": 1,
+                            "project_id": self.project_id,
+                        }
+                        first_job_result = await sync_to_async(sync_hook.get_query_results)(
+                            **(query_args_base | {"job_id": self.first_job_id})
+                        )
+                        second_job_result = await sync_to_async(sync_hook.get_query_results)(
+                            **(query_args_base | {"job_id": self.second_job_id})
+                        )
+                        first_job_row = (
+                            cast("Any", list(first_job_result[0].values())) if first_job_result else None
+                        )
+                        second_job_row = (
+                            cast("Any", list(second_job_result[0].values())) if second_job_result else None
+                        )
 
                     hook.interval_check(
                         first_job_row,

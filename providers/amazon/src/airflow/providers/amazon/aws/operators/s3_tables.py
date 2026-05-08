@@ -165,6 +165,38 @@ class S3TablesDeleteTableOperator(AwsBaseOperator[AwsBaseHook]):
         self.log.info("Deleted table %s", self.table_name)
 
 
+class S3TablesDeleteNamespaceOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Delete a namespace from an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesDeleteNamespaceOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param namespace: The namespace to delete. (templated)
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn", "namespace")
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        namespace: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.namespace = namespace
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Deleting namespace %s from %s", self.namespace, self.table_bucket_arn)
+        self.hook.conn.delete_namespace(tableBucketARN=self.table_bucket_arn, namespace=self.namespace)
+        self.log.info("Deleted namespace %s", self.namespace)
+
+
 class S3TablesCreateTableBucketOperator(AwsBaseOperator[S3TablesHook]):
     """
     Create an Amazon S3 Tables table bucket.

@@ -62,7 +62,7 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 - Dag processor handler: `airflow-core/src/airflow/dag_processing/processor.py`
 - Triggerer handler: `airflow-core/src/airflow/jobs/triggerer_job_runner.py`
 - Task SDK generated models: `task-sdk/src/airflow/sdk/api/datamodels/_generated.py`
-- Full versioning guide: [`contributing-docs/19_execution_api_versioning.rst`](../../../../contributing-docs/19_execution_api_versioning.rst)
+- Full versioning guide: [`contributing-docs/19_execution_api_versioning.rst`](../../../../../contributing-docs/19_execution_api_versioning.rst)
 
 ## Token Scope Infrastructure
 

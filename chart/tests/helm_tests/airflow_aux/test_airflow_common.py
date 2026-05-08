@@ -349,6 +349,10 @@ class TestAirflowCommon:
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         ]
         expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
@@ -377,6 +381,10 @@ class TestAirflowCommon:
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         ]
         expected_vars_no_jwt = [
             "AIRFLOW_HOME",
@@ -385,6 +393,10 @@ class TestAirflowCommon:
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__CELERY__BROKER_URL",
+            "OTEL_SERVICE_NAME",
+            "OTEL_EXPORTER_OTLP_PROTOCOL",
+            "OTEL_TRACES_EXPORTER",
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
         ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]

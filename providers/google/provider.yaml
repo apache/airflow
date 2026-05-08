@@ -30,12 +30,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1776779043
+source-date-epoch: 1777990905
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 21.3.0
   - 21.2.0
   - 21.1.0
   - 21.0.0
@@ -171,7 +172,7 @@ integrations:
     external-doc-url: https://cloud.google.com/
     tags: [gcp]
     logo: /docs/integration-logos/Google.png
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
@@ -495,9 +496,10 @@ operators:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_build
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_composer
+      - airflow.providers.google.cloud.operators.managed_airflow
   - integration-name: Google Cloud Run
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_run
@@ -651,7 +653,7 @@ sensors:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.sensors.bigtable
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.sensors.cloud_composer
   - integration-name: Google Cloud Storage Transfer Service
@@ -757,7 +759,7 @@ hooks:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_build
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_composer
   - integration-name: Google Cloud Run
@@ -946,7 +948,7 @@ triggers:
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_build
-  - integration-name: Google Cloud Composer
+  - integration-name: Managed Service for Apache Airflow
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
   - integration-name: Google Cloud Run

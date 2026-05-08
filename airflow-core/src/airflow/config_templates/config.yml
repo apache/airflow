@@ -2689,6 +2689,17 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    runner_health_check_threshold:
+      description: |
+        If the TriggerRunner subprocess's async event loop sends no communication to the parent
+        process for more than this many seconds, the parent stops updating the triggerer's
+        heartbeat in the database. The triggerer then appears unhealthy to the scheduler, which
+        will reassign its triggers. This detects a deadlocked or hung event loop that the normal
+        process-alive check cannot catch. Set to 0 to disable the watchdog.
+      version_added: 3.2.2
+      type: float
+      example: ~
+      default: "30"
     blocked_main_thread_warning_threshold:
       description: |
         Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.

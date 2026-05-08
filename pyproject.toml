@@ -794,7 +794,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
-"helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"chart/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
@@ -847,7 +847,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "devel-common/src/sphinx_exts/exampleinclude.py" = ["E402", 'F401', ]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
-"helm-tests/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+"chart/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 # While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
 # mechanism and whole .pyi is really "type-checking" only
@@ -1053,7 +1053,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
-    "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/chart/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
@@ -1310,7 +1310,7 @@ dev = [
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
-    "apache-airflow-helm-tests",
+    "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
@@ -1377,7 +1377,7 @@ apache-airflow-dev = false
 apache-airflow-devel-common = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
-apache-airflow-helm-tests = false
+apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
@@ -1528,7 +1528,7 @@ apache-airflow-dev = false
 apache-airflow-devel-common = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
-apache-airflow-helm-tests = false
+apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
@@ -1674,7 +1674,7 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-integration-tests = { workspace = true }
-apache-airflow-helm-tests = { workspace = true }
+apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
@@ -1810,7 +1810,7 @@ members = [
     "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
-    "helm-tests",
+    "chart",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
