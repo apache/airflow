@@ -458,3 +458,51 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_rfc2047_encoded_filename(self, mock_imaplib):
+        """Test that non-ASCII (RFC 2047 encoded) attachment filenames are decoded to Unicode."""
+        # RFC 2047 encoded Cyrillic filename
+        # Decoded: "Перечень точек продаж_2026-04-21.xlsx"
+        encoded_filename = "=?UTF-8?B?0J/QtdGA0LXRh9C10L3RjCDRgtC+0YfQtdC6INC/0YDQvtC00LDQtl8yMDI2LTA0LTIxLnhsc3g=?="
+        expected_filename = "Перечень точек продаж_2026-04-21.xlsx"
+
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name=encoded_filename)
+
+        with ImapHook() as imap_hook:
+            attachments = imap_hook.retrieve_mail_attachments(expected_filename)
+
+        assert len(attachments) == 1
+        assert attachments[0][0] == expected_filename
+
+    @patch(imaplib_string)
+    def test_has_mail_attachment_with_rfc2047_encoded_filename(self, mock_imaplib):
+        """Test that has_mail_attachment correctly matches RFC 2047 encoded filenames."""
+        # RFC 2047 encoded Cyrillic filename
+        # Decoded: "Перечень точек продаж_2026-04-21.xlsx"
+        encoded_filename = "=?UTF-8?B?0J/QtdGA0LXRh9C10L3RjCDRgtC+0YfQtdC6INC/0YDQvtC00LDQtl8yMDI2LTA0LTIxLnhsc3g=?="
+        expected_filename = "Перечень точек продаж_2026-04-21.xlsx"
+
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name=encoded_filename)
+
+        with ImapHook() as imap_hook:
+            result = imap_hook.has_mail_attachment(name=expected_filename)
+
+        assert result is True
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_rfc2047_encoded_filename(self, mock_imaplib, mock_open_method):
+        """Test that download_mail_attachments correctly handles RFC 2047 encoded filenames."""
+        # RFC 2047 encoded Cyrillic filename
+        # Decoded: "Перечень точек продаж_2026-04-21.xlsx"
+        encoded_filename = "=?UTF-8?B?0J/QtdGA0LXRh9C10L3RjCDRgtC+0YfQtdC6INC/0YDQvtC00LDQtl8yMDI2LTA0LTIxLnhsc3g=?="
+        expected_filename = "Перечень точек продаж_2026-04-21.xlsx"
+
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name=encoded_filename)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(name=expected_filename, local_output_directory="test_directory")
+
+        mock_open_method.assert_called_once_with(f"test_directory/{expected_filename}", "wb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
