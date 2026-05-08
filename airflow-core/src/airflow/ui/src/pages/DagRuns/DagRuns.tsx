@@ -41,11 +41,12 @@ import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import BulkClearDagRunsButton from "src/pages/BulkClearDagRunsButton";
-import BulkDeleteDagRunsButton from "src/pages/BulkDeleteDagRunsButton";
-import BulkMarkDagRunsAsButton from "src/pages/BulkMarkDagRunsAsButton";
-import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
+
+import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
+import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
+import BulkMarkDagRunsAsButton from "./BulkMarkDagRunsAsButton";
+import { DagRunsFilters } from "./DagRunsFilters";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
