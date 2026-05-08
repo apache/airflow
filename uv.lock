@@ -3259,6 +3259,7 @@ dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -3283,6 +3284,7 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -3338,6 +3340,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-microsoft-mssql" },
     { name = "apache-airflow-providers-mysql" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-presto" },
     { name = "apache-airflow-providers-samba" },
     { name = "apache-airflow-providers-vertica" },
@@ -3381,6 +3384,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-mssql", editable = "providers/microsoft/mssql" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-presto", editable = "providers/presto" },
     { name = "apache-airflow-providers-samba", editable = "providers/samba" },
     { name = "apache-airflow-providers-vertica", editable = "providers/vertica" },
@@ -3509,6 +3513,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -3535,6 +3540,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -5956,6 +5962,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+common-compat = [
+    { name = "apache-airflow-providers-common-compat" },
+]
 openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
@@ -5964,6 +5973,7 @@ openlineage = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
@@ -5975,18 +5985,20 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "pymssql", marker = "python_full_version < '3.14'", specifier = ">=2.3.5" },
     { name = "pymssql", marker = "python_full_version >= '3.14'", specifier = ">=2.3.13" },
 ]
-provides-extras = ["openlineage"]
+provides-extras = ["openlineage", "common-compat"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
@@ -6828,6 +6840,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-presto", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -6859,6 +6872,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-presto", extras = ["sqlalchemy"], editable = "providers/presto" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
@@ -7590,6 +7604,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-microsoft-azure" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-ssh" },
     { name = "apache-airflow-providers-teradata", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
@@ -7620,6 +7635,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
     { name = "apache-airflow-providers-teradata", extras = ["sqlalchemy"], editable = "providers/teradata" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
@@ -7709,6 +7725,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-vertica", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -7733,6 +7750,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-vertica", extras = ["sqlalchemy"], editable = "providers/vertica" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
