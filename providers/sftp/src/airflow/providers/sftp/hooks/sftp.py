@@ -835,7 +835,6 @@ class SFTPHookAsync(BaseHook):
         :param local_full_path: Full path to the local file or a binary file-like buffer.
         :param chunk_size: Size of chunks to read at a time (default: 64KB).
         """
-
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 async with sftp.open(remote_full_path, "rb") as remote_file:
