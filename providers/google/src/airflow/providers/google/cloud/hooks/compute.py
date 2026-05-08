@@ -81,20 +81,38 @@ class ComputeEngineHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build("compute", self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build(
+                "compute",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+                client_options=self.get_client_options(),
+            )
         return self._conn
 
     def get_compute_instance_template_client(self):
         """Return Compute Engine Instance Template Client."""
-        return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return InstanceTemplatesClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
 
     def get_compute_instance_client(self):
         """Return Compute Engine Instance Client."""
-        return InstancesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return InstancesClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
 
     def get_compute_instance_group_managers_client(self):
         """Return Compute Engine Instance Group Managers Client."""
-        return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return InstanceGroupManagersClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance_template(

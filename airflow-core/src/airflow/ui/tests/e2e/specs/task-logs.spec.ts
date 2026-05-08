@@ -101,8 +101,8 @@ test.describe("Verify task logs display", () => {
 
     const downloadButton = page.getByTestId("download-logs-button");
 
-    await expect(downloadButton).toBeVisible({ timeout: 10_000 });
-    await expect(downloadButton).toBeEnabled({ timeout: 10_000 });
+    await expect(downloadButton).toBeVisible();
+    await expect(downloadButton).toBeEnabled();
 
     const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
 

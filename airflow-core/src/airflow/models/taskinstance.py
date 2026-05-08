@@ -22,6 +22,7 @@ import itertools
 import json
 import logging
 import math
+import warnings
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
@@ -71,6 +72,7 @@ from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_t
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors.workloads import BaseWorkload
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
@@ -86,6 +88,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
@@ -602,6 +605,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         nullable=True,
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
+
+    # Retry policy overrides: set by the task worker when a RetryPolicy is configured.
+    # Cleared on task start (ti_run).  Read by next_retry_datetime().
+    retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1127,8 +1135,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """
         Get datetime of the next retry if the task instance fails.
 
+        When a :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy` has
+        overridden the delay, ``retry_delay_override`` is stored on the task
+        instance row and takes precedence over the static ``retry_delay`` /
+        exponential-backoff calculation.
+
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
+        # Check for a policy-driven delay override.
+        if self.retry_delay_override is not None:
+            base = self.end_date if self.end_date is not None else timezone.utcnow()
+            return base + timedelta(seconds=self.retry_delay_override)
+
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
         delay = self.task.retry_delay
@@ -1674,7 +1692,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             self.state = TaskInstanceState.DEFERRED
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
-            self.next_kwargs = start_trigger_args.next_kwargs or {}
+            self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
             self.start_date = timezone.utcnow()
 
             # If an execution_timeout is set, set the timeout to the minimum of
@@ -1939,22 +1957,52 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @provide_session
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
-        """Return Number of running TIs from the DB."""
-        # .count() is inefficient
-        num_running_task_instances_query = (
+        """Count running TIs from the DB."""
+        warnings.warn(
+            "This function is deprecated and will be removed in Airflow.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return self._get_num_task_instances_of_state(
+            [TaskInstanceState.RUNNING],
+            same_dagrun=same_dagrun,
+            session=session,
+        )
+
+    def get_num_active_task_instances(self, *, same_dagrun: bool = False, session: Session) -> int:
+        """
+        Count active (running or deferred) TIs for this task from the DB.
+
+        Deferred TIs are included because they are still logically in-flight
+        and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
+
+        :meta private:
+        """
+        return self._get_num_task_instances_of_state(
+            [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED],
+            same_dagrun=same_dagrun,
+            session=session,
+        )
+
+    def _get_num_task_instances_of_state(
+        self,
+        states: Collection[TaskInstanceState],
+        *,
+        same_dagrun: bool = False,
+        session: Session,
+    ) -> int:
+        stmt = (
             select(func.count())
             .select_from(TaskInstance)
-            .where(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.state == TaskInstanceState.RUNNING,
-            )
+            .where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id == self.task_id)
         )
+        if states:
+            stmt = stmt.where(or_(*(TaskInstance.state == s for s in states)))
+        else:
+            return 0
         if same_dagrun:
-            num_running_task_instances_query = num_running_task_instances_query.where(
-                TaskInstance.run_id == self.run_id
-            )
-        return session.scalar(num_running_task_instances_query) or 0
+            stmt = stmt.where(TaskInstance.run_id == self.run_id)
+        return session.scalar(stmt) or 0
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:

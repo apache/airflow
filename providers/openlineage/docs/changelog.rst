@@ -26,6 +26,34 @@
 Changelog
 ---------
 
+2.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+* ``Add public emit_dataset_lineage and emit_query_lineage API for OpenLineage provider (#65788)``
+* ``Add dynamically emitted asset events to OpenLineage (#65727)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent stats from breaking executor initializer (#66351)``
+* ``Manual state change should not use fork-execute model on scheduler (#65677)``
+
+Misc
+~~~~
+
+* ``Cleanup integration names for consistency (#66287)``
+* ``Bump Ol client dependency to 1.46 (#66145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 2.15.0
 ......
 

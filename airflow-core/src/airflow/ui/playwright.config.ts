@@ -110,17 +110,6 @@ export default defineConfig({
   retries: process.env.CI !== undefined && process.env.CI !== "" ? 4 : 0,
 
   testDir: "./tests/e2e/specs",
-  // TODO: Temporarily ignore flaky specs until stabilized
-  // See: #63036
-  testIgnore: [
-    "**/dag-runs-tab.spec.ts",
-    "**/dag-runs.spec.ts",
-    "**/dag-grid-view.spec.ts",
-    "**/task-logs.spec.ts",
-    "**/dag-tasks.spec.ts",
-    "**/variable.spec.ts",
-    "**/xcoms.spec.ts",
-  ],
 
   timeout: 60_000,
   use: {

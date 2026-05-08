@@ -2624,6 +2624,10 @@ scheduler:
         Notably, for **CronTriggerTimetable**, the logical date is the same as the time the DAG Run will
         try to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of
         the data interval, but the DAG Run will try to schedule at the end of the data interval.
+
+        When a DAG is switched from **CronTriggerTimetable** to **CronDataIntervalTimetable** (for example,
+        by flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past
+        the most recent **CronTriggerTimetable** run to avoid colliding with its logical date.
       version_added: 2.9.0
       type: boolean
       example: ~
@@ -2682,6 +2686,17 @@ triggerer:
         This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
         for TriggererJob.
       version_added: 2.7.0
+      type: float
+      example: ~
+      default: "30"
+    runner_health_check_threshold:
+      description: |
+        If the TriggerRunner subprocess's async event loop sends no communication to the parent
+        process for more than this many seconds, the parent stops updating the triggerer's
+        heartbeat in the database. The triggerer then appears unhealthy to the scheduler, which
+        will reassign its triggers. This detects a deadlocked or hung event loop that the normal
+        process-alive check cannot catch. Set to 0 to disable the watchdog.
+      version_added: 3.2.2
       type: float
       example: ~
       default: "30"

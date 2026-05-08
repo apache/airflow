@@ -785,6 +785,7 @@ hyperparameters
 IaC
 iam
 ibmcloudant
+IdC
 ideation
 idempotence
 idempotency
@@ -826,6 +827,7 @@ InstanceGroupConfig
 InstanceSelection
 instanceTemplates
 InstanceType
+instanceType
 instantiation
 integrations
 ints
@@ -926,6 +928,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
@@ -1305,6 +1308,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
@@ -1391,6 +1395,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runTimeoutInMinutes
 runtimes
 SaaS
 sade
@@ -1637,6 +1642,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1747,6 +1753,7 @@ unpaused
 unpausing
 unpredicted
 unsanitized
+unscoped
 untestable
 untransformed
 untrusted

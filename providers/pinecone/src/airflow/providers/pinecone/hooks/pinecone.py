@@ -69,10 +69,6 @@ class PineconeHook(BaseHook):
         return {
             "region": StringField(lazy_gettext("Pinecone Region"), widget=BS3TextFieldWidget(), default=None),
             "debug_curl": BooleanField(lazy_gettext("PINECONE_DEBUG_CURL"), default=False),
-            "project_id": StringField(
-                lazy_gettext("Project ID"),
-                widget=BS3TextFieldWidget(),
-            ),
         }
 
     @classmethod
@@ -124,14 +120,19 @@ class PineconeHook(BaseHook):
         """Pinecone object to interact with Pinecone."""
         pinecone_host = self.conn.host
         extras = self.conn.extra_dejson
-        pinecone_project_id = extras.get("project_id")
         enable_curl_debug = extras.get("debug_curl")
         if enable_curl_debug:
             os.environ["PINECONE_DEBUG_CURL"] = "true"
+        # Note: `project_id` was a constructor kwarg of the legacy Pinecone
+        # client; it has been removed in the v6+ SDK that this provider
+        # depends on (`pinecone>=7.0.0`). Passing it — even as `None` —
+        # raises `TypeError` from the new client's strict kwargs check.
+        # The connection-extras "project_id" field is therefore ignored;
+        # it's still accepted on existing connections so the provider does
+        # not break for users who saved one, but it has no effect.
         return Pinecone(
             api_key=self.api_key,
             host=pinecone_host,
-            project_id=pinecone_project_id,
             source_tag="apache_airflow",
         )
 

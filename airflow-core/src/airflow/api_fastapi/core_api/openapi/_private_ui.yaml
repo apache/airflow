@@ -225,7 +225,7 @@ paths:
       tags:
       - DAG
       summary: Get Dags
-      description: Get DAGs with recent DagRun.
+      description: Get Dags with recent DagRun.
       operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []

@@ -733,6 +733,24 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == deque([file1, file2])
         assert manager._force_refresh_bundles == {"dags-folder"}
 
+    def test_request_bundle_refresh_marks_bundles_for_refresh(self):
+        """`request_bundle_refresh` adds the bundles to the force-refresh set."""
+        manager = DagFileProcessorManager(max_runs=1)
+        assert manager._force_refresh_bundles == set()
+
+        manager.request_bundle_refresh(["bundleone", "bundletwo"])
+        manager.request_bundle_refresh(["bundleone"])  # idempotent
+
+        assert manager._force_refresh_bundles == {"bundleone", "bundletwo"}
+
+    def test_request_bundle_refresh_accepts_single_bundle_name(self):
+        """`request_bundle_refresh` treats a string as one bundle name, not an iterable."""
+        manager = DagFileProcessorManager(max_runs=1)
+
+        manager.request_bundle_refresh("bundleone")
+
+        assert manager._force_refresh_bundles == {"bundleone"}
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_scan_stale_dags(self, session):
         """
@@ -2188,6 +2206,29 @@ class TestDagFileProcessorManager:
                 manager.run()
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
+
+    def test_purge_inactive_dag_warnings_delegates_to_dagwarning(self):
+        """Default `purge_inactive_dag_warnings` calls `DagWarning.purge_inactive_dag_warnings`."""
+        manager = DagFileProcessorManager(max_runs=1)
+        with mock.patch(
+            "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
+        ) as purge_mock:
+            manager.purge_inactive_dag_warnings()
+        purge_mock.assert_called_once_with()
+
+    def test_run_parsing_loop_uses_overridable_purge(self, tmp_path, configure_testing_dag_bundle):
+        """`_run_parsing_loop` calls the overridable `purge_inactive_dag_warnings` seam."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            with (
+                mock.patch.object(manager, "purge_inactive_dag_warnings") as purge_mock,
+                mock.patch(
+                    "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
+                ) as direct_mock,
+            ):
+                manager.run()
+            purge_mock.assert_called()
+            direct_mock.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):

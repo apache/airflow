@@ -137,7 +137,7 @@ class TestKubernetesPodOperatorSystem:
                 "affinity": {},
                 "containers": [
                     {
-                        "image": "ubuntu",
+                        "image": "ubuntu:24.04",
                         "args": ["echo 10"],
                         "command": ["bash", "-cx"],
                         "env": [],
@@ -182,7 +182,7 @@ class TestKubernetesPodOperatorSystem:
         shutil.copy(kubeconfig_path, new_config_path)
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -199,7 +199,7 @@ class TestKubernetesPodOperatorSystem:
 
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -218,7 +218,7 @@ class TestKubernetesPodOperatorSystem:
     def test_working_pod(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -235,7 +235,7 @@ class TestKubernetesPodOperatorSystem:
     def test_skip_cleanup(self):
         k = KubernetesPodOperator(
             namespace="unknown",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -250,7 +250,7 @@ class TestKubernetesPodOperatorSystem:
     def test_delete_operator_pod(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -268,7 +268,7 @@ class TestKubernetesPodOperatorSystem:
     def test_skip_on_specified_exit_code(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["exit 42"],
             task_id=str(uuid4()),
@@ -288,7 +288,7 @@ class TestKubernetesPodOperatorSystem:
         """
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -310,7 +310,7 @@ class TestKubernetesPodOperatorSystem:
         """
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["lalala"],
             labels=self.labels,
@@ -331,7 +331,7 @@ class TestKubernetesPodOperatorSystem:
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -351,7 +351,7 @@ class TestKubernetesPodOperatorSystem:
         dns_policy = "ClusterFirstWithHostNet"
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -373,7 +373,7 @@ class TestKubernetesPodOperatorSystem:
         scheduler_name = "default-scheduler"
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -392,7 +392,7 @@ class TestKubernetesPodOperatorSystem:
         node_selector = {"beta.kubernetes.io/os": "linux"}
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -414,7 +414,7 @@ class TestKubernetesPodOperatorSystem:
         )
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -493,7 +493,7 @@ class TestKubernetesPodOperatorSystem:
         }
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -516,7 +516,7 @@ class TestKubernetesPodOperatorSystem:
 
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -547,7 +547,7 @@ class TestKubernetesPodOperatorSystem:
             ]
             k = KubernetesPodOperator(
                 namespace="default",
-                image="ubuntu",
+                image="ubuntu:24.04",
                 cmds=["bash", "-cx"],
                 arguments=args,
                 labels=self.labels,
@@ -577,7 +577,7 @@ class TestKubernetesPodOperatorSystem:
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             task_id=name,
@@ -602,7 +602,7 @@ class TestKubernetesPodOperatorSystem:
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             task_id=name,
@@ -626,7 +626,7 @@ class TestKubernetesPodOperatorSystem:
 
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -666,7 +666,7 @@ class TestKubernetesPodOperatorSystem:
     def test_faulty_service_account(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -688,7 +688,7 @@ class TestKubernetesPodOperatorSystem:
         bad_internal_command = ["foobar 10 "]
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=bad_internal_command,
             labels=self.labels,
@@ -708,7 +708,7 @@ class TestKubernetesPodOperatorSystem:
         args = [f"echo '{json.dumps(expected)}' > /airflow/xcom/return.json"]
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=args,
             labels=self.labels,
@@ -733,7 +733,7 @@ class TestKubernetesPodOperatorSystem:
 
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             env_vars=env_vars,
@@ -852,7 +852,7 @@ class TestKubernetesPodOperatorSystem:
                 containers=[
                     k8s.V1Container(
                         name="base",
-                        image="ubuntu",
+                        image="ubuntu:24.04",
                         command=["/bin/bash"],
                         args=["-c", 'echo {\\"hello\\" : \\"world\\"} | cat > /airflow/xcom/return.json'],
                         env=[k8s.V1EnvVar(name="env_name", value="value")],
@@ -901,7 +901,7 @@ class TestKubernetesPodOperatorSystem:
 
         init_container = k8s.V1Container(
             name="init-container",
-            image="ubuntu",
+            image="ubuntu:24.04",
             env=init_environments,
             volume_mounts=volume_mounts,
             command=["bash", "-cx"],
@@ -914,7 +914,7 @@ class TestKubernetesPodOperatorSystem:
         )
         expected_init_container = {
             "name": "init-container",
-            "image": "ubuntu",
+            "image": "ubuntu:24.04",
             "command": ["bash", "-cx"],
             "args": ["echo 10"],
             "env": [{"name": "key1", "value": "value1"}, {"name": "key2", "value": "value2"}],
@@ -923,7 +923,7 @@ class TestKubernetesPodOperatorSystem:
 
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -1037,7 +1037,7 @@ class TestKubernetesPodOperatorSystem:
                     },
                     {
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
-                        "image": "alpine",
+                        "image": "alpine:3.23",
                         "name": "airflow-xcom-sidecar",
                         "resources": {
                             "requests": {"cpu": "1m", "memory": "10Mi"},
@@ -1077,7 +1077,7 @@ class TestKubernetesPodOperatorSystem:
         priority_class_name = "medium-test"
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -1100,7 +1100,7 @@ class TestKubernetesPodOperatorSystem:
         pod_name_too_long = "a" * 221
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -1122,7 +1122,7 @@ class TestKubernetesPodOperatorSystem:
         namespace = "default"
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["sleep 1000"],
             labels=self.labels,
@@ -1164,7 +1164,7 @@ class TestKubernetesPodOperatorSystem:
         def get_op():
             return KubernetesPodOperator(
                 namespace="default",
-                image="ubuntu",
+                image="ubuntu:24.04",
                 cmds=["bash", "-cx"],
                 arguments=["exit 1"],
                 labels=self.labels,
@@ -1225,7 +1225,7 @@ class TestKubernetesPodOperatorSystem:
     def test_changing_base_container_name_with_get_logs(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -1255,7 +1255,7 @@ class TestKubernetesPodOperatorSystem:
         """
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
             labels=self.labels,
@@ -1285,7 +1285,7 @@ class TestKubernetesPodOperatorSystem:
         """
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["bash", "-cx"],
             arguments=["sleep 3"],
             labels=self.labels,
@@ -1311,7 +1311,7 @@ class TestKubernetesPodOperatorSystem:
     def test_changing_base_container_name_failure(self):
         k = KubernetesPodOperator(
             namespace="default",
-            image="ubuntu",
+            image="ubuntu:24.04",
             cmds=["exit"],
             arguments=["1"],
             labels=self.labels,
@@ -1360,13 +1360,13 @@ class TestKubernetesPodOperatorSystem:
         callback = MagicMock()
         init_container = k8s.V1Container(
             name="init-container",
-            image="busybox",
+            image="busybox:1.37",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container}"],
         )
         k = KubernetesPodOperator(
             namespace="default",
-            image="busybox",
+            image="busybox:1.37",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker_from_main_container}"],
             labels=self.labels,
@@ -1393,25 +1393,25 @@ class TestKubernetesPodOperatorSystem:
         callback = MagicMock()
         init_container_to_log_1 = k8s.V1Container(
             name="init-container-to-log-1",
-            image="busybox",
+            image="busybox:1.37",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container_to_log_1}"],
         )
         init_container_to_log_2 = k8s.V1Container(
             name="init-container-to-log-2",
-            image="busybox",
+            image="busybox:1.37",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container_to_log_2}"],
         )
         init_container_to_ignore = k8s.V1Container(
             name="init-container-to-ignore",
-            image="busybox",
+            image="busybox:1.37",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container_to_ignore}"],
         )
         k = KubernetesPodOperator(
             namespace="default",
-            image="busybox",
+            image="busybox:1.37",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker_from_main_container}"],
             labels=self.labels,
@@ -1477,7 +1477,7 @@ class TestKubernetesPodOperatorSystem:
         marker = f"test_log_{uuid4()}"
         k = KubernetesPodOperator(
             namespace="default",
-            image="busybox",
+            image="busybox:1.37",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker}"],
             labels={"test_label": "test"},
@@ -1559,7 +1559,7 @@ class TestKubernetesPodOperator(BaseK8STest):
         k = KubernetesPodOperator(
             task_id=f"test_task_{active_deadline_seconds}",
             active_deadline_seconds=active_deadline_seconds,
-            image="busybox",
+            image="busybox:1.37",
             cmds=["sh", "-c", echo],
             namespace=ns,
             on_finish_action="keep_pod",

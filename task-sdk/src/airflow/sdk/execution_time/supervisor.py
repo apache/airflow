@@ -64,12 +64,19 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
+    ClearTaskState,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
+    DeleteTaskState,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -77,6 +84,9 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -87,6 +97,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
+    GetTaskState,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -97,20 +108,25 @@ from airflow.sdk.execution_time.comms import (
     HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskState,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskState,
+    TaskStateResult,
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
@@ -131,6 +147,11 @@ try:
     from socket import send_fds
 except ImportError:
     send_fds = None  # type: ignore[assignment]
+
+from opentelemetry import context as otel_context, trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+_trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -738,7 +759,13 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", body=request.body)
                 continue
 
+            # Restore the task runner's trace context so that any outbound HTTP calls made while
+            # handling this request are linked to the correct task span, not the supervisor's own span.
+            token = None
             try:
+                if request.context_carrier:
+                    ctx = _trace_propagator.extract(request.context_carrier)
+                    token = otel_context.attach(ctx)
                 self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
@@ -762,6 +789,9 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
+            finally:
+                if token is not None:
+                    otel_context.detach(token)
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
@@ -1416,6 +1446,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 id=self.id,
                 end_date=msg.end_date,
                 rendered_map_index=self._rendered_map_index,
+                retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
+                retry_reason=getattr(msg, "retry_reason", None),
             )
         elif isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
@@ -1493,6 +1525,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = asset_resp
+        elif isinstance(msg, GetAssetsByAlias):
+            resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(
                 uri=msg.uri,
@@ -1612,6 +1646,54 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_id=msg.dag_id,
             )
             resp = DagResult.from_api_response(dag)
+        elif isinstance(msg, GetTaskState):
+            task_state = self.client.task_state.get(msg.ti_id, msg.key)
+            resp = (
+                task_state
+                if isinstance(task_state, ErrorResponse)
+                else TaskStateResult.from_task_state_response(task_state)
+            )
+        elif isinstance(msg, SetTaskState):
+            self.client.task_state.set(msg.ti_id, msg.key, msg.value)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteTaskState):
+            self.client.task_state.delete(msg.ti_id, msg.key)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearTaskState):
+            self.client.task_state.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, GetAssetStateByName):
+            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+        elif isinstance(msg, GetAssetStateByUri):
+            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+        elif isinstance(msg, SetAssetStateByName):
+            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, SetAssetStateByUri):
+            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByName):
+            self.client.asset_state.delete(msg.key, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByUri):
+            self.client.asset_state.delete(msg.key, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByName):
+            self.client.asset_state.clear(name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByUri):
+            self.client.asset_state.clear(uri=msg.uri)
+            resp = OKResponse(ok=True)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -2244,6 +2326,9 @@ def supervise_task(
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+            provider = trace.get_tracer_provider()
+            if hasattr(provider, "force_flush"):
+                provider.force_flush(timeout_millis=5000)  # upper bound, not a fixed wait
 
 
 def supervise(**kwargs) -> int:
