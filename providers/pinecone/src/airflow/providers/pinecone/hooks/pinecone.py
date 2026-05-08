@@ -124,14 +124,12 @@ class PineconeHook(BaseHook):
         """Pinecone object to interact with Pinecone."""
         pinecone_host = self.conn.host
         extras = self.conn.extra_dejson
-        pinecone_project_id = extras.get("project_id")
         enable_curl_debug = extras.get("debug_curl")
         if enable_curl_debug:
             os.environ["PINECONE_DEBUG_CURL"] = "true"
         return Pinecone(
             api_key=self.api_key,
             host=pinecone_host,
-            project_id=pinecone_project_id,
             source_tag="apache_airflow",
         )
 
