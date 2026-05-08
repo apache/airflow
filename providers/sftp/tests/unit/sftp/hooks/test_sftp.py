@@ -205,7 +205,9 @@ class TestSFTPHook:
 
     def test_list_directory_non_recursive_default(self):
         """Assert that default list_directory returns one-level entry names only."""
-        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS), recursive=False)
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS), recursive=False
+        )
         assert output is not None
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
@@ -1357,4 +1359,3 @@ class TestSFTPHookAsync:
         assert files is not None
         assert sorted(files) == sorted(["file1", "subdir/file2"])
         sftp_client_mock.__aexit__.assert_awaited()
-
