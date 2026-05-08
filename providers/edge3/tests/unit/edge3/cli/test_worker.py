@@ -342,7 +342,7 @@ class TestEdgeWorker:
             if stderr_file_path:
                 stderr_file_path.unlink(missing_ok=True)
 
-    @patch("airflow.sdk.execution_time.supervisor.supervise_task")
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
     async def test_supervise_launch(
         self,
@@ -357,7 +357,7 @@ class TestEdgeWorker:
         assert result == 0
         q.put.assert_called_once()
 
-    @patch("airflow.sdk.execution_time.supervisor.supervise_task")
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
     async def test_supervise_launch_fail(
         self,
@@ -1052,7 +1052,7 @@ class TestSignalHandling:
             ),
             mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
             mock.patch(
-                "airflow.sdk.execution_time.supervisor.supervise_task",
+                "airflow.sdk.execution_time.supervisor.supervise",
                 side_effect=lambda **_: order("supervise"),
             ),
         ):

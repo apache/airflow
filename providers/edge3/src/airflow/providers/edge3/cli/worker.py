@@ -419,7 +419,7 @@ class EdgeWorker:
         """Run a task by calling the supervisor directly (executes inside a forked child process)."""
         _reset_parent_signal_state()
 
-        from airflow.sdk.execution_time.supervisor import supervise_task
+        from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
         os.setpgrp()
@@ -433,7 +433,7 @@ class EdgeWorker:
         )
 
         try:
-            supervise_task(
+            supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 # Same like in airflow/executors/local_executor.py:_execute_workload()
                 ti=ti,  # type: ignore[arg-type]
@@ -483,7 +483,7 @@ class EdgeWorker:
         logger.info(
             "Launched task subprocess pid=%d for %s",
             process.pid,
-            workload.display_name,
+            workload.ti.id,
         )
         return process, stderr_file_path
 
@@ -497,7 +497,7 @@ class EdgeWorker:
             kwargs={"workload": workload, "results_queue": results_queue},
         )
         process.start()
-        logger.info("Launched task fork pid=%d for %s", process.pid, workload.display_name)
+        logger.info("Launched task fork pid=%d for %s", process.pid, workload.ti.id)
         return process, results_queue
 
     def _launch_job(self, edge_job: EdgeJobFetched, workload: ExecuteTask, logfile: Path) -> Job:
