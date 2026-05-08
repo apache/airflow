@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
+from airflow._shared.secrets_masker import redact
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
@@ -604,6 +605,15 @@ class BeamAsyncHook(BeamHook):
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
+        # Redact sensitive values from the command before logging.
+        # In the deferred (trigger) context the secrets masker may not be active,
+        # so we apply redaction explicitly to avoid leaking sensitive pipeline
+        # options (e.g. passwords, tokens) in task logs.
+        redacted_variables = redact(variables) if variables else variables
+        redacted_cmd = [*command_prefix, f"--runner={self.runner}"]
+        if redacted_variables:
+            redacted_cmd.extend(beam_options_to_args(redacted_variables))
+        self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in redacted_cmd))
         return await self.run_beam_command_async(
             cmd=cmd,
             working_directory=working_directory,
@@ -628,7 +638,9 @@ class BeamAsyncHook(BeamHook):
             stdout and stderr to detect job id
         """
         cmd_str_representation = " ".join(shlex.quote(c) for c in cmd)
-        log.info("Running command: %s", cmd_str_representation)
+        # Note: the command with sensitive values already logged (redacted) in
+        # start_pipeline_async; we only log the safe version here for stdout/stderr
+        # stream processing.
 
         # Creating a separate asynchronous process
         process = await asyncio.create_subprocess_shell(
