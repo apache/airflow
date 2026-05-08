@@ -44,7 +44,7 @@ def write_to_influxdb3():
     hook.write(
         measurement="temperature",
         tags={"location": "Prague", "sensor": "A1"},
-        fields={"value": 25.3, "unit": "celsius"},
+        fields={"value": 25.3, "unit": "Celsius"},
     )
     print("Data written successfully")
 

@@ -221,7 +221,7 @@ class InfluxDB3Hook(BaseHook):
             hook.write(
                 measurement="temperature",
                 tags={"location": "Prague", "sensor": "A1"},
-                fields={"value": 25.3, "unit": "celsius"},
+                fields={"value": 25.3, "unit": "Celsius"},
             )
         """
         if not INFLUXDB_CLIENT_3_AVAILABLE or Point is None:
