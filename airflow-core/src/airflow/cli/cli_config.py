@@ -1051,7 +1051,7 @@ ARG_ASSET_ALIAS = Arg(("--alias",), default=False, action="store_true", help="Sh
 # partitions clear
 ARG_PARTITIONS_CLEAR_DAG_ID = Arg(
     ("-d", "--dag-id"),
-    help="The id of the dag whose DagRun partition fields should be cleared",
+    help="The id of the Dag whose DagRun partition fields should be cleared",
     required=True,
 )
 ARG_PARTITIONS_CLEAR_START_DATE = Arg(
@@ -1067,6 +1067,14 @@ ARG_PARTITIONS_CLEAR_END_DATE = Arg(
 ARG_PARTITIONS_CLEAR_DRY_RUN = Arg(
     ("--dry-run",),
     help="Show which DagRuns would be cleared without modifying the database",
+    action="store_true",
+)
+ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(
+    ("--clear-task-instances",),
+    help=(
+        "Also clear the matching DagRuns' task instances (resetting finished runs back to "
+        "QUEUED so they re-execute), in addition to clearing the partition fields."
+    ),
     action="store_true",
 )
 
@@ -1498,7 +1506,9 @@ PARTITIONS_COMMANDS = (
         description=(
             "Clear the partition_key and partition_date columns on a Dag's DagRuns.\n"
             "Either --run-id (single run) or a partition_date range "
-            "(--start-date and/or --end-date) is required."
+            "(--start-date and/or --end-date) is required.\n"
+            "Pass --clear-task-instances to additionally clear the matching DagRuns' "
+            "task instances so finished runs go back to QUEUED and re-execute."
         ),
         func=lazy_load_command("airflow.cli.commands.partition_command.clear"),
         args=(
@@ -1506,6 +1516,7 @@ PARTITIONS_COMMANDS = (
             ARG_RUN_ID,
             ARG_PARTITIONS_CLEAR_START_DATE,
             ARG_PARTITIONS_CLEAR_END_DATE,
+            ARG_PARTITIONS_CLEAR_TASK_INSTANCES,
             ARG_PARTITIONS_CLEAR_DRY_RUN,
             ARG_VERBOSE,
         ),
