@@ -111,6 +111,25 @@ resolves both against the Informatica catalog, and creates the lineage link on t
 The SQL dialect is inferred automatically from the connection ID string (e.g., a connection
 ID containing ``postgres`` maps to the PostgreSQL dialect, ``snowflake`` to Snowflake, etc.).
 
+.. note::
+
+   **SQL parsing is powered by** `sqlglot <https://github.com/tobymao/sqlglot>`__ **and is
+   subject to its parsing capabilities.**
+
+   sqlglot covers a wide range of standard SQL constructs across the supported dialects, but
+   certain complex or dialect-specific patterns may not be parsed correctly.  Examples of
+   queries that can produce incomplete or incorrect table extraction include:
+
+   - Deeply nested or recursive CTEs (``WITH RECURSIVE``)
+   - Vendor-specific procedural extensions (e.g., PL/pgSQL ``EXECUTE``, T-SQL dynamic SQL)
+   - Queries built via dynamic string concatenation or stored procedures
+   - Non-standard or proprietary syntax not yet supported by sqlglot
+
+   When the parser cannot reliably identify source or target tables, no automatic lineage is
+   created for that statement and a debug-level log entry is emitted.  For such cases, fall
+   back to **manual lineage** by explicitly declaring ``inlets`` and ``outlets`` on the task,
+   which bypasses SQL parsing entirely and gives you full control over the lineage graph.
+
 Manual Lineage
 --------------
 
