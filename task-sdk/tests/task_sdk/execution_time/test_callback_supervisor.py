@@ -28,12 +28,14 @@ from unittest.mock import patch
 import pytest
 import structlog
 
+from airflow.sdk.api.datamodels._generated import XComResponse
 from airflow.sdk.execution_time.callback_supervisor import CallbackSubprocess, execute_callback
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
@@ -189,6 +191,34 @@ class TestCallbackHandleRequest:
                 method_path="variables.keys",
                 kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
                 response=VariableKeysResult(keys=["test_key"], total_entries=1),
+            message=GetXCom(
+                key="return_value",
+                dag_id="test_dag",
+                run_id="test_run_1",
+                task_id="upstream_task",
+                map_index=None,
+            ),
+            test_id="get_xcom",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("test_dag", "test_run_1", "upstream_task", "return_value", None, False),
+                response=XComResponse(key="return_value", value="xcom_payload"),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="custom_key",
+                dag_id="dag_a",
+                run_id="run_42",
+                task_id="task_b",
+                map_index=3,
+                include_prior_dates=True,
+            ),
+            test_id="get_xcom_with_map_index",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("dag_a", "run_42", "task_b", "custom_key", 3, True),
+                response=XComResponse(key="custom_key", value={"nested": "data"}),
             ),
         ),
         RequestCase(
