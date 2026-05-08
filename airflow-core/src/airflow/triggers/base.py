@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import abc
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Hashable
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, Any
@@ -251,6 +251,50 @@ class BaseEventTrigger(BaseTrigger):
 
     ``BaseEventTrigger`` is a subclass of ``BaseTrigger`` designed to identify triggers compatible with
     event-driven scheduling.
+
+    **Sharing an underlying I/O stream between triggers**
+
+    A subclass that polls an upstream resource which can be safely consumed
+    by multiple sibling triggers (e.g. a directory scan, a polling REST API,
+    a Kafka topic read with ``enable.auto.commit=true``) may opt in to having
+    the triggerer run a single underlying poll loop and fan its raw events
+    out to every trigger in the group. To do so, override:
+
+    * :meth:`shared_stream_key` — return a key identifying the
+      shared stream (a ``tuple`` of strings is a common choice). Triggers
+      whose key compares equal share one poll.
+    * :meth:`open_shared_stream` — open the shared stream and yield raw
+      events. Called once per group in the triggerer.
+    * :meth:`filter_shared_stream` — convert the shared raw stream into this
+      trigger's own ``TriggerEvent`` instances, applying any per-trigger
+      filtering or transformation.
+
+    Triggers whose ``shared_stream_key`` returns ``None`` (the default)
+    keep the existing behavior: each trigger gets its own poll loop via
+    :meth:`run`.
+
+    **Suitable upstreams**
+
+    The shared-stream channel is **one-way** today: events flow from the
+    producer (``open_shared_stream``) to each subscriber's
+    ``filter_shared_stream``, with no path back to tell the producer that a
+    subscriber accepted, dropped, or finished processing an event. That
+    restricts the pattern to upstreams whose consumption does **not** depend
+    on a side effect on a handle that only the producer holds:
+
+    * Idempotent / read-only reads (filesystem listings, polling REST APIs).
+    * Auto-commit consumers, e.g. Kafka with ``enable.auto.commit=true``.
+    * Subscriber-side-effect cleanup, where the trigger's per-event action
+      (``unlink``, local marking, …) operates through APIs the subscriber
+      already owns, independent of the shared producer handle.
+
+    Upstreams that do **not** fit this scope today include Kafka consumers
+    with manual commit, SQS with delete-on-process or visibility extension,
+    and any source where producer-side commit / advance is tied to the
+    subscriber's accept / reject decision. Adding a producer-side ack
+    channel to support those cases is tracked as a follow-up — to be
+    designed against a concrete Kafka or SQS consumer rather than against
+    an abstract API.
     """
 
     supports_triggerer_queue: bool = False
@@ -268,6 +312,82 @@ class BaseEventTrigger(BaseTrigger):
 
         normalized = encode_trigger({"classpath": classpath, "kwargs": kwargs})["kwargs"]
         return hash((classpath, json.dumps(BaseSerialization.serialize(normalized)).encode("utf-8")))
+
+    def shared_stream_key(self) -> Hashable | None:
+        """
+        Identify an underlying I/O stream that can be shared with sibling triggers.
+
+        Two trigger instances whose ``shared_stream_key()`` return values
+        compare equal (and are not ``None``) will share a single underlying
+        poll loop in the triggerer. Each instance still receives the events
+        it cares about through its own :meth:`filter_shared_stream` call.
+
+        Returning ``None`` (the default) opts out of sharing — the trigger
+        runs its own independent poll loop via :meth:`run`, exactly as today.
+
+        The return value is read **once** when ``run_trigger`` first starts
+        this trigger; any change to the key afterwards has no effect on
+        group membership for this instance. To share one poll across a set
+        of sibling triggers, ensure every trigger in the set returns the
+        same key from the outset.
+
+        .. warning::
+
+           This method is called **before** :meth:`render_template_fields`,
+           so any templated attribute (for example a ``directory`` derived
+           from a Jinja expression) is still in its unrendered form here.
+           Keying on such an attribute means two sibling triggers that
+           render to the same path will not share their poll. Either base
+           the key only on already-resolved attributes, or render the
+           relevant fields yourself before constructing the key.
+        """
+        return None
+
+    @classmethod
+    async def open_shared_stream(cls, kwargs: dict[str, Any]) -> AsyncIterator[Any]:
+        """
+        Open the shared underlying stream and yield raw events.
+
+        Called **once per shared-stream group** in the triggerer. ``kwargs``
+        is taken from one trigger in the group; implementations should rely
+        only on fields whose values participate in :meth:`shared_stream_key`,
+        because other fields may differ between siblings in the group.
+
+        Implementations are expected to run for the lifetime of the group —
+        the triggerer drives the iterator from a single task and cancels it
+        when the last subscriber leaves. Returning without raising (e.g.
+        because the upstream resource closed) is treated as an error and
+        propagated to every subscriber, so the contract is "yield forever, or
+        raise". If an upstream EOF is a meaningful end-of-life condition,
+        raise an exception that conveys it.
+
+        Declared as a classmethod (not staticmethod) so subclasses can
+        compose via ``super().open_shared_stream(kwargs)`` and reach
+        ``cls`` for class-scoped state or diagnostics.
+
+        Required only when :meth:`shared_stream_key` returns non-``None``.
+        """
+        raise NotImplementedError(
+            f"{cls.__name__} declares a shared_stream_key but does not implement open_shared_stream"
+        )
+        yield  # pragma: no cover - convince mypy this is an async iterator
+
+    async def filter_shared_stream(self, shared_stream: AsyncIterator[Any]) -> AsyncIterator[TriggerEvent]:
+        """
+        Transform the shared raw event stream into this trigger's events.
+
+        The triggerer calls this method (instead of :meth:`run`) when this
+        trigger participates in a shared-stream group. Iterate
+        ``shared_stream`` to receive raw events from the shared poll, and
+        ``yield`` a :class:`TriggerEvent` for each one that should fire this
+        trigger.
+
+        Required only when :meth:`shared_stream_key` returns non-``None``.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} declares a shared_stream_key but does not implement filter_shared_stream"
+        )
+        yield  # pragma: no cover - convince mypy this is an async iterator
 
 
 class TriggerEvent(BaseModel):
