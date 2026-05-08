@@ -951,7 +951,8 @@ class SFTPHookAsync(BaseHook):
         ucallback: Callable[[str], Any | None],
         recurse: bool = True,
     ) -> None:
-        """Recursively descend, depth first, the directory tree at ``path``.
+        """
+        Recursively descend, depth first, the directory tree at ``path``.
 
         This mirrors :meth:`SFTPHook.walktree` contract and calls callback functions for
         regular files, directories, and unknown file types.
