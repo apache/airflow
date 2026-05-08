@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import delete, select
-from sqlalchemy.sql.expression import tuple_
 
 from airflow._shared.state import AssetScope, BaseStateBackend, StateScope, TaskScope
 from airflow._shared.timezones import timezone
@@ -43,6 +42,18 @@ if TYPE_CHECKING:
 
 
 log = structlog.get_logger(__name__)
+
+
+def _compute_expires_at(now: datetime) -> datetime | None:
+    """
+    Return the expiry timestamp for a new task state row based on config.
+
+    Returns None if default_retention_days is 0 (never expires).
+    """
+    retention_days = conf.getint("state_store", "default_retention_days")
+    if retention_days <= 0:
+        return None
+    return now + timedelta(days=retention_days)
 
 
 def _build_upsert_stmt(
@@ -183,6 +194,7 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
+        expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,
@@ -192,13 +204,14 @@ class MetastoreStateBackend(BaseStateBackend):
             key=key,
             value=value,
             updated_at=now,
+            expires_at=expires_at,
         )
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             TaskStateModel,
             ["dag_run_id", "task_id", "map_index", "key"],
             values,
-            dict(value=value, updated_at=now),
+            dict(value=value, updated_at=now, expires_at=expires_at),
         )
         session.execute(stmt)
 
@@ -263,60 +276,36 @@ class MetastoreStateBackend(BaseStateBackend):
         """
         Remove expired task state rows.
 
-        Reads ``[state_store] default_retention_days`` and ``[state_store] state_cleanup_batch_size``
-        from config. Each pass runs in its own transaction so partial progress is committed even if a
-        later pass fails. Each pass is batched to avoid long-running locks on the table.
-
-        Two passes:
-        a. Rows where updated_at < now() - default_retention_days (global retention)
-        b. Rows where expires_at < now() (per-key early expiry set by the operator)
+        ``expires_at`` is set at write time on every ``set()`` call, so cleanup is a single
+        ``WHERE expires_at < now()`` pass. Rows with ``expires_at=NULL`` (default_retention_days=0)
+        are never deleted. Batching is configurable via ``[state_store] state_cleanup_batch_size``.
         """
-        retention_days = conf.getint("state_store", "default_retention_days")
         batch_size = conf.getint("state_store", "state_cleanup_batch_size")
         now = timezone.utcnow()
-        older_than = now - timedelta(days=retention_days) if retention_days > 0 else None
-
-        pk_cols = (
-            TaskStateModel.dag_run_id,
-            TaskStateModel.task_id,
-            TaskStateModel.map_index,
-            TaskStateModel.key,
-        )
 
         def _delete_batched(where_clause) -> int:
             total = 0
-            while True:
-                with create_session() as session:
-                    pk_query = select(*pk_cols).where(where_clause)
+            with create_session() as session:
+                while True:
+                    id_query = select(TaskStateModel.id).where(where_clause)
                     if batch_size > 0:
-                        pk_query = pk_query.limit(batch_size)
-                    ids = session.execute(pk_query).all()
+                        id_query = id_query.limit(batch_size)
+                    ids = session.scalars(id_query).all()
                     if not ids:
                         break
-                    session.execute(delete(TaskStateModel).where(tuple_(*pk_cols).in_(ids)))
+                    session.execute(delete(TaskStateModel).where(TaskStateModel.id.in_(ids)))
+                    session.commit()
                     total += len(ids)
-                if batch_size <= 0 or len(ids) < batch_size:
-                    break
+                    if batch_size <= 0 or len(ids) < batch_size:
+                        break
             return total
 
-        if older_than:
-            deleted = _delete_batched(TaskStateModel.updated_at < older_than)
-            log.info("Deleted stale task_state rows", rows_deleted=deleted, older_than=older_than)
-
-        deleted = _delete_batched((TaskStateModel.expires_at.isnot(None)) & (TaskStateModel.expires_at < now))
+        deleted = _delete_batched(TaskStateModel.expires_at < now)
         log.info("Deleted expired task_state rows", rows_deleted=deleted)
 
     def _dry_run_summary(self) -> dict[str, list]:
-        """
-        Return rows that would be deleted by cleanup(), without deleting anything.
-
-        Returns a dict with keys 'stale' and 'expired', each containing a list of
-        (dag_id, run_id, task_id, map_index, key) tuples.
-        """
-        retention_days = conf.getint("state_store", "default_retention_days")
+        """Return rows that would be deleted by cleanup() without deleting anything."""
         now = timezone.utcnow()
-        older_than = now - timedelta(days=retention_days) if retention_days > 0 else None
-
         cols = (
             TaskStateModel.dag_id,
             TaskStateModel.run_id,
@@ -324,18 +313,9 @@ class MetastoreStateBackend(BaseStateBackend):
             TaskStateModel.map_index,
             TaskStateModel.key,
         )
-
         with create_session() as session:
-            stale = (
-                session.execute(select(*cols).where(TaskStateModel.updated_at < older_than)).all()
-                if older_than
-                else []
-            )
-            expired = session.execute(
-                select(*cols).where(TaskStateModel.expires_at.isnot(None), TaskStateModel.expires_at < now)
-            ).all()
-
-        return {"stale": list(stale), "expired": list(expired)}
+            expired = session.execute(select(*cols).where(TaskStateModel.expires_at < now)).all()
+        return {"expired": list(expired)}
 
     async def _aget_task_state(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
         row = await session.scalar(
@@ -361,6 +341,7 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
+        expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,
@@ -370,6 +351,7 @@ class MetastoreStateBackend(BaseStateBackend):
             key=key,
             value=value,
             updated_at=now,
+            expires_at=expires_at,
         )
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
@@ -377,7 +359,7 @@ class MetastoreStateBackend(BaseStateBackend):
             TaskStateModel,
             ["dag_run_id", "task_id", "map_index", "key"],
             values,
-            dict(value=value, updated_at=now),
+            dict(value=value, updated_at=now, expires_at=expires_at),
         )
         await session.execute(stmt)
 

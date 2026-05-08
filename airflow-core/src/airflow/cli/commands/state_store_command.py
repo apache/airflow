@@ -20,9 +20,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-# Other state operations (list, get, delete per key) will be added here once the
-# Core API endpoints (PR 6) land. For now, inspection is available via the REST
-# API and the Task Instance detail panel in the UI.
+# Other state operations (list, get, delete per key) will be added here in the future.
 
 
 def cleanup(args) -> None:
@@ -35,24 +33,15 @@ def cleanup(args) -> None:
     if args.dry_run:
         if isinstance(backend, MetastoreStateBackend):
             summary = backend._dry_run_summary()
-            stale, expired = summary["stale"], summary["expired"]
-            total = len(stale) + len(expired)
-            if not total:
+            expired = summary["expired"]
+            if not expired:
                 print("Nothing to delete.")
                 return
-            print(f"Would delete {total} task state row(s):\n")
-            if stale:
-                print(f"  Older than retention period ({len(stale)}):")
-                for dag_id, run_id, task_id, map_index, key in stale:
-                    print(
-                        f"    DAG {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
-                    )
-            if expired:
-                print(f"\n  Per-key expiry reached ({len(expired)}):")
-                for dag_id, run_id, task_id, map_index, key in expired:
-                    print(
-                        f"    DAG {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
-                    )
+            print(f"Would delete {len(expired)} task state row(s):\n")
+            for dag_id, run_id, task_id, map_index, key in expired:
+                print(
+                    f"  DAG {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
+                )
         else:
             print("Custom backend configured — cannot preview rows.")
         return

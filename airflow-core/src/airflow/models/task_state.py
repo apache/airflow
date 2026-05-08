@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, Text
+from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,10 +39,12 @@ class TaskStateModel(Base):
 
     __tablename__ = "task_state"
 
-    dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False, primary_key=True)
-    task_id: Mapped[str] = mapped_column(StringID(), nullable=False, primary_key=True)
-    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, server_default="-1")
-    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
+    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False)
 
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
@@ -57,7 +59,7 @@ class TaskStateModel(Base):
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
-        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_pkey"),
+        UniqueConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_uq"),
         ForeignKeyConstraint(
             ["dag_run_id"],
             ["dag_run.id"],
@@ -65,6 +67,5 @@ class TaskStateModel(Base):
             ondelete="CASCADE",
         ),
         Index("idx_task_state_lookup", "dag_id", "run_id", "task_id", "map_index"),
-        Index("idx_task_state_updated_at", "updated_at"),
         Index("idx_task_state_expires_at", "expires_at"),
     )

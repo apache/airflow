@@ -1522,7 +1522,7 @@ TEAMS_COMMANDS = (
 STATE_STORE_COMMANDS = (
     ActionCommand(
         name="cleanup",
-        help="Remove expired task state rows via the configured state backend",
+        help="Remove expired stored state via the configured state backend",
         description=(
             "Reads [state_store] default_retention_days from config and deletes task_state rows "
             "older than the configured threshold. Use --dry-run to preview without deleting."

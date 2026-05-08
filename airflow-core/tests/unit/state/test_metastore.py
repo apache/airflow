@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import Delete, select
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -237,21 +239,32 @@ class TestMetastoreStateBackendTaskScope:
         assert backend.get(scope0, "job_id", session=session) is None
         assert backend.get(scope1, "job_id", session=session) is None
 
+    def test_set_populates_expires_at(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """set() always populates expires_at so cleanup has a single pass."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.flush()
+
+        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        assert row is not None
+        assert row.expires_at is not None
+
     def test_cleanup_removes_expired_rows(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         backend.set(scope, "old_key", "old_value", session=session)
+        backend.set(scope, "new_key", "new_value", session=session)
         session.flush()
 
+        # Backdate expires_at on old_key to simulate it having expired
         old_row = session.scalar(
             select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID, TaskStateModel.key == "old_key")
         )
         assert old_row is not None
-        old_row.updated_at = timezone.utcnow() - timedelta(days=40)
-        session.flush()
-
-        backend.set(scope, "new_key", "new_value", session=session)
+        old_row.expires_at = timezone.utcnow() - timedelta(hours=1)
         session.flush()
         session.commit()
 
@@ -285,8 +298,17 @@ class TestMetastoreStateBackendTaskScope:
 
     @conf_vars({("state_store", "state_cleanup_batch_size"): "2"})
     def test_cleanup_batches_deletes(self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun):
-        from unittest.mock import patch
+        """cleanup() issues one DELETE per batch, not one DELETE for all rows at once.
 
+        Verifying this is not straightforward because cleanup() creates its own internal session,
+        so we cannot simply inspect it from outside, so what we do is:
+
+        1. Patch `create_session` in the metastore module with a thin wrapper (`tracking_cs`) that
+           yields the real session but replaces `session.execute` with a spy.
+        2. The spy checks whether the statement being executed is a sqla Delete object and
+           records it if so.
+        3. After cleanup() returns, we assert that exactly ceil(<number of rows>/<batch size>).
+        """
         import airflow.state.metastore as metastore_mod
 
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
@@ -295,18 +317,33 @@ class TestMetastoreStateBackendTaskScope:
             session.flush()
 
         session.execute(
-            TaskStateModel.__table__.update().values(updated_at=timezone.utcnow() - timedelta(days=40))
+            TaskStateModel.__table__.update().values(expires_at=timezone.utcnow() - timedelta(hours=1))
         )
         session.commit()
 
-        with patch.object(metastore_mod, "create_session", wraps=metastore_mod.create_session) as mock_cs:
+        deletes = []
+        original_cs = metastore_mod.create_session
+
+        @contextmanager
+        def tracking_cs(*args, **kwargs):
+            with original_cs(*args, **kwargs) as s:
+                orig_execute = s.execute
+
+                def tracked(stmt, *a, **kw):
+                    if isinstance(stmt, Delete):
+                        deletes.append(stmt)
+                    return orig_execute(stmt, *a, **kw)
+
+                s.execute = tracked
+                yield s
+
+        with patch.object(metastore_mod, "create_session", side_effect=tracking_cs):
             backend.cleanup()
-            # 5 rows, batch size = 2, so 3 batches and 1 check for expired_by row
-            assert mock_cs.call_count == 4
 
         session.expire_all()
-        remaining = session.scalars(select(TaskStateModel).where(TaskStateModel.dag_id == DAG_ID)).all()
-        assert remaining == []
+
+        # batch_size=2, 5 rows -> delete runs 3 times (2+2+1)
+        assert len(deletes) == 3
 
 
 class TestMetastoreStateBackendAssetScope:
