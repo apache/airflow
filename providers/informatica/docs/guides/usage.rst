@@ -29,10 +29,13 @@ The Informatica plugin automatically detects tasks with lineage support and send
 Key Features
 ------------
 
-- **Automatic Lineage Detection**: Plugin automatically detects tasks with lineage support
-- **EDC Integration**: Native REST API integration with Informatica Enterprise Data Catalog
-- **Transparent Operation**: No code changes required beyond inlet/outlet definitions
-- **Error Handling**: Robust error handling for API failures and invalid objects
+- **Manual Lineage**: Explicitly declare inlets and outlets using EDC object URIs — the provider validates each URI against the catalog before the task executes and creates the lineage links on success.
+- **Automatic SQL Lineage**: When ``auto_lineage_enabled = True`` (the default), the provider parses the ``sql`` attribute of SQL operators, resolves detected tables in the Informatica catalog, and creates lineage links automatically.  Supported SQL dialects include PostgreSQL, MySQL, Snowflake, BigQuery, Databricks, Redshift, SQLite, Oracle, Trino, Presto, Hive, Spark, and MSSQL.
+- **Lineage Priority**: Manual inlets/outlets always take precedence over automatic SQL lineage.  If a task has any inlets or outlets defined, SQL parsing is skipped entirely.
+- **Per-task Control**: Disable or re-enable automatic lineage per task or per DAG using :func:`~airflow.providers.informatica.lineage.disable_informatica_lineage` and :func:`~airflow.providers.informatica.lineage.enable_informatica_lineage`.
+- **Operator Exclusion**: Exclude entire operator classes via ``disabled_for_operators`` in ``airflow.cfg``.
+- **Fail-fast Validation**: Unresolvable URIs or tables fail the task *before* execution begins, preventing silent lineage gaps.
+- **EDC Integration**: Native REST API integration with Informatica Enterprise Data Catalog.
 - **Configurable**: Extensive configuration options for different environments
 
 Architecture
@@ -83,8 +86,36 @@ Quick Start
    The provider automatically handles lineage extraction when tasks succeed.
 
 
-Example DAG
------------
+Automatic SQL Lineage
+---------------------
+
+When ``auto_lineage_enabled = True`` (the default), the provider automatically detects SQL
+operators and creates lineage without any explicit ``inlets``/``outlets`` declarations.
+
+.. code-block:: python
+
+   from airflow import DAG
+   from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+   from datetime import datetime
+
+   with DAG("my_sql_dag", start_date=datetime(2024, 1, 1), schedule=None) as dag:
+       transform = SQLExecuteQueryOperator(
+           task_id="transform",
+           conn_id="postgres_default",
+           sql="INSERT INTO summary SELECT region, SUM(amount) FROM sales GROUP BY region",
+       )
+
+The provider parses the SQL, finds ``sales`` as the source and ``summary`` as the target,
+resolves both against the Informatica catalog, and creates the lineage link on task success.
+
+The SQL dialect is inferred automatically from the connection ID string (e.g., a connection
+ID containing ``postgres`` maps to the PostgreSQL dialect, ``snowflake`` to Snowflake, etc.).
+
+Manual Lineage
+--------------
+
+Define inlets and outlets explicitly using EDC object URIs.  These always take priority over
+automatic SQL lineage.
 
 .. code-block:: python
 
@@ -93,72 +124,51 @@ Example DAG
    from datetime import datetime
 
 
-   def my_python_task(**kwargs):
-       print("Hello Informatica Lineage!")
+   def my_python_task(**kwargs): ...
 
 
-   with DAG(
-       dag_id="example_informatica_lineage_dag",
-       start_date=datetime(2024, 1, 1),
-       schedule=None,
-       catchup=False,
-   ) as dag:
-       python_task = PythonOperator(
-           task_id="my_python_task",
+   with DAG("my_dag", start_date=datetime(2024, 1, 1), schedule=None) as dag:
+       task = PythonOperator(
+           task_id="transform",
            python_callable=my_python_task,
            inlets=[{"dataset_uri": "edc://object/source_table_abc123"}],
            outlets=[{"dataset_uri": "edc://object/target_table_xyz789"}],
        )
 
-When this task succeeds, the provider automatically creates a lineage link between the source and target objects in EDC.
+When this task succeeds, the provider creates a lineage link between the source and target
+objects in EDC.  URIs that cannot be resolved in the catalog fail the task before execution.
 
-Hooks
------
+Selective Lineage Control
+-------------------------
 
-InformaticaEDCHook
-^^^^^^^^^^^^^^^^^^
-
-The hook provides low-level access to Informatica EDC API.
+Use the helpers in :mod:`airflow.providers.informatica.lineage` to disable or re-enable
+automatic lineage on individual tasks or entire DAGs:
 
 .. code-block:: python
 
-   from airflow.providers.informatica.hooks.edc import InformaticaEDCHook
+   from airflow.providers.informatica.lineage import (
+       disable_informatica_lineage,
+       enable_informatica_lineage,
+   )
 
-   hook = InformaticaEDCHook(informatica_edc_conn_id="my_connection")
-   object_data = hook.get_object("edc://object/table_123")
-   result = hook.create_lineage_link("source_id", "target_id")
+   with DAG("my_dag", ...) as dag:
+       task_a = SomeSQLOperator(task_id="task_a", sql="SELECT * FROM orders", ...)
+       task_b = SomeSQLOperator(task_id="task_b", sql="SELECT * FROM customers", ...)
 
-Plugins and Listeners
----------------------
+       # Disable auto-lineage for task_a only
+       disable_informatica_lineage(task_a)
 
-The ``InformaticaProviderPlugin`` automatically registers listeners that:
+       # Or disable for all tasks in the DAG
+       disable_informatica_lineage(dag)
 
-- Monitor task success events
-- Extract inlet/outlet information from tasks
-- Resolve object IDs using EDC API
-- Create lineage links between resolved objects
-
-No manual intervention is required. The plugin works transparently with any task that defines inlets and outlets.
+These helpers have no effect on manually declared inlets and outlets.
 
 Supported Inlet/Outlet Formats
-------------------------------
+-------------------------------
 
 Inlets and outlets can be defined as:
 
 - String URIs: ``"edc://object/table_name"``
 - Dictionary with dataset_uri: ``{"dataset_uri": "edc://object/table_name"}``
 
-The plugin automatically handles both formats and resolves them to EDC object IDs.
-
-
-Support
--------
-
-- **Documentation**: See the guides section for detailed usage and configuration
-- **Issues**: Report bugs on the Apache Airflow GitHub repository
-- **Community**: Join the Airflow community for discussions and support
-
-License
--------
-
-Licensed under the Apache License, Version 2.0. See LICENSE file for details.
+Both formats are resolved via the EDC ``GET /access/2/catalog/data/objects/{id}`` endpoint.

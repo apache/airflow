@@ -1,0 +1,90 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+
+# Usage:
+#   docker-compose up -d
+#
+# Services:
+#   postgres          : Source/target database for lineage test DAGs (port 55433)
+#   informatica_sim   : Informatica EDC simulator (port 8082)
+#
+# Airflow connection for the simulator (add via UI or env var):
+#   Conn ID   : informatica_edc_default
+#   Conn Type : HTTP
+#   Host      : informatica_sim (inside Breeze) or localhost (outside)
+#   Port      : 8082
+#   Schema    : http
+#
+# Airflow connection for Postgres (add via UI or env var):
+#   Conn ID   : postgres_lineage
+#   Conn Type : Postgres
+#   Host      : informatica-lineage-postgres (inside Breeze) or localhost (outside)
+#   Port      : 5433  (host-side mapping)
+#   Schema    : lineage_demo
+#   Login     : airflow
+#   Password  : airflow
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: informatica-lineage-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lineage_demo
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      TZ: UTC
+    ports:
+      - "55433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d lineage_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - informatica-lineage-postgres-data:/var/lib/postgresql/data
+    networks:
+      - default
+      - breeze
+
+  informatica_sim:
+    build:
+      context: ./informatica_simulator
+      dockerfile: Dockerfile
+    container_name: informatica-edc-sim
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8082/access || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - default
+      - breeze
+
+volumes:
+  informatica-lineage-postgres-data:
+
+networks:
+  breeze:
+    external: true
+    name: ${BREEZE_DOCKER_NETWORK:-breeze_default}

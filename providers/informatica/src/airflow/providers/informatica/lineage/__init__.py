@@ -16,23 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.informatica.conf import listener_disabled
+from airflow.providers.informatica.lineage.selective import (
+    disable_informatica_lineage,
+    enable_informatica_lineage,
+)
 
-is_disabled = listener_disabled()
-# Conditional imports - only load expensive dependencies when plugin is enabled
-if not is_disabled:
-    from airflow.providers.common.compat.sdk import HookLineageReader
-    from airflow.providers.informatica.plugins.listener import get_informatica_listener
-
-
-class InformaticaProviderPlugin(AirflowPlugin):
-    """
-    Listener that emits numerous Events.
-
-    Informatica Plugin provides listener that emits OL events on DAG.
-    """
-
-    name: str = "InformaticaProviderPlugin"
-    listeners: list = [get_informatica_listener()] if not is_disabled else []
-    hook_lineage_readers: list = [HookLineageReader] if not is_disabled else []
+__all__ = [
+    "disable_informatica_lineage",
+    "enable_informatica_lineage",
+]

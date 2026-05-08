@@ -70,6 +70,9 @@ dependencies = [
 "common.compat" = [
     "apache-airflow-providers-common-compat"
 ]
+"common.sql" = [
+    "apache-airflow-providers-common-sql"
+]
 
 [dependency-groups]
 dev = [
@@ -77,6 +80,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
     "apache-airflow-providers-http",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "uuid6>=2024.7.10"
