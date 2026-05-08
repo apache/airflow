@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from importlib import import_module
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Protocol
 from uuid import UUID
 
@@ -28,7 +31,7 @@ import attrs
 import structlog
 from pydantic import Field, TypeAdapter
 
-from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
+from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
@@ -82,6 +85,8 @@ CallbackToSupervisor = Annotated[
 def execute_callback(
     callback_path: str,
     callback_kwargs: dict,
+    dag_rel_path: os.PathLike[str],
+    bundle_path: os.PathLike[str] | None,
     log,
 ) -> tuple[bool, str | None]:
     """
@@ -100,6 +105,8 @@ def execute_callback(
 
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_rel_path: Relative path to the DAG file.
+    :param bundle_path: Path to the bundle file.
     :param log: Logger instance for recording execution.
     :return: Tuple of (success: bool, error_message: str | None)
     """
@@ -110,7 +117,23 @@ def execute_callback(
         # Import the callback callable
         # Expected format: "module.path.to.function_or_class"
         module_path, function_name = callback_path.rsplit(".", 1)
-        module = import_module(module_path)
+        # If the callback is defined within the Dag module, the module path is modified during DAG serialization.
+        # Attempt to import it using the path of the Dag file.
+        if module_path.startswith(UNUSUAL_MODULE_PREFIX):
+            if not dag_rel_path:
+                return False, "Dag relative path not found."
+            if not bundle_path:
+                return False, "Bundle path not found."
+            abs_path = Path(bundle_path) / Path(dag_rel_path)
+            spec = spec_from_file_location(module_path, abs_path)
+            if spec is None:
+                return False, f"Could not create module spec for {module_path}"
+            if spec.loader is None:
+                return False, f"Module spec has no loader for {module_path}"
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+        else:
+            module = import_module(module_path)
         callback_callable = getattr(module, function_name)
 
         log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
@@ -174,6 +197,7 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        dag_rel_path: os.PathLike[str],
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
         logger: FilteringBoundLogger | None = None,
@@ -190,6 +214,7 @@ class CallbackSubprocess(WatchedSubprocess):
 
             _log = structlog.get_logger(logger_name="callback_runner")
             task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, CallbackToSupervisor](log=_log)
+            bundle_path = None
 
             # If bundle info is provided, initialize the bundle and ensure its path is importable.
             # This is needed for user-defined callbacks that live inside a DAG bundle rather than
@@ -215,7 +240,13 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
-            success, error_msg = execute_callback(callback_path, callback_kwargs, _log)
+            success, error_msg = execute_callback(
+                callback_path=callback_path,
+                callback_kwargs=callback_kwargs,
+                dag_rel_path=dag_rel_path,
+                bundle_path=bundle_path,
+                log=_log,
+            )
             if not success:
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
@@ -323,6 +354,7 @@ def supervise_callback(
     id: str,
     callback_path: str,
     callback_kwargs: dict,
+    dag_rel_path: os.PathLike[str],
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -335,6 +367,7 @@ def supervise_callback(
     :param id: Unique identifier for this callback execution.
     :param callback_path: Dot-separated import path to the callback function or class.
     :param callback_kwargs: Keyword arguments to pass to the callback.
+    :param dag_rel_path: Relative path to the DAG file.
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -361,6 +394,7 @@ def supervise_callback(
                 id=id,
                 callback_path=callback_path,
                 callback_kwargs=callback_kwargs,
+                dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
                 client=client,
                 logger=logger,

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from pathlib import Path
+from textwrap import dedent
 from unittest import mock
 from uuid import UUID
 
@@ -661,20 +663,118 @@ class TestCallbackSupport:
 
 class TestExecuteCallbackWorkload:
     @pytest.mark.parametrize(
-        ("path", "kwargs", "expect_success", "error_contains"),
+        ("path", "kwargs", "dag_rel_path", "bundle_path", "expect_success", "error_contains"),
         [
-            pytest.param("builtins.dict", {"a": 1, "b": 2, "c": 3}, True, None, id="function_success"),
-            pytest.param("", {}, False, "Callback path not found", id="missing_path"),
-            pytest.param("nonexistent.module.function", {}, False, "ModuleNotFoundError", id="import_error"),
-            pytest.param("builtins.len", {}, False, "TypeError", id="execution_error"),
+            pytest.param(
+                "builtins.dict",
+                {"a": 1, "b": 2, "c": 3},
+                Path("test.py"),
+                Path("bundle/path"),
+                True,
+                None,
+                id="function_success",
+            ),
+            pytest.param(
+                "",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "Callback path not found",
+                id="missing_path",
+            ),
+            pytest.param(
+                "nonexistent.module.function",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "ModuleNotFoundError",
+                id="import_error",
+            ),
+            pytest.param(
+                "builtins.len",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "TypeError",
+                id="execution_error",
+            ),
+            pytest.param(
+                "unusual_prefix_fad099f9df8ac798a50aac7381aab95ad4008e79_test_dag.success_message",
+                {},
+                Path("test.py"),
+                Path("bundle/path"),
+                False,
+                "FileNotFoundError",
+                id="dag_import_error",
+            ),
         ],
     )
-    def test_execute_callback(self, path, kwargs, expect_success, error_contains):
+    def test_execute_callback(self, path, kwargs, dag_rel_path, bundle_path, expect_success, error_contains):
         log = structlog.get_logger()
-        success, error = execute_callback(path, kwargs, log)
+        success, error = execute_callback(
+            callback_path=path,
+            callback_kwargs=kwargs,
+            dag_rel_path=dag_rel_path,
+            bundle_path=bundle_path,
+            log=log,
+        )
 
         assert success is expect_success
         if error_contains:
             assert error_contains in error
         else:
             assert error is None
+
+    def test_execute_callback_unusual_prefix_success(self, tmp_path):
+        """Test successful execution of callback with same Dag module path."""
+        dag_file = tmp_path / "test_dag.py"
+        dag_content = dedent('''
+            def test_callback(**kwargs):
+                """Test callback function."""
+                return "success"
+        ''')
+        dag_file.write_text(dag_content)
+
+        callback_path = "unusual_prefix_abc123_test_dag.test_callback"
+        callback_kwargs = {"param1": "value1", "context": {"dag_id": "test"}}
+        dag_rel_path = Path("test_dag.py")
+        bundle_path = tmp_path
+        log = structlog.get_logger()
+
+        success, error = execute_callback(
+            callback_path=callback_path,
+            callback_kwargs=callback_kwargs,
+            dag_rel_path=dag_rel_path,
+            bundle_path=bundle_path,
+            log=log,
+        )
+
+        assert success is True
+        assert error is None
+
+    @pytest.mark.parametrize(
+        ("dag_rel_path", "bundle_path", "expected_error"),
+        [
+            pytest.param(None, Path("bundle/path"), "Dag relative path not found", id="missing_dag_path"),
+            pytest.param(Path("test.py"), None, "Bundle path not found", id="missing_bundle_path"),
+        ],
+    )
+    def test_execute_callback_unusual_prefix_missing_paths(self, dag_rel_path, bundle_path, expected_error):
+        """Test same Dag module callback with missing required paths."""
+        callback_path = "unusual_prefix_abc123_test_dag.test_callback"
+        callback_kwargs = {"param1": "value1"}
+        log = structlog.get_logger()
+
+        success, error = execute_callback(
+            callback_path=callback_path,
+            callback_kwargs=callback_kwargs,
+            dag_rel_path=dag_rel_path,
+            bundle_path=bundle_path,
+            log=log,
+        )
+
+        assert success is False
+        assert expected_error in error
