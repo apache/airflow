@@ -52,6 +52,15 @@ The operator will Execute a Synapse Pipeline.
       :start-after: [START howto_operator_azure_synapse_run_pipeline]
       :end-before: [END howto_operator_azure_synapse_run_pipeline]
 
+Below is an example of using this operator to execute an Synapse pipeline with a deferrable flag
+so that polling for the status of the pipeline run occurs on the Airflow Triggerer.
+
+  .. exampleinclude:: /../tests/system/microsoft/azure/example_synapse_run_pipeline.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_azure_synapse_run_pipeline_with_deferrable_flag]
+      :end-before: [END howto_operator_azure_synapse_run_pipeline_with_deferrable_flag]
+
 Reference
 ---------
 

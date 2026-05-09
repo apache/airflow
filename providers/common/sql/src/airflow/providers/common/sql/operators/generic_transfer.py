@@ -21,7 +21,7 @@ from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 
@@ -55,6 +55,8 @@ class GenericTransfer(BaseOperator):
     :param insert_args: extra params for `insert_rows` method.
     :param page_size: number of records to be read in paginated mode (optional).
     :param paginated_sql_statement_clause: SQL statement clause to be used for pagination (optional).
+    :param deferrable: Run operator in deferrable mode (only effective in paginated mode, i.e.
+        when `page_size` is set and `sql` is a string).
     """
 
     template_fields: Sequence[str] = (
@@ -90,6 +92,7 @@ class GenericTransfer(BaseOperator):
         insert_args: dict | None = None,
         page_size: int | None = None,
         paginated_sql_statement_clause: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,6 +107,7 @@ class GenericTransfer(BaseOperator):
         self.insert_args = insert_args or {}
         self.page_size = page_size
         self.paginated_sql_statement_clause = paginated_sql_statement_clause or "{} LIMIT {} OFFSET {}"
+        self.deferrable = deferrable
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> DbApiHook:
@@ -159,14 +163,32 @@ class GenericTransfer(BaseOperator):
             self.destination_hook.run(self.preoperator)
 
         if self.page_size and isinstance(self.sql, str):
-            self.defer(
-                trigger=SQLExecuteQueryTrigger(
-                    conn_id=self.source_conn_id,
-                    hook_params=self.source_hook_params,
-                    sql=self.get_paginated_sql(0),
-                ),
-                method_name=self.execute_complete.__name__,
-            )
+            if self.deferrable:
+                self.defer(
+                    trigger=SQLExecuteQueryTrigger(
+                        conn_id=self.source_conn_id,
+                        hook_params=self.source_hook_params,
+                        sql=self.get_paginated_sql(0),
+                    ),
+                    method_name=self.execute_complete.__name__,
+                )
+            else:
+                offset = 0
+                while True:
+                    paginated_sql = self.get_paginated_sql(offset)
+                    self.log.info("Executing: \n %s", paginated_sql)
+                    if rows := self.source_hook.get_records(paginated_sql):
+                        self._insert_rows(rows=rows, context=context)
+                        if len(rows) < self.page_size:
+                            break
+                        offset += self.page_size
+                        self.log.info("Offset increased to %d", offset)
+                    else:
+                        self.log.info(
+                            "No more rows to fetch into %s; ending transfer.",
+                            self.destination_table,
+                        )
+                        break
         else:
             if isinstance(self.sql, str):
                 self.sql = [self.sql]

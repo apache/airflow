@@ -135,10 +135,10 @@ you need to deploy Airflow with the ``--executor KubernetesExecutor`` flag.
     breeze k8s deploy-airflow --executor KubernetesExecutor
 
 
-Hot-reloading DAGs and core sources
+Hot-reloading Dags and core sources
 -----------------------------------
 
-If you want to iterate on DAGs or core sources without rebuilding images, run ``breeze k8s dev`` after the
+If you want to iterate on Dags or core sources without rebuilding images, run ``breeze k8s dev`` after the
 cluster is deployed. It starts a skaffold loop that syncs local changes under ``dags/`` and
 ``airflow-core/src/airflow`` into the running pods. Scheduler, triggerer, and dag-processor run in dev
 hot-reload mode; the API server and webserver UI are not hot-reloaded by default.

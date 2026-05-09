@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix NPM security vulnerabilities in fab provider (#66031)``
+* ``Fix FAB password hashing to respect FAB_PASSWORD_HASH_METHOD config (#65735)``
+* ``Fix fab mysql migration error caused by pre defiend fk name in orm create (#65831)``
+* ``Fix '/auth/token' 500 when FAB auth manager is recreated (#65710)``
+* ``Honor AUTH_ROLE_PUBLIC in FastAPI API server (#65685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66068)``
+   * ``Bump stylelint (#66224)``
+   * ``Bump moment-timezone from 0.6.1 to 0.6.2 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#66166)``
+   * ``Bump terser-webpack-plugin (#66033)``
+   * ``Bump stylelint (#65979)``
+   * ``Dispose flask_sqlalchemy + airflow ORM engines in fab test fixtures (#65941)``
+   * ``[main] CI: Upgrade important CI environment (#65933)``
+   * ``Revert "Remove global variables in airflow.settings (#61917)" (#65718)``
+   * ``Remove global variables in airflow.settings (#61917)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 3.6.2
 .....
 

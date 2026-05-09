@@ -51,6 +51,7 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "ExceptionRetryPolicy",
     "IdentityMapper",
     "Label",
     "Metadata",
@@ -62,6 +63,10 @@ __all__ = [
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
+    "RetryAction",
+    "RetryDecision",
+    "RetryPolicy",
+    "RetryRule",
     "SkipMixin",
     "SyncCallback",
     "StartOfDayMapper",
@@ -138,6 +143,13 @@ if TYPE_CHECKING:
         StartOfWeekMapper,
         StartOfYearMapper,
     )
+    from airflow.sdk.definitions.retry_policy import (
+        ExceptionRetryPolicy,
+        RetryAction,
+        RetryDecision,
+        RetryPolicy,
+        RetryRule,
+    )
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
@@ -195,6 +207,7 @@ __lazy_imports: dict[str, str] = {
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
+    "ExceptionRetryPolicy": ".definitions.retry_policy",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
@@ -206,6 +219,10 @@ __lazy_imports: dict[str, str] = {
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",
+    "RetryAction": ".definitions.retry_policy",
+    "RetryDecision": ".definitions.retry_policy",
+    "RetryPolicy": ".definitions.retry_policy",
+    "RetryRule": ".definitions.retry_policy",
     "SecretCache": ".execution_time.cache",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",

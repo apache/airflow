@@ -25,18 +25,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import JSON, Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2.1 compat
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -184,115 +179,26 @@ def set_metrics(
         "free_concurrency",
     }
 
-    if DualStatsManager is not None:
-        try:
-            DualStatsManager.gauge(
-                "edge_worker.status",
-                sysinfo.get("status", logging.NOTSET),  # type: ignore
-                tags={},
-                extra_tags={"worker_name": worker_name},
-            )
-        except ValueError:
-            logger.warning(
-                "Failed to set metric edge_worker.status. Mapping is missing in metrics_template.yaml"
-            )
+    Stats.gauge(
+        "edge_worker.status",
+        sysinfo.get("status", logging.NOTSET),  # type: ignore
+        tags={"worker_name": worker_name},
+    )
+    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+    Stats.gauge(
+        "edge_worker.num_queues",
+        len(queues),
+        tags={"worker_name": worker_name, "queues": ",".join(queues)},
+    )
 
-        DualStatsManager.gauge(
-            "edge_worker.connected",
-            int(connected),
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
-            "edge_worker.maintenance",
-            int(maintenance),
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
-            "edge_worker.jobs_active",
-            jobs_active,
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
-            "edge_worker.concurrency",
-            concurrency,
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
-            "edge_worker.free_concurrency",
-            free_concurrency,
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
-            "edge_worker.num_queues",
-            len(queues),
-            tags={},
-            extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
-        )
-
-        for key in additional_keys:
-            value = sysinfo.get(key)
-            if isinstance(value, (int, float)):
-                try:
-                    DualStatsManager.gauge(
-                        f"edge_worker.{key}",
-                        value,
-                        tags={},
-                        extra_tags={"worker_name": worker_name},
-                    )
-                except ValueError as e:
-                    logger.warning(
-                        "Failed to set metric for key %s with value %s: %s",
-                        key,
-                        value,
-                        e,
-                    )
-    else:
-        from airflow.providers.common.compat.sdk import Stats
-
-        Stats.gauge(f"edge_worker.status.{worker_name}", sysinfo.get("status", logging.NOTSET))  # type: ignore
-        Stats.gauge(
-            "edge_worker.status",
-            sysinfo.get("status", logging.NOTSET),  # type: ignore
-            tags={"worker_name": worker_name},
-        )
-
-        Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
-        Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
-
-        Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
-        Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
-
-        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
-        Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
-
-        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
-        Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
-
-        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
-        Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
-
-        Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
-        Stats.gauge(
-            "edge_worker.num_queues",
-            len(queues),
-            tags={"worker_name": worker_name, "queues": ",".join(queues)},
-        )
-
-        for key in additional_keys:
-            value = sysinfo.get(key)
-            if isinstance(value, (int, float)):
-                Stats.gauge(f"edge_worker.{key}.{worker_name}", value)
-                Stats.gauge(f"edge_worker.{key}", value, tags={"worker_name": worker_name})
+    for key in additional_keys:
+        value = sysinfo.get(key)
+        if isinstance(value, (int, float)):
+            Stats.gauge(f"edge_worker.{key}", value, tags={"worker_name": worker_name})
 
 
 def reset_metrics(worker_name: str) -> None:

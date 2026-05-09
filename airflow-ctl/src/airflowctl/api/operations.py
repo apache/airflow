@@ -509,7 +509,7 @@ class DagsOperations(BaseOperations):
     """Dags operations."""
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
-        """Get a DAG."""
+        """Get a Dag."""
         try:
             self.response = self.client.get(f"dags/{dag_id}")
             return DAGResponse.model_validate_json(self.response.content)

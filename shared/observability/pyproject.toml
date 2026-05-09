@@ -24,15 +24,14 @@ classifiers = [
 ]
 
 dependencies = [
+    "opentelemetry-api>=1.27.0",
     "pendulum>=3.1.0",
-    "pygtrie>=2.5.0",
     "structlog>=25.4.0",
     "methodtools>=0.4.7",
 ]
 
 [project.optional-dependencies]
 "otel" = [
-    "opentelemetry-api>=1.27.0",
     "opentelemetry-exporter-otlp>=1.27.0",
     "opentelemetry-proto<9999,>=1.27.0",
 ]
@@ -57,11 +56,11 @@ mypy = [
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.1",
-    "pathspec==1.1.0",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.4.28.13",
 ]
 build-backend = "hatchling.build"
 

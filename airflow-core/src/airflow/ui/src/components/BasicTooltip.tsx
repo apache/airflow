@@ -46,7 +46,6 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   const handleMouseLeave = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
-      // eslint-disable-next-line unicorn/no-null
       timeoutRef.current = null;
     }
     setIsOpen(false);

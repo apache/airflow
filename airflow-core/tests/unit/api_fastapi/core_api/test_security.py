@@ -116,15 +116,42 @@ class TestFastApiSecurity:
             await resolve_user_from_token(None)
 
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
-    async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
+    async def test_get_user_with_trusted_request_state(self, mock_resolve_user_from_token):
+        """A `request.state.user` paired with the trust sentinel is honoured."""
+        from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
         user = Mock()
         request = Mock()
         request.state.user = user
+        request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
 
         result = await get_user(request, None, None)
 
         assert result == user
         mock_resolve_user_from_token.assert_not_called()
+
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_ignores_request_state_without_trust_marker(self, mock_resolve_user_from_token):
+        """An un-marked `request.state.user` is ignored — falls through to JWT.
+
+        Defends against unrelated middleware accidentally writing `state.user`
+        and silently bypassing JWT validation.
+        """
+        injected_user = Mock(name="injected_user")
+        resolved_user = Mock(name="resolved_user")
+        mock_resolve_user_from_token.return_value = resolved_user
+
+        request = Mock()
+        request.state.user = injected_user
+        # Trust marker deliberately not set — simulates a non-auth middleware
+        # that wrote `state.user` without going through the auth path.
+        request.state.user_authenticated_via = None
+        request.cookies = {COOKIE_NAME_JWT_TOKEN: "cookie_token"}
+
+        result = await get_user(request, None, None)
+
+        assert result == resolved_user
+        mock_resolve_user_from_token.assert_called_once_with("cookie_token")
 
     @pytest.mark.parametrize(
         ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),

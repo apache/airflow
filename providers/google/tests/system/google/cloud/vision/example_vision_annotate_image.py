@@ -110,8 +110,7 @@ with DAG(
 
     # [START howto_operator_vision_annotate_image_result]
     annotate_image_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('annotate_image')"
-        "['logoAnnotations'][0]['description'] }}",
+        bash_command="echo {{ task_instance.xcom_pull('annotate_image')['logoAnnotations'][0]['description'] }}",
         task_id="annotate_image_result",
     )
     # [END howto_operator_vision_annotate_image_result]

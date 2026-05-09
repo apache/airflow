@@ -51,7 +51,7 @@ STATS_METHOD_TO_TYPE: dict[str, str] = {
     "timer": "timer",
 }
 
-STATS_OBJECTS = {"Stats", "stats", "DualStatsManager"}
+STATS_OBJECTS = {"Stats", "stats"}
 
 METRICS_REGISTRY_PATH = (
     AIRFLOW_ROOT_PATH / "shared/observability/src/airflow_shared/observability/metrics/metrics_template.yaml"
