@@ -2763,7 +2763,7 @@ class BigQueryUpdateRoutineOperator(GoogleCloudBaseOperator):
     :param routine_resource: The routine resource (dict or
         :class:`~google.cloud.bigquery.routine.Routine`) with the new values for the fields
         listed in ``fields``.
-    :param fields: Properties to update (e.g. ``["body", "description"]``).
+    :param fields: Properties to update (e.g. ``["definitionBody", "description"]``).
     :param project_id: Optional. The project that owns the dataset.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param location: The location of the BigQuery dataset.

@@ -27,6 +27,7 @@ from unittest.mock import ANY, MagicMock
 import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
+from google.cloud.bigquery.routine import Routine
 from google.cloud.exceptions import Conflict
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -2966,13 +2967,13 @@ class TestBigQueryUpdateRoutineOperator:
             routine_id=TEST_ROUTINE_ID,
             project_id=TEST_GCP_PROJECT_ID,
             routine_resource=dict(TEST_ROUTINE_RESOURCE),
-            fields=["description", "body"],
+            fields=["description", "definitionBody"],
         )
         result = operator.execute(context=MagicMock())
 
         assert result == TEST_ROUTINE_RESOURCE
         call_kwargs = mock_hook.return_value.update_routine.call_args.kwargs
-        assert call_kwargs["fields"] == ["description", "body"]
+        assert call_kwargs["fields"] == ["description", "definitionBody"]
         assert call_kwargs["dataset_id"] == TEST_DATASET
         assert call_kwargs["routine_id"] == TEST_ROUTINE_ID
 
@@ -3039,7 +3040,7 @@ class TestBigQueryGetRoutineOperator:
 class TestBigQueryListRoutinesOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
-        first, second = MagicMock(), MagicMock()
+        first, second = MagicMock(spec=Routine), MagicMock(spec=Routine)
         first.to_api_repr.return_value = {"routineReference": {"routineId": "r1"}}
         second.to_api_repr.return_value = {"routineReference": {"routineId": "r2"}}
         mock_hook.return_value.list_routines.return_value = [first, second]
