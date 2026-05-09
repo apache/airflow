@@ -158,6 +158,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk._shared.logging.remote import RemoteLogIO
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -2189,11 +2190,36 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     return ensure_secrets_loaded(default_backends=fallback_backends)
 
 
-def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLogger, BinaryIO | TextIO]:
+def _close_remote_log_handler(handler: RemoteLogIO) -> None:
+    """
+    Close the remote log handler explicitly after all task log messages have been drained, before process exit triggers logging.shutdown().
+
+    This prevents WatchtowerWarning: "Received message after logging system shutdown" which causes CloudWatch log streams to be silently truncated.
+    """
+    import logging as _logging
+
+    # If the handler is also a stdlib logging.Handler, deregister it from
+    # the logging hierarchy so logging.shutdown() at process exit cannot
+    # double-close it.
+    if isinstance(handler, _logging.Handler):
+        root = _logging.getLogger()
+        root.removeHandler(handler)
+        for logger_ref in list(_logging.Logger.manager.loggerDict.values()):
+            if isinstance(logger_ref, _logging.Logger):
+                logger_ref.removeHandler(handler)
+
+    with contextlib.suppress(Exception):
+        handler.close()
+
+
+@contextlib.contextmanager
+def _configure_logging(
+    log_path: str, client: Client
+) -> Generator[tuple[FilteringBoundLogger, BinaryIO | TextIO], None, None]:
     # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
     # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
     # lands on the same node as before.
-    from airflow.sdk.log import init_log_file, logging_processors
+    from airflow.sdk.log import init_log_file, load_remote_log_handler, logging_processors
 
     log_file_descriptor: BinaryIO | TextIO | None = None
 
@@ -2209,9 +2235,29 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
     with _remote_logging_conn(client):
         processors = logging_processors(json_output=json_logs)
+
     logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    return logger, log_file_descriptor
+    try:
+        yield logger, log_file_descriptor
+    finally:
+        # Flush and close the remote handler now — AFTER the supervisor has
+        # drained all task log messages from the subprocess pipe (i.e. after
+        # process.wait() has returned).
+        #
+        # Without this, the only thing that ever closes the handler is
+        # Python's logging.shutdown() at process exit, which fires after
+        # supervise_task() returns. Any messages still queued in the handler
+        # at that point are silently dropped, producing:
+        #
+        # WatchtowerWarning: "Received message after logging system shutdown"
+        remote_handler = load_remote_log_handler()
+        if remote_handler is not None:
+            _close_remote_log_handler(remote_handler)
+
+        if log_file_descriptor is not None:
+            with contextlib.suppress(Exception):
+                log_file_descriptor.close()
 
 
 def supervise_task(
@@ -2286,12 +2332,6 @@ def supervise_task(
     with _ensure_client(server, token, client=client, dry_run=dry_run) as client:
         start = time.monotonic()
 
-        # TODO: Use logging providers to handle the chunked upload for us etc.
-        logger: FilteringBoundLogger | None = None
-        log_file_descriptor: BinaryIO | TextIO | None = None
-        if log_path:
-            logger, log_file_descriptor = _configure_logging(log_path, client)
-
         backends = ensure_secrets_backend_loaded()
         log.info(
             "Secrets backends loaded for worker",
@@ -2301,18 +2341,24 @@ def supervise_task(
 
         reset_secrets_masker()
 
-        try:
-            process = ActivitySubprocess.start(
-                dag_rel_path=dag_rel_path,
-                what=ti,
-                client=client,
-                logger=logger,
-                bundle_info=bundle_info,
-                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-                sentry_integration=sentry_integration,
-            )
+        log_ctx = _configure_logging(log_path, client) if log_path else contextlib.nullcontext((None, None))
 
-            exit_code = process.wait()
+        try:
+            with log_ctx as (logger, _):
+                process = ActivitySubprocess.start(
+                    dag_rel_path=dag_rel_path,
+                    what=ti,
+                    client=client,
+                    logger=logger,
+                    bundle_info=bundle_info,
+                    subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                    sentry_integration=sentry_integration,
+                )
+
+                exit_code = process.wait()
+            # _configure_logging.__exit__ fires here, remote handler is
+            # flushed and closed after all task log messages are drained.
+
             end = time.monotonic()
             log.info(
                 "Workload finished",
@@ -2324,8 +2370,6 @@ def supervise_task(
             )
             return exit_code
         finally:
-            if log_path and log_file_descriptor:
-                log_file_descriptor.close()
             provider = trace.get_tracer_provider()
             if hasattr(provider, "force_flush"):
                 provider.force_flush(timeout_millis=5000)  # upper bound, not a fixed wait
