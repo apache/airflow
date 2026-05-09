@@ -429,6 +429,7 @@ class DatabricksDeleteJobsOperator(BaseOperator):
         self,
         *,
         job_id: int | str,
+        job_nm: str | None = None,
         databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
@@ -436,7 +437,12 @@ class DatabricksDeleteJobsOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if job_id is None and job_name is None:
+            raise AirflowException(
+                "Either 'job_id' or 'job_name' must be provided to DatabricksDeleteJobsOperator."
+            )
         self.job_id = job_id
+        self.job_name = job_name
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
@@ -453,9 +459,21 @@ class DatabricksDeleteJobsOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> None:
-        self._hook.delete_job(self.job_id)
+        # Resolve job_id from job_name when only job_name was supplied.
+        # Aligned with DatabricksCreateJobsOperator / DatabricksRunNowOperator
+        # which expect users to know the job's name rather than its numeric ID.
+        job_id = self.job_id
+        if job_id is None:
+            job_id = self._hook.find_job_id_by_name(self.job_name)
+            if job_id is None:
+                # Surface a clear error instead of silently doing nothing when
+                # the target job has already been removed or never existed.
+                raise AirflowException(
+                    f"Job not found: no Databricks job with name '{self.job_name}' exists."
+                )
 
-        self.log.info("Successfully deleted Databricks job ID: %s", self.job_id)
+        self._hook.delete_job(job_id)
+        self.log.info("Successfully deleted Databricks job ID: %s", job_id)
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
