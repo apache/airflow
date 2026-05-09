@@ -506,3 +506,19 @@ class TestImapHook:
 
         mock_open_method.assert_called_once_with(f"test_directory/{expected_filename}", "wb")
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_mixed_plaintext_and_encoded_filename(self, mock_imaplib):
+        """Test mixed plaintext and RFC 2047 encoded filename (edge case)."""
+        # Mixed: plain text + encoded (e.g. 'bar =?utf-8?B?ZsOzbw==?=')
+        # Decoded: 'bar fóo'
+        encoded_filename = "bar =?utf-8?B?ZsOzbw==?="
+        expected_filename = "bar fóo"
+
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name=encoded_filename)
+
+        with ImapHook() as imap_hook:
+            attachments = imap_hook.retrieve_mail_attachments(expected_filename)
+
+        assert len(attachments) == 1
+        assert attachments[0][0] == expected_filename

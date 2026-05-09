@@ -28,7 +28,7 @@ import imaplib
 import os
 import re
 import ssl
-from email.header import decode_header
+from email.header import decode_header, make_header
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -398,11 +398,7 @@ class MailPart:
         """
         if raw_filename is None:
             return ""
-        decoded_parts = decode_header(raw_filename)
-        return "".join(
-            part.decode(enc) if isinstance(part, bytes) else part
-            for part, enc in decoded_parts
-        )
+        return str(make_header(decode_header(raw_filename)))
 
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
