@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import itertools
 import os
+from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -31,17 +32,7 @@ from airflow.providers.common.compat.sdk import BaseHook
 if TYPE_CHECKING:
     from multiprocessing.pool import ApplyResult
 
-    from pinecone import Vector
-    from pinecone.core.openapi.db_data.models import IndexDescription as DescribeIndexStatsResponse
-    from pinecone.db_data import QueryResponse, UpsertResponse
-    from pinecone.db_data.dataclasses.sparse_values import SparseValues
-    from pinecone.db_data.types import (
-        FilterTypedDict,
-        SparseVectorTypedDict,
-        VectorTuple,
-        VectorTupleWithMetadata,
-        VectorTypedDict,
-    )
+    from pinecone import DescribeIndexStatsResponse, QueryResponse, SparseValues, UpsertResponse, Vector
 
     from airflow.models.connection import Connection
 
@@ -154,7 +145,9 @@ class PineconeHook(BaseHook):
     def upsert(
         self,
         index_name: str,
-        vectors: list[Vector] | list[VectorTuple] | list[VectorTupleWithMetadata] | list[VectorTypedDict],
+        vectors: Sequence[
+            Vector | tuple[str, list[float]] | tuple[str, list[float], dict[str, Any]] | dict[str, Any]
+        ],
         namespace: str = "",
         batch_size: int | None = None,
         show_progress: bool = True,
@@ -319,10 +312,10 @@ class PineconeHook(BaseHook):
         query_id: str | None = None,
         top_k: int = 10,
         namespace: str | None = None,
-        query_filter: FilterTypedDict | None = None,
+        query_filter: dict[str, Any] | None = None,
         include_values: bool | None = None,
         include_metadata: bool | None = None,
-        sparse_vector: SparseValues | SparseVectorTypedDict | None = None,
+        sparse_vector: SparseValues | dict[str, Any] | None = None,
     ) -> QueryResponse | ApplyResult:
         """
         Search a namespace using query vector.
@@ -392,7 +385,7 @@ class PineconeHook(BaseHook):
     def describe_index_stats(
         self,
         index_name: str,
-        stats_filter: FilterTypedDict | None = None,
+        stats_filter: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> DescribeIndexStatsResponse:
         """
