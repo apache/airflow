@@ -55,7 +55,7 @@ roleRef:
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
   {{- end }}
 subjects:
-  {{- if or (contains "LocalExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }}
+  {{- if and .Values.scheduler.enabled (or (contains "LocalExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor)) }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
