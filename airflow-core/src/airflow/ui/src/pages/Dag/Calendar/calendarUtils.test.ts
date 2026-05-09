@@ -83,14 +83,21 @@ describe("calculateDataBounds", () => {
     ).toEqual({ maxCount: 4, minCount: 3 });
   });
 
-  it("includes queued runs in total mode bounds", () => {
+  it("excludes queued runs from total mode bounds when actual runs are present", () => {
     expect(
       calculateDataBounds(
         [run("queued", 100, "2026-04-08T10:00:00Z"), run("success", 1, "2026-04-08T11:00:00Z")],
         "total",
         "hourly",
       ),
-    ).toEqual({ maxCount: 100, minCount: 1 });
+    ).toEqual({ maxCount: 1, minCount: 1 });
+  });
+
+  it("keeps queued-only total mode data from using an empty scale", () => {
+    expect(calculateDataBounds([run("queued", 100)], "total", "hourly")).toEqual({
+      maxCount: 100,
+      minCount: 100,
+    });
   });
 
   it("uses failed counts for failed mode bounds", () => {
@@ -122,16 +129,25 @@ describe("createCalendarScale", () => {
     expect(scale.getColor({ ...EMPTY_COUNTS, success: 1, total: 1 })).toEqual(DEFAULT_TOTAL_COLOR);
   });
 
-  it("returns the default total color for a queued-only cell", () => {
+  it("returns the planned color for a queued-only cell in total mode", () => {
     const scale = createCalendarScale([run("queued", 1)], "total", "hourly");
 
-    expect(scale.getColor({ ...EMPTY_COUNTS, queued: 1, total: 1 })).toEqual(DEFAULT_TOTAL_COLOR);
+    expect(scale.getColor({ ...EMPTY_COUNTS, queued: 1, total: 1 })).toEqual(PLANNED_COLOR);
   });
 
   it("returns a mixed color for planned and actual runs in total mode", () => {
     const scale = createCalendarScale([run("planned", 1), run("success", 1)], "total", "hourly");
 
     expect(scale.getColor({ ...EMPTY_COUNTS, planned: 1, success: 1, total: 2 })).toEqual({
+      actual: DEFAULT_TOTAL_COLOR,
+      planned: PLANNED_COLOR,
+    });
+  });
+
+  it("returns a mixed color for queued and actual runs in total mode", () => {
+    const scale = createCalendarScale([run("queued", 1), run("success", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, queued: 1, success: 1, total: 2 })).toEqual({
       actual: DEFAULT_TOTAL_COLOR,
       planned: PLANNED_COLOR,
     });
@@ -148,6 +164,21 @@ describe("createCalendarScale", () => {
     const scale = createCalendarScale([run("planned", 1), run("failed", 1)], "failed", "hourly");
 
     expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, planned: 1, total: 2 })).toEqual({
+      actual: DEFAULT_FAILED_COLOR,
+      planned: PLANNED_COLOR,
+    });
+  });
+
+  it("returns the planned color for a queued-only cell in failed mode", () => {
+    const scale = createCalendarScale([run("queued", 1)], "failed", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, queued: 1, total: 1 })).toEqual(PLANNED_COLOR);
+  });
+
+  it("returns a mixed color for queued and failed runs in failed mode", () => {
+    const scale = createCalendarScale([run("queued", 1), run("failed", 1)], "failed", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, queued: 1, total: 2 })).toEqual({
       actual: DEFAULT_FAILED_COLOR,
       planned: PLANNED_COLOR,
     });
