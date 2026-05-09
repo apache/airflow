@@ -44,13 +44,13 @@ const BulkClearDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => 
     onSuccessConfirm: onClose,
   });
 
-  const onlyFailed = selectedOptions.includes("onlyFailed");
-  const onlyNew = selectedOptions.includes("newTasks");
-
   const handleClose = () => {
     setNote(null);
     onClose();
   };
+
+  const onlyFailed = selectedOptions.includes("onlyFailed");
+  const onlyNew = selectedOptions.includes("newTasks");
 
   return (
     <>

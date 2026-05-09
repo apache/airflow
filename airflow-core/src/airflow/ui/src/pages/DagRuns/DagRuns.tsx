@@ -42,12 +42,12 @@ import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import DeleteRunButton from "src/pages/DeleteRunButton";
+import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
 import BulkMarkDagRunsAsButton from "./BulkMarkDagRunsAsButton";
 import { DagRunsFilters } from "./DagRunsFilters";
-import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 

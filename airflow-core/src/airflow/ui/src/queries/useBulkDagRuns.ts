@@ -22,14 +22,13 @@ import { useTranslation } from "react-i18next";
 
 import { useDagRunServiceGetDagRunsKey, useTaskInstanceServiceGetTaskInstancesKey } from "openapi/queries";
 import { DagRunService } from "openapi/requests/services.gen";
-import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
+import type {
+  BulkActionResponse,
+  BulkResponse,
+  DAGRunPatchStates,
+  DAGRunResponse,
+} from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
-
-// NOTE: Until a real bulk Dag Runs API endpoint exists (analogous to
-// `bulkTaskInstances` / `bulkVariables`), the actions below fan out to one
-// request per Dag Run via Promise.allSettled. This means up to N (or 2N for
-// clear-with-note) concurrent writes when the user selects N runs and partial
-// failures are surfaced after the fact.
 
 type Props = {
   readonly clearSelections: VoidFunction;
@@ -50,6 +49,15 @@ type BulkMarkOptions = {
 
 type ToasterKey = "toaster.bulkClear" | "toaster.bulkDelete" | "toaster.bulkUpdate";
 
+const formatActionResult = (response: BulkActionResponse | null | undefined) => ({
+  firstErrorDetail:
+    response?.errors && response.errors.length > 0
+      ? ((response.errors[0] as { error?: string } | undefined)?.error ?? "Bulk request failed")
+      : null,
+  successCount: response?.success?.length ?? 0,
+  successKeys: response?.success ?? [],
+});
+
 export const useBulkDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
@@ -63,27 +71,17 @@ export const useBulkDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => 
     ]);
   };
 
-  const finalize = (
-    dagRuns: Array<DAGRunResponse>,
-    results: Array<PromiseSettledResult<unknown>>,
+  const handleResult = (
+    actionResult: BulkActionResponse | null | undefined,
     toasterKey: ToasterKey,
-  ) => {
-    const successDagRuns = dagRuns.filter((_, index) => results[index]?.status === "fulfilled");
-    const firstRejection = results.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected",
-    );
+  ): boolean => {
+    const { firstErrorDetail, successCount, successKeys } = formatActionResult(actionResult);
 
-    if (firstRejection) {
-      setError(firstRejection.reason);
-    } else {
-      setError(undefined);
-    }
-
-    if (successDagRuns.length > 0) {
+    if (successCount > 0) {
       toaster.create({
         description: translate(`${toasterKey}.success.description`, {
-          count: successDagRuns.length,
-          keys: successDagRuns.map((dr) => dr.dag_run_id).join(", "),
+          count: successCount,
+          keys: successKeys.join(", "),
           resourceName: translate("dagRun_other"),
         }),
         title: translate(`${toasterKey}.success.title`, {
@@ -93,10 +91,15 @@ export const useBulkDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => 
       });
     }
 
-    if (!firstRejection) {
-      clearSelections();
-      onSuccessConfirm();
+    if (firstErrorDetail !== null) {
+      setError({ body: { detail: firstErrorDetail } });
+
+      return false;
     }
+
+    setError(undefined);
+
+    return true;
   };
 
   const bulkClear = async (dagRuns: Array<DAGRunResponse>, options: BulkClearDagRunsOptions) => {
@@ -104,48 +107,40 @@ export const useBulkDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => 
     setIsPending(true);
 
     try {
-      const clearResults = await Promise.allSettled(
-        dagRuns.map((dagRun) =>
-          DagRunService.clearDagRun({
-            dagId: dagRun.dag_id,
-            dagRunId: dagRun.dag_run_id,
-            requestBody: {
-              dry_run: false,
-              only_failed: options.onlyFailed,
-              only_new: options.onlyNew,
-              run_on_latest_version: options.runOnLatestVersion,
-            },
-          }),
-        ),
-      );
-
-      // Only patch notes for runs whose clear succeeded. Patch failures here
-      // are intentionally swallowed so a flaky note write does not undo the
-      // visible "successful clear" outcome; we still report the original
-      // clear-side rejections via finalize().
-      if (options.note !== null) {
-        const toPatch = dagRuns.filter((_, index) => clearResults[index]?.status === "fulfilled");
-
-        if (toPatch.length > 0) {
-          await Promise.allSettled(
-            toPatch.map((dagRun) =>
-              DagRunService.patchDagRun({
-                dagId: dagRun.dag_id,
-                dagRunId: dagRun.dag_run_id,
-                requestBody: { note: options.note },
-                updateMask: ["note"],
-              }),
-            ),
-          );
-        }
-      }
+      const response = await DagRunService.postClearDagRuns({
+        dagId: "~",
+        requestBody: {
+          dry_run: false,
+          note: options.note,
+          only_failed: options.onlyFailed,
+          only_new: options.onlyNew,
+          run_on_latest_version: options.runOnLatestVersion,
+          runs: dagRuns.map((dr) => ({ dag_id: dr.dag_id, dag_run_id: dr.dag_run_id })),
+        },
+      });
 
       await invalidateQueries();
-      finalize(dagRuns, clearResults, "toaster.bulkClear");
+
+      if (handleResult(response, "toaster.bulkClear")) {
+        clearSelections();
+        onSuccessConfirm();
+      }
     } catch (_error) {
       setError(_error);
     }
     setIsPending(false);
+  };
+
+  const handleBulkResponse = (
+    response: BulkResponse,
+    toasterKey: "toaster.bulkDelete" | "toaster.bulkUpdate",
+  ) => {
+    const actionResult = toasterKey === "toaster.bulkDelete" ? response.delete : response.update;
+
+    if (handleResult(actionResult, toasterKey)) {
+      clearSelections();
+      onSuccessConfirm();
+    }
   };
 
   const bulkDelete = async (dagRuns: Array<DAGRunResponse>) => {
@@ -153,17 +148,24 @@ export const useBulkDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => 
     setIsPending(true);
 
     try {
-      const results = await Promise.allSettled(
-        dagRuns.map((dagRun) =>
-          DagRunService.deleteDagRun({
-            dagId: dagRun.dag_id,
-            dagRunId: dagRun.dag_run_id,
-          }),
-        ),
-      );
+      const response = await DagRunService.bulkDagRuns({
+        dagId: "~",
+        requestBody: {
+          actions: [
+            {
+              action: "delete" as const,
+              action_on_non_existence: "skip",
+              entities: dagRuns.map((dr) => ({
+                dag_id: dr.dag_id,
+                dag_run_id: dr.dag_run_id,
+              })),
+            },
+          ],
+        },
+      });
 
       await invalidateQueries();
-      finalize(dagRuns, results, "toaster.bulkDelete");
+      handleBulkResponse(response, "toaster.bulkDelete");
     } catch (_error) {
       setError(_error);
     }
@@ -177,19 +179,27 @@ export const useBulkDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => 
     const updateMask = options.note === null ? ["state"] : ["state", "note"];
 
     try {
-      const results = await Promise.allSettled(
-        dagRuns.map((dagRun) =>
-          DagRunService.patchDagRun({
-            dagId: dagRun.dag_id,
-            dagRunId: dagRun.dag_run_id,
-            requestBody: { note: options.note, state: options.state },
-            updateMask,
-          }),
-        ),
-      );
+      const response = await DagRunService.bulkDagRuns({
+        dagId: "~",
+        requestBody: {
+          actions: [
+            {
+              action: "update" as const,
+              action_on_non_existence: "skip",
+              entities: dagRuns.map((dr) => ({
+                dag_id: dr.dag_id,
+                dag_run_id: dr.dag_run_id,
+                note: options.note,
+                state: options.state,
+              })),
+              update_mask: updateMask,
+            },
+          ],
+        },
+      });
 
       await invalidateQueries();
-      finalize(dagRuns, results, "toaster.bulkUpdate");
+      handleBulkResponse(response, "toaster.bulkUpdate");
     } catch (_error) {
       setError(_error);
     }

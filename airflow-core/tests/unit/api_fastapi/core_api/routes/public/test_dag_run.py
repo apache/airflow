@@ -1843,6 +1843,413 @@ class TestClearDagRun:
         assert response.status_code == 422
 
 
+class TestBulkDagRuns:
+    """Tests for ``PATCH /dags/{dag_id}/dagRuns`` (bulk update / delete)."""
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_state_for_multiple_runs(self, test_client, session):
+        body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {"dag_run_id": DAG1_RUN1_ID, "state": DagRunState.FAILED},
+                        {"dag_run_id": DAG1_RUN2_ID, "state": DagRunState.SUCCESS},
+                    ],
+                    "update_mask": ["state"],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert sorted(result["update"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        )
+        assert result["update"]["errors"] == []
+
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == DAG1_ID)).all()
+        states = {r.run_id: r.state for r in runs}
+        assert states[DAG1_RUN1_ID] == DagRunState.FAILED
+        assert states[DAG1_RUN2_ID] == DagRunState.SUCCESS
+
+    def test_bulk_delete_multiple_runs(self, test_client, session):
+        body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"dag_run_id": DAG1_RUN1_ID},
+                        {"dag_run_id": DAG1_RUN2_ID},
+                    ],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert sorted(result["delete"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        )
+        assert result["delete"]["errors"] == []
+
+        remaining_run_ids = set(session.scalars(select(DagRun.run_id).where(DagRun.dag_id == DAG1_ID)).all())
+        assert DAG1_RUN1_ID not in remaining_run_ids
+        assert DAG1_RUN2_ID not in remaining_run_ids
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_cross_dag_with_wildcard(self, test_client, session):
+        body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID, "state": DagRunState.FAILED},
+                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID, "state": DagRunState.QUEUED},
+                    ],
+                    "update_mask": ["state"],
+                }
+            ]
+        }
+        response = test_client.patch("/dags/~/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert sorted(result["update"]["success"]) == sorted(
+            [f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG2_ID}.{DAG2_RUN1_ID}"]
+        )
+
+    def test_bulk_update_rejects_mismatched_dag_id_in_path(self, test_client, session):
+        body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID, "state": DagRunState.FAILED},
+                    ],
+                    "update_mask": ["state"],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["update"]["success"] == []
+        assert len(result["update"]["errors"]) == 1
+        assert result["update"]["errors"][0]["status_code"] == 400
+
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG2_ID, DagRun.run_id == DAG2_RUN1_ID)
+        )
+        assert dag_run.state == DAG2_RUN1_STATE
+
+    def test_bulk_delete_rejects_mismatched_dag_id_in_path(self, test_client, session):
+        body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                    ],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["delete"]["success"] == []
+        assert len(result["delete"]["errors"]) == 1
+        assert result["delete"]["errors"][0]["status_code"] == 400
+
+        assert session.scalar(select(DagRun).where(DagRun.dag_id == DAG2_ID, DagRun.run_id == DAG2_RUN1_ID))
+
+    def test_bulk_delete_rejects_non_deletable_state(self, test_client, session):
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        dag_run.state = DagRunState.RUNNING
+        session.commit()
+
+        body = {
+            "actions": [
+                {
+                    "action": "delete",
+                    "entities": [
+                        {"dag_run_id": DAG1_RUN1_ID},
+                        {"dag_run_id": DAG1_RUN2_ID},
+                    ],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["delete"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        assert len(result["delete"]["errors"]) == 1
+        assert result["delete"]["errors"][0]["status_code"] == 409
+
+        remaining_run_ids = set(session.scalars(select(DagRun.run_id).where(DagRun.dag_id == DAG1_ID)).all())
+        assert DAG1_RUN1_ID in remaining_run_ids
+        assert DAG1_RUN2_ID not in remaining_run_ids
+
+    def test_bulk_update_with_skip_when_run_missing(self, test_client):
+        body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {"dag_run_id": DAG1_RUN1_ID, "state": DagRunState.FAILED},
+                        {"dag_run_id": "does_not_exist", "state": DagRunState.FAILED},
+                    ],
+                    "update_mask": ["state"],
+                    "action_on_non_existence": "skip",
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        # Only the existing run is reported as success; the missing one is skipped silently.
+        assert result["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert result["update"]["errors"] == []
+
+    def test_bulk_update_fail_when_run_missing(self, test_client):
+        body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {"dag_run_id": DAG1_RUN1_ID, "state": DagRunState.FAILED},
+                        {"dag_run_id": "does_not_exist", "state": DagRunState.FAILED},
+                    ],
+                    "update_mask": ["state"],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        # The whole action is rejected because at least one entity is missing.
+        assert result["update"]["success"] == []
+        assert len(result["update"]["errors"]) == 1
+        assert result["update"]["errors"][0]["status_code"] == 404
+
+    def test_bulk_create_is_not_supported(self, test_client):
+        body = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [{"dag_run_id": "new_run"}],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert len(result["create"]["errors"]) == 1
+        assert result["create"]["errors"][0]["status_code"] == 405
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={"actions": []})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json={"actions": []})
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("state", "listener_state"),
+        [
+            ("queued", []),
+            ("success", [DagRunState.SUCCESS]),
+            ("failed", [DagRunState.FAILED]),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_notifies_listeners(self, test_client, state, listener_state, listener_manager):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        body = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [{"dag_run_id": DAG1_RUN1_ID, "state": state}],
+                    "update_mask": ["state"],
+                }
+            ]
+        }
+        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns", json=body)
+        assert response.status_code == 200
+        assert listener.state == listener_state
+
+
+class TestPostClearDagRuns:
+    """Tests for ``POST /dags/{dag_id}/dagRuns/clear`` (bulk clear)."""
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_two_runs(self, test_client, session):
+        body = {
+            "runs": [
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN2_ID},
+            ],
+            "dry_run": False,
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert sorted(result["success"]) == sorted([f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG1_ID}.{DAG1_RUN2_ID}"])
+        assert result["errors"] == []
+
+        # Cleared runs are reset to QUEUED.
+        runs = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id.in_([DAG1_RUN1_ID, DAG1_RUN2_ID]))
+        ).all()
+        assert {r.state for r in runs} == {DagRunState.QUEUED}
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_defaults_to_dry_run(self, test_client, session):
+        body = {
+            "runs": [
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN2_ID},
+            ],
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert sorted(result["success"]) == sorted([f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG1_ID}.{DAG1_RUN2_ID}"])
+        assert result["errors"] == []
+
+        runs = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id.in_([DAG1_RUN1_ID, DAG1_RUN2_ID]))
+        ).all()
+        states = {run.run_id: run.state for run in runs}
+        assert states[DAG1_RUN1_ID] == DAG1_RUN1_STATE
+        assert states[DAG1_RUN2_ID] == DAG1_RUN2_STATE
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_cross_dag_with_wildcard(self, test_client):
+        body = {
+            "runs": [
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+            ],
+            "dry_run": False,
+        }
+        response = test_client.post("/dags/~/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert sorted(result["success"]) == sorted([f"{DAG1_ID}.{DAG1_RUN1_ID}", f"{DAG2_ID}.{DAG2_RUN1_ID}"])
+
+    def test_bulk_clear_reports_missing_runs_as_per_entry_errors(self, test_client):
+        body = {
+            "runs": [
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                {"dag_id": DAG1_ID, "dag_run_id": "does_not_exist"},
+            ],
+            "dry_run": False,
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        # Successful run is still cleared; missing run is reported per-entry rather
+        # than aborting the whole batch.
+        assert result["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["status_code"] == 404
+        assert result["errors"][0]["dag_run_id"] == "does_not_exist"
+
+    def test_bulk_clear_rejects_mismatched_dag_id_in_path(self, test_client):
+        body = {
+            "runs": [{"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID}],
+            "dry_run": False,
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == []
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["status_code"] == 400
+        assert "does not match path dag_id" in result["errors"][0]["error"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_falls_back_to_path_dag_id(self, test_client, session):
+        body = {
+            "runs": [{"dag_run_id": DAG1_RUN1_ID}],
+            "dry_run": False,
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert result["errors"] == []
+
+    def test_bulk_clear_rejects_wildcard_path_when_entity_omits_dag_id(self, test_client):
+        body = {
+            "runs": [{"dag_run_id": DAG1_RUN1_ID}],
+            "dry_run": False,
+        }
+        response = test_client.post("/dags/~/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == []
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["status_code"] == 400
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_applies_note_when_provided(self, test_client, session):
+        body = {
+            "runs": [
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN2_ID},
+            ],
+            "dry_run": False,
+            "note": "post-incident cleanup",
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+        assert response.json()["errors"] == []
+
+        runs = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id.in_([DAG1_RUN1_ID, DAG1_RUN2_ID]))
+        ).all()
+        assert {r.note for r in runs} == {"post-incident cleanup"}
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_dry_run_does_not_apply_note(self, test_client, session):
+        body = {
+            "runs": [{"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN2_ID}],
+            "note": "should not be saved",
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 200
+
+        run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID))
+        assert run is not None
+        assert run.note is None
+
+    def test_bulk_clear_validates_only_new_only_failed_mutual_exclusion(self, test_client):
+        body = {
+            "runs": [{"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID}],
+            "only_new": True,
+            "only_failed": True,
+            "dry_run": False,
+        }
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json=body)
+        assert response.status_code == 422
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json={"runs": []})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(f"/dags/{DAG1_ID}/dagRuns/clear", json={"runs": []})
+        assert response.status_code == 403
+
+
 class TestClearDagRunOnlyNew:
     """Integration tests for only_new=True using a real two-version DAG.
 

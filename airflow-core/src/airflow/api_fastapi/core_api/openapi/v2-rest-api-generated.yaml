@@ -2107,12 +2107,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
-    post:
+  /api/v2/dags/{dag_id}/dagRuns:
+    patch:
       tags:
       - DagRun
-      summary: Clear Dag Run
-      operationId: clear_dag_run
+      summary: Bulk Dag Runs
+      description: 'Bulk update and delete Dag runs.
+
+
+        A single request handles many Dag runs in one transaction. Per-entity
+
+        failures are reported via ``BulkResponse`` so that a partial failure does
+
+        not abort the whole batch.
+
+
+        The path''s ``dag_id`` may be ``~`` for cross-DAG operations; in that case
+
+        each entity must specify its own ``dag_id`` in the body.'
+      operationId: bulk_dag_runs
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -2123,28 +2136,19 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DAGRunClearBody'
+              $ref: '#/components/schemas/BulkBody_BulkDagRunBody_'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                anyOf:
-                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
-                - $ref: '#/components/schemas/DAGRunResponse'
-                title: Response Clear Dag Run
+                $ref: '#/components/schemas/BulkResponse'
         '401':
           content:
             application/json:
@@ -2157,19 +2161,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns:
     get:
       tags:
       - DagRun
@@ -2786,6 +2783,134 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/clear:
+    post:
+      tags:
+      - DagRun
+      summary: Post Clear Dag Runs
+      description: 'Clear multiple Dag runs in a single request.
+
+
+        Mirrors the per-DAG bulk pattern of ``POST /dags/{dag_id}/clearTaskInstances``:
+
+        each ``(dag_id, dag_run_id)`` in ``runs`` is processed in the same transaction
+
+        and per-entry failures are reported via ``BulkActionResponse.errors``.
+
+
+        The path''s ``dag_id`` may be ``~`` for cross-DAG clears; otherwise each entry
+
+        must reference the same ``dag_id`` as the path.'
+      operationId: post_clear_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkClearDagRunsBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run
+      operationId: clear_dag_run
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunResponse'
+                title: Response Clear Dag Run
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -10775,6 +10900,21 @@ components:
 
         This structure helps users understand which key actions succeeded and which
         failed.'
+    BulkBody_BulkDagRunBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_BulkDagRunBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_BulkDagRunBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_BulkDagRunBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[BulkDagRunBody]
     BulkBody_BulkTaskInstanceBody_:
       properties:
         actions:
@@ -10835,6 +10975,69 @@ components:
       required:
       - actions
       title: BulkBody[VariableBody]
+    BulkClearDagRunsBody:
+      properties:
+        runs:
+          items:
+            $ref: '#/components/schemas/DagRunIdentifier'
+          type: array
+          title: Runs
+        only_failed:
+          type: boolean
+          title: Only Failed
+          default: false
+        only_new:
+          type: boolean
+          title: Only New
+          description: Only queue newly added tasks in the latest Dag version without
+            clearing existing tasks.
+          default: false
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
+          description: (Experimental) Run on the latest bundle version of the Dag
+            after clearing the Dag Run.
+          default: false
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+          description: Optional note applied to every Dag Run that is successfully
+            cleared. Ignored on dry runs.
+      additionalProperties: false
+      type: object
+      required:
+      - runs
+      title: BulkClearDagRunsBody
+      description: Request body for the bulk clear Dag runs endpoint.
+    BulkCreateAction_BulkDagRunBody_:
+      properties:
+        action:
+          type: string
+          const: create
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkDagRunBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[BulkDagRunBody]
     BulkCreateAction_BulkTaskInstanceBody_:
       properties:
         action:
@@ -10923,6 +11126,56 @@ components:
       - action
       - entities
       title: BulkCreateAction[VariableBody]
+    BulkDagRunBody:
+      properties:
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/DAGRunPatchStates'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+      additionalProperties: false
+      type: object
+      required:
+      - dag_run_id
+      title: BulkDagRunBody
+      description: Request body for bulk update and delete Dag runs.
+    BulkDeleteAction_BulkDagRunBody_:
+      properties:
+        action:
+          type: string
+          const: delete
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkDagRunBody'
+          type: array
+          title: Entities
+          description: A list of entity id/key or entity objects to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[BulkDagRunBody]
     BulkDeleteAction_BulkTaskInstanceBody_:
       properties:
         action:
@@ -11104,6 +11357,38 @@ components:
       - task_id
       title: BulkTaskInstanceBody
       description: Request body for bulk update, and delete task instances.
+    BulkUpdateAction_BulkDagRunBody_:
+      properties:
+        action:
+          type: string
+          const: update
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkDagRunBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[BulkDagRunBody]
     BulkUpdateAction_BulkTaskInstanceBody_:
       properties:
         action:
@@ -12604,6 +12889,22 @@ components:
       - partition_key
       title: DagRunAssetReference
       description: DagRun serializer for asset responses.
+    DagRunIdentifier:
+      properties:
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+      additionalProperties: false
+      type: object
+      required:
+      - dag_run_id
+      title: DagRunIdentifier
+      description: Identifier for a Dag run targeted by a bulk operation.
     DagRunState:
       type: string
       enum:

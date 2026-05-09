@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { BackfillPostBody, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { BackfillPostBody, BulkBody_BulkDagRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkClearDagRunsBody, ClearTaskInstancesBody, ConnectionBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, TaskInstancesBatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -2067,6 +2067,45 @@ export const useConnectionServiceTestConnection = <TData = Common.ConnectionServ
 */
 export const useConnectionServiceCreateDefaultConnections = <TData = Common.ConnectionServiceCreateDefaultConnectionsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, void, TContext>, "mutationFn">) => useMutation<TData, TError, void, TContext>({ mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>, ...options });
 /**
+* Trigger Dag Run
+* Trigger a Dag.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns DAGRunResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTriggerDagRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: unknown;
+  requestBody: TriggerDAGRunPostBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: unknown;
+  requestBody: TriggerDAGRunPostBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Post Clear Dag Runs
+* Clear multiple Dag runs in a single request.
+*
+* Mirrors the per-DAG bulk pattern of ``POST /dags/{dag_id}/clearTaskInstances``:
+* each ``(dag_id, dag_run_id)`` in ``runs`` is processed in the same transaction
+* and per-entry failures are reported via ``BulkActionResponse.errors``.
+*
+* The path's ``dag_id`` may be ``~`` for cross-DAG clears; otherwise each entry
+* must reference the same ``dag_id`` as the path.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns BulkActionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServicePostClearDagRuns = <TData = Common.DagRunServicePostClearDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: BulkClearDagRunsBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: BulkClearDagRunsBody;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.postClearDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Clear Dag Run
 * @param data The data for the request.
 * @param data.dagId
@@ -2084,22 +2123,6 @@ export const useDagRunServiceClearDagRun = <TData = Common.DagRunServiceClearDag
   dagRunId: string;
   requestBody: DAGRunClearBody;
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => DagRunService.clearDagRun({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
-/**
-* Trigger Dag Run
-* Trigger a Dag.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.requestBody
-* @returns DAGRunResponse Successful Response
-* @throws ApiError
-*/
-export const useDagRunServiceTriggerDagRun = <TData = Common.DagRunServiceTriggerDagRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  dagId: unknown;
-  requestBody: TriggerDAGRunPostBody;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  dagId: unknown;
-  requestBody: TriggerDAGRunPostBody;
-}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.triggerDagRun({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Get List Dag Runs Batch
 * Get a list of Dag Runs.
@@ -2341,6 +2364,29 @@ export const useDagRunServicePatchDagRun = <TData = Common.DagRunServicePatchDag
   requestBody: DAGRunPatchBody;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) => DagRunService.patchDagRun({ dagId, dagRunId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Bulk Dag Runs
+* Bulk update and delete Dag runs.
+*
+* A single request handles many Dag runs in one transaction. Per-entity
+* failures are reported via ``BulkResponse`` so that a partial failure does
+* not abort the whole batch.
+*
+* The path's ``dag_id`` may be ``~`` for cross-DAG operations; in that case
+* each entity must specify its own ``dag_id`` in the body.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.requestBody
+* @returns BulkResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceBulkDagRuns = <TData = Common.DagRunServiceBulkDagRunsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  requestBody: BulkBody_BulkDagRunBody_;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  requestBody: BulkBody_BulkDagRunBody_;
+}, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.bulkDagRuns({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dags
 * Patch multiple Dags.

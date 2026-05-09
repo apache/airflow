@@ -73,6 +73,49 @@ class DAGRunClearBody(StrictBaseModel):
         return data
 
 
+class BulkDagRunBody(DAGRunPatchBody, StrictBaseModel):
+    """Request body for bulk update and delete Dag runs."""
+
+    dag_run_id: str
+    dag_id: str | None = None
+
+
+class DagRunIdentifier(StrictBaseModel):
+    """Identifier for a Dag run targeted by a bulk operation."""
+
+    dag_run_id: str
+    dag_id: str | None = None
+
+
+class BulkClearDagRunsBody(StrictBaseModel):
+    """Request body for the bulk clear Dag runs endpoint."""
+
+    runs: list[DagRunIdentifier]
+    only_failed: bool = False
+    only_new: bool = Field(
+        default=False,
+        description="Only queue newly added tasks in the latest Dag version without clearing existing tasks.",
+    )
+    run_on_latest_version: bool = Field(
+        default=False,
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+    )
+    dry_run: bool = True
+    note: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Optional note applied to every Dag Run that is successfully cleared. Ignored on dry runs.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_model(cls, data: Any) -> Any:
+        """Validate clear Dag runs form."""
+        if data.get("only_new") and data.get("only_failed"):
+            raise ValueError("only_new and only_failed are mutually exclusive")
+        return data
+
+
 class DAGRunResponse(BaseModel):
     """Dag Run serializer for responses."""
 

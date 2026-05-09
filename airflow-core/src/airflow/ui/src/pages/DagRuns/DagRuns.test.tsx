@@ -66,8 +66,6 @@ describe("DagRuns row selection", () => {
 
     await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
 
-    // Each data row carries a leading checkbox; clicking it should expose the
-    // bulk-action ActionBar (signalled by the "1 Selected" counter).
     const runRow = screen.getByText("run_in_range").closest("tr");
 
     expect(runRow).not.toBeNull();
@@ -106,15 +104,27 @@ const selectRow = async (runText: string) => {
 const findBulkActionButton = (label: RegExp) =>
   screen.getAllByRole("button", { name: label }).find((btn) => label.test(btn.textContent));
 
+type BulkBodyShape = {
+  actions: Array<{
+    action: "create" | "delete" | "update";
+    entities: Array<{ dag_id: string; dag_run_id: string; state?: string }>;
+  }>;
+};
+
 describe("DagRuns bulk delete", () => {
-  it("fires one DELETE per selected run and closes the dialog on success", async () => {
-    const onDelete = vi.fn();
+  it("fires a single PATCH /dagRuns request listing every selected run on success", async () => {
+    const onBulk = vi.fn<(body: BulkBodyShape) => void>();
 
     server.use(
-      http.delete("/api/v2/dags/:dagId/dagRuns/:dagRunId", ({ params }) => {
-        onDelete(params);
+      http.patch("/api/v2/dags/:dagId/dagRuns", async ({ request }) => {
+        onBulk((await request.json()) as BulkBodyShape);
 
-        return new HttpResponse(null, { status: 204 });
+        return HttpResponse.json({
+          delete: {
+            errors: [],
+            success: ["test_dag.run_in_range", "test_dag.run_before_filter"],
+          },
+        });
       }),
     );
 
@@ -136,32 +146,34 @@ describe("DagRuns bulk delete", () => {
     const dialogs = screen.getAllByRole("dialog");
     const confirmDialog = dialogs[dialogs.length - 1] as HTMLElement;
 
-    // The dialog renders each selected run as `<dag_id> / <run_id>`; match on
-    // the run-id substring (regex matchers do partial matching on normalized
-    // text content, regardless of element splits).
     expect(within(confirmDialog).getByText(/run_in_range/u)).toBeInTheDocument();
     expect(within(confirmDialog).getByText(/run_before_filter/u)).toBeInTheDocument();
 
     fireEvent.click(within(confirmDialog).getByRole("button", { name: /confirm/iu }));
 
-    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(2));
-    expect(onDelete).toHaveBeenCalledWith(
-      expect.objectContaining({ dagId: "test_dag", dagRunId: "run_in_range" }),
-    );
-    expect(onDelete).toHaveBeenCalledWith(
-      expect.objectContaining({ dagId: "test_dag", dagRunId: "run_before_filter" }),
-    );
+    await waitFor(() => expect(onBulk).toHaveBeenCalledTimes(1));
+    const body = onBulk.mock.calls[0]?.[0] as BulkBodyShape;
 
-    // Dialog should auto-close once both deletions resolve successfully.
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0]?.action).toBe("delete");
+    const entityKeys = body.actions[0]?.entities
+      .map((entity) => `${entity.dag_id}.${entity.dag_run_id}`)
+      .sort();
+
+    expect(entityKeys).toEqual(["test_dag.run_before_filter", "test_dag.run_in_range"]);
+
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("keeps the dialog open and surfaces an error on partial failure", async () => {
+  it("keeps the dialog open and surfaces a per-entry error from the bulk response", async () => {
     server.use(
-      http.delete("/api/v2/dags/:dagId/dagRuns/:dagRunId", ({ params }) =>
-        params.dagRunId === "run_in_range"
-          ? new HttpResponse(null, { status: 204 })
-          : HttpResponse.json({ detail: "boom" }, { status: 500 }),
+      http.patch("/api/v2/dags/:dagId/dagRuns", () =>
+        HttpResponse.json({
+          delete: {
+            errors: [{ error: "boom", status_code: 500 }],
+            success: ["test_dag.run_in_range"],
+          },
+        }),
       ),
     );
 
@@ -182,26 +194,31 @@ describe("DagRuns bulk delete", () => {
 
     fireEvent.click(within(confirmDialog).getByRole("button", { name: /confirm/iu }));
 
-    // Confirm dialog stays open and shows the rejection — no auto-close
-    // because one request failed; the partial success is still reported via
-    // the toaster (not asserted here, since the Toaster portal lives outside
-    // AppWrapper).
+    // Toaster portal lives outside AppWrapper, so the partial-success toast is not asserted.
     await waitFor(() => expect(within(confirmDialog).getByText(/boom/iu)).toBeInTheDocument());
     expect(confirmDialog).toBeInTheDocument();
   });
 });
 
+type ClearBodyShape = {
+  dry_run: boolean;
+  only_failed: boolean;
+  only_new: boolean;
+  runs: Array<{ dag_id: string; dag_run_id: string }>;
+};
+
 describe("DagRuns bulk clear", () => {
-  it("fires one /clear per selected run with the dialog options", async () => {
-    const onClear = vi.fn<(params: Record<string, string>, body: unknown) => void>();
+  it("fires a single POST /dagRuns/clear with the selected runs and dialog options", async () => {
+    const onClear = vi.fn<(body: ClearBodyShape) => void>();
 
     server.use(
-      http.post("/api/v2/dags/:dagId/dagRuns/:dagRunId/clear", async ({ params, request }) => {
-        const body: unknown = await request.json();
+      http.post("/api/v2/dags/:dagId/dagRuns/clear", async ({ request }) => {
+        onClear((await request.json()) as ClearBodyShape);
 
-        onClear(params as Record<string, string>, body);
-
-        return HttpResponse.json({ dag_id: params.dagId, dag_run_id: params.dagRunId });
+        return HttpResponse.json({
+          errors: [],
+          success: ["test_dag.run_in_range", "test_dag.run_before_filter"],
+        });
       }),
     );
 
@@ -222,29 +239,32 @@ describe("DagRuns bulk clear", () => {
 
     fireEvent.click(within(confirmDialog).getByRole("button", { name: /confirm/iu }));
 
-    await waitFor(() => expect(onClear).toHaveBeenCalledTimes(2));
-    expect(onClear).toHaveBeenCalledWith(
-      expect.objectContaining({ dagId: "test_dag", dagRunId: "run_in_range" }),
-      expect.objectContaining({ dry_run: false, only_failed: false, only_new: false }),
-    );
-    expect(onClear).toHaveBeenCalledWith(
-      expect.objectContaining({ dagId: "test_dag", dagRunId: "run_before_filter" }),
-      expect.objectContaining({ dry_run: false, only_failed: false, only_new: false }),
-    );
+    await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
+    const body = onClear.mock.calls[0]?.[0] as ClearBodyShape;
+
+    expect(body.dry_run).toBe(false);
+    expect(body.only_failed).toBe(false);
+    expect(body.only_new).toBe(false);
+    const runKeys = body.runs.map((run) => `${run.dag_id}.${run.dag_run_id}`).sort();
+
+    expect(runKeys).toEqual(["test_dag.run_before_filter", "test_dag.run_in_range"]);
   });
 });
 
 describe("DagRuns bulk mark-as", () => {
-  it("fires one PATCH with the chosen state per affected run", async () => {
-    const onPatch = vi.fn<(params: Record<string, string>, body: unknown) => void>();
+  it("fires a single PATCH /dagRuns request with the chosen state for each affected run", async () => {
+    const onBulk = vi.fn<(body: BulkBodyShape) => void>();
 
     server.use(
-      http.patch("/api/v2/dags/:dagId/dagRuns/:dagRunId", async ({ params, request }) => {
-        const body: unknown = await request.json();
+      http.patch("/api/v2/dags/:dagId/dagRuns", async ({ request }) => {
+        onBulk((await request.json()) as BulkBodyShape);
 
-        onPatch(params as Record<string, string>, body);
-
-        return HttpResponse.json({ dag_id: params.dagId, dag_run_id: params.dagRunId });
+        return HttpResponse.json({
+          update: {
+            errors: [],
+            success: ["test_dag.run_in_range", "test_dag.run_before_filter"],
+          },
+        });
       }),
     );
 
@@ -280,10 +300,15 @@ describe("DagRuns bulk mark-as", () => {
 
     fireEvent.click(within(confirmDialog).getByRole("button", { name: /confirm/iu }));
 
-    await waitFor(() => expect(onPatch).toHaveBeenCalledTimes(2));
-    expect(onPatch).toHaveBeenCalledWith(
-      expect.objectContaining({ dagId: "test_dag", dagRunId: "run_in_range" }),
-      expect.objectContaining({ state: "failed" }),
-    );
+    await waitFor(() => expect(onBulk).toHaveBeenCalledTimes(1));
+    const body = onBulk.mock.calls[0]?.[0] as BulkBodyShape;
+
+    expect(body.actions[0]?.action).toBe("update");
+    expect(body.actions[0]?.entities.every((entity) => entity.state === "failed")).toBe(true);
+    const entityKeys = body.actions[0]?.entities
+      .map((entity) => `${entity.dag_id}.${entity.dag_run_id}`)
+      .sort();
+
+    expect(entityKeys).toEqual(["test_dag.run_before_filter", "test_dag.run_in_range"]);
   });
 });
