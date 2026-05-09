@@ -58,6 +58,28 @@ Currently the named parameters that ``DatabricksCreateJobsOperator`` supports ar
   - ``access_control_list``
 
 
+Forwarding Airflow Dag params as Databricks job parameters
+----------------------------------------------------------
+
+If ``parameters`` is not set in ``json`` and the operator's ``params`` dict is non-empty,
+the operator's ``params`` are automatically converted to job-level ``parameters`` (a list
+of ``{"name": k, "default": v}`` entries, the shape required by the
+``api/2.2/jobs/create`` endpoint) so that Airflow Dag params can be forwarded as
+Databricks job parameters without hardcoding them in ``json``. If ``json`` already
+contains ``parameters``, it is left untouched.
+
+.. code-block:: python
+
+  create_job = DatabricksCreateJobsOperator(
+      task_id="create_job",
+      json={"name": "my-job", "tasks": [...]},
+      params={"env": "prod", "batch_size": "100"},
+  )
+  # The created/reset job will have:
+  #   parameters=[{"name": "env", "default": "prod"},
+  #               {"name": "batch_size", "default": "100"}]
+
+
 Examples
 --------
 

@@ -49,6 +49,26 @@ All other parameters are optional and described in documentation for ``Databrick
 * ``repair_run``
 * ``cancel_previous_runs``
 
+Forwarding Airflow Dag params as Databricks job parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
+non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
+(a ``Dict[str, str]``, the shape required by the ``api/2.2/jobs/run-now`` endpoint) so
+that Airflow Dag params can be passed dynamically to Databricks runs without hardcoding
+them in ``json``. If ``json`` already contains ``job_parameters``, it is left untouched.
+
+.. code-block:: python
+
+  run_now = DatabricksRunNowOperator(
+      task_id="run_now",
+      job_id=123,
+      params={"env": "staging", "batch_size": "42"},
+  )
+  # The triggered run receives:
+  #   job_parameters={"env": "staging", "batch_size": "42"}
+
+
 DatabricksRunNowDeferrableOperator
 ==================================
 

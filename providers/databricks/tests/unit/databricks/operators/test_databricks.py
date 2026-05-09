@@ -611,9 +611,7 @@ class TestDatabricksCreateJobsOperator:
         ],
     )
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_injects_airflow_params_when_parameters_missing(
-        self, db_mock_class, found_job_id, hook_method
-    ):
+    def test_injects_airflow_params_when_parameters_missing(self, db_mock_class, found_job_id, hook_method):
         """
         When ``parameters`` is not set in ``json`` and the operator's ``params`` dict is
         non-empty, the operator's ``params`` should be forwarded as job-level
