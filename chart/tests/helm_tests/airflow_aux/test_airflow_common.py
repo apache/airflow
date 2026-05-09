@@ -427,15 +427,7 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"priorityClassName": "low-priority-worker"},
-            {"celery": {"priorityClassName": "low-priority-worker"}},
-            {"priorityClassName": "test", "celery": {"priorityClassName": "low-priority-worker"}},
-        ],
-    )
-    def test_priority_class_name(self, workers_values):
+    def test_priority_class_name(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor,KubernetesExecutor",
@@ -445,7 +437,7 @@ class TestAirflowCommon:
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
                 "dagProcessor": {"priorityClassName": "low-priority-dag-processor"},
-                "workers": workers_values,
+                "workers": {"celery": {"priorityClassName": "low-priority-worker"}},
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
                 "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},

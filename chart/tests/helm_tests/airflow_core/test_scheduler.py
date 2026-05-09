@@ -28,7 +28,6 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("executor", "workers_values", "kind"),
         [
-            # Test workers.celery.persistence.enabled flag
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "Deployment"),
             (
@@ -44,14 +43,6 @@ class TestScheduler:
                 "StatefulSet",
             ),
             ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            # Test workers.persistence.enabled flag when celery one is default
-            ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
-            ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("CeleryExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("KubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),
-            ("LocalExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("LocalExecutor,KubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
-            ("LocalExecutor", {"persistence": {"enabled": False}}, "Deployment"),
         ],
     )
     def test_scheduler_kind(self, executor, workers_values, kind):
@@ -820,20 +811,12 @@ class TestScheduler:
                 c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
             ]
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"persistence": {"annotations": {"foo": "bar"}}},
-            {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
-            {
-                "persistence": {"annotations": {"a": "b"}},
-                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
-            },
-        ],
-    )
-    def test_persistence_volume_annotations(self, workers_values):
+    def test_persistence_volume_annotations(self):
         docs = render_chart(
-            values={"executor": "LocalExecutor", "workers": workers_values},
+            values={
+                "executor": "LocalExecutor",
+                "workers": {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
+            },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
@@ -881,32 +864,15 @@ class TestScheduler:
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
-                "celery": {"enabled": True},
-            },
-            {
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
-                }
-            },
-            {
-                "persistence": {"storageClassName": "{{ .Release.Name }}"},
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
-                },
-            },
-        ],
-    )
-    def test_scheduler_template_storage_class_name(self, workers_values):
+    def test_scheduler_template_storage_class_name(self):
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {
+                    "celery": {
+                        "enabled": True,
+                        "persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"},
+                    }
+                },
                 "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
             },
@@ -917,33 +883,16 @@ class TestScheduler:
             == "release-name-storage-class"
         )
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
-                "celery": {"enabled": True},
-            },
-            {
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
-                }
-            },
-            {
-                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
-                "celery": {
-                    "enabled": True,
-                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
-                },
-            },
-        ],
-    )
-    def test_persistent_volume_claim_retention_policy(self, workers_values):
+    def test_persistent_volume_claim_retention_policy(self):
         docs = render_chart(
             values={
                 "executor": "LocalExecutor",
-                "workers": workers_values,
+                "workers": {
+                    "celery": {
+                        "enabled": True,
+                        "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                    }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -966,18 +915,10 @@ class TestScheduler:
         )
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
-            {"celery": {"persistence": {"size": "50Gi"}}},
-            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
-        ],
-    )
-    def test_scheduler_template_storage_size(self, workers_values):
+    def test_scheduler_template_storage_size(self):
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {"celery": {"persistence": {"size": "50Gi"}}},
                 "logs": {"persistence": {"enabled": False}},
                 "executor": "LocalExecutor",
             },

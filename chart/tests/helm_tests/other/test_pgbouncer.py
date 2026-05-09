@@ -902,10 +902,10 @@ class TestPgbouncerNetworkPolicy:
     @pytest.mark.parametrize(
         "values",
         [
-            {"workers": {"keda": {"enabled": True}}},
+            {"workers": {"celery": {"keda": {"enabled": True}}}},
             {"triggerer": {"keda": {"enabled": True}}},
             {
-                "workers": {"keda": {"enabled": True}},
+                "workers": {"celery": {"keda": {"enabled": True}}},
                 "triggerer": {"keda": {"enabled": True}},
             },
         ],
@@ -937,37 +937,17 @@ class TestPgbouncerNetworkPolicy:
         [
             # test with workers.keda/workers.celery.keda enabled with namespace labels
             {
-                "workers": {
-                    "keda": {"namespaceLabels": {"app": "airflow"}},
-                    "celery": {"keda": {"enabled": True}},
-                },
-            },
-            {
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
-            },
-            {
-                "workers": {
-                    "keda": {"namespaceLabels": {"airflow": "app"}},
-                    "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                },
             },
             # test with triggerer.keda enabled with namespace labels
             {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
             # test with workers.keda/workers.celery.keda and triggerer.keda both enabled with namespace labels
-            {
-                "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-            },
             {
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
                 "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
             },
             # test with workers.keda/workers.celery.keda and triggerer.keda both enabled workers
             # with namespace labels and triggerer without namespace labels
-            {
-                "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                "triggerer": {"keda": {"enabled": True}},
-            },
             {
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
                 "triggerer": {"keda": {"enabled": True}},
