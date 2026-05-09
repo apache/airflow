@@ -185,6 +185,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         network: str | None = None,
         create_request_timeout: float | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         # END: run param
     ) -> PipelineJob:
         """
@@ -234,6 +235,9 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
             metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
             the current Experiment Run.
+        :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC network
+            that can be used for this PipelineJob. If set, only IP addresses from these reserved ranges will
+            be used; otherwise, all IPs in the VPC are eligible. Requires ``network`` to be configured.
         """
         self._pipeline_job = self.get_pipeline_job_object(
             display_name=display_name,
@@ -249,12 +253,17 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             location=region,
             failure_policy=failure_policy,
         )
-        self._pipeline_job.submit(
-            service_account=service_account,
-            network=network,
-            create_request_timeout=create_request_timeout,
-            experiment=experiment,
-        )
+        # Forward reserved_ip_ranges only when set so older aiplatform releases that don't yet
+        # accept the kwarg keep working — see google-cloud-aiplatform PipelineJob.submit().
+        submit_kwargs: dict[str, Any] = {
+            "service_account": service_account,
+            "network": network,
+            "create_request_timeout": create_request_timeout,
+            "experiment": experiment,
+        }
+        if reserved_ip_ranges is not None:
+            submit_kwargs["reserved_ip_ranges"] = reserved_ip_ranges
+        self._pipeline_job.submit(**submit_kwargs)
         self._pipeline_job.wait()
 
         return self._pipeline_job
@@ -279,6 +288,7 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         network: str | None = None,
         create_request_timeout: float | None = None,
         experiment: str | experiment_resources.Experiment | None = None,
+        reserved_ip_ranges: list[str] | None = None,
         # END: run param
     ) -> PipelineJob:
         """
@@ -331,6 +341,9 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
             to the current Experiment Run. Pipeline parameters will be associated as parameters to
             the current Experiment Run.
+        :param reserved_ip_ranges: Optional. A list of names for the reserved IP ranges under the VPC network
+            that can be used for this PipelineJob. If set, only IP addresses from these reserved ranges will
+            be used; otherwise, all IPs in the VPC are eligible. Requires ``network`` to be configured.
         """
         self._pipeline_job = self.get_pipeline_job_object(
             display_name=display_name,
@@ -346,12 +359,17 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
             location=region,
             failure_policy=failure_policy,
         )
-        self._pipeline_job.submit(
-            service_account=service_account,
-            network=network,
-            create_request_timeout=create_request_timeout,
-            experiment=experiment,
-        )
+        # Forward reserved_ip_ranges only when set so older aiplatform releases that don't yet
+        # accept the kwarg keep working — see google-cloud-aiplatform PipelineJob.submit().
+        submit_kwargs: dict[str, Any] = {
+            "service_account": service_account,
+            "network": network,
+            "create_request_timeout": create_request_timeout,
+            "experiment": experiment,
+        }
+        if reserved_ip_ranges is not None:
+            submit_kwargs["reserved_ip_ranges"] = reserved_ip_ranges
+        self._pipeline_job.submit(**submit_kwargs)
 
         return self._pipeline_job
 

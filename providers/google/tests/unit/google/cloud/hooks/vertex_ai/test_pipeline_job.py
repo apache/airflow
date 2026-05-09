@@ -246,6 +246,59 @@ class TestPipelineJobWithoutDefaultProjectIdHook:
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
+    # ----- Regression: reserved_ip_ranges plumbing (#62733) ---------------------
+    # These tests exercise the optional reserved_ip_ranges parameter end-to-end
+    # through both submit_pipeline_job and run_pipeline_job, to keep the kwarg
+    # forwarded to PipelineJob.submit() in lockstep with the operator surface.
+    # We assert by-keyword to make sure the value lands on the SDK boundary
+    # rather than being silently swallowed (the bug behavior on origin/main).
+
+    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_job_object"))
+    def test_submit_pipeline_job_forwards_reserved_ip_ranges(self, mock_get_job) -> None:
+        mock_job = mock_get_job.return_value
+        self.hook.submit_pipeline_job(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            display_name="display",
+            template_path="gs://bucket/template.json",
+            reserved_ip_ranges=["range-1", "range-2"],
+        )
+        mock_job.submit.assert_called_once()
+        _, submit_kwargs = mock_job.submit.call_args
+        assert submit_kwargs.get("reserved_ip_ranges") == ["range-1", "range-2"]
+
+    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_job_object"))
+    def test_submit_pipeline_job_omits_reserved_ip_ranges_when_unset(self, mock_get_job) -> None:
+        # When unset, the kwarg must not appear in the submit() call so
+        # users on older google-cloud-aiplatform releases (which would reject
+        # unknown kwargs) keep working.
+        mock_job = mock_get_job.return_value
+        self.hook.submit_pipeline_job(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            display_name="display",
+            template_path="gs://bucket/template.json",
+        )
+        mock_job.submit.assert_called_once()
+        _, submit_kwargs = mock_job.submit.call_args
+        assert "reserved_ip_ranges" not in submit_kwargs
+
+    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_job_object"))
+    def test_run_pipeline_job_forwards_reserved_ip_ranges(self, mock_get_job) -> None:
+        mock_job = mock_get_job.return_value
+        self.hook.run_pipeline_job(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            display_name="display",
+            template_path="gs://bucket/template.json",
+            reserved_ip_ranges=["range-1"],
+        )
+        mock_job.submit.assert_called_once()
+        _, submit_kwargs = mock_job.submit.call_args
+        assert submit_kwargs.get("reserved_ip_ranges") == ["range-1"]
+        # run_pipeline_job is the synchronous variant: it must also block on wait()
+        mock_job.wait.assert_called_once()
+
 
 class TestPipelineJobAsyncHook:
     @pytest.mark.asyncio
