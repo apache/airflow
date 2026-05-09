@@ -53,6 +53,11 @@ const FAILURE_COLOR_INTENSITIES = [
   { _dark: "red.300", _light: "red.800" },
 ];
 
+const getActualRunCount = (counts: RunCounts, viewMode: CalendarColorMode) =>
+  viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
+
+const getPendingRunCount = (counts: RunCounts) => counts.planned + counts.queued;
+
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
@@ -185,13 +190,12 @@ export const calculateDataBounds = (
 
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
-    const targetCount =
-      viewMode === "total" ? runCounts.total - runCounts.planned - runCounts.queued : runCounts.failed;
+    const targetCount = getActualRunCount(runCounts, viewMode);
 
     if (targetCount > 0) {
       counts.push(targetCount);
     } else {
-      const pendingCount = runCounts.planned + runCounts.queued;
+      const pendingCount = getPendingRunCount(runCounts);
 
       if (pendingCount > 0) {
         pendingCounts.push(pendingCount);
@@ -239,9 +243,8 @@ export const createCalendarScale = (
 
     return {
       getColor: (counts: RunCounts) => {
-        const actualCount =
-          viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
-        const hasPending = counts.planned + counts.queued > 0;
+        const actualCount = getActualRunCount(counts, viewMode);
+        const hasPending = getPendingRunCount(counts) > 0;
         const hasActual = actualCount > 0;
 
         if (hasPending && hasActual) {
@@ -288,8 +291,8 @@ export const createCalendarScale = (
         actual: string | { _dark: string; _light: string };
         planned: string | { _dark: string; _light: string };
       } => {
-    const actualCount = viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
-    const hasPending = counts.planned + counts.queued > 0;
+    const actualCount = getActualRunCount(counts, viewMode);
+    const hasPending = getPendingRunCount(counts) > 0;
     const hasActual = actualCount > 0;
 
     if (hasPending && hasActual) {
