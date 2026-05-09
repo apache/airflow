@@ -187,7 +187,10 @@ export const calculateDataBounds = (
 
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
-    const targetCount = viewMode === "total" ? runCounts.total : runCounts.failed;
+    const targetCount =
+      viewMode === "total"
+        ? runCounts.total - runCounts.planned - runCounts.queued
+        : runCounts.failed;
 
     if (targetCount > 0) {
       counts.push(targetCount);
@@ -281,8 +284,7 @@ export const createCalendarScale = (
         actual: string | { _dark: string; _light: string };
         planned: string | { _dark: string; _light: string };
       } => {
-    const actualCount =
-      viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
+    const actualCount = viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
     const hasPlanned = counts.planned > 0;
     const hasQueued = counts.queued > 0;
     const hasActual = actualCount > 0;
