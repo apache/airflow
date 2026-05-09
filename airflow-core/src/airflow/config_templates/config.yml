@@ -499,6 +499,17 @@ core:
       type: integer
       example: ~
       default: "4096"
+    sort_rendered_template_fields:
+      description: |
+        Whether to sort dictionary keys alphabetically when rendering template fields for display
+        in the "Rendered Template" view. When set to True (the default), dictionary keys are sorted
+        to ensure consistent ordering. Set to False to preserve the original key ordering as
+        defined by the operator, which can be useful for large nested context objects where
+        the original key order is meaningful.
+      version_added: 3.1.0
+      type: boolean
+      example: ~
+      default: "True"
     execution_api_server_url:
       description: |
         The url of the execution api server. Default is ``{BASE_URL}/execution/``

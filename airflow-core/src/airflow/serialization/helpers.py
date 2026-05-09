@@ -91,9 +91,9 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         # and need to be converted to lists
         return template_field
     template_field = translate_tuples_to_lists(template_field)
-    # Sort dictionaries recursively to ensure consistent string representation
-    # This prevents hash inconsistencies when dict ordering varies
-    if isinstance(template_field, dict):
+    if isinstance(template_field, dict) and conf.getboolean(
+        "core", "sort_rendered_template_fields", fallback=True
+    ):
         template_field = sort_dict_recursively(template_field)
     serialized = str(template_field)
     if len(serialized) > max_length:
