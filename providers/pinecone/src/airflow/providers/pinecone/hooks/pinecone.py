@@ -405,7 +405,7 @@ class PineconeHook(BaseHook):
                           dropped the per-call ``async_req=True`` /
                           ``ApplyResult.get()`` path; concurrency is now
                           controlled internally by ``max_concurrency`` on
-                          ``Index.upsert``. The argument is honoured by
+                          ``Index.upsert``. The argument is honored by
                           mapping ``pool_threads`` onto ``max_concurrency``
                           so existing callers that set both keep their
                           parallelism, while the resulting per-chunk return
