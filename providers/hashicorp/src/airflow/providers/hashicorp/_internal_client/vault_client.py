@@ -74,7 +74,7 @@ class _VaultClient(LoggingMixin):
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :param key_id: Key ID for Authentication (for ``aws_iam`` and ``azure`` auth_type).
     :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
-    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` and ``gcp`` auth_types).
     :param assume_role_kwargs: AWS assume role param.
         See AWS STS Docs:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts/client/assume_role.html
@@ -356,15 +356,17 @@ class _VaultClient(LoggingMixin):
         if service_account_email is None:
             # Fallback for Compute Engine credentials if email is not yet populated
             try:
-                from google.auth import compute_engine
+                from google.auth import compute_engine, exceptions
 
                 if isinstance(credentials, compute_engine.Credentials):
                     from google.auth import transport
 
                     credentials.refresh(transport.requests.Request())
                     service_account_email = getattr(credentials, "service_account_email", None)
-            except Exception:
-                pass
+            except exceptions.RefreshError:
+                self.log.error("Failed to refresh Compute Engine credentials.")
+            except ImportError:
+                self.log.error("google-auth not installed, skipping credential refresh.")
 
         if not isinstance(service_account_email, str):
             raise VaultError(

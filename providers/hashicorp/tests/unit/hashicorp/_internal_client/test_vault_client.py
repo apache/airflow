@@ -259,7 +259,10 @@ class TestVaultClient:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_key(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
+    @mock.patch("time.time")
+    def test_gcp_key(
+        self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
+    ):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
@@ -269,9 +272,9 @@ class TestVaultClient:
         mock_get_credentials.return_value = (mock_credentials, "project_id")
 
         # Mock the current time to use for iat and exp
-        current_time = int(time.time())
-        iat = current_time
-        exp = iat + 3600  # 1 hour after iat
+        mock_time.return_value = 1234567890.0
+        iat = 1234567890
+        exp = iat + 900  # 15 minutes after iat
 
         # Mock the signJwt API to return the expected payload
         mock_sign_jwt = (
@@ -288,21 +291,7 @@ class TestVaultClient:
             session=None,
         )
 
-        # Preserve the original json.dumps
-        original_json_dumps = json.dumps
-
-        # Inject the mocked payload into the JWT signing process
-        with mock.patch("json.dumps") as mock_json_dumps:
-
-            def mocked_json_dumps(payload):
-                # Override the payload to inject controlled iat and exp values
-                payload["iat"] = iat
-                payload["exp"] = exp
-                return original_json_dumps(payload)  # Use the original json.dumps
-
-            mock_json_dumps.side_effect = mocked_json_dumps
-
-            client = vault_client.client  # Trigger the Vault client creation
+        client = vault_client.client  # Trigger the Vault client creation
 
         # Validate that the HVAC client and other mocks are called correctly
         mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
@@ -319,7 +308,6 @@ class TestVaultClient:
         assert payload["iat"] == iat
         assert payload["exp"] == exp
         assert payload["sub"] == "service_account_email"
-        assert abs(payload["exp"] - (payload["iat"] + 3600)) < 10  # Validate exp is 3600 seconds after iat
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
         client.is_authenticated.assert_called_with()
@@ -329,7 +317,8 @@ class TestVaultClient:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_adc(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
+    @mock.patch("time.time")
+    def test_gcp_adc(self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
@@ -342,6 +331,11 @@ class TestVaultClient:
             mock_google_build.return_value.projects.return_value.serviceAccounts.return_value.signJwt
         )
         mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
+
+        # Mock the current time to use for iat and exp
+        mock_time.return_value = 1234567890.0
+        iat = 1234567890
+        exp = iat + 900  # 15 minutes after iat
 
         vault_client = _VaultClient(
             auth_type="gcp",
@@ -362,7 +356,9 @@ class TestVaultClient:
         args, kwargs = mock_sign_jwt.call_args
         payload = json.loads(kwargs["body"]["payload"])
 
-        # Assert sub is correctly set to service account email
+        # Assert iat and exp values are as expected
+        assert payload["iat"] == iat
+        assert payload["exp"] == exp
         assert payload["sub"] == "service_account_email"
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
@@ -373,8 +369,10 @@ class TestVaultClient:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
+    @mock.patch("time.time")
     def test_gcp_different_auth_mount_point(
         self,
+        mock_time,
         mock_google_build,
         mock_hvac_client,
         mock_get_credentials,
@@ -393,10 +391,10 @@ class TestVaultClient:
         )
         mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
 
-        # Generate realistic iat and exp values
-        current_time = int(time.time())
-        iat = current_time
-        exp = current_time + 3600  # 1 hour later
+        # Mock the current time to use for iat and exp
+        mock_time.return_value = 1234567890.0
+        iat = 1234567890
+        exp = iat + 900  # 15 minutes after iat
 
         vault_client = _VaultClient(
             auth_type="gcp",
@@ -408,21 +406,7 @@ class TestVaultClient:
             session=None,
         )
 
-        # Preserve the original json.dumps
-        original_json_dumps = json.dumps
-
-        # Inject the mocked payload into the JWT signing process
-        with mock.patch("json.dumps") as mock_json_dumps:
-
-            def mocked_json_dumps(payload):
-                # Override the payload to inject controlled iat and exp values
-                payload["iat"] = iat
-                payload["exp"] = exp
-                return original_json_dumps(payload)  # Use the original json.dumps
-
-            mock_json_dumps.side_effect = mocked_json_dumps
-
-            client = vault_client.client  # Trigger the Vault client creation
+        client = vault_client.client  # Trigger the Vault client creation
 
         # Assertions
         mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
@@ -438,7 +422,6 @@ class TestVaultClient:
         assert payload["iat"] == iat
         assert payload["exp"] == exp
         assert payload["sub"] == "service_account_email"
-        assert abs(payload["exp"] - (payload["iat"] + 3600)) < 10  # Validate exp is 3600 seconds after iat
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt", mount_point="other")
         client.is_authenticated.assert_called_with()
@@ -448,7 +431,10 @@ class TestVaultClient:
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.get_credentials_and_project_id")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
-    def test_gcp_dict(self, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
+    @mock.patch("time.time")
+    def test_gcp_dict(
+        self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
+    ):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
@@ -462,10 +448,10 @@ class TestVaultClient:
         )
         mock_sign_jwt.return_value.execute.return_value = {"signedJwt": "mocked_jwt"}
 
-        # Generate realistic iat and exp values
-        current_time = int(time.time())
-        iat = current_time
-        exp = current_time + 3600  # 1 hour later
+        # Mock the current time to use for iat and exp
+        mock_time.return_value = 1234567890.0
+        iat = 1234567890
+        exp = iat + 900  # 15 minutes after iat
 
         vault_client = _VaultClient(
             auth_type="gcp",
@@ -476,21 +462,7 @@ class TestVaultClient:
             session=None,
         )
 
-        # Preserve the original json.dumps
-        original_json_dumps = json.dumps
-
-        # Inject the mocked payload into the JWT signing process
-        with mock.patch("json.dumps") as mock_json_dumps:
-
-            def mocked_json_dumps(payload):
-                # Override the payload to inject controlled iat and exp values
-                payload["iat"] = iat
-                payload["exp"] = exp
-                return original_json_dumps(payload)  # Use the original json.dumps
-
-            mock_json_dumps.side_effect = mocked_json_dumps
-
-            client = vault_client.client  # Trigger the Vault client creation
+        client = vault_client.client  # Trigger the Vault client creation
 
         # Assertions
         mock_hvac_client.assert_called_with(url="http://localhost:8180", session=None)
@@ -506,7 +478,6 @@ class TestVaultClient:
         assert payload["iat"] == iat
         assert payload["exp"] == exp
         assert payload["sub"] == "service_account_email"
-        assert abs(payload["exp"] - (payload["iat"] + 3600)) < 10  # Validate exp is 3600 seconds after iat
 
         client.auth.gcp.login.assert_called_with(role="role", jwt="mocked_jwt")
         client.is_authenticated.assert_called_with()
