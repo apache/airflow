@@ -817,6 +817,8 @@ class TestStringifiedDAGs:
                 "on_failure_fail_dagrun",
                 "_needs_expansion",
                 "_is_sensor",
+                # trigger_kwargs is kept as raw JSON after deserialization; checked separately
+                "start_trigger_args",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, SerializedMappedOperator)
@@ -856,6 +858,20 @@ class TestStringifiedDAGs:
             assert task.resources is None or task.resources == []
         else:
             assert serialized_task.resources == task.resources
+
+        # start_trigger_args: trigger_kwargs is kept as raw BaseSerialization-encoded form
+        # after deserialization. Compare the encoded forms directly — s.trigger_kwargs is
+        # exactly BaseSerialization.serialize(o.trigger_kwargs) since _encode_start_trigger_args
+        # serializes it and _decode_start_trigger_args keeps it raw.
+        if task.start_trigger_args is not None:
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            s = serialized_task.start_trigger_args
+            o = task.start_trigger_args
+            assert s.trigger_cls == o.trigger_cls
+            assert s.next_method == o.next_method
+            assert s.timeout == o.timeout
+            assert s.trigger_kwargs == BaseSerialization.serialize(o.trigger_kwargs or {})
 
         assert [ensure_serialized_asset(i) for i in task.inlets] == serialized_task.inlets
         assert [ensure_serialized_asset(o) for o in task.outlets] == serialized_task.outlets
@@ -2629,6 +2645,42 @@ class TestStringifiedDAGs:
             "timeout": None,
         }
         assert tasks[1]["__var"]["start_from_trigger"] is True
+
+    def test_trigger_kwargs_not_deserialised_through_serdag(self):
+        """trigger_kwargs and next_kwargs are kept as raw BaseSerialization JSON when loading a serialized DAG."""
+
+        class TestOperator(BaseOperator):
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
+                trigger_kwargs={"delta": timedelta(seconds=2)},
+                next_method="execute_complete",
+                next_kwargs={"resume_after": timedelta(seconds=5)},
+                timeout=None,
+            )
+            start_from_trigger = True
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def execute_complete(self):
+                pass
+
+        dag = DAG(dag_id="test_dag_kwargs_raw", schedule=None, start_date=datetime(2023, 11, 9))
+        with dag:
+            TestOperator(task_id="test_task")
+
+        serialized = DagSerialization.to_dict(dag)
+        deserialized_dag = DagSerialization.from_dict(serialized)
+
+        task = deserialized_dag.get_task("test_task")
+        assert task.start_trigger_args.trigger_kwargs == {
+            "__type": "dict",
+            "__var": {"delta": {"__type": "timedelta", "__var": 2.0}},
+        }
+        assert task.start_trigger_args.next_kwargs == {
+            "__type": "dict",
+            "__var": {"resume_after": {"__type": "timedelta", "__var": 5.0}},
+        }
 
 
 def test_kubernetes_optional():

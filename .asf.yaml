@@ -15,8 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# https://cwiki.apache.org/confluence/display/INFRA/git+-+.asf.yaml+features
+# `.asf.yaml` is a branch-specific YAML configuration file for Git repositories to control features
+# such as notifications, GitHub settings, etc.
+# See its documentation for details: https://github.com/apache/infrastructure-asfyaml
 ---
+#
+# Additional non-standard features
+#
+meta:
+  environments:
+    - github_rulesets
+
 github:
   description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"
   homepage: https://airflow.apache.org/
@@ -70,6 +79,18 @@ github:
     # auto-delete head branches after being merged
     del_branch_on_merge: true
 
+  # Legacy branch protection is being migrated to Rulesets below.
+  #
+  # `main` keeps the proven configuration here until the new ruleset is validated on other
+  # branches. We cannot test the new ruleset on `main` itself: ruleset settings are only applied
+  # from the default branch, so a broken config there would block fixing this file.
+  #
+  # Once the new ruleset is validated, `main` should be moved under the ruleset
+  # and removed from the legacy `protected_branches` section.
+  # This section should be kept empty to properly delete the legacy branch protection rules that
+  # are currently in place:
+  #
+  # protected_branches: ~
   protected_branches:
     main:
       required_pull_request_reviews:
@@ -77,96 +98,28 @@ github:
       required_linear_history: true
       required_conversation_resolution: true
       required_signatures: false
-    v1-10-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_signatures: false
-    v2-0-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-1-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-2-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-3-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-4-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-5-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-6-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-7-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-8-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-9-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-10-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v2-11-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v3-0-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v3-1-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    v3-2-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
-    providers-fab/v1-5:
+
+  rulesets:
+    - name: "Branch protection"
+      type: branch
+      branches:
+        includes:
+          # `main` stays under `protected_branches` above until this ruleset is validated on the
+          # branches below. We cannot test the new ruleset on `main` itself: ruleset settings are
+          # only applied from the default branch, so a broken config there would block fixing
+          # this file.
+          #
+          # Uncomment once the configuration is proven on the other branches.
+          # - "~DEFAULT_BRANCH"
+          - "v*-stable"
+          - "providers-fab/v*"
+          - "airflow-ctl/v*-stable"
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
       required_signatures: false
-    airflow-ctl/v0-1-stable:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_signatures: false
+
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators

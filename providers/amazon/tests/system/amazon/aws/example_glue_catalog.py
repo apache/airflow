@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreatePartitionOperator,
     GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
     GlueCatalogDeleteTableOperator,
@@ -86,6 +87,24 @@ with DAG(
     )
     # [END howto_operator_glue_catalog_create_table]
 
+    # [START howto_operator_glue_catalog_create_partition]
+    create_partition = GlueCatalogCreatePartitionOperator(
+        task_id="create_partition",
+        database_name=db_name,
+        table_name=table_name,
+        partition_input={
+            "Values": ["2024-01-01"],
+            "StorageDescriptor": {
+                "Columns": [{"Name": "id", "Type": "int"}],
+                "Location": "s3://test-bucket/dt=2024-01-01/",
+                "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+                "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
+            },
+        },
+    )
+    # [END howto_operator_glue_catalog_create_partition]
+
     # [START howto_operator_glue_catalog_delete_table]
     delete_table = GlueCatalogDeleteTableOperator(
         task_id="delete_table",
@@ -99,6 +118,7 @@ with DAG(
         test_context,
         create_database,
         create_table,
+        create_partition,
         delete_table,
         delete_database,
     )
