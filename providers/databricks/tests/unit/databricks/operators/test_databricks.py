@@ -604,7 +604,7 @@ class TestDatabricksCreateJobsOperator:
         db_mock.update_job_permission.assert_not_called()
 
     @pytest.mark.parametrize(
-        "found_job_id, hook_method",
+        ("found_job_id", "hook_method"),
         [
             pytest.param(None, "create_job", id="create-path"),
             pytest.param(JOB_ID, "reset_job", id="reset-path"),
@@ -638,7 +638,7 @@ class TestDatabricksCreateJobsOperator:
         ]
 
     @pytest.mark.parametrize(
-        "found_job_id, hook_method",
+        ("found_job_id", "hook_method"),
         [
             pytest.param(None, "create_job", id="create-path"),
             pytest.param(JOB_ID, "reset_job", id="reset-path"),

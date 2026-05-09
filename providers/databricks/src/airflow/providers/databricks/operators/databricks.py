@@ -432,7 +432,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
             raise AirflowException("Missing required parameter: name")
         job_id = self._hook.find_job_id_by_name(self.json["name"])
         if not self.json.get("parameters") and self.params:
-            self.json["parameters"] = [{"name": k, "default": v} for k, v in self.params.dump().items()]
+            self.json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
@@ -683,7 +683,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             del self.json["pipeline_task"]["pipeline_name"]
 
         if self.params:
-            params_dump = self.params.dump()
+            params_dump = dict(self.params)
             tasks = self.json.get("tasks")
             if isinstance(tasks, list):
                 for task in tasks:
@@ -1007,7 +1007,7 @@ class DatabricksRunNowOperator(BaseOperator):
             hook.cancel_all_runs(job_id)
 
         if not self.json.get("job_parameters") and self.params:
-            self.json["job_parameters"] = self.params.dump()
+            self.json["job_parameters"] = dict(self.params)
 
         self.run_id = hook.run_now(self.json)
         if self.deferrable:
