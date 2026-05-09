@@ -34,6 +34,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add BigQuery routine operators and sensor (#65499)``
 * ``Add quota project id support to Google cloud base hook (#56324)``
 * ``Return list of destination URIs from S3ToGCSOperator (#64851)``
 
