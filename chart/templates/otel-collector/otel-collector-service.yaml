@@ -52,4 +52,10 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.otelCollectorOtlpHttp }}
       targetPort: {{ .Values.ports.otelCollectorOtlpHttp }}
+  {{- if .Values.otelCollector.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.otelCollector.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.otelCollector.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.otelCollector.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

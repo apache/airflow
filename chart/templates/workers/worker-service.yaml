@@ -61,6 +61,12 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.workerLogs }}
       targetPort: {{ .Values.ports.workerLogs }}
+  {{- if .Values.workers.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.workers.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.workers.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.workers.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

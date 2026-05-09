@@ -55,4 +55,10 @@ spec:
       {{- if and (eq .Values.redis.service.type "NodePort") (not (empty .Values.redis.service.nodePort)) }}
       nodePort: {{ .Values.redis.service.nodePort }}
       {{- end }}
+  {{- if .Values.redis.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.redis.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.redis.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.redis.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

@@ -45,4 +45,10 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.triggererLogs }}
       targetPort: {{ .Values.ports.triggererLogs }}
+  {{- if .Values.triggerer.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.triggerer.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.triggerer.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.triggerer.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

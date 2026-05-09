@@ -56,4 +56,10 @@ spec:
   {{- if .Values.apiServer.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges: {{- toYaml .Values.apiServer.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
+  {{- if .Values.apiServer.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.apiServer.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.apiServer.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.apiServer.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}
