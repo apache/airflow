@@ -424,7 +424,7 @@ class TestDagFileProcessorManager:
 
         manager._file_queue = deque([versioned_file])
 
-        manager.purge_removed_files_from_queue(present_keys={present_file.presence_key})
+        manager.purge_removed_files_from_queue(present={present_file})
 
         assert manager._file_queue == deque([versioned_file])
 
@@ -434,7 +434,7 @@ class TestDagFileProcessorManager:
 
         manager._file_queue = deque([versioned_file])
 
-        manager.purge_removed_files_from_queue(present_keys=set())
+        manager.purge_removed_files_from_queue(present=set())
 
         assert manager._file_queue == deque()
 
@@ -448,7 +448,7 @@ class TestDagFileProcessorManager:
 
         manager._processors[versioned_file] = processor
 
-        manager.terminate_orphan_processes(present_keys={present_file.presence_key})
+        manager.terminate_orphan_processes(present={present_file})
 
         assert manager._processors == {versioned_file: processor}
         processor.kill.assert_not_called()
@@ -460,7 +460,7 @@ class TestDagFileProcessorManager:
 
         manager._processors[versioned_file] = processor
 
-        manager.terminate_orphan_processes(present_keys=set())
+        manager.terminate_orphan_processes(present=set())
 
         assert manager._processors == {}
         processor.kill.assert_called_once_with(signal.SIGKILL)
@@ -472,7 +472,7 @@ class TestDagFileProcessorManager:
 
         manager._file_stats[versioned_file] = DagFileStat()
 
-        manager.remove_orphaned_file_stats(present_keys={present_file.presence_key})
+        manager.remove_orphaned_file_stats(present={present_file})
 
         assert manager._file_stats == {versioned_file: DagFileStat()}
 
@@ -482,7 +482,7 @@ class TestDagFileProcessorManager:
 
         manager._file_stats[versioned_file] = DagFileStat()
 
-        manager.remove_orphaned_file_stats(present_keys=set())
+        manager.remove_orphaned_file_stats(present=set())
 
         assert manager._file_stats == {}
 
