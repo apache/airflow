@@ -37,6 +37,7 @@ dayjs.extend(isSameOrBefore);
 
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
+export const QUEUED_COLOR = { _dark: "blue.700", _light: "blue.300" };
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
 
 const TOTAL_COLOR_INTENSITIES = [
@@ -226,8 +227,10 @@ export const createCalendarScale = (
 
     return {
       getColor: (counts: RunCounts) => {
-        const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
+        const actualCount =
+          viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
         const hasPlanned = counts.planned > 0;
+        const hasQueued = counts.queued > 0;
         const hasActual = actualCount > 0;
 
         if (hasPlanned && hasActual) {
@@ -239,6 +242,10 @@ export const createCalendarScale = (
 
         if (hasPlanned && !hasActual) {
           return PLANNED_COLOR;
+        }
+
+        if (hasQueued && !hasActual) {
+          return QUEUED_COLOR;
         }
 
         return actualCount === 0 ? EMPTY_COLOR : singleColor;
@@ -274,8 +281,10 @@ export const createCalendarScale = (
         actual: string | { _dark: string; _light: string };
         planned: string | { _dark: string; _light: string };
       } => {
-    const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
+    const actualCount =
+      viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
     const hasPlanned = counts.planned > 0;
+    const hasQueued = counts.queued > 0;
     const hasActual = actualCount > 0;
 
     if (hasPlanned && hasActual) {
@@ -302,6 +311,10 @@ export const createCalendarScale = (
 
     if (hasPlanned && !hasActual) {
       return PLANNED_COLOR;
+    }
+
+    if (hasQueued && !hasActual) {
+      return QUEUED_COLOR;
     }
 
     const targetCount = actualCount;

@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "src/components/ui";
 
-import { PLANNED_COLOR } from "./calendarUtils";
+import { PLANNED_COLOR, QUEUED_COLOR } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
@@ -87,6 +87,12 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
             <Box bg={PLANNED_COLOR} borderRadius="2px" boxShadow="sm" height="14px" width="14px" />
             <Text color="fg.muted" fontSize="xs">
               {translate("common:states.planned")}
+            </Text>
+          </HStack>
+          <HStack gap={2}>
+            <Box bg={QUEUED_COLOR} borderRadius="2px" boxShadow="sm" height="14px" width="14px" />
+            <Text color="fg.muted" fontSize="xs">
+              {translate("common:states.queued")}
             </Text>
           </HStack>
           <HStack gap={2}>
