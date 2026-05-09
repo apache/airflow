@@ -866,15 +866,6 @@ class CloudSQLDatabaseHook(BaseHook):
         self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
         self.sql_proxy_binary_path = sql_proxy_binary_path
-        if self.use_iam:
-            self.user = self._get_iam_db_login()
-            self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
-        elif self.sql_proxy_enable_iam_login:
-            self.user = self._get_iam_db_login()
-            self.password = self.cloudsql_connection.password or ""
-        else:
-            self.user = cast("str", self.cloudsql_connection.login)
-            self.password = cast("str", self.cloudsql_connection.password)
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
         self.ssl_cert = ssl_cert
@@ -890,7 +881,18 @@ class CloudSQLDatabaseHook(BaseHook):
         # Generated based on clock + clock sequence. Unique per host (!).
         # This is important as different hosts share the database
         self.db_conn_id = str(uuid.uuid1())
+        # Validate before resolving user/password so invalid configs fail fast,
+        # without spawning the gcloud subprocess used by ``_generate_login_token``.
         self._validate_inputs()
+        if self.use_iam:
+            self.user = self._get_iam_db_login()
+            self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
+        elif self.sql_proxy_enable_iam_login:
+            self.user = self._get_iam_db_login()
+            self.password = self.cloudsql_connection.password or ""
+        else:
+            self.user = cast("str", self.cloudsql_connection.login)
+            self.password = cast("str", self.cloudsql_connection.password)
 
     @property
     def sslcert(self) -> str | None:
