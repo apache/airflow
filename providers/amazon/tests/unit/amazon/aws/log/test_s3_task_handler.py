@@ -298,12 +298,12 @@ class TestS3TaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
-            assert expected_s3_uri in log[0].sources
-            assert log[1].event == "::endgroup::"
-            assert log[2].event == "Log line"
-            assert log[3].event == "Line 2"
-            assert log[4].event == "Log line 3"
-            assert log[5].event == "Line 4"
+            assert expected_s3_uri in log[1].event
+            assert log[3].event == "::endgroup::"
+            assert log[4].event == "Log line"
+            assert log[5].event == "Line 2"
+            assert log[6].event == "Log line 3"
+            assert log[7].event == "Line 4"
             assert metadata == {"end_of_log": True, "log_pos": 4}
         else:
             actual = log[0][0][-1]

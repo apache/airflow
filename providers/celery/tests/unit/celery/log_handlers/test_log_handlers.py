@@ -94,7 +94,7 @@ class TestFileTaskLogHandler:
 
         if AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
-            assert logs[0].sources == ["this message"]
+            assert logs[1].event == "this message"
             assert [x.event for x in logs[-3:]] == ["this", "log", "content"]
             assert metadata == {"end_of_log": False, "log_pos": 3}
         else:
