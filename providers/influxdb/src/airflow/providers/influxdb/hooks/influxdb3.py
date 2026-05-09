@@ -143,6 +143,7 @@ class InfluxDB3Hook(BaseHook):
         Initiate a new InfluxDB 3.x connection with token and database.
 
         Reads connection parameters from:
+
         - Custom form fields (token, database, org) - automatically stored in extras
         - Connection password field (as fallback for token)
         - Connection extras JSON (for manual configuration)
@@ -217,7 +218,8 @@ class InfluxDB3Hook(BaseHook):
         :param tags: Dictionary of tags (key-value pairs)
         :param fields: Dictionary of fields (key-value pairs)
 
-        Example::
+        .. code-block:: python
+
             hook.write(
                 measurement="temperature",
                 tags={"location": "Prague", "sensor": "A1"},

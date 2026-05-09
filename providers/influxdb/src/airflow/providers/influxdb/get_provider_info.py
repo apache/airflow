@@ -79,7 +79,24 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.influxdb.hooks.influxdb3.InfluxDB3Hook",
+                "hook-name": "InfluxDB 3",
                 "connection-type": "influxdb3",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+                "conn-fields": {
+                    "token": {
+                        "label": "Token",
+                        "schema": {"type": ["string", "null"], "format": "password", "default": ""},
+                    },
+                    "database": {"label": "Database", "schema": {"type": ["string", "null"], "default": ""}},
+                    "org": {
+                        "label": "Organization Name (optional)",
+                        "schema": {"type": ["string", "null"], "default": ""},
+                    },
+                },
             },
         ],
     }

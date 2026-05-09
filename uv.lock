@@ -5624,6 +5624,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "influxdb-client" },
+    { name = "influxdb3-python" },
     { name = "requests" },
 ]
 
@@ -5643,6 +5644,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "influxdb-client", specifier = ">=1.19.0" },
+    { name = "influxdb3-python", specifier = ">=0.7.0" },
     { name = "requests", specifier = ">=2.32.0,<3" },
 ]
 
@@ -13799,6 +13801,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/07/23/77a945465a556a8067917ba84bac04e312cee2a4fe03d41198fe79ed9c84/influxdb_client-1.50.0.tar.gz", hash = "sha256:c2a4906573097103fa6f9a2ab08efe2eb48c2fed60b8129a3e320affde445743", size = 386749, upload-time = "2026-01-23T09:39:39.322Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/ec/6b120b4a86f6fadc7ddb1d7c7cdcb15bcfb332deb022ab60df51bcd4494c/influxdb_client-1.50.0-py3-none-any.whl", hash = "sha256:f172975cf7f0c95bfe74f288b31273393b164d2c58a948de55497d9956ab49be", size = 746289, upload-time = "2026-01-23T09:39:37.377Z" },
+]
+
+[[package]]
+name = "influxdb3-python"
+version = "0.19.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "pyarrow" },
+    { name = "python-dateutil" },
+    { name = "reactivex" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/fb/93d9df24f2ae288dd43892c4aaf6f31505b377754b8eb974f7803fdd1e51/influxdb3_python-0.19.0.tar.gz", hash = "sha256:4654f15cb56116321446daf3bbde6aefe075888014660218c2ef423da9679c3b", size = 101159, upload-time = "2026-04-23T04:25:46.705Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/86/ac8a67a8754b2f0f9743fb4d7b510bc9740e71301545377c1106b168aaac/influxdb3_python-0.19.0-py3-none-any.whl", hash = "sha256:0ae81565f3ba1428ede4b88c476f006e0b055fe0bf18ccbfeec2dea18440f614", size = 95981, upload-time = "2026-04-23T04:25:45.242Z" },
 ]
 
 [[package]]
