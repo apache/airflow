@@ -56,4 +56,10 @@ spec:
   {{- if .Values.flower.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges: {{- toYaml .Values.flower.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
+  {{- if .Values.flower.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.flower.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.flower.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.flower.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

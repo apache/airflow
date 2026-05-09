@@ -56,4 +56,10 @@ spec:
     - name: pgb-metrics
       protocol: TCP
       port: {{ .Values.ports.pgbouncerScrape }}
+  {{- if .Values.pgbouncer.service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.pgbouncer.service.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.pgbouncer.service.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.pgbouncer.service.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

@@ -1089,6 +1089,32 @@ class TestSchedulerService:
         assert "executor" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["executor"] == expected_label
 
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "scheduler": {
+                    "service": {
+                        "ipFamilyPolicy": "PreferDualStack",
+                        "ipFamilies": ["IPv4", "IPv6"],
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"executor": "LocalExecutor"},
+            show_only=["templates/scheduler/scheduler-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
 
 class TestSchedulerServiceAccount:
     """Tests scheduler service account."""
