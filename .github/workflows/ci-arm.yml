@@ -1047,13 +1047,13 @@ jobs:
           gh auth status || gh auth login --with-token <<< "${GITHUB_TOKEN}"
           python3 scripts/ci/slack_notification_state.py
         env:
-          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}"
+          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}-arm"
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: "slack-state-tests-${{ github.ref_name }}"
+          name: "slack-state-tests-${{ github.ref_name }}-arm"
           path: ./slack-state/
           retention-days: 7
           overwrite: true

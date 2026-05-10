@@ -25,6 +25,11 @@
 # Edit both files together when changing pipeline shape.
 name: Tests (AMD)
 on:  # yamllint disable-line rule:truthy
+  schedule:
+    # Mirror of the previous AMD canary cron from before the AMD/ARM split (PR #66348),
+    # offset by 30 min from ARM's `:28` slot in `ci-arm.yml` so the two scheduled
+    # canaries don't compete for runners at exactly the same minute.
+    - cron: '58 1,7,13,19 * * *'
   push:
     branches:
       - v[0-9]+-[0-9]+-test
@@ -1056,13 +1061,13 @@ jobs:
           gh auth status || gh auth login --with-token <<< "${GITHUB_TOKEN}"
           python3 scripts/ci/slack_notification_state.py
         env:
-          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}"
+          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}-amd"
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: "slack-state-tests-${{ github.ref_name }}"
+          name: "slack-state-tests-${{ github.ref_name }}-amd"
           path: ./slack-state/
           retention-days: 7
           overwrite: true
