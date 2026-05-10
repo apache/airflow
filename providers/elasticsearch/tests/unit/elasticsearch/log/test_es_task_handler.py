@@ -115,9 +115,10 @@ def _assert_log_events(logs, metadatas, *, expected_events: list[str], expected_
     if AIRFLOW_V_3_0_PLUS:
         logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
-        assert logs[0].sources == expected_sources
-        assert logs[1].event == "::endgroup::"
-        assert [log.event for log in logs[2:]] == expected_events
+        for i, source in enumerate(expected_sources, start=1):
+            assert logs[i].event == source
+        assert logs[1 + len(expected_sources)].event == "::endgroup::"
+        assert [log.event for log in logs[(2 + len(expected_sources)) :]] == expected_events
     else:
         assert len(logs) == 1
         assert len(logs[0]) == 1

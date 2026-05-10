@@ -37,7 +37,9 @@ jobs:
     strategy:
       matrix:
         branch: ["v3-2-test"]
-        workflow-id: ["ci-amd-arm.yml"]
+        # Track AMD; ARM is the canary slot and is reported separately by
+        # `ci-arm.yml`'s notify-slack job on schedule events.
+        workflow-id: ["ci-amd.yml"]
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

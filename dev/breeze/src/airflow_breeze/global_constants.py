@@ -360,7 +360,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_ROOT_PATH / "helm-tests" / "tests" / "helm_tests").iterdir()
+            for candidate in (AIRFLOW_ROOT_PATH / "chart" / "tests" / "helm_tests").iterdir()
             if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )

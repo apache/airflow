@@ -21,9 +21,6 @@
 ## Airflow Job Launcher Role Binding
 ####################################
 {{- if and .Values.rbac.create .Values.allowJobLaunching }}
-{{- $schedulerLaunchExecutors := list "LocalExecutor" "KubernetesExecutor" }}
-{{- $workerLaunchExecutors := list "CeleryExecutor" "KubernetesExecutor" }}
-{{- $executors := split "," .Values.executor }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
@@ -58,22 +55,14 @@ roleRef:
   name: {{ include "airflow.fullname" . }}-job-launcher-role
   {{- end }}
 subjects:
-  {{- range $executor := $executors }}
-  {{- $executorClass := last (splitList "." ($executor | trim)) }}
-  {{- if has $executorClass $schedulerLaunchExecutors }}
+  {{- if and .Values.scheduler.enabled (or (contains "LocalExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor)) }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
-  {{- break }}
   {{- end }}
-  {{- end }}
-  {{- range $executor := $executors }}
-  {{- $executorClass := last (splitList "." ($executor | trim)) }}
-  {{- if has $executorClass $workerLaunchExecutors }}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
-  {{- break }}
-  {{- end }}
   {{- end }}
 {{- end }}
