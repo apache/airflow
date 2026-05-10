@@ -92,7 +92,7 @@
     "@vitejs/plugin-react-swc": "^4.2.3",
     "@vitest/coverage-v8": "^4.1.4",
     "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^10.2.1",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-i18next": "^6.1.4",
     "eslint-plugin-jsonc": "^3.1.2",
