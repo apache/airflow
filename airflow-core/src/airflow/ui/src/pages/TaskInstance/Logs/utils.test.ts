@@ -47,7 +47,9 @@ describe("getDownloadText", () => {
   it("places Task Identity preamble after the source details endgroup, before the first log line", () => {
     const fetchedData = {
       content: [
-        { event: "::group::Log message source details", sources: ["/logs/a.log", "/logs/b.log"] },
+        { event: "::group::Log message source details" },
+        { event: "/logs/a.log" },
+        { event: "/logs/b.log" },
         { event: "some source detail" },
         { event: "::endgroup::" },
         tiLine("First log line", "2026-01-01T00:00:00Z"),
@@ -68,7 +70,8 @@ describe("getDownloadText", () => {
   it("does not include TI context fields on individual log lines", () => {
     const fetchedData = {
       content: [
-        { event: "::group::Log message source details", sources: ["/logs/a.log"] },
+        { event: "::group::Log message source details" },
+        { event: "/logs/a.log" },
         { event: "::endgroup::" },
         tiLine("Task started", "2026-01-01T00:00:00Z"),
       ],
@@ -87,7 +90,8 @@ describe("getDownloadText", () => {
   it("omits the preamble when no TI context fields are present", () => {
     const fetchedData = {
       content: [
-        { event: "::group::Log message source details", sources: ["/logs/a.log"] },
+        { event: "::group::Log message source details" },
+        { event: "/logs/a.log" },
         { event: "::endgroup::" },
         { event: "plain log line", level: "info", timestamp: "2026-01-01T00:00:00Z" },
       ],

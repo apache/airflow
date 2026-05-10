@@ -39,6 +39,7 @@ class MemrayTraceComponents(Enum):
     scheduler = "scheduler"
     dag_processor = "dag_processor"
     api = "api"
+    triggerer = "triggerer"
 
 
 def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[PS, RT]], Callable[PS, RT]]:

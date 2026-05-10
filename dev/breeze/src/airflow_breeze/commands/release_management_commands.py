@@ -137,6 +137,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -2675,16 +2676,7 @@ def generate_issue_content_providers(
             all_prs.update(prs)
             provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
-        if not github_token:
-            # Get GitHub token from gh CLI and set it in environment copy
-            gh_token_result = run_command(
-                ["gh", "auth", "token"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if gh_token_result.returncode == 0:
-                github_token = gh_token_result.stdout.strip()
+        github_token = retrieve_github_token(github_token)
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -3060,21 +3052,6 @@ def generate_issue_content_core(
     )
 
 
-def _get_github_token(github_token: str) -> str:
-    """Return github_token as-is, or fall back to ``gh auth token``."""
-    if github_token:
-        return github_token
-    result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
-    return github_token
-
-
 def _get_airflowctl_prs(
     verbose: bool,
     previous_release: str,
@@ -3285,7 +3262,7 @@ def generate_airflowctl_changelog(
     verbose = get_verbose()
 
     prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
-    github_token = _get_github_token(github_token)
+    github_token = retrieve_github_token(github_token) or ""
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
@@ -4449,7 +4426,7 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
-    github_token = _get_github_token(github_token)
+    github_token = retrieve_github_token(github_token) or ""
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}
