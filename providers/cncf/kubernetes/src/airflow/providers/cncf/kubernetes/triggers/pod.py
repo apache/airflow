@@ -324,12 +324,12 @@ class KubernetesPodTrigger(BaseTrigger):
                         "status": "failed",
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
-                        "message": "Pod or container state failed",
+                        "message": "Container state failed",
                         "last_log_time": self.last_log_time,
                         **self.trigger_kwargs,
                     }
                 )
-            self.log.debug("Pod or container is not completed and still working.")
+            self.log.debug("Container is not completed and still working.")
             now = datetime.datetime.now(tz=datetime.timezone.utc)
             if time_get_more_logs and now >= time_get_more_logs:
                 if self.get_logs and self.logging_interval:

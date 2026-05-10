@@ -214,7 +214,7 @@ class TestKubernetesPodTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Pod or container is not completed and still working." in caplog.text
+        assert "Container is not completed and still working." in caplog.text
         assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
 
     @pytest.mark.asyncio
@@ -233,7 +233,7 @@ class TestKubernetesPodTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Pod or container is not completed and still working." in caplog.text
+        assert "Container is not completed and still working." in caplog.text
         assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
 
     @pytest.mark.asyncio
@@ -255,7 +255,7 @@ class TestKubernetesPodTrigger:
                 "status": "failed",
                 "namespace": "default",
                 "name": "test-pod-name",
-                "message": "Pod or container state failed",
+                "message": "Container state failed",
                 "last_log_time": None,
             }
         )
@@ -488,7 +488,7 @@ class TestKubernetesPodTrigger:
                 "status": "failed",
                 "namespace": "default",
                 "name": "test-pod-name",
-                "message": "Pod or container state failed",
+                "message": "Container state failed",
                 "last_log_time": None,
             }
         )

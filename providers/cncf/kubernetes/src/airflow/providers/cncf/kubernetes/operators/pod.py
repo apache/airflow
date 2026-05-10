@@ -936,9 +936,9 @@ class KubernetesPodOperator(BaseOperator):
                     "status": "failed" if pod_container_state == ContainerState.FAILED else "success",
                     "namespace": trigger.pod_namespace,
                     "name": trigger.pod_name,
-                    "message": "Pod or container failed"
+                    "message": "Container failed"
                     if pod_container_state == ContainerState.FAILED
-                    else "Pod or container succeeded",
+                    else "Container succeeded",
                     "last_log_time": last_log_time,
                     **(self.trigger_kwargs or {}),
                 },
