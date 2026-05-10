@@ -670,7 +670,8 @@ class FileTaskHandler(logging.Handler):
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
         header = [
-            StructuredLogMessage(event="::group::Log message source details", sources=source_list),  # type: ignore[call-arg]
+            StructuredLogMessage(event="::group::Log message source details"),
+            *[StructuredLogMessage(event=source) for source in source_list],
             StructuredLogMessage(event="::endgroup::"),
         ]
         end_of_log = ti.try_number != try_number or ti.state not in (

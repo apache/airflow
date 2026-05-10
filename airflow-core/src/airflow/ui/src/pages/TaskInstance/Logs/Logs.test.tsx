@@ -87,13 +87,11 @@ describe("Task log grouping", () => {
 
     await waitForLogs();
 
-    const summarySource = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
-    );
+    const summarySource = screen.getByTestId("summary-Log message source details");
 
     expect(summarySource).toBeVisible();
     fireEvent.click(summarySource);
-    await waitFor(() => expect(screen.queryByText(/sources=\[/iu)).toBeVisible());
+    await waitFor(() => expect(screen.queryByText(/Log message source details/iu)).toBeVisible());
 
     const summaryPre = screen.getByTestId("summary-Pre task execution logs");
 
@@ -164,9 +162,7 @@ describe("Task Identity preamble", () => {
 
     await waitForLogs();
 
-    const sourceGroup = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=ti_context/attempt=1.log"]',
-    );
+    const sourceGroup = screen.getByTestId("summary-Log message source details");
 
     expect(sourceGroup).toBeInTheDocument();
 
