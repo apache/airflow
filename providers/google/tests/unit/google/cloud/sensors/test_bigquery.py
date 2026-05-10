@@ -324,7 +324,7 @@ class TestBigQueryStreamingBufferEmptySensor:
         )
         mock_hook.return_value.get_client.assert_called_once_with(project_id=TEST_PROJECT_ID)
         mock_hook.return_value.get_client.return_value.get_table.assert_called_once_with(
-            f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+            f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
         )
 
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")

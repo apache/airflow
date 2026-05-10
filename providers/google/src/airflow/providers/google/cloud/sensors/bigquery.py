@@ -401,12 +401,12 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         raise RuntimeError(event["message"])
 
     def poke(self, context: Context) -> bool:
-        table_fqn = f"{self.project_id}.{self.dataset_id}.{self.table_id}"
-        self.log.info("Checking streaming buffer state for table: %s", table_fqn)
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking streaming buffer state for table: %s", table_uri)
 
         hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
-            table = hook.get_client(project_id=self.project_id).get_table(table_fqn)
+            table = hook.get_client(project_id=self.project_id).get_table(table_uri)
         except NotFound as err:
-            raise ValueError(f"Table {table_fqn} not found") from err
+            raise ValueError(f"Table {table_uri} not found") from err
         return table.streaming_buffer is None
