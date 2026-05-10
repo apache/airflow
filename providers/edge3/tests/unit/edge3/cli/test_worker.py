@@ -248,7 +248,7 @@ class TestEdgeWorker:
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
-        q.put.assert_not_called()
+        q.put.assert_called_once_with("OK")
 
     @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
     @pytest.mark.skipif(
@@ -266,7 +266,7 @@ class TestEdgeWorker:
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
-        q.put.assert_called_once()
+        q.put.assert_called_once_with("OK")
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
