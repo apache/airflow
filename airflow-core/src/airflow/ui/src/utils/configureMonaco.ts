@@ -17,6 +17,28 @@
  * under the License.
  */
 import { loader } from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
+import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import editorWorkerUrl from "monaco-editor/esm/vs/editor/editor.worker?url";
+import jsonWorkerUrl from "monaco-editor/esm/vs/language/json/json.worker?url";
+import "monaco-editor/esm/vs/language/json/monaco.contribution";
+
+type MonacoEnvironment = {
+  readonly getWorkerUrl: (_moduleId: string, label: string) => string;
+};
+
+const createWorkerUrl = (workerUrl: string) => {
+  const workerSource = `import ${JSON.stringify(new URL(workerUrl, import.meta.url).href)};`;
+
+  return URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+};
+
+const editorWorkerBlobUrl = createWorkerUrl(editorWorkerUrl);
+const jsonWorkerBlobUrl = createWorkerUrl(jsonWorkerUrl);
+
+Reflect.set(globalThis, "MonacoEnvironment", {
+  getWorkerUrl: (_moduleId: string, label: string) =>
+    label === "json" ? jsonWorkerBlobUrl : editorWorkerBlobUrl,
+} satisfies MonacoEnvironment);
 
 loader.config({ monaco });
