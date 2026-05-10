@@ -50,9 +50,14 @@ roleRef:
   kind: ClusterRole
   name: system:openshift:scc:anyuid
 subjects:
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }}
+  {{- if contains "CeleryExecutor" .Values.executor }}
   - kind: ServiceAccount
-    name: {{ include "worker.serviceAccountName" . }}
+    name: {{ include "worker.celery.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+  {{- if contains "KubernetesExecutor" .Values.executor }}
+  - kind: ServiceAccount
+    name: {{ include "worker.kubernetes.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if .Values.scheduler.enabled }}

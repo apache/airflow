@@ -84,13 +84,7 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- $kedaEnabled := .Values.workers.keda.enabled }}
-  {{- $kedaUsePgBouncer := .Values.workers.keda.usePgbouncer }}
-  {{- if hasKey .Values.workers "celery" }}
-    {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
-    {{- $kedaUsePgBouncer = or .Values.workers.celery.keda.usePgbouncer (and (not (has .Values.workers.celery.keda.usePgbouncer (list true false))) .Values.workers.keda.usePgbouncer) }}
-  {{- end }}
-  {{- if and $kedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not $kedaUsePgBouncer))) }}
+  {{- if and .Values.workers.celery.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer))) }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
@@ -718,11 +712,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{/* Create the name of the worker service account to use */}}
-{{- define "worker.serviceAccountName" -}}
-  {{- if and (hasKey .Values.workers "name") (ne .Values.workers.name "default") }}
-    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" (printf "%s-%s" "worker" .Values.workers.name)) .) -}}
+{{- define "worker.celery.serviceAccountName" -}}
+  {{- if and (hasKey .Values.workers.celery "name") (ne .Values.workers.celery.name "default") }}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" (printf "%s-%s" "worker" .Values.workers.celery.name)) .) -}}
   {{- else }}
-    {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
+    {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker") .) -}}
   {{- end }}
 {{- end }}
 
@@ -1094,8 +1088,6 @@ Usage:
 {{- define "workersMergeValues" -}}
   {{- $inputMap := index . 0 -}}
   {{- $overwriteMap := index . 1 -}}
-  {{- $sectionName := index . 2 -}}
-  {{- $orBoolean := index . 3 -}}
   {{- $outputMap := dict -}}
 
   {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" -}}
@@ -1106,18 +1098,13 @@ Usage:
       {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
     {{/* Below if holds base logic for merge values */}}
     {{- else if and (hasKey $overwriteMap $key) (kindIs "map" $val) -}}
-      {{- $nested := include "workersMergeValues" (list $val (get $overwriteMap $key) $key $orBoolean) | fromYaml -}}
+      {{- $nested := include "workersMergeValues" (list $val (get $overwriteMap $key)) | fromYaml -}}
       {{- if gt (len $nested) 0 -}}
         {{- $_ := set $outputMap $key $nested -}}
       {{- end -}}
     {{/* Below if contains check for `slice` to fully overwrite list parameters */}}
     {{- else if and (hasKey $overwriteMap $key) (not (and (kindIs "slice" (get $overwriteMap $key)) (eq (len (get $overwriteMap $key)) 0))) -}}
-      {{/* Below if holds `or` logic for boolean fields in a map */}}
-      {{- if and (kindIs "bool" $val) (has $sectionName $orBoolean) -}}
-        {{- $_ := set $outputMap $key (or $val (get $overwriteMap $key)) -}}
-      {{- else -}}
-        {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
-      {{- end -}}
+      {{- $_ := set $outputMap $key (get $overwriteMap $key) -}}
     {{- else -}}
       {{- $_ := set $outputMap $key $val -}}
     {{- end -}}
@@ -1129,25 +1116,4 @@ Usage:
     {{- end -}}
   {{- end -}}
   {{- toYaml $outputMap -}}
-{{- end -}}
-
-{{/*
-Remove all nil fields in a map and return new dict object.
-
-Usage:
-  {{ include "removeNilFields" . }}
-*/}}
-{{- define "removeNilFields" -}}
-  {{- $newValues := dict -}}
-  {{- range $key, $val := . -}}
-    {{- if kindIs "map" $val -}}
-      {{- $nested := include "removeNilFields" $val | fromYaml -}}
-      {{- if gt (len $nested) 0 -}}
-        {{- $_ := set $newValues $key $nested -}}
-      {{- end -}}
-    {{- else if not (eq $val nil) -}}
-      {{- $_ := set $newValues $key $val -}}
-    {{- end -}}
-  {{- end -}}
-  {{- toYaml $newValues -}}
 {{- end -}}

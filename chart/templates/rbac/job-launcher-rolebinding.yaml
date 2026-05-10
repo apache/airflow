@@ -71,7 +71,7 @@ subjects:
   {{- $executorClass := last (splitList "." ($executor | trim)) }}
   {{- if has $executorClass $workerLaunchExecutors }}
   - kind: ServiceAccount
-    name: {{ include "worker.serviceAccountName" $ }}
+    name: {{ include "worker.celery.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
   {{- break }}
   {{- end }}
