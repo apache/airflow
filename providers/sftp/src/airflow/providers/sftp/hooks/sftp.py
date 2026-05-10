@@ -958,7 +958,6 @@ class SFTPHookAsync(BaseHook):
         This mirrors :meth:`SFTPHook.walktree` contract and calls callback functions for
         regular files, directories, and unknown file types.
         """
-
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp:
                 visited_dirs: set[str] = set()
