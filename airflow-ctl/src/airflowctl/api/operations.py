@@ -91,6 +91,10 @@ log = structlog.get_logger(logger_name=__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+# Type alias used inside classes that define a ``list()`` method, which
+# shadows the builtin ``list`` and confuses mypy when used in annotations.
+_list = list
+
 
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
@@ -930,8 +934,8 @@ class TaskInstanceOperations(BaseOperations):
     """Task instance operations."""
 
     def _parse_task_instance_response(
-        self, data: dict | list
-    ) -> TaskInstanceResponse | list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
+        self, data: dict | _list
+    ) -> TaskInstanceResponse | _list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
         """Parse task instance response data into appropriate models."""
         if isinstance(data, list):
             return [TaskInstanceResponse.model_validate(item) for item in data]
@@ -941,7 +945,7 @@ class TaskInstanceOperations(BaseOperations):
 
     def get(
         self, dag_id: str, dag_run_id: str, task_id: str
-    ) -> TaskInstanceResponse | list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
+    ) -> TaskInstanceResponse | _list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
         """Get a task instance."""
         self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
         return self._parse_task_instance_response(self.response.json())
@@ -965,7 +969,7 @@ class TaskInstanceOperations(BaseOperations):
 
     def update(
         self, dag_id: str, dag_run_id: str, task_id: str, body: PatchTaskInstanceBody
-    ) -> TaskInstanceResponse | list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
+    ) -> TaskInstanceResponse | _list[TaskInstanceResponse] | TaskInstanceCollectionResponse:
         """Update a task instance."""
         self.response = self.client.patch(
             f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
