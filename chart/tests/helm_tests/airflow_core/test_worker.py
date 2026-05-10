@@ -263,9 +263,9 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].volumeMounts",
             docs[0],
         )
-        assert (
-            mounts is not None
-        ), "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        assert mounts is not None, (
+            "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        )
         assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
         if expect_sub_path is not None:
             assert any(
@@ -2007,9 +2007,9 @@ class TestWorker:
             (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "logs"),
             None,
         )
-        assert (
-            logs_template is None
-        ), "Logs should not be in volumeClaimTemplates when logs.persistence.enabled is true"
+        assert logs_template is None, (
+            "Logs should not be in volumeClaimTemplates when logs.persistence.enabled is true"
+        )
 
     @pytest.mark.parametrize(
         (
@@ -2102,9 +2102,9 @@ class TestWorker:
                     (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "logs"),
                     None,
                 )
-                assert (
-                    logs_template is not None
-                ), "Logs should be in volumeClaimTemplates when logs.persistence.enabled is false"
+                assert logs_template is not None, (
+                    "Logs should be in volumeClaimTemplates when logs.persistence.enabled is false"
+                )
 
             # If custom templates provided, they should be in volumeClaimTemplates
             if custom_templates:
@@ -2118,9 +2118,9 @@ class TestWorker:
                         ),
                         None,
                     )
-                    assert (
-                        found_template is not None
-                    ), f"Custom template '{template_name}' should be in volumeClaimTemplates"
+                    assert found_template is not None, (
+                        f"Custom template '{template_name}' should be in volumeClaimTemplates"
+                    )
         else:
             assert volume_claim_templates is None or len(volume_claim_templates) == 0
 
