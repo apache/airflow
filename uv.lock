@@ -7113,6 +7113,7 @@ name = "apache-airflow-providers-sftp"
 version = "5.7.4"
 source = { editable = "providers/sftp" }
 dependencies = [
+    { name = "aiofiles" },
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-ssh" },
@@ -7143,6 +7144,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
