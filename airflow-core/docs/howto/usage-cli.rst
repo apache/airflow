@@ -133,8 +133,18 @@ The following file formats are supported:
  * ``xlib``
  * ``x11``
 
-By default, Airflow looks for Dags in the directory specified by the ``dags_folder`` option in the
-``[core]`` section of the ``airflow.cfg`` file. You can select a new directory with the ``--subdir`` argument.
+By default, Airflow looks for DAGs in the directory specified by the ``dags_folder`` option in the
+``[core]`` section of the ``airflow.cfg`` file.
+
+.. note::
+
+   The ``--subdir`` argument is no longer supported in Airflow 3.x.
+
+   To test a DAG from a specific file, use:
+
+   .. code-block:: bash
+
+      airflow dags test <DAG_ID> -f <path_to_dag_file>
 
 Display Dag structure
 ---------------------

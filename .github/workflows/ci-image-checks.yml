@@ -245,7 +245,8 @@ jobs:
         shell: bash
         run: python3 scripts/ci/slack_notification_state.py
         env:
-          ARTIFACT_NAME: "slack-state-inventory-${{ inputs.branch }}"
+          # yamllint disable-line rule:line-length
+          ARTIFACT_NAME: "slack-state-inventory-${{ inputs.branch }}-${{ contains(inputs.platform, 'arm') && 'arm' || 'amd' }}"
           CURRENT_FAILURES: "${{ steps.check-missing-inventories.outputs.packages }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload inventory notification state"
@@ -255,7 +256,8 @@ jobs:
           matrix.flag == '--docs-only'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: "slack-state-inventory-${{ inputs.branch }}"
+          # yamllint disable-line rule:line-length
+          name: "slack-state-inventory-${{ inputs.branch }}-${{ contains(inputs.platform, 'arm') && 'arm' || 'amd' }}"
           path: ./slack-state/
           retention-days: 7
           overwrite: true

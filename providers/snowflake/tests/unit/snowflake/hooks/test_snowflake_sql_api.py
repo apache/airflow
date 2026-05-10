@@ -35,7 +35,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 
 if TYPE_CHECKING:
@@ -391,14 +390,14 @@ class TestSnowflakeSqlApiHook:
         mock_requests,
     ):
         """
-        Test execute_query method by mocking the exception response and raise airflow exception
+        Test execute_query method by mocking the exception response and raise RuntimeError
         without statementHandle in the response
         """
         # status_code, json payload without statementHandle
         mock_make_api_call.return_value = (None, {"foo": "bar"})
         hook = SnowflakeSqlApiHook("mock_conn_id")
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             hook.execute_query(sql, statement_count)
 
     @pytest.mark.parametrize(
@@ -431,6 +430,30 @@ class TestSnowflakeSqlApiHook:
             mock_log_warning.assert_called_once_with(
                 "Bindings are not supported for multi-statement queries. Bindings will be ignored."
             )
+
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_with_timeout(
+        self,
+        mock_get_headers,
+        mock_conn_params,
+        mock_requests,
+    ):
+        """Test execute_query method with timeout value set"""
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_get_headers.return_value = HEADERS
+        mock_requests.codes.ok = 200
+        mock_requests.request.side_effect = [
+            create_successful_response_mock({"statementHandle": "uuid"}),
+        ]
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        hook.execute_query(sql=SINGLE_STMT, statement_count=1, timeout=120)
+
+        call_kwargs = mock_requests.request.call_args
+        payload = call_kwargs.kwargs["json"]
+        assert "timeout" in payload
+        assert payload["timeout"] == 120
 
     @pytest.mark.parametrize(
         "query_ids",
@@ -517,11 +540,11 @@ class TestSnowflakeSqlApiHook:
 
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_headers_pat_raises_when_password_missing(self, mock_conn_param):
-        """Test get_headers raises AirflowException when PAT authenticator is set but password is empty."""
+        """Test get_headers raises ValueError when PAT authenticator is set but password is empty."""
         conn_params_pat_no_password = {**CONN_PARAMS_PAT, "password": ""}
         mock_conn_param.return_value = conn_params_pat_no_password
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
-        with pytest.raises(AirflowException, match="Programmatic Access Token"):
+        with pytest.raises(ValueError, match="Programmatic Access Token"):
             hook.get_headers()
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
@@ -629,7 +652,7 @@ class TestSnowflakeSqlApiHook:
                 "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
             ),
             pytest.raises(
-                AirflowException,
+                ValueError,
                 match="The private_key_file and private_key_content extra fields are mutually "
                 "exclusive. Please remove one.",
             ),
