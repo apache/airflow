@@ -2964,7 +2964,7 @@ profiling:
     memray_trace_components:
       description: |
         Comma-separated list of Airflow components to profile with memray.
-        Valid components are: scheduler, api, dag_processor
+        Valid components are: scheduler, api, dag_processor, triggerer
 
         This option only takes effect when it is not set to blank (default option).
         start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
