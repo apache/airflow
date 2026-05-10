@@ -31,6 +31,7 @@ import zipfile
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
+from pprint import pformat
 from socket import socket, socketpair
 from unittest import mock
 from unittest.mock import MagicMock
@@ -41,6 +42,7 @@ import time_machine
 from sqlalchemy import func, select
 from uuid6 import uuid7
 
+from airflow._shared.module_loading import find_path_from_directory
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle
@@ -51,6 +53,7 @@ from airflow.dag_processing.manager import (
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
+    discover_dag_file_paths,
 )
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.models import DagModel, DbCallbackRequest
@@ -60,6 +63,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
+from airflow.utils import file as file_utils
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -83,6 +87,11 @@ pytestmark = pytest.mark.db_test
 logger = logging.getLogger(__name__)
 TEST_DAG_FOLDER = Path(__file__).parents[1].resolve() / "dags"
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+
+def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
+    """Custom callable injected via conf_vars in TestDagFileDiscovery.test_might_contain_dag."""
+    return False
 
 
 def _get_file_infos(files: list[str | Path]) -> list[DagFileInfo]:
@@ -112,6 +121,34 @@ def encode_mtime_in_filename(val):
         addition = f"ss={str(mtime)}"
         out.append(f"{f.stem}-{addition}{f.suffix}")
     return out
+
+
+class _FakeCoordinator:
+    """Test double recording every can_handle_dag_file call and matching by extension."""
+
+    file_extension: str = ".fakeext"
+    invocations: list[tuple[str, str]] = []
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.invocations = []
+
+    @classmethod
+    def can_handle_dag_file(cls, bundle_name: str, path) -> bool:
+        cls.invocations.append((bundle_name, str(path)))
+        return str(path).endswith(cls.file_extension)
+
+
+@pytest.fixture
+def fake_coordinator():
+    """Inject a fake coordinator into ProvidersManager.coordinators for the duration of a test."""
+    _FakeCoordinator.reset()
+    with mock.patch(
+        "airflow.providers_manager.ProvidersManager.coordinators",
+        new_callable=mock.PropertyMock,
+        return_value=[_FakeCoordinator],
+    ):
+        yield _FakeCoordinator
 
 
 def _create_zip_bundle_with_valid_and_broken_dags(zip_path: Path) -> None:
@@ -284,6 +321,43 @@ class TestDagFileProcessorManager:
             "test_zip.zip/valid_dag.py",
             "test_zip.zip/broken_dag.py",
         }
+
+    def test_get_observed_filelocs_treats_coordinator_handled_zip_as_opaque(self, tmp_path, fake_coordinator):
+        """A coordinator-claimed file that happens to be a ZIP must NOT be expanded into inner paths."""
+        # Coordinator handles ".fakeext"; the file is a real ZIP archive so
+        # without the coordinator check it would be enumerated like a dag-zip.
+        bundle_file = tmp_path / "bundle.fakeext"
+        _create_zip_bundle_with_valid_and_broken_dags(bundle_file)
+
+        manager = DagFileProcessorManager(max_runs=1)
+        observed_filelocs = manager._get_observed_filelocs(
+            {
+                DagFileInfo(
+                    bundle_name="testing",
+                    rel_path=Path("bundle.fakeext"),
+                    bundle_path=tmp_path,
+                )
+            }
+        )
+
+        assert observed_filelocs == {"bundle.fakeext"}
+
+    def test_get_observed_filelocs_forwards_bundle_name_to_coordinator(self, tmp_path, fake_coordinator):
+        bundle_file = tmp_path / "bundle.fakeext"
+        bundle_file.write_bytes(b"opaque payload")
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._get_observed_filelocs(
+            {
+                DagFileInfo(
+                    bundle_name="my_bundle",
+                    rel_path=Path("bundle.fakeext"),
+                    bundle_path=tmp_path,
+                )
+            }
+        )
+
+        assert fake_coordinator.invocations == [("my_bundle", str(bundle_file))]
 
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
@@ -2503,3 +2577,162 @@ class TestDagFileProcessorManager:
         # _bundle_versions must NOT advance — DB still holds the old version, so the next
         # iteration will see a version mismatch and re-refresh rather than skip incorrectly
         assert "mock_bundle" not in manager._bundle_versions
+
+
+class TestDagFileDiscovery:
+    def test_find_path_from_directory_regex_ignore(self):
+        should_ignore = [
+            "test_invalid_cron.py",
+            "test_invalid_param.py",
+            "test_ignore_this.py",
+        ]
+        files = find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore")
+
+        assert files
+        assert all(os.path.basename(file) not in should_ignore for file in files)
+
+    def test_find_path_from_directory_glob_ignore(self):
+        should_ignore = {
+            "should_ignore_this.py",
+            "test_explicit_ignore.py",
+            "test_invalid_cron.py",
+            "test_invalid_param.py",
+            "test_ignore_this.py",
+            "test_prev_dagrun_dep.py",
+            "test_nested_dag.py",
+            ".airflowignore",
+        }
+        should_not_ignore = {
+            "test_on_kill.py",
+            "test_negate_ignore.py",
+            "test_dont_ignore_this.py",
+            "test_nested_negate_ignore.py",
+            "test_explicit_dont_ignore.py",
+        }
+        actual_files = list(find_path_from_directory(TEST_DAGS_FOLDER, ".airflowignore_glob", "glob"))
+
+        assert actual_files
+        assert all(os.path.basename(file) not in should_ignore for file in actual_files)
+        actual_included_filenames = {
+            os.path.basename(f) for f in actual_files if os.path.basename(f) in should_not_ignore
+        }
+        assert actual_included_filenames == should_not_ignore, (
+            f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
+        )
+
+    def test_might_contain_dag_with_default_callable(self):
+        file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
+
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+
+    @conf_vars({("core", "might_contain_dag_callable"): "unit.dag_processing.test_manager.might_contain_dag"})
+    def test_might_contain_dag(self):
+        """Test might_contain_dag_callable"""
+        file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")
+
+        # There is a DAG defined in the file_path_with_dag, however, the might_contain_dag_callable
+        # returns False no matter what, which is used to test might_contain_dag_callable actually
+        # overrides the default function
+        assert not file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
+
+        # With safe_mode is False, the user defined callable won't be invoked
+        assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=False)
+
+    def test_get_modules(self):
+        file_path = os.path.join(TEST_DAGS_FOLDER, "test_imports.py")
+
+        modules = list(file_utils.iter_airflow_imports(file_path))
+
+        assert len(modules) == 4
+        assert "airflow.utils" in modules
+        assert "airflow.decorators" in modules
+        assert "airflow.models" in modules
+        assert "airflow.sensors" in modules
+        # this one is a local import, we don't want it.
+        assert "airflow.local_import" not in modules
+        # this one is in a comment, we don't want it
+        assert "airflow.in_comment" not in modules
+        # we don't want imports under conditions
+        assert "airflow.if_branch" not in modules
+        assert "airflow.else_branch" not in modules
+
+    def test_get_modules_from_invalid_file(self):
+        file_path = os.path.join(TEST_DAGS_FOLDER, "README.md")  # just getting a non-python file
+
+        # should not error
+        modules = list(file_utils.iter_airflow_imports(file_path))
+
+        assert len(modules) == 0
+
+    def test_discover_dag_file_paths(self, test_zip_path):
+        expected_files = set()
+        # No_dags is empty, _invalid_ is ignored by .airflowignore
+        ignored_files = {
+            "no_dags.py",
+            "should_ignore_this.py",
+            "test_explicit_ignore.py",
+            "test_invalid_cron.py",
+            "test_invalid_dup_task.py",
+            "test_ignore_this.py",
+            "test_invalid_param.py",
+            "test_invalid_param2.py",
+            "test_invalid_param3.py",
+            "test_invalid_param4.py",
+            "test_nested_dag.py",
+            "test_imports.py",
+            "test_nested_negate_ignore.py",
+            "file_no_airflow_dag.py",  # no_dag test case in test_zip folder
+            "test.py",  # no_dag test case in test_zip_module folder
+            "__init__.py",
+        }
+        for root, _, files in os.walk(TEST_DAGS_FOLDER):
+            for file_name in files:
+                if file_name.endswith((".py", ".zip")):
+                    if file_name not in ignored_files:
+                        expected_files.add(f"{root}/{file_name}")
+        detected_files = set(discover_dag_file_paths(str(TEST_DAGS_FOLDER)))
+        assert detected_files == expected_files, (
+            f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
+        )
+
+    def test_discover_returns_empty_for_none(self):
+        assert discover_dag_file_paths(None) == []
+
+    def test_discover_returns_empty_for_missing_path(self, tmp_path):
+        assert discover_dag_file_paths(tmp_path / "does_not_exist") == []
+
+    def test_discover_returns_single_file_as_is(self, tmp_path):
+        single = tmp_path / "anything.bin"
+        single.write_bytes(b"opaque")
+        assert discover_dag_file_paths(single) == [str(single)]
+
+    def test_discover_includes_coordinator_handled_files(self, tmp_path, fake_coordinator):
+        coord_file = tmp_path / "bundle.fakeext"
+        coord_file.write_bytes(b"opaque payload")
+        py_file = tmp_path / "dag.py"
+        py_file.write_text("from airflow.sdk import DAG\nDAG('d')")
+
+        assert set(discover_dag_file_paths(tmp_path)) == {str(coord_file), str(py_file)}
+
+    def test_discover_coordinator_takes_precedence_over_zip_heuristic(self, tmp_path, fake_coordinator):
+        """A coordinator-claimed file that is also a ZIP must NOT also be included via the generic ZIP path."""
+        coord_zip = tmp_path / "bundle.fakeext"
+        _create_zip_bundle_with_valid_and_broken_dags(coord_zip)
+
+        # File appears exactly once: claimed by coordinator, generic zip branch skipped.
+        assert discover_dag_file_paths(tmp_path) == [str(coord_zip)]
+
+    def test_discover_forwards_bundle_name_to_coordinator(self, tmp_path, fake_coordinator):
+        coord_file = tmp_path / "bundle.fakeext"
+        coord_file.write_bytes(b"opaque payload")
+
+        discover_dag_file_paths(tmp_path, bundle_name="my_bundle")
+
+        # Only one non-.py file, so exactly one coordinator invocation, with the bundle name.
+        assert fake_coordinator.invocations == [("my_bundle", str(coord_file))]
+
+    def test_discover_skips_non_matching_unknown_file(self, tmp_path, fake_coordinator):
+        """A file no coordinator claims and that isn't .py / a ZIP must not appear in results."""
+        (tmp_path / "random.bin").write_bytes(b"unknown payload")
+
+        assert discover_dag_file_paths(tmp_path) == []

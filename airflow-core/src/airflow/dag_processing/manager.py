@@ -66,7 +66,7 @@ from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
-from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.file import might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
@@ -86,6 +86,9 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+
+
+log = logging.getLogger(__name__)
 
 
 class DagParsingStat(NamedTuple):
@@ -156,6 +159,62 @@ def utc_epoch() -> datetime:
     result = result.replace(tzinfo=timezone.utc)
 
     return result
+
+
+def discover_dag_file_paths(
+    directory: str | os.PathLike[str] | None,
+    bundle_name: str = "",
+    safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
+) -> list[str]:
+    """
+    Discover paths of DAG files within a directory.
+
+    Walks ``directory`` (honouring ``.airflowignore``) and returns each file that is
+    either a Python DAG candidate (``.py`` source or ZIP archive that passes
+    :func:`~airflow.utils.file.might_contain_dag`) or accepted by a registered coordinator's
+    :meth:`~airflow.sdk.execution_time.coordinator.BaseCoordinator.can_handle_dag_file`
+    (e.g. a ``.jar`` for the Java SDK, a self-contained executable for the Go SDK).
+
+    Coordinator handling takes precedence over the generic ZIP heuristic so that,
+    for example, a ``.jar`` is delegated to its coordinator rather than being
+    scanned for embedded ``.py`` modules.
+
+    :param directory: Directory to scan, or a single file path. ``None`` returns
+        an empty list. A single file is returned as-is without filtering.
+    :param bundle_name: Bundle name forwarded to ``can_handle_dag_file``.
+    :param safe_mode: Whether to apply the Python DAG heuristic; see
+        :func:`~airflow.utils.file.might_contain_dag`.
+    :return: Absolute paths discovered as DAG sources.
+    """
+    if directory is None:
+        return []
+    if os.path.isfile(directory):
+        return [str(directory)]
+    if not os.path.isdir(directory):
+        return []
+
+    from airflow._shared.module_loading.file_discovery import find_path_from_directory
+    from airflow.providers_manager import ProvidersManager
+
+    coordinators = ProvidersManager().coordinators
+    ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
+
+    file_paths: list[str] = []
+    for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
+        path = Path(file_path)
+        try:
+            if not path.is_file():
+                continue
+            if path.suffix == ".py":
+                if might_contain_dag(file_path, safe_mode):
+                    file_paths.append(file_path)
+            elif any(c.can_handle_dag_file(bundle_name, file_path) for c in coordinators):
+                file_paths.append(file_path)
+            elif zipfile.is_zipfile(path) and might_contain_dag(file_path, safe_mode):
+                file_paths.append(file_path)
+        except Exception:
+            log.exception("Error while examining %s", file_path)
+    return file_paths
 
 
 class _StubSelector(selectors.BaseSelector):
@@ -830,9 +889,11 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
-        # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        rel_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
+        rel_paths = [
+            Path(x).relative_to(bundle.path)
+            for x in discover_dag_file_paths(bundle.path, bundle_name=bundle.name)
+        ]
         self.log.info("Found %s files for bundle %s", len(rel_paths), bundle.name)
 
         return rel_paths
@@ -844,7 +905,13 @@ class DagFileProcessorManager(LoggingMixin):
         For regular files this includes the relative file path.
         For ZIP archives this includes DAG-like inner paths such as
         ``archive.zip/dag.py``.
+
+        Files claimed by a registered runtime coordinator (e.g. ``.jar``)
+        are treated as opaque files rather than ZIP archives.
         """
+        from airflow.providers_manager import ProvidersManager
+
+        coordinators = ProvidersManager().coordinators
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """Yield absolute paths for DAG-like files inside a ZIP archive."""
@@ -859,7 +926,10 @@ class DagFileProcessorManager(LoggingMixin):
         observed_filelocs: set[str] = set()
         for info in present:
             abs_path = str(info.absolute_path)
-            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
+            handled_by_coordinator = any(
+                c.can_handle_dag_file(info.bundle_name, abs_path) for c in coordinators
+            )
+            if abs_path.endswith(".py") or handled_by_coordinator or not zipfile.is_zipfile(abs_path):
                 observed_filelocs.add(str(info.rel_path))
             else:
                 if TYPE_CHECKING:

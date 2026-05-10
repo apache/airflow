@@ -41,6 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.cli.cli_config import CLICommand
+    from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 log = logging.getLogger(__name__)
 
@@ -448,6 +449,7 @@ class ProvidersManager(LoggingMixin):
         )
         # Set of plugins contained in providers
         self._plugins_set: set[PluginInfo] = set()
+        self._coordinators: list[type[BaseCoordinator]] = []
         self._init_airflow_core_hooks()
 
         self._runtime_manager = None
@@ -624,6 +626,12 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of provider configuration metadata and merge it into ``conf``."""
         self.initialize_providers_list()
         self._discover_config()
+
+    @provider_info_cache("coordinators")
+    def initialize_providers_coordinators(self):
+        """Lazy initialization of providers runtime coordinators."""
+        self.initialize_providers_list()
+        self._discover_coordinators()
 
     @provider_info_cache("plugins")
     def initialize_providers_plugins(self):
@@ -1280,6 +1288,19 @@ class ProvidersManager(LoggingMixin):
             if provider.data.get("config"):
                 self._provider_configs[provider_package] = provider.data.get("config")  # type: ignore[assignment]
 
+    def _discover_coordinators(self) -> None:
+        """Retrieve and pre-load all coordinators defined in the providers."""
+        seen: set[str] = set()
+        for provider_package, provider in self._provider_dict.items():
+            for coordinator_class_path in provider.data.get("coordinators", []):
+                if coordinator_class_path in seen:
+                    continue
+                coordinator_cls = _correctness_check(provider_package, coordinator_class_path, provider)
+                if coordinator_cls:
+                    seen.add(coordinator_class_path)
+                    self._coordinators.append(coordinator_cls)
+        self._coordinators = sorted(self._coordinators, key=lambda c: c.__qualname__)
+
     def _discover_plugins(self) -> None:
         """Retrieve all plugins defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1478,6 +1499,12 @@ class ProvidersManager(LoggingMixin):
         return sorted(self._db_manager_class_name_set)
 
     @property
+    def coordinators(self) -> list[type[BaseCoordinator]]:
+        """Returns pre-loaded coordinator classes available in providers."""
+        self.initialize_providers_coordinators()
+        return self._coordinators
+
+    @property
     def filesystem_module_names(self) -> list[str]:
         self.initialize_providers_filesystems()
         return sorted(self._fs_set)
@@ -1548,6 +1575,7 @@ class ProvidersManager(LoggingMixin):
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()
+        self._coordinators.clear()
         self._cli_command_functions_set.clear()
         self._cli_command_provider_name_set.clear()
 

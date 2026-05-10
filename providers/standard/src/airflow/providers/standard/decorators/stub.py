@@ -85,7 +85,6 @@ def stub(
 
     Stub tasks exist in the Dag graph only, but the execution must happen in an external
     environment via the Task Execution Interface.
-
     """
     return task_decorator_factory(
         decorated_operator_class=_StubOperator,

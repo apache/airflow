@@ -446,6 +446,13 @@
                     "type": "string"
                 }
             }
+        },
+        "coordinators": {
+            "type": "array",
+            "description": "Runtime Coordinator class names (BaseCoordinator subclasses)",
+            "items": {
+                "type": "string"
+            }
         }
     },
     "definitions": {

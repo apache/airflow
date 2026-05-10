@@ -47,6 +47,7 @@ from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
+    BundleInfo,
     DagRun,
     PreviousTIResponse,
     TaskInstance,
@@ -785,12 +786,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 
     bundle_info = what.bundle_info
     bundle_prepare_start = time.monotonic()
-    bundle_instance = DagBundlesManager().get_bundle(
-        name=bundle_info.name,
-        version=bundle_info.version,
-    )
-    bundle_instance.initialize()
-    _verify_bundle_access(bundle_instance, log)
+    bundle_instance = resolve_bundle(bundle_info, log)
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
@@ -914,6 +910,22 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
             f"are readable by the impersonated user. "
             f"See: https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-bundles.html"
         )
+
+
+def resolve_bundle(bundle_info: BundleInfo, log: Logger) -> BaseDagBundle:
+    """
+    Resolve, initialize, and verify access to a DAG bundle.
+
+    Used by both the standard Python task execution path and locale
+    coordinators (Java, Go, etc.) to obtain a ready-to-use bundle instance.
+    """
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+    )
+    bundle_instance.initialize()
+    _verify_bundle_access(bundle_instance, log)
+    return bundle_instance
 
 
 def get_startup_details() -> StartupDetails:
@@ -1961,6 +1973,96 @@ def flush_spans():
             provider.force_flush(timeout_millis=timeout_millis)
 
 
+def _resolve_runtime_entrypoint(startup_details: StartupDetails, log: Logger) -> Callable[[], None] | None:
+    """
+    Check provider-registered runtime coordinators for a runtime-specific entrypoint.
+
+    Resolution order:
+
+    1. **Queue mapping** -- the ``[sdk] queue_to_sdk`` config maps
+       the task's ``queue`` to a runtime coordinator name (e.g. ``"java-queue" -> "java"``).
+       Used by the python-stub pattern where users set ``queue="java-queue"`` explicitly.
+    2. **DAG file extension** -- if no queue mapping matches, the DAG file's extension
+       (e.g. ``.jar``) is compared against each coordinator's ``file_extension`` attribute.
+       Used by the pure-Java (or pure-<runtime>) pattern where the entire DAG is authored
+       in a non-Python language.
+
+    Returns a no-arg callable that bridges fd 0 to the runtime subprocess,
+    or ``None`` to fall through to the standard Python execution path.
+    """
+    import functools
+
+    from airflow.sdk.execution_time.coordinator import QueueToCoordinatorMapper
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+    coordinators = ProvidersManagerTaskRuntime().coordinators
+
+    # Step 1: queue-to-runtime mapping.
+    queue = startup_details.ti.queue
+    if (sdk := QueueToCoordinatorMapper.from_config().resolve(queue)) is not None:
+        for coordinator_cls in coordinators:
+            if not hasattr(coordinator_cls, "run_task_execution"):
+                continue
+            if getattr(coordinator_cls, "sdk", None) != sdk:
+                continue
+
+            log.debug(
+                "Resolved sdk-specific entrypoint for task via queue mapping",
+                coordinator=coordinator_cls,
+                sdk=sdk,
+                queue=queue,
+                task_id=startup_details.ti.task_id,
+            )
+            return functools.partial(
+                coordinator_cls.run_task_execution,
+                what=startup_details.ti,
+                dag_rel_path=startup_details.dag_rel_path,
+                bundle_info=startup_details.bundle_info,
+                startup_details=startup_details,
+            )
+
+        log.warning(
+            "No coordinator found for sdk",
+            sdk=sdk,
+            queue=queue,
+            task_id=startup_details.ti.task_id,
+        )
+        return None
+
+    # Step 2: DAG file extension fallback (pure-<runtime> DAGs).
+    dag_rel_path = startup_details.dag_rel_path
+    for coordinator_cls in coordinators:
+        # TODO: Use `can_handle_dag_file` method instead of file_extension attribute for better maintainability.
+        ext = getattr(coordinator_cls, "file_extension", None)
+        if not ext or not dag_rel_path.endswith(ext):
+            continue
+        if not hasattr(coordinator_cls, "run_task_execution"):
+            continue
+
+        log.debug(
+            "Resolved runtime-specific entrypoint for task via DAG file extension",
+            coordinator=coordinator_cls,
+            sdk=getattr(coordinator_cls, "sdk", None),
+            dag_rel_path=dag_rel_path,
+            task_id=startup_details.ti.task_id,
+        )
+        return functools.partial(
+            coordinator_cls.run_task_execution,
+            what=startup_details.ti,
+            dag_rel_path=startup_details.dag_rel_path,
+            bundle_info=startup_details.bundle_info,
+            startup_details=startup_details,
+        )
+
+    log.debug(
+        "No runtime coordinator matched, using standard Python execution path",
+        queue=queue,
+        dag_rel_path=dag_rel_path,
+        task_id=startup_details.ti.task_id,
+    )
+    return None
+
+
 @flush_spans()
 def main():
     log = structlog.get_logger(logger_name="task")
@@ -1987,6 +2089,14 @@ def main():
                 # startup message as a ResendLoggingFD response.
                 if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
                     reinit_supervisor_comms()
+                # Check if a provider-registered runtime coordinator should
+                # handle this task (e.g. Java, Go) instead of the standard
+                # Python execution path.
+                log.debug("Checking for runtime-specific entrypoint")
+                runtime_entrypoint = _resolve_runtime_entrypoint(startup_details, log)
+                if runtime_entrypoint is not None:
+                    runtime_entrypoint()
+                    return
                 span = _make_task_span(msg=startup_details)
                 stack.enter_context(span)
                 ti, context, log = startup(msg=startup_details)

@@ -142,6 +142,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable,
     handle_mask_secret,
 )
+from airflow.sdk.execution_time.selector_loop import make_buffered_socket_reader, service_selector
 
 try:
     from socket import send_fds
@@ -160,6 +161,8 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
+    from airflow.sdk.execution_time.selector_loop import SelectorCallback
+    from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task"]
@@ -713,7 +716,7 @@ class WatchedSubprocess:
             target_loggers += (log,)
         return target_loggers
 
-    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> SelectorCallback:
         """Create a socket handler that forwards logs to a logger."""
         loggers = tuple(
             reconfigure_logger(
@@ -906,41 +909,15 @@ class WatchedSubprocess:
         """
         Service subprocess events by processing socket activity and checking for process exit.
 
-        This method:
-        - Waits for activity on the registered file objects (via `self.selector.select`).
-        - Processes any events triggered on these file objects.
-        - Checks if the subprocess has exited during the wait.
+        Delegates the selector event loop to :func:`service_selector` (shared
+        with provider-registered bridges), then checks the subprocess status.
 
         :param max_wait_time: Maximum time to block while waiting for events, in seconds.
         :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
         :param expect_signal: Signal not to log if the task exits with this code.
         :returns: The process exit code, or None if it's still alive
         """
-        # Ensure minimum timeout to prevent CPU spike with tight loop when timeout is 0 or negative
-        timeout = max(0.01, max_wait_time)
-        events = self.selector.select(timeout=timeout)
-        for key, _ in events:
-            # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
-            socket_handler, on_close = key.data
-
-            # Example of handler behavior:
-            # If the subprocess writes "Hello, World!" to stdout:
-            # - `socket_handler` reads and processes the message.
-            # - If EOF is reached, the handler returns False to signal no more reads are expected.
-            # - BrokenPipeError should be caught and treated as if the handler returned false, similar
-            # to EOF case
-            try:
-                need_more = socket_handler(key.fileobj)
-            except (BrokenPipeError, ConnectionResetError):
-                need_more = False
-
-            # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
-            # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
-            # are removed.
-            if not need_more:
-                sock: socket = key.fileobj  # type: ignore[assignment]
-                on_close(sock)
-                sock.close()
+        service_selector(self.selector, timeout=max_wait_time)
 
         # Check if the subprocess has exited
         return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
@@ -1150,7 +1127,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        what: TaskInstance,
+        what: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         client: Client,
@@ -1179,7 +1156,7 @@ class ActivitySubprocess(WatchedSubprocess):
     def _on_child_started(
         self,
         *,
-        ti: TaskInstance,
+        ti: TaskInstanceDTO,
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
@@ -2000,50 +1977,6 @@ def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
     return InProcessTestSupervisor.start(what=ti, task=task)
 
 
-# Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
-# and it doesn't contain a new line character, `.readline()` will just return the chunk as is.
-#
-# This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
-# to a (sync) generator
-def make_buffered_socket_reader(
-    gen: Generator[None, bytes | bytearray, None],
-    on_close: Callable[[socket], None],
-    buffer_size: int = 4096,
-):
-    buffer = bytearray()  # This will hold our accumulated binary data
-    read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
-
-    # We need to start up the generator to get it to the point it's at waiting on the yield
-    next(gen)
-
-    def cb(sock: socket):
-        nonlocal buffer, read_buffer
-        # Read up to `buffer_size` bytes of data from the socket
-        n_received = sock.recv_into(read_buffer)
-
-        if not n_received:
-            # If no data is returned, the connection is closed. Return whatever is left in the buffer
-            if len(buffer):
-                with suppress(StopIteration):
-                    gen.send(buffer)
-            return False
-
-        buffer.extend(read_buffer[:n_received])
-
-        # We could have read multiple lines in one go, yield them all
-        while (newline_pos := buffer.find(b"\n")) != -1:
-            line = buffer[: newline_pos + 1]
-            try:
-                gen.send(line)
-            except StopIteration:
-                return False
-            buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
-
-        return True
-
-    return cb, on_close
-
-
 def length_prefixed_frame_reader(
     gen: Generator[None, _RequestFrame, None], on_close: Callable[[socket], None]
 ):
@@ -2218,7 +2151,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
 def supervise_task(
     *,
-    ti: TaskInstance,
+    ti: TaskInstanceDTO,
     bundle_info: BundleInfo,
     dag_rel_path: str | os.PathLike[str],
     token: str,
