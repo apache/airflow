@@ -33,7 +33,7 @@ PROJECT BY THE `generate-pypi-readme` PREK HOOK. YOUR CHANGES HERE WILL BE AUTOM
 | Version | Build Status                                                                                                                                                    |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Main    | [![Tests AMD main](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg)](https://github.com/apache/airflow/actions/workflows/ci-amd.yml) [![Tests ARM main](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg)](https://github.com/apache/airflow/actions/workflows/ci-arm.yml) |
-| 3.x     | [![Tests AMD 3.2](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions/workflows/ci-amd.yml) |
+| 3.x     | [![Tests AMD 3.2](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions/workflows/ci-amd.yml) [![Tests ARM 3.2](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg?branch=v3-2-test)](https://github.com/apache/airflow/actions/workflows/ci-arm.yml) |
 
 
 

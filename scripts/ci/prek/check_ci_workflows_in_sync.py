@@ -27,9 +27,12 @@ Documented divergences:
 
 1. Header intro comment (different prose explaining what each file is for)
 2. Workflow ``name:`` — ``Tests (ARM)`` vs ``Tests (AMD)``
-3. Triggers — ARM = schedule + workflow_dispatch only; AMD = its own
-   schedule (offset from ARM's cron) + pull_request + push (to release
-   branches) + workflow_dispatch
+3. Triggers — ARM = its own schedule + push (to release-prep /
+   providers branches) + workflow_dispatch; AMD = its own schedule
+   (offset from ARM's cron) + the same push branches + pull_request +
+   workflow_dispatch. Both wrappers run on post-merge pushes to
+   stable / providers branches; only AMD runs on PRs (per-PR ARM
+   coverage stays cron-driven via the canary).
 4. ``concurrency.group`` prefix — ``ci-arm-`` vs ``ci-amd-``
 5. ``build-info`` outputs ``platform`` and ``runner-type`` — hardcoded per
    architecture (and the surrounding comment naming the "ARM/AMD copy")
@@ -112,10 +115,6 @@ AMD_ONLY_BLOCK = """  schedule:
     # offset by 30 min from ARM's `:28` slot in `ci-arm.yml` so the two scheduled
     # canaries don't compete for runners at exactly the same minute.
     - cron: '58 1,7,13,19 * * *'
-  push:
-    branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   pull_request:
     branches:
       - main
@@ -124,6 +123,7 @@ AMD_ONLY_BLOCK = """  schedule:
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, ready_for_review]
 """
+
 
 # The header comment block (between the `---` document marker and the
 # `name:` line) is intentionally different between files — each describes
