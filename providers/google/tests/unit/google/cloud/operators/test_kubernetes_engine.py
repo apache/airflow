@@ -41,6 +41,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.links.kubernetes_engine import KubernetesEnginePodLink
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEClusterAuthDetails,
     GKECreateClusterOperator,
@@ -98,6 +99,13 @@ K8S_POD_NAME = "test-pod"
 K8S_NAMESPACE = "default"
 
 GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine.{}"
+
+
+def make_mock_pod(name: str = K8S_POD_NAME, namespace: str = K8S_NAMESPACE):
+    metadata = mock.MagicMock()
+    metadata.name = name
+    metadata.namespace = namespace
+    return mock.MagicMock(metadata=metadata)
 
 
 class TestGKEClusterAuthDetails:
@@ -865,26 +873,28 @@ class TestGKEStartPodOperator:
             for expected_attr in expected_attributes:
                 assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 
-    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
-    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
-    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
     @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
-    def test_invoke_defer_method(
-        self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEnginePodLink.persist"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
+    def test_invoke_defer_method_persists_pod_link(
+        self, mock_defer, mock_persist, mock_fetch_cluster_info, mock_cluster_hook, mock_utcnow, mock_trigger
     ):
         mock_trigger_start_time = mock_utcnow.return_value
+        mock_context = {"ti": mock.MagicMock()}
+        call_manager = mock.MagicMock()
+        call_manager.attach_mock(mock_persist, "persist")
+        call_manager.attach_mock(mock_defer, "defer")
 
-        mock_metadata = mock.MagicMock()
-        mock_metadata.name = K8S_POD_NAME
-        mock_metadata.namespace = K8S_NAMESPACE
-        self.operator.pod = mock.MagicMock(metadata=mock_metadata)
+        self.operator.pod = make_mock_pod()
         mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
         mock_get_logs = mock.MagicMock()
         self.operator.get_logs = mock_get_logs
         mock_last_log_time = mock.MagicMock()
 
-        self.operator.invoke_defer_method(last_log_time=mock_last_log_time)
+        self.operator.invoke_defer_method(last_log_time=mock_last_log_time, context=mock_context)
 
         mock_trigger.assert_called_once_with(
             pod_name=K8S_POD_NAME,
@@ -906,9 +916,114 @@ class TestGKEStartPodOperator:
             last_log_time=mock_last_log_time,
             use_dns_endpoint=False,
         )
+        assert call_manager.mock_calls == [
+            call.persist(
+                context=mock_context,
+                location=TEST_LOCATION,
+                cluster_name=GKE_CLUSTER_NAME,
+                namespace=K8S_NAMESPACE,
+                pod_name=K8S_POD_NAME,
+                project_id=TEST_PROJECT_ID,
+            ),
+            call.defer(
+                trigger=mock_trigger.return_value,
+                method_name="trigger_reentry",
+            ),
+        ]
+
+    @mock.patch.object(KubernetesPodOperator, "execute_sync", autospec=True)
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEnginePodLink.persist"))
+    def test_execute_sync_persists_pod_link_on_success(self, mock_persist, mock_execute_sync):
+        context = {"ti": mock.MagicMock()}
+
+        def execute_sync_side_effect(operator, current_context):
+            operator.pod = make_mock_pod()
+            return "result"
+
+        mock_execute_sync.side_effect = execute_sync_side_effect
+
+        result = self.operator.execute_sync(context)
+
+        assert result == "result"
+        mock_execute_sync.assert_called_once_with(self.operator, context)
+        mock_persist.assert_called_once_with(
+            context=context,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=K8S_NAMESPACE,
+            pod_name=K8S_POD_NAME,
+            project_id=TEST_PROJECT_ID,
+        )
+
+    @mock.patch.object(KubernetesPodOperator, "execute_sync", autospec=True)
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEnginePodLink.persist"))
+    def test_execute_sync_persists_pod_link_on_pod_failure(self, mock_persist, mock_execute_sync):
+        context = {"ti": mock.MagicMock()}
+
+        def execute_sync_side_effect(operator, current_context):
+            operator.pod = make_mock_pod()
+            raise RuntimeError("Pod failed")
+
+        mock_execute_sync.side_effect = execute_sync_side_effect
+
+        with pytest.raises(RuntimeError, match="Pod failed"):
+            self.operator.execute_sync(context)
+
+        mock_execute_sync.assert_called_once_with(self.operator, context)
+        mock_persist.assert_called_once_with(
+            context=context,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=K8S_NAMESPACE,
+            pod_name=K8S_POD_NAME,
+            project_id=TEST_PROJECT_ID,
+        )
+
+    @mock.patch.object(KubernetesPodOperator, "execute_sync", autospec=True)
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEnginePodLink.persist"))
+    def test_execute_sync_skips_persist_when_pod_not_created(self, mock_persist, mock_execute_sync):
+        context = {"ti": mock.MagicMock()}
+        mock_execute_sync.side_effect = RuntimeError("Pod failed")
+
+        with pytest.raises(RuntimeError, match="Pod failed"):
+            self.operator.execute_sync(context)
+
+        mock_execute_sync.assert_called_once_with(self.operator, context)
+        mock_persist.assert_not_called()
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEnginePodLink.persist"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
+    def test_invoke_defer_method_skips_persist_without_context(
+        self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_persist, mock_defer
+    ):
+        self.operator.pod = make_mock_pod()
+        mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
+
+        self.operator.invoke_defer_method()
+
+        mock_persist.assert_not_called()
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
             method_name="trigger_reentry",
+        )
+
+    def test_pod_link_url_format(self):
+        pod_link = KubernetesEnginePodLink()
+
+        assert pod_link._format_link(
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=K8S_NAMESPACE,
+            pod_name=K8S_POD_NAME,
+            project_id=TEST_PROJECT_ID,
+        ) == (
+            "https://console.cloud.google.com"
+            f"/kubernetes/pod/{TEST_LOCATION}/{GKE_CLUSTER_NAME}/{K8S_NAMESPACE}/{K8S_POD_NAME}"
+            f"/details?project={TEST_PROJECT_ID}"
         )
 
 
