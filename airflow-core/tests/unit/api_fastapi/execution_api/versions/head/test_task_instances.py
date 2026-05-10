@@ -3546,6 +3546,7 @@ class TestEmitTaskSpan:
     def _make_ti(self, task_id="my_task", map_index=-1, queued_dttm=None, start_date=None):
         dr_carrier, ti_carrier = self._make_carriers()
         ti = mock.MagicMock()
+        ti.id = UUID("0182e924-0f1e-77e6-ab50-e977118bc139")
         ti.dag_id = "test_dag"
         ti.task_id = task_id
         ti.run_id = "test_run"
@@ -3582,6 +3583,10 @@ class TestEmitTaskSpan:
         assert attrs["airflow.task_instance.try_number"] == 1
         assert attrs["airflow.task_instance.map_index"] == 2
         assert attrs["airflow.task_instance.state"] == TaskInstanceState.SUCCESS
+        # The OTEL SDK only accepts str/bytes/int/float/bool attribute values,
+        # so the UUID must be stringified before being set on the span.
+        assert attrs["airflow.task_instance.id"] == str(ti.id)
+        assert isinstance(attrs["airflow.task_instance.id"], str)
 
     def test_emit_task_span_name_unmapped(self):
         _emit_task_span(self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS)
