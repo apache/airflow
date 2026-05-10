@@ -2127,3 +2127,22 @@ class TestPodTemplateFile:
         )
 
         assert jmespath.search("spec.serviceAccountName", docs[0]) == "test-release-airflow-worker-kubernetes"
+
+    def test_dedicated_service_account_name_when_creation_disabled(self):
+        docs = render_chart(
+            name="test-release",
+            values={
+                "workers": {
+                    "kubernetes": {
+                        "serviceAccount": {
+                            "create": False,
+                            "name": "airflow",
+                        }
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.serviceAccountName", docs[0]) == "airflow"

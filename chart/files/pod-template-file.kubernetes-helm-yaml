@@ -236,7 +236,7 @@ spec:
   terminationGracePeriodSeconds: {{ .Values.workers.kubernetes.terminationGracePeriodSeconds | default .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
-  {{- if .Values.workers.kubernetes.serviceAccount.create }}
+  {{- if has .Values.workers.kubernetes.serviceAccount.create (list true false) }}
   serviceAccountName: {{ include "worker.kubernetes.serviceAccountName" . }}
   {{- else }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
