@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
+import weakref
 from itertools import islice
 from typing import IO, TYPE_CHECKING
 
@@ -30,6 +32,24 @@ if TYPE_CHECKING:
         StructuredLogMessage,
         StructuredLogStream,
     )
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_remove(path: str) -> None:
+    """
+    Remove path, swallowing missing-file errors and logging others.
+
+    Module-level rather than a method so weakref.finalize can hold it
+    without retaining a strong reference to the owning accumulator (which
+    would defeat the backstop).
+    """
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        logger.debug("LogStreamAccumulator: could not remove temp file %s: %s", path, exc)
 
 
 class LogStreamAccumulator:
@@ -69,11 +89,17 @@ class LogStreamAccumulator:
         self._buffer: list[StructuredLogMessage] = []
         self._disk_lines: int = 0
         self._tmpfile: IO[str] | None = None
+        self._stream_accessed: bool = False
+        self._finalizer: weakref.finalize | None = None
 
     def _flush_buffer_to_disk(self) -> None:
         """Flush the buffer contents to a temporary file on disk."""
         if self._tmpfile is None:
             self._tmpfile = tempfile.NamedTemporaryFile(delete=False, mode="w+", encoding="utf-8")
+            # Backstop: guarantee the spill file is removed when this accumulator
+            # is garbage-collected, even if the caller abandons the stream
+            # generator (e.g. client disconnect on a StreamingResponse).
+            self._finalizer = weakref.finalize(self, _safe_remove, self._tmpfile.name)
 
         self._disk_lines += len(self._buffer)
         self._tmpfile.writelines(f"{log.model_dump_json()}\n" for log in self._buffer)
@@ -91,12 +117,16 @@ class LogStreamAccumulator:
             self._flush_buffer_to_disk()
 
     def _cleanup(self) -> None:
-        """Clean up the temporary file if it exists."""
+        """Release the temp file and detach the finalizer; safe to call repeatedly."""
         self._buffer.clear()
-        if self._tmpfile:
+        if self._tmpfile is not None:
+            path = self._tmpfile.name
             self._tmpfile.close()
-            os.remove(self._tmpfile.name)
+            _safe_remove(path)
             self._tmpfile = None
+        if self._finalizer is not None:
+            self._finalizer.detach()
+            self._finalizer = None
 
     @property
     def total_lines(self) -> int:
@@ -119,6 +149,10 @@ class LogStreamAccumulator:
         Returns:
             A stream of the captured log messages.
         """
+        self._stream_accessed = True
+        return self._iter_stream()
+
+    def _iter_stream(self) -> StructuredLogStream:
         try:
             if not self._tmpfile:
                 # if no temporary file was created, return from the buffer
@@ -147,9 +181,13 @@ class LogStreamAccumulator:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """
-        Context manager exit that doesn't perform resource cleanup.
+        Context manager exit.
 
-        Note: Resources are not cleaned up here. Cleanup is deferred until
-        get_stream() is called and fully consumed, ensuring all logs are properly
-        yielded before cleanup occurs.
+        Cleans up immediately when an exception is propagating, or when the
+        caller never accessed .stream (so no generator exists to run the
+        deferred finally block). When the caller did access .stream,
+        cleanup is left to the generator's finally (happy path) with
+        weakref.finalize as a backstop if the generator is abandoned.
         """
+        if exc_type is not None or not self._stream_accessed:
+            self._cleanup()
