@@ -155,19 +155,10 @@ def configure_logging():
 
     base_log_folder = conf.get("logging", "base_log_folder")
 
-    try:
-        return init_log_folder(
-            base_log_folder,
-            new_folder_permissions=new_folder_permissions,
-        )
-    except PermissionError as e:
-        log.warning(
-            "Could not create log folder %s: %s. "
-            "Airflow will continue but logging to this directory may fail.",
-            base_log_folder,
-            e,
-        )
-        return None
+    return init_log_folder(
+        base_log_folder,
+        new_folder_permissions=new_folder_permissions,
+    )
 
 
 def validate_logging_config():

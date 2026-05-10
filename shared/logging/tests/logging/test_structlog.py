@@ -36,8 +36,9 @@ from structlog.processors import CallsiteParameter
 from airflow_shared.logging import structlog as structlog_module
 from airflow_shared.logging.structlog import configure_logging
 
-# We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
-# _rendered_ output of the tests to make sure it is correct.
+# We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
+# _rendered_ output of the tests to make sure it is correct. One test intentionally uses caplog to assert
+# on stdlib logging warnings from init_log_folder.
 
 PY_3_11 = sys.version_info >= (3, 11)
 
@@ -514,14 +515,13 @@ def test_excepthook_passes_keyboard_interrupt_to_original():
 
 
 def test_init_log_folder_permission_error_logs_warning_and_continues(caplog):
+    """Uses caplog to assert stdlib logging output from init_log_folder (exception path)."""
     from airflow_shared.logging.structlog import init_log_folder
 
     with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
         with caplog.at_level(logging.WARNING):
             init_log_folder("/tmp/blocked", 0o775)
-            continued_after_call = True
 
-    assert continued_after_call
     assert "Could not create log folder" in caplog.text
 
 
