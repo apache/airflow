@@ -22,6 +22,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateGuardrailOperator,
     BedrockCreateGuardrailVersionOperator,
     BedrockDeleteGuardrailOperator,
+    BedrockUpdateGuardrailOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -76,9 +77,20 @@ with DAG(
     )
     # [END howto_operator_bedrock_create_guardrail_version]
 
+    # [START howto_operator_bedrock_update_guardrail]
+    update_guardrail = BedrockUpdateGuardrailOperator(
+        task_id="update_guardrail",
+        guardrail_identifier=create_guardrail.output,
+        guardrail_name=f"{env_id}-guardrail-updated",
+        blocked_input_messaging="Updated: input blocked.",
+        blocked_outputs_messaging="Updated: output blocked.",
+    )
+    # [END howto_operator_bedrock_update_guardrail]
+
     chain(
         test_context,
         create_guardrail,
+        update_guardrail,
         create_guardrail_version,
         delete_guardrail,
     )

@@ -851,15 +851,7 @@ class TestTriggerRunner:
         session.commit()
 
         stored_kwargs = trigger_orm.kwargs
-        assert stored_kwargs == {
-            "Encoding.TYPE": "dict",
-            "Encoding.VAR": {
-                "dict": {"Encoding.TYPE": "dict", "Encoding.VAR": {}},
-                "list": [],
-                "simple": "test",
-                "tuple": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
-            },
-        }
+        assert stored_kwargs == kw
 
         runner = TriggerRunner()
         runner.to_create.append(
@@ -1758,6 +1750,7 @@ class TestTriggererMessageTypes:
             "DeferTask",
             "GetAssetByName",
             "GetAssetByUri",
+            "GetAssetsByAlias",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
             "GetDagRun",
@@ -1780,10 +1773,24 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "GetDag",
+            # AIP-103 task/asset state — triggerer has no task execution context.
+            "GetTaskState",
+            "SetTaskState",
+            "DeleteTaskState",
+            "ClearTaskState",
+            "GetAssetStateByName",
+            "GetAssetStateByUri",
+            "SetAssetStateByName",
+            "SetAssetStateByUri",
+            "DeleteAssetStateByName",
+            "DeleteAssetStateByUri",
+            "ClearAssetStateByName",
+            "ClearAssetStateByUri",
         }
 
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
+            "AssetsByAliasResult",
             "AssetEventsResult",
             "DagRunResult",
             "SentFDs",
@@ -1800,6 +1807,9 @@ class TestTriggererMessageTypes:
             "PreviousTIResult",
             "HITLDetailRequestResult",
             "DagResult",
+            # AIP-103 task/asset state results — worker-only responses to the above messages.
+            "TaskStateResult",
+            "AssetStateResult",
         }
 
         supervisor_diff = (
