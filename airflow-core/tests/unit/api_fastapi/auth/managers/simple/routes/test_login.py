@@ -85,6 +85,7 @@ class TestLogin:
             assert response.status_code == 307
             assert "location" in response.headers
             assert response.cookies.get("_token") is not None
+            assert "samesite=lax" in response.headers["set-cookie"].lower()
 
     def test_login_all_admins_config_disabled(self, test_client):
         response = test_client.get("/auth/token/login", follow_redirects=False)

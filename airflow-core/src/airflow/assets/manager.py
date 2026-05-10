@@ -187,7 +187,7 @@ class AssetManager(LoggingMixin):
 
         :param dags_to_queue: set of DagModel instances to potentially queue.
         :param source_teams: set of team names the source belongs to. Empty set means teamless.
-        :param asset_model: the AssetModel whose extra may contain allow_producer_teams.
+        :param asset_model: the AssetModel whose scheduled_dags carry allow_producer_teams.
         :param source_is_api: True if the event was triggered via the REST API (not a DAG task).
         :param session: SQLAlchemy session.
         """
@@ -199,11 +199,15 @@ class AssetManager(LoggingMixin):
 
         from airflow.models.dag import DagModel
 
-        allow_producer_teams: list[str] = asset_model.extra.get("allow_producer_teams", [])
         is_teamless_source = len(source_teams) == 0
 
         dag_ids = [dag.dag_id for dag in dags_to_queue]
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+
+        # Build per-consumer allow_producer_teams from the schedule reference rows.
+        dag_id_to_allow_teams: dict[str, list[str]] = {
+            ref.dag_id: ref.allow_producer_teams or [] for ref in asset_model.scheduled_dags
+        }
 
         filtered = set()
         for dag in dags_to_queue:
@@ -227,6 +231,7 @@ class AssetManager(LoggingMixin):
                 filtered.add(dag)
                 continue
 
+            allow_producer_teams = dag_id_to_allow_teams.get(dag.dag_id, [])
             if source_teams & set(allow_producer_teams):
                 # Cross-team via allow_producer_teams
                 filtered.add(dag)
