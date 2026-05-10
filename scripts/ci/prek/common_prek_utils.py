@@ -26,7 +26,7 @@ import subprocess
 import sys
 import textwrap
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
@@ -526,7 +526,7 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
     return providers
 
 
-def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom, marker: str) -> bool:
+def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom | ast.Import, marker: str) -> bool:
     """Check if the import statement has the given nocheck marker comment on any of its lines."""
     start = node.lineno
     end = node.end_lineno or start
@@ -534,6 +534,74 @@ def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom, marker: st
         if lineno <= len(source_lines) and marker in source_lines[lineno - 1]:
             return True
     return False
+
+
+def find_import_violations(
+    file_path: Path,
+    *,
+    is_violating_module: Callable[[str], bool],
+    marker: str,
+    check_plain_imports: bool = False,
+) -> list[tuple[int, str]]:
+    """
+    Walk imports in ``file_path`` and return ``(lineno, statement)`` for each
+    that matches ``is_violating_module`` and is not suppressed by ``marker``.
+
+    :param check_plain_imports: also check ``import x`` statements (in addition
+        to ``from x import y``).
+    """
+    try:
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(file_path))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return []
+
+    source_lines = source.splitlines()
+    violations: list[tuple[int, str]] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module and is_violating_module(node.module):
+                if has_nocheck_marker(source_lines, node, marker):
+                    continue
+                import_names = ", ".join(alias.name for alias in node.names)
+                violations.append((node.lineno, f"from {node.module} import {import_names}"))
+        elif check_plain_imports and isinstance(node, ast.Import):
+            for alias in node.names:
+                if is_violating_module(alias.name):
+                    if has_nocheck_marker(source_lines, node, marker):
+                        continue
+                    statement = f"import {alias.name}"
+                    if alias.asname:
+                        statement += f" as {alias.asname}"
+                    violations.append((node.lineno, statement))
+
+    return violations
+
+
+def report_import_violations(
+    files: list[str],
+    *,
+    check_func: Callable[[Path], list[tuple[int, str]]],
+    violation_label: str,
+    only_python_files: bool = False,
+) -> None:
+    """Run ``check_func`` on each file, print violations, and exit(1) if any are found."""
+    file_paths = [Path(f) for f in files if not only_python_files or f.endswith(".py")]
+    total_violations = 0
+
+    for file_path in file_paths:
+        mismatches = check_func(file_path)
+        if mismatches:
+            console.print(f"[red]{file_path}[/red]:")
+            for line_num, statement in mismatches:
+                console.print(f"  [yellow]Line {line_num}[/yellow]: {statement}")
+            total_violations += len(mismatches)
+
+    if total_violations:
+        console.print()
+        console.print(f"[red]Found {total_violations} {violation_label}[/red]")
+        sys.exit(1)
 
 
 def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]:

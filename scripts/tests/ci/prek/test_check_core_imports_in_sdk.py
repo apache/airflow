@@ -75,17 +75,17 @@ class TestNocheckMarker:
         "code, expected",
         [
             pytest.param(
-                "from airflow.models import DagRun  # nocheck: core-imports\n",
+                "from airflow.models import DagRun  # noqa: SDK002\n",
                 [],
                 id="from-import-suppressed",
             ),
             pytest.param(
-                "import airflow.models  # nocheck: core-imports\n",
+                "import airflow.models  # noqa: SDK002\n",
                 [],
                 id="import-suppressed",
             ),
             pytest.param(
-                "from airflow.models import DagRun  # nocheck: core-imports - needed for compat\n",
+                "from airflow.models import DagRun  # noqa: SDK002 - needed for compat\n",
                 [],
                 id="marker-with-extra-text",
             ),
@@ -94,14 +94,14 @@ class TestNocheckMarker:
                     from airflow.models import (
                         DagRun,
                         TaskInstance,
-                    )  # nocheck: core-imports
+                    )  # noqa: SDK002
                 """),
                 [],
                 id="multiline-marker-on-closing-paren",
             ),
             pytest.param(
                 textwrap.dedent("""\
-                    from airflow.models import (  # nocheck: core-imports
+                    from airflow.models import (  # noqa: SDK002
                         DagRun,
                         TaskInstance,
                     )
@@ -112,7 +112,7 @@ class TestNocheckMarker:
             pytest.param(
                 textwrap.dedent("""\
                     from airflow.models import (
-                        DagRun,  # nocheck: core-imports
+                        DagRun,  # noqa: SDK002
                         TaskInstance,
                     )
                 """),
@@ -136,7 +136,7 @@ class TestNocheckMarker:
             ),
             pytest.param(
                 textwrap.dedent("""\
-                    from airflow.models import DagRun  # nocheck: core-imports
+                    from airflow.models import DagRun  # noqa: SDK002
                     from airflow.jobs import BaseJob
                 """),
                 [(2, "from airflow.jobs import BaseJob")],
