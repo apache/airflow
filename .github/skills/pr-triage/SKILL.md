@@ -1,27 +1,14 @@
 ---
 name: pr-triage
 description: |
-  Sweep open pull requests on `apache/airflow` (or another
-  target repo), classify each one against the project's quality
-  criteria, propose a disposition, and — on the maintainer's
-  confirmation — carry out the action via `gh`. Covers the
-  first-pass triage that used to live in `breeze pr auto-triage`
-  (triage mode): decide whether each PR should be converted to
-  draft with a quality-issues comment, commented on, closed,
-  rebased, have CI reruns triggered, have a first-time-contributor
-  workflow approved, be pinged to a stale reviewer, or marked
-  `ready for maintainer review`. Does **not** perform
-  code review (no LLM line comments, no approve/request-changes
-  submissions) — that lives in a separate skill.
+  First-pass triage of open PRs on apache/airflow — classify each against
+  project quality criteria and propose / carry out a disposition (draft,
+  comment, close, rebase, rerun CI, approve first-contributor workflow, ping
+  reviewer, or mark `ready for maintainer review`). Does not perform code review.
 when_to_use: |
-  Invoke when a maintainer says "triage the PR queue", "go through
-  new contributor PRs", "run the morning triage", "triage PR NNN",
-  "are there any stale PRs we should close", or any variation on
-  the "sweep the contributor PRs and tell me which ones need
-  action" theme. Also appropriate as a recurring morning sweep —
-  the skill is cheap against a one-page batch (default 20 PRs)
-  and is a no-op when every candidate is already triaged or inside
-  its grace window.
+  When a maintainer says "triage the PR queue", "morning triage", "triage PR
+  NNN", "go through new contributor PRs", or "are there stale PRs to close".
+  Cheap to run as a recurring sweep.
 license: Apache-2.0
 ---
 <!-- SPDX-License-Identifier: Apache-2.0

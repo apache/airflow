@@ -182,7 +182,7 @@ export const HITLTaskInstances = () => {
   const createdAtLte = searchParams.get(CREATED_AT_LTE) ?? undefined;
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
-  const mapIndex = searchParams.get(MAP_INDEX) ?? "-1";
+  const mapIndexParam = searchParams.get(MAP_INDEX);
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
   const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
   const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
@@ -212,7 +212,7 @@ export const HITLTaskInstances = () => {
       ...dagIdArg,
       dagRunId: runId ?? "~",
       limit: pagination.pageSize,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: mapIndexParam === null ? undefined : parseInt(mapIndexParam, 10),
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
       respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
@@ -232,8 +232,7 @@ export const HITLTaskInstances = () => {
       refetchInterval: (query) => {
         const hasDeferredWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) =>
-              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+            (detail: HITLDetail) => detail.responded_at === null && detail.task_instance.state === "deferred",
           ),
         );
 

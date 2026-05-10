@@ -40,3 +40,16 @@ bin
 
 # We do not want to include our Python Helm Chart Unit test files
 tests
+# Workspace-member metadata for the chart's pytest / mypy config — irrelevant
+# to chart consumers.
+pyproject.toml
+# Local dev/CI hook config — irrelevant to chart consumers.
+.pre-commit-config.yaml
+# Chart documentation source (rendered to airflow.apache.org/docs/helm-chart/);
+# chart consumers do not need the rst sources shipped inside the .tgz.
+docs/
+# towncrier source fragments used to build RELEASE_NOTES.rst at release time.
+newsfragments/
+# Reference Kustomize overlays — published in the source tree, explicitly NOT
+# distributed inside the chart .tgz (see kustomize-overlays/README.rst).
+kustomize-overlays/

@@ -57,7 +57,11 @@ class CloudLoggingHook(GoogleBaseHook):
     def get_conn(self) -> ConfigServiceV2Client:
         """Return the Google Cloud Logging Config client."""
         if not self._client:
-            self._client = ConfigServiceV2Client(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ConfigServiceV2Client(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     def get_parent(self, project_id):
