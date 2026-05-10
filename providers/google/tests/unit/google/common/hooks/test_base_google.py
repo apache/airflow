@@ -29,6 +29,7 @@ import google.auth
 import google.auth.compute_engine
 import pytest
 import tenacity
+from google.api_core.client_options import ClientOptions
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.cloud.exceptions import Forbidden
@@ -843,6 +844,66 @@ class TestGoogleBaseHook:
             idp_extra_params_dict=None,
         )
         assert (mock_credentials, PROJECT_ID) == result
+
+    @pytest.mark.parametrize(
+        ("universe_domain_value", "expected_result"),
+        [
+            pytest.param("googleapis.com", True, id="default_value"),
+            pytest.param("", True, id="empty_value"),
+            pytest.param("test_universe_domain", False, id="non_default_value"),
+        ],
+    )
+    def test_is_default_universe(self, universe_domain_value, expected_result):
+        with patch.dict(os.environ, {"GOOGLE_CLOUD_UNIVERSE_DOMAIN": universe_domain_value}):
+            is_default_universe = self.instance.is_default_universe()
+
+            assert is_default_universe == expected_result
+
+    def test_is_default_universe_none(self):
+        with patch.dict(os.environ, {}, clear=True):
+            is_default_universe = self.instance.is_default_universe()
+
+            assert is_default_universe
+
+    def test_get_client_options_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            client_options = self.instance.get_client_options()
+
+            assert isinstance(client_options, ClientOptions)
+            assert client_options.universe_domain is None
+            assert client_options.api_endpoint is None
+
+    def test_get_client_options_with_global_universe_domain(self):
+        env_value = "test_universe_domain"
+        with patch.dict(os.environ, {"GOOGLE_CLOUD_UNIVERSE_DOMAIN": env_value}):
+            client_options = self.instance.get_client_options(api_endpoint_override="ignore_api_endpoint")
+
+            assert isinstance(client_options, ClientOptions)
+            assert client_options.universe_domain == env_value
+            assert client_options.api_endpoint is None
+
+    def test_get_client_options_with_api_endpoint_override(self):
+        api_endpoint_override = "test_api_endpoint"
+        with patch.dict(os.environ, {}, clear=True):
+            client_options = self.instance.get_client_options(api_endpoint_override=api_endpoint_override)
+
+            assert isinstance(client_options, ClientOptions)
+            assert client_options.api_endpoint == api_endpoint_override
+            assert client_options.universe_domain is None
+
+    def test_get_client_options_with_api_endpoint_override_and_with_global_universe_domain(self, caplog):
+        api_endpoint_override = "test_api_endpoint"
+        env_value = "test_universe_domain"
+        with patch.dict(os.environ, {"GOOGLE_CLOUD_UNIVERSE_DOMAIN": env_value}):
+            client_options = self.instance.get_client_options(api_endpoint_override=api_endpoint_override)
+
+            assert (
+                "Ignoring api_endpoint_override because the universe domain is not Google default universe."
+                in caplog.text
+            )
+            assert isinstance(client_options, ClientOptions)
+            assert client_options.universe_domain == env_value
+            assert client_options.api_endpoint is None
 
 
 class TestProvideAuthorizedGcloud:

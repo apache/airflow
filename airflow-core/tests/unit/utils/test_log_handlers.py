@@ -545,20 +545,20 @@ class TestFileTaskLogHandler:
             logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
-        expected_logs = ["::group::Log message source details", "::endgroup::"]
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
             if remote_logs:
                 fth._read_remote_logs = mock.Mock()
                 fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
-                expected_logs.extend(
-                    [
-                        "remote",
-                        "log",
-                        "content",
-                    ]
-                )
+                expected_logs = [
+                    "::group::Log message source details",
+                    "found remote logs",
+                    "::endgroup::",
+                    "remote",
+                    "log",
+                    "content",
+                ]
             if local_logs:
                 fth._read_from_local = mock.Mock()
                 fth._read_from_local.return_value = (
@@ -567,13 +567,14 @@ class TestFileTaskLogHandler:
                 )
                 # only when not read from remote and TI is unfinished will read from local
                 if not remote_logs:
-                    expected_logs.extend(
-                        [
-                            "local",
-                            "log",
-                            "content",
-                        ]
-                    )
+                    expected_logs = [
+                        "::group::Log message source details",
+                        "found local logs",
+                        "::endgroup::",
+                        "local",
+                        "log",
+                        "content",
+                    ]
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = (
                 ["this message"],
@@ -581,13 +582,14 @@ class TestFileTaskLogHandler:
             )
             # only when not read from remote and not read from local will read from logs server
             if served_logs_checked:
-                expected_logs.extend(
-                    [
-                        "this",
-                        "log",
-                        "content",
-                    ]
-                )
+                expected_logs = [
+                    "::group::Log message source details",
+                    "this message",
+                    "::endgroup::",
+                    "this",
+                    "log",
+                    "content",
+                ]
 
             logs, metadata = fth._read(ti=ti, try_number=1)
         if served_logs_checked:

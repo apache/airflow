@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``b8f3e4a1d2c9`` (head) | ``fde9ed84d07b`` | ``3.3.0``         | Add retry_delay_override and retry_reason to task_instance.  |
+| ``a7f3b2c1d4e5`` (head) | ``b8f3e4a1d2c9`` | ``3.3.0``         | Add allow_producer_teams column to                           |
+|                         |                  |                   | dag_schedule_asset_reference table.                          |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``b8f3e4a1d2c9``        | ``fde9ed84d07b`` | ``3.3.0``         | Add retry_delay_override and retry_reason to task_instance.  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``fde9ed84d07b``        | ``9fabad868fdb`` | ``3.3.0``         | Add task_state and asset_state tables.                       |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+

@@ -18,9 +18,9 @@
  */
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { testConfig } from "playwright.config";
+import { apiTriggerDagRun, waitForDagReady } from "tests/e2e/utils/test-helpers";
 
 import { BasePage } from "./BasePage";
-import { DagsPage } from "./DagsPage";
 
 export class RequiredActionsPage extends BasePage {
   public readonly actionsTable: Locator;
@@ -60,7 +60,7 @@ export class RequiredActionsPage extends BasePage {
   public async navigateToRequiredActionsPage(): Promise<void> {
     await expect(async () => {
       await this.navigateTo(RequiredActionsPage.getRequiredActionsUrl());
-      await expect(this.pageHeading).toBeVisible({ timeout: 10_000 });
+      await expect(this.pageHeading).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -100,7 +100,7 @@ export class RequiredActionsPage extends BasePage {
       await expect(taskLocator).toBeVisible({ timeout: 20_000 });
       await this.page.mouse.move(0, 0);
       await taskLocator.click({ timeout: 5000 });
-    }).toPass({ intervals: [5000, 10_000, 15_000], timeout: 120_000 });
+    }).toPass({ intervals: [15_000], timeout: 120_000 });
   }
 
   private async clickRequiredActionLink(): Promise<void> {
@@ -133,7 +133,7 @@ export class RequiredActionsPage extends BasePage {
       await informationInput.fill("Approved by test");
     }
 
-    await expect(actionButton).toBeEnabled({ timeout: 10_000 });
+    await expect(actionButton).toBeEnabled();
     await this.clickButtonAndWaitForHITLResponse(actionButton);
 
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -175,7 +175,7 @@ export class RequiredActionsPage extends BasePage {
 
     const okButton = this.page.getByRole("button", { name: "OK" });
 
-    await expect(okButton).toBeVisible({ timeout: 10_000 });
+    await expect(okButton).toBeVisible();
     await this.clickButtonAndWaitForHITLResponse(okButton);
 
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -203,7 +203,7 @@ export class RequiredActionsPage extends BasePage {
 
     const respondButton = this.page.getByRole("button", { name: "Respond" });
 
-    await expect(respondButton).toBeVisible({ timeout: 10_000 });
+    await expect(respondButton).toBeVisible();
     await this.clickButtonAndWaitForHITLResponse(respondButton);
 
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -228,13 +228,13 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async runHITLFlow(dagId: string, approve: boolean): Promise<string> {
-    const dagsPage = new DagsPage(this.page);
+    const { baseUrl } = testConfig.connection;
 
-    const dagRunId = await dagsPage.triggerDag(dagId);
-
-    if (dagRunId === null) {
-      throw new Error("Failed to trigger Dag - dagRunId is null");
-    }
+    await waitForDagReady(this.apiRequest, dagId);
+    await this.apiRequest.patch(`${baseUrl}/api/v2/dags/${dagId}`, {
+      data: { is_paused: false },
+    });
+    const { dagRunId } = await apiTriggerDagRun(this.apiRequest, dagId);
 
     await this.waitForDagRunState(dagId, dagRunId, "Running");
 
@@ -300,7 +300,7 @@ export class RequiredActionsPage extends BasePage {
     }
 
     await this.navigateToRequiredActionsPage();
-    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+    await expect(this.actionsTable).toBeVisible();
   }
 
   private async waitForDagRunState(dagId: string, runId: string, expectedState: string): Promise<void> {
