@@ -1908,12 +1908,31 @@ class TestTriggererJobRunner:
 
         with (
             patch.object(job_runner, "register_signals"),
-            patch("airflow.jobs.triggerer_job_runner.Stats.initialize"),
+            patch("airflow.jobs.triggerer_job_runner.stats.initialize"),
         ):
             job_runner._execute()
 
         assert captured_context["value"] == "server"
         # Verify env var is restored after _execute() returns.
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") is None
+
+    def test_trigger_runner_sets_client_process_context(self, monkeypatch):
+        """TriggerRunner.run() marks subprocess as client context to prevent inheriting server privileges."""
+        captured_context = {}
+
+        async def capture_env(*args, **kwargs):
+            captured_context["value"] = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        runner = TriggerRunner()
+        with (
+            patch.object(runner, "arun", side_effect=capture_env),
+            patch("signal.signal"),
+        ):
+            runner.run()
+
+        assert captured_context["value"] == "client"
+        # Verify env var is restored after run() returns.
         assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") is None
 
 
