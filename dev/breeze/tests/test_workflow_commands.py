@@ -45,11 +45,11 @@ class TestPublishDocsTagValidation:
             args = extra_args + args
         return runner.invoke(workflow_run_publish, args, catch_exceptions=False)
 
-    @patch("airflow_breeze.commands.workflow_commands.run_command")
-    def test_ref_is_valid_tag_passes_validation(self, mock_run_command, runner):
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command")
+    def test_ref_is_valid_tag_passes_validation(self, mock_run_gh_command, runner):
         """When the ref exists as a tag, validation passes and the workflow is triggered."""
         tag_response = _make_gh_response("refs/tags/providers/2026-04-26")
-        mock_run_command.return_value = tag_response
+        mock_run_gh_command.return_value = tag_response
 
         with patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor") as mock_trigger:
             result = self._invoke(runner, "providers/2026-04-26")
@@ -57,15 +57,15 @@ class TestPublishDocsTagValidation:
         assert result.exit_code == 0
         mock_trigger.assert_called()
         # Only one gh api call (tag check), no branch check needed
-        mock_run_command.assert_called_once()
+        mock_run_gh_command.assert_called_once()
 
-    @patch("airflow_breeze.commands.workflow_commands.run_command")
-    def test_ref_is_branch_shows_actionable_message(self, mock_run_command, runner):
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command")
+    def test_ref_is_branch_shows_actionable_message(self, mock_run_gh_command, runner):
         """When the ref exists as a branch but not a tag, the error names the branch
         and points to --skip-tag-validation."""
         tag_response = _make_gh_response(None)
         branch_response = _make_gh_response("refs/heads/main")
-        mock_run_command.side_effect = [tag_response, branch_response]
+        mock_run_gh_command.side_effect = [tag_response, branch_response]
 
         result = self._invoke(runner, "main")
 
@@ -73,29 +73,29 @@ class TestPublishDocsTagValidation:
         assert "exists as a branch but not as a tag" in result.output
         assert "--skip-tag-validation" in result.output
         # Both tag and branch checks must have been made
-        assert mock_run_command.call_count == 2
-        calls = mock_run_command.call_args_list
+        assert mock_run_gh_command.call_count == 2
+        calls = mock_run_gh_command.call_args_list
         assert "refs/tags/main" in calls[0][0][0][2]
         assert "refs/heads/main" in calls[1][0][0][2]
 
-    @patch("airflow_breeze.commands.workflow_commands.run_command")
-    def test_ref_not_found_anywhere_shows_generic_message(self, mock_run_command, runner):
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command")
+    def test_ref_not_found_anywhere_shows_generic_message(self, mock_run_gh_command, runner):
         """When the ref exists neither as a tag nor a branch, a generic error is shown."""
-        mock_run_command.return_value = _make_gh_response(None)
+        mock_run_gh_command.return_value = _make_gh_response(None)
 
         result = self._invoke(runner, "nonexistent-ref-xyz")
 
         assert result.exit_code == 1
         assert "does not exist as a tag or branch" in result.output
         assert "--skip-tag-validation" in result.output
-        assert mock_run_command.call_count == 2
+        assert mock_run_gh_command.call_count == 2
 
-    @patch("airflow_breeze.commands.workflow_commands.run_command")
-    def test_skip_tag_validation_bypasses_checks(self, mock_run_command, runner):
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command")
+    def test_skip_tag_validation_bypasses_checks(self, mock_run_gh_command, runner):
         """With --skip-tag-validation, no gh api calls are made and the workflow proceeds."""
         with patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor") as mock_trigger:
             result = self._invoke(runner, "some-branch", extra_args=["--skip-tag-validation"])
 
         assert result.exit_code == 0
-        mock_run_command.assert_not_called()
+        mock_run_gh_command.assert_not_called()
         mock_trigger.assert_called()

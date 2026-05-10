@@ -146,7 +146,7 @@ def workflow_run_publish(
 
         if not tag_respo.get("ref"):
             # Check whether the ref exists as a branch (common case for -docs branches)
-            branch_result = run_command(
+            branch_result = run_gh_command(
                 ["gh", "api", f"repos/apache/airflow/git/refs/heads/{ref}"],
                 capture_output=True,
                 check=False,
