@@ -77,7 +77,8 @@ task_get_op_response_filter = HttpOperator(
     task_id="get_op_response_filter",
     method="GET",
     endpoint="get",
-    response_filter=lambda response: response.json()["nested"]["property"],
+    data={"status": "ready"},
+    response_filter=lambda response: response.json()["args"]["status"],
     dag=dag,
 )
 # [END howto_operator_http_task_get_op_response_filter]

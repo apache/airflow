@@ -17,19 +17,27 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import AzureAuthorityHosts
+from azure.identity.aio import ClientSecretCredential as AsyncClientSecretCredential
+from azure.mgmt.containerinstance.aio import (
+    ContainerInstanceManagementClient as AsyncContainerInstanceManagementClient,
+)
 from azure.mgmt.containerinstance.models import (
+    ContainerGroup,
     Logs,
     ResourceRequests,
     ResourceRequirements,
 )
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
+from airflow.providers.microsoft.azure.hooks.container_instance import (
+    AzureContainerInstanceAsyncHook,
+    AzureContainerInstanceHook,
+)
 
 
 @pytest.fixture
@@ -252,3 +260,256 @@ class TestAzureContainerInstanceHookCloudEnvironment:
             base_url=expected_base_url,
             credential_scopes=expected_scopes,
         )
+
+
+@pytest.fixture
+def async_conn_with_credentials(create_mock_connection):
+    return create_mock_connection(
+        Connection(
+            conn_id="azure_aci_async_test",
+            conn_type="azure_container_instance",
+            login="client-id",
+            password="client-secret",
+            extra={
+                "tenantId": "tenant-id",
+                "subscriptionId": "subscription-id",
+            },
+        )
+    )
+
+
+@pytest.fixture
+def async_conn_without_credentials(create_mock_connection):
+    return create_mock_connection(
+        Connection(
+            conn_id="azure_aci_async_no_creds",
+            conn_type="azure_container_instance",
+            extra={"subscriptionId": "subscription-id"},
+        )
+    )
+
+
+class TestAzureContainerInstanceAsyncHook:
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_get_async_conn_with_client_secret(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential = MagicMock(spec=AsyncClientSecretCredential)
+        mock_credential.close = AsyncMock()
+        mock_credential_cls.return_value = mock_credential
+        mock_client_instance = MagicMock(spec=AsyncContainerInstanceManagementClient)
+        mock_client_instance.close = AsyncMock()
+        mock_client_cls.return_value = mock_client_instance
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        async with hook.get_async_conn() as conn:
+            mock_credential_cls.assert_called_once_with(
+                client_id="client-id",
+                client_secret="client-secret",
+                tenant_id="tenant-id",
+            )
+            mock_client_cls.assert_called_once_with(
+                credential=mock_credential,
+                subscription_id="subscription-id",
+            )
+            assert conn is mock_client_instance
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.get_async_default_azure_credential")
+    @pytest.mark.asyncio
+    async def test_get_async_conn_with_default_credential(
+        self,
+        mock_default_cred,
+        mock_client_cls,
+        async_conn_without_credentials,
+    ):
+        mock_credential = MagicMock()
+        mock_credential.close = AsyncMock()
+        mock_default_cred.return_value = mock_credential
+        mock_client_instance = MagicMock(spec=AsyncContainerInstanceManagementClient)
+        mock_client_instance.close = AsyncMock()
+        mock_client_cls.return_value = mock_client_instance
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_without_credentials.conn_id)
+        async with hook.get_async_conn() as conn:
+            mock_default_cred.assert_called_once_with(
+                managed_identity_client_id=None,
+                workload_identity_tenant_id=None,
+            )
+            assert conn is mock_client_instance
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_get_async_conn_closes_client_and_credential(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential = AsyncMock(spec=AsyncClientSecretCredential)
+        mock_credential_cls.return_value = mock_credential
+        mock_client_instance = AsyncMock(spec=AsyncContainerInstanceManagementClient)
+        mock_client_cls.return_value = mock_client_instance
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        async with hook.get_async_conn() as conn:
+            assert conn is mock_client_instance
+
+        mock_client_instance.close.assert_called_once()
+        mock_credential.close.assert_called_once()
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.get_async_default_azure_credential")
+    @pytest.mark.asyncio
+    async def test_get_async_conn_skips_credential_close_when_not_closeable(
+        self,
+        mock_default_cred,
+        mock_client_cls,
+        async_conn_without_credentials,
+    ):
+        # Credential without a close method (spec=[] removes all attributes)
+        mock_credential = MagicMock(spec=[])
+        mock_default_cred.return_value = mock_credential
+        mock_client_instance = AsyncMock(spec=AsyncContainerInstanceManagementClient)
+        mock_client_cls.return_value = mock_client_instance
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_without_credentials.conn_id)
+        async with hook.get_async_conn():
+            pass
+
+        mock_client_instance.close.assert_called_once()
+        assert not hasattr(mock_credential, "close")
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_get_async_conn_closes_on_exception(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential = AsyncMock(spec=AsyncClientSecretCredential)
+        mock_credential_cls.return_value = mock_credential
+        mock_client_instance = AsyncMock(spec=AsyncContainerInstanceManagementClient)
+        mock_client_cls.return_value = mock_client_instance
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        with pytest.raises(RuntimeError, match="boom"):
+            async with hook.get_async_conn():
+                raise RuntimeError("boom")
+
+        mock_client_instance.close.assert_called_once()
+        mock_credential.close.assert_called_once()
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_get_state(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential_cls.return_value = AsyncMock(spec=AsyncClientSecretCredential)
+        mock_cg = MagicMock(spec=ContainerGroup)
+        mock_client = MagicMock()
+        mock_client.close = AsyncMock()
+        mock_client.container_groups.get = AsyncMock(return_value=mock_cg)
+        mock_client_cls.return_value = mock_client
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        result = await hook.get_state("my-rg", "my-container")
+
+        mock_client.container_groups.get.assert_called_once_with("my-rg", "my-container")
+        assert result is mock_cg
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_get_logs(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential_cls.return_value = AsyncMock(spec=AsyncClientSecretCredential)
+        mock_logs = MagicMock(spec=Logs)
+        mock_logs.content = "line1\nline2\n"
+        mock_client = MagicMock()
+        mock_client.close = AsyncMock()
+        mock_client.containers.list_logs = AsyncMock(return_value=mock_logs)
+        mock_client_cls.return_value = mock_client
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        result = await hook.get_logs("my-rg", "my-container")
+
+        mock_client.containers.list_logs.assert_called_once_with(
+            "my-rg", "my-container", "my-container", tail=1000
+        )
+        assert result == ["line1\n", "line2\n"]
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_get_logs_returns_none_sentinel_when_content_is_none(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential_cls.return_value = AsyncMock(spec=AsyncClientSecretCredential)
+        mock_logs = MagicMock(spec=Logs)
+        mock_logs.content = None
+        mock_client = MagicMock()
+        mock_client.close = AsyncMock()
+        mock_client.containers.list_logs = AsyncMock(return_value=mock_logs)
+        mock_client_cls.return_value = mock_client
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        result = await hook.get_logs("my-rg", "my-container")
+        assert result == [None]
+
+    @patch(
+        "airflow.providers.microsoft.azure.hooks.container_instance.AsyncContainerInstanceManagementClient"
+    )
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.AsyncClientSecretCredential")
+    @pytest.mark.asyncio
+    async def test_delete(
+        self,
+        mock_credential_cls,
+        mock_client_cls,
+        async_conn_with_credentials,
+    ):
+        mock_credential_cls.return_value = AsyncMock(spec=AsyncClientSecretCredential)
+        mock_client = MagicMock()
+        mock_client.close = AsyncMock()
+        mock_client.container_groups.begin_delete = AsyncMock()
+        mock_client_cls.return_value = mock_client
+
+        hook = AzureContainerInstanceAsyncHook(azure_conn_id=async_conn_with_credentials.conn_id)
+        await hook.delete("my-rg", "my-container")
+
+        mock_client.container_groups.begin_delete.assert_called_once_with("my-rg", "my-container")

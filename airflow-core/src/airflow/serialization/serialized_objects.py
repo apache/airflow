@@ -129,6 +129,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_CALLBACK_TYPES = ("execute", "failure", "success", "retry", "skipped")
+_OPERATOR_CALLBACK_FIELDS = frozenset(f"on_{x}_callback" for x in _CALLBACK_TYPES)
+_HAS_CALLBACK_FIELDS = frozenset(f"has_on_{x}_callback" for x in _CALLBACK_TYPES)
+
 
 def _get_registered_priority_weight_strategy(
     importable_string: str,
@@ -975,7 +979,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 if cls._is_excluded(v, k, op):
                     continue
 
-                if k in [f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")]:
+                if k in _OPERATOR_CALLBACK_FIELDS:
                     if bool(v):
                         serialized_op["partial_kwargs"][f"has_{k}"] = True
                     continue
@@ -1327,7 +1331,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         preprocessed = encoded_op.copy()
 
         # Handle callback field renaming for backward compatibility
-        for callback_type in ("execute", "failure", "success", "retry", "skipped"):
+        for callback_type in _CALLBACK_TYPES:
             old_key = f"on_{callback_type}_callback"
             new_key = f"has_{old_key}"
             if old_key in preprocessed:
@@ -1573,9 +1577,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """
         if field_name == "downstream_task_ids":
             return set(value) if value is not None else set()
-        elif field_name in [
-            f"has_on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
-        ]:
+        elif field_name in _HAS_CALLBACK_FIELDS:
             return bool(value)
         elif field_name in {"retry_delay", "execution_timeout", "max_retry_delay"}:
             # Reuse existing timedelta deserialization logic
@@ -1735,9 +1737,7 @@ class DagSerialization(BaseSerialization):
                 default_args_dict = serialized_dag["default_args"][Encoding.VAR]
                 callbacks_to_remove = []
                 for k, v in list(default_args_dict.items()):
-                    if k in [
-                        f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
-                    ]:
+                    if k in _OPERATOR_CALLBACK_FIELDS:
                         if bool(v):
                             default_args_dict[f"has_{k}"] = True
                         callbacks_to_remove.append(k)
