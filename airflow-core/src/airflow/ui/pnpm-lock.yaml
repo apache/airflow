@@ -104,6 +104,9 @@ importers:
       i18next-http-backend:
         specifier: ^3.0.5
         version: 3.0.5
+      monaco-editor:
+        specifier: ^0.53.0
+        version: 0.53.0
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
