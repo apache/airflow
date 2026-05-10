@@ -142,6 +142,36 @@ class TestNocheckMarker:
                 [(2, "from airflow.jobs import BaseJob")],
                 id="only-marked-line-suppressed",
             ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa: F401, SDK002\n",
+                [],
+                id="combined-codes-target-last",
+            ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa: SDK002, F401\n",
+                [],
+                id="combined-codes-target-first",
+            ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa: E402, SDK002, F401\n",
+                [],
+                id="combined-codes-target-middle",
+            ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa:SDK002\n",
+                [],
+                id="no-space-after-colon",
+            ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa: F401\n",
+                [(1, "from airflow.models import DagRun")],
+                id="other-code-only-not-suppressed",
+            ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa\n",
+                [(1, "from airflow.models import DagRun")],
+                id="bare-noqa-not-suppressed",
+            ),
         ],
     )
     def test_nocheck_marker(self, tmp_path: Path, code: str, expected: list[tuple[int, str]]):

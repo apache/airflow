@@ -30,7 +30,7 @@ from pathlib import Path
 
 from common_prek_utils import find_import_violations, report_import_violations
 
-NOCHECK_MARKER = "# noqa: SDK002"
+NOCHECK_CODE = "SDK002"
 
 
 def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
@@ -40,7 +40,7 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
         is_violating_module=lambda module: (
             module.startswith("airflow.") and not module.startswith("airflow.sdk")
         ),
-        marker=NOCHECK_MARKER,
+        nocheck_code=NOCHECK_CODE,
         check_plain_imports=True,
     )
 

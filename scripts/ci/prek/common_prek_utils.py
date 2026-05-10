@@ -526,12 +526,28 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
     return providers
 
 
-def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom | ast.Import, marker: str) -> bool:
-    """Check if the import statement has the given nocheck marker comment on any of its lines."""
+_NOQA_RE = re.compile(r"#\s*noqa\s*:\s*([^\n]*)", re.IGNORECASE)
+_NOQA_CODE_RE = re.compile(r"\b([A-Z]+\d+)\b")
+
+
+def _parse_noqa_codes(line: str) -> set[str]:
+    """Extract codes from a ``# noqa: <codes>`` comment in a source line."""
+    match = _NOQA_RE.search(line)
+    if not match:
+        return set()
+    return set(_NOQA_CODE_RE.findall(match.group(1)))
+
+
+def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom | ast.Import, nocheck_code: str) -> bool:
+    """
+    Check if the import statement has a ``# noqa: <codes>`` comment that lists
+    ``nocheck_code`` on any of its lines. The code may appear anywhere in the
+    comma-separated code list (e.g. ``# noqa: F401, SDK002``).
+    """
     start = node.lineno
     end = node.end_lineno or start
     for lineno in range(start, end + 1):
-        if lineno <= len(source_lines) and marker in source_lines[lineno - 1]:
+        if lineno <= len(source_lines) and nocheck_code in _parse_noqa_codes(source_lines[lineno - 1]):
             return True
     return False
 
@@ -540,12 +556,13 @@ def find_import_violations(
     file_path: Path,
     *,
     is_violating_module: Callable[[str], bool],
-    marker: str,
+    nocheck_code: str,
     check_plain_imports: bool = False,
 ) -> list[tuple[int, str]]:
     """
     Walk imports in ``file_path`` and return ``(lineno, statement)`` for each
-    that matches ``is_violating_module`` and is not suppressed by ``marker``.
+    that matches ``is_violating_module`` and is not suppressed by a
+    ``# noqa: <nocheck_code>`` comment.
 
     :param check_plain_imports: also check ``import x`` statements (in addition
         to ``from x import y``).
@@ -562,14 +579,14 @@ def find_import_violations(
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             if node.module and is_violating_module(node.module):
-                if has_nocheck_marker(source_lines, node, marker):
+                if has_nocheck_marker(source_lines, node, nocheck_code):
                     continue
                 import_names = ", ".join(alias.name for alias in node.names)
                 violations.append((node.lineno, f"from {node.module} import {import_names}"))
         elif check_plain_imports and isinstance(node, ast.Import):
             for alias in node.names:
                 if is_violating_module(alias.name):
-                    if has_nocheck_marker(source_lines, node, marker):
+                    if has_nocheck_marker(source_lines, node, nocheck_code):
                         continue
                     statement = f"import {alias.name}"
                     if alias.asname:
