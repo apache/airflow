@@ -715,8 +715,8 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # turn the scheduled K8s test job red. Auto-bumped by
 # scripts/ci/prek/upgrade_important_versions.py.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
-    "alpine:3.23",  # xcom_sidecar default in providers/cncf/kubernetes
-    "busybox:1.37",  # busybox-based system tests in kubernetes-tests/
+    "alpine:3.23.4",  # xcom_sidecar default in providers/cncf/kubernetes
+    "busybox:1.37.0",  # busybox-based system tests in kubernetes-tests/
     "ubuntu:24.04",  # ubuntu-based system tests in kubernetes-tests/
 )
 
