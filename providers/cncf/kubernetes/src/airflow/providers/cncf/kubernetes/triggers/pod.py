@@ -292,7 +292,7 @@ class KubernetesPodTrigger(BaseTrigger):
             with contextlib.suppress(asyncio.CancelledError):
                 await events_task
 
-        return self.define_pod_state(await self._get_pod())
+        return self.define_pod_container_state(await self._get_pod())
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
         """
@@ -307,8 +307,8 @@ class KubernetesPodTrigger(BaseTrigger):
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
         while True:
             pod = await self._get_pod()
-            container_state = self.define_pod_state(pod)
-            if container_state == ContainerState.TERMINATED:
+            pod_container_state = self.define_pod_container_state(pod)
+            if pod_container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
                     {
                         "status": "success",
@@ -318,18 +318,18 @@ class KubernetesPodTrigger(BaseTrigger):
                         **self.trigger_kwargs,
                     }
                 )
-            if container_state == ContainerState.FAILED:
+            if pod_container_state == ContainerState.FAILED:
                 return TriggerEvent(
                     {
                         "status": "failed",
                         "namespace": self.pod_namespace,
                         "name": self.pod_name,
-                        "message": "Container state failed",
+                        "message": "Pod or container state failed",
                         "last_log_time": self.last_log_time,
                         **self.trigger_kwargs,
                     }
                 )
-            self.log.debug("Container is not completed and still working.")
+            self.log.debug("Pod or container is not completed and still working.")
             now = datetime.datetime.now(tz=datetime.timezone.utc)
             if time_get_more_logs and now >= time_get_more_logs:
                 if self.get_logs and self.logging_interval:
@@ -508,7 +508,8 @@ class KubernetesPodTrigger(BaseTrigger):
                 return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
         return ContainerState.UNDEFINED
 
-    def define_pod_state(self, pod: V1Pod) -> ContainerState:
+    def define_pod_container_state(self, pod: V1Pod) -> ContainerState:
+        """Infer workload state from terminal pod phase first, then from the base container state."""
         if pod.status is None:
             return ContainerState.UNDEFINED
 
