@@ -182,7 +182,9 @@ class TestSageMakerNotebookHook:
         expected_call = call(self.files, self.context)
         mock_set_xcom_files.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
 
-    def test_set_xcom_files_negative_missing_context(self):`n        # When context is empty, _set_xcom_files returns early without raising`n        self.hook._set_xcom_files(self.files, {})
+    def test_set_xcom_files_negative_missing_context(self):
+        # When context is empty, _set_xcom_files returns early without raising
+        self.hook._set_xcom_files(self.files, {})
 
     @pytest.mark.db_test
     @patch(
@@ -194,7 +196,9 @@ class TestSageMakerNotebookHook:
         expected_call = call(self.s3Path, self.context)
         mock_set_xcom_s3_path.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
 
-    def test_set_xcom_s3_path_negative_missing_context(self):`n        # When context is empty, _set_xcom_s3_path returns early without raising`n        self.hook._set_xcom_s3_path(self.s3Path, {})
+    def test_set_xcom_s3_path_negative_missing_context(self):
+        # When context is empty, _set_xcom_s3_path returns early without raising
+        self.hook._set_xcom_s3_path(self.s3Path, {})
 
     def test_start_notebook_execution_custom_compute(self):
         """Test that custom compute config is used when provided."""
