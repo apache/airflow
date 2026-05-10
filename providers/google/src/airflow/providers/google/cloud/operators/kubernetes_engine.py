@@ -189,7 +189,7 @@ class GKEOperatorMixin:
         resource_name = getattr(metadata, "name", None)
         namespace = getattr(metadata, "namespace", None)
         if not resource_name or not namespace:
-            self.log.debug(
+            self.log.debug(  # type: ignore[attr-defined]
                 "Skipping Kubernetes %s extra link persistence because metadata is incomplete.",
                 resource_type,
             )
