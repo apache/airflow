@@ -82,7 +82,6 @@ async def test_trigger_running_then_timeout(mock_hook):
         waiter_max_attempts=2,
     )
     gen = trigger.run()
-    await gen.asend(None)
     event = await gen.asend(None)
     assert isinstance(event, TriggerEvent)
     assert event.payload["status"] == "failed"

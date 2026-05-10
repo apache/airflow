@@ -142,14 +142,20 @@ class SageMakerNotebookHook(BaseHook):
 
         return self._handle_state(execution_id, "FAILED", "Execution timed out")
 
-    def _set_xcom_files(self, files, context):`n        if not context:`n            return`n
+    def _set_xcom_files(self, files, context):
+        if not context:
+            return
+
         for file in files:
             context["ti"].xcom_push(
                 key=f"{file['display_name']}.{file['file_format']}",
                 value=file["file_path"],
             )
 
-    def _set_xcom_s3_path(self, s3_path, context):`n        if not context:`n            return`n
+    def _set_xcom_s3_path(self, s3_path, context):
+        if not context:
+            return
+
         context["ti"].xcom_push(
             key="s3_path",
             value=s3_path,
