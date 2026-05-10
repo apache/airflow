@@ -250,3 +250,29 @@ class TestPublishVersions:
                 "s3://staging-docs-airflow-apache-org/registry/",
                 providers_json_path=tmp_path / "nonexistent.json",
             )
+
+    def test_inline_fallback_to_dev_registry_providers_json(self, tmp_path, monkeypatch):
+        """publish_versions resolves providers.json from dev/registry/ when
+        registry/src/_data/providers.json is absent.
+
+        The Registry Backfill workflow's ``publish-versions`` job runs in a
+        fresh checkout where providers.json is gitignored, so it downloads
+        the file to ``dev/registry/providers.json``. Without this fallback,
+        the publish step would raise FileNotFoundError.
+        """
+        monkeypatch.chdir(tmp_path)
+        # registry/src/_data/providers.json deliberately absent
+        (tmp_path / "dev" / "registry").mkdir(parents=True)
+        (tmp_path / "dev" / "registry" / "providers.json").write_text(json.dumps({"providers": []}))
+
+        client = MagicMock()
+        client.get_paginator.return_value.paginate.return_value = []
+        with (
+            patch(
+                "airflow_breeze.utils.publish_registry_versions.boto3.client",
+                return_value=client,
+            ),
+            patch("airflow_breeze.utils.publish_registry_versions.invalidate_cloudfront"),
+        ):
+            # Empty providers list -> no per-provider work, returns cleanly.
+            publish_versions("s3://staging-docs-airflow-apache-org/registry/")

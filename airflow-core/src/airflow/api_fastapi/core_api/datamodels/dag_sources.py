@@ -22,7 +22,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DAGSourceResponse(BaseModel):
-    """DAG Source serializer for responses."""
+    """Dag Source serializer for responses."""
 
     content: str | None
     dag_id: str

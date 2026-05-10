@@ -31,6 +31,7 @@ describe("GridButton", () => {
     render(
       <GridButton
         dagId="example_dag"
+        duration={3661}
         label="2026-04-21T00:00:00+00:00"
         runId="manual__2026-04-21T00:00:00+00:00"
         searchParams=""
@@ -49,6 +50,7 @@ describe("GridButton", () => {
     expect(screen.getByTestId("basic-tooltip")).toHaveTextContent(
       "common:runId: manual__2026-04-21T00:00:00+00:00",
     );
+    expect(screen.getByTestId("basic-tooltip")).toHaveTextContent("duration: 01:01:01");
 
     vi.useRealTimers();
   });

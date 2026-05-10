@@ -190,6 +190,8 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
             d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
+            if a.allow_producer_teams:
+                d["allow_producer_teams"] = a.allow_producer_teams
             return d
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}

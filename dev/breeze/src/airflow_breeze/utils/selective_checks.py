@@ -236,7 +236,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
-            r"^helm-tests",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -303,7 +302,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/.*\.py$",
         ],
         FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES: [
-            r"^helm-tests/.*\.py$",
+            r"^chart/tests/.*\.py$",
         ],
         FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES: [
             r"^airflow-e2e-tests/.*\.py$",
@@ -328,7 +327,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/tests/.*",
             r"^devel-common/src/.*",
             r"^devel-common/tests/.*",
-            r"^helm-tests/tests/.*",
+            r"^chart/tests/.*",
             r"^kubernetes-tests/tests/.*",
             r"^docker-tests/tests/.*",
         ],
@@ -1594,6 +1593,12 @@ class SelectiveChecks:
     def get_job_label(self, event_type: str, branch: str):
         import requests  # type: ignore[import-untyped]
 
+        # The main CI is now split into ci-arm.yml and ci-amd.yml; the old
+        # ci-amd-arm.yml file no longer exists. This lookup is dormant for the
+        # main pipeline (which hardcodes runner-type per wrapper) and only
+        # remains here for the `is_disabled_integration` code path that still
+        # reads `runner_type`. The API call against a missing workflow returns
+        # nothing and the caller falls back to PUBLIC_AMD_RUNNERS.
         job_name = "Basic tests"
         workflow_name = "ci-amd-arm.yml"
         headers = {"Accept": "application/vnd.github.v3+json"}

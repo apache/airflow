@@ -28,7 +28,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.github import run_gh_command
 
 WORKFLOW_NAME_MAPS = {
     "publish-docs": "publish-docs-to-s3.yml",
@@ -127,24 +127,18 @@ def workflow_run_publish(
         )
         sys.exit(1)
     if os.environ.get("GITHUB_TOKEN", ""):
-        console_print("\n[warning]Your authentication will use GITHUB_TOKEN environment variable.")
         console_print(
-            "\nThis might not be what you want unless your token has "
-            "sufficient permissions to trigger workflows."
-        )
-        console_print(
-            "If you remove GITHUB_TOKEN, workflow_run will use the authentication you already "
-            "set-up with `gh auth login`.\n"
+            "\n[warning]GITHUB_TOKEN is set; Breeze will try your `gh auth login` first and only "
+            "use this token as a fallback. The fallback token must have workflow-trigger scope."
         )
     console_print(
         f"[blue]Validating ref: {ref}[/blue]",
     )
 
     if not skip_tag_validation:
-        tag_result = run_command(
+        tag_result = run_gh_command(
             ["gh", "api", f"repos/apache/airflow/git/refs/tags/{ref}"],
             capture_output=True,
-            check=False,
         )
 
         stdout = tag_result.stdout.decode("utf-8")
