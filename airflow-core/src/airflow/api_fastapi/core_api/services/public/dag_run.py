@@ -508,19 +508,29 @@ def bulk_clear_dag_runs(
         try:
             with session.begin_nested():
                 dag = get_dag_for_run(dag_bag, dag_run, session=session)
-                dag.clear(
-                    run_id=run_id,
-                    task_ids=None,
-                    only_failed=body.only_failed,
-                    only_new=body.only_new,
-                    run_on_latest_version=body.run_on_latest_version,
-                    dry_run=body.dry_run,
-                    session=session,
-                )
-                if body.note is not None and not body.dry_run:
-                    refreshed = session.get(DagRun, dag_run.id)
-                    if refreshed is not None:
-                        _apply_note(refreshed, body.note, user.get_id())
+                if body.dry_run:
+                    dag.clear(
+                        run_id=run_id,
+                        task_ids=None,
+                        only_failed=body.only_failed,
+                        only_new=body.only_new,
+                        run_on_latest_version=body.run_on_latest_version,
+                        dry_run=True,
+                        session=session,
+                    )
+                else:
+                    dag.clear(
+                        run_id=run_id,
+                        task_ids=None,
+                        only_failed=body.only_failed,
+                        only_new=body.only_new,
+                        run_on_latest_version=body.run_on_latest_version,
+                        session=session,
+                    )
+                    if body.note is not None:
+                        refreshed = session.get(DagRun, dag_run.id)
+                        if refreshed is not None:
+                            _apply_note(refreshed, body.note, user.get_id())
         except HTTPException as exc:
             results.errors.append(
                 {
