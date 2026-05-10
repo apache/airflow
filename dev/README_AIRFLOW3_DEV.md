@@ -72,7 +72,7 @@ PRs should **never** target `v3-1-stable` directly unless explicitly instructed 
 > likely need additional changes before GA. However, when using this shortcut, the release manager **must**
 > verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
 > check this at:
-> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Apush+branch%3Av3-2-test
 > (adjust the branch filter for the relevant `v3-X-test` branch).
 
 ## Developing for Airflow 3

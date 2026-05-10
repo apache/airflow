@@ -63,7 +63,7 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
       - name: "Save github context to file"
-        # See ci-amd-arm.yml for the full rationale: avoids ARG_MAX on big PRs by writing the
+        # See ci-amd.yml for the full rationale: avoids ARG_MAX on big PRs by writing the
         # github context to a file, and the single-quoted heredoc makes the zizmor
         # template-injection finding a false positive (no bash expansion happens inside it).
         shell: bash

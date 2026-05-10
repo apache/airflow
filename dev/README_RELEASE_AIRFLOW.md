@@ -533,7 +533,7 @@ still works but is no longer recommended.
 > likely need additional changes before GA. However, when using this shortcut, the release manager **must**
 > verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
 > check this at:
-> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Apush+branch%3Av3-2-test
 > (adjust the branch filter for the relevant `v3-X-test` branch).
 
 - When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:
