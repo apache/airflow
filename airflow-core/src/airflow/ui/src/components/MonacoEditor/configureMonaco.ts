@@ -19,23 +19,17 @@
 import { loader } from "@monaco-editor/react";
 
 type MonacoEnvironment = {
-  readonly getWorkerUrl: (_moduleId: string, label: string) => string;
+  readonly getWorker: (_moduleId: string, label: string) => Worker;
 };
 
 let configurationPromise: Promise<void> | undefined;
 
-const createWorkerBlobUrl = (workerUrl: string) => {
-  const workerSource = `import ${JSON.stringify(new URL(workerUrl, import.meta.url).href)};`;
-
-  return URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
-};
-
 const loadMonacoModules = async () => {
   const monacoApi = import("monaco-editor/esm/vs/editor/editor.api");
 
-  const workerUrls = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.worker?url").then((module) => module.default),
-    import("monaco-editor/esm/vs/language/json/json.worker?url").then((module) => module.default),
+  const workerConstructors = Promise.all([
+    import("monaco-editor/esm/vs/editor/editor.worker?worker").then((module) => module.default),
+    import("monaco-editor/esm/vs/language/json/json.worker?worker").then((module) => module.default),
   ]);
 
   const languageContributions = Promise.all([
@@ -43,13 +37,13 @@ const loadMonacoModules = async () => {
     import("monaco-editor/esm/vs/language/json/monaco.contribution"),
   ]);
 
-  const [monaco, [editorWorkerUrl, jsonWorkerUrl]] = await Promise.all([
+  const [monaco, [editorWorker, jsonWorker]] = await Promise.all([
     monacoApi,
-    workerUrls,
+    workerConstructors,
     languageContributions,
   ]);
 
-  return { editorWorkerUrl, jsonWorkerUrl, monaco };
+  return { editorWorker, jsonWorker, monaco };
 };
 
 export const configureMonaco = () => {
@@ -57,13 +51,10 @@ export const configureMonaco = () => {
     return configurationPromise;
   }
 
-  configurationPromise = loadMonacoModules().then(({ editorWorkerUrl, jsonWorkerUrl, monaco }) => {
-    const editorWorkerBlobUrl = createWorkerBlobUrl(editorWorkerUrl);
-    const jsonWorkerBlobUrl = createWorkerBlobUrl(jsonWorkerUrl);
-
+  configurationPromise = loadMonacoModules().then(({ editorWorker, jsonWorker, monaco }) => {
     Reflect.set(globalThis, "MonacoEnvironment", {
-      getWorkerUrl: (_moduleId: string, label: string) =>
-        label === "json" ? jsonWorkerBlobUrl : editorWorkerBlobUrl,
+      getWorker: (_moduleId: string, label: string) =>
+        label === "json" ? new jsonWorker() : new editorWorker(),
     } satisfies MonacoEnvironment);
 
     loader.config({ monaco });
