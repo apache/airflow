@@ -31,7 +31,6 @@ from typing import TYPE_CHECKING
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
-    VariableKeysResponse,
     VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
@@ -77,10 +76,11 @@ def handle_get_variable_keys(
     client: Client, msg: GetVariableKeys
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch variable keys filtered by prefix."""
-    result = client.variables.keys(prefix=msg.prefix)
-    if not isinstance(result, VariableKeysResponse):
-        return result, {}
-    return VariableKeysResult(keys=result.keys), {"exclude_unset": True}
+    result = client.variables.keys(prefix=msg.prefix, limit=msg.limit, offset=msg.offset)
+    return (
+        VariableKeysResult(keys=result.keys, total_entries=result.total_entries, type="VariableKeysResult"),
+        {"exclude_unset": True},
+    )
 
 
 def handle_mask_secret(msg: MaskSecret) -> None:

@@ -599,6 +599,7 @@ class AssetsByAliasResult(BaseModel):
 
 class VariableKeysResult(BaseModel):
     keys: list[str]
+    total_entries: int
     type: Literal["VariableKeysResult"] = "VariableKeysResult"
 
 
@@ -998,6 +999,8 @@ class GetVariable(BaseModel):
 
 class GetVariableKeys(BaseModel):
     prefix: str | None = None
+    limit: int = 1000
+    offset: int = 0
     type: Literal["GetVariableKeys"] = "GetVariableKeys"
 
 

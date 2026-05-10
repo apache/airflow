@@ -506,9 +506,9 @@ class VariableOperations:
         # decouple from the server response string
         return OKResponse(ok=True)
 
-    def keys(self, prefix: str | None = None) -> VariableKeysResponse:
+    def keys(self, prefix: str | None = None, limit: int = 1000, offset: int = 0) -> VariableKeysResponse:
         """List variable keys from the API server, optionally filtered by key prefix."""
-        params: dict[str, str] = {}
+        params: dict[str, str | int] = {"limit": limit, "offset": offset}
         if prefix is not None:
             params["prefix"] = prefix
         resp = self.client.get("variables/keys", params=params)

@@ -277,15 +277,33 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     )
 
 
+_VARIABLE_KEYS_PAGE_SIZE = 1000
+
+
 def _get_variable_keys(prefix: str | None = None) -> list[str]:
-    from airflow.sdk.execution_time.comms import GetVariableKeys, VariableKeysResult
+    from airflow.sdk.exceptions import AirflowRuntimeError
+    from airflow.sdk.execution_time.comms import (
+        ErrorResponse,
+        GetVariableKeys,
+        VariableKeysResult,
+    )
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    msg = SUPERVISOR_COMMS.send(GetVariableKeys(prefix=prefix))
-    if not isinstance(msg, VariableKeysResult):
-        return []
-
-    return msg.keys
+    all_keys: list[str] = []
+    offset = 0
+    while True:
+        msg = SUPERVISOR_COMMS.send(
+            GetVariableKeys(prefix=prefix, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=offset)
+        )
+        if isinstance(msg, ErrorResponse):
+            raise AirflowRuntimeError(msg)
+        if not isinstance(msg, VariableKeysResult):
+            raise TypeError(f"Unexpected response type for GetVariableKeys: {type(msg).__name__}")
+        all_keys.extend(msg.keys)
+        if len(msg.keys) < _VARIABLE_KEYS_PAGE_SIZE:
+            break
+        offset += len(msg.keys)
+    return all_keys
 
 
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:

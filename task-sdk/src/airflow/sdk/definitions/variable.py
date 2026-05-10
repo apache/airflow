@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 import attrs
@@ -68,13 +69,20 @@ class Variable:
             log.exception(e)
 
     @classmethod
-    def keys(cls, prefix: str | None = None) -> list[str]:
+    def keys(cls, prefix: str | None = None) -> Sequence[str]:
         """
         Return Variable keys that start with the given prefix.
 
         The keys are fetched lazily on first access (iteration, indexing, len, etc.)
-        and cached for subsequent access. Only keys stored in the metadata database
-        are returned — secrets backends are not consulted.
+        and cached for subsequent access.
+
+        .. note::
+            Only keys stored in the metadata database are returned — secrets backends
+            are **not** consulted. This asymmetry with :meth:`get` (which does consult
+            secrets backends) is a deliberate design decision: most secrets backends
+            either do not expose a listing API at all, or do so inefficiently and
+            without prefix filtering. See
+            https://github.com/apache/airflow/issues/61166 for context.
 
         :param prefix: Optional key prefix to filter by. If None, all keys are returned.
         """

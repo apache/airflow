@@ -25,7 +25,7 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture
 def old_ver_client(client):
     """Last released execution API before `GET /variables/keys` was added."""
-    client.headers["Airflow-API-Version"] = "2026-04-17"
+    client.headers["Airflow-API-Version"] = "2026-06-16"
     return client
 
 

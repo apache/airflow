@@ -1575,11 +1575,12 @@ REQUEST_TEST_CASES = [
         test_id="get_variable_keys",
         client_mock=ClientMock(
             method_path="variables.keys",
-            kwargs={"prefix": "test_"},
-            response=VariableKeysResult(keys=["test_key"]),
+            kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
+            response=VariableKeysResult(keys=["test_key"], total_entries=1),
         ),
         expected_body={
             "keys": ["test_key"],
+            "total_entries": 1,
             "type": "VariableKeysResult",
         },
     ),

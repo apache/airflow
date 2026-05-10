@@ -40,3 +40,4 @@ class VariableKeysResponse(StrictBaseModel):
     """Variable keys schema for list responses."""
 
     keys: list[str]
+    total_entries: int
