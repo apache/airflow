@@ -99,10 +99,14 @@ class FABDBManager(BaseDBManager):
         _release_metadata_locks_if_supported(self)
 
         if not current_revision and not to_revision and not use_migration_files and not show_sql_only:
-            self.create_db_from_orm()
-            return
-
-        config = self.get_alembic_config()
+            if self._has_existing_manager_tables():
+                config = self.get_alembic_config()
+                self._stamp_base_revision(config)
+            else:
+                self.create_db_from_orm()
+                return
+        else:
+            config = self.get_alembic_config()
 
         if show_sql_only:
             if make_url(settings.SQL_ALCHEMY_CONN).get_backend_name() == "sqlite":
