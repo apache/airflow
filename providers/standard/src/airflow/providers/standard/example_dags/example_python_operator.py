@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating classic Python operators.
+"""### Python operators
+
+Example DAG demonstrating classic Python operators.
 
 This DAG shows several ways to execute Python callables in Airflow:
 PythonOperator for regular Python functions, PythonVirtualenvOperator for
