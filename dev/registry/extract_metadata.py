@@ -37,17 +37,16 @@ import json
 import re
 import shutil
 import subprocess
-import sys
 import urllib.request
 import zlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
+try:
     import tomllib  # Python 3.11+ stdlib
-else:  # pragma: no cover -- Python 3.10 fallback
-    import tomli as tomllib
+except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib  # type: ignore[no-redef]
 
 import yaml
 from registry_contract_models import validate_providers_catalog

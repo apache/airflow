@@ -46,10 +46,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
+try:
     import tomllib  # Python 3.11+ stdlib
-else:  # pragma: no cover -- Python 3.10 fallback
-    import tomli as tomllib
+except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib  # type: ignore[no-redef]
 from registry_contract_models import validate_provider_version_metadata
 
 try:
