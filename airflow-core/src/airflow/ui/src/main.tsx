@@ -38,7 +38,6 @@ import { getRedirectPath } from "src/utils/links.ts";
 
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
-import "./utils/configureMonaco";
 
 // Set React, ReactDOM, Chakra UI, and Emotion on globalThis so dynamically imported React
 // plugins (e.g. HITL Review) use the host's copies instead of bundling their own.
