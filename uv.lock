@@ -1880,7 +1880,7 @@ mypy = [
 [package.metadata]
 requires-dist = [
     { name = "a2wsgi", specifier = ">=1.10.8" },
-    { name = "aiosqlite", specifier = ">=0.20.0,<0.22.0" },
+    { name = "aiosqlite", specifier = ">=0.20.0,<0.23.0" },
     { name = "alembic", specifier = ">=1.13.1,<2.0" },
     { name = "apache-airflow-core", extras = ["graphviz", "gunicorn", "kerberos", "otel", "statsd"], marker = "extra == 'all'", editable = "airflow-core" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -2038,7 +2038,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 codegen = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.33.0" },
+    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.56.1" },
 ]
 dev = [
     { name = "apache-airflow-ctl", extras = ["dev"], editable = "airflow-ctl" },
@@ -8378,7 +8378,7 @@ provides-extras = ["all", "datadog", "otel", "sentry", "statsd"]
 
 [package.metadata.requires-dev]
 codegen = [
-    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.33.0" },
+    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.56.1" },
     { name = "openapi-spec-validator", specifier = ">=0.7.1" },
     { name = "rich", specifier = ">=13.6.0" },
     { name = "svcs", specifier = ">=25.1.0" },
@@ -10451,7 +10451,7 @@ wheels = [
 
 [[package]]
 name = "datamodel-code-generator"
-version = "0.33.0"
+version = "0.56.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
@@ -10460,14 +10460,13 @@ dependencies = [
     { name = "inflect" },
     { name = "isort" },
     { name = "jinja2" },
-    { name = "packaging" },
     { name = "pydantic" },
     { name = "pyyaml" },
-    { name = "tomli", marker = "python_full_version < '3.12'" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/a0/3f81c5c0c31d6f25f459e370e04553810f096e5dbd3cf7eda2a67709cd78/datamodel_code_generator-0.33.0.tar.gz", hash = "sha256:7635ef788201d69bd3e98ba88ce6afe479400dc2737fe9d5e21f87408f352c08", size = 458695, upload-time = "2025-08-14T13:50:36.965Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/9c/5379be8daf9ff2fbbb9a7efcf68c037b089e5b76f360c4f9ca730916e2ee/datamodel_code_generator-0.56.1.tar.gz", hash = "sha256:697abd90cc4eb2c65f130be79a83a24746c3f2d0e15e6eb9dbf17b96784449be", size = 840372, upload-time = "2026-04-16T17:09:53.537Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/d0/acd7a19dad4dc4118d2b6ba06df9a4a3725729e91fa3f2c63a765d4e7d44/datamodel_code_generator-0.33.0-py3-none-any.whl", hash = "sha256:e229264aa612b2d5bb4901bcd6c520a799ae0d5c19262577a0f876eb48afaaa3", size = 121148, upload-time = "2025-08-14T13:50:35.306Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/cd/4a4a13f55069d88d8405aa325874b04c1b1dbc830f0d66c0e56cbd16aa12/datamodel_code_generator-0.56.1-py3-none-any.whl", hash = "sha256:cb2adc18a301f1a2cfcd56672037218eeaff0573669861c2b371eefe86753874", size = 256845, upload-time = "2026-04-16T17:09:51.81Z" },
 ]
 
 [package.optional-dependencies]
