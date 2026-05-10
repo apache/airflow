@@ -136,9 +136,7 @@ class ESConnection:
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
         if user and password:
-            self.es = apply_compat_with(
-                Elasticsearch(self.url, basic_auth=(user, password), **kwargs)
-            )
+            self.es = apply_compat_with(Elasticsearch(self.url, basic_auth=(user, password), **kwargs))
         else:
             self.es = apply_compat_with(Elasticsearch(self.url, **kwargs))
 

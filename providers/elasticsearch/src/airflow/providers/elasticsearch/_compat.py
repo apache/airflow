@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Helpers shared between the Elasticsearch hooks and log handler.
+"""
+Helpers shared between the Elasticsearch hooks and log handler.
 
 Currently this exposes a single helper, :func:`apply_compat_with`, that lets the
 provider keep working against an Elasticsearch server whose major version does
@@ -51,7 +52,8 @@ _COMPAT_MAJOR_RE = re.compile(r"^\d+$")
 
 
 def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elasticsearch:
-    """Pin the ``compatible-with`` HTTP content-negotiation level for ``client``.
+    """
+    Pin the ``compatible-with`` HTTP content-negotiation level for ``client``.
 
     The ``elasticsearch`` Python client always negotiates ``compatible-with=<client_major>``
     on every request; an Elasticsearch server with a different major version rejects
@@ -101,5 +103,9 @@ def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elas
                 merged[key] = _COMPAT_MIMETYPE_RE.sub(sub, merged[key])
         return original_perform_request(method, target, body=body, headers=merged, **kwargs)
 
-    transport.perform_request = perform_request
+    # ``setattr`` instead of direct attribute assignment so mypy does not flag a
+    # ``method-assign`` error — we are *intentionally* shadowing the bound method
+    # at the instance level (the idempotency guard above checks the instance
+    # ``__dict__``).
+    setattr(transport, "perform_request", perform_request)
     return client

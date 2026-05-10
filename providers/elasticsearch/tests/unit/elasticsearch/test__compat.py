@@ -68,9 +68,7 @@ def wire_capture(monkeypatch):
     captured: list[dict] = []
 
     def spy(self, method, target, *, body=None, headers=None, **kwargs):
-        captured.append(
-            {"method": method, "target": target, "headers": dict(headers or {})}
-        )
+        captured.append({"method": method, "target": target, "headers": dict(headers or {})})
         raise RuntimeError("captured")
 
     monkeypatch.setattr(Transport, "perform_request", spy)
@@ -217,9 +215,7 @@ def test_apply_compat_with_strips_whitespace_in_config(wire_capture):
     with contextlib.suppress(RuntimeError):
         client.search(index="airflow-logs", query={"match_all": {}})
 
-    assert wire_capture[-1]["headers"]["accept"] == (
-        "application/vnd.elasticsearch+json; compatible-with=8"
-    )
+    assert wire_capture[-1]["headers"]["accept"] == "application/vnd.elasticsearch+json; compatible-with=8"
 
 
 @pytest.mark.parametrize("bad_value", ["v8", "8.0", "abc", "8;9"])
