@@ -107,9 +107,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    _handler_instance: watchtower.CloudWatchLogHandler | None = attrs.field(
-        default=None, init=False, repr=False
-    )
+    _handler: watchtower.CloudWatchLogHandler | None = attrs.field(default=None, init=False, repr=False)
 
     def _create_handler(self) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
@@ -127,8 +125,8 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # (shutting_down=True), recreate it. This can happen if dictConfig() is called
         # after the handler was first created, since dictConfig calls
         # _clearExistingHandlers() -> logging.shutdown() on all existing handlers.
-        if self._handler_instance is None or self._handler_instance.shutting_down:
-            self._handler_instance = self._create_handler()
+        if self._handler is None or self._handler.shutting_down:
+            self._handler = self._create_handler()
         return self._handler
 
     @cached_property
