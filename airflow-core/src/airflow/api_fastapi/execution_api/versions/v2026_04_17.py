@@ -36,6 +36,14 @@ class AddTeamNameField(VersionChange):
             response.body["dag_run"].pop("team_name", None)
 
 
+class AddAssetsByAliasEndpoint(VersionChange):
+    """Add endpoint to resolve assets from an AssetAlias."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (endpoint("/assets/by-alias", ["GET"]).didnt_exist,)
+
+
 class AddStateEndpoints(VersionChange):
     """Add task state and asset state CRUD endpoints."""
 

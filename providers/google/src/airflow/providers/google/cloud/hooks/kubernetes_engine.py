@@ -131,7 +131,11 @@ class GKEHook(GoogleBaseHook):
     def get_cluster_manager_client(self) -> ClusterManagerClient:
         """Create or get a ClusterManagerClient."""
         if self._client is None:
-            self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = ClusterManagerClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     def wait_for_operation(self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
@@ -377,9 +381,11 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
 
     async def _get_client(self) -> ClusterManagerAsyncClient:
         if self._client is None:
+            sync_hook = await self.get_sync_hook()
             self._client = ClusterManagerAsyncClient(
-                credentials=(await self.get_sync_hook()).get_credentials(),
+                credentials=sync_hook.get_credentials(),
                 client_info=CLIENT_INFO,
+                client_options=sync_hook.get_client_options(),
             )
         return self._client
 

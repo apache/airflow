@@ -390,7 +390,6 @@ def _register():
                     raise AttributeError(
                         f"duplicate {s_qualname} for serialization in {module} and {_serializers[s_qualname]}"
                     )
-                log.debug("registering %s for serialization", s_qualname)
                 _serializers[s_qualname] = module
             for deserializers in getattr(module, "deserializers", ()):
                 d_qualname = deserializers if isinstance(deserializers, str) else qualname(deserializers)
@@ -398,7 +397,6 @@ def _register():
                     raise AttributeError(
                         f"duplicate {d_qualname} for deserialization in {module} and {_deserializers[d_qualname]}"
                     )
-                log.debug("registering %s for deserialization", d_qualname)
                 _deserializers[d_qualname] = module
                 _extra_allowed.add(d_qualname)
             for stringifiers in getattr(module, "stringifiers", ()):
@@ -407,10 +405,15 @@ def _register():
                     raise AttributeError(
                         f"duplicate {c_qualname} for stringifiers in {module} and {_stringifiers[c_qualname]}"
                     )
-                log.debug("registering %s for stringifying", c_qualname)
                 _stringifiers[c_qualname] = module
 
-    log.debug("loading serializers took %.3f ms", timer.duration)
+    log.debug(
+        "registered serializers=[%s] deserializers=[%s] stringifiers=[%s] in %.3f ms",
+        ", ".join(sorted(_serializers)),
+        ", ".join(sorted(_deserializers)),
+        ", ".join(sorted(_stringifiers)),
+        timer.duration,
+    )
 
 
 @functools.cache

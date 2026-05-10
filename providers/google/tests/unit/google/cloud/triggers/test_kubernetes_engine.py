@@ -55,6 +55,7 @@ IN_CLUSTER = False
 SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
+SCHEDULE_TIMEOUT_SECS = 60
 TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
@@ -82,6 +83,7 @@ def trigger():
         in_cluster=IN_CLUSTER,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
+        schedule_timeout=SCHEDULE_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
         cluster_url=CLUSTER_URL,
         ssl_ca_cert=SSL_CA_CERT,
@@ -131,6 +133,7 @@ class TestGKEStartPodTrigger:
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
+            "schedule_timeout": SCHEDULE_TIMEOUT_SECS,  # issue-66352: schedule_timeout properly serialized
             "trigger_start_time": TRIGGER_START_TIME,
             "cluster_url": CLUSTER_URL,
             "ssl_ca_cert": SSL_CA_CERT,
@@ -267,7 +270,7 @@ class TestGKEStartPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Waiting until 120s to get the POD scheduled..." in caplog.text
+        assert "Waiting until 60s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.parametrize(
         ("container_state", "expected_state"),

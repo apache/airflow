@@ -388,3 +388,17 @@ Reference
 * `AWS boto3 library documentation for Amazon Bedrock <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock.html>`__
 * `AWS boto3 library documentation for Amazon Bedrock Runtime <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime.html>`__
 * `AWS boto3 library documentation for Amazon Bedrock Agents <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-agent.html>`__
+
+.. _howto/operator:BedrockUpdateGuardrailOperator:
+
+Update a Guardrail
+------------------
+
+To update an Amazon Bedrock guardrail configuration, use
+:class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockUpdateGuardrailOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_guardrail.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bedrock_update_guardrail]
+    :end-before: [END howto_operator_bedrock_update_guardrail]

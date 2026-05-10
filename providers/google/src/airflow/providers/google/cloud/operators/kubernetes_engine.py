@@ -774,6 +774,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
                 ssl_ca_cert=self.ssl_ca_cert,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
+                schedule_timeout=self.schedule_timeout_seconds,
                 cluster_context=self.cluster_context,
                 poll_interval=self.poll_interval,
                 in_cluster=self.in_cluster,

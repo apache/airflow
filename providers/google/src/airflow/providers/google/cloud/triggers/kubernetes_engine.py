@@ -148,6 +148,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "use_dns_endpoint": self.use_dns_endpoint,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
+                "schedule_timeout": self.schedule_timeout,
                 "trigger_start_time": self.trigger_start_time,
                 "base_container_name": self.base_container_name,
                 "should_delete_pod": self.should_delete_pod,

@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import zipfile
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -34,6 +36,85 @@ from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 if TYPE_CHECKING:
     from requests import Response
+
+GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
+
+
+def env_without_github_tokens(env: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Return a copy of *env* with ambient GitHub CLI token variables removed."""
+    cleaned_env = dict(os.environ if env is None else env)
+    for token_env_var in GITHUB_TOKEN_ENV_VARS:
+        cleaned_env.pop(token_env_var, None)
+    return cleaned_env
+
+
+def get_github_token_from_env(env: Mapping[str, str] | None = None) -> str | None:
+    """Return an ambient GitHub token using the same precedence as the GitHub CLI."""
+    source_env = os.environ if env is None else env
+    for token_env_var in GITHUB_TOKEN_ENV_VARS:
+        token = source_env.get(token_env_var)
+        if token:
+            return token
+    return None
+
+
+def run_gh_command(
+    command: Sequence[str],
+    *,
+    retry_with_github_token: bool = True,
+    env: Mapping[str, str] | None = None,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[Any]:
+    """
+    Run a ``gh`` command using stored ``gh auth login`` credentials before ambient token env vars.
+
+    Locally, ``GH_TOKEN``/``GITHUB_TOKEN`` can shadow the user's normal GitHub CLI login. We first
+    run with those variables removed, then retry with the original environment only when that fails.
+    """
+    command_env = os.environ.copy() if env is None else dict(env)
+    check = kwargs.pop("check", False)
+    if get_dry_run():
+        return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+    result = subprocess.run(command, env=env_without_github_tokens(command_env), check=False, **kwargs)
+    if result.returncode == 0:
+        return result
+    if not retry_with_github_token or not get_github_token_from_env(command_env):
+        if check:
+            result.check_returncode()
+        return result
+    return subprocess.run(command, env=command_env, check=check, **kwargs)
+
+
+def retrieve_github_token(token: str | None = None, *, env: Mapping[str, str] | None = None) -> str | None:
+    """
+    Resolve a GitHub token for local Breeze commands.
+
+    Non-empty token arguments are preserved when they do not match ``GH_TOKEN`` or
+    ``GITHUB_TOKEN`` from the environment. Matching values are treated as ambient env input because
+    Click can populate ``--github-token`` from ``envvar="GITHUB_TOKEN"``. Ambient env tokens are used
+    only after trying the user's stored ``gh auth login`` credential.
+    """
+    env_token = get_github_token_from_env(env)
+    source_env = os.environ if env is None else env
+    env_tokens = {
+        source_env[token_env_var] for token_env_var in GITHUB_TOKEN_ENV_VARS if source_env.get(token_env_var)
+    }
+    if token and token not in env_tokens:
+        return token
+    try:
+        gh_token_result = run_gh_command(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+            retry_with_github_token=False,
+            env=env,
+        )
+    except FileNotFoundError:
+        return token or env_token
+    if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
+        return gh_token_result.stdout.strip()
+    return token or env_token
 
 
 def get_ga_output(name: str, value: Any) -> str:

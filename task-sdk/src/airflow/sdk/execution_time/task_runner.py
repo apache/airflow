@@ -111,10 +111,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    AssetStateAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -249,7 +251,12 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
+                "task_state": TaskStateAccessor(ti_id=self.id),
             }
+            if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for i in self.task.inlets):
+                self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
+                # AssetAlias inlets are resolved to their concrete assets at context build time
+                # via GetAssetsByAlias comms. If an alias maps to no active assets, it doesnt contribute to asset_state.
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:

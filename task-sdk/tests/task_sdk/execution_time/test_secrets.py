@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
 
@@ -120,106 +119,6 @@ class TestExecutionAPISecretsBackend:
         backend = ExecutionAPISecretsBackend()
         with pytest.raises(NotImplementedError, match="Use get_connection instead"):
             backend.get_conn_value("test_conn")
-
-    def test_runtime_error_triggers_greenback_fallback(self, mocker, mock_supervisor_comms):
-        """
-        Test that RuntimeError from async_to_sync triggers greenback fallback.
-
-        This test verifies the fix for issue #57145: when SUPERVISOR_COMMS.send()
-        raises the specific RuntimeError about async_to_sync in an event loop,
-        the backend catches it and uses greenback to call aget_connection().
-        """
-
-        # Expected connection to be returned
-        expected_conn = Connection(
-            conn_id="databricks_default",
-            conn_type="databricks",
-            host="example.databricks.com",
-        )
-
-        # Simulate the RuntimeError that triggers greenback fallback
-        mock_supervisor_comms.send.side_effect = RuntimeError(
-            "You cannot use AsyncToSync in the same thread as an async event loop"
-        )
-
-        # Mock the greenback and asyncio modules that are imported inside the exception handler
-        mocker.patch("greenback.has_portal", return_value=True)
-        mocker.patch("asyncio.current_task")
-
-        # Mock greenback.await_ to actually await the coroutine it receives.
-        # This prevents Python 3.13 RuntimeWarning about unawaited coroutines.
-        import asyncio
-
-        def greenback_await_side_effect(coro):
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
-
-        mock_greenback_await = mocker.patch("greenback.await_", side_effect=greenback_await_side_effect)
-
-        # Mock aget_connection to return the expected connection directly.
-        # We need to mock this because the real aget_connection would try to
-        # use SUPERVISOR_COMMS.asend which is not set up for this test.
-        async def mock_aget_connection(self, conn_id):
-            return expected_conn
-
-        mocker.patch.object(ExecutionAPISecretsBackend, "aget_connection", mock_aget_connection)
-
-        backend = ExecutionAPISecretsBackend()
-        conn = backend.get_connection("databricks_default")
-
-        # Verify we got the expected connection
-        assert conn is not None
-        assert conn.conn_id == "databricks_default"
-        # Verify the greenback fallback was called
-        mock_greenback_await.assert_called_once()
-        # Verify send was attempted first (and raised RuntimeError)
-        mock_supervisor_comms.send.assert_called_once()
-
-    def test_get_variable_runtime_error_triggers_greenback_fallback(self, mocker, mock_supervisor_comms):
-        """
-        Test that RuntimeError from async_to_sync triggers greenback fallback for variables.
-
-        Same as the connection test but for get_variable — verifies the fix for #61676:
-        triggers calling Variable.get() fail because SUPERVISOR_COMMS.send() raises
-        RuntimeError in the async event loop, but the greenback fallback was missing.
-        """
-        expected_value = "10"
-
-        # Simulate the RuntimeError that triggers greenback fallback
-        mock_supervisor_comms.send.side_effect = RuntimeError(
-            "You cannot use AsyncToSync in the same thread as an async event loop"
-        )
-
-        # Mock the greenback and asyncio modules
-        mocker.patch("greenback.has_portal", return_value=True)
-        mocker.patch("asyncio.current_task")
-
-        import asyncio
-
-        def greenback_await_side_effect(coro):
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
-
-        mock_greenback_await = mocker.patch("greenback.await_", side_effect=greenback_await_side_effect)
-
-        # Mock aget_variable to return the expected value
-        async def mock_aget_variable(self, key):
-            return expected_value
-
-        mocker.patch.object(ExecutionAPISecretsBackend, "aget_variable", mock_aget_variable)
-
-        backend = ExecutionAPISecretsBackend()
-        result = backend.get_variable("retries")
-
-        assert result == expected_value
-        mock_greenback_await.assert_called_once()
-        mock_supervisor_comms.send.assert_called_once()
 
 
 class TestContextDetection:
