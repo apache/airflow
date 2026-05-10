@@ -199,10 +199,13 @@ class InformaticaListener:
                 uri = item["dataset_uri"]
             elif isinstance(item, str):
                 uri = item
+            elif hasattr(item, "uri") and isinstance(item.uri, str):
+                # Support Asset / Dataset objects (and any object with a .uri attribute).
+                uri = item.uri
             else:
                 raise InformaticaLineageResolutionError(
-                    f"Invalid {role} entry for task {task_id!r}: expected a URI string or "
-                    f"dict with 'dataset_uri', got {type(item).__name__!r}."
+                    f"Invalid {role} entry for task {task_id!r}: expected a URI string, "
+                    f"dict with 'dataset_uri', or an Asset object, got {type(item).__name__!r}."
                 )
             # Raises InformaticaLineageResolutionError if not found - fails the task.
             object_id = _resolve_uri_to_object_id(self.hook, uri)

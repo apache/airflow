@@ -121,7 +121,7 @@ ID containing ``postgres`` maps to the PostgreSQL dialect, ``snowflake`` to Snow
    queries that can produce incomplete or incorrect table extraction include:
 
    - Deeply nested or recursive CTEs (``WITH RECURSIVE``)
-   - Vendor-specific procedural extensions (e.g., PL/pgSQL ``EXECUTE``, T-SQL dynamic SQL)
+   - Vendor-specific procedural extensions (e.g., ``PL/pgSQL`` ``EXECUTE``, T-SQL dynamic SQL)
    - Queries built via dynamic string concatenation or stored procedures
    - Non-standard or proprietary syntax not yet supported by sqlglot
 
@@ -140,6 +140,7 @@ automatic SQL lineage.
 
    from airflow import DAG
    from airflow.providers.standard.operators.python import PythonOperator
+   from airflow.sdk import Asset
    from datetime import datetime
 
 
@@ -150,8 +151,8 @@ automatic SQL lineage.
        task = PythonOperator(
            task_id="transform",
            python_callable=my_python_task,
-           inlets=[{"dataset_uri": "edc://object/source_table_abc123"}],
-           outlets=[{"dataset_uri": "edc://object/target_table_xyz789"}],
+           inlets=[Asset("edc://object/source_table_abc123")],
+           outlets=[Asset("edc://object/target_table_xyz789")],
        )
 
 When this task succeeds, the provider creates a lineage link between the source and target
@@ -187,7 +188,8 @@ Supported Inlet/Outlet Formats
 
 Inlets and outlets can be defined as:
 
+- ``Asset`` objects: ``Asset("edc://object/table_name")`` (recommended — DAG-serialization safe)
 - String URIs: ``"edc://object/table_name"``
 - Dictionary with dataset_uri: ``{"dataset_uri": "edc://object/table_name"}``
 
-Both formats are resolved via the EDC ``GET /access/2/catalog/data/objects/{id}`` endpoint.
+All formats are resolved via the EDC ``GET /access/2/catalog/data/objects/{id}`` endpoint.

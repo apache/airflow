@@ -88,11 +88,12 @@ class SQLLineageResolver(BaseLineageResolver):
     Resolves lineage for any operator that exposes a ``sql`` attribute.
 
     Detection is tiered:
+
     - Tier 1: operators inheriting from ``BaseSQLOperator`` — ``conn_id_field``
       points to the right connection attribute.
     - Tier 2: operators with a ``sql`` attribute but no ``BaseSQLOperator``
       base (e.g. ``GenericTransfer``, ``BaseSQLToGCSOperator``) — dialect is
-      inferred from the first recognisable connection ID string found.
+      inferred from the first recognizable connection ID string found.
 
     Returns ``None`` when there is no SQL, when Jinja templates are detected,
     or when parsing produces no table references.

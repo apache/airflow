@@ -69,7 +69,7 @@ What this DAG demonstrates
   (commented out here; uncomment to test).
 
 * **Generic transfer with explicit target table (task: build_customer_segment_snapshot_generic)**
-    A complex CTE-based ``SELECT`` is executed by ``GenericTransfer`` and loaded
+    A complex ``CTE``-based ``SELECT`` is executed by ``GenericTransfer`` and loaded
     into ``destination_table='customer_segment_snapshot'``.
 
 Inspecting results
@@ -88,6 +88,7 @@ from airflow.models.dag import DAG
 from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.informatica.lineage import disable_informatica_lineage
+from airflow.sdk import Asset
 
 task_logger = logging.getLogger("airflow.task")
 task_logger.setLevel(logging.DEBUG)
@@ -190,11 +191,11 @@ with DAG(
         """,
         # Declare inlets/outlets manually — EDC URI format: edc://object/<identifier>
         inlets=[
-            "TEST_PSTGRS://mydb/public/customers",
-            "TEST_PSTGRS://mydb/public/orders",
+            Asset("TEST_PSTGRS://mydb/public/customers"),
+            Asset("TEST_PSTGRS://mydb/public/orders"),
         ],
         outlets=[
-            "TEST_PSTGRS://mydb/public/customer_ltv",
+            Asset("TEST_PSTGRS://mydb/public/customer_ltv"),
         ],
     )
 
