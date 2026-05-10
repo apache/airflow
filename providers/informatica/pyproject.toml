@@ -61,7 +61,8 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "apache-airflow-providers-http>=4.13.2"
+    "apache-airflow-providers-http>=4.13.2",
+    "sqlglot>=30.0.0"
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -83,6 +84,7 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-http",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "sqlglot>=30.0.0",
     "uuid6>=2024.7.10"
 ]
 
