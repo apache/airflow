@@ -96,9 +96,7 @@ dependencies = [
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
     "uvicorn>=0.37.0",
-    # Starlette 1.0.0 breaks the API server. Needs more investigation
-    # https://github.com/apache/airflow/issues/64116
-    "starlette>=0.45.0,<1",
+    "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
