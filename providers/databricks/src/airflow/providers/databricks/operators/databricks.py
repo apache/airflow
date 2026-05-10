@@ -412,24 +412,40 @@ class DatabricksCreateJobsOperator(BaseOperator):
 
 class DatabricksDeleteJobsOperator(BaseOperator):
     """
-    Deletes a Databricks job.
+    Deletes a Databricks job by ``job_id`` or ``job_name``.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksDeleteJobsOperator`
+
+        Databricks REST API: https://docs.databricks.com/api/workspace/jobs/delete
 
     :param job_id: The ID of the Databricks job to delete. (templated)
-    :param databricks_conn_id: Reference to the Databricks connection.
-    :param databricks_retry_limit: Amount of times retry if the Databricks backend is unreachable.
-        Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Number of seconds to wait between retries (it
-        might be a floating point number).
-    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying``.
+        Either ``job_id`` or ``job_name`` must be provided.
+        ``job_id`` and ``job_name`` are mutually exclusive.
+    :param job_name: The name of the existing Databricks job to delete. (templated)
+        Exactly one job with the specified name must exist.
+        Either ``job_id`` or ``job_name`` must be provided.
+        ``job_id`` and ``job_name`` are mutually exclusive.
+    :param databricks_conn_id: Reference to the
+        :ref:`Databricks connection <howto/connection:databricks>`.
+    :param databricks_retry_limit: Amount of times retry if the Databricks backend is
+        unreachable. Its value must be greater than or equal to 1.
+    :param databricks_retry_delay: Number of seconds to wait between retries
+        (it might be a floating point number).
+    :param databricks_retry_args: An optional dictionary with arguments passed to
+        ``tenacity.Retrying`` class.
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    template_fields: Sequence[str] = ("job_id", "job_name")
+    ui_color = "#1CB1C2"
+    ui_fgcolor = "#fff"
 
     def __init__(
         self,
         *,
-        job_id: int | str,
-        job_nm: str | None = None,
+        job_id: int | str | None = None,
+        job_name: str | None = None,
         databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
