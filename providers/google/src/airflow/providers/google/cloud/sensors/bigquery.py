@@ -91,7 +91,9 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 )
             else:
                 kwargs["poke_interval"] = 5
+
         super().__init__(**kwargs)
+
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id

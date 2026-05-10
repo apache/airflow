@@ -116,7 +116,6 @@ with DAG(
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        deferrable=True,
     )
     # [END howto_sensor_async_bigquery_table]
 
@@ -158,7 +157,6 @@ with DAG(
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        deferrable=True,
     )
     # [END howto_sensor_bigquery_table_partition_async]
 
