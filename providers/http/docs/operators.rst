@@ -89,14 +89,15 @@ Here we are calling a ``GET`` request and pass params to it. The task will succe
     :end-before: [END howto_operator_http_task_get_op]
 
 HttpOperator returns the response body as text by default. If you want to modify the response before passing
-it on the next task downstream use ``response_filter``. This is useful if:
+it on to the next downstream task, use ``response_filter``. The value returned by ``response_filter`` becomes
+the task result, which can be pulled by downstream tasks with XCom. This is useful if:
 
 - the API you are consuming returns a large JSON payload and you're interested in a subset of the data
 - the API returns data in xml or csv and you want to convert it to JSON
 - you're interested in the headers of the response instead of the body
 
-Below is an example of retrieving data from a REST API and only returning a nested property instead of the full
-response body.
+Below is an example of retrieving data from a REST API and only returning the ``status`` query parameter from
+the response body.
 
 .. exampleinclude:: /../../http/tests/system/http/example_http.py
     :language: python

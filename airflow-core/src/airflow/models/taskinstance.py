@@ -1469,7 +1469,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        print(task_outlets, outlet_events)
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
