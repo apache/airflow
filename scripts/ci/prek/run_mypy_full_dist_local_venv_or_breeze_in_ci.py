@@ -25,7 +25,7 @@
 
 Used for non-provider projects: airflow-core, task-sdk, airflow-ctl, dev, scripts,
 devel-common, airflow-ctl-tests, chart/tests, airflow-e2e-tests,
-task-sdk-integration-tests, docker-tests, kubernetes-tests, shared.
+task-sdk-integration-tests, docker-tests, kubernetes-tests, shared, sdk/coordinators.
 """
 
 from __future__ import annotations
@@ -40,6 +40,7 @@ from pathlib import Path
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
     check_uv_version,
+    coordinator_distribution_dirs,
 )
 
 CI = os.environ.get("CI")
@@ -78,7 +79,11 @@ _SHARED_DISTS = sorted(
     f"shared/{p.name}" for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
 )
 
-ALLOWED_FOLDERS = _TOP_LEVEL_ALLOWED_FOLDERS + _SHARED_DISTS
+# Each sdk/coordinators/<dist> workspace member is an allowed folder in its own right,
+# giving every coordinator distribution its own dedicated mypy hook / virtualenv / cache.
+_COORDINATOR_DISTS = [f"sdk/coordinators/{p.name}" for p in coordinator_distribution_dirs()]
+
+ALLOWED_FOLDERS = _TOP_LEVEL_ALLOWED_FOLDERS + _SHARED_DISTS + _COORDINATOR_DISTS
 
 # Map folder(s) to the uv project to use for running mypy.
 # When multiple folders are checked together, the first folder's project is used.

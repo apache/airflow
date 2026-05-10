@@ -39,6 +39,20 @@ AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
+AIRFLOW_COORDINATORS_ROOT_PATH = AIRFLOW_ROOT_PATH / "sdk" / "coordinators"
+
+
+def coordinator_distribution_dirs(root_path: Path = AIRFLOW_COORDINATORS_ROOT_PATH) -> list[Path]:
+    """Return coordinator distribution directories under ``sdk/coordinators``."""
+    if not root_path.exists():
+        return []
+    return sorted(path for path in root_path.iterdir() if (path / "pyproject.toml").exists())
+
+
+def coordinator_ids(root_path: Path = AIRFLOW_COORDINATORS_ROOT_PATH) -> list[str]:
+    """Return coordinator ids derived from ``sdk/coordinators/<id>`` directories."""
+    return [path.name for path in coordinator_distribution_dirs(root_path)]
+
 
 # Here we should add the second level paths that we want to have sub-packages in
 KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]

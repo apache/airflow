@@ -541,11 +541,26 @@ repos:
         pass_filenames: true
         require_serial: true
       - id: check-airflow-bug-report-template
-        name: Sort airflow-bug-report provider list
+        name: Validate airflow bug report template lists
         language: python
-        files: ^\.github/ISSUE_TEMPLATE/1-airflow_bug_report\.yml$
+        files: >
+          (?x)
+          ^\.github/ISSUE_TEMPLATE/1-airflow_bug_report\.yml$|
+          ^sdk/coordinators/.*/pyproject\.toml$
         require_serial: true
         entry: ./scripts/ci/prek/check_airflow_bug_report_template.py
+      - id: check-coordinator-distributions
+        name: Validate coordinator distributions metadata and docs
+        language: python
+        entry: ./scripts/ci/prek/check_coordinator_distributions.py
+        pass_filenames: false
+        files: >
+          (?x)
+          ^sdk/coordinators/.*/pyproject\.toml$|
+          ^sdk/coordinators/.*/README\.rst$|
+          ^sdk/coordinators/.*/(LICENSE|NOTICE)$|
+          ^scripts/ci/prek/check_coordinator_distributions\.py$
+        require_serial: true
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/prek/local_yml_mounts.py
@@ -1109,6 +1124,13 @@ repos:
         entry: ./scripts/ci/prek/check_shared_mypy_hooks.py
         pass_filenames: false
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
+        require_serial: true
+      - id: check-coordinators-mypy-hooks
+        name: Every sdk/coordinators/<dist> has a mypy-coordinators-<dist> prek hook
+        language: python
+        entry: ./scripts/ci/prek/check_coordinators_mypy_hooks.py
+        pass_filenames: false
+        files: ^sdk/coordinators/.*|^scripts/ci/prek/check_coordinators_mypy_hooks\.py$
         require_serial: true
       - id: check-migration-patterns
         name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)

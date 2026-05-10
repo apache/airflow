@@ -28,7 +28,7 @@ from __future__ import annotations
 import sys
 
 import yaml
-from common_prek_utils import AIRFLOW_ROOT_PATH, check_list_sorted, console
+from common_prek_utils import AIRFLOW_ROOT_PATH, check_list_sorted, console, coordinator_ids
 
 BUG_REPORT_TEMPLATE = AIRFLOW_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "1-airflow_bug_report.yml"
 
@@ -37,6 +37,8 @@ DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_depend
 
 if __name__ == "__main__":
     errors: list[str] = []
+    coordinator_template_field_found = False
+    all_coordinators = set(coordinator_ids())
     template = yaml.safe_load(BUG_REPORT_TEMPLATE.read_text())
     for field in template["body"]:
         attributes = field.get("attributes")
@@ -57,6 +59,20 @@ if __name__ == "__main__":
                         all_providers.remove(provider)
                 if all_providers:
                     errors.append(f"Not all providers are listed: {all_providers}")
+            elif attributes.get("label") == "Apache Airflow Coordinator(s)":
+                coordinator_template_field_found = True
+                check_list_sorted(attributes["options"], "Apache Airflow Coordinator(s)", errors)
+                missing_coordinators = all_coordinators.difference(attributes["options"])
+                unknown_coordinators = set(attributes["options"]).difference(all_coordinators)
+                if missing_coordinators:
+                    errors.append(f"Not all coordinators are listed: {missing_coordinators}")
+                if unknown_coordinators:
+                    errors.append(
+                        f"Coordinator(s) {unknown_coordinators} not found in sdk/coordinators "
+                        "and still present in the template.!"
+                    )
+    if all_coordinators and not coordinator_template_field_found:
+        errors.append("Apache Airflow Coordinator(s) field is missing from the bug report template")
     if errors:
         console.print("[red]Errors found in the bug report template[/]")
         for error in errors:
