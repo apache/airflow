@@ -51,14 +51,21 @@ export const configureMonaco = () => {
     return configurationPromise;
   }
 
-  configurationPromise = loadMonacoModules().then(({ editorWorker, jsonWorker, monaco }) => {
-    Reflect.set(globalThis, "MonacoEnvironment", {
-      getWorker: (_moduleId: string, label: string) =>
-        label === "json" ? new jsonWorker() : new editorWorker(),
-    } satisfies MonacoEnvironment);
+  configurationPromise = loadMonacoModules()
+    .then(({ editorWorker, jsonWorker, monaco }) => {
+      Reflect.set(globalThis, "MonacoEnvironment", {
+        getWorker: (_moduleId: string, label: string) =>
+          label === "json" ? new jsonWorker() : new editorWorker(),
+      } satisfies MonacoEnvironment);
 
-    loader.config({ monaco });
-  });
+      loader.config({ monaco });
+    })
+    .catch((error: unknown) => {
+      configurationPromise = undefined;
+      // eslint-disable-next-line no-console
+      console.error("Failed to configure Monaco editor", error);
+      throw error;
+    });
 
   return configurationPromise;
 };

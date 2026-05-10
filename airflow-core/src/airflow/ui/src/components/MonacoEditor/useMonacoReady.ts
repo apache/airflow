@@ -26,11 +26,13 @@ export const useMonacoReady = () => {
   useEffect(() => {
     let isMounted = true;
 
-    void configureMonaco().then(() => {
-      if (isMounted) {
-        setIsReady(true);
-      }
-    });
+    void configureMonaco()
+      .then(() => {
+        if (isMounted) {
+          setIsReady(true);
+        }
+      })
+      .catch(() => undefined);
 
     return () => {
       isMounted = false;
