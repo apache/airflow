@@ -49,7 +49,7 @@ def _safe_remove(path: str) -> None:
     except FileNotFoundError:
         pass
     except OSError as exc:
-        logger.debug("LogStreamAccumulator: could not remove temp file %s: %s", path, exc)
+        logger.warning("LogStreamAccumulator: could not remove temp file %s: %s", path, exc)
 
 
 class LogStreamAccumulator:
