@@ -114,11 +114,11 @@ class GitHook(BaseHook):
         raw_github_client_id = extra.get("github_client_id")
         if raw_github_client_id is not None:
             try:
-                # Accept either integer or string IDs (GitHubIntegration accepts both)
-                self.github_client_id: int | str | None = int(raw_github_client_id)
-            except (TypeError, ValueError):
-                # Keep as string when it is not an integer
-                self.github_client_id = str(raw_github_client_id)
+                self.github_client_id: int | None = int(raw_github_client_id)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid 'github_client_id' value {raw_github_client_id!r}. It must be an integer."
+                ) from exc
         else:
             self.github_client_id = None
 
@@ -158,9 +158,10 @@ class GitHook(BaseHook):
                     f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
             # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
+            # Keep `private_key` populated for callers/tests that expect it to be available,
+            # but also keep a dedicated attribute so configure_hook_env() can avoid
+            # treating the GitHub App PEM as an SSH key.
             self.github_app_private_key: str | None = self.private_key
-            self.private_key = None
-            self.key_file = None
             self.user_name, self.auth_token = self._get_github_app_token()
         else:
             self.github_app_private_key = None
@@ -270,7 +271,9 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.private_key:
+        # If a GitHub App PEM is present, it should not be treated as an SSH key
+        # for configuring `GIT_SSH_COMMAND`.
+        if self.private_key and not getattr(self, "github_app_private_key", None):
             with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
                 tmp_keyfile.write(self.private_key)
                 tmp_keyfile.flush()
