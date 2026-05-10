@@ -91,7 +91,7 @@ describe("Task log grouping", () => {
 
     expect(summarySource).toBeVisible();
     fireEvent.click(summarySource);
-    await waitFor(() => expect(screen.queryByText(/sources=\[/iu)).toBeVisible());
+    await waitFor(() => expect(screen.queryByText(/Log message source details/iu)).toBeVisible());
 
     const summaryPre = screen.getByTestId("summary-Pre task execution logs");
 
