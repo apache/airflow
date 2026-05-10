@@ -103,6 +103,20 @@ To delete an Amazon S3 Tables table bucket, use
     :start-after: [START howto_operator_s3tables_delete_table_bucket]
     :end-before: [END howto_operator_s3tables_delete_table_bucket]
 
+.. _howto/operator:S3TablesRenameTableOperator:
+
+Rename a Table
+--------------
+
+To rename a table in an Amazon S3 Tables namespace, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesRenameTableOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_rename_table]
+    :end-before: [END howto_operator_s3tables_rename_table]
+
 Reference
 ---------
 

@@ -656,7 +656,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if not self._runner_comms_silence_logged:
                 log.error(
                     "TriggerRunner subprocess event loop appears deadlocked: no communication received "
-                    "for %.1fs (threshold: %ds). Skipping heartbeat so the triggerer appears unhealthy "
+                    "for %.1fs (threshold: %.1fs). Skipping heartbeat so the triggerer appears unhealthy "
                     "to the scheduler and its triggers are reassigned.",
                     elapsed,
                     self.runner_health_check_threshold,

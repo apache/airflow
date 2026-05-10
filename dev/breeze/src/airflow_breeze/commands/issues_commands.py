@@ -31,7 +31,7 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -42,18 +42,7 @@ def issues_group():
 
 def _resolve_github_token(github_token: str | None) -> str | None:
     """Resolve GitHub token from option, environment, or gh CLI."""
-    if github_token:
-        return github_token
-    gh_token_result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-        dry_run_override=False,
-    )
-    if gh_token_result.returncode == 0:
-        return gh_token_result.stdout.strip()
-    return None
+    return retrieve_github_token(github_token)
 
 
 def _get_collaborator_logins(repo) -> set[str]:
