@@ -31,7 +31,10 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.providers.common.compat.sdk import Stats, conf, timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
-from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
+from airflow.providers.edge3.worker_api.auth import (
+    assert_jwt_team_matches_body,
+    jwt_token_authorization_rest,
+)
 from airflow.providers.edge3.worker_api.datamodels import (
     WorkerQueueUpdateBody,
     WorkerRegistrationReturn,
@@ -186,19 +189,22 @@ def redefine_maintenance_comments(
     return worker_maintenance_comment
 
 
-@worker_router.post("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
+@worker_router.post("/{worker_name}")
 def register(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
+    jwt_payload: Annotated[dict, Depends(jwt_token_authorization_rest)],
 ) -> WorkerRegistrationReturn:
     """Register a new worker to the backend."""
     versions_match = _assert_version(body.sysinfo)
+    # Trust the JWT-bound team_name; reject if the body claims a different team.
+    team_name = assert_jwt_team_matches_body(jwt_payload, body.team_name)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(
-            worker_name=worker_name, state=body.state, queues=body.queues, team_name=body.team_name
+            worker_name=worker_name, state=body.state, queues=body.queues, team_name=team_name
         )
     else:
         # Prevent duplicate workers unless the existing worker is in offline or unknown state
@@ -220,18 +226,23 @@ def register(
     worker.queues = body.queues
     worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
-    worker.team_name = body.team_name
+    worker.team_name = team_name
     session.add(worker)
     return WorkerRegistrationReturn(last_update=worker.last_update, versions_match=versions_match)
 
 
-@worker_router.patch("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
+@worker_router.patch("/{worker_name}")
 def set_state(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
+    jwt_payload: Annotated[dict, Depends(jwt_token_authorization_rest)],
 ) -> WorkerSetStateReturn:
     """Set state of worker and returns the current assigned queues."""
+    # Trust the JWT-bound team_name; reject if the body claims a different team.
+    # The worker may be heart-beating with a stale local team_name config; the
+    # JWT is the authoritative declaration.
+    assert_jwt_team_matches_body(jwt_payload, body.team_name)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:

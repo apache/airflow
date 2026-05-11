@@ -153,7 +153,10 @@ class TestJobsApiRoutes:
             session.commit()
 
             body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
-            result = fetch("worker1", body, session)
+            result = fetch(
+                "worker1", body, session,
+                jwt_payload={"method": "jobs/fetch/worker1", "team_name": "team_a"},
+            )
             assert result is not None
             assert result.dag_id == "dag_a"
             assert result.task_id == "task_a"
@@ -188,13 +191,37 @@ class TestJobsApiRoutes:
             session.add_all([job_team_a, job_no_team])
             session.commit()
 
+            # New JWT-bound team check: a worker authenticated for team_a cannot
+            # request a team_b job by setting body.team_name. The server rejects
+            # the cross-team body with 403. Backwards-compat path (legacy worker
+            # whose JWT predates the team_name claim) still trusts the body.
+            from fastapi import HTTPException
+
+            body_cross = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name="team_a")
+            with pytest.raises(HTTPException) as exc:
+                fetch(
+                    "worker1", body_cross, session,
+                    jwt_payload={"method": "jobs/fetch/worker1", "team_name": "team_b"},
+                )
+            assert exc.value.status_code == 403
+
             body1 = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name="team_a")
-            result1 = fetch("worker1", body1, session)
+            result1 = fetch(
+                "worker1", body1, session,
+                jwt_payload={"method": "jobs/fetch/worker1", "team_name": "team_a"},
+            )
             assert result1 is not None
             body2 = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name=None)
-            result2 = fetch("worker1", body2, session)
+            # No team in body or JWT — legacy worker, body wins via backcompat path.
+            result2 = fetch(
+                "worker1", body2, session,
+                jwt_payload={"method": "jobs/fetch/worker1"},
+            )
             assert result2 is not None
-            result3 = fetch("worker1", body2, session)
+            result3 = fetch(
+                "worker1", body2, session,
+                jwt_payload={"method": "jobs/fetch/worker1"},
+            )
             assert result3 is None
             fetched_dag_ids = {result1.dag_id, result2.dag_id}
             assert fetched_dag_ids == {"dag_a", "dag_b"}
