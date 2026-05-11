@@ -210,24 +210,16 @@ class TestOSSHook:
 
     @mock.patch(OSS_STRING.format("oss.config.load_default"))
     def test_get_client_uses_custom_endpoint_from_connection(self, mock_load_default):
-        import json as json_mod
-
-        from airflow.models import Connection
-
         mock_config = mock.MagicMock()
         mock_load_default.return_value = mock_config
+
         custom_ep = "oss-eu-central-1-internal.aliyuncs.com"
-        self.hook.oss_conn = Connection(
-            extra=json_mod.dumps(
-                {
-                    "auth_type": "AK",
-                    "access_key_id": "mock_access_key_id",
-                    "access_key_secret": "mock_access_key_secret",
-                    "region": "mock_region",
-                    "endpoint": custom_ep,
-                }
-            )
-        )
+
+        mock_conn = mock.MagicMock()
+        mock_conn.extra_dejson = {"endpoint": custom_ep}
+
+        self.hook.oss_conn = mock_conn
+        self.hook.get_credential = mock.MagicMock()
 
         self.hook._get_client()
 
