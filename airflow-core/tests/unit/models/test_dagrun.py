@@ -39,6 +39,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
@@ -1441,6 +1442,29 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
             .order_by(TI.map_index)
         ).all()
         assert indices == [0, 1, 2, 3]
+
+
+def test_verify_integrity_handles_stale_data_error(dag_maker, session):
+    """Test that StaleDataError during _create_task_instances is caught and session is rolled back."""
+    with dag_maker("test_stale_data_error_dag", session=session) as dag:
+        task = EmptyOperator(task_id="task1")
+
+    dr = dag_maker.create_dagrun()
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+
+    with mock.patch.object(session, "flush", side_effect=StaleDataError()):
+        with mock.patch.object(session, "rollback") as mock_rollback:
+            # Should not raise — StaleDataError must be caught gracefully.
+            # Call _create_task_instances directly with a non-empty task list so the
+            # test exercises the session.flush() → StaleDataError → session.rollback() path.
+            dr._create_task_instances(
+                dag_id=dag.dag_id,
+                tasks=[TI(task=task, run_id=dr.run_id, dag_version_id=dag_version_id)],
+                created_counts={"EmptyOperator": 1},
+                hook_is_noop=False,
+                session=session,
+            )
+            mock_rollback.assert_called_once()
 
 
 def test_mapped_literal_verify_integrity(dag_maker, session):
