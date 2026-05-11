@@ -87,6 +87,9 @@ dependencies = [
     # Start of shared providers-discovery dependencies
     "jsonschema>=4.19.1",
     # End of shared providers-discovery dependencies
+    # Start of shared observability dependencies
+    "opentelemetry-api>=1.27.0",
+    # End of shared observability dependencies
 ]
 
 [project.optional-dependencies]

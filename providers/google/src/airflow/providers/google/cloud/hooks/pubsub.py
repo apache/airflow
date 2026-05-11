@@ -108,6 +108,7 @@ class PubSubHook(GoogleBaseHook):
                     enable_message_ordering=self.enable_message_ordering,
                     enable_open_telemetry_tracing=self.enable_open_telemetry_tracing,
                 ),
+                client_options=self.get_client_options(),
             )
         return self._client
 
@@ -118,7 +119,11 @@ class PubSubHook(GoogleBaseHook):
 
         :return: Google Cloud Pub/Sub client object.
         """
-        return SubscriberClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return SubscriberClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def publish(
@@ -611,8 +616,12 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         :return: Google Pub/Sub asynchronous client.
         """
         if not self._client:
-            credentials = (await self.get_sync_hook()).get_credentials()
-            self._client = SubscriberAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
+            sync_hook = await self.get_sync_hook()
+            credentials = sync_hook.get_credentials()
+            client_options = sync_hook.get_client_options()
+            self._client = SubscriberAsyncClient(
+                credentials=credentials, client_info=CLIENT_INFO, client_options=client_options
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

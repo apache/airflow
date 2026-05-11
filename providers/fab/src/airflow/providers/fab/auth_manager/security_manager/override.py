@@ -17,16 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import copy
 import datetime
 import importlib
 import itertools
+import json
 import logging
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
-import jwt
 from flask import current_app, flash, g, has_app_context, has_request_context, session
 from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
@@ -77,7 +78,9 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
+    assoc_group_role,
     assoc_permission_role,
+    assoc_user_role,
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
@@ -411,8 +414,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return claims
 
     def _get_authentik_token_info(self, id_token):
-        me = jwt.decode(id_token, options={"verify_signature": False})
-
         verify_signature = self.oauth_remotes["authentik"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             # Validate the token using authentik certificate
@@ -426,7 +427,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         else:
             # Return the token info without validating
             log.warning("JWT token is not validated!")
-            return me
+            _parts = id_token.split(".")
+            _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
+            return json.loads(base64.urlsafe_b64decode(_payload))
 
         raise FabException("OAuth signature verify failed")
 
@@ -1331,12 +1334,21 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         Delete the given Role.
 
+        Cleans up association table rows (permission-role, user-role, group-role) before
+        deleting the role itself, so that databases whose FK constraints lack CASCADE
+        (e.g. databases migrated from older Airflow versions) do not raise IntegrityError.
+
         :param role_name: the name of a role in the ab_role table
         """
-        role = self.session.scalars(select(Role).where(Role.name == role_name)).first()
+        role = self.session.scalars(select(self.role_model).where(self.role_model.name == role_name)).first()
         if role:
             log.info("Deleting role '%s'", role_name)
-            self.session.execute(delete(Role).where(Role.name == role_name))
+            self.session.execute(
+                delete(assoc_permission_role).where(assoc_permission_role.c.role_id == role.id)
+            )
+            self.session.execute(delete(assoc_user_role).where(assoc_user_role.c.role_id == role.id))
+            self.session.execute(delete(assoc_group_role).where(assoc_group_role.c.role_id == role.id))
+            self.session.execute(delete(self.role_model).where(self.role_model.id == role.id))
             self.session.commit()
         else:
             raise FabException(f"Role named '{role_name}' does not exist")
@@ -1453,7 +1465,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             register_user.password = hashed_password
         else:
             register_user.password = self._hash_password(password)
-        register_user.registration_hash = str(uuid.uuid1())
+        register_user.registration_hash = str(uuid.uuid4())
         try:
             self.session.add(register_user)
             self.session.commit()
@@ -2383,7 +2395,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             claims.validate()
             return claims
 
-        return jwt.decode(id_token, options={"verify_signature": False})
+        _parts = id_token.split(".")
+        _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
+        return json.loads(base64.urlsafe_b64decode(_payload))
 
     def _ldap_bind_indirect(self, ldap, con) -> None:
         """
@@ -2418,10 +2432,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
+        # escape username to prevent LDAP injection attacks
+        escaped_username = ldap.filter.escape_filter_chars(username)
         if self.auth_ldap_search_filter:
-            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={username}))"
+            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={escaped_username}))"
         else:
-            filter_str = f"({self.auth_ldap_uid_field}={username})"
+            filter_str = f"({self.auth_ldap_uid_field}={escaped_username})"
 
         # build what fields to request in the LDAP search
         request_fields = [
@@ -2491,7 +2507,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         log.debug("Nested groups for LDAP enabled.")
         # filter for microsoft active directory only
-        nested_groups_filter_str = f"(&(objectCategory=Group)(member:1.2.840.113556.1.4.1941:={user_dn}))"
+        # escape user_dn to prevent LDAP injection attacks
+        escaped_user_dn = ldap.filter.escape_filter_chars(user_dn)
+        nested_groups_filter_str = (
+            "(&(objectCategory=Group)(member:1.2.840.113556.1.4.1941:=" + escaped_user_dn + "))"
+        )
         nested_groups_request_fields = ["cn"]
 
         nested_groups_search_result = con.search_s(

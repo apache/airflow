@@ -463,3 +463,94 @@ class DbtCloudListJobsOperator(BaseOperator):
                 buffer.append(job["id"])
         self.log.info("Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer)))
         return buffer
+
+
+class DbtCloudListJobRunsOperator(BaseOperator):
+    """
+    List job runs in dbt Cloud.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DbtCloudListJobRunsOperator`
+
+    Retrieves metadata for job runs tied to a specified dbt Cloud account.
+    Optionally filters by job_id and allows ordering.
+
+    :param dbt_cloud_conn_id: The connection ID for connecting to dbt Cloud.
+    :param account_id: Optional. If not provided, the account ID from the connection is used.
+    :param job_id: Optional. Filter runs for a specific job.
+    :param order_by: Optional. Field to order results by (e.g. "-id").
+    :param include_related: Optional. Related fields to include (e.g. ["job", "environment"]).
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
+    :param latest_only: If True, return only the most recent job run.
+    :param status_filter: Optional. Filter runs by status code(s).
+        Accepts an integer or a sequence of integers.
+    """
+
+    template_fields = (
+        "account_id",
+        "job_id",
+        "order_by",
+        "include_related",
+    )
+
+    def __init__(
+        self,
+        *,
+        dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
+        account_id: int | None = None,
+        job_id: int | None = None,
+        order_by: str | None = None,
+        include_related: list[str] | None = None,
+        hook_params: dict[str, Any] | None = None,
+        latest_only: bool = False,
+        status_filter: int | list[int] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        self.account_id = account_id
+        self.job_id = job_id
+        self.order_by = order_by
+        self.include_related = include_related
+        self.hook_params = hook_params or {}
+        self.latest_only = latest_only
+        self.status_filter = status_filter
+
+    def execute(self, context) -> list[dict[str, Any]] | dict[str, Any] | None:
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
+
+        order_by = self.order_by or ("-created_at" if self.latest_only else None)
+
+        responses = hook.list_job_runs(
+            account_id=self.account_id,
+            include_related=self.include_related,
+            job_definition_id=self.job_id,
+            order_by=order_by,
+        )
+
+        runs: list[dict[str, Any]] = []
+        for response in responses:
+            runs.extend(response.json()["data"])
+
+        if self.status_filter is not None:
+            allowed = {self.status_filter} if isinstance(self.status_filter, int) else set(self.status_filter)
+
+            runs = [run for run in runs if run.get("status") is not None and int(run["status"]) in allowed]
+
+        if self.latest_only:
+            latest = runs[0] if runs else None
+
+            if latest:
+                self.log.info(
+                    "Returning latest job run (id=%s, status=%s)",
+                    latest["id"],
+                    latest.get("status"),
+                )
+            else:
+                self.log.info("No job runs found for the given filters.")
+
+            return latest
+
+        self.log.info("Retrieved %s job runs.", len(runs))
+        return runs

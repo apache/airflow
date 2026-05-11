@@ -580,6 +580,44 @@ class TestCliDags:
         assert dagrun.data_interval_start is None
         assert dagrun.data_interval_end is None
 
+    def test_trigger_dag_empty_object_conf(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_empty_object_conf",
+                    "--conf={}",
+                ],
+            ),
+        )
+        with create_session() as session:
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_empty_object_conf")
+            ).one()
+
+        assert dagrun.conf == {}
+
+    def test_trigger_dag_json_null_conf(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_json_null_conf",
+                    "--conf=null",
+                ],
+            ),
+        )
+        with create_session() as session:
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_json_null_conf")
+            ).one()
+
+        assert dagrun.conf == {}
+
     def test_trigger_dag_with_microseconds(self):
         dag_command.dag_trigger(
             self.parser.parse_args(
@@ -603,7 +641,8 @@ class TestCliDags:
         assert dagrun.run_type == DagRunType.MANUAL
         assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
-    def test_trigger_dag_invalid_conf(self):
+    @pytest.mark.parametrize("conf", ["NOT JSON", ""])
+    def test_trigger_dag_invalid_conf(self, conf):
         with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
             dag_command.dag_trigger(
                 self.parser.parse_args(
@@ -614,7 +653,24 @@ class TestCliDags:
                         "--run-id",
                         "trigger_dag_xxx",
                         "--conf",
-                        "NOT JSON",
+                        conf,
+                    ]
+                ),
+            )
+
+    @pytest.mark.parametrize("conf", ["[]", '"str"', "1", "false"])
+    def test_trigger_dag_rejects_non_object_conf(self, conf):
+        with pytest.raises(ValueError, match="DagRun conf must be a JSON object or null"):
+            dag_command.dag_trigger(
+                self.parser.parse_args(
+                    [
+                        "dags",
+                        "trigger",
+                        "example_bash_operator",
+                        "--run-id",
+                        "trigger_dag_xxx",
+                        "--conf",
+                        conf,
                     ]
                 ),
             )

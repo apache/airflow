@@ -46,10 +46,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib  # Python 3.11+ stdlib
+<<<<<<< update_docker_project_names
 except ModuleNotFoundError:  # pragma: no cover -- Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
+=======
+else:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib
+>>>>>>> main
 from registry_contract_models import validate_provider_version_metadata
 
 try:

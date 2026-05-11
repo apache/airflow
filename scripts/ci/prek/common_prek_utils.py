@@ -526,6 +526,16 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
     return providers
 
 
+def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom, marker: str) -> bool:
+    """Check if the import statement has the given nocheck marker comment on any of its lines."""
+    start = node.lineno
+    end = node.end_lineno or start
+    for lineno in range(start, end + 1):
+        if lineno <= len(source_lines) and marker in source_lines[lineno - 1]:
+            return True
+    return False
+
+
 def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]:
     """
     Returns list of all imports in file.

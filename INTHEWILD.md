@@ -276,6 +276,7 @@ Currently, **officially** using Airflow:
 1. [Headout](https://headout.com/) [[@shivanshs9](https://github.com/shivanshs9/)]
 1. [Healthjump](http://www.healthjump.com/) [[@miscbits](https://github.com/miscbits)]
 1. [HelloFresh](https://www.hellofresh.com) [[@tammymendt](https://github.com/tammymendt) & [@davidsbatista](https://github.com/davidsbatista) & [@iuriinedostup](https://github.com/iuriinedostup)]
+1. [Hinge Health](https://www.hingehealth.com/) [[@rparthas](https://github.com/rparthas)]
 1. [Hipages](https://www.hipages.com.au/) [[@arihantsurana](https://github.com/arihantsurana) & [@koconder](https://github.com/koconder)]
 1. [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
 1. [HomeToGo](https://www.hometogo.com/) [[@HomeToGo](https://github.com/hometogo), [@AurimasGr](https://github.com/AurimasGr)]
@@ -446,6 +447,7 @@ Currently, **officially** using Airflow:
 1. [Raisin](https://www.raisin.com/) [[@davido912](https://github.com/davido912)]
 1. [Rakuten](https://www.rakuten.com)
 1. [Rapido](https://rapido.bike/) [[@ChethanUK](https://github.com/ChethanUK)]
+1. [Razorpay](https://razorpay.com/) [[@manish1337](https://github.com/manish1337)]
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [REA Group](https://www.rea-group.com/)
 1. [Reddit](https://www.reddit.com/) [[@reddit](https://github.com/reddit/)]

@@ -151,8 +151,12 @@ class DockerOperator(BaseOperator):
         The path is also made available via the environment variable
         ``AIRFLOW_TMP_DIR`` inside the container.
     :param user: Default user inside the docker container.
-    :param mounts: List of volumes to mount into the container. Each item should
-        be a :py:class:`docker.types.Mount` instance. (templated)
+    :param mounts: List of volumes to mount into the container. Each item may
+        be a :py:class:`docker.types.Mount` instance, or a ``dict`` of
+        :py:class:`~docker.types.Mount` keyword arguments (e.g.
+        ``{"target": "/data", "source": "vol", "type": "volume"}``); ``dict``
+        entries are converted to ``Mount`` instances at construction time.
+        (templated)
     :param entrypoint: Overwrite the default ENTRYPOINT of the image
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
@@ -245,7 +249,7 @@ class DockerOperator(BaseOperator):
         mount_tmp_dir: bool = True,
         tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
-        mounts: list[Mount] | None = None,
+        mounts: list[Mount | dict] | None = None,
         entrypoint: str | list[str] | None = None,
         working_dir: str | None = None,
         xcom_all: bool = False,
@@ -304,7 +308,8 @@ class DockerOperator(BaseOperator):
         self.mount_tmp_dir = mount_tmp_dir
         self.tmp_dir = tmp_dir
         self.user = user
-        self.mounts = mounts or []
+        mounts = [mount if isinstance(mount, Mount) else Mount(**mount) for mount in (mounts or [])]
+        self.mounts: list[Mount] = mounts
         for mount in self.mounts:
             mount.template_fields = ("Source", "Target", "Type")
         self.entrypoint = entrypoint

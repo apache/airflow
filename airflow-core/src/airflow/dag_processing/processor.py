@@ -69,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -608,6 +609,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result
                 dump_opts = {"exclude_unset": True, "by_alias": True}
@@ -616,6 +621,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
@@ -666,8 +673,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
             resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, MaskSecret):
             # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-            from airflow.sdk.log import mask_secret
-
             mask_secret(msg.value, msg.name)
         elif isinstance(msg, GetTICount):
             resp = self.client.task_instances.get_count(

@@ -30,7 +30,7 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 class SageMakerNotebookHook(BaseHook):
     """
-    Interact with Sagemaker Unified Studio Workflows.
+    Interact with Sagemaker Unified Studio Workflows for executing Jupyter notebooks, querybooks, and visual ETL jobs.
 
     This hook provides a wrapper around the Sagemaker Workflows Notebook Execution API.
 

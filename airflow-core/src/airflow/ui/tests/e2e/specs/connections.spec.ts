@@ -52,7 +52,8 @@ test.describe("Connections Page - List and Display", () => {
   test("should display connections list page", async ({ connectionsPage }) => {
     await connectionsPage.navigate();
 
-    expect(connectionsPage.page.url()).toContain("/connections");
+    // Verify the page is loaded
+    await expect(connectionsPage.page).toHaveURL(/\/connections/);
 
     await expect(connectionsPage.connectionsTable).toBeVisible();
   });
@@ -128,6 +129,7 @@ test.describe("Connections Page - CRUD Operations", () => {
 
   test("should create a new connection and display it in list", async ({ connectionsPage }) => {
     test.slow();
+    await connectionsPage.navigate();
 
     const connId = `new_conn_${uniqueRunId("create")}`;
 
@@ -310,12 +312,13 @@ test.describe("Connections Page - Search and Filter", () => {
         async () => {
           const count = await connectionsPage.getConnectionCount();
 
-          return count > 0; // Just verify we have some results
+          return count > 0;
         },
         { intervals: [500] },
       )
       .toBe(true);
 
+    // Clear search
     await connectionsPage.searchConnections("");
 
     const finalCount = await connectionsPage.getConnectionCount();
