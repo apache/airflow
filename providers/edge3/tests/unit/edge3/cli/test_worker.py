@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import importlib
 import json
 import logging
-import multiprocessing
 import os
 import signal
 import subprocess
@@ -30,7 +28,6 @@ from datetime import datetime
 from io import StringIO
 from multiprocessing import Process
 from pathlib import Path
-from typing import cast
 from unittest import mock
 from unittest.mock import call, patch
 
@@ -86,21 +83,9 @@ MOCK_COMMAND = {
 }
 
 
-def _emit_large_exception_target(results_queue):
-    """Worker-process target used by ``test_fetch_and_run_job_possible_deadlock``.
-
-    Pushes a >64 KB pickled exception to ``results_queue``. On Linux the OS pipe
-    backing ``multiprocessing.Queue`` only has ~64 KB of buffer, so the queue's
-    feeder thread blocks on ``send_bytes`` and the subprocess can't terminate
-    until the parent reads from the queue — exactly the production deadlock
-    condition that #66144 fixed.
-    """
-    results_queue.put(Exception(f"Task execution failed with large error message {'-' * 66000}"))
-
-
 class _MockProcess(Process):
     def __init__(self, returncode=None):
-        self.generated_returncode = None
+        self.generated_returncode = returncode
         self._is_alive = False
 
     def poll(self):
@@ -108,6 +93,10 @@ class _MockProcess(Process):
 
     @property
     def returncode(self):
+        return self.generated_returncode
+
+    @property
+    def exitcode(self):
         return self.generated_returncode
 
     def is_alive(self):
@@ -276,14 +265,14 @@ class TestEdgeWorker:
         subprocess_process = _MockPopen(returncode=None)
         stderr_file_path = tmp_path / "stderr.log"
         fork_process = _MockProcess()
-        results_queue = mock.MagicMock()
+        error_file_path = tmp_path / "fork-error.log"
 
         with (
             patch.object(
                 worker_with_job, "_launch_job_subprocess", return_value=(subprocess_process, stderr_file_path)
             ) as mock_launch_subprocess,
             patch.object(
-                worker_with_job, "_launch_job_fork", return_value=(fork_process, results_queue)
+                worker_with_job, "_launch_job_fork", return_value=(fork_process, error_file_path)
             ) as mock_launch_fork,
         ):
             job = worker_with_job._launch_job(edge_job, workload, logfile)
@@ -296,14 +285,12 @@ class TestEdgeWorker:
             worker_with_job.conf.getboolean.assert_not_called()
         if expected_launch_method == "subprocess":
             assert job.process is subprocess_process
-            assert job.results_queue is None
             assert job.stderr_file_path == stderr_file_path
             mock_launch_subprocess.assert_called_once_with(workload)
             mock_launch_fork.assert_not_called()
         else:
             assert job.process is fork_process
-            assert job.results_queue is results_queue
-            assert job.stderr_file_path is None
+            assert job.stderr_file_path == error_file_path
             mock_launch_fork.assert_called_once_with(workload)
             mock_launch_subprocess.assert_not_called()
 
@@ -349,14 +336,15 @@ class TestEdgeWorker:
         self,
         mock_supervise,
         worker_with_job: EdgeWorker,
+        tmp_path: Path,
     ):
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
-        q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
         assert result == 0
-        q.put.assert_called_once_with("OK")
+        assert not error_file_path.exists()  # no error written on success
 
     @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
     @pytest.mark.skipif(
@@ -367,29 +355,33 @@ class TestEdgeWorker:
         self,
         mock_run_workload,
         worker_with_job: EdgeWorker,
+        tmp_path: Path,
     ):
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
-        q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
         assert result == 0
-        q.put.assert_called_once_with("OK")
+        assert not error_file_path.exists()  # no error written on success
 
-    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @patch("airflow.sdk.execution_time.supervisor.supervise_task")
     @pytest.mark.asyncio
     async def test_supervise_launch_fail(
         self,
         mock_supervise,
         worker_with_job: EdgeWorker,
+        tmp_path: Path,
     ):
         mock_supervise.side_effect = Exception("Supervise failed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
-        q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
         assert result == 1
-        q.put.assert_called_once()
+        assert error_file_path.exists()
+        assert "Supervise failed" in error_file_path.read_text()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
@@ -458,23 +450,15 @@ class TestEdgeWorker:
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @pytest.mark.asyncio
-    async def test_fetch_and_run_job_possible_deadlock(
+    async def test_fetch_and_run_job_fork_failure_pushes_error_to_logs(
         self,
         mock_logs_push,
         mock_push_log_chunks,
         mock_jobs_set_state,
         mock_jobs_fetch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        """Verify that a large exception from the subprocess does not deadlock fetch_and_run_job.
-
-        Uses an explicit ``fork`` context to spawn the simulated worker subprocess. Python 3.14
-        flipped the POSIX default ``multiprocessing`` start method to ``forkserver``, which
-        spawns a fresh interpreter for the child — patches applied in the test process do not
-        propagate, so older variants of this test that mocked ``supervise`` no longer triggered
-        the deadlock condition. Forking a small top-level target sidesteps that and reproduces
-        the actual queue-feeder/pipe-buffer deadlock the fix targets.
-        """
         edge_job = EdgeJobFetched(
             dag_id="test",
             task_id="test",
@@ -484,40 +468,25 @@ class TestEdgeWorker:
             concurrency_slots=1,
             command=MOCK_COMMAND,  # type: ignore[arg-type]
         )
-        mock_jobs_fetch.side_effect = [edge_job, None]
-        worker_with_job.concurrency = 1  # only one job at a time
-        assert worker_with_job.free_concurrency == 0
+        mock_jobs_fetch.return_value = edge_job
+        worker_with_job.concurrency = 1
+        process = _MockProcess(returncode=1)
+        error_file_path = tmp_path / "fork-error.log"
+        error_file_path.write_text(
+            "Traceback (most recent call last):\n  ...\nRuntimeError: supervisor crashed\n"
+        )
+        launched_job = Job(edge_job, process, tmp_path / "mock.log", stderr_file_path=error_file_path)
 
-        ctx = multiprocessing.get_context("fork")
-        results_queue = ctx.Queue()
-        process = cast("Process", ctx.Process(target=_emit_large_exception_target, args=(results_queue,)))
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
+            await worker_with_job.fetch_and_run_job()
 
-        launched_job = Job(edge_job, process, worker_with_job.jobs[0].logfile, results_queue=results_queue)
-
-        with patch.object(EdgeWorker, "_launch_job", return_value=launched_job):
-            process.start()
-            try:
-                await asyncio.wait_for(worker_with_job.fetch_and_run_job(), timeout=10.0)
-            except asyncio.TimeoutError:
-                # Clean up any hanging subprocess to prevent blocking pytest
-                if process.is_alive():
-                    process.terminate()
-                    process.join(timeout=1.0)
-                    if process.is_alive():
-                        process.kill()
-                        process.join()
-                pytest.fail("fetch_and_run_job timed out after 10s - DEADLOCK DETECTED. ")
-            finally:
-                if process.is_alive():
-                    process.join(timeout=1.0)
-                    if process.is_alive():
-                        process.terminate()
-                        process.join(timeout=1.0)
-
-        # If we reach here without timeout, the deadlock was not triggered
-        assert mock_jobs_set_state.call_count >= 1
-        mock_push_log_chunks.assert_called()
-        assert len(worker_with_job.jobs) <= 1  # new job removed, original fixture job still there
+        mock_jobs_fetch.assert_called_once()
+        mock_push_log_chunks.assert_called_once()
+        assert mock_jobs_set_state.call_args_list[-1].args[1] == TaskInstanceState.FAILED
+        log_chunk_data = mock_logs_push.call_args.kwargs["log_chunk_data"]
+        assert "Task fork exited with code 1" in log_chunk_data
+        assert "RuntimeError: supervisor crashed" in log_chunk_data
+        assert not error_file_path.exists()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
@@ -1080,7 +1049,7 @@ class TestSignalHandling:
         ):
             rc = worker._run_job_via_supervisor(
                 workload=self._make_workload(),
-                results_queue=mock.MagicMock(),
+                error_file_path=tmp_path / "fork-error.log",
             )
         assert rc == 0
         assert [c.args[0] for c in order.call_args_list] == ["reset", "setpgrp", "supervise"]

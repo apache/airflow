@@ -23,15 +23,16 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from asyncio import Task, create_task, gather, get_running_loop, sleep
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from http import HTTPStatus
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 import anyio
 from aiofiles import open as aio_open
@@ -75,6 +76,12 @@ if sys.platform == "darwin":
     setproctitle = lambda title: logger.debug("Mac OS detected, skipping setproctitle")
 else:
     from setproctitle import setproctitle
+
+
+def _make_task_temp_file(prefix: str) -> tuple[IO[bytes], Path]:
+    """Create a named temporary file for task output capture and return the open file and its path."""
+    f = tempfile.NamedTemporaryFile(prefix=prefix, suffix=".log", delete=False)
+    return f, Path(f.name)
 
 
 def _edge_hostname() -> str:
@@ -415,7 +422,7 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
-    def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
+    def _run_job_via_supervisor(self, workload: ExecuteTask, error_file_path: Path) -> int:
         """Run a task by calling the supervisor directly (executes inside a forked child process)."""
         _reset_parent_signal_state()
 
@@ -451,11 +458,11 @@ class EdgeWorker:
                     server=self._execution_api_server_url,
                     log_path=workload.log_path,
                 )
-            results_queue.put("OK")
             return 0
-        except Exception as e:
+        except Exception:
             logger.exception("Task execution failed")
-            results_queue.put(e)
+            with suppress(Exception):
+                error_file_path.write_text(traceback.format_exc())
             return 1
 
     def _launch_job_subprocess(self, workload: ExecuteTask) -> tuple[subprocess.Popen, Path]:
@@ -468,26 +475,28 @@ class EdgeWorker:
         # so a verbose child could otherwise fill the pipe buffer and block forever. Also keep
         # it task-scoped instead of inheriting the worker's stderr/stdout; supervisor startup
         # failures should be pushed to the task log, not only the worker/container log.
-        with tempfile.NamedTemporaryFile(
-            prefix="airflow-edge-task-stderr-", suffix=".log", delete=False
-        ) as stderr_file:
-            stderr_file_path = Path(stderr_file.name)
-            try:
-                process = subprocess.Popen(
-                    [
-                        sys.executable,
-                        "-m",
-                        "airflow.sdk.execution_time.execute_workload",
-                        "--json-string",
-                        workload.model_dump_json(),
-                    ],
-                    env=env,
-                    start_new_session=True,
-                    stderr=stderr_file,
-                )
-            except Exception:
-                stderr_file_path.unlink(missing_ok=True)
-                raise
+        stderr_file, stderr_file_path = _make_task_temp_file("airflow-edge-task-stderr-")
+        try:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    workload.model_dump_json(),
+                ],
+                env=env,
+                start_new_session=True,
+                stderr=stderr_file,
+            )
+        except Exception:
+            stderr_file_path.unlink(missing_ok=True)
+            raise
+        finally:
+            # Close the parent's copy of the fd. Popen already dup2()'d it into the child,
+            # so the child's stderr remains open and writable. The parent reads the output
+            # later via stderr_file_path (the Path) once the child has exited.
+            stderr_file.close()
         logger.info(
             "Launched task subprocess pid=%d for %s",
             process.pid,
@@ -495,18 +504,19 @@ class EdgeWorker:
         )
         return process, stderr_file_path
 
-    def _launch_job_fork(self, workload: ExecuteTask) -> tuple[Process, Queue]:
+    def _launch_job_fork(self, workload: ExecuteTask) -> tuple[Process, Path]:
         """Launch workload by forking the current process (multiprocessing.Process)."""
         # Improvement: Use frozen GC to prevent child process from copying unnecessary memory
         # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
-        results_queue: Queue = Queue()
+        error_file, error_file_path = _make_task_temp_file("airflow-edge-task-error-")
+        error_file.close()  # child writes to the file by path; parent only reads it after exit
         process = Process(
             target=self._run_job_via_supervisor,
-            kwargs={"workload": workload, "results_queue": results_queue},
+            kwargs={"workload": workload, "error_file_path": error_file_path},
         )
         process.start()
         logger.info("Launched task fork pid=%d for %s", process.pid, workload.ti.id)
-        return process, results_queue
+        return process, error_file_path
 
     def _launch_job(self, edge_job: EdgeJobFetched, workload: ExecuteTask, logfile: Path) -> Job:
         """
@@ -529,8 +539,8 @@ class EdgeWorker:
             subprocess_process, stderr_file_path = self._launch_job_subprocess(workload)
             return Job(edge_job, subprocess_process, logfile, stderr_file_path=stderr_file_path)
         # Fork path: clone the current process; child inherits parent memory
-        fork_process, results_queue = self._launch_job_fork(workload)
-        return Job(edge_job, fork_process, logfile, results_queue=results_queue)
+        fork_process, error_file_path = self._launch_job_fork(workload)
+        return Job(edge_job, fork_process, logfile, stderr_file_path=error_file_path)
 
     async def _push_logs_in_chunks(self, job: Job):
         aio_logfile = anyio.Path(job.logfile)
@@ -668,30 +678,20 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
-        while job.should_poll_logs:
+        while job.is_running:
             await self._push_logs_in_chunks(job)
             for _ in range(0, self.job_poll_interval * 10):
                 await sleep(0.1)
                 if not job.is_running:
                     break
         await self._push_logs_in_chunks(job)
-        # Fork path: drain the result queue BEFORE waiting for the child to fully exit.
-        # A large exception travels through multiprocessing's pipe-backed queue; reading it
-        # here lets the child's feeder thread flush and avoids deadlocking on process exit.
-        # Fresh-interpreter subprocesses do not share Python exception objects with the parent.
-        result = job.drain_result()
-        # Wait for the child process to fully exit (fork path: queue is already drained above).
-        while job.is_running:  # noqa: ASYNC110
-            await sleep(0.1)
 
         self.jobs.remove(job)
         if job.is_success:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
-            job.cleanup()
         else:
-            ex_txt = job.failure_details(result)
-            job.cleanup()
+            ex_txt = job.failure_details()
             logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
 
             # Push it upwards to logs for better diagnostic as well
@@ -701,6 +701,8 @@ class EdgeWorker:
                 log_chunk_data=f"Error executing job:\n{ex_txt}",
             )
             await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
+        # Cleanup temp files used for the job
+        job.cleanup()
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
