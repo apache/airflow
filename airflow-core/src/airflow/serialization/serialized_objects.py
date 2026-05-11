@@ -1575,6 +1575,20 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         :param value: The value to deserialize
         :return: The deserialized value
         """
+        # Restore the ``NOTSET`` singleton for any field whose value was serialized as
+        # the generic ARG_NOT_SET encoding. This is checked before the field-name
+        # dispatch so the behavior is symmetric with how ARG_NOT_SET is emitted by
+        # the serializer (a generic encoding, not tied to any field type) and so
+        # any future operator that stores ``NOTSET`` on a non-date field also
+        # round-trips correctly. Without this, deserializing operators such as
+        # ``TriggerDagRunOperator`` (whose ``logical_date`` defaults to ``NOTSET``)
+        # would either fail in ``_deserialize_datetime`` or return the raw encoding
+        # dict from the catch-all branch.
+        if isinstance(value, dict) and value.get(Encoding.TYPE) == DAT.ARG_NOT_SET:
+            from airflow.serialization.definitions.notset import NOTSET
+
+            return NOTSET
+
         if field_name == "downstream_task_ids":
             return set(value) if value is not None else set()
         elif field_name in _HAS_CALLBACK_FIELDS:
@@ -1587,14 +1601,6 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         elif field_name == "resources":
             return Resources.from_dict(value) if value is not None else None
         elif field_name.endswith("_date"):
-            # Handle ARG_NOT_SET (NOTSET singleton) before trying to parse as datetime.
-            # Without this, deserializing operators that store a date field as ``NOTSET``
-            # (e.g. ``TriggerDagRunOperator.logical_date``) would fail because
-            # ``_deserialize_datetime`` does not understand the ARG_NOT_SET encoding.
-            if isinstance(value, dict) and value.get(Encoding.TYPE) == DAT.ARG_NOT_SET:
-                from airflow.serialization.definitions.notset import NOTSET
-
-                return NOTSET
             return cls._deserialize_datetime(value) if value is not None else None
         else:
             # For all other fields, return as-is (strings, ints, bools, etc.)

@@ -1011,22 +1011,50 @@ class TestSerializedBaseOperator:
         assert isinstance(result, datetime)
         assert result.timestamp() == timestamp
 
-    def test_deserialize_field_value_with_arg_not_set_for_date_fields(self):
-        """``_deserialize_field_value`` returns ``NOTSET`` for ARG_NOT_SET date fields.
+    @pytest.mark.parametrize(
+        "field_name",
+        ["logical_date", "start_date", "end_date", "trigger_dag_id", "any_other_field"],
+    )
+    def test_deserialize_field_value_with_arg_not_set(self, field_name):
+        """``_deserialize_field_value`` returns ``NOTSET`` for any ARG_NOT_SET-encoded field.
 
-        Operators may store ``NOTSET`` (an ``ArgNotSet`` instance) on date-suffixed
-        fields such as ``logical_date`` to mean "use the default at runtime". When
-        such a field is round-tripped through serialization, the ARG_NOT_SET
-        encoding must be restored to ``NOTSET`` instead of being parsed as a
-        datetime.
+        Operators may store ``NOTSET`` (an ``ArgNotSet`` instance) on a field to mean
+        "use the default at runtime". When the field is round-tripped through
+        serialization the value is encoded as ``{Encoding.TYPE: DAT.ARG_NOT_SET}``
+        regardless of field type, so ``_deserialize_field_value`` must restore the
+        ``NOTSET`` singleton irrespective of the field name (covers the date-typed
+        case demonstrated by ``TriggerDagRunOperator.logical_date`` and the
+        non-date case for any future operator that uses ``NOTSET`` as a sentinel).
         """
         from airflow.serialization.definitions.notset import NOTSET
         from airflow.serialization.serialized_objects import OperatorSerialization
 
         value = {Encoding.TYPE: DAT.ARG_NOT_SET}
+        assert OperatorSerialization._deserialize_field_value(field_name, value) is NOTSET
 
-        for field_name in ("logical_date", "start_date", "end_date"):
-            assert OperatorSerialization._deserialize_field_value(field_name, value) is NOTSET
+    def test_serialize_deserialize_trigger_dag_run_with_notset_logical_date(self):
+        """End-to-end round trip: serialize ``TriggerDagRunOperator(logical_date=NOTSET)``
+        and confirm the deserialized task carries the ``NOTSET`` singleton on
+        ``logical_date``.
+
+        This pins the symmetry between the serializer (which emits
+        ``{Encoding.TYPE: DAT.ARG_NOT_SET}`` for ``NOTSET`` values) and the
+        deserializer fix in ``_deserialize_field_value``. Without the fix, the
+        deserializer would raise (or return the raw encoding dict) and this test
+        would fail.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.serialization.definitions.notset import NOTSET
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        with DAG(DAG_ID, start_date=DEFAULT_DATE) as dag:
+            TriggerDagRunOperator(task_id="test_trigger", trigger_dag_id="downstream_dag")
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+
+        task = deserialized.task_dict["test_trigger"]
+        assert task.logical_date is NOTSET
 
 
 class TestRetryPolicySerialization:
