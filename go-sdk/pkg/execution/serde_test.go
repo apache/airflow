@@ -120,7 +120,10 @@ func TestSerializeTimetable(t *testing.T) {
 }
 
 func TestSerializeTask(t *testing.T) {
-	result := serializeTask("extract", "extract", "main", []string{"transform"})
+	result := serializeTask(
+		bundlev1.TaskInfo{ID: "extract", TypeName: "extract", PkgPath: "main"},
+		[]string{"transform"},
+	)
 	assert.Equal(t, "operator", result["__type"])
 	data := result["__var"].(map[string]any)
 	assert.Equal(t, "extract", data["task_id"])
@@ -128,13 +131,122 @@ func TestSerializeTask(t *testing.T) {
 	assert.Equal(t, "main", data["_task_module"])
 	assert.Equal(t, "go", data["language"])
 	assert.Equal(t, []string{"transform"}, data["downstream_task_ids"])
+	_, hasQueue := data["queue"]
+	assert.False(t, hasQueue, "queue should be omitted when unset")
 }
 
 func TestSerializeTaskNoDownstream(t *testing.T) {
-	result := serializeTask("load", "load", "main", nil)
+	result := serializeTask(
+		bundlev1.TaskInfo{ID: "load", TypeName: "load", PkgPath: "main"},
+		nil,
+	)
 	data := result["__var"].(map[string]any)
 	_, hasDownstream := data["downstream_task_ids"]
 	assert.False(t, hasDownstream)
+}
+
+func TestSerializeTaskCustomQueue(t *testing.T) {
+	result := serializeTask(
+		bundlev1.TaskInfo{
+			ID: "extract", TypeName: "extract", PkgPath: "main",
+			Spec: bundlev1.TaskSpec{Queue: "high_mem"},
+		},
+		nil,
+	)
+	data := result["__var"].(map[string]any)
+	assert.Equal(t, "high_mem", data["queue"])
+}
+
+func TestSerializeTaskDefaultQueueOmitted(t *testing.T) {
+	result := serializeTask(
+		bundlev1.TaskInfo{
+			ID: "extract", TypeName: "extract", PkgPath: "main",
+			Spec: bundlev1.TaskSpec{Queue: "default"},
+		},
+		nil,
+	)
+	data := result["__var"].(map[string]any)
+	_, hasQueue := data["queue"]
+	assert.False(t, hasQueue, "queue=\"default\" matches the schema default and should be omitted")
+}
+
+func TestApplyTaskSpec_EmitsAndOmits(t *testing.T) {
+	spec := bundlev1.TaskSpec{
+		Queue:                   "gpu",
+		Pool:                    "gpu_pool",
+		PoolSlots:               4,
+		Retries:                 3,
+		RetryDelay:              60 * time.Second,
+		MaxRetryDelay:           10 * time.Minute,
+		RetryExponentialBackoff: 2.0,
+		PriorityWeight:          5,
+		WeightRule:              "upstream",
+		TriggerRule:             "all_done",
+		Owner:                   "data-eng",
+		ExecutionTimeout:        45 * time.Second,
+		Executor:                "KubernetesExecutor",
+		DependsOnPast:           true,
+		WaitForDownstream:       true,
+		DoXComPush:              bundlev1.Bool(false),
+		EmailOnFailure:          bundlev1.Bool(false),
+		EmailOnRetry:            bundlev1.Bool(false),
+		DocMD:                   "## task",
+		MapIndexTemplate:        "{{ task.task_id }}",
+		MaxActiveTisPerDag:      2,
+		MaxActiveTisPerDagrun:   1,
+	}
+	data := map[string]any{}
+	applyTaskSpec(data, spec)
+
+	assert.Equal(t, "gpu", data["queue"])
+	assert.Equal(t, "gpu_pool", data["pool"])
+	assert.Equal(t, 4, data["pool_slots"])
+	assert.Equal(t, 3, data["retries"])
+	assert.Equal(t, 60.0, data["retry_delay"])
+	assert.Equal(t, 600.0, data["max_retry_delay"])
+	assert.Equal(t, 2.0, data["retry_exponential_backoff"])
+	assert.Equal(t, 5, data["priority_weight"])
+	assert.Equal(t, "upstream", data["weight_rule"])
+	assert.Equal(t, "all_done", data["trigger_rule"])
+	assert.Equal(t, "data-eng", data["owner"])
+	assert.Equal(t, 45.0, data["execution_timeout"])
+	assert.Equal(t, "KubernetesExecutor", data["executor"])
+	assert.Equal(t, true, data["depends_on_past"])
+	assert.Equal(t, true, data["wait_for_downstream"])
+	assert.Equal(t, false, data["do_xcom_push"])
+	assert.Equal(t, false, data["email_on_failure"])
+	assert.Equal(t, false, data["email_on_retry"])
+	assert.Equal(t, "## task", data["doc_md"])
+	assert.Equal(t, "{{ task.task_id }}", data["map_index_template"])
+	assert.Equal(t, 2, data["max_active_tis_per_dag"])
+	assert.Equal(t, 1, data["max_active_tis_per_dagrun"])
+}
+
+func TestApplyTaskSpec_OmitsSchemaDefaults(t *testing.T) {
+	// Values equal to schema defaults must be dropped.
+	spec := bundlev1.TaskSpec{
+		Queue:          "default",
+		Pool:           "default_pool",
+		PoolSlots:      1,
+		Retries:        0,
+		RetryDelay:     300 * time.Second,
+		PriorityWeight: 1,
+		WeightRule:     "downstream",
+		TriggerRule:    "all_success",
+		Owner:          "airflow",
+		DoXComPush:     bundlev1.Bool(true),
+		EmailOnFailure: bundlev1.Bool(true),
+		EmailOnRetry:   bundlev1.Bool(true),
+	}
+	data := map[string]any{}
+	applyTaskSpec(data, spec)
+	assert.Empty(t, data, "all fields equal schema defaults; nothing should be emitted")
+}
+
+func TestApplyTaskSpec_EmptySpecNoOp(t *testing.T) {
+	data := map[string]any{}
+	applyTaskSpec(data, bundlev1.TaskSpec{})
+	assert.Empty(t, data)
 }
 
 func TestSerializeTaskGroup(t *testing.T) {
@@ -188,7 +300,10 @@ func TestSerializeDagWithTasks(t *testing.T) {
 		DagID: "etl",
 		Tasks: []bundlev1.TaskInfo{
 			{ID: "extract", TypeName: "extract", PkgPath: "main"},
-			{ID: "load", TypeName: "load", PkgPath: "main"},
+			{
+				ID: "load", TypeName: "load", PkgPath: "main",
+				Spec: bundlev1.TaskSpec{Queue: "high_mem"},
+			},
 		},
 	}
 	result := SerializeDag(info, "/bundle/main.go", "main.go")
@@ -201,11 +316,74 @@ func TestSerializeDagWithTasks(t *testing.T) {
 	assert.Equal(t, "extract", v["task_type"])
 	assert.Equal(t, "main", v["_task_module"])
 	assert.Equal(t, "go", v["language"])
+	_, hasQueue := v["queue"]
+	assert.False(t, hasQueue, "extract has no queue set; field should be omitted")
+
+	second := tasks[1].(map[string]any)["__var"].(map[string]any)
+	assert.Equal(t, "high_mem", second["queue"])
 
 	tg := result["task_group"].(map[string]any)
 	children := tg["children"].(map[string]any)
 	assert.Contains(t, children, "extract")
 	assert.Contains(t, children, "load")
+}
+
+func TestSerializeDagWithSpec(t *testing.T) {
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	info := bundlev1.DagInfo{
+		DagID: "etl",
+		Spec: bundlev1.DagSpec{
+			Schedule:                    "@daily",
+			Description:                 "Extract, transform, load",
+			StartDate:                   start,
+			Tags:                        []string{"prod", "etl"},
+			DagDisplayName:              "ETL Pipeline",
+			DocMD:                       "## ETL",
+			MaxActiveTasks:              32,
+			MaxActiveRuns:               4,
+			MaxConsecutiveFailedDagRuns: 3,
+			DagrunTimeout:               2 * time.Hour,
+			Catchup:                     true,
+			FailFast:                    true,
+			RenderTemplateAsNativeObj:   true,
+			DisableBundleVersioning:     true,
+			IsPausedUponCreation:        bundlev1.Bool(true),
+		},
+	}
+	result := SerializeDag(info, "/bundle/main.go", "main.go")
+
+	tt := result["timetable"].(map[string]any)
+	assert.Equal(t, "airflow.timetables.trigger.CronTriggerTimetable", tt["__type"])
+	v := tt["__var"].(map[string]any)
+	assert.Equal(t, "@daily", v["expression"])
+
+	assert.Equal(t, "Extract, transform, load", result["description"])
+	assert.Equal(t, []any{"prod", "etl"}, result["tags"])
+	assert.Equal(t, "ETL Pipeline", result["dag_display_name"])
+	assert.Equal(t, "## ETL", result["doc_md"])
+	assert.Equal(t, 32, result["max_active_tasks"])
+	assert.Equal(t, 4, result["max_active_runs"])
+	assert.Equal(t, 3, result["max_consecutive_failed_dag_runs"])
+	assert.Equal(t, (2 * time.Hour).Seconds(), result["dagrun_timeout"])
+	assert.Equal(t, true, result["catchup"])
+	assert.Equal(t, true, result["fail_fast"])
+	assert.Equal(t, true, result["render_template_as_native_obj"])
+	assert.Equal(t, true, result["disable_bundle_versioning"])
+	assert.Equal(t, true, result["is_paused_upon_creation"])
+
+	// start_date is a raw epoch number, not the type-wrapped form.
+	startDate := result["start_date"].(float64)
+	assert.InDelta(t, float64(start.Unix()), startDate, 0.001)
+}
+
+func TestApplyDagSpec_OmitsSchemaDefaults(t *testing.T) {
+	spec := bundlev1.DagSpec{
+		MaxActiveTasks: 16,
+		MaxActiveRuns:  16,
+	}
+	data := map[string]any{}
+	applyDagSpec(data, spec)
+	assert.Empty(t, data, "values equal to schema defaults must be omitted")
 }
 
 func TestComputeRelativeFileloc(t *testing.T) {
