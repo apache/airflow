@@ -3027,7 +3027,7 @@ state_store:
       default: "airflow.state.metastore.MetastoreStateBackend"
     default_retention_days:
       description: |
-        Number of days to retain task_state rows after their last update.
+        Number of days to retain task state after their last update.
         Rows older than this are removed by the scheduler's periodic cleanup.
         This config does not affect asset_state rows.
         Set to 0 to disable time-based cleanup entirely.

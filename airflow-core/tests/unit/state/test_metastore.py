@@ -250,6 +250,7 @@ class TestMetastoreStateBackendTaskScope:
         row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
         assert row is not None
         assert row.expires_at is not None
+        assert row.expires_at > row.updated_at
 
     def test_cleanup_removes_expired_rows(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
