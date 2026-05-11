@@ -400,7 +400,9 @@ gitignored symlinks into the `.apache-steward/` snapshot directory.
 A fresh clone needs the snapshot populated before any framework skill is
 invocable. Run `/setup-steward` (or follow
 [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
-it per the committed [`.apache-steward.lock`](.apache-steward.lock).
+it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+contributor-facing summary of the adoption + setup flow lives in the
+[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
 
 Adopter-specific modifications to framework-skill workflows live in
 [`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
