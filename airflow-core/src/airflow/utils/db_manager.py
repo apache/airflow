@@ -161,7 +161,7 @@ class BaseDBManager(LoggingMixin):
         for revision in script.walk_revisions():
             if revision.down_revision is None:
                 return revision.revision
-        raise AirflowException(f"No base revision found for {self.__class__.__name__}")
+        raise RuntimeError(f"No base revision found for {self.__class__.__name__}")
 
     def _stamp_base_revision(self, config) -> None:
         """Stamp the database to this DB manager's base Alembic revision."""
