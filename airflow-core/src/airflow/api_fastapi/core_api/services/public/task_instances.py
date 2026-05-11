@@ -66,7 +66,10 @@ def _clear_task_state_on_success(tis: Sequence[TI], session: Session) -> None:
     backend = get_state_backend()
     for ti in tis:
         scope = TaskScope(
-            dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index or -1
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
         )
         try:
             backend.clear(scope=scope, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
