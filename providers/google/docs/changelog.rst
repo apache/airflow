@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Hooks
+  * Remove ``MLEngineHook`` use ``airflow.providers.google.cloud.hooks.vertex_ai.ModelServiceHook`` instead
+  * Remove ``MLEngineAsyncHook``
+
+* Triggers
+  * Remove ``MLEngineStartTrainingJobTrigger`` use appropriate trigger from ``airflow.providers.google.cloud.triggers.vertex_ai``
+
+* Links
+  * Remove ``MLEngineModelLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink`` instead
+  * Remove ``MLEngineModelsListLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelListLink`` instead
+  * Remove ``MLEngineJobDetailsLink`` use appropriate link from ``airflow.providers.google.cloud.links.vertex_ai`` instead
+  * Remove ``MLEngineModelVersionDetailsLink`` use ``airflow.providers.google.cloud.links.vertex_ai.VertexAIModelLink`` instead
+  * Remove ``MLEngineJobSListLink`` use appropriate link from ``airflow.providers.google.cloud.links.vertex_ai`` instead
 
 21.3.0
 ......

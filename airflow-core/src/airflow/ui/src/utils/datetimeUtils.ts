@@ -29,22 +29,29 @@ export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
 export const renderDuration = (
-  durationSeconds: number | null | undefined,
+  durationSeconds: dayjsDuration.Duration | number | null | undefined,
   withMilliseconds: boolean = true,
 ): string | undefined => {
-  if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0.01) {
+  if (durationSeconds === null || durationSeconds === undefined) {
+    return undefined;
+  }
+
+  // Handle floating point milliseconds
+  const duration = dayjs.isDuration(durationSeconds)
+    ? dayjs.duration(Math.round(durationSeconds.asMilliseconds()))
+    : dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds");
+
+  if (duration.asMilliseconds() < 1) {
     return undefined;
   }
 
   // If under 60 seconds, render milliseconds
-  if (durationSeconds < 60 && withMilliseconds) {
-    return dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds").format("HH:mm:ss.SSS");
+  if (duration.asSeconds() < 60 && duration.milliseconds() > 0 && withMilliseconds) {
+    return duration.format("HH:mm:ss.SSS");
   }
 
   // If under 1 day, render as HH:mm:ss otherwise include the number of days
-  return durationSeconds < 86_400
-    ? dayjs.duration(durationSeconds, "seconds").format("HH:mm:ss")
-    : dayjs.duration(durationSeconds, "seconds").format("D[d]HH:mm:ss");
+  return duration.asSeconds() < 86_400 ? duration.format("HH:mm:ss") : duration.format("D[d]HH:mm:ss");
 };
 
 export const getDuration = (
@@ -57,9 +64,9 @@ export const getDuration = (
   }
 
   const end = endDate ?? dayjs().toISOString();
-  const seconds = dayjs.duration(dayjs(end).diff(startDate)).asSeconds();
+  const milliseconds = dayjs.duration(dayjs(end).diff(startDate));
 
-  return renderDuration(seconds, withMilliseconds);
+  return renderDuration(milliseconds, withMilliseconds);
 };
 
 export const formatDate = (

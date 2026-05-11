@@ -62,7 +62,9 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.13.0",
     "adlfs>=2023.10.0",
-    "azure-batch>=8.0.0",
+    # azure-batch 15.x is a full rewrite of the Azure SDK (track 2) that removes BatchServiceClient, batch_auth,
+    # and the other references in AzureBatchHook. Lifting the upper bound cap needs a full hook rewrite.
+    "azure-batch>=8.0.0,<15.0.0",
     "azure-cosmos>=4.6.0",
     "azure-mgmt-cosmosdb>=3.0.0",
     "azure-datalake-store>=0.0.45",

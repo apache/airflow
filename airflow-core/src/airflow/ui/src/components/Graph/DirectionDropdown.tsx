@@ -32,10 +32,10 @@ export const DirectionDropdown = ({ graphId }: { readonly graphId: string }) => 
   const directionOptions = () =>
     createListCollection({
       items: [
-        { label: translate("graph.directionRight"), value: "RIGHT" as Direction },
-        { label: translate("graph.directionLeft"), value: "LEFT" as Direction },
-        { label: translate("graph.directionUp"), value: "UP" as Direction },
-        { label: translate("graph.directionDown"), value: "DOWN" as Direction },
+        { label: translate("graph.directionRight"), value: "RIGHT" },
+        { label: translate("graph.directionLeft"), value: "LEFT" },
+        { label: translate("graph.directionUp"), value: "UP" },
+        { label: translate("graph.directionDown"), value: "DOWN" },
       ],
     });
 

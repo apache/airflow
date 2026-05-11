@@ -337,10 +337,12 @@ class AssetModel(Base):
 
     @classmethod
     def from_serialized(cls, obj: SerializedAsset) -> AssetModel:
-        extra = dict(obj.extra)
-        if obj.allow_producer_teams:
-            extra["allow_producer_teams"] = obj.allow_producer_teams
-        return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=extra)
+        return cls(
+            name=obj.name,
+            uri=obj.uri,
+            group=obj.group,
+            extra=dict(obj.extra),
+        )
 
     def __init__(self, name: str = "", uri: str = "", **kwargs):
         if not name and not uri:
@@ -379,14 +381,12 @@ class AssetModel(Base):
     def to_serialized(self) -> SerializedAsset:
         from airflow.serialization.definitions.assets import SerializedAsset
 
-        extra = {k: v for k, v in self.extra.items() if k != "allow_producer_teams"}
         return SerializedAsset(
             name=self.name,
             uri=self.uri,
             group=self.group,
-            extra=extra,
+            extra=self.extra,
             watchers=[],
-            allow_producer_teams=self.extra.get("allow_producer_teams", []),
         )
 
     def add_trigger(self, trigger: Trigger, watcher_name: str):
@@ -591,6 +591,7 @@ class DagScheduleAssetReference(Base):
 
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    allow_producer_teams: Mapped[list | None] = mapped_column(sa.JSON(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
