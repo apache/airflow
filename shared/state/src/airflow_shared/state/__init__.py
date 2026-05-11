@@ -18,6 +18,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 @dataclass(frozen=True)
@@ -62,10 +66,16 @@ class BaseStateBackend(ABC):
                 ...  # asset-specific storage
 
     Custom backends are configured via ``[state_store] backend`` in ``airflow.cfg``.
+
+    **The ``session`` parameter on ``get``, ``set``, ``delete``, and ``clear``:**
+
+    The default ``MetastoreStateBackend`` passes a SQLAlchemy ``Session`` through
+    these methods. Custom backends that do not use SQLAlchemy should accept ``session`` as a
+    keyword argument and ignore it.
     """
 
     @abstractmethod
-    def get(self, scope: StateScope, key: str) -> str | None:
+    def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
         """
         Return the stored value, or None if the key does not exist.
 
@@ -73,7 +83,7 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def set(self, scope: StateScope, key: str, value: str) -> None:
+    def set(self, scope: StateScope, key: str, value: str, *, session: Session | None = None) -> None:
         """
         Write or overwrite the value for the given key.
 
@@ -81,7 +91,7 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def delete(self, scope: StateScope, key: str) -> None:
+    def delete(self, scope: StateScope, key: str, *, session: Session | None = None) -> None:
         """
         Delete a single key. No-op if the key does not exist.
 
@@ -89,7 +99,9 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def clear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
+    def clear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: Session | None = None
+    ) -> None:
         """
         Delete all keys under the given scope.
 
@@ -106,7 +118,9 @@ class BaseStateBackend(ABC):
         """Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
+    async def aset(
+        self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None
+    ) -> None:
         """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
