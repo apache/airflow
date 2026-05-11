@@ -122,7 +122,7 @@ class TableauOperator(BaseOperator):
                 response_bytes = method(task_item)
                 job_items = JobItem.from_response(response_bytes, tableau_hook.server.namespace)
                 if not job_items:
-                    raise AirflowException("Tableau tasks.run returned no JobItem in response")
+                    raise ValueError("Tableau tasks.run returned no JobItem in response")
                 job_id = job_items[0].id
             else:
                 response = method(resource_id)

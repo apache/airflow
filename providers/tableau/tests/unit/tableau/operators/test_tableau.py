@@ -247,7 +247,7 @@ class TestTableauOperator:
         kwargs = {**self.kwargs, "method": "run", "match_with": "id"}
         operator = TableauOperator(find="task-abc", resource="tasks", **kwargs)
 
-        with pytest.raises(AirflowException, match="no JobItem"):
+        with pytest.raises(ValueError, match="no JobItem"):
             operator.execute(context={})
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
