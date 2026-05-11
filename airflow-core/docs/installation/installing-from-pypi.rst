@@ -209,6 +209,10 @@ To use build constraints with ``pip`` (requires pip 25.3 or later):
     ``build-constraints-${PYTHON_VERSION}.txt``, omit the ``--build-constraint`` or ``--build-constraints``
     flag and use only the runtime constraints file.
 
+    When you pass ``--build-constraint`` or ``--build-constraints`` explicitly, the file or URL must be
+    accessible — an unreachable URL or missing local file fails the install, matching the behavior of
+    the runtime ``--constraint`` flag.
+
 Upgrading and installing dependencies (including providers)
 ===========================================================
 
