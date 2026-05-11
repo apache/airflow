@@ -162,19 +162,22 @@ func serializeTimetable(schedule *string) map[string]any {
 }
 
 // serializeTask converts a task to the Airflow serialization format.
-func serializeTask(taskID, typeName, pkgPath string, downstream []string) map[string]any {
+func serializeTask(info bundlev1.TaskInfo, downstream []string) map[string]any {
+	typeName := info.TypeName
 	if typeName == "" {
-		typeName = taskID
+		typeName = info.ID
 	}
+	pkgPath := info.PkgPath
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
 	data := map[string]any{
-		"task_id":      taskID,
+		"task_id":      info.ID,
 		"task_type":    typeName,
 		"_task_module": pkgPath,
 		"language":     "go",
 	}
+	applyTaskSpec(data, info.Spec)
 	if len(downstream) > 0 {
 		sorted := make([]string, len(downstream))
 		copy(sorted, downstream)
@@ -184,6 +187,142 @@ func serializeTask(taskID, typeName, pkgPath string, downstream []string) map[st
 	return map[string]any{
 		"__type": "operator",
 		"__var":  data,
+	}
+}
+
+// applyTaskSpec mirrors Python BaseSerialization's "omit hard-coded default"
+// behavior: each TaskSpec field is written into data only when it differs
+// from the schema default declared in
+// airflow-core/src/airflow/serialization/schema.json. A zero-valued field is
+// always considered "unset" and is skipped.
+func applyTaskSpec(data map[string]any, s bundlev1.TaskSpec) {
+	if s.Queue != "" && s.Queue != "default" {
+		data["queue"] = s.Queue
+	}
+	if s.Pool != "" && s.Pool != "default_pool" {
+		data["pool"] = s.Pool
+	}
+	if s.PoolSlots != 0 && s.PoolSlots != 1 {
+		data["pool_slots"] = s.PoolSlots
+	}
+	if s.Retries != 0 {
+		data["retries"] = s.Retries
+	}
+	if s.RetryDelay != 0 && s.RetryDelay != 300*time.Second {
+		data["retry_delay"] = unwrapTypeEncoding(serializeValue(s.RetryDelay))
+	}
+	if s.MaxRetryDelay != 0 {
+		data["max_retry_delay"] = unwrapTypeEncoding(serializeValue(s.MaxRetryDelay))
+	}
+	if s.RetryExponentialBackoff != 0 {
+		data["retry_exponential_backoff"] = s.RetryExponentialBackoff
+	}
+	if s.PriorityWeight != 0 && s.PriorityWeight != 1 {
+		data["priority_weight"] = s.PriorityWeight
+	}
+	if s.WeightRule != "" && s.WeightRule != "downstream" {
+		data["weight_rule"] = s.WeightRule
+	}
+	if s.TriggerRule != "" && s.TriggerRule != "all_success" {
+		data["trigger_rule"] = s.TriggerRule
+	}
+	if s.Owner != "" && s.Owner != "airflow" {
+		data["owner"] = s.Owner
+	}
+	if s.ExecutionTimeout != 0 {
+		data["execution_timeout"] = unwrapTypeEncoding(serializeValue(s.ExecutionTimeout))
+	}
+	if s.Executor != "" {
+		data["executor"] = s.Executor
+	}
+	if !s.StartDate.IsZero() {
+		data["start_date"] = unwrapTypeEncoding(serializeValue(s.StartDate))
+	}
+	if !s.EndDate.IsZero() {
+		data["end_date"] = unwrapTypeEncoding(serializeValue(s.EndDate))
+	}
+	if s.DependsOnPast {
+		data["depends_on_past"] = true
+	}
+	if s.WaitForDownstream {
+		data["wait_for_downstream"] = true
+	}
+	// do_xcom_push / email_on_failure / email_on_retry default to true; only
+	// emit when an explicit false overrides the default.
+	if s.DoXComPush != nil && !*s.DoXComPush {
+		data["do_xcom_push"] = false
+	}
+	if s.EmailOnFailure != nil && !*s.EmailOnFailure {
+		data["email_on_failure"] = false
+	}
+	if s.EmailOnRetry != nil && !*s.EmailOnRetry {
+		data["email_on_retry"] = false
+	}
+	if s.DocMD != "" {
+		data["doc_md"] = s.DocMD
+	}
+	if s.MapIndexTemplate != "" {
+		data["map_index_template"] = s.MapIndexTemplate
+	}
+	if s.MaxActiveTisPerDag != 0 {
+		data["max_active_tis_per_dag"] = s.MaxActiveTisPerDag
+	}
+	if s.MaxActiveTisPerDagrun != 0 {
+		data["max_active_tis_per_dagrun"] = s.MaxActiveTisPerDagrun
+	}
+}
+
+// applyDagSpec writes optional DAG-level fields onto data, omitting any
+// field equal to its schema default. See applyTaskSpec for the convention.
+func applyDagSpec(data map[string]any, s bundlev1.DagSpec) {
+	if s.Description != "" {
+		data["description"] = s.Description
+	}
+	if !s.StartDate.IsZero() {
+		data["start_date"] = unwrapTypeEncoding(serializeValue(s.StartDate))
+	}
+	if !s.EndDate.IsZero() {
+		data["end_date"] = unwrapTypeEncoding(serializeValue(s.EndDate))
+	}
+	if len(s.Tags) > 0 {
+		tags := make([]any, len(s.Tags))
+		for i, t := range s.Tags {
+			tags[i] = t
+		}
+		data["tags"] = tags
+	}
+	if s.DagDisplayName != "" {
+		data["dag_display_name"] = s.DagDisplayName
+	}
+	if s.DocMD != "" {
+		data["doc_md"] = s.DocMD
+	}
+	if s.MaxActiveTasks != 0 && s.MaxActiveTasks != 16 {
+		data["max_active_tasks"] = s.MaxActiveTasks
+	}
+	if s.MaxActiveRuns != 0 && s.MaxActiveRuns != 16 {
+		data["max_active_runs"] = s.MaxActiveRuns
+	}
+	if s.MaxConsecutiveFailedDagRuns != 0 {
+		data["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
+	}
+	if s.DagrunTimeout != 0 {
+		data["dagrun_timeout"] = unwrapTypeEncoding(serializeValue(s.DagrunTimeout))
+	}
+	if s.Catchup {
+		data["catchup"] = true
+	}
+	if s.FailFast {
+		data["fail_fast"] = true
+	}
+	if s.RenderTemplateAsNativeObj {
+		data["render_template_as_native_obj"] = true
+	}
+	if s.DisableBundleVersioning {
+		data["disable_bundle_versioning"] = true
+	}
+	if s.IsPausedUponCreation != nil {
+		data["is_paused_upon_creation"] = *s.IsPausedUponCreation
 	}
 }
 
@@ -230,26 +369,30 @@ func serializeParams(params map[string]any) []any {
 }
 
 // SerializeDag converts a bundlev1.DagInfo to Airflow DagSerialization v3
-// format. The Go SDK's bundlev1.Dag interface does not (yet) carry per-DAG
-// metadata like schedule, start_date, tags, etc., so the encoding emits
-// schema defaults for those fields. The optional-field handling below is
-// kept (gated on nil checks) so the encoder can grow naturally as the
-// bundle metadata surface expands.
+// format. Required fields are always present; optional fields from
+// info.Spec are emitted only when they differ from their schema default
+// (see applyDagSpec).
 func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[string]any {
 	taskIDs := make([]string, len(info.Tasks))
 	tasks := make([]any, len(info.Tasks))
 	for i, t := range info.Tasks {
 		taskIDs[i] = t.ID
-		tasks[i] = serializeTask(t.ID, t.TypeName, t.PkgPath, nil)
+		tasks[i] = serializeTask(t, nil)
 	}
 
-	return map[string]any{
+	var schedule *string
+	if info.Spec.Schedule != "" {
+		s := info.Spec.Schedule
+		schedule = &s
+	}
+
+	result := map[string]any{
 		// Required fields (always present)
 		"dag_id":            info.DagID,
 		"fileloc":           fileloc,
 		"relative_fileloc":  relativeFileloc,
 		"timezone":          "UTC",
-		"timetable":         serializeTimetable(nil),
+		"timetable":         serializeTimetable(schedule),
 		"tasks":             tasks,
 		"dag_dependencies":  []any{},
 		"task_group":        serializeTaskGroup(taskIDs),
@@ -258,6 +401,8 @@ func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[st
 		"deadline":          nil,
 		"allowed_run_types": nil,
 	}
+	applyDagSpec(result, info.Spec)
+	return result
 }
 
 // computeRelativeFileloc computes the relative file location from the bundle path.
