@@ -171,7 +171,7 @@ The URL template for build constraints is:
 
   https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/build-constraints-${PYTHON_VERSION}.txt
 
-To use build constraints with ``uv``:
+To use build constraints with ``uv`` (requires uv 0.5 or later):
 
 .. code-block:: bash
     :substitutions:
