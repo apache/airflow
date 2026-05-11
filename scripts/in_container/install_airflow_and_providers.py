@@ -226,7 +226,7 @@ def resolve_build_constraints_file(
     * Explicit AIRFLOW_BUILD_CONSTRAINTS_LOCATION - fail if not accessible
     * Inferred from constraints reference / airflow version + python version - warn + skip if 404
     """
-    target = Path("/tmp/build-constraints.txt")
+    target = Path(os.environ["HOME"]) / "build-constraints.txt"
     if build_constraints_location:
         console.print(
             f"[bright_blue]Using build constraints from explicit location: {build_constraints_location}"

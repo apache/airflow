@@ -648,7 +648,12 @@ def _collect_upstream_build_reqs(
     if cache_path.exists():
         try:
             cache = json.loads(cache_path.read_text())
-        except Exception:
+        except Exception as exc:
+            console.print(
+                f"[yellow]Warning: build-constraints cache at {cache_path} is "
+                f"corrupted ({exc}); discarding cache — this run will rescan "
+                f"all packages (slow)."
+            )
             cache = {}
 
     # Identify targets: packages without universal wheels that have an sdist
@@ -809,8 +814,9 @@ def _resolve_build_requirements(
         candidate_pattern = re.compile(
             r"\b([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]+\])?\s*(?:\{[^}]+\})?\s*[<>=!~]"
         )
+        raw_candidates = candidate_pattern.findall(stderr_text)
         conflict_name = None
-        for raw_name in candidate_pattern.findall(stderr_text):
+        for raw_name in raw_candidates:
             normalized_name = _normalize_package_name(raw_name)
             if normalized_name in known_names:
                 conflict_name = normalized_name
@@ -826,7 +832,27 @@ def _resolve_build_requirements(
             skipped.append(conflict_name)
             continue
 
-        # Unknown error or can't parse conflict — fail
+        # Unknown error or can't parse conflict — fail.  Surface whether the
+        # regex extracted nothing (likely a uv stderr-format change) or
+        # extracted candidates that don't match any known build dep (likely a
+        # non-conflict failure such as network/index/auth) so the failure
+        # mode is obvious from the build log.
+        if not raw_candidates:
+            console.print(
+                "[yellow]Warning: conflict-detection regex matched no "
+                "version-pinned name in uv stderr. If this is a conflict "
+                "(not e.g. a network error), uv's diagnostic format may "
+                "have changed — re-verify candidate_pattern against the "
+                "current uv version."
+            )
+        else:
+            extracted = sorted({_normalize_package_name(c) for c in raw_candidates})
+            console.print(
+                f"[yellow]Warning: regex extracted {extracted}, but none "
+                f"match known build deps ({sorted(known_names)}). Likely a "
+                f"non-conflict failure (network/index/auth), or uv changed "
+                f"how it names packages in conflict diagnostics."
+            )
         console.print(f"[red]{result.stderr}")
         raise RuntimeError(f"uv pip compile failed (attempt {attempt + 1}): {result.stderr}")
     else:
