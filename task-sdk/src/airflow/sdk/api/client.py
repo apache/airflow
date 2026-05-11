@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
+    RetentionDays,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatePutBody,
@@ -684,9 +685,10 @@ class TaskStateOperations:
             raise
         return TaskStateResponse.model_validate_json(resp.read())
 
-    def set(self, ti_id: uuid.UUID, key: str, value: str) -> OKResponse:
+    def set(self, ti_id: uuid.UUID, key: str, value: str, retention_days: int | None = None) -> OKResponse:
         """Set a task state value via the API server."""
-        body = TaskStatePutBody(value=value)
+        rd = RetentionDays(retention_days) if retention_days is not None else None
+        body = TaskStatePutBody(value=value, retention_days=rd)
         self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 

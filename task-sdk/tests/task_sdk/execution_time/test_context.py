@@ -1094,6 +1094,25 @@ class TestTaskStateAccessor:
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001")
         )
 
+    def test_set_with_retention_days_passes_value(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention_days=7)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", retention_days=7)
+        )
+
+    def test_set_with_retention_days_zero_passes_zero(self, mock_supervisor_comms):
+        """retention_days=0 means never expire — must be forwarded as 0, not None."""
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention_days=0)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", retention_days=0)
+        )
+
     def test_delete_operation(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 

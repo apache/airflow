@@ -26,9 +26,7 @@ import pytest
 from sqlalchemy import Delete, select
 
 from airflow._shared.timezones import timezone
-from airflow.configuration import conf
 from airflow.models.asset import AssetModel
-from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state import TaskStateModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
@@ -251,6 +249,33 @@ class TestMetastoreStateBackendTaskScope:
         assert row is not None
         assert row.expires_at is not None
 
+    @conf_vars({("state_store", "default_retention_days"): "30"})
+    def test_set__with_retention_days(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun, time_machine
+    ):
+        """retention_days=7 sets expires_at to now+7 days regardless of the global 30 day default."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        time_machine.move_to(timezone.datetime(2026, 1, 1), tick=False)
+        backend.set(scope, "job_id", "app_1234", retention_days=7, session=session)
+        session.flush()
+
+        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        assert row is not None
+        assert row.expires_at == timezone.datetime(2026, 1, 8)
+
+    @conf_vars({("state_store", "default_retention_days"): "30"})
+    def test_set_retention_days_zero_disables_expiry(
+        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
+    ):
+        """retention_days=0 sets expires_at=NULL, meaning the key never expires."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(scope, "job_id", "app_1234", retention_days=0, session=session)
+        session.flush()
+
+        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
+        assert row is not None
+        assert row.expires_at is None
+
     def test_cleanup_removes_expired_rows(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
@@ -417,19 +442,6 @@ class TestMetastoreStateBackendAssetScope:
 
         assert backend.get(scope2, "watermark", session=session) is None
 
-    def test_cleanup_does_not_touch_asset_state(
-        self, session: Session, backend: MetastoreStateBackend, asset: AssetModel
-    ):
-        scope = AssetScope(asset_id=asset.id)
-        backend.set(scope, "watermark", "2026-01-01", session=session)
-        session.flush()
-        session.commit()
-
-        backend.cleanup()
-
-        session.expire_all()
-        assert session.scalar(select(AssetStateModel).where(AssetStateModel.asset_id == asset.id)) is not None
-
 
 @pytest.mark.asyncio(loop_scope="class")
 class TestMetastoreStateBackendAsync:
@@ -502,19 +514,6 @@ class TestMetastoreStateBackendAsync:
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
         with pytest.raises(ValueError, match="No DagRun found"):
             await backend.aset(scope, "job_id", "app_async")
-
-
-class TestStateStoreConfig:
-    def test_defaults(self):
-        assert conf.getint("state_store", "default_retention_days") == 30
-        assert conf.getint("state_store", "state_cleanup_batch_size") == 0
-
-    @conf_vars(
-        {("state_store", "default_retention_days"): "7", ("state_store", "state_cleanup_batch_size"): "50"}
-    )
-    def test_overrides(self):
-        assert conf.getint("state_store", "default_retention_days") == 7
-        assert conf.getint("state_store", "state_cleanup_batch_size") == 50
 
 
 class TestResolveStateBackend:

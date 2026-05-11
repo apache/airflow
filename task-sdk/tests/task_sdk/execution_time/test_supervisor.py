@@ -2711,6 +2711,18 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_state.set",
             args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"retention_days": None},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001", retention_days=7),
+        test_id="set_task_state_with_retention_days",
+        client_mock=ClientMock(
+            method_path="task_state.set",
+            args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"retention_days": 7},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},

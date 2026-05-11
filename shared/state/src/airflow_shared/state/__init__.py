@@ -73,11 +73,17 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def set(self, scope: StateScope, key: str, value: str) -> None:
+    def set(self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None) -> None:
         """
         Write or overwrite the value for the given key.
 
         Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``retention_days`` is an optional per-key override for how long the row should be retained:
+
+        - ``N > 0``: expire this key in N days, overriding the global ``default_retention_days``.
+        - ``0``: never expire this key (disables expiry regardless of the global default).
+        - ``None`` (default): use the global ``[state_store] default_retention_days`` config.
         """
 
     @abstractmethod
@@ -106,7 +112,9 @@ class BaseStateBackend(ABC):
         """Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
+    async def aset(
+        self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None
+    ) -> None:
         """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod

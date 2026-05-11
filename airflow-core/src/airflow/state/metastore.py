@@ -56,6 +56,16 @@ def _compute_expires_at(now: datetime) -> datetime | None:
     return now + timedelta(days=retention_days)
 
 
+def _compute_expires_at_from_provided_retention_days(
+    retention_days: int | None, now: datetime
+) -> datetime | None:
+    if retention_days is None:
+        return _compute_expires_at(now)
+    if retention_days == 0:
+        return None
+    return now + timedelta(days=retention_days)
+
+
 def _build_upsert_stmt(
     dialect: str | None,
     model: type,
@@ -97,10 +107,18 @@ class MetastoreStateBackend(BaseStateBackend):
                 assert_never(scope)
 
     @provide_session
-    def set(self, scope: StateScope, key: str, value: str, *, session: Session = NEW_SESSION) -> None:
+    def set(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        retention_days: int | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         match scope:
             case TaskScope():
-                self._set_task_state(scope, key, value, session=session)
+                self._set_task_state(scope, key, value, retention_days=retention_days, session=session)
             case AssetScope():
                 self._set_asset_state(scope, key, value, session=session)
             case _:
@@ -142,11 +160,15 @@ class MetastoreStateBackend(BaseStateBackend):
                 case _:
                     assert_never(scope)
 
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
+    async def aset(
+        self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None
+    ) -> None:
         async with create_session_async() as session:
             match scope:
                 case TaskScope():
-                    await self._aset_task_state(scope, key, value, session=session)
+                    await self._aset_task_state(
+                        scope, key, value, retention_days=retention_days, session=session
+                    )
                 case AssetScope():
                     await self._aset_asset_state(scope, key, value, session=session)
                 case _:
@@ -184,7 +206,15 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    def _set_task_state(self, scope: TaskScope, key: str, value: str, *, session: Session) -> None:
+    def _set_task_state(
+        self,
+        scope: TaskScope,
+        key: str,
+        value: str,
+        *,
+        retention_days: int | None = None,
+        session: Session,
+    ) -> None:
         dag_run_id = session.scalar(
             select(DagRun.id).where(
                 DagRun.dag_id == scope.dag_id,
@@ -194,7 +224,7 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        expires_at = _compute_expires_at(now)
+        expires_at = _compute_expires_at_from_provided_retention_days(retention_days, now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,
@@ -330,7 +360,13 @@ class MetastoreStateBackend(BaseStateBackend):
         return row.value if row is not None else None
 
     async def _aset_task_state(
-        self, scope: TaskScope, key: str, value: str, *, session: AsyncSession
+        self,
+        scope: TaskScope,
+        key: str,
+        value: str,
+        *,
+        retention_days: int | None = None,
+        session: AsyncSession,
     ) -> None:
         dag_run_id = await session.scalar(
             select(DagRun.id).where(
@@ -341,7 +377,7 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        expires_at = _compute_expires_at(now)
+        expires_at = _compute_expires_at_from_provided_retention_days(retention_days, now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,

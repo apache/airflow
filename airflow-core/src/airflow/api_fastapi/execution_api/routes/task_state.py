@@ -86,7 +86,7 @@ def set_task_state(
 ) -> None:
     """Set a task state key, creating or updating the row."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().set(scope, key, body.value, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().set(scope, key, body.value, retention_days=body.retention_days, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
 
 
 @router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)

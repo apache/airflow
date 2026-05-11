@@ -1774,6 +1774,31 @@ class TestTaskStateOperations:
         result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="spark_app_001")
         assert result == OKResponse(ok=True)
 
+    def test_set_with_retention_days_sends_field(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["value"] == "spark_app_001"
+            assert body["retention_days"] == 7
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", retention_days=7
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_retention_days_zero_sends_zero(self):
+        """retention_days=0 (never expire) must be serialized as 0, not omitted."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["retention_days"] == 0
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="v", retention_days=0)
+        assert result == OKResponse(ok=True)
+
     def test_delete_success(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"

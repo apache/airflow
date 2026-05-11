@@ -438,12 +438,22 @@ class TaskStateAccessor:
             return resp.value
         return None
 
-    def set(self, key: str, value: str) -> None:
-        """Write or overwrite the value for the given key."""
+    def set(self, key: str, value: str, *, retention_days: int | None = None) -> None:
+        """
+        Write or overwrite the value for the given key.
+
+        ``retention_days`` is an optional per-key retention override:
+
+        - Positive int: expire this key in N days, overriding the global ``default_retention_days``.
+        - ``0``: never expire this key, regardless of the global default.
+        - ``None`` (default): use the global ``[state_store] default_retention_days`` config.
+        """
         from airflow.sdk.execution_time.comms import SetTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value))
+        SUPERVISOR_COMMS.send(
+            SetTaskState(ti_id=self._ti_id, key=key, value=value, retention_days=retention_days)
+        )
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
