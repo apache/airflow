@@ -124,7 +124,6 @@ class TestGetAssetEventByAsset:
                     },
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 2,
@@ -142,7 +141,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 3,
@@ -160,7 +158,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -198,7 +195,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 3,
@@ -216,7 +212,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -254,7 +249,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 2,
@@ -272,7 +266,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -315,7 +308,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -353,7 +345,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 2,
@@ -371,7 +362,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 1,
@@ -389,7 +379,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -427,7 +416,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -465,7 +453,6 @@ class TestGetAssetEventByAsset:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }
@@ -497,7 +484,6 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 2,
@@ -515,7 +501,6 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-02T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
                 {
                     "id": 3,
@@ -533,7 +518,6 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-03T00:00:00Z",
                     "partition_key": None,
-                    "partition_keys": [],
                 },
             ]
         }

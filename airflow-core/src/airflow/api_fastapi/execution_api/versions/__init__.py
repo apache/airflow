@@ -32,7 +32,6 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     AddDagEndpoint,
     AddDagRunDetailEndpoint,
     AddNoteField,
-    AddOutletPartitionKeysField,
     AddPartitionKeyField,
     AddRunAfterField,
     AddTaskInstanceStartDateField,
@@ -62,7 +61,6 @@ bundle = VersionBundle(
     Version(
         "2026-04-06",
         AddPartitionKeyField,
-        AddOutletPartitionKeysField,
         MovePreviousRunEndpoint,
         AddDagRunDetailEndpoint,
         MakeDagRunStartDateNullable,

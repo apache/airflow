@@ -36,31 +36,10 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.sdk.types import OutletEventAccessorsProtocol
     from airflow.triggers.base import BaseTrigger
 
 
 _INVALID_INLET_ASSET_NAMES = ("self", "context", "outlet_events")
-
-
-class _AssetSelfProxy:
-    """Proxy for ``self`` in ``@asset`` functions; intercepts ``partition_keys`` writes and forwards them to the outlet event accessor."""
-
-    def __init__(self, asset: Asset, outlet_events: OutletEventAccessorsProtocol) -> None:
-        object.__setattr__(self, "_asset", asset)
-        object.__setattr__(self, "_outlet_events", outlet_events)
-
-    def __getattr__(self, name: str) -> Any:
-        if name == "partition_keys":
-            return self._outlet_events[self._asset].partition_keys
-        return getattr(self._asset, name)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name != "partition_keys":
-            raise AttributeError(
-                f"Cannot set {name!r} on @asset self; only 'partition_keys' is settable at runtime"
-            )
-        self._outlet_events[self._asset].partition_keys = value
 
 
 def _validate_asset_function_arguments(f: Callable) -> None:
@@ -111,7 +90,7 @@ class _AssetMainOperator(PythonOperator):
             if param.default is not inspect.Parameter.empty:
                 value = param.default
             elif key == "self":
-                value = _AssetSelfProxy(_fetch_asset(self._definition_name), context["outlet_events"])
+                value = _fetch_asset(self._definition_name)
             elif key == "context":
                 value = context
             elif key == "outlet_events":

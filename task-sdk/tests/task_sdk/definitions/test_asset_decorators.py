@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, _AssetSelfProxy, asset
+from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, asset
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.execution_time.comms import AssetResult, GetAssetByName
 from airflow.sdk.execution_time.context import OutletEventAccessors
@@ -405,8 +405,7 @@ class Test_AssetMainOperator:
         outlet_events = OutletEventAccessors()
         context = {"k": "v", "outlet_events": outlet_events}
         kwargs = op.determine_kwargs(context=context)
-        assert isinstance(kwargs["self"], _AssetSelfProxy)
-        assert kwargs["self"]._asset == Asset(
+        assert kwargs["self"] == Asset(
             name="example_asset_func",
             uri="s3://bucket/object",
             group="MLModel",
@@ -467,43 +466,11 @@ class Test_AssetMainOperator:
 
         kwargs = op.determine_kwargs(context={"outlet_events": OutletEventAccessors()})
         assert list(kwargs) == ["self"]
-        assert isinstance(kwargs["self"], _AssetSelfProxy)
-        assert kwargs["self"]._asset == Asset(name="custom_name", uri="s3://bucket/object1", group="Asset")
+        assert kwargs["self"] == Asset(name="custom_name", uri="s3://bucket/object1", group="Asset")
 
         assert mock_supervisor_comms.mock_calls == [
             mock.call.send(GetAssetByName(name="custom_name", uri="s3://bucket/object1", group="Asset"))
         ]
-
-
-class TestAssetSelfProxy:
-    @pytest.fixture
-    def asset(self):
-        return Asset(name="a", uri="s3://bucket/a")
-
-    @pytest.fixture
-    def outlet_events(self):
-        return OutletEventAccessors()
-
-    def test_read_forwards_to_asset(self, asset, outlet_events):
-        proxy = _AssetSelfProxy(asset, outlet_events)
-        assert proxy.name == "a"
-        assert proxy.uri == "s3://bucket/a"
-
-    def test_partition_keys_read_forwards_to_accessor(self, asset, outlet_events):
-        outlet_events[asset].partition_keys = ["us"]
-        proxy = _AssetSelfProxy(asset, outlet_events)
-        assert proxy.partition_keys == ["us"]
-
-    def test_partition_keys_write_forwards_to_accessor(self, asset, outlet_events):
-        proxy = _AssetSelfProxy(asset, outlet_events)
-        proxy.partition_keys = ["us", "eu"]
-        assert outlet_events[asset].partition_keys == ["us", "eu"]
-
-    @pytest.mark.parametrize("name", ["name", "uri", "extra", "group"])
-    def test_setting_other_attributes_raises(self, asset, outlet_events, name):
-        proxy = _AssetSelfProxy(asset, outlet_events)
-        with pytest.raises(AttributeError, match="only 'partition_keys' is settable at runtime"):
-            setattr(proxy, name, "anything")
 
 
 class TestOutletEventsKwarg:

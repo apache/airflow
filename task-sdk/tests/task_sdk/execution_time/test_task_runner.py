@@ -1737,28 +1737,37 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
 class TestSerializeOutletEvents:
     """Tests for the wire format produced by ``_serialize_outlet_events``."""
 
-    def test_emits_empty_partition_keys_when_none_set(self):
+    def test_emits_single_event_when_no_partition_keys(self):
         accessors = OutletEventAccessors()
         accessors[Asset(name="a")].extra = {"x": 1}
 
         events = list(_serialize_outlet_events(accessors))
 
-        assert events == [
-            {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {"x": 1}, "partition_keys": []}
-        ]
+        assert events == [{"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {"x": 1}}]
 
-    def test_emits_partition_keys_from_strings(self):
+    def test_emits_one_event_per_partition_key(self):
         accessors = OutletEventAccessors()
-        accessors[Asset(name="a")].partition_keys = ["us", "eu"]
+        accessors[Asset(name="a")].partition_keys = {"us", "eu"}
 
         events = list(_serialize_outlet_events(accessors))
 
-        assert events == [
-            {
-                "dest_asset_key": {"name": "a", "uri": "a"},
-                "extra": {},
-                "partition_keys": ["us", "eu"],
-            }
+        assert sorted(events, key=lambda e: e["partition_key"]) == [
+            {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {}, "partition_key": "eu"},
+            {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {}, "partition_key": "us"},
+        ]
+
+    def test_dedupes_partition_keys_at_serialization(self):
+        accessors = OutletEventAccessors()
+        accessor = accessors[Asset(name="a")]
+        accessor.add_partitions("us")
+        accessor.add_partitions("us")
+        accessor.add_partitions(["us", "eu"])
+
+        events = list(_serialize_outlet_events(accessors))
+
+        assert sorted(events, key=lambda e: e["partition_key"]) == [
+            {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {}, "partition_key": "eu"},
+            {"dest_asset_key": {"name": "a", "uri": "a"}, "extra": {}, "partition_key": "us"},
         ]
 
 

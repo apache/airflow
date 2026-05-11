@@ -463,21 +463,27 @@ class TestOutletEventAccessorPartitionKeys:
         return OutletEventAccessor(key=AssetUniqueKey.from_asset(Asset("a")))
 
     def test_default_is_empty(self, accessor):
-        assert accessor.partition_keys == []
+        assert accessor.partition_keys == set()
 
     def test_direct_assignment(self, accessor):
-        accessor.partition_keys = ["us", "eu"]
-        assert accessor.partition_keys == ["us", "eu"]
+        accessor.partition_keys = {"us", "eu"}
+        assert accessor.partition_keys == {"us", "eu"}
 
     def test_add_partitions(self, accessor):
         accessor.add_partitions("us")
-        assert accessor.partition_keys == ["us"]
+        assert accessor.partition_keys == {"us"}
 
     def test_add_partitions_appends(self, accessor):
         accessor.add_partitions("us")
         accessor.add_partitions("eu")
         accessor.add_partitions("apac")
-        assert accessor.partition_keys == ["us", "eu", "apac"]
+        assert accessor.partition_keys == {"us", "eu", "apac"}
+
+    def test_add_partitions_dedupes(self, accessor):
+        accessor.add_partitions("us")
+        accessor.add_partitions("us")
+        accessor.add_partitions(["us", "eu"])
+        assert accessor.partition_keys == {"us", "eu"}
 
 
 class TestTriggeringAssetEventsAccessor:

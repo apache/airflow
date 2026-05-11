@@ -221,7 +221,7 @@ class OutletEventAccessorProtocol(Protocol):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
-    partition_keys: list[str]
+    partition_keys: set[str]
 
     def __init__(
         self,
@@ -229,7 +229,7 @@ class OutletEventAccessorProtocol(Protocol):
         key: BaseAssetUniqueKey,
         extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
-        partition_keys: list[str] = ...,
+        partition_keys: set[str] = ...,
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
     def add_partitions(self, keys: str | list[str]) -> None: ...

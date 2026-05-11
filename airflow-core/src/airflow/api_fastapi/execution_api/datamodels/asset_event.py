@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field
 from pydantic.types import JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -55,7 +54,6 @@ class AssetEventResponse(BaseModel):
     source_run_id: str | None = None
     source_map_index: int | None = None
     partition_key: str | None = None
-    partition_keys: list[str] = Field(default_factory=list)
 
 
 class AssetEventsResponse(BaseModel):
