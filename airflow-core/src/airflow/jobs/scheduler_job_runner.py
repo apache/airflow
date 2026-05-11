@@ -38,13 +38,11 @@ from sqlalchemy import (
     and_,
     case,
     delete,
-    delete as _delete,
     exists,
     func,
     inspect,
     or_,
     select,
-    select as _select,
     text,
     tuple_,
     update,
@@ -73,12 +71,10 @@ from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
-    AssetActive as _AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
-    AssetModel as _AssetModel,
     AssetPartitionDagRun,
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
@@ -3228,11 +3224,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset_state rows become unreachable — no task can write to them anymore.
         This runs in the same pass as asset orphanage to keep the table clean.
         """
-        active_asset_ids = _select(_AssetModel.id).join(
-            _AssetActive,
-            (_AssetActive.name == _AssetModel.name) & (_AssetActive.uri == _AssetModel.uri),
+        active_asset_ids = select(AssetModel.id).join(
+            AssetActive,
+            (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
         )
-        session.execute(_delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
+        session.execute(delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
 
     def _executor_to_workloads(
         self,
