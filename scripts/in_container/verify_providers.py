@@ -49,10 +49,6 @@ IS_AIRFLOW_VERSION_PROVIDED = re.match(r"^(\d+)\.(\d+)\.(\d+)\S*$", USE_AIRFLOW_
 
 SKIP_IMPORTING_PACKAGES: list[str] = [
     "airflow.providers.google.cloud.utils.mlengine_prediction_summary",
-    "airflow.providers.google.cloud.operators.dataflow",
-    "airflow.providers.google.cloud.hooks.dataflow",
-    "airflow.providers.google.cloud.sensors.dataflow",
-    "airflow.providers.google.cloud.triggers.dataflow",
 ]
 
 
