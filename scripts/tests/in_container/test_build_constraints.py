@@ -18,6 +18,10 @@ from __future__ import annotations
 
 import io
 import json
+import re
+import shutil
+import subprocess
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -856,6 +860,366 @@ class TestResolveBuildRequirements:
         assert "setuptools>=70.0" in retry_lines
         assert "hatchling>=1.20" in retry_lines
         assert not any("cython" in line for line in retry_lines)
+
+
+class TestResolveBuildRequirementsWithRealUv:
+    """Integration smoke test exercising _resolve_build_requirements against
+    the real uv binary.
+
+    The mock-based tests above verify the regex against stderr strings we
+    wrote ourselves; if uv reformats its diagnostic output, those tests
+    still pass but the regex silently breaks in production. This test runs
+    uv for real on a synthetic conflict so the regex is exercised against
+    uv's *current* output. When uv.lock bumps the uv version (basic-tests
+    pins uv to the version from uv.lock), this test catches diagnostic
+    format regressions on the upgrade PR's CI run rather than waiting for
+    the canary build to hit a real conflict.
+    """
+
+    @pytest.mark.skipif(
+        shutil.which("uv") is None,
+        reason="uv binary not available; needed for real-uv smoke test",
+    )
+    def test_real_uv_conflict_auto_resolution(self, tmp_path):
+        """Real uv reports a conflict for two non-overlapping cython ranges;
+        the retry loop must extract `cython` from uv's stderr and skip it,
+        then resolve the remaining package successfully.
+
+        Requires network access to query the package index for cython /
+        setuptools versions.
+        """
+        build_reqs = {
+            # Empty intersection: <3.1 and >=3.1.2 cannot both be satisfied.
+            "cython": {"cython>=3.0,<3.1", "cython>=3.1.2,<3.3.0"},
+            # Non-conflicting filler so the retry has something left to resolve.
+            "setuptools": {"setuptools>=70.0"},
+        }
+        output_path = tmp_path / "build-constraints-3.12.txt"
+        config = ConfigParams(
+            airflow_constraints_mode="constraints-source-providers",
+            constraints_github_repository="apache/airflow",
+            default_constraints_branch="main",
+            github_actions=False,
+            python="3.12",
+        )
+
+        _resolve_build_requirements(build_reqs, output_path, config)
+
+        assert output_path.exists()
+        content = output_path.read_text().lower()
+        assert "cython" not in content, (
+            f"cython should have been skipped after the conflict was detected, "
+            f"but output contains it. Output: {content!r}"
+        )
+        assert "setuptools==" in content, (
+            f"setuptools should be pinned after the retry, but output is: {content!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# End-to-end smoke test for pip --build-constraint contract.
+#
+# The mock-based tests above prove that Airflow's *generation* side produces
+# the expected file structure and CLI flags.  This test proves the
+# *consumer* contract: that a build-constraints file we hand to pip actually
+# constrains build-isolation resolution.
+#
+# The check lives inside an in-tree PEP 517 backend that runs *inside* the
+# isolated build env created by pip; the backend uses
+# ``importlib.metadata.version(...)`` to read what pip actually installed
+# there, so we observe pip's behaviour rather than parsing stderr wording.
+#
+# Wheel-builder helper, in-tree backend, and pyproject.toml are stored as
+# source-code strings so the same wheel-construction code is shared between
+# the test fixture (which materialises marker wheels in the wheelhouse) and
+# the backend (which produces the subject wheel at build time).  Raw
+# triple-quoted strings let us embed Python source verbatim — ``\n`` inside
+# remains a two-character escape that the on-disk file's Python parser will
+# interpret correctly.
+# ---------------------------------------------------------------------------
+
+_WHEEL_HELPER_SOURCE = r'''"""Minimal PEP 427 wheel writer used by both the test fixture and the
+in-tree PEP 517 backend in this E2E test."""
+from __future__ import annotations
+
+import base64
+import hashlib
+import re
+import zipfile
+from pathlib import Path
+
+
+def _record_line(arcname, payload):
+    digest = hashlib.sha256(payload).digest()
+    b64 = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return f"{arcname},sha256={b64},{len(payload)}"
+
+
+def write_wheel(out_dir, *, distribution, version, extra_files=None):
+    """Write a minimal py3-none-any wheel and return its path.
+
+    `distribution` and the wheel filename use the *escaped* form from
+    PEP 427: runs of ``[^A-Za-z0-9.]`` in the distribution name are
+    replaced with ``_``.  The ``Name:`` field in METADATA keeps the
+    original hyphenated form per PEP 566.
+    """
+    escaped = re.sub(r"[^A-Za-z0-9.]+", "_", distribution)
+    dist_info = f"{escaped}-{version}.dist-info"
+    wheel_name = f"{escaped}-{version}-py3-none-any.whl"
+    wheel_path = Path(out_dir) / wheel_name
+
+    metadata = (
+        "Metadata-Version: 2.1\n"
+        f"Name: {distribution}\n"
+        f"Version: {version}\n"
+    ).encode()
+    wheel_meta = (
+        "Wheel-Version: 1.0\n"
+        "Generator: airflow-test\n"
+        "Root-Is-Purelib: true\n"
+        "Tag: py3-none-any\n"
+    ).encode()
+
+    members = [
+        (f"{dist_info}/METADATA", metadata),
+        (f"{dist_info}/WHEEL", wheel_meta),
+    ]
+    for arcname, payload in (extra_files or {}).items():
+        members.append((arcname, payload))
+
+    record_lines = [_record_line(arc, data) for arc, data in members]
+    record_lines.append(f"{dist_info}/RECORD,,")
+    record_payload = ("\n".join(record_lines) + "\n").encode()
+    members.append((f"{dist_info}/RECORD", record_payload))
+
+    with zipfile.ZipFile(wheel_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for arc, payload in members:
+            zf.writestr(arc, payload)
+
+    return wheel_path
+'''
+
+
+_BACKEND_SOURCE = r'''"""In-tree PEP 517 backend for the E2E test subject package.
+
+The backend asserts that pip resolved ``airflow-build-constraint-marker``
+to 2.0.0 inside this isolated build env.  Because this code runs *inside*
+the build env that pip just provisioned, ``importlib.metadata.version(...)``
+returns the version pip actually installed — which directly answers
+"did pip honor ``--build-constraint``?".
+"""
+from __future__ import annotations
+
+import sys
+from importlib.metadata import version
+from pathlib import Path
+
+# backend-path = ["."] in pyproject.toml makes this directory importable.
+sys.path.insert(0, str(Path(__file__).parent))
+from _wheel_helper import write_wheel  # noqa: E402
+
+
+_DIST = "airflow-build-constraint-subject"
+_VERSION = "0.1.0"
+
+
+def _assert_marker_version():
+    actual = version("airflow-build-constraint-marker")
+    if actual != "2.0.0":
+        raise RuntimeError(
+            f"Expected airflow-build-constraint-marker==2.0.0 in build env, "
+            f"got {actual!r}. This proves --build-constraint was not "
+            f"honored by pip, or the wheelhouse fixture is misconfigured."
+        )
+
+
+def get_requires_for_build_wheel(config_settings=None):
+    return []
+
+
+def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):
+    # pip always calls this hook when present, so it is the most reliable
+    # spot for the assertion; placing it only in build_wheel risks pip
+    # skipping the call when metadata is already cached.
+    _assert_marker_version()
+    target = Path(metadata_directory) / f"airflow_build_constraint_subject-{_VERSION}.dist-info"
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "METADATA").write_bytes(
+        f"Metadata-Version: 2.1\nName: {_DIST}\nVersion: {_VERSION}\n".encode()
+    )
+    (target / "WHEEL").write_bytes(
+        b"Wheel-Version: 1.0\nGenerator: airflow-test\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
+    )
+    return target.name
+
+
+def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
+    _assert_marker_version()
+    wheel_path = write_wheel(
+        Path(wheel_directory),
+        distribution=_DIST,
+        version=_VERSION,
+    )
+    return wheel_path.name
+'''
+
+
+_PYPROJECT_TOML = """[build-system]
+requires = ["airflow-build-constraint-marker>=2"]
+build-backend = "backend"
+backend-path = ["."]
+"""
+
+
+def _get_pip_version() -> tuple[int, int, int]:
+    """Parse the major/minor/patch numbers from ``python -m pip --version``."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip", "--version"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return (0, 0, 0)
+    match = re.search(r"pip (\d+)\.(\d+)(?:\.(\d+))?", proc.stdout)
+    if not match:
+        return (0, 0, 0)
+    major, minor = int(match.group(1)), int(match.group(2))
+    patch = int(match.group(3)) if match.group(3) else 0
+    return (major, minor, patch)
+
+
+def _pip_help_mentions_build_constraint() -> bool:
+    """Defensive secondary gate — some old-but-patched pip builds may
+    advertise the flag while the implementation is incomplete; absence
+    from ``--help`` is treated as definitely unsupported.
+    """
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--help"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+    return "--build-constraint" in proc.stdout
+
+
+# Evaluated once at module-import time; pytest.mark.skipif needs a value at
+# collection time.  The two subprocess calls take ~100 ms total — acceptable
+# for skipping a slow E2E test on environments that cannot exercise it.
+_PIP_SUPPORTS_BUILD_CONSTRAINT = _get_pip_version() >= (25, 3, 0) and _pip_help_mentions_build_constraint()
+
+
+class TestPipBuildConstraintE2E:
+    """Prove that pip honors ``--build-constraint`` when resolving
+    ``build-system.requires`` inside the isolated build environment.
+
+    Differential test:
+
+    * Positive case (good constraint == marker 2.0.0): install must succeed.
+      The backend's marker-version assertion passing proves pip installed
+      marker 2.0.0 into the isolated build env.
+    * Negative case (bad constraint == marker 1.0.0): the build-system
+      requires ``marker>=2``, so the intersection with the constraint is
+      empty and pip must fail.
+
+    Positive runs *first* so it doubles as a fixture smoke check: if it
+    fails, the fixture (wheelhouse / backend / etc.) is broken, not the
+    system under test.
+    """
+
+    @pytest.mark.skipif(
+        not _PIP_SUPPORTS_BUILD_CONSTRAINT,
+        reason="pip < 25.3 or --build-constraint not advertised in pip install --help",
+    )
+    def test_pip_honors_build_constraint_in_build_isolation(self, tmp_path):
+        wheelhouse = tmp_path / "wheelhouse"
+        wheelhouse.mkdir()
+        subject = tmp_path / "subject"
+        subject.mkdir()
+
+        # Materialise both marker wheels via the same helper that the
+        # backend will use (single source of wheel-format truth).
+        helper_ns: dict = {}
+        exec(_WHEEL_HELPER_SOURCE, helper_ns)
+        write_wheel = helper_ns["write_wheel"]
+        write_wheel(wheelhouse, distribution="airflow-build-constraint-marker", version="1.0.0")
+        write_wheel(wheelhouse, distribution="airflow-build-constraint-marker", version="2.0.0")
+
+        (subject / "_wheel_helper.py").write_text(_WHEEL_HELPER_SOURCE)
+        (subject / "backend.py").write_text(_BACKEND_SOURCE)
+        (subject / "pyproject.toml").write_text(_PYPROJECT_TOML)
+
+        good_constraints = tmp_path / "good-build-constraints.txt"
+        good_constraints.write_text("airflow-build-constraint-marker==2.0.0\n")
+        bad_constraints = tmp_path / "bad-build-constraints.txt"
+        bad_constraints.write_text("airflow-build-constraint-marker==1.0.0\n")
+
+        # `--isolated` makes pip ignore user/global pip.conf and all PIP_*
+        # env vars, so an inherited config cannot leak network access into
+        # this hermetic install.
+        base_cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--isolated",
+            "--disable-pip-version-check",
+            "--no-index",
+            "--find-links",
+            str(wheelhouse),
+        ]
+
+        # ---- Positive case (also fixture smoke check) ---------------------
+        good = subprocess.run(
+            [
+                *base_cmd,
+                "--target",
+                str(tmp_path / "target-good"),
+                "--build-constraint",
+                str(good_constraints),
+                str(subject),
+            ],
+            text=True,
+            capture_output=True,
+            timeout=180,
+            check=False,
+        )
+        assert good.returncode == 0, (
+            "Positive case failed — either the fixture is broken or pip is "
+            "not honoring --build-constraint for the compatible case.\n"
+            f"stdout:\n{good.stdout}\nstderr:\n{good.stderr}"
+        )
+
+        # ---- Negative case ------------------------------------------------
+        bad = subprocess.run(
+            [
+                *base_cmd,
+                "--target",
+                str(tmp_path / "target-bad"),
+                "--build-constraint",
+                str(bad_constraints),
+                str(subject),
+            ],
+            text=True,
+            capture_output=True,
+            timeout=180,
+            check=False,
+        )
+        assert bad.returncode != 0, (
+            "Negative case unexpectedly succeeded — --build-constraint may "
+            "not be filtering build-isolation resolution at all.\n"
+            f"stdout:\n{bad.stdout}\nstderr:\n{bad.stderr}"
+        )
+        combined = (bad.stdout + bad.stderr).lower()
+        assert "airflow-build-constraint-marker" in combined, (
+            "Negative case failed but stderr/stdout do not mention the marker "
+            "package; the failure may be unrelated to --build-constraint.\n"
+            f"stdout:\n{bad.stdout}\nstderr:\n{bad.stderr}"
+        )
 
 
 # ===========================================================================
