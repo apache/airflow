@@ -66,8 +66,6 @@ class TestGetHookConnId:
         assert _get_hook_conn_id(hook) is None
 
 
-
-
 class TestEmitLineageFromSqlExtras:
     @pytest.fixture(autouse=True)
     def _patch_deps(self):

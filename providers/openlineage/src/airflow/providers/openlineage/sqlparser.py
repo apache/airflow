@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import sqlparse
 from attrs import define
@@ -478,19 +478,21 @@ def get_openlineage_facets_with_sql(
     conn_id: str,
     database: str | None,
     use_connection: bool = True,
-    connection=None,
-    database_info=None,
+    *,
+    connection: Any | None = None,
+    database_info: Any | None = None,
 ) -> OperatorLineage | None:
     # Accept pre-fetched connection and database_info to avoid redundant hook.get_connection()
     # calls when processing multiple SQL extras from the same hook. Each get_connection() call
-    # hits SecretsManager (miss) then the Airflow API server — passing these in caches that cost.
-    if connection is None or database_info is None:
+    # hits SecretsManager (miss) then the Airflow API server — passing these in avoids that cost.
+    if connection is None:
         connection = hook.get_connection(conn_id)
-        if database_info is None:
-            try:
-                database_info = hook.get_openlineage_database_info(connection)
-            except AttributeError:
-                database_info = None
+
+    if database_info is None:
+        try:
+            database_info = hook.get_openlineage_database_info(connection)
+        except AttributeError:
+            database_info = None
 
     if database_info is None:
         log.debug("%s has no database info provided", hook)
