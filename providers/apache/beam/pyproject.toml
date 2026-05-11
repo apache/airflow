@@ -61,7 +61,11 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "apache-beam>=2.69.0",
+    "apache-beam>=2.72.0",
+    # For Python>=3.11, the apache-beam package depends on envoy-data-plane.
+    # Currently, there is only one compatible version(1.0.3) of envoy-data-plane available for these
+    # Python versions, and it explicitly requires a prerelease version of betterproto.
+    "betterproto==2.0.0b6; python_version >= '3.11'",
     "pyarrow>=16.1.0; python_version < '3.14'",
     "pyarrow>=22.0.0; python_version >= '3.14'",
     "numpy>=1.22.4; python_version<'3.11'",
@@ -74,7 +78,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "google" = [
-    "apache-beam[gcp]>=2.69.0",
+    "apache-beam[gcp]>=2.72.0",
 ]
 
 [dependency-groups]

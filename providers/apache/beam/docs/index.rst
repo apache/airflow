@@ -100,16 +100,18 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``apache-beam``                             ``>=2.69.0``
-``pyarrow``                                 ``>=16.1.0``
+``apache-beam``                             ``>=2.72.0``
+``betterproto``                             ``==2.0.0b6; python_version >= "3.11"``
+``pyarrow``                                 ``>=16.1.0; python_version < "3.14"``
+``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
 ``numpy``                                   ``>=1.22.4; python_version < "3.11"``
 ``numpy``                                   ``>=1.23.2; python_version < "3.12" and python_version >= "3.11"``
 ``numpy``                                   ``>=1.26.0; python_version >= "3.12" and python_version < "3.14"``
 ``numpy``                                   ``>=2.4.3; python_version >= "3.14"``
 ==========================================  ==================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -118,15 +120,31 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-beam[common.compat]
+    pip install apache-airflow-providers-apache-beam[google]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                ``google``
-==================================================================================================================  =================
+====================================================================================================  ==========
+Dependent package                                                                                     Extra
+====================================================================================================  ==========
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+====================================================================================================  ==========
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-beam[google]
+
+
+==========  ============================
+Extra       Dependencies
+==========  ============================
+``google``  ``apache-beam[gcp]>=2.72.0``
+==========  ============================
 
 Downloading official packages
 -----------------------------
