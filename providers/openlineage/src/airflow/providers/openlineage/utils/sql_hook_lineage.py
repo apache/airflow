@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from openlineage.client.event_v2 import Dataset, Job, Run, RunEvent, RunState
@@ -116,7 +116,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
     # Build hook identity -> (hook, conn_id) mapping before iterating.
     # Using id(hook) as cache key instead of conn_id ensures distinct hook instances
     # with the same conn_id but different params are cached separately.
-    _hook_info: dict[int, tuple[object, str | None]] = {}
+    _hook_info: dict[int, tuple[Any, str | None]] = {}
     for e in sql_extras:
         hid = id(e.context)
         if hid not in _hook_info:
