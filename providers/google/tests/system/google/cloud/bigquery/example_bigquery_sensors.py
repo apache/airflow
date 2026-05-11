@@ -39,11 +39,10 @@ from airflow.providers.google.cloud.sensors.bigquery import (
 )
 
 try:
-    from airflow.sdk import TriggerRule, cross_downstream, task
+    from airflow.sdk import TriggerRule, task
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.decorators import task  # type: ignore[no-redef,attr-defined]
-    from airflow.models.baseoperator import cross_downstream  # type: ignore[no-redef,attr-defined]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -222,10 +221,6 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    streaming_buffer_sensors = [check_streaming_buffer_empty, check_streaming_buffer_empty_def]
-    streaming_dml_ops = [stream_update, stream_delete]
-    cross_downstream(streaming_buffer_sensors, streaming_dml_ops)
-
     (
         create_dataset
         >> create_table
@@ -237,10 +232,12 @@ with DAG(
             check_table_partition_exists_def,
         ]
         >> streaming_insert_task
-        >> streaming_buffer_sensors
+        >> check_streaming_buffer_empty
+        >> stream_update
+        >> check_streaming_buffer_empty_def
+        >> stream_delete
+        >> delete_dataset
     )
-    for dml_op in streaming_dml_ops:
-        dml_op >> delete_dataset
 
     from tests_common.test_utils.watcher import watcher
 
