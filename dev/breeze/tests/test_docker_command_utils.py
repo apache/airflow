@@ -350,7 +350,7 @@ def test_bring_all_compose_projects_down_filters_unknown_by_default(
     mock_discover.return_value = {"breeze", "providers-3", "my-app"}
     brought_down, skipped = bring_all_compose_projects_down()
     assert brought_down == ["breeze"]
-    assert skipped == ["providers-3", "my-app"]
+    assert skipped == ["my-app","providers-3"]
     down_calls = [c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"]]
     assert len(down_calls) == 2
     for c in down_calls:
