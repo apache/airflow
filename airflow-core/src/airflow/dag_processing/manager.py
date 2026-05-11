@@ -1013,36 +1013,26 @@ class DagFileProcessorManager(LoggingMixin):
         for v in known_files.values():
             files_set |= v
 
-        present_keys = {file.presence_key for file in files_set}
-        self._purge_removed_files_from_queue(present_keys=present_keys)
-        self._terminate_orphan_processes(present_keys=present_keys)
-        self._remove_orphaned_file_stats(present_keys=present_keys)
+        self.purge_removed_files_from_queue(present=files_set)
+        self.terminate_orphan_processes(present=files_set)
+        self.remove_orphaned_file_stats(present=files_set)
 
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
-        self._purge_removed_files_from_queue(present_keys={file.presence_key for file in present})
-
-    def _purge_removed_files_from_queue(self, present_keys: set[tuple[str, Path]]):
-        """Remove from queue any files no longer observed locally."""
+        present_keys = {file.presence_key for file in present}
         self._file_queue = deque(x for x in self._file_queue if x.presence_key in present_keys)
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
-        self._remove_orphaned_file_stats(present_keys={file.presence_key for file in present})
-
-    def _remove_orphaned_file_stats(self, present_keys: set[tuple[str, Path]]):
-        """Remove the stats for any dag files that don't exist anymore."""
+        present_keys = {file.presence_key for file in present}
         stats_to_remove = {file for file in self._file_stats if file.presence_key not in present_keys}
         for file in stats_to_remove:
             del self._file_stats[file]
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
-        self._terminate_orphan_processes(present_keys={file.presence_key for file in present})
-
-    def _terminate_orphan_processes(self, present_keys: set[tuple[str, Path]]):
-        """Stop processors that are working on deleted files."""
+        present_keys = {file.presence_key for file in present}
         for file in list(self._processors.keys()):
             if file.presence_key not in present_keys:
                 processor = self._processors.pop(file, None)
@@ -1382,7 +1372,9 @@ class DagFileProcessorManager(LoggingMixin):
         for bundle_files in known_files.values():
             for file in bundle_files:
                 files.append(file)
-                if self.processed_recently(now, file):
+                stat = file_stats_by_presence_key.get(file.presence_key)
+                last_time = stat.last_finish_time if stat else None
+                if last_time and (now - last_time).total_seconds() < self._file_process_interval:
                     recently_processed.add(file)
 
         changed_recently: set[DagFileInfo] = set()

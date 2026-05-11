@@ -417,6 +417,22 @@ class TestDagFileProcessorManager:
         manager.handle_removed_files(known_files={bundle_name: {file}})
         assert manager._processors == {file: mock_processor}
 
+    def test_handle_removed_files_uses_public_extension_points(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle_name = "testing"
+        file = DagFileInfo(bundle_name=bundle_name, rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+
+        with (
+            mock.patch.object(manager, "purge_removed_files_from_queue") as purge_queue,
+            mock.patch.object(manager, "terminate_orphan_processes") as terminate_processors,
+            mock.patch.object(manager, "remove_orphaned_file_stats") as remove_stats,
+        ):
+            manager.handle_removed_files(known_files={bundle_name: {file}})
+
+        purge_queue.assert_called_once_with(present={file})
+        terminate_processors.assert_called_once_with(present={file})
+        remove_stats.assert_called_once_with(present={file})
+
     def test_purge_removed_files_keeps_versioned_callback_file_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
