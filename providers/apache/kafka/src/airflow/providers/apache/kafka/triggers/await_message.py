@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from functools import partial
 from typing import Any
 
-from asgiref.sync import sync_to_async
+from asgiref.sync import ThreadSensitiveContext, sync_to_async
 
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.providers.apache.kafka.version_compat import AIRFLOW_V_3_0_PLUS
@@ -109,43 +109,44 @@ class AwaitMessageTrigger(BaseEventTrigger):
         )
 
     async def run(self):
-        consumer_hook = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
+        async with ThreadSensitiveContext():
+            consumer_hook = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id)
 
-        async_get_consumer = sync_to_async(consumer_hook.get_consumer)
-        self._consumer = await async_get_consumer()
+            async_get_consumer = sync_to_async(consumer_hook.get_consumer)
+            self._consumer = await async_get_consumer()
 
-        async_poll = sync_to_async(self._consumer.poll)
-        async_commit = sync_to_async(self._consumer.commit)
+            async_poll = sync_to_async(self._consumer.poll)
+            async_commit = sync_to_async(self._consumer.commit)
 
-        async_message_process = None
-        if self.apply_function:
-            processing_call = import_string(self.apply_function)
-            processing_call = partial(
-                processing_call, *self.apply_function_args, **self.apply_function_kwargs
-            )
-            async_message_process = sync_to_async(processing_call)
-        while True:
-            message = await async_poll(self.poll_timeout)
-
-            if message is None:
-                continue
-            elif message.error():
-                raise AirflowException(f"Error: {message.error()}")
-            else:
-                event = (
-                    await async_message_process(message)
-                    if async_message_process
-                    else message.value().decode("utf-8")
+            async_message_process = None
+            if self.apply_function:
+                processing_call = import_string(self.apply_function)
+                processing_call = partial(
+                    processing_call, *self.apply_function_args, **self.apply_function_kwargs
                 )
-                if event:
-                    if self.commit_offset:
-                        await async_commit(message=message, asynchronous=False)
-                    yield TriggerEvent(event)
-                    break
+                async_message_process = sync_to_async(processing_call)
+            while True:
+                message = await async_poll(self.poll_timeout)
+
+                if message is None:
+                    continue
+                elif message.error():
+                    raise AirflowException(f"Error: {message.error()}")
                 else:
-                    if self.commit_offset:
-                        await async_commit(message=message, asynchronous=False)
-                    await asyncio.sleep(self.poll_interval)
+                    event = (
+                        await async_message_process(message)
+                        if async_message_process
+                        else message.value().decode("utf-8")
+                    )
+                    if event:
+                        if self.commit_offset:
+                            await async_commit(message=message, asynchronous=False)
+                        yield TriggerEvent(event)
+                        break
+                    else:
+                        if self.commit_offset:
+                            await async_commit(message=message, asynchronous=False)
+                        await asyncio.sleep(self.poll_interval)
 
     async def cleanup(self) -> None:
         consumer = self._consumer
