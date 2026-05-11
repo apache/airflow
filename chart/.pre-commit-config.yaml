@@ -44,6 +44,13 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^../scripts/ci/prek/update_build_dependencies\.py$
         pass_filenames: false
         require_serial: true
+      - id: mypy-helm-tests
+        name: Run mypy for helm-tests
+        language: python
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py chart/tests
+        pass_filenames: false
+        files: ^tests/.*\.py$
+        require_serial: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:

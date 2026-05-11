@@ -157,3 +157,41 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
                 raise
         self.log.info("Workflow %s: %s", self.workflow_name, workflow_arn)
         return workflow_arn
+
+
+class MwaaServerlessStopWorkflowRunOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Stop a running Amazon MWAA Serverless workflow run.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MwaaServerlessStopWorkflowRunOperator`
+
+    :param workflow_arn: The ARN of the workflow. (templated)
+    :param run_id: The ID of the run to stop. (templated)
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = aws_template_fields("workflow_arn", "run_id")
+
+    def __init__(
+        self,
+        *,
+        workflow_arn: str,
+        run_id: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.workflow_arn = workflow_arn
+        self.run_id = run_id
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "mwaa-serverless"}
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Stopping workflow run %s", self.run_id)
+        response = self.hook.conn.stop_workflow_run(WorkflowArn=self.workflow_arn, RunId=self.run_id)
+        status = response["Status"]
+        self.log.info("Workflow run %s status: %s", self.run_id, status)
+        return status

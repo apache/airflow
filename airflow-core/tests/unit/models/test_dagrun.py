@@ -54,6 +54,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -2296,6 +2297,87 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     ti.task = dr.dag.get_task("test_task")
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
+
+
+@pytest.mark.need_serialized_dag
+def test_schedule_tis_start_trigger_next_kwargs_round_trip(dag_maker, session):
+    """next_kwargs with encoded values (timedelta) must survive the defer_task round-trip."""
+    import datetime
+
+    from airflow.sdk.serde import deserialize
+
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs={},
+            next_method="execute_complete",
+            next_kwargs={"delay": datetime.timedelta(seconds=30)},
+            timeout=None,
+        )
+        start_from_trigger = True
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("test_task")
+    ti.task = dr.dag.get_task("test_task")
+    dr.schedule_tis((ti,), session=session)
+
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert deserialize(ti.next_kwargs) == {"delay": datetime.timedelta(seconds=30)}
+
+
+@pytest.mark.need_serialized_dag
+def test_schedule_tis_start_trigger_kwargs_e2e(dag_maker, session):
+    """
+    End to end test of scheduler defer_task with non-trivial trigger_kwargs (timedelta) ->
+    Trigger row -> Trigger.kwargs returns correct Python objects.
+
+    Covers the path: BaseSerialization encodes trigger_kwargs with Encoding enum keys,
+    defer_task passes them to Trigger as kwargs which calls encrypt_kwargs -> _stringify_encoding_keys
+    -> serde.serialize -> stores them.
+
+    On reading, serde.deserialize + _convert must reconstruct the original values.
+    """
+    import datetime
+
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs={"delta": datetime.timedelta(seconds=2)},
+            next_method="execute_complete",
+            next_kwargs=None,
+            timeout=None,
+        )
+        start_from_trigger = True
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("test_task")
+    ti.task = dr.dag.get_task("test_task")
+    dr.schedule_tis((ti,), session=session)
+
+    assert ti.state == TaskInstanceState.DEFERRED
+
+    trigger_row = session.get(Trigger, ti.trigger_id)
+    assert trigger_row is not None
+    # trigger_kwargs must round-trip correctly through encrypt_kwargs → _decrypt_kwargs
+    assert trigger_row.kwargs == {"delta": datetime.timedelta(seconds=2)}
 
 
 def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):

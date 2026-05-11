@@ -2246,7 +2246,7 @@ class TestTriggerDagRun:
     def test_should_response_409_for_duplicate_logical_date(self, test_client):
         RUN_ID_1 = "random_1"
         RUN_ID_2 = "random_2"
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
+        now = from_datetime_to_zulu(timezone.utcnow())
         note = "duplicate logical date test"
         response_1 = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns",

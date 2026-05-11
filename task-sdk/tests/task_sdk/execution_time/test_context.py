@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 
@@ -30,33 +31,55 @@ from airflow.sdk.definitions.asset import (
     AssetAlias,
     AssetAliasEvent,
     AssetAliasUniqueKey,
+    AssetNameRef,
     AssetUniqueKey,
+    AssetUriRef,
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
     AssetEventSourceTaskInstance,
     AssetEventsResult,
     AssetResult,
+    AssetsByAliasResult,
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
+    ClearTaskState,
     ConnectionResult,
     DagRunResult,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
+    DeleteTaskState,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetAssetsByAlias,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetDagRun,
+    GetTaskState,
     GetXCom,
+    OKResponse,
+    SetAssetStateByName,
+    SetAssetStateByUri,
+    SetTaskState,
+    TaskStateResult,
     VariableResult,
     XComResult,
 )
 from airflow.sdk.execution_time.context import (
+    AssetStateAccessor,
+    AssetStateAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     OutletEventAccessor,
     OutletEventAccessors,
+    TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
@@ -1032,3 +1055,265 @@ class TestSecretsBackend:
 
             with pytest.raises(AirflowNotFoundException, match="isn't defined"):
                 _get_connection("nonexistent_conn")
+
+
+class TestTaskStateAccessor:
+    TI_ID = UUID("01900000-0000-0000-0000-000000000001")
+
+    def test_get_returns_value(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = TaskStateResult(value="app_001")
+
+        result = TaskStateAccessor(ti_id=self.TI_ID).get("job_id")
+
+        assert result == "app_001"
+        mock_supervisor_comms.send.assert_called_once_with(GetTaskState(ti_id=self.TI_ID, key="job_id"))
+
+    def test_get_returns_none_on_404(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": "missing_key"}
+        )
+
+        result = TaskStateAccessor(ti_id=self.TI_ID).get("missing_key")
+
+        assert result is None
+
+    def test_get_raises_on_error(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            TaskStateAccessor(ti_id=self.TI_ID).get("some_key")
+
+    def test_set_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001")
+        )
+
+    def test_delete_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).delete("job_id")
+
+        mock_supervisor_comms.send.assert_called_once_with(DeleteTaskState(ti_id=self.TI_ID, key="job_id"))
+
+    def test_clear_default_sends_all_map_indices_false(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            ClearTaskState(ti_id=self.TI_ID, all_map_indices=False)
+        )
+
+    def test_clear_all_map_indices_sends_flag_true(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        TaskStateAccessor(ti_id=self.TI_ID).clear(all_map_indices=True)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            ClearTaskState(ti_id=self.TI_ID, all_map_indices=True)
+        )
+
+
+class TestAssetStateAccessor:
+    ASSET_NAME = "debug_watcher_asset"
+    ASSET_URI = "s3://bucket/key"
+
+    def test_get_returns_value(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get("watermark")
+
+        assert result == "2026-04-30T00:00:00Z"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_get_returns_none_on_404(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "missing_key"}
+        )
+
+        result = AssetStateAccessor(name=self.ASSET_NAME).get("missing_key")
+
+        assert result is None
+
+    def test_get_raises_on_error(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            AssetStateAccessor(name=self.ASSET_NAME).get("some_key")
+
+    def test_set_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).set("watermark", "2026-04-30T00:00:00Z")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
+        )
+
+    def test_delete_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).delete("watermark")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_clear_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(name=self.ASSET_NAME).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByName(name=self.ASSET_NAME))
+
+    def test_get_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="2026-04-30T00:00:00Z")
+
+        result = AssetStateAccessor(uri=self.ASSET_URI).get("watermark")
+
+        assert result == "2026-04-30T00:00:00Z"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_set_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(uri=self.ASSET_URI).set("watermark", "2026-04-30T00:00:00Z")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByUri(uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z")
+        )
+
+    def test_delete_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(uri=self.ASSET_URI).delete("watermark")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            DeleteAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_clear_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessor(uri=self.ASSET_URI).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByUri(uri=self.ASSET_URI))
+
+
+class TestAssetStateAccessors:
+    ASSET_NAME = "my_asset"
+    ASSET_URI = "s3://bucket/key"
+
+    def test_subscript_by_asset_routes_by_name(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v1")
+
+        result = AssetStateAccessors([asset])[asset].get("watermark")
+
+        assert result == "v1"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_subscript_by_asset_name_ref(self, mock_supervisor_comms):
+        ref = AssetNameRef(name=self.ASSET_NAME)
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v2")
+
+        result = AssetStateAccessors([ref])[ref].get("watermark")
+
+        assert result == "v2"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_subscript_by_uri_ref(self, mock_supervisor_comms):
+        ref = AssetUriRef(uri=self.ASSET_URI)
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v3")
+
+        result = AssetStateAccessors([ref])[ref].get("watermark")
+
+        assert result == "v3"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    def test_get_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateResult(value="v4")
+
+        result = AssetStateAccessors([asset]).get("watermark")
+
+        assert result == "v4"
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_set_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessors([asset]).set("watermark", "2026-05-01")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetAssetStateByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
+        )
+
+    def test_delete_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessors([asset]).delete("watermark")
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            DeleteAssetStateByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    def test_clear_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        AssetStateAccessors([asset]).clear()
+
+        mock_supervisor_comms.send.assert_called_once_with(ClearAssetStateByName(name=self.ASSET_NAME))
+
+    def test_double_reference_raises(self):
+        a1 = Asset(name="asset_one", uri="s3://one")
+        a2 = Asset(name="asset_two", uri="s3://two")
+
+        with pytest.raises(ValueError, match="2 concrete inlets"):
+            AssetStateAccessors([a1, a2]).get("watermark")
+
+    def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
+        alias = AssetAlias(name="my_alias")
+        mock_supervisor_comms.send.return_value = AssetsByAliasResult(
+            assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
+        )
+        mock_supervisor_comms.send.return_value = AssetsByAliasResult(
+            assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
+        )
+
+        accessors = AssetStateAccessors([alias])
+
+        mock_supervisor_comms.send.assert_called_once_with(GetAssetsByAlias(alias_name="my_alias"))
+        resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
+        assert resolved.name in accessors._by_name
+
+    def test_alias_inlet_no_resolved_assets_contributes_nothing(self, mock_supervisor_comms):
+        alias = AssetAlias(name="empty_alias")
+        mock_supervisor_comms.send.return_value = AssetsByAliasResult(assets=[])
+
+        accessors = AssetStateAccessors([alias])
+
+        assert accessors._total == 0

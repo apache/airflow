@@ -172,9 +172,9 @@ class TestTaskInstancesLog:
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert response.status_code == 200, response.json()
-        resp_contnt = response.json()["content"]
-        assert expected_filename in resp_contnt[0]["sources"]
-        assert log_content in resp_contnt[2]["event"]
+        resp_content = response.json()["content"]
+        assert expected_filename in resp_content[1]["event"]
+        assert log_content in resp_content[3]["event"]
 
         assert response.json()["continuation_token"] is None
         assert response.status_code == 200
