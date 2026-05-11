@@ -142,6 +142,9 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
+_DAG_VERSION_REFRESH_BATCH_SIZE = 1000
+"""Maximum number of task instances to lock per dag-version refresh batch."""
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -2520,18 +2523,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
         if not dag_run.dag:
             return False
-        # Bulk update dag_version_id for unfinished TIs instead of loading all TIs into memory.
-        # Use synchronize_session=False since we handle cache coherence via session.expire() below.
-        session.execute(
-            update(TI)
-            .where(
-                TI.dag_id == dag_run.dag_id,
-                TI.run_id == dag_run.run_id,
-                TI.state.in_(State.unfinished),
+        # Lock TIs in PK order with SKIP LOCKED to match writers that lock by primary
+        # key (e.g. the api-server's ti_update_state path); the previous bulk UPDATE
+        # locked via the (dag_id, run_id) index and could deadlock with PK-ordered
+        # writers under concurrent task state updates. Filtering on dag_version_id
+        # ensures each batch advances past already-updated rows so the loop terminates.
+        while True:
+            candidates = (
+                select(TI.id)
+                .where(
+                    TI.dag_id == dag_run.dag_id,
+                    TI.run_id == dag_run.run_id,
+                    TI.state.in_(State.unfinished),
+                    or_(TI.dag_version_id.is_(None), TI.dag_version_id != latest_dag_version.id),
+                )
+                .order_by(TI.id)
+                .limit(_DAG_VERSION_REFRESH_BATCH_SIZE)
             )
-            .values(dag_version_id=latest_dag_version.id),
-            execution_options={"synchronize_session": False},
-        )
+            task_instance_ids = session.scalars(
+                with_row_locks(candidates, of=TI, session=session, skip_locked=True, key_share=False)
+            ).all()
+            if not task_instance_ids:
+                break
+            session.execute(
+                update(TI)
+                .where(TI.id.in_(task_instance_ids))
+                .values(dag_version_id=latest_dag_version.id)
+                .execution_options(synchronize_session=False)
+            )
+            if len(task_instance_ids) < _DAG_VERSION_REFRESH_BATCH_SIZE:
+                break
         # Expire task_instances relationship so next access fetches fresh data from DB
         session.expire(dag_run, ["task_instances"])
         # Verify integrity also takes care of session.flush
