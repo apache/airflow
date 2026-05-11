@@ -317,7 +317,9 @@ class TestVaultClient:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac.Client")
     @mock.patch("googleapiclient.discovery.build")
     @mock.patch("time.time")
-    def test_gcp_adc(self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes):
+    def test_gcp_adc(
+        self, mock_time, mock_google_build, mock_hvac_client, mock_get_credentials, mock_get_scopes
+    ):
         mock_client = mock.MagicMock()
         mock_hvac_client.return_value = mock_client
         mock_get_scopes.return_value = ["scope1", "scope2"]
