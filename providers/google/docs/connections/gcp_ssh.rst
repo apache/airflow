@@ -25,12 +25,6 @@ The :class:`~airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHo
 commands on a remote server using :class:`~airflow.providers.ssh.operators.ssh.SSHOperator` or transfer
 file from/to the remote server using :class:`~airflow.providers.sftp.operators.sftp.SFTPOperator`.
 
-.. note::
-
-    ``TPC`` stands for ``Trusted Partner Cloud``. In practice, this means a deployment that uses a
-    non-default universe domain such as ``apis-tpczero.goog`` instead of ``googleapis.com``.
-
-
 Configuring the Connection
 --------------------------
 
@@ -79,10 +73,10 @@ For example:
     expire_time=4242"
 
 
-Trusted Partner Cloud (TPC) guidance
+Sovereign Cloud from Google guidance
 ------------------------------------
 
-If you are running Airflow in Trusted Partner Cloud (TPC), use the following configuration guidance for
+If you are running Airflow in Sovereign Cloud from Google, use the following configuration guidance for
 Compute Engine SSH.
 
 Recommended configuration for direct SSH
@@ -108,14 +102,14 @@ This works only when the caller has the IAM permissions needed to open an IAP tu
 deployments this is typically the ``IAP-secured Tunnel User`` role
 (``roles/iap.tunnelResourceAccessor``).
 
-Configuration to avoid in TPC
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Configuration to avoid in Sovereign Cloud from Google
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Do not use Cloud OS Login for Compute Engine SSH in the tested TPC environment:
+Do not use Cloud OS Login for Compute Engine SSH in the tested Sovereign Cloud from Google environment:
 
 * ``use_oslogin=True``
 
-In the tested TPC environment, the OS Login SSH flow was not available for this hook. For users, the
+In the tested Sovereign Cloud from Google environment, the OS Login SSH flow was not available for this hook. For users, the
 practical recommendation is to use metadata-managed SSH keys and set ``use_oslogin=False``.
 
 Instance configuration when using metadata-managed SSH keys

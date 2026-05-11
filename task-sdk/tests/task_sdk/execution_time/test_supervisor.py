@@ -44,6 +44,10 @@ import msgspec
 import psutil
 import pytest
 import structlog
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
@@ -68,6 +72,11 @@ from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    AssetsByAliasResult,
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
+    ClearTaskState,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -75,6 +84,9 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
+    DeleteTaskState,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -83,6 +95,9 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -94,6 +109,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
+    GetTaskState,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -113,14 +129,18 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskState,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStateResult,
     TaskStatesResult,
     TICount,
     ToSupervisor,
@@ -1804,6 +1824,29 @@ REQUEST_TEST_CASES = [
         test_id="get_asset_by_uri",
     ),
     RequestTestCase(
+        message=GetAssetsByAlias(alias_name="my_alias"),
+        expected_body={
+            "assets": [
+                {
+                    "name": "asset_a",
+                    "uri": "s3://bucket/a",
+                    "group": "asset",
+                    "extra": None,
+                    "type": "AssetResult",
+                }
+            ],
+            "type": "AssetsByAliasResult",
+        },
+        client_mock=ClientMock(
+            method_path="assets.get_by_alias",
+            kwargs={"alias_name": "my_alias"},
+            response=AssetsByAliasResult(
+                assets=[AssetResult(name="asset_a", uri="s3://bucket/a", group="asset", extra=None)]
+            ),
+        ),
+        test_id="get_assets_by_alias",
+    ),
+    RequestTestCase(
         message=GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
         expected_body={
             "asset_events": [
@@ -2651,6 +2694,148 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_dag",
+    ),
+    RequestTestCase(
+        message=GetTaskState(ti_id=TI_ID, key="job_id"),
+        test_id="get_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.get",
+            args=(TI_ID, "job_id"),
+            response=TaskStateResult(value="spark_app_001"),
+        ),
+        expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
+    ),
+    RequestTestCase(
+        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
+        test_id="set_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.set",
+            args=(TI_ID, "job_id", "spark_app_001"),
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteTaskState(ti_id=TI_ID, key="job_id"),
+        test_id="delete_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.delete",
+            args=(TI_ID, "job_id"),
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearTaskState(ti_id=TI_ID),
+        test_id="clear_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.clear",
+            args=(TI_ID,),
+            kwargs={"all_map_indices": False},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearTaskState(ti_id=TI_ID, all_map_indices=True),
+        test_id="clear_task_state_all_map_indices",
+        client_mock=ClientMock(
+            method_path="task_state.clear",
+            args=(TI_ID,),
+            kwargs={"all_map_indices": True},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=GetAssetStateByName(name="debug_watcher_asset", key="watermark"),
+        test_id="get_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.get",
+            args=("watermark",),
+            kwargs={"name": "debug_watcher_asset"},
+            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+        ),
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+    ),
+    RequestTestCase(
+        message=GetAssetStateByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="get_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.get",
+            args=("watermark",),
+            kwargs={"uri": "s3://bucket/key"},
+            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+        ),
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+    ),
+    RequestTestCase(
+        message=SetAssetStateByName(
+            name="debug_watcher_asset", key="watermark", value="2026-04-30T00:00:00Z"
+        ),
+        test_id="set_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.set",
+            args=("watermark", "2026-04-30T00:00:00Z"),
+            kwargs={"name": "debug_watcher_asset"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=SetAssetStateByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
+        test_id="set_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.set",
+            args=("watermark", "2026-04-30T00:00:00Z"),
+            kwargs={"uri": "s3://bucket/key"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteAssetStateByName(name="debug_watcher_asset", key="watermark"),
+        test_id="delete_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.delete",
+            args=("watermark",),
+            kwargs={"name": "debug_watcher_asset"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteAssetStateByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="delete_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.delete",
+            args=("watermark",),
+            kwargs={"uri": "s3://bucket/key"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearAssetStateByName(name="debug_watcher_asset"),
+        test_id="clear_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.clear",
+            args=(),
+            kwargs={"name": "debug_watcher_asset"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearAssetStateByUri(uri="s3://bucket/key"),
+        test_id="clear_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.clear",
+            args=(),
+            kwargs={"uri": "s3://bucket/key"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
     ),
 ]
 
@@ -3515,3 +3700,45 @@ class TestChildExecMain:
             os.close(saved_2)
             for s in [req_a, req_b, out_a, out_b, err_a, err_b]:
                 s.close()
+
+
+def test_ipc_trace_context_propagation(mocker):
+    """Full IPC propagation chain: _make_frame injects the active span; handle_requests restores it."""
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(InMemorySpanExporter()))
+    tracer = provider.get_tracer("test")
+
+    # Task-runner side: _make_frame injects the active span via the real propagator.
+    with tracer.start_as_current_span("task_span") as span:
+        frame = CommsDecoder(socket=None)._make_frame(GetVariable(key="k"))  # type: ignore[arg-type]
+        expected_span_id = span.get_span_context().span_id
+
+    assert frame.context_carrier is not None
+    assert f"{expected_span_id:016x}" in frame.context_carrier.get("traceparent", "")
+
+    # Supervisor side: handle_requests extracts and restores the context before dispatch.
+    # Capture the active span from inside the client call — exercises the full dispatch path.
+    _, write_end = socket.socketpair()
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=write_end,
+        client=mocker.Mock(),
+        process=mocker.Mock(),
+    )
+    captured: list[int] = []
+
+    def capture_on_get(key):
+        captured.append(get_current_span().get_span_context().span_id)
+        return VariableResult(key=key, value="v")
+
+    proc.client.variables.get.side_effect = capture_on_get
+
+    generator = proc.handle_requests(log=mocker.Mock())
+    next(generator)
+    generator.send(frame)
+
+    assert captured == [expected_span_id]
+    # Context is detached after dispatch — no leak.
+    assert get_current_span().get_span_context().span_id != expected_span_id

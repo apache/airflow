@@ -44,11 +44,19 @@ class WorkflowsHook(GoogleBaseHook):
 
     def get_workflows_client(self) -> WorkflowsClient:
         """Return WorkflowsClient object."""
-        return WorkflowsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return WorkflowsClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
 
     def get_executions_client(self) -> ExecutionsClient:
         """Return ExecutionsClient object."""
-        return ExecutionsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        return ExecutionsClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow(

@@ -77,15 +77,20 @@ class TestCloudLoggingHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_logging.ConfigServiceV2Client")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_client_options")
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials")
-    def test_get_conn(self, mock_get_credentials, mock_client_class):
+    def test_get_conn(self, mock_get_credentials, mock_get_client_options, mock_client_class):
         mock_credentials = mock.Mock()
         mock_get_credentials.return_value = mock_credentials
 
         hook = CloudLoggingHook(gcp_conn_id=GCP_CONN_ID)
         conn = hook.get_conn()
 
-        mock_client_class.assert_called_once_with(credentials=mock_credentials, client_info=mock.ANY)
+        mock_client_class.assert_called_once_with(
+            credentials=mock_credentials,
+            client_info=mock.ANY,
+            client_options=mock_get_client_options.return_value,
+        )
         assert conn == mock_client_class.return_value
 
     @mock.patch(CLOUDLOGGING_HOOK_CLIENT)
