@@ -361,13 +361,14 @@ class BaseDagBundle(ABC):
         """
         Retrieve the version of the DAG bundle.
 
+        Airflow can use this value to retrieve this same bundle version later.
+
         May return:
+
         - A ``BundleVersion`` instance (preferred) containing both a version string and
           optional structured data (e.g., a manifest).
         - A plain string (deprecated; will emit a warning in a future release).
         - None if the bundle does not support versioning.
-
-        Airflow can use this value to retrieve this same bundle version later.
         """
 
     @abstractmethod
