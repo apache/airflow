@@ -55,20 +55,29 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
   );
 
   const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    const pasted = event.clipboardData.getData("text");
-    const parsed = dayjs(pasted);
+    const pasted = event.clipboardData.getData("text").trim();
+    // Pasted strings with an explicit timezone (e.g. `Z` or `+09:00`) are parsed
+    // as their absolute instant. Strings without one are treated as being in the
+    // selected Airflow UI timezone — consistent with manual input.
+    const hasExplicitTz = /(?:[Zz]|[+-]\d{2}:?\d{2})$/u.test(pasted);
+    const parsed = hasExplicitTz ? dayjs(pasted) : dayjs.tz(pasted, selectedTimezone);
 
-    if (parsed.isValid()) {
-      event.preventDefault();
-      // datetime-local input requires YYYY-MM-DDTHH:mm format
-      const localFormat = parsed.format("YYYY-MM-DDTHH:mm");
-
-      setDisplayDate(localFormat);
-      onDateChange({
-        ...event,
-        target: { ...event.currentTarget, value: localFormat },
-      } as unknown as ChangeEvent<HTMLInputElement>);
+    if (!parsed.isValid()) {
+      return;
     }
+
+    event.preventDefault();
+    // datetime-local input requires YYYY-MM-DDTHH:mm format in the selected
+    // Airflow UI timezone (not the browser's local timezone).
+    const localFormat = parsed.tz(selectedTimezone).format("YYYY-MM-DDTHH:mm");
+
+    onDateChange({
+      ...event,
+      target: { ...event.currentTarget, value: localFormat },
+    } as unknown as ChangeEvent<HTMLInputElement>);
+    // Override the display set by onDateChange (which uses DEFAULT_DATETIME_FORMAT)
+    // so the datetime-local input keeps the YYYY-MM-DDTHH:mm format it requires.
+    setDisplayDate(localFormat);
   };
 
   return (
