@@ -119,7 +119,7 @@ class BaseStateBackend(ABC):
 
     @abstractmethod
     async def aset(
-        self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None
+        self, scope: StateScope, key: str, value: str, *, session: Session | None = None
     ) -> None:
         """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
 
