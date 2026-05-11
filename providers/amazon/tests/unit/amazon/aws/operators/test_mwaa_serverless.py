@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessCreateWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
+    MwaaServerlessStopWorkflowRunOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -143,6 +144,46 @@ class TestMwaaServerlessCreateWorkflowOperator:
 
         with pytest.raises(ClientError):
             op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestMwaaServerlessStopWorkflowRunOperator:
+    def setup_method(self):
+        self.operator = MwaaServerlessStopWorkflowRunOperator(
+            task_id="stop_run",
+            workflow_arn=WORKFLOW_ARN,
+            run_id=RUN_ID,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.stop_workflow_run.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "RunId": RUN_ID,
+            "Status": "STOPPING",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.stop_workflow_run.assert_called_once_with(WorkflowArn=WORKFLOW_ARN, RunId=RUN_ID)
+        assert result == "STOPPING"
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_not_found(self, mock_conn):
+        from botocore.exceptions import ClientError
+
+        mock_client = mock.MagicMock()
+        mock_client.stop_workflow_run.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}}, "StopWorkflowRun"
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

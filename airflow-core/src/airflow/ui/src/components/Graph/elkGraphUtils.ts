@@ -20,7 +20,7 @@ import type { ElkNode, ElkExtendedEdge, ElkShape } from "elkjs";
 
 import type { EdgeResponse, NodeResponse } from "openapi/requests/types.gen";
 
-import type { Direction } from "./useGraphLayout";
+import type { Direction } from "./DirectionDropdown";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -84,7 +84,7 @@ def get_provider_info():
                 "logo": "/docs/integration-logos/Google.png",
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "external-doc-url": "https://cloud.google.com/composer",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst"],
                 "tags": ["google"],
@@ -412,13 +412,6 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Machine Learning Engine",
-                "external-doc-url": "https://cloud.google.com/vertex-ai/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/mlengine.rst"],
-                "logo": "/docs/integration-logos/AI-Platform.png",
-                "tags": ["gcp"],
-            },
-            {
                 "integration-name": "Google Cloud Natural Language",
                 "external-doc-url": "https://cloud.google.com/natural-language/",
                 "how-to-guide": [
@@ -513,8 +506,11 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
-                "python-modules": ["airflow.providers.google.cloud.operators.cloud_composer"],
+                "integration-name": "Managed Service for Apache Airflow",
+                "python-modules": [
+                    "airflow.providers.google.cloud.operators.cloud_composer",
+                    "airflow.providers.google.cloud.operators.managed_airflow",
+                ],
             },
             {
                 "integration-name": "Google Cloud Run",
@@ -722,7 +718,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
             {
@@ -852,7 +848,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_composer"],
             },
             {
@@ -929,10 +925,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Kubernetes Engine",
                 "python-modules": ["airflow.providers.google.cloud.hooks.kubernetes_engine"],
-            },
-            {
-                "integration-name": "Google Machine Learning Engine",
-                "python-modules": ["airflow.providers.google.cloud.hooks.mlengine"],
             },
             {
                 "integration-name": "Google Cloud Natural Language",
@@ -1104,7 +1096,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_composer"],
             },
             {
@@ -1142,10 +1134,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Kubernetes Engine",
                 "python-modules": ["airflow.providers.google.cloud.triggers.kubernetes_engine"],
-            },
-            {
-                "integration-name": "Google Machine Learning Engine",
-                "python-modules": ["airflow.providers.google.cloud.triggers.mlengine"],
             },
             {
                 "integration-name": "Google Cloud Pub/Sub",
@@ -1675,11 +1663,6 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypesListLink",
             "airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypeDetailsLink",
             "airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPPossibleInfoTypesListLink",
-            "airflow.providers.google.cloud.links.mlengine.MLEngineModelLink",
-            "airflow.providers.google.cloud.links.mlengine.MLEngineModelsListLink",
-            "airflow.providers.google.cloud.links.mlengine.MLEngineJobDetailsLink",
-            "airflow.providers.google.cloud.links.mlengine.MLEngineJobSListLink",
-            "airflow.providers.google.cloud.links.mlengine.MLEngineModelVersionDetailsLink",
             "airflow.providers.google.common.links.storage.StorageLink",
             "airflow.providers.google.common.links.storage.FileDetailsLink",
             "airflow.providers.google.marketing_platform.links.analytics_admin.GoogleAnalyticsPropertyLink",

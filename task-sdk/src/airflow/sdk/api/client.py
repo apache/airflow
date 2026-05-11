@@ -46,6 +46,8 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
+    AssetStatePutBody,
+    AssetStateResponse,
     ConnectionResponse,
     DagResponse,
     DagRun,
@@ -58,6 +60,8 @@ from airflow.sdk.api.datamodels._generated import (
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
+    TaskStatePutBody,
+    TaskStateResponse,
     TaskStatesResponse,
     TerminalStateNonSuccess,
     TIDeferredStatePayload,
@@ -80,6 +84,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
+    AssetsByAliasResult,
     CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
@@ -662,6 +667,95 @@ class XComOperations:
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
+class TaskStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse | ErrorResponse:
+        """Get a task state value from the API server."""
+        try:
+            resp = self.client.get(f"state/ti/{ti_id}/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug("Task state key not found", ti_id=ti_id, key=key)
+                return ErrorResponse(error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": key})
+            raise
+        return TaskStateResponse.model_validate_json(resp.read())
+
+    def set(self, ti_id: uuid.UUID, key: str, value: str) -> OKResponse:
+        """Set a task state value via the API server."""
+        body = TaskStatePutBody(value=value)
+        self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
+        return OKResponse(ok=True)
+
+    def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
+        """Delete a single task state key via the API server."""
+        self.client.delete(f"state/ti/{ti_id}/{key}")
+        return OKResponse(ok=True)
+
+    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
+        """Clear all task state keys for a task instance via the API server."""
+        params = {"all_map_indices": "true"} if all_map_indices else {}
+        self.client.delete(f"state/ti/{ti_id}", params=params)
+        return OKResponse(ok=True)
+
+
+class AssetStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def _resolve_endpoint(
+        self, op: str, *, key: str | None = None, name: str | None = None, uri: str | None = None
+    ) -> tuple[str, dict[str, str]]:
+        if name:
+            params: dict[str, str] = {"name": name}
+            endpoint = f"state/asset/by-name/{op}"
+        elif uri:
+            params = {"uri": uri}
+            endpoint = f"state/asset/by-uri/{op}"
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        if key is not None:
+            params["key"] = key
+        return endpoint, params
+
+    def get(
+        self, key: str, *, name: str | None = None, uri: str | None = None
+    ) -> AssetStateResponse | ErrorResponse:
+        """Get an asset state value from the API server."""
+        endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
+        try:
+            resp = self.client.get(endpoint, params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug("Asset state key not found", name=name, uri=uri, key=key)
+                return ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": key})
+            raise
+        return AssetStateResponse.model_validate_json(resp.read())
+
+    def set(self, key: str, value: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+        """Set an asset state value via the API server."""
+        endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
+        self.client.put(endpoint, params=params, content=AssetStatePutBody(value=value).model_dump_json())
+        return OKResponse(ok=True)
+
+    def delete(self, key: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+        """Delete a single asset state key via the API server."""
+        endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
+        self.client.delete(endpoint, params=params)
+        return OKResponse(ok=True)
+
+    def clear(self, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+        """Clear all state keys for an asset via the API server."""
+        endpoint, params = self._resolve_endpoint("clear", name=name, uri=uri)
+        self.client.delete(endpoint, params=params)
+        return OKResponse(ok=True)
+
+
 class AssetOperations:
     __slots__ = ("client",)
 
@@ -693,6 +787,13 @@ class AssetOperations:
             raise
 
         return AssetResponse.model_validate_json(resp.read())
+
+    def get_by_alias(self, alias_name: str) -> AssetsByAliasResult:
+        """Get all Assets resolved from an AssetAlias."""
+        resp = self.client.get("assets/by-alias", params={"alias_name": alias_name})
+        return AssetsByAliasResult.from_asset_responses(
+            [AssetResponse.model_validate(a) for a in resp.json()]
+        )
 
 
 class AssetEventOperations:
@@ -1077,6 +1178,18 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def task_state(self) -> TaskStateOperations:
+        """Operations related to task state."""
+        return TaskStateOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def asset_state(self) -> AssetStateOperations:
+        """Operations related to asset state."""
+        return AssetStateOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
