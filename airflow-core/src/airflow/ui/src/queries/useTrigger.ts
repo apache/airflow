@@ -48,9 +48,15 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
     onSuccessConfirm();
 
-    // Only redirect if we're already on the dag page
+    // Only redirect if we're already on the dag page.
+    // Preserve search params so layout state (Grid limit, filters) survives the navigation.
     if (selectedDagId === dagRun.dag_id) {
-      void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`));
+      void Promise.resolve(
+        navigate({
+          pathname: `/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`,
+          search: globalThis.location.search,
+        }),
+      );
     }
   };
 
