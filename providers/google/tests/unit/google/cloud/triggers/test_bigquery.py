@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock
 import pytest
 from aiohttp import ClientResponseError, ClientSession, RequestInfo
 from gcloud.aio.bigquery import Table
-from multidict import CIMultiDict
+from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryTableAsyncHook
@@ -1016,7 +1016,7 @@ def _make_client_response_error(status: int, message: str = "Not Found") -> Clie
     return ClientResponseError(
         history=(),
         request_info=RequestInfo(
-            headers=CIMultiDict(),
+            headers=CIMultiDictProxy(CIMultiDict()),
             real_url=URL("https://example.com"),
             method="GET",
             url=URL("https://example.com"),
