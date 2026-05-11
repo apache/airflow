@@ -188,9 +188,7 @@ export const calculateDataBounds = (
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
     const targetCount =
-      viewMode === "total"
-        ? runCounts.total - runCounts.planned - runCounts.queued
-        : runCounts.failed;
+      viewMode === "total" ? runCounts.total - runCounts.planned - runCounts.queued : runCounts.failed;
 
     if (targetCount > 0) {
       counts.push(targetCount);
