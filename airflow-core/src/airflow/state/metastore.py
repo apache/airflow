@@ -303,7 +303,7 @@ class MetastoreStateBackend(BaseStateBackend):
         deleted = _delete_batched(TaskStateModel.expires_at < now)
         log.info("Deleted expired task_state rows", rows_deleted=deleted)
 
-    def _dry_run_summary(self) -> dict[str, list]:
+    def _summary_dry_run_(self) -> dict[str, list]:
         """Return rows that would be deleted by cleanup() without deleting anything."""
         now = timezone.utcnow()
         cols = (
