@@ -30,7 +30,7 @@ from datetime import timedelta
 from fcntl import LOCK_SH, LOCK_UN, flock
 from operator import attrgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 from pendulum.parsing import ParserError
@@ -239,10 +239,38 @@ class BundleVersion:
 
     :param version: A string identifier for this bundle version (e.g., git SHA, content hash).
     :param data: Optional structured data associated with this version (e.g., S3 manifest).
+        Mutating ``data`` after construction is undefined behavior.
     """
 
     version: str
-    data: dict | None = None
+    data: dict[str, Any] | None = None
+
+
+def unpack_bundle_version(
+    result: str | BundleVersion | None, bundle: BaseDagBundle
+) -> tuple[str | None, dict[str, Any] | None]:
+    """
+    Unpack the return value of get_current_version().
+
+    Handles both the new BundleVersion dataclass and legacy str | None returns.
+    Emits a deprecation warning for bare string returns from versioned bundles.
+
+    :return: Tuple of (version_string, version_data)
+    """
+    if result is None:
+        return None, None
+    if isinstance(result, BundleVersion):
+        return result.version, result.data
+    # Legacy path: bare string return
+    if bundle.supports_versioning:
+        warnings.warn(
+            f"Bundle '{bundle.name}' returned a plain string from get_current_version(). "
+            f"Return a BundleVersion instance instead. "
+            f"Plain string returns are deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return result, None
 
 
 class BaseDagBundle(ABC):

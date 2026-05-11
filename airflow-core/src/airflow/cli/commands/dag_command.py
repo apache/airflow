@@ -37,7 +37,7 @@ from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.dag_processing.bundles.base import BundleVersion
+from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -741,6 +741,7 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
             continue
         bundle.initialize()
         dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
-        result = bundle.get_current_version()
-        version = result.version if isinstance(result, BundleVersion) else result
-        sync_bag_to_db(dag_bag, bundle.name, bundle_version=version, session=session)
+        version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
+        sync_bag_to_db(
+            dag_bag, bundle.name, bundle_version=version, version_data=version_data, session=session
+        )

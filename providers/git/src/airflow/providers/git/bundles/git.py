@@ -29,7 +29,11 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.git.hooks.git import GitHook
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.dag_processing.bundles.base import BundleVersion
 
 log = structlog.get_logger(__name__)
 
@@ -315,11 +319,15 @@ class GitDagBundle(BaseDagBundle):
             f")>"
         )
 
-    def get_current_version(self) -> str:
+    def get_current_version(self) -> str | BundleVersion:
         if self.version is not None and getattr(self, "repo", None) is None:
-            return self.version
-        with self.repo as repo:
-            return repo.head.commit.hexsha
+            hexsha = self.version
+        else:
+            with self.repo as repo:
+                hexsha = repo.head.commit.hexsha
+        if AIRFLOW_V_3_3_PLUS:
+            return BundleVersion(version=hexsha)
+        return hexsha
 
     @property
     def path(self) -> Path:

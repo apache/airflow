@@ -30,7 +30,6 @@ import selectors
 import signal
 import sys
 import time
-import warnings
 import zipfile
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -51,7 +50,10 @@ from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import BundleUsageTrackingManager, BundleVersion
+from airflow.dag_processing.bundles.base import (
+    BundleUsageTrackingManager,
+    unpack_bundle_version,
+)
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -715,33 +717,6 @@ class DagFileProcessorManager(LoggingMixin):
         """
         DagWarning.purge_inactive_dag_warnings()
 
-    @staticmethod
-    def _unpack_bundle_version(
-        result: str | BundleVersion | None, bundle: BaseDagBundle
-    ) -> tuple[str | None, dict | None]:
-        """
-        Unpack the return value of get_current_version().
-
-        Handles both the new BundleVersion dataclass and legacy str | None returns.
-        Emits a deprecation warning for bare string returns from versioned bundles.
-
-        :return: Tuple of (version_string, version_data)
-        """
-        if result is None:
-            return None, None
-        if isinstance(result, BundleVersion):
-            return result.version, result.data
-        # Legacy path: bare string return
-        if bundle.supports_versioning:
-            warnings.warn(
-                f"Bundle '{bundle.name}' returned a plain string from get_current_version(). "
-                f"Return a BundleVersion instance instead. "
-                f"Plain string returns are deprecated and will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return result, None
-
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
@@ -783,8 +758,9 @@ class DagFileProcessorManager(LoggingMixin):
                 # we will also check the version of the bundle to see if another DAG processor has seen
                 # a new version
                 pre_refresh_version = self._bundle_versions.get(bundle.name)
+                # Use `is None` (not falsy) so an empty-string version is treated as a valid cached value.
                 if pre_refresh_version is None:
-                    pre_refresh_version, _ = self._unpack_bundle_version(bundle.get_current_version(), bundle)
+                    pre_refresh_version, _ = unpack_bundle_version(bundle.get_current_version(), bundle)
                 current_version_matches_db = pre_refresh_version == bundle_state.version
             else:
                 # With no versioning, it always "matches"
@@ -815,7 +791,7 @@ class DagFileProcessorManager(LoggingMixin):
                 # We can short-circuit the rest of this if (1) bundle was seen before by
                 # this dag processor and (2) the version of the bundle did not change
                 # after refreshing it
-                version_after_refresh, version_data_after_refresh = self._unpack_bundle_version(
+                version_after_refresh, version_data_after_refresh = unpack_bundle_version(
                     bundle.get_current_version(), bundle
                 )
                 if previously_seen and pre_refresh_version == version_after_refresh:

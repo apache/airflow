@@ -2506,33 +2506,39 @@ class TestDagFileProcessorManager:
         assert "mock_bundle" not in manager._bundle_versions
 
     def test_unpack_bundle_version_with_bundle_version_dataclass(self):
-        from airflow.dag_processing.bundles.base import BundleVersion
+        from airflow.dag_processing.bundles.base import BundleVersion, unpack_bundle_version
 
         bundle = mock.MagicMock()
         bundle.supports_versioning = True
         result = BundleVersion(version="sha256abc", data={"schema_version": 1, "files": {}})
-        version, data = DagFileProcessorManager._unpack_bundle_version(result, bundle)
+        version, data = unpack_bundle_version(result, bundle)
         assert version == "sha256abc"
         assert data == {"schema_version": 1, "files": {}}
 
     def test_unpack_bundle_version_with_none(self):
+        from airflow.dag_processing.bundles.base import unpack_bundle_version
+
         bundle = mock.MagicMock()
         bundle.supports_versioning = True
-        version, data = DagFileProcessorManager._unpack_bundle_version(None, bundle)
+        version, data = unpack_bundle_version(None, bundle)
         assert version is None
         assert data is None
 
     def test_unpack_bundle_version_with_legacy_string(self):
+        from airflow.dag_processing.bundles.base import unpack_bundle_version
+
         bundle = mock.MagicMock()
         bundle.name = "test_bundle"
         bundle.supports_versioning = True
         with pytest.warns(DeprecationWarning, match="plain string"):
-            version, data = DagFileProcessorManager._unpack_bundle_version("v1.0", bundle)
+            version, data = unpack_bundle_version("v1.0", bundle)
         assert version == "v1.0"
         assert data is None
 
     def test_unpack_bundle_version_with_string_non_versioned_bundle(self):
         """Non-versioned bundles returning a string should not emit a warning."""
+        from airflow.dag_processing.bundles.base import unpack_bundle_version
+
         bundle = mock.MagicMock()
         bundle.name = "local_bundle"
         bundle.supports_versioning = False
@@ -2540,7 +2546,7 @@ class TestDagFileProcessorManager:
 
         with w.catch_warnings():
             w.simplefilter("error")
-            version, data = DagFileProcessorManager._unpack_bundle_version("v1.0", bundle)
+            version, data = unpack_bundle_version("v1.0", bundle)
         assert version == "v1.0"
         assert data is None
 
