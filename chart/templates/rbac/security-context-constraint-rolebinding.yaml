@@ -55,9 +55,14 @@ subjects:
     name: {{ include "webserver.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (and (or (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor)) (eq .Values.workers.kubernetes.serviceAccount.create nil)) }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+  {{- if and (or .Values.workers.kubernetes.serviceAccount.create .Values.workers.kubernetes.serviceAccount.name) (contains "KubernetesExecutor" .Values.executor) }}
+  - kind: ServiceAccount
+    name: {{ include "worker.kubernetes.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if .Values.scheduler.enabled }}
