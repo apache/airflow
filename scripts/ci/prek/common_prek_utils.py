@@ -45,7 +45,7 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
-GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:
     from rich.console import Console
@@ -589,13 +589,43 @@ def get_remote_for_main() -> str:
     return apache_remote or origin_remote or "origin"
 
 
-def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
+def env_without_github_tokens(env: dict[str, str] | None = None) -> dict[str, str]:
+    cleaned_env = dict(os.environ if env is None else env)
+    for token_env_var in GITHUB_TOKEN_ENV_VARS:
+        cleaned_env.pop(token_env_var, None)
+    return cleaned_env
+
+
+def get_github_token_from_env(env: dict[str, str] | None = None) -> str | None:
+    source_env = os.environ if env is None else env
+    for token_env_var in GITHUB_TOKEN_ENV_VARS:
+        token = source_env.get(token_env_var)
+        if token:
+            return token
+    return None
+
+
+def resolve_github_token(*, token: str | None = None, env: dict[str, str] | None = None) -> str | None:
+    """Resolve a token while preventing ambient env tokens from shadowing ``gh auth login``."""
     if token:
         return token
-    if GITHUB_TOKEN:
-        return GITHUB_TOKEN
-    output = subprocess.check_output(["gh", "auth", "token"])
-    token = output.decode().strip()
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env_without_github_tokens(env),
+        )
+    except FileNotFoundError:
+        return get_github_token_from_env(env)
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return get_github_token_from_env(env)
+
+
+def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
+    token = resolve_github_token(token=token)
     if not token:
         if not console:
             raise RuntimeError("Please add rich to your script dependencies and run it again")
