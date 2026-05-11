@@ -2085,7 +2085,7 @@ def main():
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+    SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor]()
 
     stats.initialize(
         factory=stats_utils.get_stats_factory(),
@@ -2168,7 +2168,7 @@ def reinit_supervisor_comms() -> None:
 
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
-        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](socket=socket.socket(fileno=fd))
 
     logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
     if isinstance(logs, SentFDs):
