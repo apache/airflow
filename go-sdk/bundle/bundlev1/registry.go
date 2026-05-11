@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/apache/airflow/go-sdk/pkg/worker"
 )
@@ -32,15 +33,78 @@ type (
 	Bundle = worker.Bundle
 
 	Dag interface {
-		AddTask(fn any)
-		AddTaskWithName(taskId string, fn any)
+		AddTask(fn any, spec ...TaskSpec)
+		AddTaskWithName(taskId string, fn any, spec ...TaskSpec)
 	}
 
 	// Registry defines the interface that lets user code add dags and tasks, and extends Bundle for execution
 	// time
 	Registry interface {
 		Bundle
-		AddDag(dagId string) Dag
+		AddDag(dagId string, spec ...DagSpec) Dag
+	}
+
+	// TaskSpec is the optional configuration applied to a task at registration
+	// time. Every field is optional: a zero value means "unset" and the
+	// scheduler falls back to its serialization-schema default. The field
+	// names mirror the keys defined under "operator" in
+	// airflow-core/src/airflow/serialization/schema.json.
+	TaskSpec struct {
+		Queue                   string
+		Pool                    string
+		PoolSlots               int
+		Retries                 int
+		RetryDelay              time.Duration
+		MaxRetryDelay           time.Duration
+		RetryExponentialBackoff float64
+		PriorityWeight          int
+		WeightRule              string
+		TriggerRule             string
+		Owner                   string
+		ExecutionTimeout        time.Duration
+		Executor                string
+		StartDate               time.Time
+		EndDate                 time.Time
+		DependsOnPast           bool
+		WaitForDownstream       bool
+		// DoXComPush, EmailOnFailure, and EmailOnRetry default to true in the
+		// scheduler. A nil pointer means "unset" so the field is omitted from
+		// the serialized payload; pass Bool(false) to explicitly opt out.
+		DoXComPush            *bool
+		EmailOnFailure        *bool
+		EmailOnRetry          *bool
+		DocMD                 string
+		MapIndexTemplate      string
+		MaxActiveTisPerDag    int
+		MaxActiveTisPerDagrun int
+	}
+
+	// DagSpec is the optional configuration applied to a DAG at registration
+	// time. Every field is optional: a zero value means "unset" and the
+	// scheduler falls back to its serialization-schema default. The field
+	// names mirror the keys defined under "dag" in
+	// airflow-core/src/airflow/serialization/schema.json.
+	DagSpec struct {
+		// Schedule is "@once", "@continuous", a cron expression, or "" for
+		// NullTimetable (no schedule).
+		Schedule                    string
+		Description                 string
+		StartDate                   time.Time
+		EndDate                     time.Time
+		Tags                        []string
+		DagDisplayName              string
+		DocMD                       string
+		MaxActiveTasks              int
+		MaxActiveRuns               int
+		MaxConsecutiveFailedDagRuns int
+		DagrunTimeout               time.Duration
+		Catchup                     bool
+		FailFast                    bool
+		RenderTemplateAsNativeObj   bool
+		DisableBundleVersioning     bool
+		// IsPausedUponCreation has no schema default. nil means "unset"; pass
+		// Bool(true) or Bool(false) to set it explicitly.
+		IsPausedUponCreation *bool
 	}
 
 	// TaskInfo describes a registered task. Coordinator-mode DAG parsing uses
@@ -53,12 +117,18 @@ type (
 		TypeName string
 		// PkgPath is the Go package path (e.g. "main", "github.com/x/y").
 		PkgPath string
+		// Spec carries the optional per-task configuration supplied at
+		// registration. The zero value means "no overrides".
+		Spec TaskSpec
 	}
 
 	// DagInfo describes a registered dag together with its tasks in
 	// registration order.
 	DagInfo struct {
 		DagID string
+		// Spec carries the optional per-dag configuration supplied at
+		// registration. The zero value means "no overrides".
+		Spec  DagSpec
 		Tasks []TaskInfo
 	}
 
@@ -73,6 +143,7 @@ type (
 		sync.RWMutex
 		taskFuncMap map[string]map[string]Task
 		taskInfo    map[string]map[string]TaskInfo
+		dagSpec     map[string]DagSpec
 		dagOrder    []string
 		taskOrder   map[string][]string
 	}
@@ -83,12 +154,32 @@ type dagShim struct {
 	registry *registry
 }
 
-func (d dagShim) AddTask(fn any) {
-	d.registry.registerTask(d.dagId, fn)
+func (d dagShim) AddTask(fn any, spec ...TaskSpec) {
+	d.registry.registerTask(d.dagId, fn, optionalSpec(spec, "AddTask"))
 }
 
-func (d dagShim) AddTaskWithName(taskId string, fn any) {
-	d.registry.registerTaskWithName(d.dagId, taskId, fn)
+func (d dagShim) AddTaskWithName(taskId string, fn any, spec ...TaskSpec) {
+	d.registry.registerTaskWithName(d.dagId, taskId, fn, optionalSpec(spec, "AddTaskWithName"))
+}
+
+// Bool returns a pointer to b. Use it for the *bool fields on TaskSpec /
+// DagSpec where nil means "leave at schema default":
+//
+//	v1.TaskSpec{DoXComPush: v1.Bool(false)}
+func Bool(b bool) *bool {
+	return &b
+}
+
+func optionalSpec[T any](specs []T, caller string) T {
+	switch len(specs) {
+	case 0:
+		var zero T
+		return zero
+	case 1:
+		return specs[0]
+	default:
+		panic(fmt.Errorf("%s accepts at most one spec, got %d", caller, len(specs)))
+	}
 }
 
 // Function New creates a new bundle on which Dag and Tasks can be registered
@@ -96,6 +187,7 @@ func New() Registry {
 	return &registry{
 		taskFuncMap: make(map[string]map[string]Task),
 		taskInfo:    make(map[string]map[string]TaskInfo),
+		dagSpec:     make(map[string]DagSpec),
 		taskOrder:   make(map[string][]string),
 	}
 }
@@ -116,7 +208,8 @@ func getFnName(fn reflect.Value) string {
 	return name
 }
 
-func (r *registry) AddDag(dagId string) Dag {
+func (r *registry) AddDag(dagId string, spec ...DagSpec) Dag {
+	dagSpec := optionalSpec(spec, "AddDag")
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
 	if _, exists := r.taskFuncMap[dagId]; exists {
@@ -124,11 +217,12 @@ func (r *registry) AddDag(dagId string) Dag {
 	}
 	r.taskFuncMap[dagId] = make(map[string]Task)
 	r.taskInfo[dagId] = make(map[string]TaskInfo)
+	r.dagSpec[dagId] = dagSpec
 	r.dagOrder = append(r.dagOrder, dagId)
 	return dagShim{dagId, r}
 }
 
-func (r *registry) registerTask(dagId string, fn any) {
+func (r *registry) registerTask(dagId string, fn any, spec TaskSpec) {
 	val := reflect.ValueOf(fn)
 
 	if val.Kind() != reflect.Func {
@@ -137,10 +231,10 @@ func (r *registry) registerTask(dagId string, fn any) {
 
 	fnName := getFnName(val)
 
-	r.registerTaskWithName(dagId, fnName, fn)
+	r.registerTaskWithName(dagId, fnName, fn, spec)
 }
 
-func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
+func (r *registry) registerTaskWithName(dagId, taskId string, fn any, spec TaskSpec) {
 	task, err := NewTaskFunction(fn)
 	if err != nil {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
@@ -149,6 +243,8 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 	val := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(val.Pointer()).Name()
 	typeName, pkgPath := splitFullName(fullName)
+
+	info := TaskInfo{ID: taskId, TypeName: typeName, PkgPath: pkgPath, Spec: spec}
 
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
@@ -166,7 +262,7 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 	}
 
 	dagTasks[taskId] = task
-	r.taskInfo[dagId][taskId] = TaskInfo{ID: taskId, TypeName: typeName, PkgPath: pkgPath}
+	r.taskInfo[dagId][taskId] = info
 	r.taskOrder[dagId] = append(r.taskOrder[dagId], taskId)
 }
 
@@ -196,7 +292,7 @@ func (r *registry) OrderedDags() []DagInfo {
 		for _, tid := range taskIDs {
 			tasks = append(tasks, r.taskInfo[dagID][tid])
 		}
-		out = append(out, DagInfo{DagID: dagID, Tasks: tasks})
+		out = append(out, DagInfo{DagID: dagID, Spec: r.dagSpec[dagID], Tasks: tasks})
 	}
 	return out
 }
