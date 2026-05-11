@@ -24,6 +24,7 @@ from airflow.providers.amazon.aws.operators.s3_vectors import (
     S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
     S3VectorsPutVectorsOperator,
+    S3VectorsQueryVectorsOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -86,6 +87,16 @@ with DAG(
     )
     # [END howto_operator_s3vectors_delete_vector_bucket]
 
+    # [START howto_operator_s3vectors_query_vectors]
+    query_vectors = S3VectorsQueryVectorsOperator(
+        task_id="query_vectors",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        top_k=3,
+        query_vector={"float32": [0.1, 0.2, 0.3, 0.4]},
+    )
+    # [END howto_operator_s3vectors_query_vectors]
+
     # [START howto_operator_s3vectors_delete_index]
     delete_index = S3VectorsDeleteIndexOperator(
         task_id="delete_index",
@@ -100,6 +111,7 @@ with DAG(
         create_vector_bucket,
         create_index,
         put_vectors,
+        query_vectors,
         delete_index,
         delete_vector_bucket,
     )
