@@ -158,7 +158,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.python_params = python_params or []
         self.spark_submit_params = spark_submit_params or []
         self.tasks_to_convert = tasks_to_convert or {}
-        self.relevant_upstreams = [task_id]
+        self.relevant_upstreams: list[str] = []
         self.workflow_run_metadata: WorkflowRunMetadata | None = None
         super().__init__(task_id=task_id, **kwargs)
 

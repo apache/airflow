@@ -1367,7 +1367,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
     def _convert_to_databricks_workflow_task(
         self,
-        relevant_upstreams: list[BaseOperator],
+        relevant_upstreams: list[str],
         task_dict: dict[str, BaseOperator],
         context: Context | None = None,
     ) -> dict[str, object]:
@@ -1621,7 +1621,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
 
     def _convert_to_databricks_workflow_task(
         self,
-        relevant_upstreams: list[BaseOperator],
+        relevant_upstreams: list[str],
         task_dict: dict[str, BaseOperator],
         context: Context | None = None,
     ) -> dict[str, object]:

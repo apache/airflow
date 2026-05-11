@@ -59,6 +59,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Add 'task_config' to 'template_fields' for 'DatabricksTaskOperator' (#65858)``
+* ``Lock in 'DatabricksTaskBaseOperator.depends_on' to reference the parent task's 'task_key' instead of its own (#47614)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

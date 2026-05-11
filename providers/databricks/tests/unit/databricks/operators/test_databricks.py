@@ -2576,15 +2576,22 @@ class TestDatabricksNotebookOperator:
         operator.task_group = databricks_workflow_task_group
         operator.task_id = "test_task"
         operator.upstream_task_ids = ["upstream_task"]
-        relevant_upstreams = [MagicMock(task_id="upstream_task")]
-        task_dict = {"upstream_task": MagicMock(task_id="upstream_task")}
+        upstream_task = DatabricksNotebookOperator(
+            notebook_path="/path/to/upstream",
+            source="WORKSPACE",
+            task_id="upstream_task",
+            dag=dag,
+        )
+        relevant_upstreams = ["upstream_task"]
+        task_dict = {"upstream_task": upstream_task}
 
         task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
 
         task_key = hashlib.md5(b"example_dag__test_task").hexdigest()
+        upstream_task_key = hashlib.md5(b"example_dag__upstream_task").hexdigest()
         expected_json = {
             "task_key": task_key,
-            "depends_on": [],
+            "depends_on": [{"task_key": upstream_task_key}],
             "timeout_seconds": 0,
             "email_notifications": {},
             "notebook_task": {
@@ -2754,6 +2761,19 @@ class TestDatabricksTaskOperator:
         task_key = f"{operator.dag_id}__{operator.task_id}".encode()
         expected_task_key = hashlib.md5(task_key).hexdigest()
         assert expected_task_key == operator.databricks_task_key
+
+    def test_generate_databricks_task_key_requires_task_dict_when_task_id_passed(self):
+        """Looking up a parent task's key without a ``task_dict`` is a programmer error."""
+        operator = DatabricksTaskOperator(
+            task_id="test_task",
+            databricks_conn_id="test_conn_id",
+            task_config={},
+        )
+        with pytest.raises(
+            ValueError,
+            match="Must pass task_dict if task_id is provided in _generate_databricks_task_key.",
+        ):
+            operator._generate_databricks_task_key(task_id="upstream_task")
 
     def test_user_databricks_task_key(self):
         task_config = {}
