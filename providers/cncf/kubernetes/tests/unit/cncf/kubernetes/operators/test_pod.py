@@ -3353,9 +3353,7 @@ class TestKubernetesPodOperatorAsync:
 
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
-    def test_async_trigger_reentry_returns_when_pod_gcd_on_success(
-        self, mocked_hook, mock_manager
-    ):
+    def test_async_trigger_reentry_returns_when_pod_gcd_on_success(self, mocked_hook, mock_manager):
         """Pod GC'd between trigger firing and reentry should not fail a successful task."""
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
         k = KubernetesPodOperator(task_id="task", deferrable=True)
@@ -3379,9 +3377,7 @@ class TestKubernetesPodOperatorAsync:
 
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
-    def test_async_trigger_reentry_raises_pod_not_found_on_failure(
-        self, mocked_hook, mock_manager
-    ):
+    def test_async_trigger_reentry_raises_pod_not_found_on_failure(self, mocked_hook, mock_manager):
         """Pod GC'd before reentry on a failed event surfaces as PodNotFoundException."""
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
         k = KubernetesPodOperator(task_id="task", deferrable=True)
@@ -3401,9 +3397,7 @@ class TestKubernetesPodOperatorAsync:
 
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
-    def test_async_trigger_reentry_propagates_non_404_api_exception(
-        self, mocked_hook, mock_manager
-    ):
+    def test_async_trigger_reentry_propagates_non_404_api_exception(self, mocked_hook, mock_manager):
         """Non-404 ApiException from get_pod should propagate unchanged."""
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=500, reason="Server Error")
         k = KubernetesPodOperator(task_id="task", deferrable=True)
