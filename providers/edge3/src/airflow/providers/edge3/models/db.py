@@ -61,6 +61,8 @@ class EdgeDBManager(BaseDBManager):
     supports_table_dropping = True
     revision_heads_map = _REVISION_HEADS_MAP
 
+    # TODO: Remove these compatibility overrides once the minimum supported
+    # Airflow version includes the equivalent BaseDBManager implementation.
     def _has_existing_manager_tables(self) -> bool:
         """Return whether any table managed by this DB manager already exists."""
         inspector = inspect(self.session.get_bind())
