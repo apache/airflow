@@ -201,6 +201,13 @@ class ClusterGenerator:
     :param auto_delete_ttl: The life duration of cluster, the cluster will be
         auto-deleted at the end of this duration.
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
+    :param idle_stop_ttl: The longest duration that cluster would keep alive while
+        staying idle. Passing this threshold will cause cluster to be auto-stopped.
+        A duration in seconds.
+    :param auto_stop_time:  The time when cluster will be auto-stopped.
+    :param auto_stop_ttl: The life duration of cluster, the cluster will be
+        auto-stopped at the end of this duration.
+        A duration in seconds. (If auto_stop_time is set this parameter will be ignored)
     :param customer_managed_key: The customer-managed key used for disk encryption
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
     :param enable_component_gateway: Provides access to the web interfaces of default and selected optional
@@ -210,6 +217,8 @@ class ClusterGenerator:
         identify the driver group in future operations, such as resizing the node group.
     :param secondary_worker_instance_flexibility_policy: Instance flexibility Policy allowing a mixture of VM
         shapes and provisioning models.
+    :param master_instance_flexibility_policy: Instance flexibility Policy for master nodes.
+    :param worker_instance_flexibility_policy: Instance flexibility Policy for worker nodes.
     :param secondary_worker_accelerator_type: Type of the accelerator card (GPU) to attach to the secondary workers,
         see https://cloud.google.com/dataproc/docs/reference/rest/v1/InstanceGroupConfig#acceleratorconfig
     :param secondary_worker_accelerator_count: Number of accelerator cards (GPUs) to attach to the secondary workers
@@ -478,16 +487,14 @@ class ClusterGenerator:
         if self.master_instance_flexibility_policy:
             cluster_data["master_config"]["instance_flexibility_policy"] = {
                 "instance_selection_list": [
-                    vars(s)
-                    for s in self.master_instance_flexibility_policy.instance_selection_list
+                    vars(s) for s in self.master_instance_flexibility_policy.instance_selection_list
                 ]
             }
 
         if self.worker_instance_flexibility_policy:
             cluster_data["worker_config"]["instance_flexibility_policy"] = {
                 "instance_selection_list": [
-                    vars(s)
-                    for s in self.worker_instance_flexibility_policy.instance_selection_list
+                    vars(s) for s in self.worker_instance_flexibility_policy.instance_selection_list
                 ]
             }
 
