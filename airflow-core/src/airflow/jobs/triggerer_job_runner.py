@@ -474,9 +474,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 if factory := self.logger_cache.pop(id, None):
-                    factory.upload_to_remote()
-                    # Need to close the FD explicitly, as it is not closed when logger is removed.
-                    factory.close()
+                    try:
+                        factory.upload_to_remote()
+                    except Exception:
+                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
+                    finally:
+                        # Close the FD explicitly even if upload raised, otherwise the file
+                        # handle leaks for every failed upload.
+                        factory.close()
 
             response = messages.TriggerStateSync(
                 to_create=[],
