@@ -30,10 +30,6 @@ on:  # yamllint disable-line rule:truthy
     # offset by 30 min from ARM's `:28` slot in `ci-arm.yml` so the two scheduled
     # canaries don't compete for runners at exactly the same minute.
     - cron: '58 1,7,13,19 * * *'
-  push:
-    branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   pull_request:
     branches:
       - main
@@ -41,6 +37,15 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, ready_for_review]
+  push:
+    # Post-merge pushes to release-prep / providers branches run on both
+    # AMD and ARM (the matching block lives in the other wrapper too —
+    # `check-ci-workflows-in-sync` enforces they stay identical). `main` is
+    # intentionally NOT in this list: main pushes stay AMD-only via
+    # `ci-amd.yml`; ARM main coverage is the cron-driven canary above.
+    branches:
+      - v[0-9]+-[0-9]+-test
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default

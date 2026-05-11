@@ -27,6 +27,15 @@ name: Tests (ARM)
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 1,3,7,9,13,15,19,21 * * *'
+  push:
+    # Post-merge pushes to release-prep / providers branches run on both
+    # AMD and ARM (the matching block lives in the other wrapper too —
+    # `check-ci-workflows-in-sync` enforces they stay identical). `main` is
+    # intentionally NOT in this list: main pushes stay AMD-only via
+    # `ci-amd.yml`; ARM main coverage is the cron-driven canary above.
+    branches:
+      - v[0-9]+-[0-9]+-test
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
