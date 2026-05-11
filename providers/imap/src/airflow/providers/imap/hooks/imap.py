@@ -29,6 +29,7 @@ import os
 import re
 import ssl
 from collections.abc import Iterable
+from email.header import decode_header, make_header
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -388,6 +389,19 @@ class MailPart:
         """
         return self.part.get_content_maintype() != "multipart" and self.part.get("Content-Disposition")
 
+    @staticmethod
+    def _decode_filename(filename: str | None) -> str | None:
+        """
+        Decode a filename that may contain RFC 2047 encoded segments.
+
+        :param filename: The filename extracted from the email part. It may contain
+            plain text, RFC 2047 encoded text, or a mix of both.
+        :returns: The decoded Unicode filename, or the original value if decoding fails.
+        """
+        if filename is None:
+            return ""
+        return str(make_header(decode_header(filename)))
+
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
         Check if the given name matches the part's name.
@@ -395,7 +409,7 @@ class MailPart:
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
         """
-        return re.match(name, self.part.get_filename())  # type: ignore
+        return re.match(name, self._decode_filename(self.part.get_filename()))  # type: ignore
 
     def has_equal_name(self, name: str) -> bool:
         """
@@ -404,7 +418,7 @@ class MailPart:
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
         """
-        return self.part.get_filename() == name
+        return self._decode_filename(self.part.get_filename()) == name
 
     def get_file(self) -> tuple:
         """
@@ -412,4 +426,4 @@ class MailPart:
 
         :returns: the part's name and payload.
         """
-        return self.part.get_filename(), self.part.get_payload(decode=True)
+        return self._decode_filename(self.part.get_filename()), self.part.get_payload(decode=True)

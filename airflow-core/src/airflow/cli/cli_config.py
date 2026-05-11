@@ -541,6 +541,11 @@ ARG_DB_BATCH_SIZE = Arg(
         "Lower values reduce long-running locks but increase the number of batches."
     ),
 )
+ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
+    ("--error-on-cleanup-failure",),
+    help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
+    action="store_true",
+)
 ARG_DAG_IDS = Arg(
     ("--dag-ids",),
     default=None,
@@ -1603,6 +1608,7 @@ DB_COMMANDS = (
             ARG_DB_BATCH_SIZE,
             ARG_DAG_IDS,
             ARG_EXCLUDE_DAG_IDS,
+            ARG_DB_ERROR_ON_CLEANUP_FAILURE,
         ),
     ),
     ActionCommand(

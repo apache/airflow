@@ -875,7 +875,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.13"
+        image = "private.repo/alpine:3.23.4"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -892,7 +892,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.23"
+        assert pod.spec.containers[1].image == "alpine:3.23.4"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -2529,10 +2529,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
-    @patch(f"{TRIGGER_CLASS}.define_container_state")
+    @patch(f"{TRIGGER_CLASS}.define_pod_container_state")
     def test_async_create_pod_should_execute_successfully(
         self,
-        mocked_container_state,
+        mocked_pod_container_state,
         mocked_get_connection,
         mocked_pod,
         mocked_pod_obj,
@@ -2741,7 +2741,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.23"
+        assert pod.spec.containers[1].image == "alpine:3.23.4"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
