@@ -443,6 +443,8 @@ class PodManager(LoggingMixin):
         seen_events: set[str] = set()
         while not self.stop_watching_events:
             events = self.read_pod_events(pod, resource_version)
+            if events.metadata and events.metadata.resource_version:
+                resource_version = events.metadata.resource_version
             for event in events.items:
                 log_pod_event(self, event, seen_events)
                 resource_version = event.metadata.resource_version

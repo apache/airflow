@@ -59,7 +59,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
@@ -416,30 +416,38 @@ class EdgeWorker:
     def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
         _reset_parent_signal_state()
 
-        from airflow.sdk.execution_time.supervisor import supervise
-
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
         os.setpgrp()
 
         logger.info("Worker starting up pid=%d", os.getpid())
-        ti = workload.ti
-        setproctitle(
-            "airflow edge supervisor: "
-            f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
-            f"try_number={ti.try_number}"
-        )
 
         try:
-            supervise(
-                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                # Same like in airflow/executors/local_executor.py:_execute_workload()
-                ti=ti,  # type: ignore[arg-type]
-                dag_rel_path=workload.dag_rel_path,
-                bundle_info=workload.bundle_info,
-                token=workload.token,
-                server=self._execution_api_server_url,
-                log_path=workload.log_path,
-            )
+            if AIRFLOW_V_3_3_PLUS:
+                from airflow.executors.base_executor import BaseExecutor
+
+                BaseExecutor.run_workload(
+                    workload=workload,
+                    server=self._execution_api_server_url,
+                )
+            else:
+                from airflow.sdk.execution_time.supervisor import supervise
+
+                ti = workload.ti
+                setproctitle(
+                    "airflow edge supervisor: "
+                    f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
+                    f"try_number={ti.try_number}"
+                )
+                supervise(
+                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                    # Same like in airflow/executors/local_executor.py:_execute_workload()
+                    ti=ti,  # type: ignore[arg-type]
+                    dag_rel_path=workload.dag_rel_path,
+                    bundle_info=workload.bundle_info,
+                    token=workload.token,
+                    server=self._execution_api_server_url,
+                    log_path=workload.log_path,
+                )
             results_queue.put("OK")
             return 0
         except Exception as e:

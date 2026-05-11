@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor DbtCloudRunJobOperator.execute() by extracting job ID (#64393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 4.8.1
 .....
 

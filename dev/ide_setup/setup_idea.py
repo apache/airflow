@@ -60,7 +60,7 @@ STATIC_MODULES: list[str] = [
     "dev/breeze",
     "docker-tests",
     "kubernetes-tests",
-    "helm-tests",
+    "chart/tests",
     "scripts",
     "task-sdk-integration-tests",
 ]
