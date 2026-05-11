@@ -85,7 +85,11 @@ class AssetStateResponse(BaseModel):
     value: Annotated[str, Field(title="Value")]
 
 
-class State(str, Enum):
+class CallbackTerminalState(str, Enum):
+    """
+    Terminal states a callback can transition to from RUNNING.
+    """
+
     SUCCESS = "success"
     FAILED = "failed"
 
@@ -98,7 +102,7 @@ class CallbackTerminalStatePayload(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    state: Annotated[State, Field(title="State")]
+    state: CallbackTerminalState
     output: Annotated[str | None, Field(title="Output")] = None
 
 

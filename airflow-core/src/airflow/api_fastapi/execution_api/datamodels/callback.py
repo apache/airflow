@@ -16,11 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Literal
+from enum import Enum
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
-CallbackTerminalState = Literal["success", "failed"]
+
+class CallbackTerminalState(str, Enum):
+    """Terminal states a callback can transition to from RUNNING."""
+
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class CallbackTerminalStatePayload(StrictBaseModel):

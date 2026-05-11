@@ -49,6 +49,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     AssetStatePutBody,
     AssetStateResponse,
+    CallbackTerminalState,
     ConnectionResponse,
     DagResponse,
     DagRun,
@@ -1068,7 +1069,7 @@ class CallbackOperations:
     def finish(
         self,
         id: uuid.UUID | str,
-        state: str,
+        state: CallbackTerminalState,
         output: str | None = None,
     ) -> None:
         """Tell the API server that this callback has reached a terminal state."""

@@ -109,6 +109,42 @@ class TestCallbackRun:
             assert "Refreshed-API-Token" not in response.headers
             mock_gen.generate.assert_not_called()
 
+    @pytest.mark.parametrize("scope", ["workload", "execution"])
+    def test_run_is_idempotent_when_already_running(self, client, exec_app, session, scope):
+        """
+        A retried ``POST /callbacks/{id}/run`` against a callback already in RUNNING
+        state must succeed (204) without regressing the row, and a workload-scoped
+        retry must still receive a fresh execution token via ``Refreshed-API-Token``
+        so the supervisor can complete the workload→execution swap that may have
+        been lost when the original response was dropped.
+        """
+        cb = _make_callback(CallbackState.RUNNING, session)
+
+        mock_gen = mock.MagicMock(spec=JWTGenerator)
+        mock_gen.generate.return_value = "mock-execution-token"
+        lifespan.registry.register_value(JWTGenerator, mock_gen)
+
+        _override_require_auth(exec_app, scope=scope)
+
+        response = client.post(f"/execution/callbacks/{cb.id}/run")
+
+        exec_app.dependency_overrides.pop(require_auth, None)
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        cb_after = session.get(ExecutorCallback, cb.id)
+        assert cb_after.state == CallbackState.RUNNING
+
+        if scope == "workload":
+            assert response.headers["Refreshed-API-Token"] == "mock-execution-token"
+            mock_gen.generate.assert_called_once()
+            extras = mock_gen.generate.call_args.kwargs["extras"]
+            assert extras == {"sub": str(cb.id), "scope": "execution"}
+        else:
+            assert "Refreshed-API-Token" not in response.headers
+            mock_gen.generate.assert_not_called()
+
     @pytest.mark.parametrize(
         "state",
         [

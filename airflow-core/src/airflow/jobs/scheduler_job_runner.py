@@ -1263,7 +1263,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tis_with_right_state.append(key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                if state in (CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
@@ -1287,17 +1287,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             need_to_modify = False
 
-            if state == CallbackState.RUNNING:
-                cls.logger().info("Callback %s is currently running", callback_id)
-            elif state == CallbackState.SUCCESS:
+            if state == CallbackState.SUCCESS:
                 cls.logger().info("Callback %s completed successfully", callback_id)
-                if callback.state == CallbackState.RUNNING:
+                if callback.state in (CallbackState.QUEUED, CallbackState.RUNNING):
                     callback.state = CallbackState.SUCCESS
                     need_to_modify = True
             elif state == CallbackState.FAILED:
                 callback_output = str(info) if info else "Execution failed"
                 cls.logger().error("Callback %s failed: %s", callback_id, callback_output)
-                if callback.state == CallbackState.RUNNING:
+                if callback.state in (CallbackState.QUEUED, CallbackState.RUNNING):
                     callback.state = CallbackState.FAILED
                     callback.output = callback_output
                     need_to_modify = True
