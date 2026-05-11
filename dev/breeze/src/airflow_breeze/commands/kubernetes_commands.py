@@ -716,6 +716,7 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # scripts/ci/prek/upgrade_important_versions.py.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "alpine:3.23",  # xcom_sidecar default in providers/cncf/kubernetes
+    "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
     "busybox:1.37",  # busybox-based system tests in kubernetes-tests/
     "ubuntu:24.04",  # ubuntu-based system tests in kubernetes-tests/
 )
