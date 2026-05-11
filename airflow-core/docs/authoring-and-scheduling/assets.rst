@@ -406,7 +406,7 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
 
 .. _asset_access_control:
 
-Cross-team asset event filtering with ``access_control``
+Cross-team asset event filtering with ``producer_teams``
 --------------------------------------------------------
 
 .. versionadded:: 3.3.0
@@ -441,6 +441,9 @@ The ``AssetAccessControl`` class accepts the following parameters:
 
 - **producer_teams** (``list[str]``, default ``[]``): List of team names allowed to produce events
   consumed by this asset's consumers, in addition to the consumer's own team.
+- **consumer_teams** (``list[str]``, default ``[]``): List of team names allowed to consume events
+  produced by this asset's producers. When empty, no consumer-team filtering is applied. See
+  :ref:`Cross-team asset event filtering with consumer_teams <asset_consumer_teams>`.
 - **allow_global** (``bool``, default ``True``): Whether teamless (global) Dag producers can trigger
   consumers of this asset. When set to ``False``, only Dags with an explicit team association
   (same team or listed in ``producer_teams``) can trigger consumers.
@@ -492,6 +495,95 @@ have a team association:
 
 When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
 consuming Dags, preserving backward compatibility.
+
+.. _asset_consumer_teams:
+
+Cross-team asset event filtering with ``consumer_teams``
+--------------------------------------------------------
+
+.. versionadded:: 3.3.0
+
+While ``producer_teams`` controls which producer teams a consumer is willing to accept events from,
+``consumer_teams`` controls which consumer teams a producer is willing to deliver events to. It is
+specified on the **producer** side — on the ``Asset`` used in a task's ``outlets``.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset, AssetAccessControl, task
+
+    restricted_output = Asset(
+        name="restricted_output",
+        uri="s3://bucket/restricted/output.csv",
+        access_control=AssetAccessControl(
+            consumer_teams=["team_downstream", "team_reporting"],
+        ),
+    )
+
+    with DAG(dag_id="producer_dag", schedule="@daily"):
+
+        @task(outlets=[restricted_output])
+        def produce_data():
+            """Only team_downstream and team_reporting can consume events from this task."""
+
+In this example, only consuming Dags belonging to ``team_downstream`` or ``team_reporting`` (plus any
+teamless consumers) will receive asset events produced by the ``produce_data`` task.
+
+Default behavior
+~~~~~~~~~~~~~~~~
+
+When ``consumer_teams`` is not specified (or set to an empty list), no consumer-team filtering is
+applied — all consumers that pass the other filtering checks (same-team, ``producer_teams``) will
+receive the event.
+
+- **Empty list (default)**: All consumers pass through (no restriction from the producer side).
+- **Non-empty list**: Only consumers whose team is in the list, or teamless consumers, receive the event.
+- **Teamless consumers**: Always pass through regardless of ``consumer_teams``.
+
+Per-producer scoping
+~~~~~~~~~~~~~~~~~~~~
+
+``consumer_teams`` is scoped per producing task, not per asset. If multiple tasks produce events for
+the same asset, each task's ``consumer_teams`` applies independently:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset, AssetAccessControl, task
+
+    # Task 1 restricts consumers to team_a only
+    asset_for_task1 = Asset(
+        name="shared_asset",
+        uri="s3://bucket/shared.csv",
+        access_control=AssetAccessControl(
+            consumer_teams=["team_a"],
+        ),
+    )
+
+    # Task 2 has no consumer restriction
+    asset_for_task2 = Asset(name="shared_asset", uri="s3://bucket/shared.csv")
+
+    with DAG(dag_id="dag_1", schedule="@daily"):
+
+        @task(outlets=[asset_for_task1])
+        def task_restricted():
+            """Events from this task only reach team_a consumers."""
+
+
+    with DAG(dag_id="dag_2", schedule="@daily"):
+
+        @task(outlets=[asset_for_task2])
+        def task_unrestricted():
+            """Events from this task reach all consumers."""
+
+Interaction with ``producer_teams``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both filters are applied as a logical AND. A consumer is queued only if it passes both:
+
+- ``producer_teams`` (consumer side): "Which producer teams am I willing to accept events from?"
+- ``consumer_teams`` (producer side): "Which consumer teams am I willing to deliver events to?"
+
+When Multi-Team mode is disabled, ``consumer_teams`` is ignored and all asset events are delivered to
+all consuming Dags, preserving backward compatibility.
 
 Asset partitions
 ----------------
