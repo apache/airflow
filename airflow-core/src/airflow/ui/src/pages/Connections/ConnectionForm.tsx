@@ -30,7 +30,6 @@ import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Accordion } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
-import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import StandardFields from "./ConnectionStandardFields";
@@ -73,7 +72,7 @@ const ConnectionForm = ({
   const { t: translate } = useTranslation(["admin", "common"]);
   const selectedConnType = watch("conn_type"); // Get the selected connection type
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
-  const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
+  const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? {} };
 
   const [formErrors, setFormErrors] = useState(false);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));

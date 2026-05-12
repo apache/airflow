@@ -19,7 +19,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import type { HttpHandler } from "msw";
-import { setupServer, type SetupServerApi } from "msw/node";
+import { setupServer, type SetupServer } from "msw/node";
 import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
@@ -72,7 +72,7 @@ vi.mock("chart.js", () => ({
   Tooltip: vi.fn(),
 }));
 
-let server: SetupServerApi;
+let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...(handlers as Array<HttpHandler>));
