@@ -91,6 +91,27 @@ def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) 
 
 
 @pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+)
+@time_machine.travel(pendulum.DateTime(2026, 5, 6, tzinfo=utc))
+def test_coarser_new_schedule_does_not_re_emit_previous_logical_date(catchup: bool) -> None:
+    """When a Dag moves from hourly to daily, don't re-emit the old logical date."""
+    timetable = CronDataIntervalTimetable("0 0 * * *", utc)
+    last = DataInterval(
+        start=pendulum.DateTime(2026, 5, 4, tzinfo=utc),
+        end=pendulum.DateTime(2026, 5, 4, 1, tzinfo=utc),
+    )
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=last,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+    )
+    expected_start = pendulum.DateTime(2026, 5, 5, tzinfo=utc)
+    expected_end = pendulum.DateTime(2026, 5, 6, tzinfo=utc)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+@pytest.mark.parametrize(
     "earliest",
     [pytest.param(None, id="none"), pytest.param(START_DATE, id="start_date")],
 )

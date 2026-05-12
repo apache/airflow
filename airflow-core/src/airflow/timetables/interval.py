@@ -111,18 +111,12 @@ class _DataIntervalTimetable(Timetable):
                 # Data interval starts from the end of the previous interval.
                 start = align_last_data_interval_end
 
-            # CronTriggerTimetable stores its runs as point-in-time intervals
-            # (start == end == logical_date). After a switch to a
-            # CronDataIntervalTimetable the aligned `start` lands back on that
-            # same logical_date, so without this guard we'd propose a run
-            # identical to the existing one — which collides with the
-            # (dag_id, logical_date) unique constraint and leaves the scheduler
-            # looping on "run already exists; skipping dagrun creation" until
-            # the next period elapses. Advance one period to skip past it.
-            if (
-                last_automated_data_interval.start == last_automated_data_interval.end
-                and start == last_automated_data_interval.start
-            ):
+            # When the Dag has a new schedule, aligning the previous interval
+            # end can land on (or before) the previous logical date. Re-emitting
+            # that logical date collides with the existing Dag run and leaves
+            # the scheduler looping on "run already exists; skipping dagrun
+            # creation". Advance one period to skip past it.
+            if start <= last_automated_data_interval.start:
                 start = self._get_next(start)
         if restriction.latest is not None and start > restriction.latest:
             return None
