@@ -20,9 +20,7 @@ Developing the Helm Chart
 
 Use this document when working on the Airflow Helm chart to decide where a
 change belongs (chart, Kustomize overlay, or out entirely) and how to shape
-it. It is the contributor-facing guide for chart development; the full
-alignment narrative lives on Confluence (`Helm Refurbish
-<https://cwiki.apache.org/confluence/display/AIRFLOW/Helm+Refurbish>`__).
+it. It is the contributor-facing guide for chart development.
 
 .. contents:: Table of Contents
    :depth: 2
@@ -34,39 +32,45 @@ Decision tree
 
 Start here when adding or modifying a chart parameter or component.
 
-**1. Is this a new feature or a change to an existing one?**
+.. code-block:: text
 
-- New feature → go to **2**.
-- Change to an existing parameter → go to **4**.
+   START: Adding or modifying a chart parameter or component
+     │
+     └─► Q1. New feature, or change to an existing parameter?
 
-**2. Does the feature meet all three "belongs in the chart" criteria below?**
+         [New feature]
+           │
+           └─► Q2. Meets all three "belongs in chart" criteria?
+                 │
+                 ├─► YES → CHART
+                 │
+                 └─► NO  → Q3. Meets any "belongs in Kustomize" criterion?
+                            │
+                            ├─► YES → KUSTOMIZE OVERLAY
+                            │        (overlays live alongside the chart
+                            │         but are not released as chart
+                            │         artifacts)
+                            │
+                            └─► NO  → Scope discussion on dev@ list
+                                      before opening a PR
 
-- Yes → **chart**.
-- No → go to **3**.
-
-**3. Does the feature meet any "belongs in Kustomize" criterion below?**
-
-- Yes → **Kustomize overlay**, subject to the exceptions process. The chart
-  does not lose a component until a working overlay exists.
-- No → the feature does not fit either bucket cleanly. Bring it to the
-  ``dev@`` list for a scope discussion before opening a PR.
-
-**4. Is the parameter under the right parent section?**
-
-- Yes → go to **5**.
-- No → relocate it to its owning component. The canonical name changes; the
-  value continues to work.
-
-**5. Is the same setting reachable through more than one path?**
-
-- Yes → consolidate to one path.
-- No → go to **6**.
-
-**6. Are the defaults sensible at the chart level for the common case?**
-
-- Yes → done.
-- No → tighten the default to a least-privilege / common-case baseline. Leave
-  finer shaping to overlays.
+         [Change to existing]
+           │
+           └─► Q4. Under the right parent section?
+                 │
+                 ├─► NO  → Relocate to owning component
+                 │         (canonical name changes; value continues to work)
+                 │
+                 └─► YES → Q5. Same setting reachable through more than one path?
+                            │
+                            ├─► YES → Consolidate to one path
+                            │
+                            └─► NO  → Q6. Defaults sensible at chart level?
+                                       │
+                                       ├─► YES → Done
+                                       │
+                                       └─► NO  → Tighten to least-privilege
+                                                 or common-case baseline
 
 
 Decision criteria: chart vs Kustomize
@@ -93,19 +97,23 @@ document and is aligned with the chart documentation convention.
   distribution).
 - Requires CRDs that the chart does not install.
 
-**Exceptions process**
+**Migration invariant**
 
 - If a component qualifies for Kustomize but has no overlay yet, it stays in
   the chart.
 - The chart never removes a component without a working overlay already in
-  place. This is the invariant that protects users.
+  place. This is the rule that protects users.
 
 
 Component reference
 -------------------
 
-Where each component currently lives. Use this when adding parameters or
-templates that touch a specific component.
+Where each component lives. Use this when adding parameters or templates that
+touch a specific component.
+
+Some entries reflect routing decisions that are still being implemented —
+check the refurbishment tracking issue for in-flight work before assuming a
+component is already in its target home.
 
 .. list-table::
    :header-rows: 1
@@ -123,9 +131,11 @@ templates that touch a specific component.
    * - PgBouncer
      - Chart
      - Service only; PgBouncer ingress is not part of the chart.
-   * - Jobs
+   * - Jobs (Kubernetes-executor-specific)
      - Chart
-     - Lives under the kubernetes section.
+     - Jobs that are specific to the Kubernetes executor live under the
+       kubernetes section. Jobs that are independent of the executor choice
+       (for example, the CreateUser job) remain top-level.
    * - OpenTelemetry
      - Chart
      - OTel is the designated primary telemetry path and is to be supported by the chart.
