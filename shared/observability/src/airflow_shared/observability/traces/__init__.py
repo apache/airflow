@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
@@ -28,7 +29,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
-from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
+from opentelemetry.trace import NonRecordingSpan, Span, SpanContext, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 if TYPE_CHECKING:
@@ -91,6 +92,40 @@ def override_ids(trace_id, span_id, ctx=None):
         yield
     finally:
         context.detach(token)
+
+
+@contextmanager
+def cli_span(
+    name: str,
+    attributes: dict[str, str | int | float | bool] | None = None,
+    environ: dict[str, str] | None = None,
+) -> Iterator[Span]:
+    """
+    Start a span around a CLI entry point, honouring W3C trace context from the environment.
+
+    When ``TRACEPARENT`` (and optionally ``TRACESTATE``) are present in the environment,
+    the resulting span is parented to the inbound context, so an external caller can stitch
+    its trace to the Airflow operation initiated by the CLI invocation. When the variables
+    are absent the helper still produces a span, just without a parent.
+
+    Safe to use when OTel is not configured: it falls back to the global no-op tracer.
+
+    :param name: span name (e.g. ``cli.dags.test``)
+    :param attributes: optional initial attributes for the span
+    :param environ: environment mapping; defaults to ``os.environ`` (kept overridable for tests)
+    """
+    env = os.environ if environ is None else environ
+    carrier = {}
+    traceparent = env.get("TRACEPARENT")
+    if traceparent:
+        carrier["traceparent"] = traceparent
+        tracestate = env.get("TRACESTATE")
+        if tracestate:
+            carrier["tracestate"] = tracestate
+    parent_context = TraceContextTextMapPropagator().extract(carrier) if carrier else None
+    cli_tracer = trace.get_tracer(__name__)
+    with cli_tracer.start_as_current_span(name, context=parent_context, attributes=attributes or {}) as span:
+        yield span
 
 
 def _get_backcompat_config(conf: ConfigParser) -> tuple[str | None, Resource | None]:
