@@ -52,8 +52,6 @@ const COLOR_MODES = {
   SYSTEM: "system",
 } as const;
 
-type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
-
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
   const { i18n, t: translate } = useTranslation();
   const { selectedTheme, setColorMode } = useColorMode();
@@ -118,10 +116,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
               <Icon as={isRTL ? FiChevronLeft : FiChevronRight} boxSize={4} color="fg.muted" />
             </Menu.TriggerItem>
             <Menu.Content>
-              <Menu.RadioItemGroup
-                onValueChange={(element) => setColorMode(element.value as ColorMode)}
-                value={theme}
-              >
+              <Menu.RadioItemGroup onValueChange={(element) => setColorMode(element.value)} value={theme}>
                 {colorModeOptions.map(({ icon, label, value }) => (
                   <Menu.RadioItem key={value} value={value}>
                     <Icon as={icon} boxSize={4} />

@@ -44,6 +44,22 @@ def get_provider_info():
                 ],
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["kafka"],
+                "handler": "airflow.providers.apache.kafka.assets.kafka.sanitize_uri",
+                "factory": "airflow.providers.apache.kafka.assets.kafka.create_asset",
+                "to_openlineage_converter": "airflow.providers.apache.kafka.assets.kafka.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["kafka"],
+                "handler": "airflow.providers.apache.kafka.assets.kafka.sanitize_uri",
+                "factory": "airflow.providers.apache.kafka.assets.kafka.create_asset",
+                "to_openlineage_converter": "airflow.providers.apache.kafka.assets.kafka.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Apache Kafka",

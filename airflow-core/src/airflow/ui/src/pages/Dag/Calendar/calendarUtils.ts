@@ -106,7 +106,7 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
     counts.total += count;
   });
 
-  return counts as RunCounts;
+  return counts;
 };
 
 export const generateDailyCalendarData = (
