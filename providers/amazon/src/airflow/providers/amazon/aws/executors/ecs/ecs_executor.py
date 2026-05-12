@@ -159,6 +159,9 @@ class AwsEcsExecutor(BaseExecutor):
         from airflow.executors import workloads
 
         for workload in workload_items:
+            queue: str | None
+            key: WorkloadKey
+            command: CommandType
             if isinstance(workload, workloads.ExecuteTask):
                 command = [workload]
                 key = workload.ti.key
@@ -166,15 +169,15 @@ class AwsEcsExecutor(BaseExecutor):
                 executor_config = workload.ti.executor_config or {}
 
                 del self.queued_tasks[key]
-                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
             elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
-                command = [workload]  # type: ignore[list-item]
-                key = workload.callback.key  # type: ignore[assignment]
+                command = [workload]
+                key = workload.callback.key
 
-                del self.queued_callbacks[key]  # type: ignore[arg-type]
-                self.execute_async(key=key, command=command, queue=None)  # type: ignore[arg-type]
+                del self.queued_callbacks[key]
+                self.execute_async(key=key, command=command, queue=None)
                 self.running.add(key)
 
             else:

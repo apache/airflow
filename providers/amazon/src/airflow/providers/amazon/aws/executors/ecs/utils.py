@@ -27,22 +27,26 @@ import datetime
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from inflection import camelize
 
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
-
     if AIRFLOW_V_3_3_PLUS:
         from airflow.executors.workloads.types import WorkloadKey
     else:
         from airflow.models.taskinstance import TaskInstanceKey as WorkloadKey  # type: ignore[assignment]
 
-CommandType = Sequence[str]
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+
+    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask | ExecuteCallback]
+else:
+    CommandType: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
 ExecutorConfigType = dict[str, Any]
 
