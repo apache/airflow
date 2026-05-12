@@ -31,7 +31,7 @@ pytestmark = pytest.mark.db_test
 class TestStateStoreCleanupCommand:
     def test_cleanup_calls_backend(self):
         args = Namespace(dry_run=False, verbose=False)
-        with mock.patch("airflow.state.get_state_backend") as mock_get_backend:
+        with mock.patch("airflow.cli.commands.state_store_command.get_state_backend") as mock_get_backend:
             mock_backend = MagicMock()
             mock_get_backend.return_value = mock_backend
 
@@ -43,7 +43,7 @@ class TestStateStoreCleanupCommand:
         args = Namespace(dry_run=True, verbose=False)
         backend = MetastoreStateBackend()
         with (
-            mock.patch("airflow.state.get_state_backend", return_value=backend),
+            mock.patch("airflow.cli.commands.state_store_command.get_state_backend", return_value=backend),
             patch.object(backend, "_summary_dry_run_", return_value={"expired": []}),
         ):
             cleanup(args)
