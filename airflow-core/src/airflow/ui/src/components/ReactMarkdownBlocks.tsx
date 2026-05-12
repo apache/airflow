@@ -85,19 +85,20 @@ export const MarkdownCodeBlock = ({
       }
       label={languageLabel}
     >
-      <Box maxWidth="100%" minWidth={0} overflow="hidden">
-        <SyntaxHighlighter
-          codeTagProps={{ style: { overflowWrap: "anywhere", wordBreak: "break-word" } }}
-          customStyle={{ borderRadius: 0, margin: 0, maxWidth: "100%", minWidth: 0, width: "100%" }}
-          language={languageLabel}
-          lineNumberStyle={{ minWidth: "2.5em", opacity: 0.6, paddingRight: "1em" }}
-          PreTag="div"
-          showLineNumbers
-          style={style}
-          wrapLongLines
-        >
-          {value}
-        </SyntaxHighlighter>
+      <Box data-testid="markdown-code-scroll-area" maxWidth="100%" minWidth={0} overflowX="auto" overflowY="hidden" width="100%">
+        <Box data-testid="markdown-code-content" display="inline-block" minWidth="100%">
+          <SyntaxHighlighter
+            codeTagProps={{ style: { overflowWrap: "normal", whiteSpace: "pre", wordBreak: "normal" } }}
+            customStyle={{ borderRadius: 0, margin: 0, width: "max-content" }}
+            language={languageLabel}
+            lineNumberStyle={{ minWidth: "2.5em", opacity: 0.6, paddingRight: "1em" }}
+            PreTag="div"
+            showLineNumbers
+            style={style}
+          >
+            {value}
+          </SyntaxHighlighter>
+        </Box>
       </Box>
     </MarkdownBlockFrame>
   );

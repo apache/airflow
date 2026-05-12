@@ -217,7 +217,7 @@ const ReactMarkdown = (props: Options) => {
   const components = createMarkdownComponents({ mermaidTheme, style });
 
   return (
-    <Box css={markdownContentStyles}>
+    <Box alignSelf="stretch" css={markdownContentStyles} maxWidth="100%" minWidth={0} width="100%">
       <ReactMD
         components={components}
         {...props}

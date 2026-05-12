@@ -64,22 +64,50 @@ describe("ReactMarkdown", () => {
   });
 
   it("renders fenced code blocks with line numbers and copy action", () => {
-    const markdown = ["```javascript", "const value = 42;", "console.log(value);", "```"].join("\n");
+    const markdown = [
+      "```javascript",
+      'const longLine = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";',
+      "console.log(longLine);",
+      "```",
+    ].join("\n");
     const { container } = render(
       <BaseWrapper>
         <ReactMarkdown>{markdown}</ReactMarkdown>
       </BaseWrapper>,
     );
 
+    const codeElement = container.querySelector("code");
+
     expect(screen.getByText("javascript")).toBeInTheDocument();
     expect(screen.getByTestId("markdown-copy-button")).toBeInTheDocument();
     expect(screen.getByLabelText("Copy code block")).toBeInTheDocument();
     expect(screen.getByText("console")).toBeInTheDocument();
     expect(container.querySelectorAll(".react-syntax-highlighter-line-number")).toHaveLength(2);
-    expect(container.querySelector("code")).toHaveStyle({
-      overflowWrap: "anywhere",
-      wordBreak: "break-word",
-    });
+    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({ overflowX: "auto", overflowY: "hidden", width: "100%" });
+    expect(screen.getByTestId("markdown-code-content")).toHaveStyle({ display: "inline-block", minWidth: "100%" });
+    expect(codeElement).toHaveStyle({ overflowWrap: "normal", whiteSpace: "pre", wordBreak: "normal" });
+  });
+
+  it("stretches the markdown root inside flex layouts without widening the document", () => {
+    const markdown = [
+      "```javascript",
+      'const longLine = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";',
+      "console.log(longLine);",
+      "```",
+    ].join("\n");
+
+    render(
+      <BaseWrapper>
+        <div data-testid="markdown-host" style={{ alignItems: "flex-start", display: "flex", flexDirection: "column", width: "320px" }}>
+          <ReactMarkdown>{markdown}</ReactMarkdown>
+        </div>
+      </BaseWrapper>,
+    );
+
+    const markdownRoot = screen.getByTestId("markdown-host").firstElementChild;
+
+    expect(markdownRoot).toHaveStyle({ alignSelf: "stretch", maxWidth: "100%", minWidth: "0", width: "100%" });
+    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({ overflowX: "auto", width: "100%" });
   });
 
   it("renders inline math within text and block math as display content", () => {
