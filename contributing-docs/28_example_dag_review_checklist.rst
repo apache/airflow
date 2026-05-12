@@ -94,3 +94,20 @@ Provider examples have slightly different expectations:
 - [ ] Provider dependencies are clearly documented in the docstring.
 - [ ] Example is not auto-loaded unless intended.
 - [ ] Example naming follows provider naming conventions.
+
+Reference Examples
+------------------
+
+The following example Dags are kept aligned with this checklist and are good
+templates for new tutorial-style examples. Both implement the same
+"measurement correction" storyline so the TaskFlow and ``PythonOperator``
+styles can be compared side by side:
+
+- `example_measurement_correction_decorator.py
+  <https://github.com/apache/airflow/blob/main/providers/standard/src/airflow/providers/standard/example_dags/example_measurement_correction_decorator.py>`_ — TaskFlow version.
+- `example_measurement_correction_operator.py
+  <https://github.com/apache/airflow/blob/main/providers/standard/src/airflow/providers/standard/example_dags/example_measurement_correction_operator.py>`_ — classic ``PythonOperator`` version.
+
+When introducing a new tutorial-style example, prefer copying the shape of
+these two files (module docstring, ``doc_md``, per-task docstrings, no
+external dependencies) rather than starting from scratch.

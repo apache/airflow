@@ -54,6 +54,22 @@ def get_provider_info():
                 ],
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["hive"],
+                "handler": "airflow.providers.apache.hive.assets.hive.sanitize_uri",
+                "factory": "airflow.providers.apache.hive.assets.hive.create_asset",
+                "to_openlineage_converter": "airflow.providers.apache.hive.assets.hive.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["hive"],
+                "handler": "airflow.providers.apache.hive.assets.hive.sanitize_uri",
+                "factory": "airflow.providers.apache.hive.assets.hive.create_asset",
+                "to_openlineage_converter": "airflow.providers.apache.hive.assets.hive.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Apache Hive",

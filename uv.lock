@@ -3259,6 +3259,7 @@ dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -3283,6 +3284,7 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -3338,6 +3340,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-microsoft-mssql" },
     { name = "apache-airflow-providers-mysql" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-presto" },
     { name = "apache-airflow-providers-samba" },
     { name = "apache-airflow-providers-vertica" },
@@ -3381,6 +3384,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-mssql", editable = "providers/microsoft/mssql" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-presto", editable = "providers/presto" },
     { name = "apache-airflow-providers-samba", editable = "providers/samba" },
     { name = "apache-airflow-providers-vertica", editable = "providers/vertica" },
@@ -3509,6 +3513,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -3535,6 +3540,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -5950,6 +5956,7 @@ version = "4.5.2"
 source = { editable = "providers/microsoft/mssql" }
 dependencies = [
     { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "methodtools" },
     { name = "pymssql" },
@@ -5964,6 +5971,7 @@ openlineage = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
@@ -5975,6 +5983,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "methodtools", specifier = ">=0.4.7" },
@@ -5987,6 +5996,7 @@ provides-extras = ["openlineage"]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
@@ -6083,6 +6093,7 @@ dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
     { name = "testcontainers" },
 ]
@@ -6103,6 +6114,7 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "testcontainers", specifier = ">=4.12.0" },
 ]
@@ -6828,6 +6840,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
     { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-presto", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -6859,6 +6872,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-presto", extras = ["sqlalchemy"], editable = "providers/presto" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
@@ -7592,6 +7606,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "apache-airflow-providers-microsoft-azure" },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-ssh" },
     { name = "apache-airflow-providers-teradata", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
@@ -7622,6 +7637,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
     { name = "apache-airflow-providers-teradata", extras = ["sqlalchemy"], editable = "providers/teradata" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
@@ -7711,6 +7727,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars"] },
+    { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-vertica", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -7735,6 +7752,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-providers-vertica", extras = ["sqlalchemy"], editable = "providers/vertica" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
@@ -17139,17 +17157,16 @@ wheels = [
 
 [[package]]
 name = "pinotdb"
-version = "9.1.1"
+version = "5.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ciso8601" },
     { name = "h11" },
     { name = "httpx" },
-    { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/95/79/d1e1d67a3ad63b839002eff8ee8d05a0f3a548c8d438b4a0996113de5804/pinotdb-9.1.1.tar.gz", hash = "sha256:525db22f2a4f4c04e1cbcc0b37cd8ff9c726f4bb4e1d5b77752afe6b1b3b968c", size = 27017, upload-time = "2026-03-17T02:03:53.233Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/cf/2de4b7e25a6425f36c6cbc7f40151f20a182f074c765f8e499fc077c2304/pinotdb-5.7.0.tar.gz", hash = "sha256:444646833351f82c781ef2563c6c841f699a1aa725234d45ca538aaab92c46d2", size = 23276, upload-time = "2025-06-09T15:59:34.449Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/21/ea958b418a5703fe4f8dcf159988ef900ef64e1b8a80056ec4a975ef4be8/pinotdb-9.1.1-py3-none-any.whl", hash = "sha256:2765db6482a8b265b7ebb11c917a556c500a616dd43ba1389106711de1cbd480", size = 22474, upload-time = "2026-03-17T02:03:54.076Z" },
+    { url = "https://files.pythonhosted.org/packages/07/8f/c77e27d945fab41ea31b0f4679237cbda8a95cf2a0c3bd0745548d412f91/pinotdb-5.7.0-py3-none-any.whl", hash = "sha256:42b7f931537a1c82c40d7b448ae637188fb90ad8e8714d86c25d831002201b29", size = 19564, upload-time = "2025-06-09T15:59:33.323Z" },
 ]
 
 [[package]]
@@ -20273,8 +20290,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
-    { name = "jeepney", marker = "python_full_version >= '3.14' or platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "cryptography", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version >= '3.14' and sys_platform == 'darwin') or (python_full_version < '3.15' and sys_platform == 'emscripten') or (python_full_version < '3.15' and sys_platform == 'win32') or (platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -22140,11 +22157,11 @@ wheels = [
 
 [[package]]
 name = "urllib3"
-version = "2.6.3"
+version = "2.7.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c", size = 433602, upload-time = "2026-05-07T16:13:18.596Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897", size = 131087, upload-time = "2026-05-07T16:13:17.151Z" },
 ]
 
 [[package]]
