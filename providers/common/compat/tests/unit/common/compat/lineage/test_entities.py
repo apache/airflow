@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.compat.lineage.entities import File, User, Tag, Column, Table, default_if_none
+from airflow.providers.common.compat.lineage.entities import Column, File, Table, Tag, User, default_if_none
+
 
 def test_file_stores_url_and_type_hint():
     file = File(
@@ -169,4 +170,3 @@ def test_table_template_fields():
 )
 def test_default_if_none(arg, expected):
     assert default_if_none(arg) is expected
-
