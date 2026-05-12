@@ -98,7 +98,7 @@ export const TriggerDAGButton = ({
       <Box>
         <Menu.Root>
           <Tooltip content={translate("triggerDag.manualRunDenied")} disabled={!isManualRunDenied}>
-            <Menu.Trigger>
+            <Menu.Trigger asChild>
               <Button
                 aria-label={translate("triggerDag.title")}
                 data-testid="trigger-dag-button"
