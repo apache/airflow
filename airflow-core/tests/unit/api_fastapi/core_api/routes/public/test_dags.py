@@ -270,6 +270,19 @@ class TestGetDags(TestDagEndpoint):
                 [DAG1_ID, DAG2_ID],
             ),
             ({"owners": ["test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
+            # Comma-separated owners stored on DAG3 ("test_owner,another_test_owner") must
+            # match the second element exactly, not via substring of the first.
+            ({"owners": ["another_test_owner"], "exclude_stale": False}, 1, [DAG3_ID]),
+            # Substrings of any stored owner must NOT match — the filter is exact-element.
+            ({"owners": ["owner"], "exclude_stale": False}, 0, []),
+            ({"owners": ["another_test"], "exclude_stale": False}, 0, []),
+            ({"owners": ["air"], "exclude_stale": False}, 0, []),
+            # Multiple values OR together, each matching exact elements.
+            (
+                {"owners": ["airflow", "another_test_owner"], "exclude_stale": False},
+                3,
+                [DAG1_ID, DAG2_ID, DAG3_ID],
+            ),
             ({"last_dag_run_state": "success", "exclude_stale": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "exclude_stale": False}, 1, [DAG1_ID]),
             ({"dag_run_state": "failed"}, 1, [DAG1_ID]),

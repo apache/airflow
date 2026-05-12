@@ -770,7 +770,16 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
 
 
 class _OwnersFilter(BaseParam[list[str]]):
-    """Filter on owners."""
+    """
+    Filter Dags by owner, matching whole comma-separated elements.
+
+    ``DagModel.owners`` is stored as a ``", "``-joined string of one or more owners
+    (see ``DAG.owner``). A naive substring match returns false positives whenever the
+    filter value is a substring of any stored owner — e.g. ``owners=Admin`` matched a
+    Dag whose owner was ``NotAnAdmin``. To get exact-element semantics while keeping
+    a single index-friendly ILIKE per term, we normalise the separator to ``,``, wrap
+    the column with sentinel commas, and search for ``,<owner>,``.
+    """
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -779,7 +788,18 @@ class _OwnersFilter(BaseParam[list[str]]):
         if not self.value:
             return select
 
-        conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
+        # Replace ``", "`` with ``","`` (the SDK joins owners with ``", "``), then wrap
+        # the column with leading and trailing commas. Comparing against ``,<owner>,``
+        # gives whole-element matching across SQLite / Postgres / MySQL. ``func.replace``
+        # returns a generic SQL function whose result type defaults to ``NullType``; we
+        # ``cast`` it to ``String`` so the ``||`` / ``+`` concatenation compiles to a
+        # string concat on every supported backend (``||`` on SQLite / Postgres,
+        # ``CONCAT()`` on MySQL via SQLAlchemy's string-type dispatch).
+        from sqlalchemy import String, cast
+
+        normalised = cast(func.replace(DagModel.owners, ", ", ","), String)
+        padded_owners = "," + normalised + ","
+        conditions = [padded_owners.ilike(f"%,{owner},%") for owner in self.value]
         return select.where(or_(*conditions))
 
     @classmethod

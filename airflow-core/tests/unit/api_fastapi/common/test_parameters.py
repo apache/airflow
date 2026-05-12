@@ -28,6 +28,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     SortParam,
+    _OwnersFilter,
     _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
@@ -335,3 +336,49 @@ class TestTaskDisplayNamePrefixPatternParam:
 
         sql = _compile(statement)
         assert "true" in sql or "1 = 1" in sql
+
+
+class TestOwnersFilter:
+    """
+    ``DagModel.owners`` is a ``", "``-joined string of one or more owners. The filter must
+    match a stored element as a whole — substring matches against an element are the bug
+    we are guarding against (e.g. ``owners=Admin`` returning a Dag with ``owners="NotAnAdmin"``).
+    """
+
+    def test_to_orm_empty_value_is_noop(self):
+        """An empty list leaves the statement unchanged."""
+        param = _OwnersFilter().set_value([])
+        statement = select(DagModel)
+        result = param.to_orm(statement)
+        assert result is statement
+
+    def test_to_orm_single_owner_uses_sentinel_wrapped_ilike(self):
+        """The compiled predicate wraps the column with sentinel commas, so the match is
+        on a whole element."""
+        param = _OwnersFilter().set_value(["airflow"])
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        # Whole-element pattern, not the naive ``'%airflow%'``.
+        assert "'%,airflow,%'" in sql
+        # The naive substring pattern (the bug) must not appear.
+        assert "'%airflow%'" not in sql
+
+    def test_to_orm_multiple_owners_or_together(self):
+        """Multiple owner values produce an OR of whole-element matches."""
+        param = _OwnersFilter().set_value(["airflow", "admin"])
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert " or " in sql
+        assert "'%,airflow,%'" in sql
+        assert "'%,admin,%'" in sql
+
+    def test_to_orm_skip_none_false_is_rejected(self):
+        """``skip_none=False`` is unsupported and surfaces loudly rather than silently
+        treating ``[]`` as a match-all."""
+        param = _OwnersFilter(skip_none=False).set_value(["airflow"])
+        with pytest.raises(ValueError, match="Cannot set 'skip_none' to False"):
+            param.to_orm(select(DagModel))

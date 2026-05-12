@@ -1,0 +1,1 @@
+Fix the ``owners`` filter on the public ``GET /dags`` endpoint to match whole comma-separated elements instead of any substring of the stored value. Previously a filter like ``owners=Admin`` also matched Dags whose owners were ``NotAnAdmin``; the filter now matches only when ``Admin`` is one of the listed owners.
