@@ -1485,10 +1485,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             SerializedAssetUriRef,
         )
 
-        # TODO: AIP-76 should we provide an interface to override this, so that the task can
-        #  tell the truth if for some reason it touches a different partition?
-        #  https://github.com/apache/airflow/issues/58474
-        partition_key = ti.dag_run.partition_key
+        events_by_asset: dict[SerializedAssetUniqueKey, list[tuple[dict, str | None]]] = defaultdict(list)
+        for outlet_event in outlet_events:
+            if "source_alias_name" in outlet_event:
+                continue
+            asset_key = SerializedAssetUniqueKey(**outlet_event["dest_asset_key"])
+            events_by_asset[asset_key].append((outlet_event["extra"], outlet_event.get("partition_key")))
+
+        runtime_pks: set[str] = {
+            pk for events in events_by_asset.values() for _, pk in events if pk is not None
+        }
+        if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
+            ti.dag_run.partition_key = next(iter(runtime_pks))
+        dag_run_partition_key = ti.dag_run.partition_key
+
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -1515,11 +1525,25 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             )
         }
 
-        asset_event_extras: dict[SerializedAssetUniqueKey, dict] = {
-            SerializedAssetUniqueKey(**event["dest_asset_key"]): event["extra"]
-            for event in outlet_events
-            if "source_alias_name" not in event
-        }
+        def _register(am: AssetModel, key: SerializedAssetUniqueKey) -> None:
+            events_for_asset = events_by_asset.get(key, [])
+            if not events_for_asset:
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=None,
+                    partition_key=dag_run_partition_key,
+                    session=session,
+                )
+                return
+            for extra, event_pk in events_for_asset:
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=extra,
+                    partition_key=event_pk if event_pk is not None else dag_run_partition_key,
+                    session=session,
+                )
 
         for key in asset_keys:
             try:
@@ -1532,52 +1556,36 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 continue
             ti.log.debug("register event for asset %s", am)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=am,
-                extra=asset_event_extras.get(key),
-                partition_key=partition_key,
-                session=session,
-            )
+            _register(am, key)
 
         if asset_name_refs:
-            asset_models_by_name = {key.name: am for key, am in asset_models.items()}
-            asset_event_extras_by_name = {key.name: extra for key, extra in asset_event_extras.items()}
+            asset_models_by_name: dict[str, tuple[SerializedAssetUniqueKey, AssetModel]] = {
+                key.name: (key, am) for key, am in asset_models.items()
+            }
             for nref in asset_name_refs:
                 try:
-                    am = asset_models_by_name[nref.name]
+                    key, am = asset_models_by_name[nref.name]
                 except KeyError:
                     ti.log.warning(
                         'Task has inactive assets "Asset.ref(name=%s)" in inlets or outlets', nref.name
                     )
                     continue
                 ti.log.debug("register event for asset name ref %s", am)
-                asset_manager.register_asset_change(
-                    task_instance=ti,
-                    asset=am,
-                    extra=asset_event_extras_by_name.get(nref.name),
-                    partition_key=partition_key,
-                    session=session,
-                )
+                _register(am, key)
         if asset_uri_refs:
-            asset_models_by_uri = {key.uri: am for key, am in asset_models.items()}
-            asset_event_extras_by_uri = {key.uri: extra for key, extra in asset_event_extras.items()}
+            asset_models_by_uri: dict[str, tuple[SerializedAssetUniqueKey, AssetModel]] = {
+                key.uri: (key, am) for key, am in asset_models.items()
+            }
             for uref in asset_uri_refs:
                 try:
-                    am = asset_models_by_uri[uref.uri]
+                    key, am = asset_models_by_uri[uref.uri]
                 except KeyError:
                     ti.log.warning(
                         'Task has inactive assets "Asset.ref(uri=%s)" in inlets or outlets', uref.uri
                     )
                     continue
                 ti.log.debug("register event for asset uri ref %s", am)
-                asset_manager.register_asset_change(
-                    task_instance=ti,
-                    asset=am,
-                    extra=asset_event_extras_by_uri.get(uref.uri),
-                    partition_key=partition_key,
-                    session=session,
-                )
+                _register(am, key)
 
         def _asset_event_extras_from_aliases() -> dict[tuple[SerializedAssetUniqueKey, str, str], set[str]]:
             d = defaultdict(set)
@@ -1616,7 +1624,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=asset,
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
-                    partition_key=partition_key,
+                    partition_key=dag_run_partition_key,
                     session=session,
                 )
                 if event is None:
@@ -1628,7 +1636,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         asset=asset,
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
-                        partition_key=partition_key,
+                        partition_key=dag_run_partition_key,
                         session=session,
                     )
 

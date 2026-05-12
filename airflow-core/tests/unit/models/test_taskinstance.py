@@ -3513,6 +3513,163 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert pakl.target_dag_id == "asset_event_listener"
 
 
+def test_runtime_partition_key_backfills_dag_run_when_none(dag_maker, session):
+    """Single runtime key on a PartitionAtRuntime-style run (dag_run.partition_key=None) back-fills the run."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_backfill", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "us"
+    session.refresh(dr)
+    assert dr.partition_key == "us"
+
+
+def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
+    """Task-emitted key lands on the AssetEvent but does NOT overwrite a scheduler-set DagRun.partition_key."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_no_overwrite", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="scheduler-key", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "task-key"},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "task-key"
+    session.refresh(dr)
+    assert dr.partition_key == "scheduler-key"
+
+
+def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session):
+    """Multiple distinct runtime keys produce one AssetEvent each; DagRun.partition_key stays None."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_fanout", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "eu"},
+        ],
+        session=session,
+    )
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "eu"}
+    session.refresh(dr)
+    assert dr.partition_key is None
+
+
+def test_runtime_partition_key_falls_back_to_dag_run_when_event_has_no_key(dag_maker, session):
+    """An outlet event without partition_key falls back to dag_run.partition_key (backward compat)."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_fallback", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {"x": 1}},
+        ],
+        session=session,
+    )
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert event.partition_key == "from-run"
+
+
+def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
+    """One event with partition_key + one without produce two AssetEvents (with/without override)."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_pk_mixed", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}},
+        ],
+        session=session,
+    )
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "from-run"}
+    session.refresh(dr)
+    assert dr.partition_key == "from-run"
+
+
+def test_when_runtime_partition_keys_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    """Runtime-emitted fan-out populates PartitionedAssetKeyLog + AssetPartitionDagRun per key."""
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="rt_producer", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    producer_dag_id = dag.dag_id
+    dr = dag_maker.create_dagrun(session=session)
+    assert dr.partition_key is None
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="rt_consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name="hello"), default_partition_mapper=IdentityMapper()
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "us"},
+            {"dest_asset_key": {"name": "hello", "uri": "hello"}, "extra": {}, "partition_key": "eu"},
+        ],
+        session=session,
+    )
+    session.commit()
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == producer_dag_id)).all()
+    assert {e.partition_key for e in events} == {"us", "eu"}
+    pakls = session.scalars(select(PartitionedAssetKeyLog)).all()
+    apdrs = session.scalars(select(AssetPartitionDagRun)).all()
+    assert {p.source_partition_key for p in pakls} == {"us", "eu"}
+    assert {p.target_partition_key for p in pakls} == {"us", "eu"}
+    assert {p.target_dag_id for p in pakls} == {"rt_consumer"}
+    assert {a.partition_key for a in apdrs} == {"us", "eu"}
+    assert {a.target_dag_id for a in apdrs} == {"rt_consumer"}
+
+
 async def empty_callback_for_deadline():
     """Used in deadline tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
