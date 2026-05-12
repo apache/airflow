@@ -610,6 +610,12 @@ metrics:
     legacy_name: "dagrun.{dag_id}.first_task_scheduling_delay"
     name_variables: ["dag_id"]
 
+  - name: "dagrun.first_task_start_delay"
+    description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "collect_db_dags"
     description: "Milliseconds taken for fetching all Serialized Dags from DB"
     type: "timer"
