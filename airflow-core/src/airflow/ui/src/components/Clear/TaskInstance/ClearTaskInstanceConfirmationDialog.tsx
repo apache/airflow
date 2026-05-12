@@ -67,7 +67,10 @@ const ClearTaskInstanceConfirmationDialog = ({
       include_past: dagDetails?.past,
       include_upstream: dagDetails?.upstream,
       only_failed: dagDetails?.onlyFailed,
-      task_ids: [[dagDetails?.taskId ?? "", dagDetails?.mapIndex ?? 0]],
+      task_ids:
+        dagDetails?.mapIndex === undefined
+          ? [dagDetails?.taskId ?? ""]
+          : [[dagDetails.taskId, dagDetails.mapIndex]],
     },
   });
 

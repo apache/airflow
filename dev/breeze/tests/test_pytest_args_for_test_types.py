@@ -173,6 +173,7 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/plugins",
                 "airflow-core/tests/unit/security",
                 "airflow-core/tests/unit/sensors",
+                "airflow-core/tests/unit/state",
                 "airflow-core/tests/unit/task",
                 "airflow-core/tests/unit/testconfig",
                 "airflow-core/tests/unit/timetables",
@@ -182,12 +183,12 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.HELM,
             "All",
-            ["helm-tests"],
+            ["chart/tests"],
         ),
         (
             GroupOfTests.HELM,
             "airflow_aux",
-            ["helm-tests/tests/helm_tests/airflow_aux"],
+            ["chart/tests/helm_tests/airflow_aux"],
         ),
     ],
 )
@@ -303,7 +304,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.HELM,
             "All",
             [
-                "helm-tests",
+                "chart/tests",
             ],
         ),
         (

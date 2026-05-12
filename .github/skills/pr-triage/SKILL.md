@@ -1,27 +1,14 @@
 ---
 name: pr-triage
 description: |
-  Sweep open pull requests on `apache/airflow` (or another
-  target repo), classify each one against the project's quality
-  criteria, propose a disposition, and — on the maintainer's
-  confirmation — carry out the action via `gh`. Covers the
-  first-pass triage that used to live in `breeze pr auto-triage`
-  (triage mode): decide whether each PR should be converted to
-  draft with a quality-issues comment, commented on, closed,
-  rebased, have CI reruns triggered, have a first-time-contributor
-  workflow approved, be pinged to a stale reviewer, or marked
-  `ready for maintainer review`. Does **not** perform
-  code review (no LLM line comments, no approve/request-changes
-  submissions) — that lives in a separate skill.
+  First-pass triage of open PRs on apache/airflow — classify each against
+  project quality criteria and propose / carry out a disposition (draft,
+  comment, close, rebase, rerun CI, approve first-contributor workflow, ping
+  reviewer, or mark `ready for maintainer review`). Does not perform code review.
 when_to_use: |
-  Invoke when a maintainer says "triage the PR queue", "go through
-  new contributor PRs", "run the morning triage", "triage PR NNN",
-  "are there any stale PRs we should close", or any variation on
-  the "sweep the contributor PRs and tell me which ones need
-  action" theme. Also appropriate as a recurring morning sweep —
-  the skill is cheap against a one-page batch (default 20 PRs)
-  and is a no-op when every candidate is already triaged or inside
-  its grace window.
+  When a maintainer says "triage the PR queue", "morning triage", "triage PR
+  NNN", "go through new contributor PRs", or "are there stale PRs to close".
+  Cheap to run as a recurring sweep.
 license: Apache-2.0
 ---
 <!-- SPDX-License-Identifier: Apache-2.0
@@ -59,8 +46,8 @@ directory break the logic out topic-by-topic:
 |---|---|
 | [`prerequisites.md`](prerequisites.md) | Pre-flight — `gh` auth, repo access, required labels. |
 | [`fetch-and-batch.md`](fetch-and-batch.md) | Aliased GraphQL queries, page sizes, prefetch plan, session cache. |
-| [`classify.md`](classify.md) | Decision matrix: pending workflow approval, deterministic flags, passing, stale review, already-triaged, stale-draft, inactive open, stale workflow. |
-| [`suggested-actions.md`](suggested-actions.md) | How to compute the default action + reason per classification. |
+| [`classify-and-act.md`](classify-and-act.md) | Single ordered decision table: pre-filters + first-match-wins rows that yield `(classification, action, reason)`. Replaces the previous `classify.md` + `suggested-actions.md` split. |
+| [`rationale.md`](rationale.md) | Companion to `classify-and-act.md`: per-row prose, heuristic discussion, draft-vs-comment-vs-ping reasoning. Loaded only when the rule's effect is contested. |
 | [`actions.md`](actions.md) | `gh` / GraphQL recipes for every action the skill can execute. |
 | [`comment-templates.md`](comment-templates.md) | Verbatim comment bodies for draft / close / comment / ping / stale-sweep. |
 | [`workflow-approval.md`](workflow-approval.md) | First-time-contributor workflow-approval flow (diff inspection, approve, flag-as-suspicious). |
@@ -189,7 +176,7 @@ that carry it, and do not let per-PR edits drop it. See
 conversation.** When a maintainer has commented on the PR
 recently, the skill steps back. Two specific cases, both
 enforced as pre-classification filters in
-[`classify.md#5-active-maintainer-conversation-on-the-pr`](classify.md):
+[`classify-and-act.md#pre-filters`](classify-and-act.md) (rows F5a, F5b):
 
 - **Author-response cooldown (≥ 72 hours).** If the most recent
   comment by a `COLLABORATOR`/`MEMBER`/`OWNER` was posted after
@@ -265,7 +252,7 @@ gracefully with warnings.
 ## Step 1 — Resolve the selector and fetch page 1
 
 Translate the selector into the GraphQL PR-list query from
-[`fetch-and-batch.md#pr-list-query`](fetch-and-batch.md). Fetch
+[`fetch-and-batch.md`](fetch-and-batch.md). Fetch
 the first page (default 50 PRs) and enrich it in a *single*
 aliased batch call that returns, for every PR on the page:
 
@@ -283,70 +270,35 @@ pulls a PR out of a group.
 
 ---
 
-## Step 2 — Filter and classify
+## Step 2 — Filter, classify, and pick action
 
-Apply the filter rules in
-[`classify.md#pre-classification-filters`](classify.md) to drop
-collaborators, bot accounts, already-triaged PRs that are still
-inside their waiting window, and (per Golden rule 9) PRs with an
-active maintainer conversation — fresh `< 72h` collaborator
-comment after the last push, or a maintainer-to-maintainer ping
-that hasn't been answered yet. Then classify each remaining PR
-into one of:
+Run the page through [`classify-and-act.md`](classify-and-act.md):
 
-- `pending_workflow_approval` — needs `gh run approve` before
-  CI can run (first-time contributor signal)
-- `stale_copilot_review` — unresolved Copilot-review thread
-  older than 7 days with no author reply (evaluated before
-  `deterministic_flag`; suggested action is `draft`)
-- `deterministic_flag` — has one or more of: merge conflict,
-  failing CI past its grace window, unresolved review thread
-  from a collaborator
-- `passing` — green CI, no conflicts, no unresolved threads
-- `stale_review` — `CHANGES_REQUESTED` review + newer author
-  commits but no follow-up ping
-- `already_triaged` — already has a viewer comment after the
-  last commit and is inside its waiting window
-- `stale_draft`, `inactive_open`, `stale_workflow_approval` —
-  matched by [`stale-sweeps.md`](stale-sweeps.md)
+1. Apply the [pre-filters](classify-and-act.md#pre-filters) (F1–F5b)
+   to drop collaborator PRs, bot accounts, fresh drafts,
+   already-marked-ready PRs without regression, and PRs with an
+   active maintainer conversation (72-hour author cooldown or an
+   unanswered maintainer-to-maintainer ping).
+2. Evaluate the [decision table](classify-and-act.md#decision-table)
+   top-to-bottom. The first matching row yields the
+   `(classification, action, reason)` tuple for that PR.
+3. For any PR that the table classifies as `passing` (rows 19,
+   20), the [Real-CI guard](classify-and-act.md#real-ci-guard)
+   must pass — otherwise re-route to `pending_workflow_approval`
+   (row 1) or `rebase` (row 16).
 
-Classification is cheap (data is already in memory from Step 1)
-and purely deterministic. See
-[`classify.md`](classify.md) for the full decision table and
-the grace-period rules.
+Classification + action selection is a pure function of the data
+already fetched in Step 1. No extra network calls. No prompts.
+
+The output is a list of `(pr, classification, action, reason)`
+tuples that the interaction loop then groups in Step 3. See
+[`rationale.md`](rationale.md) only when a decision needs prose
+context — borderline PR, contested rule, or when editing the
+table itself.
 
 ---
 
-## Step 3 — Compute suggested action per PR
-
-For each classified PR, pick the default action and a reason
-string using [`suggested-actions.md`](suggested-actions.md):
-
-| Classification | Default action |
-|---|---|
-| `pending_workflow_approval` | `approve-workflow` (after diff review) or `flag-suspicious` |
-| `stale_copilot_review` | `draft` (with "Unaddressed Copilot review" violation, 7-day grace) |
-| `deterministic_flag` — conflicts (any combination) | `draft` (GitHub update-branch can't resolve conflicts — never attempt `rebase`) |
-| `deterministic_flag` — ≤2 CI failures, no conflicts, no threads, branch up-to-date | `rerun` |
-| `deterministic_flag` — failures all match recent main-branch failures | `rerun` |
-| `deterministic_flag` — static-check-only failures | `comment` |
-| `deterministic_flag` — unresolved threads only, CI green, threads look addressed (heuristic) | `mark-ready-with-ping` (label + ping reviewers to confirm) |
-| `deterministic_flag` — unresolved review threads only, CI green | `ping` |
-| `deterministic_flag` — author has >3 flagged PRs | `close` |
-| `deterministic_flag` — other | `draft` |
-| `passing` | `mark-ready` |
-| `stale_review` | `ping` |
-| `already_triaged` | `skip` |
-| `stale_draft` | `close` |
-| `inactive_open` | `draft` (with activity-resume comment) |
-| `stale_workflow_approval` | `draft` |
-
-This step produces a list of `(pr, classification, action,
-reason)` tuples that the interaction loop then groups.
-
----
-
-## Step 4 — Group and present
+## Step 3 — Group and present
 
 Using [`interaction-loop.md`](interaction-loop.md), group the
 tuples by `action` and present each group to the maintainer in
@@ -386,7 +338,7 @@ previews for the next `approve-workflow` group) in parallel.
 
 ---
 
-## Step 5 — Execute
+## Step 4 — Execute
 
 On the maintainer's confirmation, execute the action for the
 confirmed PR(s) using the recipes in [`actions.md`](actions.md).
@@ -405,10 +357,10 @@ window skips the PRs we just handled.
 
 ---
 
-## Step 6 — Paginate and sweep
+## Step 5 — Paginate and sweep
 
 If the page had `has_next_page=true` and the maintainer hasn't
-quit, advance to the next page and repeat Steps 1–5.
+quit, advance to the next page and repeat Steps 1–4.
 
 When the maintainer has worked through every interactive group
 (or supplied `triage stale`), run the stale sweeps from
@@ -420,12 +372,12 @@ When the maintainer has worked through every interactive group
 - convert workflow-approval PRs with >4 weeks of no activity
   to draft
 
-Each sweep emits its own group in the interaction loop (Step 4),
+Each sweep emits its own group in the interaction loop (Step 3),
 so the maintainer still confirms before any PR is touched.
 
 ---
 
-## Step 7 — Session summary
+## Step 6 — Session summary
 
 On exit, print a one-screen summary:
 

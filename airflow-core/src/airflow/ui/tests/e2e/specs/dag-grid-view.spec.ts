@@ -18,10 +18,10 @@
  */
 import { test } from "tests/e2e/fixtures";
 
-test.describe("DAG Grid View", () => {
+test.describe("Dag Grid View", () => {
   test.setTimeout(60_000);
 
-  test("navigate to DAG detail page and display grid view", async ({ executedDagRun, gridPage }) => {
+  test("navigate to Dag detail page and display grid view", async ({ executedDagRun, gridPage }) => {
     await gridPage.navigateToDag(executedDagRun.dagId);
     await gridPage.switchToGridView();
     await gridPage.verifyGridViewIsActive();

@@ -28,7 +28,6 @@ import { handlers } from "src/mocks/handlers";
 // happy-dom. Mock useGraphLayout so the Worker is never constructed. Any
 // test that specifically exercises graph layout should override this mock.
 vi.mock("src/components/Graph/useGraphLayout", () => ({
-  directionOptions: () => ({ items: [] }),
   useGraphLayout: vi.fn().mockReturnValue({ data: undefined, isPending: false }),
 }));
 

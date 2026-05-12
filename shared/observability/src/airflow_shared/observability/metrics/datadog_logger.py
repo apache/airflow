@@ -160,7 +160,6 @@ class SafeDogStatsdLogger:
 
 
 def get_dogstatsd_logger(
-    cls,
     *,
     tags_in_string: str | None = None,
     host: str | None = None,
@@ -177,7 +176,7 @@ def get_dogstatsd_logger(
     from datadog import DogStatsd
 
     dogstatsd_kwargs: dict[str, Any] = {
-        "constant_tags": cls.get_constant_tags(tags_in_string=tags_in_string),
+        "constant_tags": tags_in_string.split(",") if tags_in_string else [],
     }
     if host is not None:
         dogstatsd_kwargs["host"] = host

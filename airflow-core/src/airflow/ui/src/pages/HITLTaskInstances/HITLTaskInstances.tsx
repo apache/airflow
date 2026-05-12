@@ -31,6 +31,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -181,7 +182,7 @@ export const HITLTaskInstances = () => {
   const createdAtLte = searchParams.get(CREATED_AT_LTE) ?? undefined;
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
-  const mapIndex = searchParams.get(MAP_INDEX) ?? "-1";
+  const mapIndexParam = searchParams.get(MAP_INDEX);
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
   const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
   const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
@@ -189,16 +190,29 @@ export const HITLTaskInstances = () => {
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
+  const dagIdArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_DISPLAY_NAME_PATTERN,
+    value: dagIdPattern,
+  });
+  const taskIdArg = useAdvancedSearchArg({
+    patternApiKey: "taskIdPattern",
+    prefixApiKey: "taskIdPrefixPattern",
+    storageKey: TASK_ID_PATTERN,
+    value: taskIdPattern,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       bodySearch,
       createdAtGte,
       createdAtLte,
       dagId: dagId ?? "~",
-      dagIdPrefixPattern: dagIdPattern,
+      ...dagIdArg,
       dagRunId: runId ?? "~",
       limit: pagination.pageSize,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: mapIndexParam === null ? undefined : parseInt(mapIndexParam, 10),
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
       respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
@@ -209,7 +223,7 @@ export const HITLTaskInstances = () => {
       state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
       subjectSearch,
       taskId,
-      taskIdPrefixPattern: taskIdPattern,
+      ...taskIdArg,
     },
     undefined,
     {
@@ -218,8 +232,7 @@ export const HITLTaskInstances = () => {
       refetchInterval: (query) => {
         const hasDeferredWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) =>
-              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+            (detail: HITLDetail) => detail.responded_at === null && detail.task_instance.state === "deferred",
           ),
         );
 

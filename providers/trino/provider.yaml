@@ -97,12 +97,16 @@ integrations:
 asset-uris:
   - schemes: [trino]
     handler: airflow.providers.trino.assets.trino.sanitize_uri
+    factory: airflow.providers.trino.assets.trino.create_asset
+    to_openlineage_converter: airflow.providers.trino.assets.trino.convert_asset_to_openlineage
 
 # dataset has been renamed to asset in Airflow 3.0
 # This is kept for backward compatibility.
 dataset-uris:
   - schemes: [trino]
     handler: airflow.providers.trino.assets.trino.sanitize_uri
+    factory: airflow.providers.trino.assets.trino.create_asset
+    to_openlineage_converter: airflow.providers.trino.assets.trino.convert_asset_to_openlineage
 
 hooks:
   - integration-name: Trino

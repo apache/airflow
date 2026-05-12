@@ -1003,6 +1003,11 @@ def update_config(args) -> None:
         include_secret=True,
         display_sensitive=True,
     )
+    update_sections_lower = {s.lower() for s in update_sections} if update_sections is not None else None
+    update_options_lower = {opt.lower() for opt in update_options} if update_options is not None else None
+    ignore_sections_lower = {s.lower() for s in ignore_sections}
+    ignore_options_lower = {opt.lower() for opt in ignore_options}
+
     for change in CONFIGS_CHANGES:
         if not include_all and not change.breaking:
             continue
@@ -1010,13 +1015,11 @@ def update_config(args) -> None:
         conf_option = change.config.option.lower()
         full_key = f"{conf_section}.{conf_option}"
 
-        if update_sections is not None and conf_section not in [s.lower() for s in update_sections]:
+        if update_sections_lower is not None and conf_section not in update_sections_lower:
             continue
-        if update_options is not None and full_key not in [opt.lower() for opt in update_options]:
+        if update_options_lower is not None and full_key not in update_options_lower:
             continue
-        if conf_section in [s.lower() for s in ignore_sections] or full_key in [
-            opt.lower() for opt in ignore_options
-        ]:
+        if conf_section in ignore_sections_lower or full_key in ignore_options_lower:
             continue
 
         if conf_section not in config_dict or conf_option not in config_dict[conf_section]:

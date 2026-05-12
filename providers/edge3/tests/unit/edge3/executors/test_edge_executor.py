@@ -104,7 +104,7 @@ class TestEdgeExecutor:
                 "task_id": "started_running_orphaned",
             },
         )
-        mock_stats_incr.call_count == 2
+        assert mock_stats_incr.call_count == 1
 
         with create_session() as session:
             jobs = session.scalars(select(EdgeJobModel)).all()

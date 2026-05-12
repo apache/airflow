@@ -55,7 +55,7 @@ export class DagsPage extends BasePage {
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
 
     this.searchBox = page.getByRole("textbox", { name: /search/i });
-    this.searchInput = page.getByPlaceholder("Search DAGs");
+    this.searchInput = page.getByPlaceholder("Search Dags");
     this.operatorFilter = page.getByTestId("operator-filter");
     this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
     this.retriesFilter = page.getByTestId("retries-filter");
@@ -108,7 +108,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Filter DAGs by status
+   * Filter Dags by status
    */
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
@@ -196,7 +196,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Get count of DAGs on current page
+   * Get count of Dags on current page
    */
   public async getDagsCount(): Promise<number> {
     await this.waitForDagList();
@@ -232,7 +232,7 @@ export class DagsPage extends BasePage {
         : this.page.locator(`[id="${controlsId}"]`);
     const options = dropdown.locator('div[role="option"]');
 
-    await expect(options.first()).toBeVisible({ timeout: 10_000 });
+    await expect(options.first()).toBeVisible();
 
     const count = await options.count();
     const dataValues: Array<string> = [];
@@ -275,7 +275,7 @@ export class DagsPage extends BasePage {
         .or(this.page.locator(`[data-testid="dag-name"]:has-text("${dagName}")`))
         .first();
 
-      await expect(hydrationSignal).toBeVisible({ timeout: 10_000 });
+      await expect(hydrationSignal).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
@@ -343,7 +343,7 @@ export class DagsPage extends BasePage {
    */
   public async switchToCardView(): Promise<void> {
     await expect(this.cardViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.cardViewButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.cardViewButton).toBeEnabled();
     await this.cardViewButton.click();
     await this.waitForCardView();
   }
@@ -353,7 +353,7 @@ export class DagsPage extends BasePage {
    */
   public async switchToTableView(): Promise<void> {
     await expect(this.tableViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.tableViewButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.tableViewButton).toBeEnabled();
     await this.tableViewButton.click();
     await this.waitForTableView();
   }
@@ -375,11 +375,11 @@ export class DagsPage extends BasePage {
    * Wait for card view to be visible
    */
   public async waitForCardView(): Promise<void> {
-    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible();
   }
 
   /**
-   * Wait for DAG list to be rendered (card view, table view, or empty state).
+   * Wait for Dag list to be rendered (card view, table view, or empty state).
    */
   public async waitForDagList(): Promise<void> {
     // Wait for actual rendered content — not skeletons, not bare table rows.
@@ -395,12 +395,12 @@ export class DagsPage extends BasePage {
    * Wait for table view to be visible
    */
   public async waitForTableView(): Promise<void> {
-    await expect(this.page.locator("table")).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator("table")).toBeVisible();
   }
 
   private async handleTriggerDialog(): Promise<string | null> {
     await expect(this.confirmButton).toBeVisible({ timeout: 8000 });
-    await expect(this.confirmButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.confirmButton).toBeEnabled();
 
     const responsePromise = this.page.waitForResponse(
       (response: Response) => {
@@ -427,7 +427,6 @@ export class DagsPage extends BasePage {
       // Response parsing failed — return null so caller can handle.
     }
 
-    // eslint-disable-next-line unicorn/no-null
     return null;
   }
 

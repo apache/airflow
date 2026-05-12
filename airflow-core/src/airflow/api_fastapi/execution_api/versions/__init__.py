@@ -33,19 +33,28 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     AddDagRunDetailEndpoint,
     AddNoteField,
     AddPartitionKeyField,
+    AddRunAfterField,
     AddTaskInstanceStartDateField,
     MakeDagRunStartDateNullable,
     ModifyDeferredTaskKwargsToJsonValue,
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_04_17 import AddTeamNameField
+from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
+    AddAssetsByAliasEndpoint,
+    AddRetryPolicyFields,
+    AddStateEndpoints,
+    AddTeamNameField,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
     Version(
-        "2026-04-17",
+        "2026-06-16",
+        AddRetryPolicyFields,
         AddTeamNameField,
+        AddStateEndpoints,
+        AddAssetsByAliasEndpoint,
     ),
     Version(
         "2026-04-06",
@@ -57,6 +66,7 @@ bundle = VersionBundle(
         RemoveUpstreamMapIndexesField,
         AddNoteField,
         AddTaskInstanceStartDateField,
+        AddRunAfterField,
         AddDagEndpoint,
     ),
     Version("2025-11-05", AddTriggeringUserNameField),

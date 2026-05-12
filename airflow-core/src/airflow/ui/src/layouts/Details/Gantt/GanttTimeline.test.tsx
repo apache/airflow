@@ -1,7 +1,3 @@
-/* eslint-disable max-lines */
-
-/* eslint-disable unicorn/no-null */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -64,7 +60,7 @@ const BASE_NODE: GridTask = {
   id: "task_1",
   is_mapped: false,
   label: "task_1",
-} as GridTask;
+};
 
 const makeScrollRef = (): RefObject<HTMLDivElement | null> => {
   const ref = createRef<HTMLDivElement | null>();
@@ -194,7 +190,7 @@ describe("GanttTimeline segment bars", () => {
   });
 
   it("renders bars for multiple tasks independently", () => {
-    const node2: GridTask = { depth: 0, id: "task_2", is_mapped: false, label: "task_2" } as GridTask;
+    const node2: GridTask = { depth: 0, id: "task_2", is_mapped: false, label: "task_2" };
 
     // task_1: scheduled + execution (2 bars)
     const t1Scheduled: GanttDataItem = {

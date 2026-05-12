@@ -30,7 +30,7 @@ from airflow.serialization.definitions.mappedoperator import SerializedMappedOpe
 
 @cache
 def get_task_group_children_getter() -> Callable:
-    """Get the Task Group Children Getter for the DAG."""
+    """Get the Task Group Children Getter for the Dag."""
     sort_order = conf.get("api", "grid_view_sorting_order")
     if sort_order == "topological":
         return methodcaller("topological_sort")

@@ -31,6 +31,7 @@ import sys
 from datetime import datetime
 
 import psutil
+from anyio import Path
 
 
 async def get_example_extended_sysinfo() -> dict[str, str | int | float | datetime]:
@@ -45,7 +46,7 @@ async def get_example_extended_sysinfo() -> dict[str, str | int | float | dateti
     load_1 = loadavg[0]
 
     status = logging.INFO
-    status_text = "I am good, sun is shining 🌞"
+    status_text: str | None = "I am good, sun is shining 🌞"
     if cpu_usage > 95 or disk_free_gb < 5:
         status = logging.ERROR
         status_text = "Critical condition!"
@@ -53,9 +54,18 @@ async def get_example_extended_sysinfo() -> dict[str, str | int | float | dateti
         status = logging.WARNING
         status_text = "Warning condition!"
 
+    # For testing allowing to mock some status from file
+    status_path = Path("/tmp/edge_error_status")
+    if await status_path.exists():
+        status = int(await status_path.read_text())
+        if await Path("/tmp/edge_error_status_text").exists():
+            status_text = await Path("/tmp/edge_error_status_text").read_text()
+        else:
+            status_text = None
+
     return {
         "status": status,
-        "status_text": status_text,
+        **({"status_text": status_text} if status_text else {}),
         "platform": sys.platform,
         "disk_free_gb": disk_free_gb,
         "cpu_usage": cpu_usage,

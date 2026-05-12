@@ -27,6 +27,7 @@ from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, 
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
+    DbtCloudListJobRunsOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
@@ -933,3 +934,203 @@ class TestDbtCloudListJobsOperator:
         mock_list_jobs.return_value.json.return_value = {}
         operator.execute(context=self.mock_context)
         mock_list_jobs.assert_called_once_with(account_id=account_id, order_by=None, project_id=PROJECT_ID)
+
+
+class TestDbtCloudListJobRunsOperator:
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_job_runs")
+    @pytest.mark.parametrize(
+        ("conn_id", "account_id", "job_id"),
+        [
+            (ACCOUNT_ID_CONN, None, JOB_ID),
+            (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, JOB_ID),
+            (DbtCloudHook.default_conn_name, None, None),
+        ],
+    )
+    def test_execute_list_job_runs(self, mock_list_job_runs, conn_id, account_id, job_id):
+        operator = DbtCloudListJobRunsOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            job_id=job_id,
+        )
+
+        mock_list_job_runs.return_value = [mock_response_json({"data": [{"id": 1}, {"id": 2}]})]
+
+        result = operator.execute(context={})
+
+        mock_list_job_runs.assert_called_once_with(
+            account_id=account_id,
+            include_related=None,
+            job_definition_id=job_id,
+            order_by=None,
+        )
+
+        assert result == [{"id": 1}, {"id": 2}]
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_job_runs")
+    def test_execute_without_job_id(self, mock_list_job_runs):
+        operator = DbtCloudListJobRunsOperator(task_id=TASK_ID)
+
+        mock_list_job_runs.return_value = [mock_response_json({"data": [{"id": 1}, {"id": 2}]})]
+
+        result = operator.execute(context={})
+
+        mock_list_job_runs.assert_called_once_with(
+            account_id=None,
+            include_related=None,
+            job_definition_id=None,
+            order_by=None,
+        )
+
+        assert result == [{"id": 1}, {"id": 2}]
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_job_runs")
+    @pytest.mark.parametrize(
+        ("latest_only", "status_filter", "response_data", "expected"),
+        [
+            # latest_only=True, empty.
+            (
+                True,
+                None,
+                [],
+                None,
+            ),
+            # status_filter and latest_only = True, empty.
+            (
+                True,
+                10,
+                [{"id": 1, "status": 20}],
+                None,
+            ),
+            # status_filter and latest_only = False, empty.
+            (
+                False,
+                10,
+                [{"id": 1, "status": 20}],
+                [],
+            ),
+            # status_filter single.
+            (
+                False,
+                10,
+                [{"id": 1, "status": 10}, {"id": 2, "status": 20}],
+                [{"id": 1, "status": 10}],
+            ),
+            # status_filter multiple.
+            (
+                False,
+                [10, 20],
+                [
+                    {"id": 1, "status": 10},
+                    {"id": 2, "status": 20},
+                    {"id": 3, "status": 30},
+                ],
+                [
+                    {"id": 1, "status": 10},
+                    {"id": 2, "status": 20},
+                ],
+            ),
+            # latest_only and status_filter.
+            (
+                True,
+                10,
+                [
+                    {"id": 1, "status": 20},
+                    {"id": 2, "status": 10},
+                    {"id": 3, "status": 10},
+                ],
+                {"id": 2, "status": 10},
+            ),
+            # "status" is string.
+            (
+                False,
+                10,
+                [{"id": 1, "status": "10"}, {"id": 2, "status": "20"}],
+                [{"id": 1, "status": "10"}],
+            ),
+            # Missing status.
+            (
+                False,
+                10,
+                [{"id": 1}, {"id": 2, "status": 10}],
+                [{"id": 2, "status": 10}],
+            ),
+            # 'None' status.
+            (
+                False,
+                10,
+                [{"id": 1, "status": None}, {"id": 2, "status": 10}],
+                [{"id": 2, "status": 10}],
+            ),
+        ],
+    )
+    def test_execute_filtering_and_latest(
+        self,
+        mock_list_job_runs,
+        latest_only,
+        status_filter,
+        response_data,
+        expected,
+    ):
+        operator = DbtCloudListJobRunsOperator(
+            task_id=TASK_ID,
+            latest_only=latest_only,
+            status_filter=status_filter,
+        )
+
+        mock_list_job_runs.return_value = (
+            [mock_response_json({"data": response_data})] if response_data else []
+        )
+
+        result = operator.execute(context={})
+
+        assert result == expected
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_job_runs")
+    @pytest.mark.parametrize(
+        ("latest_only", "order_by", "expected_order"),
+        [
+            (True, None, "-created_at"),
+            (True, "-id", "-id"),  # user override should win
+            (False, None, None),
+        ],
+    )
+    def test_execute_order_by_behavior(
+        self,
+        mock_list_job_runs,
+        latest_only,
+        order_by,
+        expected_order,
+    ):
+        operator = DbtCloudListJobRunsOperator(
+            task_id=TASK_ID,
+            latest_only=latest_only,
+            order_by=order_by,
+        )
+
+        mock_list_job_runs.return_value = []
+
+        operator.execute(context={})
+
+        mock_list_job_runs.assert_called_once_with(
+            account_id=None,
+            include_related=None,
+            job_definition_id=None,
+            order_by=expected_order,
+        )
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_job_runs")
+    def test_execute_multiple_pages(self, mock_list_job_runs):
+        operator = DbtCloudListJobRunsOperator(task_id=TASK_ID)
+
+        mock_list_job_runs.return_value = [
+            mock_response_json({"data": [{"id": 1, "status": 10}]}),
+            mock_response_json({"data": [{"id": 2, "status": 20}]}),
+        ]
+
+        result = operator.execute(context={})
+
+        assert result == [
+            {"id": 1, "status": 10},
+            {"id": 2, "status": 20},
+        ]

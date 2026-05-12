@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 @cli_utils.action_cli
 @providers_configuration_loaded
 def create_backfill(args) -> None:
-    """Create backfill job or dry run for a DAG or list of DAGs using regex."""
+    """Create backfill job or dry run for a Dag or list of Dags using regex."""
     logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
     console = AirflowConsole()
