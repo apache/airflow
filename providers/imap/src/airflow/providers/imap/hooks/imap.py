@@ -193,6 +193,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        overwrite: bool = True,
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -211,6 +212,10 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
+        :param overwrite: If set to True, files with the same name will be overwritten.
+            If set to False, unique filenames will be generated for duplicate filenames
+            by appending a suffix (e.g. ``report_1.csv``, ``report_2.csv``).
+            Defaults to True for backwards compatibility.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, max_mails, mail_folder, mail_filter
@@ -219,7 +224,7 @@ class ImapHook(BaseHook):
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
-        self._create_files(mail_attachments, local_output_directory)
+        self._create_files(mail_attachments, local_output_directory, overwrite=overwrite)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode not in ("raise", "warn", "ignore"):
@@ -287,14 +292,54 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
+    def _create_files(
+        self, mail_attachments: list, local_output_directory: str, *, overwrite: bool = True
+    ) -> None:
+        seen: dict[str, int] = {}
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
             else:
-                self._create_file(name, payload, local_output_directory)
+                if not overwrite:
+                    file_name = self._unique_name(name, seen, local_output_directory)
+                    file_path = self._correct_path(file_name, local_output_directory)
+                    while True:
+                        try:
+                            with open(file_path, "xb") as f:
+                                f.write(payload)
+                            break
+                        except FileExistsError:
+                            seen[file_name] = 0
+                            file_name = self._unique_name(name, seen, local_output_directory)
+                            file_path = self._correct_path(file_name, local_output_directory)
+                else:
+                    file_name = name
+                    self._create_file(file_name, payload, local_output_directory)
+
+    def _unique_name(self, name: str, seen: dict[str, int], local_output_directory: str) -> str:
+        """
+        Generate a unique filename by appending a suffix when duplicates exist.
+
+        Checks both the in-memory ``seen`` dict and the filesystem so that
+        files left over from previous runs are never overwritten.
+        """
+        base, ext = os.path.splitext(name)
+        if name not in seen and not os.path.exists(self._correct_path(name, local_output_directory)):
+            seen[name] = 0
+            return name
+        if name not in seen:
+            seen[name] = 0
+        candidate: str
+        while True:
+            seen[name] += 1
+            candidate = f"{base}_{seen[name]}{ext}"
+            if candidate not in seen and not os.path.exists(
+                self._correct_path(candidate, local_output_directory)
+            ):
+                seen[candidate] = 0
+                return candidate
 
     def _is_symlink(self, name: str) -> bool:
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
