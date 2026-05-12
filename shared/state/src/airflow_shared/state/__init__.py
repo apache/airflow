@@ -115,17 +115,25 @@ class BaseStateBackend(ABC):
 
     @abstractmethod
     async def aget(self, scope: StateScope, key: str) -> str | None:
-        """Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``."""
+        """
+        Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        Async methods do not take a ``session`` argument — implementations are expected
+        to manage their own async sessions internally (e.g. via ``create_session_async``).
+        """
 
     @abstractmethod
-    async def aset(
-        self, scope: StateScope, key: str, value: str, *, session: Session | None = None
-    ) -> None:
+    async def aset(self, scope: StateScope, key: str, value: str) -> None:
         """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
 
     @abstractmethod
     async def adelete(self, scope: StateScope, key: str) -> None:
-        """Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``."""
+        """
+        Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        Async methods do not take a ``session`` argument — implementations manage their
+        own async sessions internally.
+        """
 
     @abstractmethod
     async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
@@ -135,4 +143,7 @@ class BaseStateBackend(ABC):
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
         mapped instance of the task. For ``AssetScope`` the flag has no effect.
+
+        Async methods do not take a ``session`` argument — implementations manage their
+        own async sessions internally.
         """
