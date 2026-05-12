@@ -82,6 +82,8 @@ from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.sql.dml import Update
 
 router = VersionedAPIRouter()
@@ -176,10 +178,28 @@ def ti_run(
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
 
+    first_reschedule_start_date: datetime | None = None
+
     # don't update start date when resuming from deferral
     if ti.next_kwargs:
         data.pop("start_date")
         log.debug("Removed start_date from update as task is resuming from deferral")
+    elif "start_date" in data:
+        # Preserve the first-poke start_date for a rescheduled task. The supervisor sends
+        # start_date=utcnow() on every poke; without this guard the metric
+        # dagrun.first_task_scheduling_delay (computed from start_date - queued_at)
+        # collapses to ~0 for any DAG fronted by a reschedule-mode sensor.
+        # prepare_db_for_next_try clears TaskReschedule rows and rotates ti.id on each
+        # retry, so rows with ti_id == task_instance_id always belong to the current try.
+        first_reschedule_start_date = session.scalar(
+            select(TaskReschedule.start_date)
+            .where(TaskReschedule.ti_id == task_instance_id)
+            .order_by(TaskReschedule.id.asc())
+            .limit(1)
+        )
+        if first_reschedule_start_date is not None:
+            data["start_date"] = first_reschedule_start_date
+            log.debug("Restored start_date from first TaskReschedule entry for rescheduled task")
 
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
@@ -302,6 +322,10 @@ def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
+        elif first_reschedule_start_date is not None:
+            # Mirror the deferral-resume behavior so the supervisor preserves the
+            # first-poke start_date for context["ti"].start_date as well.
+            context.start_date = first_reschedule_start_date
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(

@@ -790,6 +790,97 @@ class TestTIRunState:
         assert ti is not None
         assert ti.start_date == original_start_date
 
+    def test_ti_run_restores_start_date_for_rescheduled_task(
+        self,
+        client,
+        session,
+        create_task_instance,
+    ):
+        """
+        For a reschedule-mode sensor, the supervisor sends ``start_date=utcnow()`` on every
+        poke. The ``ti_run`` endpoint must restore the first-poke ``start_date`` from the
+        ``TaskReschedule`` table so that ``dagrun.first_task_scheduling_delay`` reflects the
+        actual wait time instead of collapsing to ~0.
+        """
+        original_start_date = timezone.parse("2024-09-30T12:00:00Z")
+        payload_start_date = timezone.parse("2024-09-30T12:05:00Z")
+
+        ti = create_task_instance(
+            task_id="test_ti_run_restores_start_date_for_rescheduled_task",
+            state=State.QUEUED,
+            session=session,
+            start_date=original_start_date,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        session.add(
+            TaskReschedule(
+                ti_id=ti.id,
+                start_date=original_start_date,
+                end_date=timezone.parse("2024-09-30T12:00:10Z"),
+                reschedule_date=timezone.parse("2024-09-30T12:01:00Z"),
+            )
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": payload_start_date.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert timezone.parse(result["start_date"]) == original_start_date
+
+        session.expunge_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti is not None
+        assert ti.start_date == original_start_date
+
+    def test_ti_run_uses_payload_start_date_when_no_reschedule_rows(
+        self,
+        client,
+        session,
+        create_task_instance,
+    ):
+        """
+        For a non-rescheduled task, the ``TaskReschedule`` lookup returns nothing and the
+        payload ``start_date`` from the supervisor is preserved unchanged.
+        """
+        payload_start_date = timezone.parse("2024-09-30T12:05:00Z")
+
+        ti = create_task_instance(
+            task_id="test_ti_run_uses_payload_start_date_when_no_reschedule_rows",
+            state=State.QUEUED,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": payload_start_date.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        session.expunge_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti is not None
+        assert ti.start_date == payload_start_date
+
     @pytest.mark.parametrize(
         "initial_ti_state",
         [s for s in TaskInstanceState if s not in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING)],

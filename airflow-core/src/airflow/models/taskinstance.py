@@ -1312,11 +1312,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
             ti.start_date = ti.start_date if ti.next_method else timezone.utcnow()
-            if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            if not ti.next_method:
+                # Restore start_date for a rescheduled task. The state guard
+                # `ti.state == UP_FOR_RESCHEDULE` that previously wrapped this lookup is
+                # unreliable: the scheduler advances UP_FOR_RESCHEDULE -> QUEUED before the
+                # worker calls this method, so refresh_from_db returns QUEUED and the guard
+                # never fires. The query is scoped to the current ti.id, which is
+                # rotated by prepare_db_for_next_try on each retry, and returns no rows for
+                # non-rescheduled tasks -- so dropping the state guard is safe.
                 tr_start_date = session.scalar(
                     TR.stmt_for_task_instance(ti, descending=False).with_only_columns(TR.start_date).limit(1)
                 )
-                if tr_start_date:
+                if tr_start_date is not None:
                     ti.start_date = tr_start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.

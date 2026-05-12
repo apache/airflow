@@ -1562,6 +1562,36 @@ class TestTaskInstance:
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.FAILED
 
+    def test_check_and_change_state_before_execution_restores_reschedule_start_date(
+        self, create_task_instance, testing_dag_bundle
+    ):
+        """
+        The state guard ``ti.state == UP_FOR_RESCHEDULE`` does not fire when the scheduler
+        has already advanced the state to ``QUEUED`` before the worker runs the check (the
+        normal multi-scheduler flow). The TaskReschedule lookup must restore the original
+        ``start_date`` regardless of the observed state.
+        """
+        first_poke_start_date = timezone.datetime(2024, 1, 1, 10, 0, 0)
+        ti = create_task_instance(dag_id="test_reschedule_start_date_restored_under_queued")
+        with create_session() as session:
+            ti.state = State.QUEUED
+            session.add(
+                TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=first_poke_start_date,
+                    end_date=timezone.datetime(2024, 1, 1, 10, 0, 10),
+                    reschedule_date=timezone.datetime(2024, 1, 1, 10, 1, 0),
+                )
+            )
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti_from_deserialized_task = TI(
+            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
+        )
+
+        assert ti_from_deserialized_task.check_and_change_state_before_execution()
+        assert ti_from_deserialized_task.start_date == first_poke_start_date
+
     def test_try_number(self, create_task_instance):
         """
         Test the try_number accessor behaves in various running states
