@@ -71,6 +71,9 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
     // Airflow UI timezone (not the browser's local timezone).
     const localFormat = parsed.tz(selectedTimezone).format("YYYY-MM-DDTHH:mm");
 
+    // Drop any debounced call queued by prior typing so it cannot fire after
+    // this paste and trigger a redundant onChange on the parent form.
+    debouncedOnDateChange.cancel();
     onDateChange({
       ...event,
       target: { ...event.currentTarget, value: localFormat },

@@ -101,4 +101,29 @@ describe("DateTimeInput onPaste timezone handling", () => {
     expect(input.value).toBe("");
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("does not fire a pending debounced typing call after a paste", () => {
+    vi.useFakeTimers();
+    try {
+      const { input, onChange } = renderWithTimezone("UTC");
+
+      // 1. User types — schedules debouncedOnDateChange (1s delay).
+      fireEvent.change(input, { target: { value: "2026-01-15T05:00" } });
+      expect(onChange).not.toHaveBeenCalled();
+
+      // 2. Within the debounce window, user pastes — fires onChange immediately.
+      vi.advanceTimersByTime(300);
+      paste(input, "2026-12-31T23:59:00Z");
+      expect(onChange).toHaveBeenCalledTimes(1);
+
+      // 3. Advance past the debounce delay. The pending typed call must NOT fire,
+      // otherwise the parent form gets a redundant onChange (and any side effects
+      // attached to it run twice).
+      vi.advanceTimersByTime(2000);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(lastEmittedValue(onChange)).toBe("2026-12-31T23:59:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
