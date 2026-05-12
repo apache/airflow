@@ -604,6 +604,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.executor_heartbeat_duration"
+    description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
+      by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.first_task_scheduling_delay"
     description: "Milliseconds elapsed between first task start_date and dagrun expected start"
     type: "timer"
