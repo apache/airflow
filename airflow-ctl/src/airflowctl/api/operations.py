@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -68,6 +69,10 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -918,5 +923,58 @@ class PluginsOperations(BaseOperations):
         try:
             self.response = self.client.get("plugins/importErrors")
             return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def get(self, dag_id: str, task_id: str) -> TaskResponse | ServerResponseError:
+        """Get a task."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/tasks/{task_id}")
+            return TaskResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(self, dag_id: str, order_by: str | None = None) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks for a Dag."""
+        params: dict[str, Any] = {}
+        if order_by is not None:
+            params["order_by"] = order_by
+        return super().execute_list(
+            path=f"dags/{dag_id}/tasks", data_model=TaskCollectionResponse, params=params
+        )
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task instances operations."""
+
+    def get(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskInstanceResponse | ServerResponseError:
+        """Get a task instance."""
+        try:
+            self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
+            return TaskInstanceResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a Dag run."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
+
+    def clear(
+        self, dag_id: str, clear_task_instances_body: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances for a Dag."""
+        try:
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=clear_task_instances_body.model_dump(mode="json", exclude_unset=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
