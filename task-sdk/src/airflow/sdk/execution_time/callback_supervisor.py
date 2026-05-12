@@ -29,6 +29,7 @@ import structlog
 from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import accepts_context, accepts_keyword_args
+from airflow.sdk.api.datamodels._generated import CallbackTerminalState
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
@@ -362,7 +363,7 @@ def supervise_callback(
         # hook adopts automatically for the rest of the run.
         client.callbacks.start(id)
 
-        terminal_state = "failed"
+        terminal_state = CallbackTerminalState.FAILED
         terminal_output = None
 
         try:
@@ -386,7 +387,7 @@ def supervise_callback(
                 duration=end - start,
             )
             if exit_code == 0:
-                terminal_state = "success"
+                terminal_state = CallbackTerminalState.SUCCESS
             else:
                 terminal_output = f"Callback subprocess exited with code {exit_code}"
         except Exception as e:

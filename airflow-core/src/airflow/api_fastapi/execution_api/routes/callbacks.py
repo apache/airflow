@@ -86,7 +86,7 @@ def callback_run(
     # Allow QUEUED → RUNNING transition; treat RUNNING as idempotent so a retried
     # supervisor start does not 409. Anything else (PENDING / SCHEDULED / terminal) rejects.
     if callback.state == CallbackState.RUNNING:
-        log.info("Duplicate start request received from %s", callback.id)
+        log.info("Duplicate start request received", callback_id=str(callback.id))
     elif callback.state == CallbackState.QUEUED:
         callback.state = CallbackState.RUNNING
         session.add(callback)
