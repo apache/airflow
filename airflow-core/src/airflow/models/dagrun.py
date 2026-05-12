@@ -1216,6 +1216,7 @@ class DagRun(Base, LoggingMixin):
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error("Task deadlock (no runnable tasks); marking run %s failed", self)
+            stats.incr("dagrun.deadlocked", tags={"dag_id": self.dag_id, "run_type": self.run_type})
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 

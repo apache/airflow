@@ -380,6 +380,31 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
+    def test_dagrun_deadlock_emits_stats_counter(self, dag_maker, session):
+        """When the deadlock branch fires, ``dagrun.deadlocked`` is incremented with dag_id and run_type tags."""
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
+            op1 = EmptyOperator(task_id="A")
+            op2 = EmptyOperator(task_id="B")
+            op2.trigger_rule = TriggerRule.ONE_FAILED
+            op2.set_upstream(op1)
+
+        dr = dag_maker.create_dagrun()
+
+        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
+        ti_op2.set_state(state=None, session=session)
+        ti_op2.task.trigger_rule = "invalid"
+
+        with mock.patch("airflow.models.dagrun.stats.incr") as mock_incr:
+            dr.update_state(session=session)
+
+        assert dr.state == DagRunState.FAILED
+        mock_incr.assert_any_call(
+            "dagrun.deadlocked",
+            tags={"dag_id": dr.dag_id, "run_type": dr.run_type},
+        )
+
     def test_dagrun_no_deadlock_with_restarting(self, dag_maker, session):
         with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="upstream_task")

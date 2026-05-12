@@ -217,6 +217,13 @@ metrics:
     legacy_name: "task_restored_to_dag.{dag_id}"
     name_variables: ["dag_id"]
 
+  - name: "dagrun.deadlocked"
+    description: "Number of DagRuns that failed because all unfinished tasks were unrunnable (task deadlock).
+    Metric with dag_id and run_type tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "task_instance_created"
     description: "Number of tasks instances created for a given Operator.
     Metric with dag_id and run_type tagging."
