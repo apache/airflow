@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
-def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float | bool:
+def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float | bool | None:
     """
     Return a serializable representation of the templated field.
 
