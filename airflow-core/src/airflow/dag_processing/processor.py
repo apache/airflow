@@ -76,6 +76,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_previous_ti,
     handle_get_task_states,
     handle_get_ti_count,
+    handle_get_variable_keys,
     handle_get_xcom,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
@@ -619,7 +620,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
 
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
         elif isinstance(msg, GetConnection):
@@ -645,8 +646,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
             else:
                 resp = var
         elif isinstance(msg, GetVariableKeys):
-            from airflow.sdk.execution_time.request_handlers import handle_get_variable_keys
-
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)

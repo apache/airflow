@@ -124,7 +124,6 @@ from airflow.sdk.execution_time.comms import (
     TaskBreadcrumbsResult,
     TaskState,
     TaskStateResult,
-    TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
