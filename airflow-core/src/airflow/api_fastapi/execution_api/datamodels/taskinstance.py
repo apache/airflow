@@ -184,6 +184,8 @@ class TIRetryStatePayload(StrictBaseModel):
     ]
     end_date: UtcDateTime
     rendered_map_index: str | None = None
+    retry_delay_seconds: float | None = None
+    retry_reason: str | None = None
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
@@ -306,6 +308,7 @@ class DagRun(StrictBaseModel):
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
     note: str | None = None
+    team_name: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -335,8 +338,11 @@ class DagRun(StrictBaseModel):
         for field_name in cls.model_fields:
             if field_name in insp.dict:
                 values[field_name] = insp.dict[field_name]
-            elif field_name == "state" and "_state" in insp.dict:
-                values["state"] = insp.dict["_state"]
+            elif field_name == "state":
+                if "_state" in insp.dict:
+                    values["state"] = insp.dict["_state"]
+                elif not insp.detached and (state_val := data._state) is not None:
+                    values["state"] = state_val
 
         if "consumed_asset_events" not in values:
             values["consumed_asset_events"] = []
@@ -383,6 +389,15 @@ class TIRunContext(BaseModel):
 
     should_retry: bool = False
     """If the ti encounters an error, whether it should enter retry or failed state."""
+
+    start_date: UtcDateTime | None = None
+    """
+    The original start date of the task instance.
+
+    When resuming from deferral, this is set to the task's original ``start_date`` so the
+    supervisor uses it instead of ``datetime.now()``.  This ensures ``context["ti"].start_date``
+    always reflects when the task *first* started, not when it was rescheduled/resumed.
+    """
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

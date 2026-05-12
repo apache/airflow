@@ -18,11 +18,11 @@
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.0",
-    "pathspec==1.0.4",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.4.28.13",
 ]
 build-backend = "hatchling.build"
 
@@ -56,11 +56,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.2.0"
+version = "3.3.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
-    "apache-airflow-core==3.2.0",
+    "apache-airflow-task-sdk<1.4.0,>=1.3.0",
+    "apache-airflow-core==3.3.0",
 ]
 
 packages = []
@@ -100,6 +100,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
+]
+"akeyless" = [
+    "apache-airflow-providers-akeyless>=0.1.0"
 ]
 "alibaba" = [
     "apache-airflow-providers-alibaba>=3.0.0"
@@ -177,7 +180,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0"
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-common-ai>=0.1.0"
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
@@ -219,7 +222,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.2.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.6.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -297,7 +300,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-openlineage>=2.3.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "opensearch" = [
-    "apache-airflow-providers-opensearch>=1.5.0"
+    "apache-airflow-providers-opensearch>=1.9.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "opsgenie" = [
     "apache-airflow-providers-opsgenie>=5.8.0"
@@ -380,6 +383,9 @@ apache-airflow = "airflow.__main__:main"
 "vertica" = [
     "apache-airflow-providers-vertica>=3.9.1"
 ]
+"vespa" = [
+    "apache-airflow-providers-vespa>=0.1.0"
+]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
 ]
@@ -396,6 +402,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
+    "apache-airflow-providers-akeyless>=0.1.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
@@ -421,7 +428,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
-    "apache-airflow-providers-common-ai>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -435,7 +442,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.5.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.2.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -461,7 +468,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
     "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
-    "apache-airflow-providers-opensearch>=1.5.0",
+    "apache-airflow-providers-opensearch>=1.9.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opsgenie>=5.8.0",
     "apache-airflow-providers-oracle>=3.12.0",
     "apache-airflow-providers-pagerduty>=3.8.1",
@@ -489,6 +496,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
+    "apache-airflow-providers-vespa>=0.1.0",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
@@ -543,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.3",
+    "uv>=0.11.9",
 ]
 
 [project.urls]
@@ -582,6 +590,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
+external = ["MIG"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -653,6 +662,7 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -684,8 +694,6 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
-    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
-    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -786,7 +794,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
-"helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"chart/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
@@ -839,7 +847,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "devel-common/src/sphinx_exts/exampleinclude.py" = ["E402", 'F401', ]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
-"helm-tests/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+"chart/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 # While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
 # mechanism and whole .pyi is really "type-checking" only
@@ -1020,8 +1028,8 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = false
 plugins = [
-    "dev/airflow_mypy/plugin/decorators.py",
-    "dev/airflow_mypy/plugin/outputs.py",
+    "airflow_mypy.plugins.decorators",
+    "airflow_mypy.plugins.outputs",
 ]
 pretty = true
 show_error_codes = true
@@ -1045,13 +1053,15 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
-    "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/chart/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
@@ -1238,6 +1248,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/trino/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/vertica/src",
     "$MYPY_CONFIG_FILE_DIR/providers/vertica/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/vespa/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/vespa/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/weaviate/src",
     "$MYPY_CONFIG_FILE_DIR/providers/weaviate/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/yandex/src",
@@ -1298,7 +1310,7 @@ dev = [
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
-    "apache-airflow-helm-tests",
+    "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
@@ -1314,6 +1326,7 @@ dev = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
+    "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
@@ -1343,10 +1356,307 @@ leveldb = [
 ]
 
 [tool.uv]
-required-version = ">=0.9.17"
+# Bump this only when the project actually relies on a newer uv feature/fix. It is a
+# minimum contributors must install, NOT the uv CI pins to — keeping it in lockstep
+# with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
+# breeze/prek uv version checks read this value dynamically and tolerate a stale
+# floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
+required-version = ">=0.11.8"
+no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
-no-build-isolation-package = ["sphinx-redoc"]
+
+[tool.uv.exclude-newer-package]
+# Automatically generated exclude-newer-package entries (update_airflow_pyproject_toml.py)
+apache-airflow = false
+apache-airflow-breeze = false
+apache-airflow-core = false
+apache-airflow-ctl = false
+apache-airflow-ctl-tests = false
+apache-airflow-dev = false
+apache-airflow-devel-common = false
+apache-airflow-docker-tests = false
+apache-airflow-e2e-tests = false
+apache-airflow-helm-chart = false
+apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
+apache-airflow-providers = false
+apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
+apache-airflow-providers-alibaba = false
+apache-airflow-providers-amazon = false
+apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-apache-drill = false
+apache-airflow-providers-apache-druid = false
+apache-airflow-providers-apache-flink = false
+apache-airflow-providers-apache-hdfs = false
+apache-airflow-providers-apache-hive = false
+apache-airflow-providers-apache-iceberg = false
+apache-airflow-providers-apache-impala = false
+apache-airflow-providers-apache-kafka = false
+apache-airflow-providers-apache-kylin = false
+apache-airflow-providers-apache-livy = false
+apache-airflow-providers-apache-pig = false
+apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-spark = false
+apache-airflow-providers-apache-tinkerpop = false
+apache-airflow-providers-apprise = false
+apache-airflow-providers-arangodb = false
+apache-airflow-providers-asana = false
+apache-airflow-providers-atlassian-jira = false
+apache-airflow-providers-celery = false
+apache-airflow-providers-cloudant = false
+apache-airflow-providers-cncf-kubernetes = false
+apache-airflow-providers-cohere = false
+apache-airflow-providers-common-ai = false
+apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-io = false
+apache-airflow-providers-common-messaging = false
+apache-airflow-providers-common-sql = false
+apache-airflow-providers-databricks = false
+apache-airflow-providers-datadog = false
+apache-airflow-providers-dbt-cloud = false
+apache-airflow-providers-dingding = false
+apache-airflow-providers-discord = false
+apache-airflow-providers-docker = false
+apache-airflow-providers-edge3 = false
+apache-airflow-providers-elasticsearch = false
+apache-airflow-providers-exasol = false
+apache-airflow-providers-fab = false
+apache-airflow-providers-facebook = false
+apache-airflow-providers-ftp = false
+apache-airflow-providers-git = false
+apache-airflow-providers-github = false
+apache-airflow-providers-google = false
+apache-airflow-providers-grpc = false
+apache-airflow-providers-hashicorp = false
+apache-airflow-providers-http = false
+apache-airflow-providers-imap = false
+apache-airflow-providers-influxdb = false
+apache-airflow-providers-informatica = false
+apache-airflow-providers-jdbc = false
+apache-airflow-providers-jenkins = false
+apache-airflow-providers-keycloak = false
+apache-airflow-providers-microsoft-azure = false
+apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-microsoft-psrp = false
+apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-mongo = false
+apache-airflow-providers-mysql = false
+apache-airflow-providers-neo4j = false
+apache-airflow-providers-odbc = false
+apache-airflow-providers-openai = false
+apache-airflow-providers-openfaas = false
+apache-airflow-providers-openlineage = false
+apache-airflow-providers-opensearch = false
+apache-airflow-providers-opsgenie = false
+apache-airflow-providers-oracle = false
+apache-airflow-providers-pagerduty = false
+apache-airflow-providers-papermill = false
+apache-airflow-providers-pgvector = false
+apache-airflow-providers-pinecone = false
+apache-airflow-providers-postgres = false
+apache-airflow-providers-presto = false
+apache-airflow-providers-qdrant = false
+apache-airflow-providers-redis = false
+apache-airflow-providers-salesforce = false
+apache-airflow-providers-samba = false
+apache-airflow-providers-segment = false
+apache-airflow-providers-sendgrid = false
+apache-airflow-providers-sftp = false
+apache-airflow-providers-singularity = false
+apache-airflow-providers-slack = false
+apache-airflow-providers-smtp = false
+apache-airflow-providers-snowflake = false
+apache-airflow-providers-sqlite = false
+apache-airflow-providers-ssh = false
+apache-airflow-providers-standard = false
+apache-airflow-providers-tableau = false
+apache-airflow-providers-telegram = false
+apache-airflow-providers-teradata = false
+apache-airflow-providers-trino = false
+apache-airflow-providers-vertica = false
+apache-airflow-providers-vespa = false
+apache-airflow-providers-weaviate = false
+apache-airflow-providers-yandex = false
+apache-airflow-providers-ydb = false
+apache-airflow-providers-zendesk = false
+apache-airflow-scripts = false
+apache-airflow-shared-configuration = false
+apache-airflow-shared-dagnode = false
+apache-airflow-shared-listeners = false
+apache-airflow-shared-logging = false
+apache-airflow-shared-module-loading = false
+apache-airflow-shared-observability = false
+apache-airflow-shared-plugins-manager = false
+apache-airflow-shared-providers-discovery = false
+apache-airflow-shared-secrets-backend = false
+apache-airflow-shared-secrets-masker = false
+apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
+apache-airflow-shared-template-rendering = false
+apache-airflow-shared-timezones = false
+apache-airflow-task-sdk = false
+apache-airflow-task-sdk-integration-tests = false
+apache-aurflow-docker-stack = false
+# End of automatically generated exclude-newer-package entries
+
+# Manual overrides (kept outside the auto-generated block above so the
+# update_airflow_pyproject_toml.py script doesn't clobber them).
+# uv 0.11.8 lifted the timestamp from `uv.lock` for relative `exclude-newer`
+# (https://github.com/astral-sh/uv/issues/18708, fixed in
+# https://github.com/astral-sh/uv/pull/19022) — we want that fix, but the
+# global 4-day cooldown above would otherwise block a freshly-published uv
+# from being adopted as the floor. Drop uv's cooldown to 12 hours so the
+# pinned `required-version` floor isn't gated by the project-wide window.
+# REMOVE BY 2026-05-01 — once 0.11.8 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+uv = "12 hours"
+
+[tool.uv.pip]
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+exclude-newer = "4 days"
+
+[tool.uv.pip.exclude-newer-package]
+# Automatically generated exclude-newer-package-pip entries (update_airflow_pyproject_toml.py)
+apache-airflow = false
+apache-airflow-breeze = false
+apache-airflow-core = false
+apache-airflow-ctl = false
+apache-airflow-ctl-tests = false
+apache-airflow-dev = false
+apache-airflow-devel-common = false
+apache-airflow-docker-tests = false
+apache-airflow-e2e-tests = false
+apache-airflow-helm-chart = false
+apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
+apache-airflow-providers = false
+apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
+apache-airflow-providers-alibaba = false
+apache-airflow-providers-amazon = false
+apache-airflow-providers-apache-cassandra = false
+apache-airflow-providers-apache-drill = false
+apache-airflow-providers-apache-druid = false
+apache-airflow-providers-apache-flink = false
+apache-airflow-providers-apache-hdfs = false
+apache-airflow-providers-apache-hive = false
+apache-airflow-providers-apache-iceberg = false
+apache-airflow-providers-apache-impala = false
+apache-airflow-providers-apache-kafka = false
+apache-airflow-providers-apache-kylin = false
+apache-airflow-providers-apache-livy = false
+apache-airflow-providers-apache-pig = false
+apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-spark = false
+apache-airflow-providers-apache-tinkerpop = false
+apache-airflow-providers-apprise = false
+apache-airflow-providers-arangodb = false
+apache-airflow-providers-asana = false
+apache-airflow-providers-atlassian-jira = false
+apache-airflow-providers-celery = false
+apache-airflow-providers-cloudant = false
+apache-airflow-providers-cncf-kubernetes = false
+apache-airflow-providers-cohere = false
+apache-airflow-providers-common-ai = false
+apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-io = false
+apache-airflow-providers-common-messaging = false
+apache-airflow-providers-common-sql = false
+apache-airflow-providers-databricks = false
+apache-airflow-providers-datadog = false
+apache-airflow-providers-dbt-cloud = false
+apache-airflow-providers-dingding = false
+apache-airflow-providers-discord = false
+apache-airflow-providers-docker = false
+apache-airflow-providers-edge3 = false
+apache-airflow-providers-elasticsearch = false
+apache-airflow-providers-exasol = false
+apache-airflow-providers-fab = false
+apache-airflow-providers-facebook = false
+apache-airflow-providers-ftp = false
+apache-airflow-providers-git = false
+apache-airflow-providers-github = false
+apache-airflow-providers-google = false
+apache-airflow-providers-grpc = false
+apache-airflow-providers-hashicorp = false
+apache-airflow-providers-http = false
+apache-airflow-providers-imap = false
+apache-airflow-providers-influxdb = false
+apache-airflow-providers-informatica = false
+apache-airflow-providers-jdbc = false
+apache-airflow-providers-jenkins = false
+apache-airflow-providers-keycloak = false
+apache-airflow-providers-microsoft-azure = false
+apache-airflow-providers-microsoft-mssql = false
+apache-airflow-providers-microsoft-psrp = false
+apache-airflow-providers-microsoft-winrm = false
+apache-airflow-providers-mongo = false
+apache-airflow-providers-mysql = false
+apache-airflow-providers-neo4j = false
+apache-airflow-providers-odbc = false
+apache-airflow-providers-openai = false
+apache-airflow-providers-openfaas = false
+apache-airflow-providers-openlineage = false
+apache-airflow-providers-opensearch = false
+apache-airflow-providers-opsgenie = false
+apache-airflow-providers-oracle = false
+apache-airflow-providers-pagerduty = false
+apache-airflow-providers-papermill = false
+apache-airflow-providers-pgvector = false
+apache-airflow-providers-pinecone = false
+apache-airflow-providers-postgres = false
+apache-airflow-providers-presto = false
+apache-airflow-providers-qdrant = false
+apache-airflow-providers-redis = false
+apache-airflow-providers-salesforce = false
+apache-airflow-providers-samba = false
+apache-airflow-providers-segment = false
+apache-airflow-providers-sendgrid = false
+apache-airflow-providers-sftp = false
+apache-airflow-providers-singularity = false
+apache-airflow-providers-slack = false
+apache-airflow-providers-smtp = false
+apache-airflow-providers-snowflake = false
+apache-airflow-providers-sqlite = false
+apache-airflow-providers-ssh = false
+apache-airflow-providers-standard = false
+apache-airflow-providers-tableau = false
+apache-airflow-providers-telegram = false
+apache-airflow-providers-teradata = false
+apache-airflow-providers-trino = false
+apache-airflow-providers-vertica = false
+apache-airflow-providers-vespa = false
+apache-airflow-providers-weaviate = false
+apache-airflow-providers-yandex = false
+apache-airflow-providers-ydb = false
+apache-airflow-providers-zendesk = false
+apache-airflow-scripts = false
+apache-airflow-shared-configuration = false
+apache-airflow-shared-dagnode = false
+apache-airflow-shared-listeners = false
+apache-airflow-shared-logging = false
+apache-airflow-shared-module-loading = false
+apache-airflow-shared-observability = false
+apache-airflow-shared-plugins-manager = false
+apache-airflow-shared-providers-discovery = false
+apache-airflow-shared-secrets-backend = false
+apache-airflow-shared-secrets-masker = false
+apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
+apache-airflow-shared-template-rendering = false
+apache-airflow-shared-timezones = false
+apache-airflow-task-sdk = false
+apache-airflow-task-sdk-integration-tests = false
+apache-aurflow-docker-stack = false
+# End of automatically generated exclude-newer-package-pip entries
+
+# Manual overrides — see the matching block under
+# `[tool.uv.exclude-newer-package]` above for rationale.
+# REMOVE BY 2026-05-01 along with the matching entry above.
+uv = "12 hours"
+
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1354,6 +1664,7 @@ no-build-isolation-package = ["sphinx-redoc"]
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
+apache-airflow-mypy = {workspace = true}
 apache-airflow-scripts = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
@@ -1363,7 +1674,7 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-integration-tests = { workspace = true }
-apache-airflow-helm-tests = { workspace = true }
+apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
@@ -1378,10 +1689,12 @@ apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-serialization = { workspace = true }
+apache-airflow-shared-state = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
+apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
@@ -1475,6 +1788,7 @@ apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-teradata = { workspace = true }
 apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-vertica = { workspace = true }
+apache-airflow-providers-vespa = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-yandex = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
@@ -1487,6 +1801,7 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/mypy",
     "dev/registry",
     "airflow-ctl",
     "airflow-ctl-tests",
@@ -1495,7 +1810,7 @@ members = [
     "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
-    "helm-tests",
+    "chart",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
@@ -1511,10 +1826,12 @@ members = [
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/serialization",
+    "shared/state",
     "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
+    "providers/akeyless",
     "providers/alibaba",
     "providers/amazon",
     "providers/apache/cassandra",
@@ -1608,6 +1925,7 @@ members = [
     "providers/teradata",
     "providers/trino",
     "providers/vertica",
+    "providers/vespa",
     "providers/weaviate",
     "providers/yandex",
     "providers/ydb",

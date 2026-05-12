@@ -72,6 +72,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     },
   );
 
+  const isBackfillable = dag?.is_backfillable ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
   const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
@@ -120,10 +121,14 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                       label={translate("triggerDag.selectLabel")}
                       value={RunMode.SINGLE}
                     />
-                    <Tooltip content={translate("backfill.tooltip")} disabled={hasSchedule}>
+                    <Tooltip
+                      content={translate("backfill.scheduleNotBackfillable")}
+                      disabled={isBackfillable}
+                      portalled
+                    >
                       <RadioCardItem
                         description={translate("backfill.selectDescription")}
-                        disabled={!hasSchedule}
+                        disabled={!isBackfillable}
                         label={translate("backfill.selectLabel")}
                         value={RunMode.BACKFILL}
                       />
@@ -146,7 +151,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   prefillConfig={prefillConfig}
                 />
               ) : (
-                hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />
+                isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}
             </>
           )}

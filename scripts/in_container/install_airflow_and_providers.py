@@ -23,7 +23,6 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime
 from functools import cache
 from pathlib import Path
 from typing import NamedTuple
@@ -1129,7 +1128,7 @@ def _install_airflow_and_optionally_providers_together(
     ]
     if installation_spec.pre_release:
         console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
-        base_install_cmd.extend(["--pre", "--exclude-newer", datetime.now().isoformat()])
+        base_install_cmd.extend(["--pre"])
     if installation_spec.airflow_distribution:
         console.print(
             f"\n[bright_blue]Adding airflow distribution to installation: {installation_spec.airflow_distribution} "
@@ -1193,13 +1192,16 @@ def _install_airflow_ctl_with_constraints(installation_spec: InstallationSpec, g
     if installation_spec.airflow_ctl_constraints_location:
         console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_ctl_constraints_location}")
         install_airflow_ctl_cmd.extend(["--constraint", installation_spec.airflow_ctl_constraints_location])
-    console.print()
-    result = run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=True)
-    if result.returncode != 0:
-        console.print(
-            "[warning]Installation with constraints failed - might be because there are"
-            " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
-        )
+        console.print()
+        result = run_command(install_airflow_ctl_cmd, github_actions=github_actions, check=False)
+        if result.returncode != 0:
+            console.print(
+                "[warning]Installation with constraints failed - might be because there are"
+                " conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+            )
+            run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
+    else:
+        console.print()
         run_command(base_install_airflow_ctl_cmd, github_actions=github_actions, check=True)
 
 
@@ -1226,7 +1228,7 @@ def _install_only_airflow_airflow_core_task_sdk_with_constraints(
     ]
     if installation_spec.pre_release:
         console.print("[bright_blue]Allowing pre-release versions of airflow and providers")
-        base_install_airflow_cmd.extend(["--pre", "--exclude-newer", datetime.now().isoformat()])
+        base_install_airflow_cmd.extend(["--pre"])
     if installation_spec.airflow_distribution:
         console.print(
             f"\n[bright_blue]Installing airflow distribution: {installation_spec.airflow_distribution} with constraints"

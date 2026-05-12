@@ -110,7 +110,7 @@ def simple_dag():
     extract() >> transform()
 
 
-multi_language()
+simple_dag()
 ```
 
 Here we see the `@task.stub` which tells the Dag parser about the "shape" of the go tasks, and lets us define

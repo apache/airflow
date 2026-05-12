@@ -47,8 +47,6 @@ async def has_xcom_access(
     token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
-
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
 
     log.debug(
@@ -57,6 +55,13 @@ async def has_xcom_access(
         token.id,
         xcom_key,
     )
+
+    # The current version of Airflow does not support true
+    # multi-tenancy yet (this is well-documented at
+    # https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#limiting-dag-author-access-to-subset-of-dags),
+    # so for now we always return 'True' here.
+    # When we introduce true multi-tenancy in the future
+    # this would be the place to do add a check.
     return True
 
 

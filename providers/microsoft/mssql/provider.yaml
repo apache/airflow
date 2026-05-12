@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1774299435
+source-date-epoch: 1775592523
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.5.2
   - 4.5.1
   - 4.5.0
   - 4.4.1
@@ -82,6 +83,20 @@ integrations:
 dialects:
   - dialect-type: mssql
     dialect-class-name: airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect
+
+asset-uris:
+  - schemes: [mssql]
+    handler: airflow.providers.microsoft.mssql.assets.mssql.sanitize_uri
+    factory: airflow.providers.microsoft.mssql.assets.mssql.create_asset
+    to_openlineage_converter: airflow.providers.microsoft.mssql.assets.mssql.convert_asset_to_openlineage
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [mssql]
+    handler: airflow.providers.microsoft.mssql.assets.mssql.sanitize_uri
+    factory: airflow.providers.microsoft.mssql.assets.mssql.create_asset
+    to_openlineage_converter: airflow.providers.microsoft.mssql.assets.mssql.convert_asset_to_openlineage
 
 hooks:
   - integration-name: Microsoft SQL Server (MSSQL)

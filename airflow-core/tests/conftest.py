@@ -161,3 +161,12 @@ if TYPE_CHECKING:
     # time-machine
     @pytest.fixture  # type: ignore[no-redef]
     def time_machine() -> TimeMachineFixture: ...
+
+
+@pytest.fixture(autouse=True)
+def _clear_in_process_api_cache():
+    """Clear the cached InProcessExecutionAPI after each test to prevent state leakage."""
+    yield
+    supervisor_module = sys.modules.get("airflow.sdk.execution_time.supervisor")
+    if supervisor_module is not None:
+        supervisor_module.in_process_api_server.cache_clear()

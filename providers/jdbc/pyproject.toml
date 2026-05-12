@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-jdbc"
-version = "5.4.2"
+version = "5.4.4"
 description = "Provider package apache-airflow-providers-jdbc for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -63,6 +63,19 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.14.0",
     "apache-airflow-providers-common-sql>=1.32.0",
     "jaydebeapi>=1.1.1",
+    # jpype1 lower bound depends on Python version — earliest release with
+    # prebuilt binary wheels for that interpreter.
+    # jpype1 1.7.0 stopped shipping macOS arm64 wheels; upstream plans to restore
+    # them in 1.7.1 (https://github.com/jpype-project/jpype/issues/1357).
+    "jpype1>=1.4.0,!=1.7.0; python_version == '3.10' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "jpype1>=1.4.0; python_version == '3.10' and (sys_platform != 'darwin' or platform_machine != 'arm64')",
+    "jpype1>=1.4.1,!=1.7.0; python_version == '3.11' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "jpype1>=1.4.1; python_version == '3.11' and (sys_platform != 'darwin' or platform_machine != 'arm64')",
+    "jpype1>=1.5.0,!=1.7.0; python_version == '3.12' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "jpype1>=1.5.0; python_version == '3.12' and (sys_platform != 'darwin' or platform_machine != 'arm64')",
+    "jpype1>=1.5.1,!=1.7.0; python_version == '3.13' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "jpype1>=1.5.1; python_version == '3.13' and (sys_platform != 'darwin' or platform_machine != 'arm64')",
+    "jpype1>=1.7.0; python_version >= '3.14'",
 ]
 
 [dependency-groups]
@@ -101,8 +114,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.4"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.4.4/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -114,3 +127,14 @@ provider_info = "airflow.providers.jdbc.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.jdbc"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "tests/",
+]

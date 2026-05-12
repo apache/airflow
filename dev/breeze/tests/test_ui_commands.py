@@ -80,6 +80,17 @@ class TestPluralHandling:
         assert "warning_few" in expanded
         assert "warning_many" in expanded
 
+    def test_expand_plural_keys_expands_when_en_has_multiple_plural_forms(self):
+        # Even without {{count}} in EN values, plural selection is still active when
+        # EN defines multiple plural forms for the same base key.
+        keys = {"dagRun_one", "dagRun_other"}
+        en_key_to_value = {"dagRun_one": "Dag Run", "dagRun_other": "Dag Runs"}
+        expanded = expand_plural_keys(keys, "pl", en_key_to_value)
+        assert "dagRun_one" in expanded
+        assert "dagRun_other" in expanded
+        assert "dagRun_few" in expanded
+        assert "dagRun_many" in expanded
+
 
 class TestFlattenKeys:
     def test_flatten_simple_dict(self):
@@ -222,6 +233,46 @@ class TestCompareKeys:
 
             # EN base has no {{count}}, so error_other is not required and is unused
             assert "dagWarnings.error_other" in summary["test.json"].unused_keys.get("de", [])
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+    def test_compare_keys_multi_plural_without_count_is_not_unused(self, tmp_path):
+        """When EN defines multiple plural forms, locale plural forms should not be marked unused."""
+        en_dir = tmp_path / "en"
+        en_dir.mkdir()
+        pl_dir = tmp_path / "pl"
+        pl_dir.mkdir()
+
+        # EN has plural variants but no explicit {{count}} interpolation in values.
+        # Plural routing is still active and locale-specific forms should be treated as required.
+        en_data = {"dagWarnings": {"error_one": "Error", "error_other": "Errors"}}
+        pl_data = {
+            "dagWarnings": {
+                "error_one": "Błąd",
+                "error_few": "Błędy",
+                "error_many": "Błędów",
+                "error_other": "Błędy",
+            }
+        }
+
+        (en_dir / "test.json").write_text(json.dumps(en_data))
+        (pl_dir / "test.json").write_text(json.dumps(pl_data))
+
+        import airflow_breeze.commands.ui_commands as ui_commands
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+
+        try:
+            locale_files = [
+                LocaleFiles(locale="en", files=["test.json"]),
+                LocaleFiles(locale="pl", files=["test.json"]),
+            ]
+            summary, _ = compare_keys(locale_files)
+
+            # Previously these could be falsely flagged as unused.
+            assert "dagWarnings.error_few" not in summary["test.json"].unused_keys.get("pl", [])
+            assert "dagWarnings.error_many" not in summary["test.json"].unused_keys.get("pl", [])
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
 

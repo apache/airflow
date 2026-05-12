@@ -83,7 +83,7 @@ After you have resolved the conflicts, you can continue the backport process by 
 cherry_picker --continue
 ```
 
-If you don't have cherry-picker installed, see the [installation guide](https://github.com/apache/airflow/blob/main/dev/README_AIRFLOW3_DEV.md#how-to-backport-pr-with-cherry-picker-cli).
+If you don't have cherry-picker installed, see the [installation guide](https://github.com/apache/airflow/blob/main/dev/README.md#how-to-backport-pr-with-cherry-picker-cli).
 """
     return comment
 

@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -35,6 +37,17 @@ def analyze_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+class TestGhApi:
+    def test_forces_get_method(self, analyze_module):
+        """`gh api` defaults to POST when -f is passed; we must force GET to avoid 404."""
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="{}", stderr="")
+        with patch.object(subprocess, "run", return_value=completed) as mock_run:
+            analyze_module.gh_api("repos/apache/airflow/actions/workflows/x/runs", branch="main")
+        args = mock_run.call_args[0][0]
+        assert "--method" in args
+        assert args[args.index("--method") + 1] == "GET"
 
 
 class TestEscapeSlackMrkdwn:

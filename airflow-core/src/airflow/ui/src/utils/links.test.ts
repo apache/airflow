@@ -20,7 +20,12 @@ import { describe, it, expect } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { buildTaskInstanceUrl, getTaskInstanceAdditionalPath, getTaskInstanceLink } from "./links";
+import {
+  buildTaskInstanceUrl,
+  getSafeExternalUrl,
+  getTaskInstanceAdditionalPath,
+  getTaskInstanceLink,
+} from "./links";
 
 describe("getTaskInstanceLink", () => {
   const testCases = [
@@ -270,5 +275,54 @@ describe("buildTaskInstanceUrl", () => {
         taskId: "my_group",
       }),
     ).toBe("/dags/my_dag/runs/run_1/tasks/group/my_group");
+  });
+
+  it("should not preserve sub-routes for mapped tasks without map index", () => {
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/old_dag/runs/old_run/tasks/old_task/mapped/2/xcom",
+        dagId: "new_dag",
+        isMapped: true,
+        runId: "new_run",
+        taskId: "new_task",
+      }),
+    ).toBe("/dags/new_dag/runs/new_run/tasks/new_task/mapped");
+  });
+});
+
+describe("getSafeExternalUrl", () => {
+  describe("allows", () => {
+    const safeCases = [
+      ["http URL", "http://example.com/path"],
+      ["https URL", "https://example.com/path?q=1#anchor"],
+      ["mailto URL", "mailto:ops@example.com"],
+      ["relative absolute path", "/dags/my_dag"],
+      ["relative same-document fragment", "#section"],
+      ["relative query string", "?owner=me"],
+      ["same-origin absolute URL", `${globalThis.location.origin}/dags`],
+      ["URL with surrounding whitespace", "  https://example.com/x  "],
+    ];
+
+    it.each(safeCases)("passes through a %s", (_description, input) => {
+      expect(getSafeExternalUrl(input)).toBe(input.trim());
+    });
+  });
+
+  describe("rejects", () => {
+    const unsafeCases = [
+      ["javascript: URL", "javascript:alert(1)"],
+      ["javascript: URL with mixed case", "JavaScript:alert(1)"],
+      ["javascript: URL with leading whitespace", " javascript:alert(1)"],
+      ["data: URL", "data:text/html,<script>alert(1)</script>"],
+      ["file: URL", "file:///etc/passwd"],
+      ["vbscript: URL", "vbscript:msgbox(1)"],
+      ["ftp: URL", "ftp://example.com/file"],
+      ["empty string", ""],
+      ["whitespace-only string", "   "],
+    ];
+
+    it.each(unsafeCases)("returns undefined for a %s", (_description, input) => {
+      expect(getSafeExternalUrl(input)).toBeUndefined();
+    });
   });
 });

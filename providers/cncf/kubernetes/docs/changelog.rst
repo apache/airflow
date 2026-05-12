@@ -27,6 +27,80 @@
 Changelog
 ---------
 
+**Default xcom-sidecar image is now pinned to** ``alpine:3.23``.
+The default container image for the xcom sidecar (used by ``KubernetesPodOperator``
+when ``do_xcom_push=True``) has changed from the unpinned ``alpine`` (which resolves
+to ``alpine:latest``) to the pinned ``alpine:3.23``. The pin makes the kubelet's
+default ``imagePullPolicy`` ``IfNotPresent`` instead of ``Always``, so a node with
+the image cached does not re-pull on every task — protecting deployments and CI
+from Docker Hub anonymous-pull rate limits.
+
+Deployments that override the image via ``xcom_sidecar_container_image`` (or the
+``[kubernetes] xcom_sidecar_container_image`` config) are unaffected. Deployments
+that relied on the unpinned default will now be pinned to ``alpine:3.23`` until
+the next Airflow upgrade. Set ``xcom_sidecar_container_image`` explicitly if you
+need a different alpine version, a private mirror, or another base image.
+
+10.17.0
+.......
+
+Features
+~~~~~~~~
+* ``Move KubernetesPodTrigger pod cleanup from cleanup() to on_kill() (#65741)``
+* ``Add multi-team lookup to Kubernetes secrets backend (#65694)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+10.16.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Treat registry 5xx errors as transient during KubernetesPodOperator pod startup (#65490)``
+* ``Fix KubernetesPodOperator to forward pod log levels to Airflow task logs (#64829)``
+* ``Catch TypeError for non-datetime since_time in _write_logs (#65232)``
+* ``Do not cache kubeconfig for exec based auth in AsyncKubernetesHook (#65212)``
+* ``Consider XCOM sidecar container during pod cleanup (#64962)``
+* ``Handle unknown pod phase in KubernetesPodOperator (#65202)``
+* ``Allow string conversion to datetime for since_time in KPO logs (#65498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+10.16.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add retries for '_write_logs' method in 'KubernetesPodOperator' (#64471)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle rate limiting of K8s API server in K8s executor (#64504)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Log on_kill job deletion in kubernetes spark operator at INFO level (#64633)``
+* ``Update cncf's import conf path to use common compat SDK (#64143)``
+* ``Fix advertising some of the missing provider capabilities via provider info (#64127)``
+* ``Add explicit type annotations to k8s code to fix mypy (#64260)``
+* ``Pass parameters to Kubernetes methods conditionally (#64242)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.15.0
 .......
 

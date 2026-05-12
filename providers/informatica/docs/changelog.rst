@@ -28,6 +28,18 @@
 Changelog
 =========
 
+0.1.3
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Use compat sdk conf import in Informatica provider (#64155)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.1.2
 .....
 

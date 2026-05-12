@@ -38,6 +38,15 @@ class BedrockHook(AwsBaseHook):
         kwargs["client_type"] = self.client_type
         super().__init__(*args, **kwargs)
 
+    def get_guardrail_id_by_name(self, guardrail_name: str) -> str | None:
+        """Get the guardrail ID by name, or None if not found."""
+        paginator = self.conn.get_paginator("list_guardrails")
+        for page in paginator.paginate():
+            for g in page.get("guardrails", []):
+                if g.get("name") == guardrail_name:
+                    return g["id"]
+        return None
+
 
 class BedrockRuntimeHook(AwsBaseHook):
     """

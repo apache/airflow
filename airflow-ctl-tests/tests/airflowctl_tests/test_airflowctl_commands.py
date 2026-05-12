@@ -51,6 +51,7 @@ LOGIN_OUTPUT = "Login successful! Welcome to airflowctl!"
 TEST_COMMANDS = [
     # Auth commands
     f"auth token {CREDENTIAL_SUFFIX}",
+    "auth list-envs",
     # Assets commands
     "assets list",
     "assets get --asset-id=1",
@@ -72,7 +73,7 @@ TEST_COMMANDS = [
     "connections import tests/airflowctl_tests/fixtures/test_connections.json",
     "connections delete --conn-id=test_con",
     "connections delete --conn-id=test_import_conn",
-    # DAGs commands
+    # Dags commands
     "dags list",
     "dags get --dag-id=example_bash_operator",
     "dags get-details --dag-id=example_bash_operator",
@@ -87,12 +88,12 @@ TEST_COMMANDS = [
     "dags trigger --dag-id=example_bash_operator",
     "dags pause example_bash_operator",
     "dags unpause example_bash_operator",
-    # DAG Run commands
+    # Dag Run commands
     'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     "dags update --dag-id=example_bash_operator --no-is-paused",
-    # DAG Run commands
+    # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
-    # XCom commands - need a DAG run with completed tasks
+    # XCom commands - need a Dag run with completed tasks
     'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"test": "value"}}\'',
     'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
     'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
@@ -122,7 +123,12 @@ TEST_COMMANDS = [
     "variables delete --variable-key=test_key",
     "variables delete --variable-key=test_import_var",
     "variables delete --variable-key=test_import_var_with_desc",
-    # Version command
+    # Plugins command
+    "plugins list",
+    "plugins list-import-errors",
+]
+
+NO_AUTH_TEST_COMMANDS = [
     "version --remote",
 ]
 
@@ -168,9 +174,7 @@ def test_hardcoded_xcom_key_would_collide():
 )
 def test_airflowctl_commands(command: str, run_command):
     """Test airflowctl commands using docker-compose environment."""
-    env_vars = {"AIRFLOW_CLI_DEBUG_MODE": "true"}
-
-    run_command(command, env_vars, skip_login=True)
+    run_command(command=command, env_vars={"AIRFLOW_CLI_DEBUG_MODE": "true"}, skip_login=True)
 
 
 @pytest.mark.parametrize(
@@ -180,9 +184,26 @@ def test_airflowctl_commands(command: str, run_command):
 )
 def test_airflowctl_commands_skip_keyring(command: str, api_token: str, run_command):
     """Test airflowctl commands using docker-compose environment without using keyring."""
-    env_vars = {}
-    env_vars["AIRFLOW_CLI_TOKEN"] = api_token
-    env_vars["AIRFLOW_CLI_DEBUG_MODE"] = "false"
-    env_vars["AIRFLOW_CLI_ENVIRONMENT"] = "nokeyring"
+    run_command(
+        command=command,
+        env_vars={
+            "AIRFLOW_CLI_TOKEN": api_token,
+            "AIRFLOW_CLI_DEBUG_MODE": "false",
+            "AIRFLOW_CLI_ENVIRONMENT": "nokeyring",
+        },
+        skip_login=True,
+    )
 
-    run_command(command, env_vars, skip_login=True)
+
+@pytest.mark.parametrize("command", NO_AUTH_TEST_COMMANDS)
+def test_airflowctl_no_auth_commands(command: str, run_command, tmp_path):
+    """Test airflowctl no-auth commands without login or persisted credentials."""
+    run_command(
+        command=command,
+        env_vars={
+            "AIRFLOW_HOME": str(tmp_path),
+            "AIRFLOW_CLI_ENVIRONMENT": "no-auth",
+            "AIRFLOW_CLI_DEBUG_MODE": "false",
+        },
+        skip_login=True,
+    )

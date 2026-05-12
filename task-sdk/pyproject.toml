@@ -48,7 +48,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
-    "apache-airflow-core<3.3.0,>=3.2.0",
+    "apache-airflow-core<3.4.0,>=3.3.0",
     "asgiref>=2.3.0; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
     "attrs>=24.2.0, !=25.2.0",
@@ -87,6 +87,9 @@ dependencies = [
     # Start of shared providers-discovery dependencies
     "jsonschema>=4.19.1",
     # End of shared providers-discovery dependencies
+    # Start of shared observability dependencies
+    "opentelemetry-api>=1.27.0",
+    # End of shared observability dependencies
 ]
 
 [project.optional-dependencies]
@@ -120,11 +123,11 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.0",
-    "pathspec==1.0.4",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.4.28.13",
 ]
 build-backend = "hatchling.build"
 
@@ -226,6 +229,10 @@ dev = [
 docs = [
     "apache-airflow-devel-common[docs]",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths

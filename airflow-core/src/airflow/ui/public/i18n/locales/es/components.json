@@ -22,7 +22,6 @@
         "title": "Backfill generado"
       }
     },
-    "tooltip": "Backfill requiere una programación",
     "unpause": "Reanudar {{dag_display_name}} al activarse",
     "validation": {
       "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben ser proporcionados.",

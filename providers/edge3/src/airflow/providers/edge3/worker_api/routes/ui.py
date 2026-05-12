@@ -86,7 +86,7 @@ def worker(
             queues=w.queues,
             state=w.state,
             jobs_active=w.jobs_active,
-            sysinfo=w.sysinfo_json or {},
+            sysinfo=w.sysinfo or {},
             maintenance_comments=w.maintenance_comment,
             first_online=w.first_online,
             last_heartbeat=w.last_update,

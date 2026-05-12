@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-impala"
-version = "1.9.1"
+version = "1.9.2"
 description = "Provider package apache-airflow-providers-apache-impala for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -114,8 +114,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.9.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -127,3 +127,15 @@ provider_info = "airflow.providers.apache.impala.get_provider_info:get_provider_
 
 [tool.flit.module]
 name = "airflow.providers.apache.impala"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/apache/__init__.py",
+    "tests/",
+]

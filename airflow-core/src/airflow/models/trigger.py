@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -146,7 +147,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(kwargs)
+        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -207,9 +208,9 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[str]:
+    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[int]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
-        from airflow.models.callback import Callback
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
         query = select(AssetWatcherModel.trigger_id).union_all(
             select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))
@@ -409,7 +410,7 @@ class Trigger(Base):
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
         """
-        from airflow.models.callback import Callback
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
         result: list[Row[Any]] = []
 
@@ -427,7 +428,12 @@ class Trigger(Base):
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
-            select(cls.id).where(cls.assets.any()).order_by(cls.created_date),
+            select(cls.id)
+            .where(
+                cls.assets.any(),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
+            .order_by(cls.created_date),
         ]
 
         # Process each query while avoiding unnecessary queries when capacity is reached

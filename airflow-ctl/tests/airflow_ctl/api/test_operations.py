@@ -79,6 +79,10 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorResponse,
     JobCollectionResponse,
     JobResponse,
+    PluginCollectionResponse,
+    PluginImportErrorCollectionResponse,
+    PluginImportErrorResponse,
+    PluginResponse,
     PoolBody,
     PoolCollectionResponse,
     PoolResponse,
@@ -459,8 +463,12 @@ class TestBackfillOperations:
     )
 
     def test_create(self):
+        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/backfills"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -468,8 +476,12 @@ class TestBackfillOperations:
         assert response == self.backfill_response
 
     def test_create_dry_run(self):
+        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/backfills/dry_run"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -727,6 +739,7 @@ class TestDagOperations:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -738,6 +751,7 @@ class TestDagOperations:
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
+        is_backfillable=True,
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
@@ -755,6 +769,7 @@ class TestDagOperations:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -766,6 +781,7 @@ class TestDagOperations:
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
+        is_backfillable=True,
         catchup=False,
         dag_run_timeout=datetime.timedelta(days=1),
         asset_expression=None,
@@ -1131,6 +1147,20 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
+    def test_list_without_state_does_not_send_state_param(self):
+        """`state` is optional: omitting it must not send ``state=None`` to the API."""
+        captured_params: dict[str, str] = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            captured_params.update(dict(request.url.params))
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(limit=5)
+        assert response == self.dag_run_collection_response
+        assert "state" not in captured_params
+        assert captured_params["limit"] == "5"
+
 
 class TestJobsOperations:
     job_response = JobResponse(
@@ -1154,6 +1184,11 @@ class TestJobsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["job_type"] == "job_type"
+            assert params["hostname"] == "hostname"
+            assert params["is_alive"] == "true"
+            assert params["limit"] == "50"
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -1162,6 +1197,32 @@ class TestJobsOperations:
             hostname="hostname",
             is_alive=True,
         )
+        assert response == self.job_collection_response
+
+    @pytest.mark.parametrize(
+        ("job_type", "hostname", "is_alive", "expected_subset"),
+        [
+            (None, None, None, {}),
+            ("scheduler", None, None, {"job_type": "scheduler"}),
+            (None, "host-a", None, {"hostname": "host-a"}),
+            (None, None, False, {"is_alive": "false"}),
+        ],
+    )
+    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, expected_subset):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "50"
+            for key, value in expected_subset.items():
+                assert params[key] == value
+
+            assert ("job_type" in params) is ("job_type" in expected_subset)
+            assert ("hostname" in params) is ("hostname" in expected_subset)
+            assert ("is_alive" in params) is ("is_alive" in expected_subset)
+            return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(job_type=job_type, hostname=hostname, is_alive=is_alive)
         assert response == self.job_collection_response
 
 
@@ -1732,3 +1793,53 @@ class TestXComOperations:
             map_index=self.map_index,
         )
         assert response == self.key
+
+
+class TestPluginsOperations:
+    plugin_response = PluginResponse(
+        name="test-plugin",
+        macros=[],
+        flask_blueprints=[],
+        fastapi_apps=[],
+        fastapi_root_middlewares=[],
+        external_views=[],
+        react_apps=[],
+        appbuilder_views=[],
+        appbuilder_menu_items=[],
+        global_operator_extra_links=[],
+        operator_extra_links=[],
+        source="test-source",
+        listeners=[],
+        timetables=[],
+    )
+    plugin_collection_response = PluginCollectionResponse(plugins=[plugin_response], total_entries=1)
+    plugin_import_error_response = PluginImportErrorResponse(
+        source="plugins/test_plugin.py", error="something went wrong"
+    )
+    plugin_import_error_collection_response = PluginImportErrorCollectionResponse(
+        import_errors=[plugin_import_error_response], total_entries=1
+    )
+
+    def test_list(self):
+        """Test listing plugins"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == ("/api/v2/plugins")
+            return httpx.Response(200, json=json.loads(self.plugin_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list()
+        assert response == self.plugin_collection_response
+
+    def test_list_import_errors(self):
+        """Test listing plugin import errors"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/plugins/importErrors"
+            return httpx.Response(
+                200, json=json.loads(self.plugin_import_error_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.plugins.list_import_errors()
+        assert response == self.plugin_import_error_collection_response

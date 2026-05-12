@@ -45,12 +45,16 @@
     "buttons": {
       "resetToLatest": "Przywróć do najnowszego",
       "toggleGroup": "Przełącz grupę"
-    }
+    },
+    "runTypeLegend": "Legenda typów wykonań"
   },
   "header": {
     "buttons": {
       "advanced": "Zaawansowane",
       "dagDocs": "Dokumentacja Daga"
+    },
+    "status": {
+      "deactivated": "Deaktywowany"
     }
   },
   "logs": {
@@ -65,6 +69,11 @@
     },
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
+    "search": {
+      "matchCount": "{{current}} z {{total}}",
+      "noMatches": "Brak dopasowań",
+      "placeholder": "Szukaj w logach..."
+    },
     "settings": "Ustawienia logowania",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"

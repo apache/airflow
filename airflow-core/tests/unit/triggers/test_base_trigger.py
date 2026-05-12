@@ -27,6 +27,18 @@ class DummyOperator(BaseOperator):
     template_fields = ("name",)
 
 
+class OperatorWithExtraTemplateFields(BaseOperator):
+    """Operator whose template_fields do NOT all exist on the trigger."""
+
+    template_fields = ("bash_command", "env", "name")
+
+    def __init__(self, bash_command="", env=None, name="", **kwargs):
+        super().__init__(**kwargs)
+        self.bash_command = bash_command
+        self.env = env
+        self.name = name
+
+
 class DummyTrigger(BaseTrigger):
     def __init__(self, name: str, **kwargs):
         super().__init__(**kwargs)
@@ -67,3 +79,62 @@ def test_render_template_fields(create_task_instance):
     trigger.render_template_fields(context={"name": "world"})
 
     assert trigger.name == "Hello world"
+
+
+@pytest.mark.db_test
+def test_render_template_fields_filters_to_trigger_kwargs(create_task_instance):
+    """Only fields present in both trigger_kwargs and on the trigger should be rendered.
+
+    Operator template_fields like 'bash_command' and 'env' that don't exist on the
+    trigger must be excluded to avoid AttributeError.
+    """
+    op = OperatorWithExtraTemplateFields(
+        task_id="extra_fields_task",
+        bash_command="echo hello",
+        env={"KEY": "val"},
+        name="static",
+    )
+    ti = create_task_instance(
+        task=op,
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls=f"{DummyTrigger.__module__}.{DummyTrigger.__qualname__}",
+            next_method="resume_method",
+            trigger_kwargs={"name": "Hello {{ name }}"},
+        ),
+    )
+
+    trigger = DummyTrigger(name="Hello {{ name }}")
+    trigger.task_instance = ti
+
+    # Only 'name' should be in template_fields; 'bash_command' and 'env' are excluded
+    # because they aren't keys in trigger_kwargs or don't exist on the trigger.
+    assert trigger.template_fields == ("name",)
+
+    # Rendering must not raise AttributeError for missing operator fields
+    trigger.render_template_fields(context={"name": "world"})
+    assert trigger.name == "Hello world"
+
+
+@pytest.mark.db_test
+def test_render_template_fields_empty_when_no_trigger_kwargs(create_task_instance):
+    """When start_trigger_args has no trigger_kwargs, template_fields should be empty."""
+    op = DummyOperator(task_id="no_kwargs_task")
+    ti = create_task_instance(
+        task=op,
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls=f"{DummyTrigger.__module__}.{DummyTrigger.__qualname__}",
+            next_method="resume_method",
+            trigger_kwargs=None,
+        ),
+    )
+
+    trigger = DummyTrigger(name="Hello {{ name }}")
+    trigger.task_instance = ti
+
+    assert trigger.template_fields == ()
+
+    # Rendering with empty template_fields is a no-op
+    trigger.render_template_fields(context={"name": "world"})
+    assert trigger.name == "Hello {{ name }}"

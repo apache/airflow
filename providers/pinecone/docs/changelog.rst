@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+2.4.4
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``update pinecone's type dependency to resolve mypy checker error (#64524)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.4.3
 .....
 
