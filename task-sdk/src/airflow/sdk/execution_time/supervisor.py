@@ -182,13 +182,15 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
-STATES_SENT_DIRECTLY = [
-    TaskInstanceState.DEFERRED,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
-    TaskInstanceState.UP_FOR_RETRY,
-    TaskInstanceState.SUCCESS,
-    SERVER_TERMINATED,
-]
+STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
+    {
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.SUCCESS,
+        SERVER_TERMINATED,
+    }
+)
 
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues

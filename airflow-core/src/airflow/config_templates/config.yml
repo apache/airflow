@@ -3035,7 +3035,7 @@ profiling:
     memray_trace_components:
       description: |
         Comma-separated list of Airflow components to profile with memray.
-        Valid components are: scheduler, api, dag_processor
+        Valid components are: scheduler, api, dag_processor, triggerer
 
         This option only takes effect when it is not set to blank (default option).
         start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
@@ -3049,3 +3049,18 @@ profiling:
       type: string
       example: "scheduler,api,dag_processor"
       default: ~
+    memray_detailed_tracing:
+      description: |
+        Whether to enable memray's ``native_traces`` and ``trace_python_allocators`` options
+        when ``memray_trace_components`` is set. Captures C/C++ stack frames for compiled
+        extensions (numpy, pandas, etc.) and small ``pymalloc`` allocations that would
+        otherwise be invisible.
+
+        This adds significant runtime overhead and produces much larger profile files, so
+        leave it disabled unless the default trace lacks the detail you need. Native symbol
+        resolution is most accurate on Linux and less precise on macOS. See
+        https://bloomberg.github.io/memray/api.html for the underlying ``Tracker`` options.
+      version_added: 3.3.0
+      type: boolean
+      example: ~
+      default: "False"

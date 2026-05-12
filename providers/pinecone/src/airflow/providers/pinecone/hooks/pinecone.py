@@ -31,17 +31,24 @@ from airflow.providers.common.compat.sdk import BaseHook
 if TYPE_CHECKING:
     from multiprocessing.pool import ApplyResult
 
-    from pinecone import Vector
-    from pinecone.core.openapi.db_data.models import IndexDescription as DescribeIndexStatsResponse
-    from pinecone.db_data import QueryResponse, UpsertResponse
-    from pinecone.db_data.dataclasses.sparse_values import SparseValues
-    from pinecone.db_data.types import (
-        FilterTypedDict,
-        SparseVectorTypedDict,
-        VectorTuple,
-        VectorTupleWithMetadata,
-        VectorTypedDict,
+    from pinecone import (
+        DescribeIndexStatsResponse,
+        QueryResponse,
+        SparseValues,
+        UpsertResponse,
+        Vector,
     )
+
+    # The pinecone>=9 SDK no longer ships the `pinecone.db_data.types` typed-dicts
+    # (FilterTypedDict / SparseVectorTypedDict / VectorTuple / VectorTupleWithMetadata
+    # / VectorTypedDict) — its public Index.upsert/query signatures use inline
+    # union types. We mirror the same shapes here so this hook's signatures stay
+    # informative without depending on a moving target inside the vendor package.
+    FilterTypedDict = dict[str, Any]
+    SparseVectorTypedDict = dict[str, Any]
+    VectorTuple = tuple[str, list[float]]
+    VectorTupleWithMetadata = tuple[str, list[float], dict[str, Any]]
+    VectorTypedDict = dict[str, Any]
 
     from airflow.models.connection import Connection
 
@@ -209,15 +216,23 @@ class PineconeHook(BaseHook):
         :param source_collection: The source collection.
         :param environment: The environment to use when creating the index.
         """
-        return PodSpec(
-            environment=environment or self.environment,
-            replicas=replicas,
-            shards=shards,
-            pods=pods,
-            pod_type=pod_type if isinstance(pod_type, PodType) else PodType(pod_type),
-            metadata_config=metadata_config,
-            source_collection=source_collection,
-        )
+        # `replicas`, `shards`, `pods` are required positional ints in pinecone>=9
+        # (defaulted to 1 inside PodSpec). Only forward the kwarg when the caller
+        # supplied an explicit value so we keep the SDK's defaults instead of
+        # passing None.
+        spec_kwargs: dict[str, Any] = {
+            "environment": environment or self.environment,
+            "pod_type": pod_type if isinstance(pod_type, PodType) else PodType(pod_type),
+            "metadata_config": metadata_config,
+            "source_collection": source_collection,
+        }
+        if replicas is not None:
+            spec_kwargs["replicas"] = replicas
+        if shards is not None:
+            spec_kwargs["shards"] = shards
+        if pods is not None:
+            spec_kwargs["pods"] = pods
+        return PodSpec(**spec_kwargs)
 
     def get_serverless_spec_obj(self, *, cloud: str, region: str | None = None) -> ServerlessSpec:
         """
@@ -341,17 +356,28 @@ class PineconeHook(BaseHook):
         :param sparse_vector: sparse values of the query vector. Expected to be either a SparseValues object or a dict
          of the form: {'indices': list[int], 'values': list[float]}, where the lists each have the same length.
         """
+        # In pinecone>=9 `Index.query` requires non-Optional values for
+        # `namespace`, `include_values`, `include_metadata` (typed `str` /
+        # `bool` with defaults `""` / `False` / `False`). Only forward each
+        # kwarg when the caller passed something explicit so callers can keep
+        # using `None` as "use the SDK default".
         index = self.pinecone_client.Index(index_name)
-        return index.query(
-            vector=vector,
-            id=query_id,
-            top_k=top_k,
-            namespace=namespace,
-            filter=query_filter,
-            include_values=include_values,
-            include_metadata=include_metadata,
-            sparse_vector=sparse_vector,
-        )
+        query_kwargs: dict[str, Any] = {
+            "vector": vector,
+            "id": query_id,
+            "top_k": top_k,
+        }
+        if namespace is not None:
+            query_kwargs["namespace"] = namespace
+        if query_filter is not None:
+            query_kwargs["filter"] = query_filter
+        if include_values is not None:
+            query_kwargs["include_values"] = include_values
+        if include_metadata is not None:
+            query_kwargs["include_metadata"] = include_metadata
+        if sparse_vector is not None:
+            query_kwargs["sparse_vector"] = sparse_vector
+        return index.query(**query_kwargs)
 
     @staticmethod
     def _chunks(iterable: list[Any], batch_size: int = 100) -> Any:
@@ -375,18 +401,29 @@ class PineconeHook(BaseHook):
         :param index_name: Name of the index.
         :param data: List of tuples to be upserted. Each tuple is of form (id, vector, metadata).
                      Metadata is optional.
-        :param async_req: If True, upsert operations will be asynchronous.
-        :param pool_threads: Number of threads for parallel upserting. If async_req is True, this must be provided.
+        :param async_req: Kept for backward compatibility. The pinecone>=9 SDK
+                          dropped the per-call ``async_req=True`` /
+                          ``ApplyResult.get()`` path; concurrency is now
+                          controlled internally by ``max_concurrency`` on
+                          ``Index.upsert``. The argument is honored by
+                          mapping ``pool_threads`` onto ``max_concurrency``
+                          so existing callers that set both keep their
+                          parallelism, while the resulting per-chunk return
+                          value is now an ``UpsertResponse`` rather than an
+                          ``ApplyResult``.
+        :param pool_threads: Maps to ``max_concurrency`` on the underlying
+                             ``Index.upsert`` call; controls per-chunk
+                             parallel HTTP request count.
         """
-        responses = []
-        with self.pinecone_client.Index(index_name, pool_threads=pool_threads) as index:
-            if async_req and pool_threads:
-                async_results = [index.upsert(vectors=chunk, async_req=True) for chunk in self._chunks(data)]
-                responses = [async_result.get() for async_result in async_results]
-            else:
-                for chunk in self._chunks(data):
-                    response = index.upsert(vectors=chunk)
-                    responses.append(response)
+        del async_req  # consumed for backward-compat; see docstring
+        responses: list[Any] = []
+        upsert_kwargs: dict[str, Any] = {}
+        if pool_threads:
+            upsert_kwargs["max_concurrency"] = pool_threads
+        with self.pinecone_client.Index(index_name) as index:
+            for chunk in self._chunks(data):
+                response = index.upsert(vectors=chunk, **upsert_kwargs)
+                responses.append(response)
         return responses
 
     def describe_index_stats(

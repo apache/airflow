@@ -78,7 +78,9 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
+    assoc_group_role,
     assoc_permission_role,
+    assoc_user_role,
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
@@ -1332,12 +1334,21 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         Delete the given Role.
 
+        Cleans up association table rows (permission-role, user-role, group-role) before
+        deleting the role itself, so that databases whose FK constraints lack CASCADE
+        (e.g. databases migrated from older Airflow versions) do not raise IntegrityError.
+
         :param role_name: the name of a role in the ab_role table
         """
-        role = self.session.scalars(select(Role).where(Role.name == role_name)).first()
+        role = self.session.scalars(select(self.role_model).where(self.role_model.name == role_name)).first()
         if role:
             log.info("Deleting role '%s'", role_name)
-            self.session.execute(delete(Role).where(Role.name == role_name))
+            self.session.execute(
+                delete(assoc_permission_role).where(assoc_permission_role.c.role_id == role.id)
+            )
+            self.session.execute(delete(assoc_user_role).where(assoc_user_role.c.role_id == role.id))
+            self.session.execute(delete(assoc_group_role).where(assoc_group_role.c.role_id == role.id))
+            self.session.execute(delete(self.role_model).where(self.role_model.id == role.id))
             self.session.commit()
         else:
             raise FabException(f"Role named '{role_name}' does not exist")

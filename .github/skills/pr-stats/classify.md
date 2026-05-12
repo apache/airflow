@@ -148,6 +148,33 @@ Count the PR as responded if it has the marker AND an author comment between tri
 
 ---
 
+## Pressure weight
+
+Per-PR helper used by [`aggregate.md#pressure-score`](aggregate.md#pressure-score). Returns the integer weight a single contributor PR contributes to its area's pressure score. Pure function of fields already populated above; no extra fetches.
+
+```text
+def pressure_weight(pr) -> int:
+    if pr.author_association in ("OWNER", "MEMBER", "COLLABORATOR"):
+        return 0                       # collaborator PRs don't add maintainer pressure
+    if pr.is_ready_for_review:
+        return 1                       # waiting on maintainer review — soft pressure
+    if pr.is_triaged_waiting and (now - pr.triage_ts) >= 7 days:
+        return 2                       # stale triaged — sweep candidate
+    if pr.is_draft:
+        return 0                       # author's court
+    # untriaged non-draft
+    age = now - pr.last_author_at
+    if age >= 28 days: return 5
+    if age >= 7 days:  return 3
+    return 1
+```
+
+The first-match-wins ordering matters: a ready-for-review PR that's also a stale triaged draft scores 1 (ready takes precedence — once it has the label, the maintainer is the gate, not the author). Keep this function in lockstep with the table in [`aggregate.md#pressure-score`](aggregate.md#pressure-score).
+
+---
+
 ## Re-classification stability
 
 The stats run must produce the same numbers when invoked twice on the same cached state. Keep the classification pure (no time-dependent randomness) and anchor age-bucket cutoffs to `<now>` captured at fetch start, not at render time. Otherwise a slow run drifts PRs across buckets between fetch and render.
+
+This applies to `pressure_weight` too — the `7d` / `28d` thresholds are computed from the same `<now>` as the age buckets, so a PR that's exactly on a bucket boundary scores deterministically across re-runs of the same fetch.
