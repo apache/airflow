@@ -48,7 +48,7 @@ const AddPoolButton = () => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="brand" onClick={onOpen}>
+      <Button onClick={onOpen}>
         <MdAdd /> {translate("pools.add")}
       </Button>
 

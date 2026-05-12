@@ -355,6 +355,9 @@ const defaultAirflowTheme: ThemingConfig = {
     // IconButton in Chakra v3 uses the button recipe (it is a Button with px/py:0).
     // Overriding defaultVariants here sets the default size for both Button and IconButton.
     button: {
+      base: {
+        colorPalette: "brand",
+      },
       defaultVariants: { size: "sm" } as Record<string, string>,
     },
   },
@@ -366,7 +369,20 @@ const defaultAirflowTheme: ThemingConfig = {
     },
     checkbox: {
       slots: [],
-      defaultVariants: { colorPalette: "brand", size: "sm" } as Record<string, string>,
+      base: {
+        root: {
+          colorPalette: "brand",
+        },
+      },
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+    select: {
+      slots: [],
+      defaultVariants: { size: "sm" } as Record<string, string>,
+    },
+    switch: {
+      slots: [],
+      defaultVariants: { size: "sm" } as Record<string, string>,
     },
     // size="sm" gives px/py:2 on cell and columnHeader vs px/py:3 for "md".
     table: {

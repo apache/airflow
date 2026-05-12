@@ -36,8 +36,8 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
 
   return (
     <Menu.Root closeOnSelect={false} positioning={{ placement: "bottom" }}>
-      <Menu.Trigger asChild>
-        <IconButton aria-label={filterLabel} title={filterLabel}>
+      <Menu.Trigger>
+        <IconButton label={filterLabel}>
           <LuColumns3 />
         </IconButton>
       </Menu.Trigger>

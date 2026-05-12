@@ -66,7 +66,6 @@ export const AdvancedSearchToggle = ({
       <IconButton
         aria-label="Toggle match-anywhere search"
         aria-pressed={enabled}
-        colorPalette="brand"
         data-testid="advanced-search-toggle"
         flexShrink={0}
         onClick={() => onToggle(!enabled)}

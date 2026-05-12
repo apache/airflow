@@ -23,7 +23,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 import { useDeleteDag } from "src/queries/useDeleteDag";
 
 type DeleteDagButtonProps = {
@@ -49,13 +48,13 @@ export const DeleteDagButton = ({ dagDisplayName, dagId }: DeleteDagButtonProps)
     },
   });
 
+  const label = translate("dagActions.delete.button");
+
   return (
     <>
-      <Tooltip content={translate("dagActions.delete.button")}>
-        <IconButton aria-label={translate("dagActions.delete.button")} colorPalette="danger" onClick={onOpen}>
-          <FiTrash2 />
-        </IconButton>
-      </Tooltip>
+      <IconButton colorPalette="danger" label={label} onClick={onOpen}>
+        <FiTrash2 />
+      </IconButton>
 
       <DeleteDialog
         isDeleting={isPending}
@@ -63,7 +62,7 @@ export const DeleteDagButton = ({ dagDisplayName, dagId }: DeleteDagButtonProps)
         onDelete={() => deleteDag({ dagId })}
         open={open}
         resourceName={dagDisplayName}
-        title={translate("dagActions.delete.button")}
+        title={label}
         warningText={translate("dagActions.delete.warning")}
       />
     </>

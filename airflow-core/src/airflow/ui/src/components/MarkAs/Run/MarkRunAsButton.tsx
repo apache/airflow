@@ -62,26 +62,19 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   return (
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
-        <Menu.Trigger asChild>
-          <div>
-            <Tooltip
-              content={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
-            >
-              <IconButton
-                aria-label={translate("dags:runAndTaskActions.markAs.button", {
-                  type: translate("dagRun_one"),
-                })}
-                colorPalette="brand"
-                data-testid="mark-run-as-button"
-              >
-                <HStack gap={1} mx={1}>
-                  <LuCheck />
-                  <span>/</span>
-                  <FiX />
-                </HStack>
-              </IconButton>
-            </Tooltip>
-          </div>
+        <Menu.Trigger>
+          <IconButton
+            data-testid="mark-run-as-button"
+            label={translate("dags:runAndTaskActions.markAs.button", {
+              type: translate("dagRun_one"),
+            })}
+          >
+            <HStack gap={1} mx={1}>
+              <LuCheck />
+              <span>/</span>
+              <FiX />
+            </HStack>
+          </IconButton>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {

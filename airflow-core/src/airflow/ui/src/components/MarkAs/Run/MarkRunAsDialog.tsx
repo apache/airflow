@@ -62,7 +62,6 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
           <ActionAccordion note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="brand"
               data-testid="mark-run-as-confirm"
               loading={isPending}
               onClick={() => {

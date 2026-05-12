@@ -41,23 +41,21 @@ export const ExpandCollapseButtons = ({
   onExpand,
   ...rest
 }: Props) => (
-  <ButtonGroup attached colorPalette="brand" variant="outline" {...rest}>
+  <ButtonGroup attached variant="outline" zIndex={2} {...rest}>
     <IconButton
-      aria-label={expandLabel}
       data-testid="expand-all-button"
       disabled={isExpandDisabled}
+      label={expandLabel}
       onClick={onExpand}
-      title={expandLabel}
       variant={isExpanded === true ? "solid" : "outline"}
     >
       <MdExpand />
     </IconButton>
     <IconButton
-      aria-label={collapseLabel}
       data-testid="collapse-all-button"
       disabled={isCollapseDisabled}
+      label={collapseLabel}
       onClick={onCollapse}
-      title={collapseLabel}
       variant={isExpanded === false ? "solid" : "outline"}
     >
       <MdCompress />

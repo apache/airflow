@@ -162,11 +162,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
             </Button>
           ) : undefined}
           <Spacer />
-          <Button
-            colorPalette="brand"
-            disabled={!isValid || isPending || !isDirty}
-            onClick={() => void handleSubmit(onSubmit)()}
-          >
+          <Button disabled={!isValid || isPending || !isDirty} onClick={() => void handleSubmit(onSubmit)()}>
             <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>

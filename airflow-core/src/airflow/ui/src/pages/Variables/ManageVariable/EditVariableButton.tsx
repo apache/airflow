@@ -22,7 +22,7 @@ import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
 import { IconButton } from "src/components/ui";
-import { Dialog, Tooltip } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { useEditVariable } from "src/queries/useEditVariable";
 
 import type { VariableBody } from "./VariableForm";
@@ -64,16 +64,9 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
 
   return (
     <>
-      <Tooltip content={translate("variables.edit")}>
-        <IconButton
-          aria-label={translate("variables.edit")}
-          colorPalette="brand"
-          disabled={disabled}
-          onClick={onOpen}
-        >
-          <FiEdit />
-        </IconButton>
-      </Tooltip>
+      <IconButton disabled={disabled} label={translate("variables.edit")} onClick={onOpen}>
+        <FiEdit />
+      </IconButton>
 
       <Dialog.Root onOpenChange={handleClose} open={open}>
         <Dialog.Content backdrop>

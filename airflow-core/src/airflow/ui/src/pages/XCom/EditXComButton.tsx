@@ -35,7 +35,7 @@ const EditXComButton = ({ xcom }: EditXComButtonProps) => {
 
   return (
     <>
-      <IconButton aria-label={translate("xcom.edit.title")} onClick={onOpen}>
+      <IconButton label={translate("xcom.edit.title")} onClick={onOpen}>
         <FiEdit2 />
       </IconButton>
 

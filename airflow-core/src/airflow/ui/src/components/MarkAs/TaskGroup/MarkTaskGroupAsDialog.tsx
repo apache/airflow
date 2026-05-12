@@ -130,7 +130,6 @@ const MarkTaskGroupAsDialog = ({ groupTaskInstance, onClose, open, state }: Prop
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
-              colorPalette="brand"
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 mutate({

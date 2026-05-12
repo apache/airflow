@@ -45,7 +45,7 @@ const AddConnectionButton = () => {
 
   return (
     <>
-      <Button colorPalette="brand" onClick={onOpen}>
+      <Button onClick={onOpen}>
         <MdAdd /> {translate("connections.add")}
       </Button>
 

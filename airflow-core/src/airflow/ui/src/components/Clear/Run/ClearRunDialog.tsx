@@ -144,7 +144,6 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {

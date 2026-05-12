@@ -72,7 +72,7 @@ const DeleteXComButton = ({ xcom }: DeleteXComButtonProps) => {
 
   return (
     <>
-      <IconButton aria-label={translate("xcom.delete.title")} colorPalette="danger" onClick={onOpen}>
+      <IconButton colorPalette="danger" label={translate("xcom.delete.title")} onClick={onOpen}>
         <FiTrash2 />
       </IconButton>
 

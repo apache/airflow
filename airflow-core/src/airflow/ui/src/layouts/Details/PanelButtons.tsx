@@ -211,11 +211,7 @@ export const PanelButtons = ({
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <IconButton
-                aria-label={translate("dag:panel.buttons.options")}
-                colorPalette="brand"
-                title={translate("dag:panel.buttons.options")}
-              >
+              <IconButton label={translate("dag:panel.buttons.options")}>
                 <MdSettings />
               </IconButton>
             </Popover.Trigger>

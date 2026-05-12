@@ -45,7 +45,6 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { IconButton } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
-import { Tooltip } from "src/components/ui/Tooltip";
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -238,23 +237,21 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <BackfillBanner dagId={dagId} />
           <Box flex={1} minH={0}>
             {isRightPanelCollapsed ? (
-              <Tooltip content={translate("common:showDetailsPanel")}>
-                <IconButton
-                  aria-label={translate("common:showDetailsPanel")}
-                  bg="fg.subtle"
-                  borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
-                  boxShadow="md"
-                  left={direction === "rtl" ? "0" : undefined}
-                  onClick={() => setIsRightPanelCollapsed(false)}
-                  position="absolute"
-                  right={direction === "ltr" ? "0" : undefined}
-                  size="2xs"
-                  top="50%"
-                  zIndex={10}
-                >
-                  {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
-                </IconButton>
-              </Tooltip>
+              <IconButton
+                bg="fg.subtle"
+                borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
+                boxShadow="md"
+                label={translate("common:showDetailsPanel")}
+                left={direction === "rtl" ? "0" : undefined}
+                onClick={() => setIsRightPanelCollapsed(false)}
+                position="absolute"
+                right={direction === "ltr" ? "0" : undefined}
+                size="2xs"
+                top="50%"
+                zIndex={10}
+              >
+                {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
+              </IconButton>
             ) : undefined}
             <PanelGroup
               autoSaveId={`${panelViewKey}-${direction}`}
@@ -371,41 +368,35 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     order={2}
                   >
                     <Box display="flex" flexDirection="column" h="100%" position="relative">
-                      <Tooltip content={translate("common:collapseDetailsPanel")}>
-                        <IconButton
-                          aria-label={translate("common:collapseDetailsPanel")}
-                          bg="fg.subtle"
-                          borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
-                          boxShadow="md"
-                          left={direction === "ltr" ? "0" : undefined}
-                          onClick={() => setIsRightPanelCollapsed(true)}
-                          position="absolute"
-                          right={direction === "rtl" ? "0" : undefined}
-                          size="2xs"
-                          top="50%"
-                          zIndex={2}
-                        >
-                          {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
-                        </IconButton>
-                      </Tooltip>
+                      <IconButton
+                        bg="fg.subtle"
+                        borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
+                        boxShadow="md"
+                        label={translate("common:collapseDetailsPanel")}
+                        left={direction === "ltr" ? "0" : undefined}
+                        onClick={() => setIsRightPanelCollapsed(true)}
+                        position="absolute"
+                        right={direction === "rtl" ? "0" : undefined}
+                        size="2xs"
+                        top="50%"
+                        zIndex={2}
+                      >
+                        {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
+                      </IconButton>
                       {children}
                       {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                         <>
-                          <Tooltip
-                            content={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                          <IconButton
+                            colorPalette={Boolean(error) ? "red" : "orange"}
+                            label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                            margin="2"
+                            marginBottom="-1"
+                            onClick={onOpen}
+                            rounded="full"
+                            variant="solid"
                           >
-                            <IconButton
-                              aria-label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
-                              colorPalette={Boolean(error) ? "red" : "orange"}
-                              margin="2"
-                              marginBottom="-1"
-                              onClick={onOpen}
-                              rounded="full"
-                              variant="solid"
-                            >
-                              <LuFileWarning />
-                            </IconButton>
-                          </Tooltip>
+                            <LuFileWarning />
+                          </IconButton>
 
                           <DAGWarningsModal
                             error={error}

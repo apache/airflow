@@ -60,12 +60,12 @@ export const GridPaginationButtons = ({
       {latestNotVisible || hasNewerRuns ? (
         <Flex bottom={0} flexDirection="column" gap={1} position="absolute" right={-6} zIndex={1}>
           {latestNotVisible ? (
-            <IconButton aria-label={resetLabel} onClick={onJumpToLatest} title={resetLabel} {...buttonProps}>
+            <IconButton label={resetLabel} onClick={onJumpToLatest} {...buttonProps}>
               <FiChevronsRight />
             </IconButton>
           ) : undefined}
           {hasNewerRuns ? (
-            <IconButton aria-label={newerLabel} onClick={onNewerRuns} title={newerLabel} {...buttonProps}>
+            <IconButton label={newerLabel} onClick={onNewerRuns} {...buttonProps}>
               <FiChevronRight />
             </IconButton>
           ) : undefined}
@@ -73,12 +73,11 @@ export const GridPaginationButtons = ({
       ) : undefined}
       {hasOlderRuns ? (
         <IconButton
-          aria-label={olderLabel}
           bottom={0}
+          label={olderLabel}
           left={-6}
           onClick={onOlderRuns}
           position="absolute"
-          title={olderLabel}
           zIndex={1}
           {...buttonProps}
         >

@@ -24,7 +24,6 @@ import { CgRedo } from "react-icons/cg";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
@@ -71,33 +70,22 @@ const ClearTaskInstanceButton = ({
     { enabled: isHotkeyEnabled },
   );
 
+  const label = allMapped
+    ? isHotkeyEnabled
+      ? translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")
+      : translate("dags:runAndTaskActions.clearAllMapped.button")
+    : isHotkeyEnabled
+      ? translate("dags:runAndTaskActions.clear.buttonTooltip")
+      : translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") });
+
   return (
     <>
-      <Tooltip
-        closeDelay={100}
-        content={
-          allMapped
-            ? isHotkeyEnabled
-              ? translate("dags:runAndTaskActions.clearAllMapped.buttonTooltip")
-              : translate("dags:runAndTaskActions.clearAllMapped.button")
-            : isHotkeyEnabled
-              ? translate("dags:runAndTaskActions.clear.buttonTooltip")
-              : translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })
-        }
-        openDelay={100}
+      <IconButton
+        label={label}
+        onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
       >
-        <IconButton
-          aria-label={
-            allMapped
-              ? translate("dags:runAndTaskActions.clearAllMapped.button")
-              : translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })
-          }
-          colorPalette="brand"
-          onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
-        >
-          <CgRedo />
-        </IconButton>
-      </Tooltip>
+        <CgRedo />
+      </IconButton>
 
       {useInternalDialog && open && isGroup ? (
         <ClearGroupTaskInstanceDialog onClose={onClose} open={open} taskInstance={groupTaskInstance} />

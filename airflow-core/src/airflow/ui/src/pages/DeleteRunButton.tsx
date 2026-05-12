@@ -24,7 +24,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
@@ -52,15 +51,13 @@ const DeleteRunButton = ({ dagRun }: DeleteRunButtonProps) => {
 
   return (
     <>
-      <Tooltip content={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}>
-        <IconButton
-          aria-label={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-          colorPalette="danger"
-          onClick={onOpen}
-        >
-          <FiTrash2 />
-        </IconButton>
-      </Tooltip>
+      <IconButton
+        colorPalette="danger"
+        label={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
+        onClick={onOpen}
+      >
+        <FiTrash2 />
+      </IconButton>
 
       <DeleteDialog
         isDeleting={isPending}

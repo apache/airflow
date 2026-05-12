@@ -74,7 +74,7 @@ export const BrowseButton = ({
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
+      <Menu.Trigger>
         <NavButton icon={FiGlobe} title={translate("nav.browse")} />
       </Menu.Trigger>
       <Menu.Content>

@@ -188,7 +188,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               <HStack align="stretch">
                 {reprocessBehaviors.map((item) => (
                   <RadioCardItem
-                    colorPalette="brand"
                     indicatorPlacement="start"
                     key={item.value}
                     label={translate(item.label)}
@@ -263,7 +262,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Spacer />
           <Button onClick={() => void handleSubmit(onCancel)()}>{translate("common:modal.cancel")}</Button>
           <Button
-            colorPalette="brand"
             disabled={
               Boolean(errors.date) || isPendingDryRun || formError || affectedTasks.total_entries === 0
             }

@@ -105,13 +105,8 @@ export const TaskStreamFilter = () => {
 
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }}>
-      <Menu.Trigger asChild>
-        <IconButton
-          aria-label={tooltipContent}
-          colorPalette="brand"
-          title={tooltipContent}
-          variant={hasActiveFilter ? "solid" : "ghost"}
-        >
+      <Menu.Trigger>
+        <IconButton label={tooltipContent} variant={hasActiveFilter ? "solid" : "ghost"}>
           <FiFilter />
         </IconButton>
       </Menu.Trigger>
@@ -229,7 +224,7 @@ export const TaskStreamFilter = () => {
                   <FiInfo size={12} />
                 </Tooltip>
               </HStack>
-              <ButtonGroup attached colorPalette="brand" variant="outline" width="100%">
+              <ButtonGroup attached variant="outline" width="100%">
                 <Button
                   disabled={!hasActiveFilter}
                   flex="1"

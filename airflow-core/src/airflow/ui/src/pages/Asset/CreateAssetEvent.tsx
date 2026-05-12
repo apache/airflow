@@ -22,7 +22,6 @@ import { FiPlay } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";
 
@@ -36,16 +35,9 @@ export const CreateAssetEvent = ({ asset }: Props) => {
 
   return (
     <>
-      <Tooltip content={translate("createEvent.button")}>
-        <IconButton
-          aria-label={translate("createEvent.button")}
-          colorPalette="brand"
-          disabled={asset === undefined}
-          onClick={onOpen}
-        >
-          <FiPlay />
-        </IconButton>
-      </Tooltip>
+      <IconButton disabled={asset === undefined} label={translate("createEvent.button")} onClick={onOpen}>
+        <FiPlay />
+      </IconButton>
 
       {asset === undefined || !open ? undefined : (
         <CreateAssetEventModal asset={asset} onClose={onClose} open={open} />

@@ -247,12 +247,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
         </Dialog.Body>
         {eventType === "manual" ? (
           <Dialog.Footer>
-            <Button
-              colorPalette="brand"
-              disabled={Boolean(extraError)}
-              loading={isManualPending}
-              onClick={handleManualSubmit}
-            >
+            <Button disabled={Boolean(extraError)} loading={isManualPending} onClick={handleManualSubmit}>
               <FiPlay /> {translate("createEvent.button")}
             </Button>
           </Dialog.Footer>

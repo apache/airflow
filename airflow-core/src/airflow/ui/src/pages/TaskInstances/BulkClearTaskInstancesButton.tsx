@@ -68,7 +68,7 @@ const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }
 
   return (
     <>
-      <Button colorPalette="brand" onClick={onOpen} variant="outline">
+      <Button onClick={onOpen} variant="outline">
         <CgRedo />
         {translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_other") })}
       </Button>
@@ -128,7 +128,6 @@ const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }
                 {translate("dags:runAndTaskActions.options.preventRunningTasks")}
               </Checkbox>
               <Button
-                colorPalette="brand"
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isFetching}
                 onClick={() => {

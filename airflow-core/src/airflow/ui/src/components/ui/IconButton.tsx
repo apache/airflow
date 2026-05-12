@@ -20,9 +20,20 @@ import { IconButton as ChakraIconButton } from "@chakra-ui/react";
 import type { IconButtonProps } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
-// Wrapper that sets Airflow's preferred defaults.
-// size="sm"    is handled globally via the button recipe in theme.ts.
+import { Tooltip } from "./Tooltip";
+
+type Props = {
+  readonly label?: string;
+} & IconButtonProps;
+
 // variant="ghost" is set here since IconButton shares the button recipe with Button.
-export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ variant = "ghost", ...props }, ref) => <ChakraIconButton ref={ref} variant={variant} {...props} />,
+export const IconButton = forwardRef<HTMLButtonElement, Props>(
+  ({ label, variant = "ghost", ...props }, ref) =>
+    label === undefined ? (
+      <ChakraIconButton ref={ref} variant={variant} {...props} />
+    ) : (
+      <Tooltip content={label}>
+        <ChakraIconButton aria-label={label} ref={ref} variant={variant} {...props} />
+      </Tooltip>
+    ),
 );

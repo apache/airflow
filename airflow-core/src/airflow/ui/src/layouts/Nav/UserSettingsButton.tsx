@@ -88,7 +88,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
   return (
     <>
       <Menu.Root positioning={{ placement: "right" }}>
-        <Menu.Trigger asChild>
+        <Menu.Trigger>
           <NavButton icon={FiUser} title={translate("user")} />
         </Menu.Trigger>
         <Menu.Content>

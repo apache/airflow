@@ -22,7 +22,6 @@ import { FiTrash2 } from "react-icons/fi";
 
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 import { useDeletePool } from "src/queries/useDeletePool";
 
 type Props = {
@@ -38,11 +37,9 @@ const DeletePoolButton = ({ poolName }: Props) => {
 
   return (
     <>
-      <Tooltip content={translate("pools.delete.title")}>
-        <IconButton aria-label={translate("pools.delete.title")} colorPalette="danger" onClick={onOpen}>
-          <FiTrash2 />
-        </IconButton>
-      </Tooltip>
+      <IconButton colorPalette="danger" label={translate("pools.delete.title")} onClick={onOpen}>
+        <FiTrash2 />
+      </IconButton>
 
       <DeleteDialog
         isDeleting={isPending}

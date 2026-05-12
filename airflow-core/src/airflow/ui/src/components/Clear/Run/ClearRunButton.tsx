@@ -23,7 +23,6 @@ import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 
 import ClearRunDialog from "./ClearRunDialog";
 
@@ -46,24 +45,16 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
 
   return (
     <>
-      <Tooltip
-        closeDelay={100}
-        content={
+      <IconButton
+        label={
           isHotkeyEnabled
             ? translate("dags:runAndTaskActions.clear.buttonTooltip")
             : translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })
         }
-        openDelay={100}
+        onClick={onOpen}
       >
-        <IconButton
-          aria-label={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
-          colorPalette="brand"
-          onClick={onOpen}
-        >
-          <CgRedo />
-        </IconButton>
-      </Tooltip>
-
+        <CgRedo />
+      </IconButton>
       {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}
     </>
   );

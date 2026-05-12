@@ -20,7 +20,6 @@ import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 
 import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
 import { useDagParsing } from "src/queries/useDagParsing.ts";
 
 type Props = {
@@ -33,15 +32,8 @@ export const ParseDagButton = ({ dagId, fileToken }: Props) => {
   const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <Tooltip content={translate("reparseDag")}>
-      <IconButton
-        aria-label={translate("reparseDag")}
-        colorPalette="brand"
-        loading={isPending}
-        onClick={() => mutate({ fileToken })}
-      >
-        <AiOutlineFileSync />
-      </IconButton>
-    </Tooltip>
+    <IconButton label={translate("reparseDag")} loading={isPending} onClick={() => mutate({ fileToken })}>
+      <AiOutlineFileSync />
+    </IconButton>
   );
 };

@@ -235,7 +235,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 {translate("dags:runAndTaskActions.options.preventRunningTasks")}
               </Checkbox>
               <Button
-                colorPalette="brand"
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isPendingPatchDagRun}
                 onClick={onOpen}

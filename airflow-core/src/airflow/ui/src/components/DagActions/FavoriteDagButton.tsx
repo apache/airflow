@@ -19,7 +19,7 @@
 import { useTranslation } from "react-i18next";
 import { MdStar, MdStarOutline } from "react-icons/md";
 
-import { IconButton, Tooltip } from "src/components/ui";
+import { IconButton } from "src/components/ui";
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
 
 type FavoriteDagButtonProps = {
@@ -34,10 +34,8 @@ export const FavoriteDagButton = ({ dagId, isFavorite = false }: FavoriteDagButt
   const label = isFavorite ? translate("unfavoriteDag") : translate("favoriteDag");
 
   return (
-    <Tooltip content={label}>
-      <IconButton aria-label={label} loading={isLoading} onClick={() => toggleFavorite(isFavorite)}>
-        {isFavorite ? <MdStar /> : <MdStarOutline />}
-      </IconButton>
-    </Tooltip>
+    <IconButton label={label} loading={isLoading} onClick={() => toggleFavorite(isFavorite)}>
+      {isFavorite ? <MdStar /> : <MdStarOutline />}
+    </IconButton>
   );
 };

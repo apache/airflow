@@ -82,17 +82,15 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
   return (
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "top" }}>
-        <Menu.Trigger asChild>
-          <div>
-            <Button colorPalette="brand" variant="outline">
-              <HStack gap={1} mx={1}>
-                <LuCheck />
-                <span>/</span>
-                <FiX />
-              </HStack>
-              {translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_other") })}
-            </Button>
-          </div>
+        <Menu.Trigger>
+          <Button variant="outline">
+            <HStack gap={1} mx={1}>
+              <LuCheck />
+              <span>/</span>
+              <FiX />
+            </HStack>
+            {translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_other") })}
+          </Button>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {
@@ -168,7 +166,6 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="brand"
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isFetching}
                 onClick={() => {

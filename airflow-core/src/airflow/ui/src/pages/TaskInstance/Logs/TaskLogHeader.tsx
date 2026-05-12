@@ -202,12 +202,8 @@ export const TaskLogHeader = ({
         <LogSearchInput {...search} />
         <HStack gap={1}>
           <Menu.Root>
-            <Menu.Trigger asChild>
-              <IconButton
-                aria-label={translate("dag:logs.settings")}
-                data-testid="log-settings-button"
-                title={translate("dag:logs.settings")}
-              >
+            <Menu.Trigger>
+              <IconButton data-testid="log-settings-button" label={translate("dag:logs.settings")}>
                 <MdSettings />
               </IconButton>
             </Menu.Trigger>
@@ -240,9 +236,8 @@ export const TaskLogHeader = ({
           </Menu.Root>
           {!isFullscreen && (
             <IconButton
-              aria-label={translate("dag:logs.fullscreen.button")}
+              label={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
               onClick={toggleFullscreen}
-              title={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
             >
               <MdOutlineOpenInFull />
             </IconButton>
@@ -257,10 +252,9 @@ export const TaskLogHeader = ({
           />
 
           <IconButton
-            aria-label={translate("download.download")}
             data-testid="download-logs-button"
+            label={translate("download.tooltip", { hotkey: "d" })}
             onClick={downloadLogs}
-            title={translate("download.tooltip", { hotkey: "d" })}
           >
             <MdOutlineFileDownload />
           </IconButton>

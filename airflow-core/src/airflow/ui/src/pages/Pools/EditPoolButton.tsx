@@ -22,7 +22,7 @@ import { FiEdit } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { IconButton } from "src/components/ui";
-import { Dialog, Tooltip } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { useEditPool } from "src/queries/useEditPool";
 
 import PoolForm, { type PoolBody } from "./PoolForm";
@@ -52,11 +52,9 @@ const EditPoolButton = ({ pool }: Props) => {
 
   return (
     <>
-      <Tooltip content={translate("pools.edit")}>
-        <IconButton aria-label={translate("pools.edit")} colorPalette="brand" onClick={onOpen}>
-          <FiEdit />
-        </IconButton>
-      </Tooltip>
+      <IconButton label={translate("pools.edit")} onClick={onOpen}>
+        <FiEdit />
+      </IconButton>
 
       <Dialog.Root onOpenChange={handleClose} open={open}>
         <Dialog.Content backdrop>

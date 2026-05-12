@@ -91,7 +91,6 @@ export const SearchBar = ({
           {Boolean(value) ? (
             <CloseButton
               aria-label={translate("search.clear")}
-              colorPalette="brand"
               data-testid="clear-search"
               onClick={clearSearch}
               size="xs"

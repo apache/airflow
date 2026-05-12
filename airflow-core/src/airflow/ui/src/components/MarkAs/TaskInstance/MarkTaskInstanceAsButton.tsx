@@ -63,27 +63,18 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
   return (
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
-        <Menu.Trigger asChild>
-          <div>
-            <Tooltip
-              content={translate("dags:runAndTaskActions.markAs.button", {
-                type: translate("taskInstance_one"),
-              })}
-            >
-              <IconButton
-                aria-label={translate("dags:runAndTaskActions.markAs.button", {
-                  type: translate("taskInstance_one"),
-                })}
-                colorPalette="brand"
-              >
-                <HStack gap={1} mx={1}>
-                  <LuCheck />
-                  <span>/</span>
-                  <FiX />
-                </HStack>
-              </IconButton>
-            </Tooltip>
-          </div>
+        <Menu.Trigger>
+          <IconButton
+            label={translate("dags:runAndTaskActions.markAs.button", {
+              type: translate("taskInstance_one"),
+            })}
+          >
+            <HStack gap={1} mx={1}>
+              <LuCheck />
+              <span>/</span>
+              <FiX />
+            </HStack>
+          </IconButton>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {

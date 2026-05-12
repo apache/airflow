@@ -98,10 +98,9 @@ export const TriggerDAGButton = ({
       <Box>
         <Menu.Root>
           <Tooltip content={translate("triggerDag.manualRunDenied")} disabled={!isManualRunDenied}>
-            <Menu.Trigger asChild>
+            <Menu.Trigger>
               <Button
                 aria-label={translate("triggerDag.title")}
-                colorPalette="brand"
                 data-testid="trigger-dag-button"
                 disabled={isManualRunDenied}
                 variant={variant}
@@ -143,7 +142,6 @@ export const TriggerDAGButton = ({
         {withText ? (
           <Button
             aria-label={translate("triggerDag.title")}
-            colorPalette="brand"
             data-testid="trigger-dag-button"
             disabled={isManualRunDenied}
             onClick={handleNormalTrigger}
@@ -155,7 +153,6 @@ export const TriggerDAGButton = ({
         ) : (
           <IconButton
             aria-label={translate("triggerDag.title")}
-            colorPalette="brand"
             data-testid="trigger-dag-button"
             disabled={isManualRunDenied}
             onClick={onOpen}
