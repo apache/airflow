@@ -1156,14 +1156,12 @@ class DbApiHook(BaseHook):
         DB-specific hooks may override this to translate from a canonical style
         to their driver's paramstyle if you want a unified SQL authoring style.
         """
-
         return sql
 
     def _prepare_parameters(self, parameters: Iterable | Mapping[str, Any] | None):
         """
         DB hooks may override to adapt parameter style.
         """
-
         return parameters
 
     def _build_conn_kwargs_from_airflow_connection(self, db) -> dict:
