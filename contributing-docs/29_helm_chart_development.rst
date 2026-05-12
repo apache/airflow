@@ -128,7 +128,7 @@ templates that touch a specific component.
      - Lives under the kubernetes section.
    * - OpenTelemetry
      - Chart
-     - Default telemetry path.
+     - OTel is the designated primary telemetry path and is to be supported by the chart.
    * - Ingress
      - Chart
      - Per-component ingress only. Do not add ``registry.secretNames``,
