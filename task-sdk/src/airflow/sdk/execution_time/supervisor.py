@@ -1978,7 +1978,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 log = structlog.get_logger(logger_name="task")
 
                 state, msg, error = run(ti, context, log)
-                finalize(ti, state, context, log, error)
+                finalize(ti, state, context, log, error, msg=msg)
 
                 # In the normal subprocess model, the task runner calls this before exiting.
                 # Since we're running in-process, we manually notify the API server that
