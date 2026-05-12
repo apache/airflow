@@ -1,25 +1,40 @@
+"""
+Example DAG: ERP Data Migration Pipeline
+
+This example demonstrates a structured ETL workflow including:
+extract, validate, transform, load, and reconcile steps.
+
+It is a simplified illustration of how Apache Airflow can be used
+to orchestrate enterprise ERP data migration processes.
+"""
+
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 
 def extract_data(**kwargs):
+    """Simulates extraction from a legacy ERP system."""
     print("Extracting data from legacy ERP system")
 
 
 def validate_data(**kwargs):
+    """Simulates validation checks for completeness and accuracy."""
     print("Validating data (completeness, accuracy checks)")
 
 
 def transform_data(**kwargs):
+    """Simulates transforming source data into the target ERP format."""
     print("Transforming data to target ERP format")
 
 
 def load_data(**kwargs):
+    """Simulates loading transformed data into the target system."""
     print("Loading data into target system")
 
 
 def reconcile_data(**kwargs):
+    """Simulates source-to-target reconciliation after loading."""
     print("Reconciling source and target data")
 
 
