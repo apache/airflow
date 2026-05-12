@@ -305,7 +305,7 @@ class XComNotFound(AirflowException):
         )
 
 
-class ParamValidationError(AirflowException):
+class ParamValidationError(AirflowException, ValueError):
     """Raise when DAG params is invalid."""
 
 

@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { getSafeExternalUrl } from "src/utils/links";
 
 type ExtraLinksProps = {
   readonly refetchInterval: number | false;
@@ -67,11 +68,17 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
             return undefined;
           }
 
-          const target = getTarget(url);
+          const safeUrl = getSafeExternalUrl(url);
+
+          if (safeUrl === undefined) {
+            return undefined;
+          }
+
+          const target = getTarget(safeUrl);
 
           return (
             <Button asChild colorPalette="brand" key={key} variant="surface">
-              <a href={url} rel="noopener noreferrer" target={target}>
+              <a href={safeUrl} rel="noopener noreferrer" target={target}>
                 {key}
               </a>
             </Button>

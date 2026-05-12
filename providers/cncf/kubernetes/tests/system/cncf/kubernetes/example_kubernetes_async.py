@@ -180,7 +180,7 @@ with DAG(
     write_xcom_async = KubernetesPodOperator(
         task_id="kubernetes_write_xcom_task_async",
         namespace="default",
-        image="alpine:3.23",
+        image="alpine:3.23.4",
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,
