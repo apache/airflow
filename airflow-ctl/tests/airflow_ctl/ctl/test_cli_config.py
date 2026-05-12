@@ -158,12 +158,10 @@ def test_args_list():
 def test_args_get():
     return [
         (
-            "--backfill-id",
+            "backfill_id",
             {
                 "help": "backfill_id for get operation in BackfillsOperations",
-                "default": None,
                 "type": str,
-                "dest": None,
             },
         ),
         (
@@ -182,12 +180,10 @@ def test_args_get():
 def test_args_delete():
     return [
         (
-            "--backfill-id",
+            "backfill_id",
             {
                 "help": "backfill_id for delete operation in BackfillsOperations",
-                "default": None,
                 "type": str,
-                "dest": None,
             },
         ),
         (
@@ -287,13 +283,13 @@ class TestCommandFactory:
                     for arg, test_arg in zip(sub_command.args, test_args_get):
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
-                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
                 elif sub_command.name == "delete":
                     for arg, test_arg in zip(sub_command.args, test_args_delete):
                         assert arg.flags[0] == test_arg[0]
                         assert arg.kwargs["help"] == test_arg[1]["help"]
-                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
     def test_command_factory_optional_bool_uses_boolean_optional_action(self):
@@ -325,6 +321,99 @@ class TestCommandFactory:
         assert is_alive_arg.kwargs["action"] == BooleanOptionalAction
         assert is_alive_arg.kwargs["default"] is None
         assert is_alive_arg.kwargs["type"] is bool
+
+    def test_command_factory_required_primitive_param_is_positional(self):
+        """Required primitive parameters (no default, not Optional) become positional arguments.
+
+        Following the dev-list lazy consensus on ``airflowctl`` parameter style
+        (`<https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm>`_),
+        required parameters of auto-generated commands should be positional and
+        optional parameters keep the ``--flag`` form.
+        """
+        temp_file = "test_command.py"
+        self._save_temp_operations_py(
+            temp_file=temp_file,
+            file_content="""
+                class WidgetsOperations(BaseOperations):
+                    def get(self, widget_id: str) -> WidgetResponse | ServerResponseError:
+                        self.response = self.client.get(f"widgets/{widget_id}")
+                        return WidgetResponse.model_validate_json(self.response.content)
+                    def delete(self, widget_id: str) -> ServerResponseError | None:
+                        self.response = self.client.delete(f"widgets/{widget_id}")
+                        return None
+                    def update_version(
+                        self, widget_id: str, version: int, note: str | None = None
+                    ) -> WidgetResponse | ServerResponseError:
+                        self.response = self.client.patch(
+                            f"widgets/{widget_id}/version/{version}",
+                            json={"note": note},
+                        )
+                        return WidgetResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=temp_file)
+        sub_commands = {}
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "widgets":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                sub_commands[sub_command.name] = sub_command
+
+        # get: single required str -> positional
+        get_args = list(sub_commands["get"].args)
+        widget_id_arg = next(arg for arg in get_args if arg.flags[0] in ("widget_id", "--widget-id"))
+        assert widget_id_arg.flags == ("widget_id",)
+        assert widget_id_arg.kwargs["type"] is str
+        assert "default" not in widget_id_arg.kwargs
+        assert "action" not in widget_id_arg.kwargs
+
+        # delete: same shape
+        delete_args = list(sub_commands["delete"].args)
+        delete_widget_id_arg = next(
+            arg for arg in delete_args if arg.flags[0] in ("widget_id", "--widget-id")
+        )
+        assert delete_widget_id_arg.flags == ("widget_id",)
+
+        # update-version: two required (str + int) positional, ``note`` keeps --flag form
+        update_args = list(sub_commands["update-version"].args)
+        update_widget_id_arg = next(
+            arg for arg in update_args if arg.flags[0] in ("widget_id", "--widget-id")
+        )
+        version_arg = next(arg for arg in update_args if arg.flags[0] in ("version", "--version"))
+        note_arg = next(arg for arg in update_args if arg.flags[0] in ("note", "--note"))
+        assert update_widget_id_arg.flags == ("widget_id",)
+        assert version_arg.flags == ("version",)
+        assert version_arg.kwargs["type"] is int
+        assert note_arg.flags == ("--note",)
+        assert note_arg.kwargs["default"] is None
+
+    def test_command_factory_primitive_param_with_default_keeps_flag(self):
+        """Primitive parameters with a default value keep the ``--flag`` form."""
+        temp_file = "test_command.py"
+        self._save_temp_operations_py(
+            temp_file=temp_file,
+            file_content="""
+                class WidgetsOperations(BaseOperations):
+                    def list(self, limit: int = 100) -> WidgetCollectionResponse | ServerResponseError:
+                        self.response = self.client.get("widgets", params={"limit": limit})
+                        return WidgetCollectionResponse.model_validate_json(self.response.content)
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=temp_file)
+        list_args = []
+        for generated_group_command in command_factory.group_commands:
+            if generated_group_command.name != "widgets":
+                continue
+            for sub_command in generated_group_command.subcommands:
+                if sub_command.name == "list":
+                    list_args = list(sub_command.args)
+                    break
+
+        limit_arg = next(arg for arg in list_args if arg.flags[0] in ("limit", "--limit"))
+        assert limit_arg.flags == ("--limit",)
+        assert limit_arg.kwargs["type"] is int
 
 
 class TestCliConfigMethods:
