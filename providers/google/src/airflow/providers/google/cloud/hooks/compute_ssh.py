@@ -141,6 +141,7 @@ class ComputeEngineSSHHook(SSHHook):
         cmd_timeout: int | ArgNotSet = NOTSET,
         max_retries: int = 10,
         impersonation_chain: str | None = None,
+        host_key_policy: str | paramiko.MissingHostKeyPolicy = "auto_add",
         **kwargs,
     ) -> None:
         # Ignore original constructor
@@ -158,7 +159,46 @@ class ComputeEngineSSHHook(SSHHook):
         self.cmd_timeout = cmd_timeout
         self.max_retries = max_retries
         self.impersonation_chain = impersonation_chain
+        self.host_key_policy = host_key_policy
         self._conn: Any | None = None
+
+    def _resolve_host_key_policy(self) -> paramiko.MissingHostKeyPolicy:
+        """
+        Resolve ``self.host_key_policy`` to a concrete paramiko policy instance.
+
+        Accepts:
+
+        - the string aliases ``"auto_add"``, ``"reject"`` or ``"warning"`` —
+          mapped to the matching ``paramiko`` policy class;
+        - an instance of ``paramiko.MissingHostKeyPolicy`` — used as-is, so
+          callers can plug in a custom policy (e.g. one that loads pinned
+          host keys from GCE guest attributes).
+
+        Any other value raises :class:`AirflowException`.
+
+        The default value (``"auto_add"``) preserves the historical behaviour
+        of this hook. Callers that want the remote SSH server authenticated
+        before the session opens should pass ``"reject"`` together with a
+        populated ``known_hosts`` file, or supply a custom policy that
+        looks the remote host's key up from an out-of-band source.
+        """
+        if not isinstance(self.host_key_policy, str):
+            # Trust the caller: an explicit paramiko.MissingHostKeyPolicy
+            # instance, or a subclass instance with custom behaviour.
+            return self.host_key_policy
+        builtins = {
+            "auto_add": paramiko.AutoAddPolicy,
+            "reject": paramiko.RejectPolicy,
+            "warning": paramiko.WarningPolicy,
+        }
+        try:
+            return builtins[self.host_key_policy]()
+        except KeyError:
+            raise ValueError(
+                f"Unknown host_key_policy {self.host_key_policy!r}. "
+                "Expected one of 'auto_add', 'reject', 'warning', "
+                "or an instance of paramiko.MissingHostKeyPolicy."
+            )
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
@@ -310,9 +350,12 @@ class ComputeEngineSSHHook(SSHHook):
         for time_to_wait in range(max_time_to_wait + 1):
             try:
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
-                # Default is RejectPolicy
-                # No known host checking since we are not storing privatekey
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
+                # Apply the policy configured via the `host_key_policy` constructor
+                # argument; default is `"auto_add"` (paramiko.AutoAddPolicy), which
+                # preserves the historical behaviour of this hook. Callers that need
+                # the remote host authenticated should pass `"reject"` with a
+                # populated known_hosts file or a custom MissingHostKeyPolicy.
+                client.set_missing_host_key_policy(self._resolve_host_key_policy())  # nosec B507
                 client.connect(
                     hostname=hostname,
                     username=user,
