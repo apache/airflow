@@ -80,6 +80,10 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         if callable(inspect.getattr_static(obj, "serialize", None)):
             return serialize_object(obj.serialize())
 
+        # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict()
+        if callable(inspect.getattr_static(obj, "to_dict", None)):
+            return serialize_object(obj.to_dict())
+
         if callable(obj):
             # Use qualified name; default repr embeds memory addresses, which would change the DAG hash on every parse
             return f"<callable {qualname(obj, True)}>"
