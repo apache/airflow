@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, func, insert, select, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
 from airflow._shared.timezones.timezone import utcnow
@@ -257,6 +257,21 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
     )
 
 
+# Dialect-specific message prefixes for unique-constraint IntegrityErrors. Kept in sync with
+# ``airflow.api_fastapi.common.exceptions._UniqueConstraintErrorHandler``.
+_UNIQUE_CONSTRAINT_ERROR_PREFIXES = (
+    "UNIQUE constraint failed",  # SQLite
+    "Duplicate entry",  # MySQL
+    "violates unique constraint",  # Postgres
+)
+
+
+def _is_unique_constraint_error(exc: IntegrityError) -> bool:
+    """Return True iff ``exc`` is a unique/primary-key constraint violation across SQLite, MySQL, and Postgres."""
+    orig_str = str(exc.orig)
+    return any(prefix in orig_str for prefix in _UNIQUE_CONSTRAINT_ERROR_PREFIXES)
+
+
 def _serialize_dag_capturing_errors(
     dag: LazyDeserializedDAG,
     bundle_name,
@@ -295,6 +310,29 @@ def _serialize_dag_capturing_errors(
         return []
     except OperationalError:
         raise
+    except IntegrityError as exc:
+        # Multiple Dag processors writing the same brand-new Dag can race on the INSERT.
+        # The loser's transaction is already invalid, so we must roll the session back to
+        # avoid PendingRollbackError on subsequent per-Dag work in this parsing cycle.
+        # The winning peer already produced the correct row, so this is not an import error
+        # and we don't retry. Non-unique IntegrityErrors (e.g. NOT-NULL violations from a
+        # genuinely malformed Dag) fall through to the generic Exception arm.
+        if _is_unique_constraint_error(exc):
+            log.info(
+                "Concurrent Dag processor already wrote Dag, skipping duplicate insert",
+                dag_id=dag.dag_id,
+                fileloc=dag.fileloc,
+            )
+            session.rollback()
+            return []
+        log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
+        dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+        return [
+            (
+                (bundle_name, dag.relative_fileloc),
+                traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
+            )
+        ]
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")

@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.exc import OperationalError, SAWarning
+from sqlalchemy.exc import IntegrityError, OperationalError, SAWarning
 
 import airflow.dag_processing.collection
 from airflow._shared.timezones import timezone as tz
@@ -650,6 +650,109 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 0
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
+
+    @pytest.mark.parametrize(
+        "orig_message",
+        [
+            pytest.param(
+                "(sqlite3.IntegrityError) UNIQUE constraint failed: serialized_dag.dag_id",
+                id="sqlite",
+            ),
+            pytest.param(
+                "(MySQLdb.IntegrityError) (1062, \"Duplicate entry 'my_dag' for key 'serialized_dag.PRIMARY'\")",
+                id="mysql",
+            ),
+            pytest.param(
+                "(psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "
+                '"serialized_dag_pkey"',
+                id="postgres",
+            ),
+        ],
+    )
+    @patch.object(SerializedDagModel, "write_dag")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
+    def test_duplicate_key_from_concurrent_processor_is_not_import_error(
+        self,
+        mock_bulk_write_to_db,
+        mock_write_dag,
+        orig_message,
+        testing_dag_bundle,
+        session,
+    ):
+        """
+        A unique-constraint IntegrityError from a peer Dag processor that won the
+        first-write race should not be recorded as an import error, the session should
+        be rolled back, and ``write_dag`` should not be retried.
+        """
+        mock_write_dag.side_effect = IntegrityError(
+            statement="INSERT INTO serialized_dag ...", params={}, orig=Exception(orig_message)
+        )
+
+        mock_session = mock.MagicMock()
+        mock_dag = mock.MagicMock(dag_id="dup_dag", fileloc="dup_dag.py", relative_fileloc="dup_dag.py")
+        import_errors: dict[tuple[str, str], str] = {}
+
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            dags=[mock_dag],
+            import_errors=import_errors,
+            parse_duration=None,
+            warnings=set(),
+            session=mock_session,
+        )
+
+        # write_dag is called exactly once: a unique-constraint hit is not retried.
+        assert mock_write_dag.call_count == 1
+        # No import error recorded.
+        assert import_errors == {}
+        # Session is rolled back so subsequent per-Dag work doesn't hit PendingRollbackError.
+        mock_session.rollback.assert_called()
+
+    @patch.object(SerializedDagModel, "write_dag")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
+    def test_non_unique_integrity_error_is_still_import_error(
+        self,
+        mock_bulk_write_to_db,
+        mock_write_dag,
+        testing_dag_bundle,
+        session,
+    ):
+        """
+        IntegrityErrors that aren't unique-constraint violations (e.g. NOT-NULL) must
+        still surface as import errors so the user sees the problem.
+        """
+        mock_write_dag.side_effect = IntegrityError(
+            statement="INSERT INTO serialized_dag ...",
+            params={},
+            orig=Exception(
+                '(psycopg2.errors.NotNullViolation) null value in column "dag_id" '
+                "violates not-null constraint"
+            ),
+        )
+
+        mock_session = mock.MagicMock()
+        mock_dag = mock.MagicMock(
+            dag_id="not_null_dag", fileloc="not_null.py", relative_fileloc="not_null.py"
+        )
+        import_errors: dict[tuple[str, str], str] = {}
+
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            dags=[mock_dag],
+            import_errors=import_errors,
+            parse_duration=None,
+            warnings=set(),
+            session=mock_session,
+        )
+
+        err = import_errors.get(("testing", "not_null.py"))
+        assert err is not None
+        assert "IntegrityError" in err
+        assert "not-null constraint" in err
+        # The error must not have triggered the duplicate-key short-circuit rollback path.
+        mock_session.rollback.assert_not_called()
 
     @patch.object(ParseImportError, "full_file_path")
     @mark_fab_auth_manager_test
