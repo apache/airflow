@@ -148,8 +148,9 @@ apache-airflow-providers-atlassian-jira = false
 apache-airflow-providers-odbc = false
 apache-airflow-providers-postgres = false
 apache-airflow-providers-openai = false
-apache-airflow-task-sdk-integration-tests = false
+apache-airflow-providers-sdk-executable = false
 apache-airflow-providers-smtp = false
+apache-airflow-task-sdk-integration-tests = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-cloudant = false
@@ -251,6 +252,7 @@ members = [
     "apache-airflow-providers-redis",
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-samba",
+    "apache-airflow-providers-sdk-executable",
     "apache-airflow-providers-sdk-java",
     "apache-airflow-providers-segment",
     "apache-airflow-providers-sendgrid",
@@ -1029,6 +1031,7 @@ all = [
     { name = "apache-airflow-providers-redis" },
     { name = "apache-airflow-providers-salesforce" },
     { name = "apache-airflow-providers-samba" },
+    { name = "apache-airflow-providers-sdk-executable" },
     { name = "apache-airflow-providers-sdk-java" },
     { name = "apache-airflow-providers-segment" },
     { name = "apache-airflow-providers-sendgrid" },
@@ -1349,6 +1352,9 @@ salesforce = [
 samba = [
     { name = "apache-airflow-providers-samba" },
 ]
+sdk-executable = [
+    { name = "apache-airflow-providers-sdk-executable" },
+]
 sdk-java = [
     { name = "apache-airflow-providers-sdk-java" },
 ]
@@ -1644,6 +1650,8 @@ requires-dist = [
     { name = "apache-airflow-providers-salesforce", marker = "extra == 'salesforce'", editable = "providers/salesforce" },
     { name = "apache-airflow-providers-samba", marker = "extra == 'all'", editable = "providers/samba" },
     { name = "apache-airflow-providers-samba", marker = "extra == 'samba'", editable = "providers/samba" },
+    { name = "apache-airflow-providers-sdk-executable", marker = "extra == 'all'", editable = "providers/sdk/executable" },
+    { name = "apache-airflow-providers-sdk-executable", marker = "extra == 'sdk-executable'", editable = "providers/sdk/executable" },
     { name = "apache-airflow-providers-sdk-java", marker = "extra == 'all'", editable = "providers/sdk/java" },
     { name = "apache-airflow-providers-sdk-java", marker = "extra == 'sdk-java'", editable = "providers/sdk/java" },
     { name = "apache-airflow-providers-segment", marker = "extra == 'all'", editable = "providers/segment" },
@@ -1696,7 +1704,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.8" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "sdk-java", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "sdk-executable", "sdk-java", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2747,7 +2755,7 @@ packages = []
 
 [[package]]
 name = "apache-airflow-providers-airbyte"
-version = "5.4.1"
+version = "5.4.2"
 source = { editable = "providers/airbyte" }
 dependencies = [
     { name = "airbyte-api" },
@@ -2874,7 +2882,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.27.0"
+version = "9.28.0"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4037,7 +4045,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.16.1"
+version = "10.17.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles" },
@@ -4125,7 +4133,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-ai"
-version = "0.1.1"
+version = "0.2.0"
 source = { editable = "providers/common/ai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4353,7 +4361,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-sql"
-version = "1.35.0"
+version = "1.36.0"
 source = { editable = "providers/common/sql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4454,7 +4462,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-databricks"
-version = "7.13.0"
+version = "7.14.0"
 source = { editable = "providers/databricks" }
 dependencies = [
     { name = "aiohttp" },
@@ -4596,7 +4604,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.8.1"
+version = "4.8.2"
 source = { editable = "providers/dbt/cloud" }
 dependencies = [
     { name = "aiohttp" },
@@ -4690,7 +4698,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-discord"
-version = "3.12.2"
+version = "3.12.3"
 source = { editable = "providers/discord" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4768,7 +4776,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-edge3"
-version = "3.5.0"
+version = "3.6.0"
 source = { editable = "providers/edge3" }
 dependencies = [
     { name = "aiofiles" },
@@ -4907,7 +4915,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.6.2"
+version = "3.6.3"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5071,7 +5079,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-git"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "providers/git" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5145,7 +5153,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-google"
-version = "21.2.0"
+version = "21.3.0"
 source = { editable = "providers/google" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5827,7 +5835,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "13.1.2"
+version = "13.2.0"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
@@ -6115,7 +6123,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-mysql"
-version = "6.5.2"
+version = "6.5.3"
 source = { editable = "providers/mysql" }
 dependencies = [
     { name = "aiomysql" },
@@ -6345,7 +6353,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openlineage"
-version = "2.15.0"
+version = "2.16.0"
 source = { editable = "providers/openlineage" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7040,6 +7048,48 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
+name = "apache-airflow-providers-sdk-executable"
+version = "0.1.0"
+source = { editable = "providers/sdk/executable" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+common-compat = [
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
+    { name = "pyyaml" },
+]
+provides-extras = ["common-compat"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
 name = "apache-airflow-providers-sdk-java"
 version = "0.1.0"
 source = { editable = "providers/sdk/java" }
@@ -7483,7 +7533,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-standard"
-version = "1.12.3"
+version = "1.13.0"
 source = { editable = "providers/standard" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7865,7 +7915,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-yandex"
-version = "4.4.2"
+version = "4.5.0"
 source = { editable = "providers/yandex" }
 dependencies = [
     { name = "apache-airflow" },
