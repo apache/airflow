@@ -25,12 +25,10 @@ clause injected by PermittedTIFilter causes a full sequential scan on
 task_instance, observed at ~39s avg latency in RDS Performance Insights.
 
 Putting updated_at first lets Postgres bound the scan to the time window,
-then use dag_id as a secondary filter within that range. A partial index
-(as used in 0112) would not help here because this query has no state
-filter and must cover task instances in all states.
+then use dag_id as a secondary filter within that range.
 
 Revision ID: d1e2f3a4b5c6
-Revises: c4f5e6d7a8b9
+Revises: 9fabad868fdb
 Create Date: 2026-04-20 00:00:00.000000
 
 """
@@ -41,7 +39,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d1e2f3a4b5c6"
-down_revision = "c4f5e6d7a8b9"
+down_revision = "9fabad868fdb"
 branch_labels = None
 depends_on = None
 airflow_version = "3.3.0"
