@@ -23,12 +23,15 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - v[0-9]+-[0-9]+-test
+      - chart/v[0-9]+-[0-9]x+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   pull_request:
     branches:
       - main
       - v[0-9]+-[0-9]+-test
+      - chart/v[0-9]+-[0-9]x+-test
       - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]x+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
