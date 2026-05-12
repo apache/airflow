@@ -1033,10 +1033,7 @@ class TestGKEStartPodOperator:
     ):
         mock_trigger_start_time = mock_utcnow.return_value
 
-        mock_metadata = mock.MagicMock()
-        mock_metadata.name = K8S_POD_NAME
-        mock_metadata.namespace = K8S_NAMESPACE
-        self.operator.pod = mock.MagicMock(metadata=mock_metadata)
+        self.operator.pod = make_pod()
         mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
         mock_get_logs = mock.MagicMock()
         self.operator.get_logs = mock_get_logs
@@ -1287,17 +1284,8 @@ class TestGKEStartJobOperator:
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEJobTrigger"))
     def test_execute_deferrable(self, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer):
-        mock_pod_metadata = mock.MagicMock()
-        mock_pod_metadata.name = K8S_POD_NAME
-        mock_pod_metadata.namespace = K8S_NAMESPACE
-        self.operator.pods = [
-            mock.MagicMock(metadata=mock_pod_metadata),
-        ]
-
-        mock_job_metadata = mock.MagicMock()
-        mock_job_metadata.name = K8S_JOB_NAME
-        mock_job_metadata.namespace = K8S_NAMESPACE
-        self.operator.job = mock.MagicMock(metadata=mock_job_metadata)
+        self.operator.pods = [make_pod()]
+        self.operator.job = make_job()
 
         mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
         mock_get_logs = mock.MagicMock()
@@ -1347,20 +1335,9 @@ class TestGKEStartJobOperator:
             parallelism=2,
         )
         mock_pod_name_1 = K8S_POD_NAME + "-1"
-        mock_pod_metadata_1 = mock.MagicMock()
-        mock_pod_metadata_1.name = mock_pod_name_1
-        mock_pod_metadata_1.namespace = K8S_NAMESPACE
-
         mock_pod_name_2 = K8S_POD_NAME + "-2"
-        mock_pod_metadata_2 = mock.MagicMock()
-        mock_pod_metadata_2.name = mock_pod_name_2
-        mock_pod_metadata_2.namespace = K8S_NAMESPACE
-        op.pods = [mock.MagicMock(metadata=mock_pod_metadata_1), mock.MagicMock(metadata=mock_pod_metadata_2)]
-
-        mock_job_metadata = mock.MagicMock()
-        mock_job_metadata.name = K8S_JOB_NAME
-        mock_job_metadata.namespace = K8S_NAMESPACE
-        op.job = mock.MagicMock(metadata=mock_job_metadata)
+        op.pods = [make_pod(name=mock_pod_name_1), make_pod(name=mock_pod_name_2)]
+        op.job = make_job()
 
         mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
         mock_get_logs = mock.MagicMock()

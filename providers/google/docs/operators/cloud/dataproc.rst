@@ -31,6 +31,52 @@ Prerequisite Tasks
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
 
+Sovereign Cloud from Google guidance
+------------------------------------
+
+Sovereign Cloud from Google is a Google Cloud deployment with a separate service endpoint surface from
+standard Google Cloud regions. Dataproc support in Sovereign Cloud from Google can therefore differ from
+Dataproc support in standard Google Cloud. If a Dataproc API method or job type is not implemented in
+Sovereign Cloud from Google, the corresponding Airflow operator or job configuration will not run there.
+This is a Dataproc service availability limitation, not a Cloud Composer or Airflow operator limitation.
+
+The following Dataproc job configurations were available in the tested Sovereign Cloud from Google environment:
+
+* Hadoop jobs.
+* Hive jobs.
+* PySpark jobs.
+* Spark jobs.
+* Spark SQL jobs.
+* Trino jobs.
+
+The following Dataproc job configurations were not available in the tested environment:
+
+* ``PigJob``.
+* ``PrestoJob``.
+* ``SparkRJob``.
+* ``FlinkJob``.
+
+The following operators do not work in Sovereign Cloud from Google because the corresponding Dataproc API
+methods are not implemented there yet:
+
+* Workflow template operators:
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`, and
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`.
+* Batch operators:
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator`, and
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCancelOperationOperator`.
+
+The same limitation was observed with ``gcloud`` commands, so this is not a Cloud Composer or Airflow
+operator limitation.
+
+When running in Sovereign Cloud from Google, verify that the Dataproc API method and job type are available
+in that environment before relying on the corresponding Airflow operator in a production DAG.
+
+
 .. _howto/operator:DataprocCreateClusterOperator:
 .. _howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator:
 
