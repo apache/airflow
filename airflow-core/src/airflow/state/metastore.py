@@ -69,7 +69,9 @@ class MetastoreStateBackend(BaseStateBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
     @provide_session
-    def get(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> str | None:
+    def get(self, scope: StateScope, key: str, *, session: Session | None = NEW_SESSION) -> str | None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 return self._get_task_state(scope, key, session=session)
@@ -79,7 +81,9 @@ class MetastoreStateBackend(BaseStateBackend):
                 assert_never(scope)
 
     @provide_session
-    def set(self, scope: StateScope, key: str, value: str, *, session: Session = NEW_SESSION) -> None:
+    def set(self, scope: StateScope, key: str, value: str, *, session: Session | None = NEW_SESSION) -> None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 self._set_task_state(scope, key, value, session=session)
@@ -89,7 +93,9 @@ class MetastoreStateBackend(BaseStateBackend):
                 assert_never(scope)
 
     @provide_session
-    def delete(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> None:
+    def delete(self, scope: StateScope, key: str, *, session: Session | None = NEW_SESSION) -> None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 self._delete_task_state(scope, key, session=session)
@@ -104,8 +110,10 @@ class MetastoreStateBackend(BaseStateBackend):
         scope: StateScope,
         *,
         all_map_indices: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 self._clear_task_state(scope, all_map_indices=all_map_indices, session=session)
