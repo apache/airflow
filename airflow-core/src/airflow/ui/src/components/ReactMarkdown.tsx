@@ -28,13 +28,17 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import { Children, isValidElement, type PropsWithChildren, type ReactNode } from "react";
 import type { Components, Options } from "react-markdown";
 import ReactMD from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 
 import { useColorMode } from "src/context/colorMode";
-import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
+import { oneDark, oneLight, type SyntaxTheme } from "src/utils/syntaxHighlighter";
+
+import { MarkdownCodeBlock, MarkdownMermaid } from "./ReactMarkdownBlocks";
 
 const fontSizeMapping = {
   h1: "1.5em",
@@ -60,8 +64,8 @@ const LinkComponent = ({
   href,
   title,
 }: {
-  readonly children: ReactNode;
-  readonly href: string;
+  readonly children?: ReactNode;
+  readonly href?: string;
   readonly title?: string;
 }) => (
   <Link color="fg.info" fontWeight="bold" href={href} title={title}>
@@ -92,12 +96,24 @@ const OlComponent = ({ children }: PropsWithChildren) => (
     {children}
   </List.Root>
 );
+
+const markdownContentStyles = {
+  "& .katex-display": {
+    marginBlock: "0.75rem",
+    overflowX: "auto",
+    overflowY: "hidden",
+  },
+  "& .katex-display > .katex": {
+    marginInline: "auto",
+    width: "max-content",
+  },
+};
+
 const PComponent = ({ children }: PropsWithChildren) => (
   <Text overflowWrap="break-word" wordBreak="break-word">
     {children}
   </Text>
 );
-const PreComponent = ({ children }: PropsWithChildren) => <Box my={3}>{children}</Box>;
 const TableComponent = ({ children }: PropsWithChildren) => <Table.Root mb={3}>{children}</Table.Root>;
 const TextComponent = ({ children }: PropsWithChildren) => <Text as="span">{children}</Text>;
 const UlComponent = ({ children }: PropsWithChildren) => (
@@ -106,81 +122,111 @@ const UlComponent = ({ children }: PropsWithChildren) => (
   </List.Root>
 );
 
-// Factory function for the code component that needs style
-const createCodeComponent =
-  (style: typeof oneDark | typeof oneLight) =>
+type CodeElementProps = {
+  readonly children?: ReactNode;
+  readonly className?: string;
+};
+
+type MermaidDiagramProps = {
+  readonly chart: string;
+  readonly theme: "dark" | "default";
+};
+
+type MarkdownRendererProps = {
+  readonly mermaidTheme: MermaidDiagramProps["theme"];
+  readonly style: SyntaxTheme;
+};
+
+const extractTextContent = (children: CodeElementProps["children"]): string => {
+  if (typeof children === "number" || typeof children === "string") {
+    return String(children);
+  }
+
+  if (Array.isArray(children)) {
+    return children
+      .map((child) => (typeof child === "number" || typeof child === "string" ? String(child) : ""))
+      .join("");
+  }
+
+  return "";
+};
+
+const CodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
+
+// Factory function for the pre component that needs style
+const createPreComponent =
+  (style: SyntaxTheme, mermaidTheme: MermaidDiagramProps["theme"]) =>
   ({
     children,
-    className,
-    inline,
   }: {
-    readonly children: ReactNode;
-    readonly className?: string;
-    readonly inline?: boolean;
+    readonly children?: ReactNode;
   }) => {
-    if (inline) {
-      return (
-        <Code display="inline" p={2}>
-          {children}
-        </Code>
-      );
+    const [codeElement] = Children.toArray(children);
+
+    if (!isValidElement<CodeElementProps>(codeElement)) {
+      return <Box my={3}>{children}</Box>;
     }
 
     // Extract language from className (format: "language-python")
+    const { children: codeChildren, className } = codeElement.props;
     const match = /language-(?<lang>\w+)/u.exec(className ?? "");
     const language = match?.groups?.lang;
+    const childString = extractTextContent(codeChildren).replace(/\n$/u, "");
 
-    // Safely extract string content from children
-    let childString = "";
-
-    if (typeof children === "string") {
-      childString = children;
-    } else if (Array.isArray(children)) {
-      childString = children.filter((child) => typeof child === "string").join("");
+    if (language === "mermaid") {
+      return <MarkdownMermaid chart={childString} fallbackStyle={style} theme={mermaidTheme} />;
     }
 
-    return (
-      <SyntaxHighlighter language={language ?? "text"} PreTag="div" style={style} wrapLongLines>
-        {childString.replace(/\n$/u, "")}
-      </SyntaxHighlighter>
-    );
+    return <MarkdownCodeBlock language={language} style={style} value={childString} />;
   };
+
+const createMarkdownComponents = ({ mermaidTheme, style }: MarkdownRendererProps): Components => ({
+  // eslint-disable-next-line id-length
+  a: LinkComponent,
+  blockquote: BlockquoteComponent,
+  code: CodeComponent,
+  del: DelComponent,
+  em: EmComponent,
+  h1: makeHeading("h1"),
+  h2: makeHeading("h2"),
+  h3: makeHeading("h3"),
+  h4: makeHeading("h4"),
+  h5: makeHeading("h5"),
+  h6: makeHeading("h6"),
+  hr: HrComponent,
+  img: ImgComponent,
+  li: LiComponent,
+  ol: OlComponent,
+  // eslint-disable-next-line id-length
+  p: PComponent,
+  pre: createPreComponent(style, mermaidTheme),
+  table: TableComponent,
+  tbody: Table.Body,
+  td: Table.Cell,
+  text: TextComponent,
+  th: Table.ColumnHeader,
+  thead: Table.Header,
+  tr: Table.Row,
+  ul: UlComponent,
+});
 
 const ReactMarkdown = (props: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
+  const mermaidTheme = colorMode === "dark" ? "dark" : "default";
+  const components = createMarkdownComponents({ mermaidTheme, style });
 
-  const components = {
-    // eslint-disable-next-line id-length
-    a: LinkComponent,
-    blockquote: BlockquoteComponent,
-    code: createCodeComponent(style),
-    del: DelComponent,
-    em: EmComponent,
-    h1: makeHeading("h1"),
-    h2: makeHeading("h2"),
-    h3: makeHeading("h3"),
-    h4: makeHeading("h4"),
-    h5: makeHeading("h5"),
-    h6: makeHeading("h6"),
-    hr: HrComponent,
-    img: ImgComponent,
-    li: LiComponent,
-    ol: OlComponent,
-    // eslint-disable-next-line id-length
-    p: PComponent,
-    pre: PreComponent,
-    table: TableComponent,
-    tbody: Table.Body,
-    td: Table.Cell,
-    text: TextComponent,
-    th: Table.ColumnHeader,
-    thead: Table.Header,
-    tr: Table.Row,
-    ul: UlComponent,
-  };
-
-  return <ReactMD components={components as Components} {...props} remarkPlugins={[remarkGfm]} skipHtml />;
+  return (
+    <Box css={markdownContentStyles}>
+      <ReactMD
+        components={components}
+        {...props}
+        rehypePlugins={[rehypeKatex]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        skipHtml
+      />
+    </Box>
+  );
 };
 
 export default ReactMarkdown;

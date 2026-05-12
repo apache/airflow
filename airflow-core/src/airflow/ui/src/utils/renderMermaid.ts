@@ -16,10 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { CSSProperties } from "react";
+import mermaid from "mermaid";
 
-export { atomOneDark as oneDark, atomOneLight as oneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
+type MermaidTheme = "dark" | "default";
 
-export { default as SyntaxHighlighter } from "react-syntax-highlighter";
+let initializedTheme: MermaidTheme | undefined;
 
-export type SyntaxTheme = Record<string, CSSProperties>;
+const initializeMermaid = (theme: MermaidTheme) => {
+  if (initializedTheme === theme) {
+    return;
+  }
+
+  mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
+  initializedTheme = theme;
+};
+
+export const renderMermaidDiagram = async ({
+  chart,
+  diagramId,
+  theme,
+}: {
+  readonly chart: string;
+  readonly diagramId: string;
+  readonly theme: MermaidTheme;
+}): Promise<string> => {
+  initializeMermaid(theme);
+
+  const { svg } = await mermaid.render(diagramId, chart);
+
+  return svg;
+};
