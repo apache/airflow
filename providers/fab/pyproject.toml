@@ -78,6 +78,12 @@ dependencies = [
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.0",  # Whenever updating the version, run test_fab_alignment.py to verify.
+    # flask-jwt-extended 4.7.3 added ``from jwt.types import Options`` without bumping its
+    # ``PyJWT>=2.0`` lower bound; ``Options`` only exists in PyJWT>=2.11. With older Airflow
+    # constraint sets (e.g. constraints-3.0.6 pins PyJWT==2.10.1) the resolver upgrades
+    # flask-jwt-extended to 4.7.3 and import breaks. Cap until upstream fixes the bound.
+    # See https://github.com/vimalloc/flask-jwt-extended/commit/ed65bb22af4706b1753413d5cbd6d7b9ff7f1ebf
+    "flask-jwt-extended>=4.0.0,<4.7.3",
     "flask-login>=0.6.2; python_version < '3.14'",
     "flask-login>=0.6.3; python_version >= '3.14'",
     "flask-session>=0.8.0",
