@@ -187,7 +187,7 @@ export const FilterBar = ({
       {filters.slice(0, maxVisibleFilters).map(renderFilter)}
       {availableConfigs.length > 0 && (
         <Menu.Root>
-          <Menu.Trigger>
+          <Menu.Trigger asChild>
             <Button
               _hover={{ bg: "colorPalette.subtle" }}
               bg="gray.muted"

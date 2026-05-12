@@ -39,7 +39,6 @@ type Props = {
 const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
-
   const [state, setState] = useState<TaskInstanceState>("success");
 
   useHotkeys(
@@ -62,13 +61,14 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
 
   return (
     <Box>
-      <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
-        <Menu.Trigger>
-          <IconButton
-            label={translate("dags:runAndTaskActions.markAs.button", {
-              type: translate("taskGroup_one"),
-            })}
-          >
+      <Menu.Root
+        positioning={{ gutter: 0, placement: "bottom" }}
+        tooltipLabel={translate("dags:runAndTaskActions.markAs.button", {
+          type: translate("taskGroup_one"),
+        })}
+      >
+        <Menu.Trigger asChild>
+          <IconButton>
             <HStack gap={1} mx={1}>
               <LuCheck />
               <span>/</span>

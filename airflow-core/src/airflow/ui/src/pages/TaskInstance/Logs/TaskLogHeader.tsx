@@ -201,9 +201,9 @@ export const TaskLogHeader = ({
         ) : undefined}
         <LogSearchInput {...search} />
         <HStack gap={1}>
-          <Menu.Root>
-            <Menu.Trigger>
-              <IconButton data-testid="log-settings-button" label={translate("dag:logs.settings")}>
+          <Menu.Root tooltipLabel={translate("dag:logs.settings")}>
+            <Menu.Trigger asChild>
+              <IconButton data-testid="log-settings-button">
                 <MdSettings />
               </IconButton>
             </Menu.Trigger>

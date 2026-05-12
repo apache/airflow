@@ -61,14 +61,14 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
 
   return (
     <Box>
-      <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
-        <Menu.Trigger>
-          <IconButton
-            data-testid="mark-run-as-button"
-            label={translate("dags:runAndTaskActions.markAs.button", {
-              type: translate("dagRun_one"),
-            })}
-          >
+      <Menu.Root
+        positioning={{ gutter: 0, placement: "bottom" }}
+        tooltipLabel={translate("dags:runAndTaskActions.markAs.button", {
+          type: translate("dagRun_one"),
+        })}
+      >
+        <Menu.Trigger asChild>
+          <IconButton data-testid="mark-run-as-button">
             <HStack gap={1} mx={1}>
               <LuCheck />
               <span>/</span>

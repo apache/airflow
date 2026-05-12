@@ -156,7 +156,7 @@ export const GraphTaskFilters = () => {
       open={isOpen}
       positioning={{ placement: "bottom-end" }}
     >
-      <Menu.Trigger>
+      <Menu.Trigger asChild>
         <IconButton variant={hasActiveFilters ? "solid" : "ghost"}>
           <FiSearch />
         </IconButton>

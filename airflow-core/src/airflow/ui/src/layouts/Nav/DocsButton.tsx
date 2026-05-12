@@ -60,7 +60,7 @@ export const DocsButton = ({
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger>
+      <Menu.Trigger asChild>
         <NavButton icon={FiBookOpen} title={translate("nav.docs")} />
       </Menu.Trigger>
       <Menu.Content>

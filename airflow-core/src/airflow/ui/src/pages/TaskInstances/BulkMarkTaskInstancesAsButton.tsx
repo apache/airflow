@@ -82,7 +82,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
   return (
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "top" }}>
-        <Menu.Trigger>
+        <Menu.Trigger asChild>
           <Button variant="outline">
             <HStack gap={1} mx={1}>
               <LuCheck />

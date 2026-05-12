@@ -35,7 +35,7 @@ export const SecurityButton = () => {
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger>
+      <Menu.Trigger asChild>
         <NavButton icon={FiLock} title={translate("nav.security")} />
       </Menu.Trigger>
       <Menu.Content>

@@ -17,14 +17,31 @@
  * under the License.
  */
 import { Menu as ChakraMenu } from "@chakra-ui/react";
+import { forwardRef, useContext } from "react";
 
-import { Content } from "./MenuContent";
-import { Root } from "./MenuRoot";
-import { Trigger } from "./MenuTrigger";
+import { Tooltip } from "src/components/ui/Tooltip";
 
-export const Menu = {
-  ...ChakraMenu,
-  Content,
-  Root,
-  Trigger,
-};
+import { MenuContext } from "./MenuRoot";
+
+type MenuTriggerProps = ChakraMenu.TriggerProps;
+
+export const Trigger = forwardRef<HTMLButtonElement, MenuTriggerProps>((props, ref) => {
+  const { children, ...rest } = props;
+  const { tooltipLabel, triggerId } = useContext(MenuContext);
+
+  if (Boolean(tooltipLabel)) {
+    return (
+      <Tooltip content={tooltipLabel} ids={Boolean(triggerId) ? { trigger: triggerId } : undefined}>
+        <ChakraMenu.Trigger asChild ref={ref} {...rest}>
+          {children}
+        </ChakraMenu.Trigger>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <ChakraMenu.Trigger ref={ref} {...rest}>
+      {children}
+    </ChakraMenu.Trigger>
+  );
+});
