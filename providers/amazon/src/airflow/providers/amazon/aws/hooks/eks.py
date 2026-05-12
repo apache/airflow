@@ -82,11 +82,14 @@ COMMAND = """
             # Load credentials from secure file using (POSIX-compliant dot operator)
             . {credentials_file}
 
-            # Redirect stderr to /dev/null to prevent Python warnings, deprecation
-            # notices, or other log output from contaminating stdout. The token
-            # output must be the ONLY thing on stdout for bash token parsing to work.
+            # Redirect stderr to a temporary file to prevent Python warnings,
+            # deprecation notices, or other log output from contaminating stdout.
+            # The token output must be the ONLY thing on stdout for bash token
+            # parsing to work, but stderr should still be reported on failure.
+            stderr_file=$(mktemp)
+            trap 'rm -f "$stderr_file"' EXIT
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
-                --cluster-name {eks_cluster_name} --sts-url '{sts_url}' {args} 2>/dev/null)
+                --cluster-name {eks_cluster_name} --sts-url '{sts_url}' {args} 2>"$stderr_file")
 
             status=$?
 
@@ -94,13 +97,16 @@ COMMAND = """
             unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
             if [ "$status" -ne 0 ]; then
-                printf 'eks_get_token failed with exit code %s. Output was: %s' \
-                    "$status" "$output" >&2
+                printf 'eks_get_token failed with exit code %s.' "$status" >&2
+                if [ -s "$stderr_file" ]; then
+                    printf ' Stderr was: ' >&2
+                    cat "$stderr_file" >&2
+                fi
                 exit "$status"
             fi
 
             # Use pure bash below to parse so that it's posix compliant
-            # Only the token line should be on stdout (stderr redirected above)
+            # Only the token line should be on stdout (stderr captured above)
 
             last_line=${{output##*$'\\n'}}  # strip everything up to the last newline
 

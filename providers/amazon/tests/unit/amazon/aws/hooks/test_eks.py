@@ -1273,22 +1273,25 @@ class TestEksHook:
             if expected_region_args:
                 assert expected_region_args in command_arg
 
-    def test_command_template_redirects_stderr(self):
-        """Verify COMMAND template redirects stderr to /dev/null to prevent
-        Python warnings/log output from contaminating stdout and breaking
-        bash token parsing. This is critical for cross-account AssumeRole
-        scenarios where the kubeconfig exec plugin must produce a clean token.
-        """
+    def test_command_template_captures_stderr_separately(self):
+        """Verify COMMAND keeps stderr out of stdout while preserving errors."""
         from airflow.providers.amazon.aws.hooks.eks import COMMAND
 
         # Verify stderr is not merged with stdout (the core correctness requirement)
         assert "2>&1" not in COMMAND, (
             "COMMAND must not use 2>&1 — merging stderr with stdout breaks bash token parsing"
         )
-        # Verify stderr is redirected to /dev/null
-        assert "2>/dev/null" in COMMAND, (
-            "COMMAND must redirect stderr to /dev/null to prevent output contamination"
-        )
+        assert "stderr_file=$(mktemp)" in COMMAND
+        assert '2>"$stderr_file"' in COMMAND
+        assert 'cat "$stderr_file" >&2' in COMMAND
+        assert "2>/dev/null" not in COMMAND
+
+    def test_command_template_does_not_print_token_output_on_error(self):
+        """Verify the error path does not echo stdout, which can contain a token."""
+        from airflow.providers.amazon.aws.hooks.eks import COMMAND
+
+        failure_block = COMMAND.split('if [ "$status" -ne 0 ]; then', 1)[1].split("fi", 1)[0]
+        assert '"$output"' not in failure_block
 
     def test_command_template_validates_token(self):
         """Verify COMMAND template validates that the token was successfully
