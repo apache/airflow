@@ -16,185 +16,159 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.ai.utils.dq_models import (
-    DQCheck,
-    DQCheckGroup,
+import pytest
+
+from airflow.providers.common.ai.utils.dataquality.models import (
+    DQCheckFailedError,
+    DQCheckInput,
     DQCheckResult,
-    DQPlan,
     DQReport,
-    UnexpectedResult,
+    RowLevelResult,
 )
 
 
-def _build_plan() -> DQPlan:
-    return DQPlan(
-        groups=[
-            DQCheckGroup(
-                group_id="nulls",
-                query="SELECT COUNT(*) AS null_email_count FROM customers WHERE email IS NULL",
-                checks=[
-                    DQCheck(
-                        check_name="null_emails",
-                        metric_key="null_email_count",
-                        group_id="nulls",
-                    )
-                ],
-            ),
-            DQCheckGroup(
-                group_id="dupes",
-                query=(
-                    "SELECT COUNT(*) AS dup_id_count FROM ("
-                    "SELECT id FROM customers GROUP BY id HAVING COUNT(*) > 1) sub"
-                ),
-                checks=[
-                    DQCheck(
-                        check_name="dup_ids",
-                        metric_key="dup_id_count",
-                        group_id="dupes",
-                    )
-                ],
-            ),
-        ]
-    )
+class TestDQCheckInput:
+    def test_valid_construction(self):
+        c = DQCheckInput(name="null_emails", description="Check nulls")
+        assert c.name == "null_emails"
+        assert c.description == "Check nulls"
+        assert c.validator is None
+
+    def test_empty_name_raises(self):
+        with pytest.raises(ValueError, match="name must not be empty"):
+            DQCheckInput(name="", description="d")
+
+    def test_whitespace_name_raises(self):
+        with pytest.raises(ValueError, match="name must not be empty"):
+            DQCheckInput(name="   ", description="d")
+
+    def test_empty_description_raises(self):
+        with pytest.raises(ValueError, match="description must not be empty"):
+            DQCheckInput(name="n", description="")
+
+    def test_coerce_from_dict(self):
+        c = DQCheckInput.coerce({"name": "n", "description": "d"})
+        assert isinstance(c, DQCheckInput)
+        assert c.name == "n"
+
+    def test_coerce_passthrough(self):
+        orig = DQCheckInput(name="x", description="y")
+        assert DQCheckInput.coerce(orig) is orig
+
+    def test_coerce_invalid_type_raises(self):
+        with pytest.raises(TypeError):
+            DQCheckInput.coerce(42)
+
+    def test_validator_stored(self):
+        fn = lambda v: v == 0
+        c = DQCheckInput(name="n", description="d", validator=fn)
+        assert c.validator is fn
+
+    def test_repr_no_validator(self):
+        c = DQCheckInput(name="n", description="d")
+        assert "validator=False" in repr(c)
+
+    def test_repr_with_validator(self):
+        c = DQCheckInput(name="n", description="d", validator=lambda v: True)
+        assert "validator=True" in repr(c)
 
 
-class TestDQPlan:
-    def test_check_names_flattens_all_group_checks(self):
-        plan = _build_plan()
+class TestDQCheckResult:
+    def test_passed_result(self):
+        r = DQCheckResult(check_name="null_emails", passed=True, value=0)
+        assert r.passed is True
+        assert r.failure_reason is None
 
-        assert plan.check_names == ["null_emails", "dup_ids"]
+    def test_failed_result_with_reason(self):
+        r = DQCheckResult(check_name="dup_ids", passed=False, failure_reason="too many dupes", value=5)
+        assert r.passed is False
+        assert r.failure_reason == "too many dupes"
 
-    def test_plan_hash_defaults_to_empty_string(self):
-        plan = _build_plan()
+    def test_value_defaults_to_none(self):
+        r = DQCheckResult(check_name="c", passed=True)
+        assert r.value is None
 
-        assert plan.plan_hash == ""
+    def test_serialises_to_dict(self):
+        r = DQCheckResult(check_name="c", passed=True, value=42)
+        d = r.model_dump()
+        assert d["check_name"] == "c"
+        assert d["passed"] is True
+        assert d["value"] == 42
+
+
+class TestRowLevelResult:
+    def test_build_with_invalid_rows(self):
+        result = RowLevelResult.build(invalid_values=["bad-a", "bad-b"], total=5, sample_limit=10)
+        assert result.total == 5
+        assert result.invalid == 2
+        assert result.invalid_pct == pytest.approx(0.4)
+        assert result.sample_violations == ["'bad-a'", "'bad-b'"]
+        assert result.sample_size == 2
+
+    def test_build_with_zero_total(self):
+        result = RowLevelResult.build(invalid_values=[], total=0)
+        assert result.invalid_pct == 0.0
+        assert result.sample_size == 0
+
+    def test_build_truncates_samples(self):
+        result = RowLevelResult.build(invalid_values=[1, 2, 3], total=3, sample_limit=2)
+        assert result.sample_violations == ["1", "2"]
+        assert result.sample_size == 2
 
 
 class TestDQReport:
-    def test_build_returns_passed_report_when_all_checks_pass(self):
+    def test_build_all_pass(self):
         results = [
-            DQCheckResult(
-                check_name="null_emails",
-                metric_key="null_email_count",
-                value=0,
-                passed=True,
-            ),
-            DQCheckResult(
-                check_name="dup_ids",
-                metric_key="dup_id_count",
-                value=0,
-                passed=True,
-            ),
+            DQCheckResult(check_name="null_emails", passed=True, value=0),
+            DQCheckResult(check_name="dup_ids", passed=True, value=0),
         ]
-
         report = DQReport.build(results)
-
         assert report.passed is True
-        assert report.results == results
         assert report.failure_summary == ""
+        assert report.results == results
 
-    def test_build_includes_failure_details_for_failed_checks(self):
+    def test_build_one_failure(self):
         results = [
-            DQCheckResult(
-                check_name="null_emails",
-                metric_key="null_email_count",
-                value=1,
-                passed=False,
-                failure_reason="null count must be zero",
-            ),
-            DQCheckResult(
-                check_name="dup_ids",
-                metric_key="dup_id_count",
-                value=0,
-                passed=True,
-            ),
+            DQCheckResult(check_name="null_emails", passed=False, failure_reason="nulls found", value=1),
+            DQCheckResult(check_name="dup_ids", passed=True, value=0),
         ]
-
         report = DQReport.build(results)
-
         assert report.passed is False
         assert "Data quality checks failed (1/2):" in report.failure_summary
         assert "null_emails" in report.failure_summary
-        assert "null_email_count" in report.failure_summary
-        assert "null count must be zero" in report.failure_summary
+        assert "nulls found" in report.failure_summary
 
-    def test_build_uses_default_reason_when_failure_reason_is_missing(self):
+    def test_build_multiple_failures(self):
         results = [
-            DQCheckResult(
-                check_name="dup_ids",
-                metric_key="dup_id_count",
-                value=10,
-                passed=False,
-                failure_reason=None,
-            )
+            DQCheckResult(check_name="a", passed=False, value=10),
+            DQCheckResult(check_name="b", passed=False, value=20),
         ]
-
         report = DQReport.build(results)
-
         assert report.passed is False
+        assert "2/2" in report.failure_summary
+        assert "a" in report.failure_summary
+        assert "b" in report.failure_summary
+
+    def test_build_no_failure_reason_uses_default(self):
+        results = [DQCheckResult(check_name="c", passed=False, failure_reason=None)]
+        report = DQReport.build(results)
         assert "validator returned False" in report.failure_summary
 
-
-class TestDQCheckCategory:
-    def test_check_category_defaults_to_empty_string(self):
-        check = DQCheck(check_name="c", metric_key="m", group_id="g")
-        assert check.check_category == ""
-
-    def test_check_category_set_explicitly(self):
-        check = DQCheck(check_name="c", metric_key="m", group_id="g", check_category="validity")
-        assert check.check_category == "validity"
-
-    def test_unexpected_query_defaults_to_none(self):
-        check = DQCheck(check_name="c", metric_key="m", group_id="g")
-        assert check.unexpected_query is None
-
-    def test_unexpected_query_set_explicitly(self):
-        query = "SELECT id, phone FROM customers WHERE phone !~ '^\\d{4}' LIMIT 100"
-        check = DQCheck(check_name="c", metric_key="m", group_id="g", unexpected_query=query)
-        assert check.unexpected_query == query
-
-
-class TestDQCheckResultWithUnexpected:
-    def test_unexpected_defaults_to_none(self):
-        r = DQCheckResult(check_name="c", metric_key="m", value=5, passed=True)
-        assert r.unexpected is None
-
-    def test_unexpected_attached(self):
-        ur = UnexpectedResult(check_name="c", unexpected_records=["val1"], sample_size=100)
-        r = DQCheckResult(check_name="c", metric_key="m", value=5, passed=False, unexpected=ur)
-        assert r.unexpected is ur
-        assert r.unexpected.unexpected_records == ["val1"]
-
-
-class TestDQReportUnexpectedSummary:
-    def test_failure_summary_includes_unexpected_count(self):
-        ur = UnexpectedResult(
-            check_name="phone_fmt",
-            unexpected_records=[str(i) for i in range(3)],
-            sample_size=100,
-        )
-        results = [
-            DQCheckResult(
-                check_name="phone_fmt",
-                metric_key="invalid_phone_count",
-                value=3,
-                passed=False,
-                failure_reason="too many invalid phones",
-                unexpected=ur,
-            )
-        ]
+    def test_serialises_to_dict(self):
+        results = [DQCheckResult(check_name="c", passed=True)]
         report = DQReport.build(results)
-        assert "3 unexpected row(s) sampled" in report.failure_summary
+        d = report.model_dump()
+        assert d["passed"] is True
+        assert isinstance(d["results"], list)
 
-    def test_failure_summary_no_unexpected_when_none(self):
-        results = [
-            DQCheckResult(
-                check_name="null_emails",
-                metric_key="null_email_count",
-                value=1,
-                passed=False,
-                failure_reason="nulls found",
-            )
-        ]
-        report = DQReport.build(results)
-        assert "unexpected row(s) sampled" not in report.failure_summary
+
+class TestDQCheckFailedError:
+    def test_is_airflow_exception(self):
+        from airflow.providers.common.compat.sdk import AirflowException
+
+        err = DQCheckFailedError("something failed")
+        assert isinstance(err, AirflowException)
+
+    def test_message_preserved(self):
+        err = DQCheckFailedError("null_emails: 5 nulls")
+        assert "null_emails" in str(err)

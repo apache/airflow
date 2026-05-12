@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.utils.dq_validation import (
-    DQValidationToolset,
+from airflow.providers.common.ai.utils.dataquality.validation import (
     ValidatorRegistry,
     between_check,
     default_registry,
@@ -216,62 +215,6 @@ class TestValidatorRegistry:
         assert attr_factory._check_category == "custom"
 
 
-class TestBuildLlmContext:
-    def test_returns_empty_for_plain_callables(self):
-        registry = ValidatorRegistry()
-        validators = {"check1": lambda v: v > 0}
-        assert registry.build_llm_context(validators) == ""
-
-    def test_collects_context_from_registry(self):
-        registry = ValidatorRegistry()
-
-        @registry.register("ctx_check", llm_context="Count rows. Returns INTEGER.")
-        def ctx_factory(*, min_count: int):
-            def _check(value):
-                return int(value) >= min_count
-
-            return _check  # decorator auto-stamps _validator_name
-
-        validators = {"my_metric": ctx_factory(min_count=100)}
-        result = registry.build_llm_context(validators)
-        assert "my_metric" in result
-        assert "Count rows. Returns INTEGER." in result
-        assert "CUSTOM VALIDATOR CONTEXT" in result
-
-    def test_collects_context_from_attribute(self):
-        registry = ValidatorRegistry()
-
-        def custom(value):
-            return float(value) >= 0.95
-
-        custom.llm_context = "Completeness ratio. Returns float 0.0-1.0."
-
-        validators = {"completeness": custom}
-        result = registry.build_llm_context(validators)
-        assert "completeness" in result
-        assert "Completeness ratio" in result
-
-    def test_mixed_validators(self):
-        registry = ValidatorRegistry()
-
-        @registry.register("reg_check", llm_context="Registered context.")
-        def reg_factory(*, x: int):
-            def _check(v):
-                return int(v) >= x
-
-            return _check  # decorator auto-stamps _validator_name
-
-        plain = lambda v: v > 0
-
-        validators = {
-            "with_context": reg_factory(x=10),
-            "without_context": plain,
-        }
-        result = registry.build_llm_context(validators)
-        assert "with_context" in result
-        assert "without_context" not in result
-
-
 class TestBuiltinValidatorsRegistered:
     """Verify all built-in validators are in the default registry."""
 
@@ -290,15 +233,6 @@ class TestBuiltinValidatorsRegistered:
 
         fn2 = row_count_check(min_count=100)
         assert fn2._validator_name == "row_count_check"
-
-    def test_default_registry_build_llm_context_with_builtins(self):
-        validators = {
-            "nulls": null_pct_check(max_pct=0.05),
-            "rows": row_count_check(min_count=100),
-        }
-        result = default_registry.build_llm_context(validators)
-        assert "nulls" in result
-        assert "rows" in result
 
 
 class TestRegisterValidatorConvenience:
@@ -333,41 +267,6 @@ class TestRowLevelRegistry:
 
             entry = default_registry.get(name)
             assert entry.row_level is True
-        finally:
-            default_registry.unregister(name)
-
-    def test_is_row_level_via_registry_entry(self):
-        name = "_test_rl_is_row_level"
-        try:
-
-            @register_validator(name, llm_context="ROW-LEVEL.", row_level=True)
-            def _rl():
-                return lambda v: bool(v)  # decorator auto-stamps _row_level
-
-            validator_fn = _rl()
-            assert default_registry.is_row_level(validator_fn) is True
-        finally:
-            default_registry.unregister(name)
-
-    def test_is_row_level_false_for_aggregate(self):
-        fn = null_pct_check(max_pct=0.05)
-        assert default_registry.is_row_level(fn) is False
-
-    def test_build_llm_context_separates_row_level(self):
-        name = "_test_rl_ctx"
-        try:
-
-            @register_validator(name, llm_context="ROW-LEVEL ctx.", row_level=True)
-            def _rl_ctx():
-                return lambda v: bool(v)  # decorator auto-stamps _row_level
-
-            validators = {
-                name: _rl_ctx(),
-                "nulls": null_pct_check(max_pct=0.0),
-            }
-            ctx = default_registry.build_llm_context(validators)
-            assert "ROW-LEVEL" in ctx
-            assert "nulls" in ctx
         finally:
             default_registry.unregister(name)
 
@@ -433,181 +332,3 @@ class TestRowLevelRegistry:
         assert fn._row_level is False
         assert fn._max_pct == 0.05
         assert fn._validator_display == "null_pct_check(max_pct=0.05)"
-
-
-# ---------------------------------------------------------------------------
-# DQValidationToolset
-# ---------------------------------------------------------------------------
-
-
-class TestDQValidationToolset:
-    """Tests for the DQValidationToolset catalog manager."""
-
-    def _make_registry(self) -> ValidatorRegistry:
-        """Return a fresh registry with two validators for isolation."""
-        reg = ValidatorRegistry()
-
-        @reg.register(
-            "threshold_check",
-            llm_context="Returns 1 when value is at or below threshold. Returns FLOAT.",
-            check_category="completeness",
-        )
-        def threshold_check(*, max_pct: float):
-            return lambda v: float(v) <= max_pct
-
-        @reg.register(
-            "min_rows_check",
-            llm_context="Returns 1 when row count meets minimum. Returns INTEGER.",
-            check_category="volume",
-        )
-        def min_rows_check(*, min_count: int):
-            return lambda v: int(v) >= min_count
-
-        return reg
-
-    # ------------------------------------------------------------------
-    # build_system_prompt_section
-    # ------------------------------------------------------------------
-
-    def test_prompt_section_includes_validator_names(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        section = toolset.build_system_prompt_section()
-        assert "threshold_check" in section
-        assert "min_rows_check" in section
-
-    def test_prompt_section_includes_descriptions(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        section = toolset.build_system_prompt_section()
-        assert "Returns FLOAT" in section
-        assert "Returns INTEGER" in section
-
-    def test_prompt_section_includes_parameters(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        section = toolset.build_system_prompt_section()
-        assert "max_pct" in section
-        assert "min_count" in section
-
-    def test_prompt_section_contains_available_validators_header(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        section = toolset.build_system_prompt_section()
-        assert "AVAILABLE VALIDATORS" in section
-
-    def test_prompt_section_is_non_empty_string(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        section = toolset.build_system_prompt_section()
-        assert isinstance(section, str)
-        assert len(section) > 50
-
-    def test_prompt_section_uses_default_registry_when_none_supplied(self):
-        toolset = DQValidationToolset()
-        section = toolset.build_system_prompt_section()
-        # Default registry has built-in validators.
-        assert "null_pct_check" in section
-
-    # ------------------------------------------------------------------
-    # validate_suggestion
-    # ------------------------------------------------------------------
-
-    def test_valid_suggestion_returns_true(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        ok, msg = toolset.validate_suggestion("my_check", "threshold_check", {"max_pct": 0.05})
-        assert ok is True
-        assert msg == ""
-
-    def test_unknown_validator_returns_false(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        ok, msg = toolset.validate_suggestion("my_check", "nonexistent_validator", {})
-        assert ok is False
-        assert "nonexistent_validator" in msg
-        assert "not registered" in msg
-
-    def test_wrong_arg_name_returns_false(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        ok, msg = toolset.validate_suggestion("my_check", "threshold_check", {"wrong_key": 0.05})
-        assert ok is False
-        assert "wrong_key" in msg
-
-    def test_empty_validator_name_is_valid_for_aggregate_check(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        # Aggregate checks may have no validator — LLM is instructed to use "none".
-        ok, msg = toolset.validate_suggestion("my_check", "", {})
-        assert ok is True
-        assert msg == ""
-
-    def test_none_string_validator_name_is_valid_for_aggregate_check(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        ok, msg = toolset.validate_suggestion("my_check", "none", {})
-        assert ok is True
-        assert msg == ""
-
-    def test_empty_validator_name_is_invalid_for_row_level_check(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        ok, msg = toolset.validate_suggestion("my_check", "", {}, check_category="row_level")
-        assert ok is False
-        assert "row-level" in msg.lower()
-
-    def test_none_string_validator_name_is_invalid_for_row_level_check(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        ok, msg = toolset.validate_suggestion("my_check", "none", {}, check_category="row_level")
-        assert ok is False
-        assert "row-level" in msg.lower()
-
-    def test_wrong_type_for_arg_returns_false(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        # Pass a string where float is expected — factory should raise.
-        ok, msg = toolset.validate_suggestion("my_check", "threshold_check", {"max_pct": "not_a_float"})
-        # Depending on the factory implementation, this may succeed (dyn typing) or fail.
-        # The important thing is that a valid call returns True.
-        assert isinstance(ok, bool)
-
-    def test_error_message_includes_check_name(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        _, msg = toolset.validate_suggestion("important_check", "bad_validator", {})
-        assert "important_check" in msg
-
-    def test_available_validators_listed_in_error_when_unknown(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        _, msg = toolset.validate_suggestion("c", "bad_name", {})
-        # Both known validators should appear in the error.
-        assert "threshold_check" in msg or "min_rows_check" in msg
-
-    # ------------------------------------------------------------------
-    # instantiate
-    # ------------------------------------------------------------------
-
-    def test_instantiate_returns_callable(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        fn = toolset.instantiate("threshold_check", {"max_pct": 0.1})
-        assert callable(fn)
-
-    def test_instantiate_callable_evaluates_correctly(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        fn = toolset.instantiate("threshold_check", {"max_pct": 0.1})
-        assert fn(0.05) is True
-        assert fn(0.15) is False
-
-    def test_instantiate_raises_for_unknown_validator(self):
-        toolset = DQValidationToolset(registry=self._make_registry())
-        with pytest.raises(KeyError):
-            toolset.instantiate("nonexistent", {})
-
-    # ------------------------------------------------------------------
-    # _format_signature
-    # ------------------------------------------------------------------
-
-    def test_format_signature_includes_param_names(self):
-        reg = self._make_registry()
-        entry = reg.get("threshold_check")
-        sig_str = DQValidationToolset._format_signature(entry.factory)
-        assert "max_pct" in sig_str
-
-    def test_format_signature_shows_no_parameters_for_no_arg_factory(self):
-        reg = ValidatorRegistry()
-
-        @reg.register("no_arg_check")
-        def no_args():
-            return lambda v: bool(v)
-
-        entry = reg.get("no_arg_check")
-        sig_str = DQValidationToolset._format_signature(entry.factory)
-        assert "no parameters" in sig_str

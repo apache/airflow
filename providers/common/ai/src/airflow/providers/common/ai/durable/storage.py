@@ -68,13 +68,17 @@ class DurableStorage:
     def __init__(
         self,
         *,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
+        dag_id: str = "",
+        task_id: str = "",
+        run_id: str = "",
         map_index: int = -1,
+        cache_id: str | None = None,
     ) -> None:
-        suffix = f"_{map_index}" if map_index >= 0 else ""
-        self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
+        if cache_id is not None:
+            self._cache_id = cache_id
+        else:
+            suffix = f"_{map_index}" if map_index >= 0 else ""
+            self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
         self._cache: dict[str, Any] | None = None
 
     def _get_path(self):

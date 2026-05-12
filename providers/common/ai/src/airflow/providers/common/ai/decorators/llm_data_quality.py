@@ -18,9 +18,9 @@
 TaskFlow decorator for LLM-driven data-quality checks.
 
 The user writes a function that **returns a list of
-:class:`~airflow.providers.common.ai.utils.dq_models.DQCheckInput`** objects.
-The decorator handles LLM plan generation, plan caching, SQL execution against
-the target database, and metric validation.
+:class:`~airflow.providers.common.ai.utils.dataquality.models.DQCheckInput`** objects.
+The decorator runs them through
+:class:`~airflow.providers.common.ai.operators.llm_data_quality.LLMDataQualityOperator`.
 """
 
 from __future__ import annotations
@@ -47,12 +47,11 @@ class _LLMDQDecoratedOperator(DecoratedOperator, LLMDataQualityOperator):
     Wraps a callable that returns a list of :class:`DQCheckInput` for LLM data-quality checks.
 
     The user function is called at execution time to produce the checks list.
-    All other parameters (``llm_conn_id``, ``db_conn_id``, ``table_names``,
-    etc.) are passed through to
+    All other parameters (``llm_conn_id``, ``toolsets``, ``db_conn_id``, etc.)
+    are passed through to
     :class:`~airflow.providers.common.ai.operators.llm_data_quality.LLMDataQualityOperator`.
 
-    :param python_callable: A callable that returns a
-        ``list[DQCheckInput]``.
+    :param python_callable: A callable that returns a ``list[DQCheckInput]``.
     :param op_args: Positional arguments for the callable.
     :param op_kwargs: Keyword arguments for the callable.
     """
@@ -94,7 +93,7 @@ class _LLMDQDecoratedOperator(DecoratedOperator, LLMDataQualityOperator):
                 "The returned value from the @task.llm_dq callable must be a non-empty list[DQCheckInput]."
             )
 
-        from airflow.providers.common.ai.utils.dq_models import DQCheckInput
+        from airflow.providers.common.ai.utils.dataquality.models import DQCheckInput
 
         self.checks = [DQCheckInput.coerce(c) for c in checks]
         self._validate_checks()
@@ -115,8 +114,8 @@ def llm_dq_task(
 
     Usage::
 
-        from airflow.providers.common.ai.utils.dq_models import DQCheckInput
-        from airflow.providers.common.ai.utils.dq_validation import (
+        from airflow.providers.common.ai.utils.dataquality.models import DQCheckInput
+        from airflow.providers.common.ai.utils.dataquality.validation import (
             null_pct_check,
             row_count_check,
         )

@@ -14,133 +14,264 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operator for generating and executing data-quality checks from natural language using LLMs."""
+"""Operator for running data-quality checks from natural language using an LLM agent."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections import Counter
-from collections.abc import Callable, Sequence
-from functools import cached_property
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.utils.db_schema import get_db_hook
-from airflow.providers.common.ai.utils.dq_models import (
-    DQCheck,
+from airflow.providers.common.ai.toolsets.dataquality.base import BaseDQToolset
+from airflow.providers.common.ai.utils.dataquality.models import (
     DQCheckFailedError,
-    DQCheckGroup,
     DQCheckInput,
-    DQCheckResult,
     DQPlan,
     DQReport,
-    RowLevelResult,
-    UnexpectedResult,
 )
-from airflow.providers.common.ai.utils.dq_validation import DQValidationToolset, default_registry
-from airflow.providers.common.compat.sdk import Variable
-
-try:
-    from airflow.providers.common.ai.utils.dq_planner import SQLDQPlanner
-except ImportError as e:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
+from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 
 if TYPE_CHECKING:
-    from airflow.providers.common.sql.config import DataSourceConfig
-    from airflow.providers.common.sql.hooks.sql import DbApiHook
+    from pydantic_ai.toolsets.abstract import AbstractToolset
+
     from airflow.sdk import Context
 
-_PLAN_VARIABLE_PREFIX = "dq_plan_"
-_PLAN_VARIABLE_KEY_MAX_LEN = 200  # stay well under Airflow Variable key length limit
+_DQ_SYSTEM_PROMPT = """\
+You are a data-quality expert. Evaluate the user's data-quality checks against a \
+live data source using the tools available to you.
+
+WORKFLOW:
+1. Call ``list_checks`` to read the user's quality expectations.
+2. Call ``list_validators`` to see available validators (names, parameters, descriptions).
+3. Use schema-discovery tools (``list_tables``, ``get_schema``) to explore the data source.
+4. For each check:
+   a. If the check has ``row_level: true`` (from ``list_checks``), follow the ROW-LEVEL CHECKS
+      procedure below instead of writing an aggregate query.
+   b. Otherwise, write a SELECT query that computes the relevant metric for this check.
+   c. Optionally call ``check_query`` to validate SQL syntax before executing.
+   d. Execute the query using the ``query`` tool.
+   e. You MUST call ``apply_validator`` for EVERY check — never skip this step, even for
+      fixed validators (``has_fixed_validator: true``).  Use ``validator_name: "fixed"`` for those.
+5. Return a ``DQReport`` with one ``DQCheckResult`` per check — every check must appear exactly once.
+
+SQL GENERATION RULES:
+- Generate ONLY SELECT statements.  NEVER use INSERT, UPDATE, DELETE, DROP, TRUNCATE, or DDL.
+- Begin each query with a SQL comment that names the check it serves:
+    -- check: <check_name>
+  Example: -- check: null_order_id
+- For conditional counts, use CASE expressions (FILTER WHERE is not universally supported):
+    CORRECT:   COUNT(CASE WHEN col IS NULL THEN 1 END)
+    INCORRECT: COUNT(*) FILTER (WHERE col IS NULL)
+- For null/invalid percentages:
+    COUNT(CASE WHEN condition THEN 1 END) * 1.0 / NULLIF(COUNT(*), 0)
+- For duplicate percentages:
+    (COUNT(*) - COUNT(DISTINCT col)) * 1.0 / NULLIF(COUNT(*), 0)
+- For float division, cast to avoid integer truncation:
+    CAST(numerator AS DOUBLE) / CAST(denominator AS DOUBLE)
+- Give each metric column a descriptive snake_case alias (e.g. ``null_email_pct``).
+
+VALIDATOR SELECTION:
+- ``list_validators`` returns each validator's name, parameter signature, and description.
+  Read the parameter names and types before calling ``apply_validator``.
+- Pass the required ``validator_args`` as a JSON object matching the parameter signature exactly.
+- If a parameter has no default, it is REQUIRED — always include it in ``validator_args``.
+  Example: ``null_pct_check`` requires ``max_pct`` — you must pass ``{"max_pct": <value>}``.
+  If you are unsure of a threshold, use a safe default (e.g. ``0.05`` for percentage checks).
+- NEVER pass empty ``{}`` args for a validator that has required parameters.
+- For checks marked ``has_fixed_validator: true`` in ``list_checks``, call ``apply_validator``
+  with ``validator_name: "fixed"`` — the pre-assigned validator runs automatically, no args needed.
+- If no suitable validator exists, pass ``validator_name: "none"`` — the check passes by default
+  but its metric value is still recorded.
+
+DQREPORT OUTPUT RULES:
+- ``check_name`` must exactly match the name returned by ``list_checks`` (no abbreviation).
+- Each check must appear in the report exactly once.
+- Set ``passed: false`` and provide a clear ``failure_reason`` for every failed check.
+- Set ``metric_key`` to the SQL column alias you used for this check's metric value.
+- Set ``sql_query`` to the exact SQL statement you executed for this check (including the leading comment).
+- Set ``validator_info`` to ``{"name": "<validator_name>", "args": {<validator_args>}}`` when a validator
+  was applied, or ``null`` when no validator was used (``validator_name: "none"``).
+
+CHECK CATEGORIES (use to guide SQL and validator selection):
+  null_check    — null / missing value counts or percentages
+  uniqueness    — duplicate detection, cardinality checks
+  validity      — regex / format / pattern matching on string columns
+  numeric_range — range, bounds, or statistical checks on numeric columns
+  row_count     — total row counts or existence checks
+  string_format — length, encoding, whitespace, or character-set checks
+  row_level     — per-row anomaly checks; validator receives a list, not an aggregate
+
+ROW-LEVEL CHECKS (applies when ``list_checks`` returns ``row_level: true`` for a check):
+- Do NOT write an aggregate query.  Write a plain ``SELECT <column> FROM <table>`` that
+  returns one value per row — no GROUP BY, no COUNT, no CASE expressions.
+  Example: -- check: customer_email_format\n  SELECT email FROM customers
+- After executing, extract the column values into a Python list:
+    value = [row["<column>"] for row in result["rows"]]
+  where ``result`` is the JSON object returned by the ``query`` tool.
+- Call ``apply_validator`` with ``value`` set to that list and ``validator_name: "fixed"``.
+- The validator evaluates each item and returns a ``value`` payload containing a
+    ``RowLevelResult`` summary (total/invalid/invalid_pct/sample_violations/sample_size).
+- Set ``metric_key`` to the SQL column name (e.g. ``"email"``).
+- Set ``value`` in the DQCheckResult to the ``value`` object returned by ``apply_validator``.
+"""
+
+_DQ_PLAN_SYSTEM_PROMPT = """\
+You are a data-quality expert.  Your task is to plan *how* to evaluate each
+data-quality check: write the SQL query and choose the validator for each check.
+A human reviewer will inspect your plan before any SQL is executed.
+
+WORKFLOW (PLANNING MODE — no SQL execution, no apply_validator):
+1. Call ``list_checks`` to read the user's quality expectations.
+2. Call ``list_validators`` to see available validators (names, parameters, descriptions).
+3. Use schema-discovery tools (``list_tables``, ``get_schema``) to understand the data model.
+4. For each check:
+   a. If the check has ``row_level: true`` (from ``list_checks``), follow the ROW-LEVEL
+      procedure below.  Otherwise, write an aggregate SELECT query for the metric.
+   b. Optionally call ``check_query`` to validate your SQL syntax — but do NOT execute it.
+   c. Select the appropriate validator name and arguments:
+      - For ``has_fixed_validator: true`` checks: use ``validator_name: "fixed"``, empty args.
+      - If no validator fits: use ``validator_name: "none"``.
+5. Return a ``DQPlan`` with one ``DQCheckPlan`` per check — every check must appear exactly once.
+
+IMPORTANT: The ``query`` tool is NOT available.  Do NOT try to execute SQL.
+Do NOT call ``apply_validator`` — it is not available in planning mode.
+SQL will be executed after the human reviewer approves the plan.
+
+SQL GENERATION RULES:
+- Generate ONLY SELECT statements.  NEVER use INSERT, UPDATE, DELETE, DROP, TRUNCATE, or DDL.
+- Begin each query with a SQL comment that names the check it serves:
+    -- check: <check_name>
+- For conditional counts, use CASE expressions:
+    COUNT(CASE WHEN col IS NULL THEN 1 END)
+- For null/invalid percentages:
+    COUNT(CASE WHEN condition THEN 1 END) * 1.0 / NULLIF(COUNT(*), 0)
+- Give each metric column a descriptive snake_case alias (e.g. ``null_email_pct``).
+
+ROW-LEVEL CHECKS (applies when ``list_checks`` returns ``row_level: true``):
+- Do NOT write an aggregate query.  Write a plain ``SELECT <column> FROM <table>``.
+- Set ``row_level: true`` in the DQCheckPlan output.
+- Set ``metric_key`` to the column name (e.g. ``"email"``).
+
+DQCheckPlan FIELDS:
+- ``check_name``: exact name from ``list_checks`` (no abbreviation).
+- ``sql_query``: the SQL statement to execute later (with leading ``-- check: <name>`` comment).
+- ``metric_key``: the SQL column alias / name to read as the primary metric value.
+- ``row_level``: ``true`` for row-level checks (SELECT returns one row per record), ``false`` for aggregate.
+- ``validator_name``: ``"fixed"``, a registered validator name, or ``"none"``.
+- ``validator_args``: kwargs for the validator factory, or ``{}`` for ``"fixed"``/``"none"``.
+
+VALIDATOR ARGS RULES (critical — missing args cause hard failures in Phase 2):
+- ``list_validators`` returns a ``parameters`` field for each validator showing its exact
+  parameter names, types, and defaults.  Read this carefully before setting ``validator_args``.
+- If a parameter has no default (required), you MUST include it in ``validator_args``.
+  Example: ``null_pct_check`` requires ``max_pct`` — always set ``{"max_pct": <value>}``.
+- If you are unsure of the right threshold, pick a reasonable default (e.g. 0.05 for pct checks).
+- NEVER leave ``validator_args`` as ``{}`` for a validator that has required parameters.
+- Only use ``{}`` when ``validator_name`` is ``"fixed"`` or ``"none"``.
+"""
+
+_DIALECT_SQL_NOTES: dict[str, str] = {
+    "postgres": (
+        "  - Regex match: `col ~ 'pattern'`; not match: `col !~ 'pattern'` (case-sensitive).\n"
+        "    Case-insensitive variants: `~*` and `!~*`.\n"
+        "  - Float division: `numerator * 1.0 / NULLIF(denominator, 0)` (no CAST needed).\n"
+        "  - String functions: LENGTH(), LOWER(), TRIM(), SUBSTRING().\n"
+    ),
+    "mysql": (
+        "  - Regex match: `col REGEXP 'pattern'`; not match: `col NOT REGEXP 'pattern'`.\n"
+        "  - Float division: `numerator * 1.0 / NULLIF(denominator, 0)`.\n"
+        "  - String length (multibyte-safe): CHAR_LENGTH(col); byte length: LENGTH(col).\n"
+    ),
+    "sqlite": (
+        "  - No native regex operator; use LIKE or GLOB:\n"
+        "    `col NOT LIKE '%@%'` or `col GLOB '*@*.*'`.\n"
+        "  - Float division: `CAST(numerator AS REAL) / NULLIF(denominator, 0)`.\n"
+    ),
+    "tsql": (
+        "  - No regex operator; use LIKE or PATINDEX:\n"
+        "    `PATINDEX('%@%.%', col) = 0` means no match.\n"
+        "  - Float division: `CAST(numerator AS FLOAT) / NULLIF(denominator, 0)`.\n"
+        "  - Use TOP n instead of LIMIT n; no OFFSET without ORDER BY.\n"
+        "  - String length: LEN(col) (not LENGTH).\n"
+    ),
+    "bigquery": (
+        "  - Regex: `REGEXP_CONTAINS(col, r'pattern')` — returns TRUE if match.\n"
+        "    Negate with `NOT REGEXP_CONTAINS(...)`.\n"
+        "  - Safe division: `SAFE_DIVIDE(numerator, denominator)` (NULL on zero denominator).\n"
+        "  - Quote reserved names with backticks.\n"
+    ),
+    "snowflake": (
+        "  - Regex: `REGEXP_LIKE(col, 'pattern')` (full-string match) or `col RLIKE 'pattern'`.\n"
+        "  - Float division: `numerator * 1.0 / NULLIF(denominator, 0)`.\n"
+        "  - Unquoted identifiers are uppercased; use double-quotes when case matters.\n"
+    ),
+}
 
 
-def _describe_validator(validator: Callable[[Any], bool]) -> str:
-    """Return a human-readable validator label for failure messages."""
-    display = getattr(validator, "_validator_display", None)
-    if isinstance(display, str) and display:
-        return display
-    validator_name = getattr(validator, "_validator_name", None)
-    if isinstance(validator_name, str) and validator_name:
-        return validator_name
-    validator_name = getattr(validator, "__name__", None)
-    if isinstance(validator_name, str) and validator_name:
-        return validator_name
-    return repr(validator)
+def _extract_schema_table_names(schema_context: str) -> list[str]:
+    """Extract table names from a schema context string produced by build_schema_context."""
+    return re.findall(r"^Table:\s+(\S+)", schema_context, re.MULTILINE)
 
 
 class LLMDataQualityOperator(LLMOperator):
     """
-    Generate and execute data-quality checks from natural language descriptions.
+    Run data-quality checks described in natural language using an LLM agent.
 
-    Each entry in ``checks`` describes **one** data-quality expectation.  The LLM
-    groups related checks into optimised SQL queries, selects the most appropriate
-    validator for each check from the registered catalog, executes the SQL against
-    the target database, and applies the validators.  The task fails if any check
-    does not pass, gating downstream tasks on data quality.
+    The agent discovers the database schema, writes and executes SQL queries,
+    applies validators, and produces a
+    :class:`~airflow.providers.common.ai.utils.dataquality.models.DQReport`.  The task
+    fails when any check does not pass, gating downstream tasks on data quality.
 
-    Optionally, supply a fixed ``validator`` on a :class:`~airflow.providers.common.ai.utils.dq_models.DQCheckInput`
-    to bypass LLM validator selection for that specific check.
+    Supply the data-source toolset and DQ toolset together in ``toolsets``::
 
-    Generated SQL plans (including LLM-chosen validators) are cached in Airflow
-    :class:`~airflow.models.variable.Variable` to avoid repeat LLM calls.
-    Set ``dry_run=True`` to preview the plan without executing it.
-    Set ``require_approval=True`` to gate execution on human review via the
-    HITL interface.
+        from airflow.providers.common.ai.toolsets.sql import SQLToolset
+        from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
 
-    :param checks: List of :class:`~airflow.providers.common.ai.utils.dq_models.DQCheckInput`
-        objects (or plain dicts with ``name``, ``description``, and optional ``validator`` keys).
-        Each entry describes one data-quality expectation.  Names must be unique.
-        Example::
-
-            from airflow.providers.common.ai.utils.dq_models import DQCheckInput
-            from airflow.providers.common.ai.utils.dq_validation import null_pct_check
-
-            checks = [
-                DQCheckInput(name="email_nulls", description="Check for null email addresses"),
+        LLMDataQualityOperator(
+            task_id="quality_check",
+            checks=[
+                DQCheckInput(name="email_nulls", description="Check for null emails"),
                 DQCheckInput(
                     name="row_count",
-                    description="Ensure at least 1000 rows exist",
-                    validator=row_count_check(min_count=1000),  # fixed — LLM skips this one
+                    description="At least 1000 rows",
+                    validator=row_count_check(min_count=1000),
                 ),
-            ]
+            ],
+            llm_conn_id="pydanticai_default",
+            toolsets=[
+                SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers"]),
+                SQLDQToolset(),
+            ],
+        )
 
-    :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-4o"``).
-        Overrides the model stored in the connection's extra field.
-    :param system_prompt: Additional instructions appended to the planning prompt.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
-    :param db_conn_id: Connection ID for the database to run checks against.
-        Must resolve to a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`.
-    :param table_names: Tables to include in the LLM's schema context.
-    :param schema_context: Manual schema description; bypasses DB introspection.
-    :param dialect: SQL dialect override (``postgres``, ``mysql``, etc.).
-        Auto-detected from *db_conn_id* when not set.
-    :param datasource_config: DataFusion datasource for object-storage schema.
-    :param dry_run: When ``True``, generate and cache the plan but skip execution.
-        Returns the serialised plan dict instead of a
-        :class:`~airflow.providers.common.ai.utils.dq_models.DQReport`.
-    :param prompt_version: Optional version tag included in the plan cache key.
-        Bump this to invalidate cached plans when checks change semantically
-        without changing their text.
-    :param collect_unexpected: When ``True``, the LLM generates an
-        ``unexpected_query`` for validity / string-format checks.
-        If any of those checks fail, the unexpected query is executed and
-        the resulting sample rows are included in the report.
-    :param unexpected_sample_size: Maximum number of violating rows to return
-        per failed check.  Default ``100``.
-    :param row_level_sample_size: Maximum number of rows to fetch per row-level
-        check.  ``None`` (default) performs a full table scan.
-    :param require_approval: When ``True``, the operator defers after generating
-        and caching the DQ plan.  The plan SQL is surfaced in the HITL interface
-        for human review; checks run only after the reviewer approves.
-        ``dry_run=True`` takes precedence.
+    When ``toolsets`` is omitted, the operator auto-creates
+    :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` and
+    :class:`~airflow.providers.common.ai.toolsets.dataquality.sql.SQLDQToolset` from
+    ``db_conn_id`` and ``table_names``.
 
-    When approval is granted Airflow resumes the task by calling
-    :meth:`execute_complete` with the approved plan JSON.
+    For config-generation backends (e.g. ``SodaDQToolset``), the operator
+    returns the generated config string as its XCom value instead of a report.
+
+    :param checks: List of :class:`~airflow.providers.common.ai.utils.dataquality.models.DQCheckInput`
+        objects (or plain dicts with ``name``, ``description``, and optional
+        ``validator`` keys).  Names must be unique.
+    :param toolsets: Pydantic-AI toolsets for the agent.  Must include exactly
+        one :class:`~airflow.providers.common.ai.toolsets.dataquality.base.BaseDQToolset`
+        subclass alongside a data-source toolset.  When ``None``, the operator
+        auto-creates toolsets from ``db_conn_id``.
+    :param db_conn_id: Connection ID for auto-creating an
+        :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`.
+        Ignored when ``toolsets`` is provided.
+    :param table_names: Tables passed to the auto-created
+        :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` as
+        ``allowed_tables``.  Ignored when ``toolsets`` is provided.
+    :param schema_context: Additional schema description injected into the
+        system prompt.  Useful when the data source cannot be introspected
+        at runtime.
     """
 
     template_fields: Sequence[str] = (
@@ -149,651 +280,484 @@ class LLMDataQualityOperator(LLMOperator):
         "db_conn_id",
         "table_names",
         "schema_context",
-        "prompt_version",
-        "collect_unexpected",
-        "unexpected_sample_size",
-        "row_level_sample_size",
     )
 
     def __init__(
         self,
         *,
         checks: list[DQCheckInput | dict[str, Any]],
+        toolsets: list[AbstractToolset] | None = None,
         db_conn_id: str | None = None,
         table_names: list[str] | None = None,
         schema_context: str | None = None,
-        dialect: str | None = None,
-        datasource_config: DataSourceConfig | None = None,
-        prompt_version: str | None = None,
-        dry_run: bool = False,
-        collect_unexpected: bool = False,
-        unexpected_sample_size: int = 100,
-        row_level_sample_size: int | None = None,
         **kwargs: Any,
     ) -> None:
+        # Pop operator-specific params that must not reach BaseOperator.__init__.
+        # Using kwargs.pop (rather than named params) is necessary because Airflow's
+        # apply_defaults metaclass captures the full **kwargs dict and uses it for
+        # task-map serialization; named params in the dict are NOT removed from the
+        # snapshot, so they would be re-injected on deserialization and reach
+        # BaseOperator as unknown kwargs.
+        durable: bool = kwargs.pop("durable", False)
+
         kwargs.pop("output_type", None)
-        kwargs.setdefault("prompt", "LLMDataQualityOperator")
+        kwargs.setdefault("prompt", "Run the data-quality checks.")
         super().__init__(**kwargs)
 
         self.checks: list[DQCheckInput] = (
-            checks if not isinstance(checks, list) else [DQCheckInput.coerce(c) for c in checks]
+            [DQCheckInput.coerce(c) for c in checks] if isinstance(checks, list) else checks  # type: ignore[assignment]
         )
+        self.toolsets = toolsets
         self.db_conn_id = db_conn_id
         self.table_names = table_names
         self.schema_context = schema_context
-        self.dialect = dialect
-        self.datasource_config = datasource_config
-        self.prompt_version = prompt_version
-        self.dq_dry_run = dry_run
-        self.collect_unexpected = collect_unexpected
-        self.unexpected_sample_size = unexpected_sample_size
-        self.row_level_sample_size = row_level_sample_size
+        self.durable = durable
 
         self._validate_checks()
 
-        if table_names and db_conn_id is None and datasource_config is None:
-            raise ValueError(
-                "table_names requires db_conn_id (or datasource_config) so table schema can be introspected."
-            )
+        if not toolsets and db_conn_id is None:
+            raise ValueError("Either toolsets or db_conn_id must be provided.")
 
-    def execute(self, context: Context) -> dict[str, Any]:
+    def execute(self, context: Context) -> Any:
         """
-        Generate the DQ plan (or load from cache), then execute or defer for approval.
+        Run the LLM agent to execute all data-quality checks.
 
-        The plan is generated with a single LLM call that simultaneously selects
-        validators from the registry **and** produces the SQL for each check.
-        Checks that have a user-supplied fixed validator bypass LLM selection.
+        When ``require_approval=True``, the task runs in two phases:
 
-        When ``dry_run=True`` the serialised plan dict is returned immediately —
-        no SQL is executed and no approval is requested.
-        When ``require_approval=True`` the task defers, presenting the plan to a
-        human reviewer; data-quality checks run only after the reviewer approves.
+        1. **Phase 1** — the LLM discovers schema, executes SQL queries, and selects
+           validators (but does *not* call ``apply_validator``).  The resulting plan
+           (SQL queries + validator choices) is shown to a human reviewer.
+        2. **Phase 2** (in :meth:`execute_complete`) — after approval, validators are
+           applied in pure Python and the :class:`~...DQReport` is produced.
 
-        :returns: Dict with keys ``plan``, ``passed``, and ``results``.
-        :raises DQCheckFailedError: If any data-quality check fails threshold validation.
-        :raises TaskDeferred: When ``require_approval=True``, defers for human review.
+        :returns: :class:`~airflow.providers.common.ai.utils.dataquality.models.DQReport`
+            as a dict when the DQ toolset is in ``"execute"`` mode, or a config
+            string when in ``"generate"`` mode.
+        :raises DQCheckFailedError: When any check fails in ``"execute"`` mode.
         """
-        planner = self._build_planner()
-
-        schema_ctx = planner.build_schema_context(
-            table_names=self.table_names, schema_context=self.schema_context
-        )
-
-        self.log.info("Using schema context:\n%s", schema_ctx)
-
-        plan = self._load_or_generate_plan(planner, schema_ctx)
-
-        if self.dq_dry_run:
-            self.log.info(
-                "dry_run=True — skipping execution. Plan contains %d group(s), %d check(s).",
-                len(plan.groups),
-                len(plan.check_names),
-            )
-            for group in plan.groups:
-                self.log.info(
-                    "Group: %s\nChecks: %s\nSQL Query:\n%s\n",
-                    group.group_id,
-                    ", ".join(c.check_name for c in group.checks),
-                    group.query,
-                )
-            return {"plan": plan.model_dump(), "passed": None, "results": None}
-
         if self.require_approval:
+            plan, _ = self._run_plan_phase(context)
             self.defer_for_approval(  # type: ignore[misc]
                 context,
                 plan.model_dump_json(),
-                body=self._build_dry_run_markdown(plan),
+                subject=f"Review DQ plan for task `{self.task_id}`",
+                body=self._build_plan_approval_body(plan),
             )
-            return {}  # type: ignore[return-value]  # pragma: no cover
+        return self._run_and_report(context)
 
-        return self._run_checks_and_report(context, planner, plan)
-
-    def _build_planner(self) -> SQLDQPlanner:
-        """Construct a :class:`~airflow.providers.common.ai.utils.dq_planner.SQLDQPlanner` from operator config."""
-        fixed_validators = self._collect_fixed_validators()
-        return SQLDQPlanner(
-            llm_hook=self.llm_hook,
-            db_hook=self.db_hook,
-            dialect=self.dialect,
-            datasource_config=self.datasource_config,
-            system_prompt=self.system_prompt,
-            agent_params=self.agent_params,
-            collect_unexpected=self.collect_unexpected,
-            unexpected_sample_size=self.unexpected_sample_size,
-            validator_contexts=self.validator_contexts,
-            row_validators=self._collect_row_validators(),
-            row_level_sample_size=self.row_level_sample_size,
-            fixed_validators=fixed_validators,
-        )
-
-    @cached_property
-    def validator_contexts(self) -> str:
-        """Return validator-specific LLM context rendered from fixed validators only."""
-        fixed = self._collect_fixed_validators()
-        return default_registry.build_llm_context(fixed)
-
-    def _run_checks_and_report(
-        self,
-        context: Context,
-        planner: SQLDQPlanner,
-        plan: DQPlan,
-    ) -> dict[str, Any]:
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         """
-        Execute *plan* against the database, apply validators, and return the serialised report.
+        Phase 2: execute SQL and apply validators after human approval.
 
-        :raises DQCheckFailedError: If any data-quality check fails.
+        Called automatically by Airflow when the HITL trigger fires.  The base
+        class validates the approval decision (raises on reject or timeout).
+        Then each SQL query from the approved :class:`~...DQPlan` is executed in
+        pure Python, the metric values are extracted, and validators are applied
+        — no LLM calls.
+
+        :param context: Airflow task context.
+        :param generated_output: The :class:`~...DQPlan` JSON that was deferred.
+        :param event: Trigger event payload.
+        :returns: Same as :meth:`execute`.
+        :raises HITLRejectException: If the reviewer rejected the plan.
         """
-        effective_validators = self._resolve_effective_validators_from_plan(plan)
-        planner.set_row_validators(
-            {name: fn for name, fn in effective_validators.items() if default_registry.is_row_level(fn)}
-        )
-        results_map = planner.execute_plan(plan)
-        check_results = self._validate_results(results_map, plan, effective_validators)
+        approved_output = super().execute_complete(context, generated_output, event)  # type: ignore[misc]
+        plan = DQPlan.model_validate_json(approved_output)
 
-        if self.collect_unexpected:
-            failed_names = {r.check_name for r in check_results if not r.passed}
-            if failed_names:
-                unexpected_map = planner.execute_unexpected_queries(plan, failed_names)
-                self._attach_unexpected(check_results, unexpected_map)
+        toolsets = self._resolve_toolsets()
+        dq_toolset = self._find_dq_toolset(toolsets)
+        dq_toolset.set_checks(self.checks)
 
-        report = DQReport.build(check_results)
-
-        output: dict[str, Any] = {
-            "plan": plan.model_dump(),
-            "passed": report.passed,
-            "results": [
-                {
-                    "check_name": r.check_name,
-                    "metric_key": r.metric_key,
-                    "value": r.value.to_dict() if isinstance(r.value, RowLevelResult) else r.value,
-                    "passed": r.passed,
-                    "failure_reason": r.failure_reason,
-                    **(
-                        {
-                            "unexpected_records": r.unexpected.unexpected_records,
-                            "unexpected_sample_size": r.unexpected.sample_size,
-                        }
-                        if r.unexpected
-                        else {}
-                    ),
-                }
-                for r in report.results
-            ],
-        }
-
+        report = self._execute_plan_validators(plan, dq_toolset, toolsets)
+        context["task_instance"].xcom_push(key="dq_report", value=report.model_dump())
         if not report.passed:
-            # Push results to XCom before failing so downstream tasks
-            # (e.g. with trigger_rule=all_done) can still inspect them.
-            context["ti"].xcom_push(key="return_value", value=output)
             raise DQCheckFailedError(report.failure_summary)
+        return report.model_dump()
 
-        self.log.info("All %d data-quality check(s) passed.", len(report.results))
+    # ------------------------------------------------------------------
+    # Core execution helpers
+    # ------------------------------------------------------------------
+
+    def _run_plan_phase(self, context: Context) -> tuple[DQPlan, BaseDQToolset]:
+        """
+        Phase 1 of the two-phase approval flow.
+
+        Runs the LLM agent in planning mode: schema-discovery tools
+        (``list_tables``, ``get_schema``, ``check_query``) are available, but
+        the ``query`` and ``apply_validator`` tools are hidden.  The agent
+        writes SQL strings and selects validators for each check, then outputs
+        a :class:`~...DQPlan` — without executing any SQL.
+
+        :returns: ``(plan, dq_toolset)`` — the plan for the approval body and the
+            toolset (already configured with checks) for Phase 2.
+        """
+        toolsets = self._resolve_toolsets()
+        dq_toolset = self._find_dq_toolset(toolsets)
+        dq_toolset._planning_mode = True  # omit apply_validator from tool list
+        dq_toolset.set_checks(self.checks)
+
+        # Hide the SQL 'query' tool so the LLM cannot execute DQ queries.
+        for ts in toolsets:
+            if ts is not dq_toolset and hasattr(ts, "_query"):
+                ts._planning_mode = True  # type: ignore[attr-defined]
+
+        instructions = self._build_plan_system_prompt(toolsets)
+        logged_toolsets = wrap_toolsets_for_logging(toolsets, self.log)
+
+        if self.durable:
+            agent, counter, _ = self._build_durable_agent(DQPlan, instructions, logged_toolsets)
+        else:
+            agent = self.llm_hook.create_agent(
+                output_type=DQPlan,
+                instructions=instructions,
+                toolsets=logged_toolsets,
+                **self.agent_params,
+            )
+            counter = None
+
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        log_run_summary(self.log, result)
+
+        if counter is not None and (counter.replayed_model > 0 or counter.replayed_tool > 0):
+            self.log.info(
+                "Durable cache replay (plan phase): model_steps=%d/%d, tool_steps=%d/%d",
+                counter.replayed_model,
+                counter.replayed_model + counter.cached_model,
+                counter.replayed_tool,
+                counter.replayed_tool + counter.cached_tool,
+            )
+
+        return result.output, dq_toolset
+
+    def _run_and_report(self, context: Context) -> Any:
+        """
+        Resolve toolsets, run the LLM agent, push XCom, and handle failures.
+
+        This is the single place where the agent executes regardless of whether
+        the task took the direct path or the approval-gated path.
+        """
+        toolsets = self._resolve_toolsets()
+        dq_toolset = self._find_dq_toolset(toolsets)
+        dq_toolset.set_checks(self.checks)
+
+        output_type: type = DQReport if dq_toolset.output_mode == "execute" else str
+        instructions = self._build_system_prompt(dq_toolset, toolsets)
+        logged_toolsets = wrap_toolsets_for_logging(toolsets, self.log)
+
+        if self.durable:
+            agent, counter, _storage = self._build_durable_agent(output_type, instructions, logged_toolsets)
+        else:
+            agent = self.llm_hook.create_agent(
+                output_type=output_type,
+                instructions=instructions,
+                toolsets=logged_toolsets,
+                **self.agent_params,
+            )
+            counter = None
+
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        log_run_summary(self.log, result)
+
+        if counter is not None and (counter.replayed_model > 0 or counter.replayed_tool > 0):
+            self.log.info(
+                "Durable cache replay: model_steps=%d/%d, tool_steps=%d/%d",
+                counter.replayed_model,
+                counter.replayed_model + counter.cached_model,
+                counter.replayed_tool,
+                counter.replayed_tool + counter.cached_tool,
+            )
+
+        output = result.output
+
+        if dq_toolset.output_mode == "execute":
+            report: DQReport = output
+            context["task_instance"].xcom_push(key="dq_report", value=report.model_dump())
+            if not report.passed:
+                raise DQCheckFailedError(report.failure_summary)
+            return report.model_dump()
+
         return output
 
-    def _build_dry_run_markdown(self, plan: DQPlan) -> str:
-        """
-        Build a structured markdown summary of the DQ plan for the HITL review body.
+    def _build_durable_agent(
+        self,
+        output_type: type,
+        instructions: str,
+        toolsets: list[AbstractToolset],
+    ) -> tuple[Any, Any, Any]:
+        """Build a pydantic-ai Agent with CachingModel and CachingToolset wrappers."""
+        from pydantic_ai import Agent
 
-        Aggregate groups and row-level groups are rendered in separate sections so
-        reviewers can immediately distinguish SQL-aggregate checks from per-row
-        validation logic.
-        """
-        aggregate_groups = [g for g in plan.groups if not any(c.row_level for c in g.checks)]
-        row_level_groups = [g for g in plan.groups if any(c.row_level for c in g.checks)]
+        from airflow.providers.common.ai.durable.caching_model import CachingModel
+        from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+        from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+        from airflow.providers.common.ai.durable.storage import DurableStorage
 
-        total_checks = len(plan.check_names)
-        agg_count = sum(len(g.checks) for g in aggregate_groups)
-        row_count = sum(len(g.checks) for g in row_level_groups)
+        plan_hash = self._compute_plan_hash(instructions)
+        storage = DurableStorage(cache_id=plan_hash)
+        counter = DurableStepCounter()
 
-        lines: list[str] = [
-            "# LLM Data Quality Plan",
-            "",
-            "| | |",
-            "|---|---|",
-            f"| **Plan hash** | `{plan.plan_hash or 'N/A'}` |",
-            f"| **Total checks** | {total_checks} |",
-            f"| **Aggregate checks** | {agg_count} ({len(aggregate_groups)} group{'s' if len(aggregate_groups) != 1 else ''}) |",
-            f"| **Row-level checks** | {row_count} ({len(row_level_groups)} group{'s' if len(row_level_groups) != 1 else ''}) |",
-            "",
-        ]
+        wrapped_model = CachingModel(self.llm_hook.get_conn(), storage=storage, counter=counter)
+        cached_toolsets = [CachingToolset(ts, storage=storage, counter=counter) for ts in toolsets]
 
-        if aggregate_groups:
-            lines += [
-                "---",
-                "",
-                "## Aggregate Checks",
-                "",
-                "> Each group runs as a **single SQL query**. "
-                "Result columns are matched to check names by metric key.",
-                "",
-            ]
-            for group in aggregate_groups:
-                lines += self._render_aggregate_group(group)
-
-        if row_level_groups:
-            lines += [
-                "---",
-                "",
-                "## Row-Level Checks",
-                "",
-                "> Row-level checks fetch **raw column values** and apply Python-side "
-                "validation per row. The threshold controls the maximum allowed fraction "
-                "of invalid rows before the check fails.",
-                "",
-            ]
-            for group in row_level_groups:
-                lines += self._render_row_level_group(group)
-
-        return "\n".join(lines).rstrip()
-
-    def _render_aggregate_group(self, group: DQCheckGroup) -> list[str]:
-        """Render one aggregate SQL group as a markdown subsection."""
-        lines: list[str] = [
-            f"### `{group.group_id}`",
-            "",
-            "| Check name | Metric key | Category | Validator |",
-            "|---|---|---|---|",
-        ]
-        for check in group.checks:
-            category = check.check_category or "—"
-            validator_label = self._describe_validator_for_check(check)
-            lines.append(f"| `{check.check_name}` | `{check.metric_key}` | {category} | {validator_label} |")
-
-        lines += [
-            "",
-            "```sql",
-            group.query.strip(),
-            "```",
-            "",
-        ]
-
-        # Unexpected queries — only show when present.
-        unexpected = [(c.check_name, c.unexpected_query) for c in group.checks if c.unexpected_query]
-        if unexpected:
-            lines += ["<details><summary>Unexpected-row queries</summary>", ""]
-            for check_name, uq in unexpected:
-                lines += [
-                    f"**`{check_name}`**",
-                    "",
-                    "```sql",
-                    (uq or "").strip(),
-                    "```",
-                    "",
-                ]
-            lines += ["</details>", ""]
-
-        return lines
-
-    def _render_row_level_group(self, group: DQCheckGroup) -> list[str]:
-        """Render one row-level group as a markdown subsection with threshold info."""
-        all_validators = self._resolve_effective_validators()
-        lines: list[str] = [
-            f"### `{group.group_id}`",
-            "",
-            "| Check name | Metric key | Max invalid % | Validator |",
-            "|---|---|---|---|",
-        ]
-        for check in group.checks:
-            validator = all_validators.get(check.check_name)
-            max_pct = (
-                self._resolve_row_level_max_invalid_pct(
-                    check.check_name,
-                    validator,
-                    default_when_missing=None,
-                    warn_on_missing=False,
-                )
-                if validator is not None
-                else None
-            )
-            if max_pct is None:
-                # Fall back to validator_args from the plan (LLM-suggested validators).
-                raw = check.validator_args.get("max_invalid_pct")
-                if raw is not None:
-                    try:
-                        max_pct = float(raw)
-                    except (TypeError, ValueError):
-                        pass
-            threshold_str = f"{max_pct:.2%}" if max_pct is not None else "—"
-            validator_label = self._describe_validator_for_check(check)
-            lines.append(
-                f"| `{check.check_name}` | `{check.metric_key}` | {threshold_str} | {validator_label} |"
-            )
-
-        lines += [
-            "",
-            "```sql",
-            group.query.strip(),
-            "```",
-            "",
-        ]
-        return lines
-
-    def _describe_validator_for_check(self, check: DQCheck) -> str:
-        """Return a human-readable validator label for display in the HITL markdown."""
-        if check.validator_name is None:
-            fixed = self._collect_fixed_validators()
-            if check.check_name in fixed:
-                return f"*(fixed)* `{_describe_validator(fixed[check.check_name])}`"
-            return "*(none)*"
-        if check.validator_name.lower() == "none":
-            return "*(none)*"
-        args_str = ", ".join(f"{k}={v!r}" for k, v in sorted(check.validator_args.items()))
-        return f"`{check.validator_name}({args_str})`"
-
-    def _load_or_generate_plan(self, planner: SQLDQPlanner, schema_ctx: str) -> DQPlan:
-        """Return a cached plan when available, otherwise generate and cache a new one."""
-        if not isinstance(self.checks, list):
-            raise TypeError("checks must be a list[DQCheckInput] before generating a DQ plan.")
-
-        row_validator_thresholds = self._collect_row_validator_thresholds()
-        catalog_hash = planner.build_catalog_hash()
-        plan_hash = _compute_plan_hash(
-            self.checks,
-            self.prompt_version,
-            self.collect_unexpected,
-            self.row_level_sample_size,
-            schema_context=schema_ctx,
-            unexpected_sample_size=self.unexpected_sample_size,
-            validator_contexts=self.validator_contexts,
-            row_validator_thresholds=row_validator_thresholds,
-            catalog_hash=catalog_hash,
+        agent = Agent(
+            wrapped_model,
+            output_type=output_type,
+            instructions=instructions,
+            toolsets=cached_toolsets,
+            **self.agent_params,
         )
-        variable_key = f"{_PLAN_VARIABLE_PREFIX}{plan_hash}"
+        return agent, counter, storage
 
-        cached_json = Variable.get(variable_key, None)
-        if cached_json is not None:
-            self.log.info("DQ plan cache hit — key: %r", variable_key)
-            plan = DQPlan.model_validate_json(cached_json)
-            if not plan.plan_hash:
-                plan.plan_hash = plan_hash
-            return plan
+    def _compute_plan_hash(self, instructions: str) -> str:
+        """Return a stable short hash of the check plan for cross-run cache keying."""
+        checks_data = sorted(
+            [{"name": c.name, "description": c.description} for c in self.checks],
+            key=lambda x: x["name"],
+        )
+        payload = json.dumps(
+            {
+                "checks": checks_data,
+                "schema_context": self.schema_context or "",
+                "instructions": instructions,
+            },
+            sort_keys=True,
+        )
+        digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+        return f"dq_{digest}"
 
-        self.log.info("DQ plan cache miss — generating via LLM (key: %r).", variable_key)
-        plan = planner.generate_plan(self.checks, schema_ctx)
-        plan.plan_hash = plan_hash
-        Variable.set(variable_key, plan.model_dump_json())
-        return plan
+    def _build_plan_approval_body(self, plan: DQPlan) -> str:
+        """
+        Build a Markdown body for the HITL approval form.
 
-    def _resolve_row_level_max_invalid_pct(
+        Shows the LLM-generated SQL queries and validator selections so the
+        reviewer can inspect the plan before any SQL is executed or any
+        validator is applied.
+        """
+        lines = [
+            "## Data Quality Check Plan \u2014 Awaiting Approval",
+            "",
+            f"**Total checks:** {len(plan.checks)}",
+            "",
+            "Review the SQL queries and validator selections below.  ",
+            "**Approve** to execute the SQL, apply validators, and produce the quality report.  ",
+            "**Reject** to cancel without executing anything.",
+            "",
+            "| # | Check | Metric Key | Row Level | Validator | Args |",
+            "|---|-------|------------|-----------|-----------|------|",
+        ]
+        for i, cp in enumerate(plan.checks, 1):
+            args_display = json.dumps(cp.validator_args) if cp.validator_args else "{}"
+            lines.append(
+                f"| {i} | `{cp.check_name}` | `{cp.metric_key}` "
+                f"| {'Yes' if cp.row_level else 'No'} "
+                f"| `{cp.validator_name}` | `{args_display}` |"
+            )
+
+        lines += ["", "---", "", "### SQL Queries", ""]
+        for cp in plan.checks:
+            lines += [f"**{cp.check_name}**", "", "```sql", cp.sql_query.strip(), "```", ""]
+
+        return "\n".join(lines)
+
+    def _execute_plan_validators(
         self,
-        check_name: str,
-        validator: Callable[[Any], bool],
-        *,
-        default_when_missing: float | None,
-        warn_on_missing: bool,
-    ) -> float | None:
-        """Return row-level threshold as ``float`` or raise a clear ``ValueError``."""
-        if not hasattr(validator, "_max_invalid_pct"):
-            if warn_on_missing:
-                self.log.warning(
-                    "Row-level validator for check %r has no '_max_invalid_pct' attribute — "
-                    "defaulting threshold to 0.0%%. Every invalid row will fail the check.",
-                    check_name,
-                )
-            return default_when_missing
-
-        raw_max_pct = getattr(validator, "_max_invalid_pct")
-        try:
-            return float(raw_max_pct)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Row-level validator for check {check_name!r} has invalid _max_invalid_pct "
-                f"value {raw_max_pct!r}; expected a numeric value."
-            ) from exc
-
-    def _validate_results(
-        self,
-        results_map: dict[str, Any],
         plan: DQPlan,
-        effective_validators: dict[str, Callable[[Any], bool]],
-    ) -> list[DQCheckResult]:
+        dq_toolset: BaseDQToolset,
+        toolsets: list[AbstractToolset],
+    ) -> DQReport:
         """
-        Apply validators to each metric value and return per-check results.
+        Phase 2 of the two-phase approval flow.
 
-        *effective_validators* must be pre-built by
-        :meth:`_resolve_effective_validators_from_plan` so that both user-fixed
-        and LLM-suggested validators are present.  When no validator is found
-        for an aggregate check it is logged and marked passed by default;
-        row-level checks without a validator are marked failed.
+        For each check in the approved :class:`~...DQPlan`:
+
+        1. Executes the SQL query via the data-source toolset.
+        2. Extracts the metric value from the result.
+        3. Applies the chosen validator in pure Python (no LLM calls).
+        4. Builds the final :class:`~...DQReport`.
+
+        :param plan: The approved :class:`~...DQPlan` from Phase 1.
+        :param dq_toolset: The DQ toolset (must implement ``_apply_validator``).
+        :param toolsets: All toolsets (used to find the SQL toolset for execution).
+        :raises ValueError: If no SQL-capable toolset or no validator executor found.
         """
-        all_validators = effective_validators
-        check_results: list[DQCheckResult] = []
+        from airflow.providers.common.ai.utils.dataquality.models import DQCheckResult
 
-        for group in plan.groups:
-            for check in group.checks:
-                if check.check_name not in results_map:
-                    raise ValueError(
-                        f"Planner did not return a result for check {check.check_name!r} "
-                        f"(group {group.group_id!r}). Available keys: {sorted(results_map)}"
-                    )
-                value = results_map[check.check_name]
-                validator = all_validators.get(check.check_name)
+        sql_toolset = next((ts for ts in toolsets if hasattr(ts, "_query")), None)
+        if sql_toolset is None:
+            raise ValueError(
+                "require_approval Phase 2 requires a toolset with a _query() method "
+                "(e.g. SQLToolset). Add a data-source toolset to the toolsets list."
+            )
 
-                passed = True
-                failure_reason: str | None = None
+        apply_fn = getattr(dq_toolset, "_apply_validator", None)
+        if apply_fn is None:
+            raise ValueError(
+                "require_approval two-phase execution requires a DQ toolset that "
+                "implements _apply_validator (e.g. SQLDQToolset)."
+            )
 
-                if isinstance(value, RowLevelResult):
-                    if validator is None:
-                        self.log.error(
-                            "No validator found for row-level check %r (metric key: %r). "
-                            "Row-level checks require an explicit validator.",
-                            check.check_name,
-                            check.metric_key,
-                        )
-                        passed = False
-                        failure_reason = (
-                            "Row-level check requires a registered row-level validator, "
-                            "but none was provided."
-                        )
-                    else:
-                        max_pct = self._resolve_row_level_max_invalid_pct(
-                            check.check_name,
-                            validator,
-                            default_when_missing=0.0,
-                            warn_on_missing=True,
-                        )
-                        passed = value.invalid_pct <= (max_pct if max_pct is not None else 0.0)
-                        if not passed:
-                            failure_reason = (
-                                f"Row-level check failed: {value.invalid}/{value.total} rows invalid "
-                                f"({value.invalid_pct:.4%}), threshold {max_pct:.4%}"
-                            )
-                elif validator is not None:
-                    try:
-                        passed = bool(validator(value))
-                    except Exception as exc:
-                        passed = False
-                        failure_reason = str(exc)
-
-                    if not passed and failure_reason is None:
-                        failure_reason = f"{_describe_validator(validator)} returned False"
-                else:
-                    self.log.warning(
-                        "No validator found for check %r (metric key: %r). Marking as passed by default.",
-                        check.check_name,
-                        check.metric_key,
-                    )
-
-                check_results.append(
+        results: list[DQCheckResult] = []
+        for cp in plan.checks:
+            try:
+                raw_result = sql_toolset._query(cp.sql_query)  # type: ignore[union-attr]
+                result_data = json.loads(raw_result)
+                rows: list[dict[str, Any]] = result_data.get("rows", [])
+            except Exception as exc:
+                results.append(
                     DQCheckResult(
-                        check_name=check.check_name,
-                        metric_key=check.metric_key,
-                        value=value,
-                        passed=passed,
-                        failure_reason=failure_reason,
+                        check_name=cp.check_name,
+                        passed=False,
+                        failure_reason=f"SQL execution failed: {exc}",
+                        sql_query=cp.sql_query,
+                        validator_info={"name": cp.validator_name, "args": cp.validator_args},
                     )
                 )
+                continue
 
-        return check_results
-
-    def _collect_row_validators(self) -> dict[str, Callable[[Any], bool]]:
-        """Return the subset of effective validators that are row-level."""
-        all_validators = self._resolve_effective_validators()
-        return {name: fn for name, fn in all_validators.items() if default_registry.is_row_level(fn)}
-
-    def _collect_row_validator_thresholds(self) -> dict[str, float | str | None]:
-        """Return a deterministic ``{check_name: threshold}`` map for row-level validators."""
-        thresholds: dict[str, float | str | None] = {}
-        for name, validator in self._collect_row_validators().items():
-            raw_threshold = getattr(validator, "_max_invalid_pct", None)
-            if isinstance(raw_threshold, int | float):
-                thresholds[name] = float(raw_threshold)
-            elif raw_threshold is None:
-                thresholds[name] = None
+            if cp.row_level:
+                metric_value: Any = [row.get(cp.metric_key) for row in rows]
             else:
-                thresholds[name] = str(raw_threshold)
-        return thresholds
+                metric_value = rows[0].get(cp.metric_key) if rows else None
 
-    def _collect_fixed_validators(self) -> dict[str, Callable[[Any], bool]]:
-        """Return ``{check_name: callable}`` for checks that have a user-supplied fixed validator."""
-        return {check.name: check.validator for check in self.checks if check.validator is not None}
+            raw = apply_fn(cp.check_name, metric_value, cp.validator_name, cp.validator_args)
+            parsed = json.loads(raw)
+            passed = bool(parsed.get("passed", False))
+            result_value = parsed.get("value", metric_value)
+            results.append(
+                DQCheckResult(
+                    check_name=cp.check_name,
+                    passed=passed,
+                    value=result_value,
+                    failure_reason=parsed.get("reason") if not passed else None,
+                    metric_key=cp.metric_key,
+                    sql_query=cp.sql_query,
+                    validator_info={"name": cp.validator_name, "args": cp.validator_args},
+                )
+            )
+
+        return DQReport.build(results)
+
+    # ------------------------------------------------------------------
+    # Toolset / prompt helpers
+    # ------------------------------------------------------------------
+
+    def _resolve_toolsets(self) -> list[AbstractToolset]:
+        """
+        Return explicit toolsets or auto-create from ``db_conn_id``.
+
+        When ``toolsets`` is provided but contains no
+        :class:`BaseDQToolset`, a default
+        :class:`~airflow.providers.common.ai.toolsets.dataquality.sql.SQLDQToolset`
+        is appended automatically.
+        """
+        if self.toolsets:
+            has_dq = any(isinstance(ts, BaseDQToolset) for ts in self.toolsets)
+            if not has_dq:
+                from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
+
+                self.toolsets.append(SQLDQToolset())
+            return self.toolsets
+
+        from airflow.providers.common.ai.toolsets.dataquality.sql import SQLDQToolset
+        from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+        return [
+            SQLToolset(db_conn_id=self.db_conn_id, allowed_tables=self.table_names),  # type: ignore[arg-type]
+            SQLDQToolset(),
+        ]
 
     @staticmethod
-    def _attach_unexpected(
-        check_results: list[DQCheckResult],
-        unexpected_map: dict[str, UnexpectedResult],
-    ) -> None:
-        """Attach :class:`UnexpectedResult` objects to their corresponding check results."""
-        for result in check_results:
-            unexpected = unexpected_map.get(result.check_name)
-            if unexpected is not None:
-                result.unexpected = unexpected
+    def _find_dq_toolset(toolsets: list[AbstractToolset]) -> BaseDQToolset:
+        """Return the first :class:`BaseDQToolset` found in *toolsets*."""
+        for toolset in toolsets:
+            if isinstance(toolset, BaseDQToolset):
+                return toolset
+        raise ValueError(
+            "No BaseDQToolset found in toolsets. "
+            "Add SQLDQToolset (or another BaseDQToolset subclass) to the toolsets list."
+        )
+
+    def _build_system_prompt(self, dq_toolset: BaseDQToolset, toolsets: list[AbstractToolset]) -> str:
+        """Return the full DQ system prompt for the normal (non-planning) execution path."""
+        prompt = self._make_prompt(_DQ_SYSTEM_PROMPT, toolsets)
+
+        fixed_checks = [c.name for c in self.checks if c.validator is not None]
+        if fixed_checks:
+            names = ", ".join(f'"{n}"' for n in fixed_checks)
+            prompt += (
+                "\nFIXED VALIDATORS:\n"
+                f"  Checks {names} have pre-assigned validators.\n"
+                '  For these, call apply_validator with validator_name="fixed" — '
+                "the system uses the pre-configured validator automatically.\n"
+            )
+
+        if self.system_prompt:
+            prompt += f"\nAdditional instructions:\n{self.system_prompt}\n"
+
+        return prompt
+
+    def _build_plan_system_prompt(self, toolsets: list[AbstractToolset]) -> str:
+        """Return the full DQ system prompt for Phase 1 (planning mode, no apply_validator)."""
+        prompt = self._make_prompt(_DQ_PLAN_SYSTEM_PROMPT, toolsets)
+
+        # In planning mode the FIXED VALIDATORS section uses different wording:
+        # the LLM records "fixed" in the DQPlan instead of calling apply_validator.
+        fixed_checks = [c.name for c in self.checks if c.validator is not None]
+        if fixed_checks:
+            names = ", ".join(f'"{n}"' for n in fixed_checks)
+            prompt += (
+                "\nFIXED VALIDATORS:\n"
+                f"  Checks {names} have pre-assigned validators.\n"
+                '  For these, set validator_name: "fixed" and validator_args: {} '
+                "in your DQCheckPlan output.\n"
+            )
+
+        if self.system_prompt:
+            prompt += f"\nAdditional instructions:\n{self.system_prompt}\n"
+
+        return prompt
+
+    def _make_prompt(self, base: str, toolsets: list[AbstractToolset]) -> str:
+        """Inject dialect, schema context, and fixed-validator sections into *base*."""
+        prompt = base
+
+        dialect = self._detect_sql_dialect(toolsets)
+        if dialect:
+            notes = _DIALECT_SQL_NOTES.get(dialect, "")
+            dialect_section = f"\nSQL DIALECT: {dialect.upper()}\n"
+            if notes:
+                dialect_section += "  Adapt your SQL to the following dialect-specific rules:\n" + notes
+            prompt += dialect_section
+
+        if self.schema_context:
+            table_names = _extract_schema_table_names(self.schema_context)
+            if table_names:
+                prompt += (
+                    "\nTABLE NAME CONSTRAINT:\n"
+                    f"  The ONLY tables you may reference in FROM clauses are: {', '.join(table_names)}.\n"
+                    "  Use these exact names — do not rename, abbreviate, or invent new table names.\n"
+                )
+            prompt += f"\nSchema context:\n{self.schema_context}\n"
+
+        return prompt
+
+    @staticmethod
+    def _detect_sql_dialect(toolsets: list[AbstractToolset]) -> str | None:
+        """Return the sqlglot dialect of the first dialect-aware toolset found."""
+        for toolset in toolsets:
+            dialect = getattr(toolset, "sqlglot_dialect", None)
+            if dialect:
+                return dialect
+        return None
 
     def _validate_checks(self) -> None:
-        """
-        Raise :class:`ValueError` when *checks* is empty or contains invalid entries.
-
-        Skips validation when *checks* is not yet a list — this happens when the
-        operator is constructed via the ``@task.llm_dq`` decorator.
-        """
+        """Raise :class:`ValueError` when checks are empty or contain duplicates."""
         if not isinstance(self.checks, list):
             return
         if not self.checks:
             raise ValueError("checks must not be empty. Provide at least one DQCheckInput.")
-        names = [c.name for c in self.checks]
-        duplicates = sorted(name for name, cnt in Counter(names).items() if cnt > 1)
+        duplicates = sorted(name for name, cnt in Counter(c.name for c in self.checks).items() if cnt > 1)
         if duplicates:
             raise ValueError(
                 f"checks contains duplicate name(s): {duplicates}. Each check name must be unique."
             )
-
-    def _resolve_effective_validators(self) -> dict[str, Callable[[Any], bool]]:
-        """
-        Return ``{check_name: callable}`` for all checks that have a user-supplied fixed validator.
-
-        This is the base layer of validator resolution.  To also incorporate
-        LLM-suggested validators from a generated plan, call
-        :meth:`_resolve_effective_validators_from_plan`.
-        """
-        validators: dict[str, Callable[[Any], bool]] = {}
-
-        for check in self.checks:
-            if check.validator is not None:
-                validators[check.name] = check.validator
-
-        return validators
-
-    def _resolve_effective_validators_from_plan(
-        self,
-        plan: DQPlan,
-        toolset: DQValidationToolset | None = None,
-    ) -> dict[str, Callable[[Any], bool]]:
-        """
-        Return effective validators augmented with LLM-suggested ones from *plan*.
-
-        Fixed validators take precedence; LLM-suggested validators fill in the rest.
-
-        :param toolset: Toolset to use for LLM-suggested validator instantiation.
-            When ``None`` the operator's own planner toolset is not reused here,
-            so callers that already have a toolset should pass it to avoid
-            creating an extra instance.
-        """
-        validators = self._resolve_effective_validators()
-        _toolset = toolset if toolset is not None else DQValidationToolset()
-
-        for group in plan.groups:
-            for check in group.checks:
-                if check.check_name in validators:
-                    continue
-                if check.validator_name and check.validator_name.lower() != "none":
-                    try:
-                        validators[check.check_name] = _toolset.instantiate(
-                            check.validator_name, check.validator_args
-                        )
-                    except Exception as exc:
-                        raise ValueError(
-                            "Failed to instantiate LLM-suggested validator "
-                            f"{check.validator_name!r} for check {check.check_name!r} "
-                            f"with args {check.validator_args!r}: {exc}"
-                        ) from exc
-
-        return validators
-
-    @cached_property
-    def db_hook(self) -> DbApiHook | None:
-        """Return a DbApiHook when *db_conn_id* is configured, or ``None``."""
-        if not self.db_conn_id:
-            return None
-        return get_db_hook(self.db_conn_id)
-
-    def execute_complete(
-        self, context: Context, generated_output: str, event: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Resume after human approval and execute the data-quality checks.
-
-        Called automatically by Airflow when the HITL trigger fires.  The
-        ``generated_output`` is the JSON-serialised
-        :class:`~airflow.providers.common.ai.utils.dq_models.DQPlan` that was
-        deferred for review.
-
-        :param context: Airflow task context.
-        :param generated_output: JSON string of the approved
-            :class:`~airflow.providers.common.ai.utils.dq_models.DQPlan`.
-        :param event: Trigger event payload from the HITL reviewer.
-        :raises HITLRejectException: If the reviewer rejected the plan.
-        :raises HITLTimeoutError: If the approval timed out.
-        :raises DQCheckFailedError: If any data-quality check fails after approval.
-        """
-        approved_json = super().execute_complete(context, generated_output, event)
-        plan = DQPlan.model_validate_json(approved_json)
-        planner = self._build_planner()
-        return self._run_checks_and_report(context, planner, plan)
-
-
-def _compute_plan_hash(
-    checks: list[DQCheckInput],
-    prompt_version: str | None,
-    collect_unexpected: bool = False,
-    row_level_sample_size: int | None = None,
-    schema_context: str = "",
-    unexpected_sample_size: int = 100,
-    validator_contexts: str = "",
-    row_validator_thresholds: dict[str, float | str | None] | None = None,
-    catalog_hash: str = "",
-) -> str:
-    """
-    Return a short, stable hash of the inputs that determine a unique DQ plan.
-
-    Sorted serialisation ensures the hash is order-independent.
-    The result is prefixed with the version tag so cache keys are human-readable.
-    """
-    payload = json.dumps(sorted((c.name, c.description) for c in checks))
-    if schema_context:
-        payload += f":schema={hashlib.sha256(schema_context.encode()).hexdigest()[:16]}"
-    if validator_contexts:
-        payload += f":validator_contexts={hashlib.sha256(validator_contexts.encode()).hexdigest()[:16]}"
-    if catalog_hash:
-        payload += f":catalog={catalog_hash}"
-    if row_validator_thresholds:
-        payload += ":row_thresholds=" + json.dumps(
-            row_validator_thresholds, sort_keys=True, separators=(",", ":")
-        )
-    if collect_unexpected:
-        payload += f":unexpected=1:unexpected_sample={unexpected_sample_size}"
-    if row_level_sample_size is not None:
-        payload += f":row_sample={row_level_sample_size}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    version_tag = prompt_version or "default"
-    max_tag_len = _PLAN_VARIABLE_KEY_MAX_LEN - len(digest) - 1  # -1 for the "_" separator
-    return f"{version_tag[:max_tag_len]}_{digest}"
