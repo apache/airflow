@@ -229,6 +229,14 @@ def send_mime_email(
     """
     Send a MIME email.
 
+    Connection fields take precedence over the ``[smtp]`` configuration when set:
+
+    * ``host`` / ``port`` on the connection override ``smtp_host`` / ``smtp_port``.
+    * ``login`` / ``password`` on the connection set the SMTP credentials.
+    * The connection ``extra`` JSON may contain ``disable_tls``, ``disable_ssl``,
+      ``timeout``, and ``retry_limit`` keys (matching the SMTP provider's
+      connection schema) that override the corresponding config values.
+
     :param e_from: The email address of the sender.
     :param e_to: The email address or a list of email addresses of the recipient(s).
     :param mime_msg: The MIME message to send.
@@ -251,6 +259,19 @@ def send_mime_email(
             airflow_conn = Connection.get_connection_from_secrets(conn_id)
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
+            if airflow_conn.host:
+                smtp_host = airflow_conn.host
+            if airflow_conn.port is not None:
+                smtp_port = airflow_conn.port
+            extra = airflow_conn.extra_dejson
+            if "disable_tls" in extra:
+                smtp_starttls = not bool(extra["disable_tls"])
+            if "disable_ssl" in extra:
+                smtp_ssl = not bool(extra["disable_ssl"])
+            if "timeout" in extra:
+                smtp_timeout = int(extra["timeout"])
+            if "retry_limit" in extra:
+                smtp_retry_limit = int(extra["retry_limit"])
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:

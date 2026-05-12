@@ -238,6 +238,116 @@ class TestEmailSmtp:
         mock_smtp.return_value.sendmail.assert_called_once_with("from", "to", msg.as_string())
         assert mock_smtp.return_value.quit.called
 
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_conn_host_port_override_config(self, mock_smtp, monkeypatch):
+        """Connection host/port should take precedence over [smtp] config."""
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "conn.example.com",
+                    "port": 2525,
+                    "login": "test-user",
+                    "password": "test-p@$$word",
+                }
+            ),
+        )
+        msg = MIMEMultipart()
+        email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_conn")
+        mock_smtp.assert_called_once_with(
+            host="conn.example.com",
+            port=2525,
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+        )
+
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_conn_timeout_retry_from_extra(self, mock_smtp, monkeypatch):
+        """``timeout`` and ``retry_limit`` from connection extras should override [smtp] config."""
+        mock_smtp.side_effect = SMTPServerDisconnected()
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "conn.example.com",
+                    "port": 2525,
+                    "login": "test-user",
+                    "password": "test-p@$$word",
+                    "extra": json.dumps({"timeout": 7, "retry_limit": 3}),
+                }
+            ),
+        )
+        msg = MIMEMultipart()
+        with pytest.raises(SMTPServerDisconnected):
+            email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_conn")
+        mock_smtp.assert_any_call(host="conn.example.com", port=2525, timeout=7)
+        assert mock_smtp.call_count == 3
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_conn_disable_tls_in_extra(self, mock_smtp, mock_smtp_ssl, monkeypatch):
+        """``disable_tls`` in connection extras should suppress starttls even when config enables it."""
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "conn.example.com",
+                    "port": 2525,
+                    "login": "test-user",
+                    "password": "test-p@$$word",
+                    "extra": json.dumps({"disable_tls": True}),
+                }
+            ),
+        )
+        msg = MIMEMultipart()
+        email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_conn")
+        assert not mock_smtp.return_value.starttls.called
+        assert not mock_smtp_ssl.called
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_conn_disable_ssl_false_routes_to_smtp_ssl(self, mock_smtp, mock_smtp_ssl, monkeypatch):
+        """``disable_ssl=false`` in connection extras should enable SMTP_SSL even when config disables it."""
+        mock_smtp_ssl.return_value = mock.Mock()
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "host": "conn.example.com",
+                    "port": 2525,
+                    "login": "test-user",
+                    "password": "test-p@$$word",
+                    "extra": json.dumps({"disable_ssl": False, "disable_tls": True}),
+                }
+            ),
+        )
+        msg = MIMEMultipart()
+        with conf_vars({("smtp", "smtp_ssl"): "False"}):
+            email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_conn")
+        assert not mock_smtp.called
+        mock_smtp_ssl.assert_called_once()
+        kwargs = mock_smtp_ssl.call_args.kwargs
+        assert kwargs["host"] == "conn.example.com"
+        assert kwargs["port"] == 2525
+
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_config_used_when_conn_lacks_host(self, mock_smtp, monkeypatch):
+        """[smtp] config should still be the fallback when the connection has no host."""
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps({"conn_type": "smtp", "login": "test-user", "password": "test-p@$$word"}),
+        )
+        msg = MIMEMultipart()
+        email.send_mime_email("from", "to", msg, dryrun=False, conn_id="smtp_test_conn")
+        mock_smtp.assert_called_once_with(
+            host=conf.get("smtp", "SMTP_HOST"),
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+        )
+
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
     def test_send_mime_ssl_none_context(self, mock_smtp, mock_smtp_ssl):
