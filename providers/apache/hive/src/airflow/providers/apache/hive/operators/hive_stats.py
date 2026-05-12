@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +29,13 @@ from airflow.providers.presto.hooks.presto import PrestoHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+# Hive table names may be qualified as `<database>.<table>`; identifiers must
+# be plain word characters so they can be safely interpolated into the Presto
+# query that selects partition stats. Identifiers cannot be bound as parameters
+# in standard SQL.
+_HIVE_TABLE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$")
+_HIVE_COLUMN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -112,6 +120,16 @@ class HiveStatsCollectionOperator(BaseOperator):
         return exp
 
     def execute(self, context: Context) -> None:
+        if not _HIVE_TABLE_RE.match(self.table):
+            raise AirflowException(
+                f"Invalid Hive table identifier: {self.table!r}. Must match {_HIVE_TABLE_RE.pattern}."
+            )
+        for partition_key in self.partition.keys():
+            if not _HIVE_COLUMN_RE.match(partition_key):
+                raise AirflowException(
+                    f"Invalid partition column name: {partition_key!r}. Must match {_HIVE_COLUMN_RE.pattern}."
+                )
+
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}
@@ -128,13 +146,16 @@ class HiveStatsCollectionOperator(BaseOperator):
         exprs.update(self.extra_exprs)
         exprs_str = ",\n        ".join(f"{v} AS {k[0]}__{k[1]}" for k, v in exprs.items())
 
-        where_clause_ = [f"{k} = '{v}'" for k, v in self.partition.items()]
+        presto = PrestoHook(presto_conn_id=self.presto_conn_id)
+        # PrestoHook overrides DbApiHook's default `%s` placeholder with `?`,
+        # so the WHERE clause is built against the hook's declared placeholder.
+        placeholder = presto.placeholder
+        where_clause_ = [f"{k} = {placeholder}" for k in self.partition.keys()]
         where_clause = " AND\n        ".join(where_clause_)
         sql = f"SELECT {exprs_str} FROM {self.table} WHERE {where_clause};"
 
-        presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info("Executing SQL check: %s", sql)
-        row = presto.get_first(sql)
+        row = presto.get_first(sql, parameters=tuple(self.partition.values()))
         self.log.info("Record: %s", row)
         if not row:
             raise AirflowException("The query returned None")
@@ -143,23 +164,23 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         self.log.info("Deleting rows from previous runs if they exist")
         mysql = MySqlHook(self.mysql_conn_id)
-        sql = f"""
+        sql = """
         SELECT 1 FROM hive_stats
         WHERE
-            table_name='{self.table}' AND
-            partition_repr='{part_json}' AND
-            dttm='{self.dttm}'
+            table_name = %s AND
+            partition_repr = %s AND
+            dttm = %s
         LIMIT 1;
         """
-        if mysql.get_records(sql):
-            sql = f"""
+        if mysql.get_records(sql, parameters=(self.table, part_json, self.dttm)):
+            sql = """
             DELETE FROM hive_stats
             WHERE
-                table_name='{self.table}' AND
-                partition_repr='{part_json}' AND
-                dttm='{self.dttm}';
+                table_name = %s AND
+                partition_repr = %s AND
+                dttm = %s;
             """
-            mysql.run(sql)
+            mysql.run(sql, parameters=(self.table, part_json, self.dttm))
 
         self.log.info("Pivoting and loading cells into the Airflow db")
         rows = [
