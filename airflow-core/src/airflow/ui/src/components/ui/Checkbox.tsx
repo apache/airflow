@@ -25,18 +25,13 @@ export type CheckboxProps = {
   readonly rootRef?: React.Ref<HTMLLabelElement>;
 } & ChakraCheckbox.RootProps;
 
-const interactiveCursorProps = {
-  _disabled: { cursor: "not-allowed" },
-  cursor: "pointer",
-};
-
 export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>((props, ref) => {
   const { children, icon, inputProps, rootRef, ...rest } = props;
 
   return (
     <ChakraCheckbox.Root ref={rootRef} {...rest}>
       <ChakraCheckbox.HiddenInput ref={ref} {...inputProps} />
-      <ChakraCheckbox.Control {...interactiveCursorProps}>
+      <ChakraCheckbox.Control _disabled={{ cursor: "not-allowed" }} cursor="pointer">
         {icon ?? <ChakraCheckbox.Indicator />}
       </ChakraCheckbox.Control>
       {children !== undefined && <ChakraCheckbox.Label>{children}</ChakraCheckbox.Label>}
