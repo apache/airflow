@@ -50,9 +50,9 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 		Description: "Example Go-authored Dag",
 		Tags:        []string{"example", "go-sdk"},
 	})
-	simpleDag.AddTask(extract, v1.TaskSpec{Queue: "go-task", Retries: 2})
-	simpleDag.AddTask(transform, v1.TaskSpec{Queue: "go-task"})
-	simpleDag.AddTask(load, v1.TaskSpec{Queue: "go-task"})
+	simpleDag.AddTask(extract, v1.TaskSpec{Queue: "go-task", Retries: 2}, nil)
+	simpleDag.AddTask(transform, v1.TaskSpec{Queue: "go-task"}, []string{"extract"})
+	simpleDag.AddTask(load, v1.TaskSpec{Queue: "go-task"}, []string{"transform"})
 
 	return nil
 }
