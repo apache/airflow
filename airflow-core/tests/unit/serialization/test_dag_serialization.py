@@ -3932,8 +3932,11 @@ def test_dag_schema_defaults_optimization():
     ],
 )
 def test_dag_config_driven_fields_always_serialized(cfg_overrides, dag_kwargs, expected_wire):
-    """Config-driven DAG fields are always present on the wire regardless of the airflow.cfg value,
-    including when the user-set value matches the old schema default.
+    """Config-driven DAG fields are always present on the wire regardless of the airflow.cfg value.
+
+    Fields like max_active_runs and other config-driven fields were silently dropped during
+    serialisation when their value matched the schema default, regardless of what airflow.cfg
+    was set to. #55849 excluded any field whose value matched the schema default.
     """
     with conf_vars(cfg_overrides):
         dag = DAG(start_date=datetime(2023, 1, 1), **dag_kwargs)
