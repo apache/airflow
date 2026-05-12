@@ -324,7 +324,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         # so callers cannot smuggle whitespace or punctuation into the
         # identifier position.
         self.kwargs["table"] = "evil; DROP TABLE users--"
-        with pytest.raises(AirflowException, match="Invalid Hive table identifier"):
+        with pytest.raises(ValueError, match="Invalid Hive table identifier"):
             HiveStatsCollectionOperator(**self.kwargs).execute(context={})
 
     @patch("airflow.providers.apache.hive.operators.hive_stats.MySqlHook")
@@ -336,7 +336,7 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         # Partition keys reach the SELECT clause as column identifiers and
         # are validated against the same allowlist.
         self.kwargs["partition"] = {"evil col": "value"}
-        with pytest.raises(AirflowException, match="Invalid partition column name"):
+        with pytest.raises(ValueError, match="Invalid partition column name"):
             HiveStatsCollectionOperator(**self.kwargs).execute(context={})
 
     @patch("airflow.providers.apache.hive.operators.hive_stats.json.dumps")

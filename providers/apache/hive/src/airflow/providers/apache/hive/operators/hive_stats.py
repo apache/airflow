@@ -121,12 +121,12 @@ class HiveStatsCollectionOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         if not _HIVE_TABLE_RE.match(self.table):
-            raise AirflowException(
+            raise ValueError(
                 f"Invalid Hive table identifier: {self.table!r}. Must match {_HIVE_TABLE_RE.pattern}."
             )
         for partition_key in self.partition.keys():
             if not _HIVE_COLUMN_RE.match(partition_key):
-                raise AirflowException(
+                raise ValueError(
                     f"Invalid partition column name: {partition_key!r}. Must match {_HIVE_COLUMN_RE.pattern}."
                 )
 
