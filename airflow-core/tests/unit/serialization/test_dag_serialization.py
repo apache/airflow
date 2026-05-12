@@ -82,6 +82,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
+    LazyDeserializedDAG,
     OperatorSerialization,
     _XComRef,
 )
@@ -333,6 +334,8 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "params": [],
+        # These fields have no schema default; they are always emitted on the wire
+        # because their real default comes from airflow.cfg at parse time.
         "catchup": False,
         "disable_bundle_versioning": False,
         "max_active_runs": 16,
@@ -3810,13 +3813,14 @@ def test_dag_schema_defaults_optimization():
     dag_with_defaults = DAG(
         dag_id="test_defaults_dag",
         start_date=datetime(2023, 1, 1),
-        # These should match schema defaults and be excluded
-        catchup=False,
+        # These match remaining schema defaults and should be excluded
         fail_fast=False,
+        render_template_as_native_obj=False,
+        # These are config-driven: no schema default, always emitted on the wire
+        catchup=False,
         max_active_runs=16,
         max_active_tasks=16,
         max_consecutive_failed_dag_runs=0,
-        render_template_as_native_obj=False,
         disable_bundle_versioning=False,
         # These should be excluded as None
         description=None,
@@ -3831,6 +3835,10 @@ def test_dag_schema_defaults_optimization():
     for field in DagSerialization.get_schema_defaults("dag").keys():
         assert field not in dag_data, f"Schema default field '{field}' should be excluded"
 
+    # Config-driven fields have no schema default and are always present on the wire
+    for field in ("catchup", "max_active_runs", "max_active_tasks", "max_consecutive_failed_dag_runs", "disable_bundle_versioning"):
+        assert field in dag_data, f"Config-driven field '{field}' must always be serialised"
+
     # None fields should also be excluded
     none_fields = ["description", "doc_md"]
     for field in none_fields:
@@ -3839,7 +3847,8 @@ def test_dag_schema_defaults_optimization():
     # Test deserialization restores defaults correctly
     deserialized_dag = DagSerialization.from_dict(serialized)
 
-    # Verify schema defaults are restored
+    # Verify values round-trip correctly: schema-default fields are restored from the schema,
+    # config-driven fields are read directly from the wire.
     assert deserialized_dag.catchup is False
     assert deserialized_dag.fail_fast is False
     assert deserialized_dag.max_active_runs == 16
@@ -3869,81 +3878,61 @@ def test_dag_schema_defaults_optimization():
     assert dag_non_defaults_data["description"] == "Test description"
 
 
-def test_dag_config_driven_fields_always_serialized():
-    """Fields whose schema default was removed are always present on the wire,
-    regardless of whether the value matches the Airflow config default.
-
-    Regression test for: max_active_runs set to the old schema default (16)
-    was silently dropped when cfg max_active_runs_per_dag was also 16.
+@pytest.mark.parametrize(
+    "cfg_overrides, dag_kwargs, expected_wire",
+    [
+        pytest.param(
+            {
+                ("core", "max_active_runs_per_dag"): "1",
+                ("core", "max_active_tasks_per_dag"): "1",
+                ("core", "max_consecutive_failed_dag_runs_per_dag"): "1",
+            },
+            {
+                "dag_id": "test_dag_fields_cfg_ne_user",
+                "max_active_runs": 16,
+                "max_active_tasks": 16,
+                "max_consecutive_failed_dag_runs": 0,
+            },
+            {"max_active_runs": 16, "max_active_tasks": 16, "max_consecutive_failed_dag_runs": 0},
+            id="user_value_differs_from_cfg",
+        ),
+        pytest.param(
+            {
+                ("core", "max_active_runs_per_dag"): "16",
+                ("core", "max_active_tasks_per_dag"): "16",
+                ("core", "max_consecutive_failed_dag_runs_per_dag"): "0",
+            },
+            {
+                "dag_id": "test_dag_fields_cfg_eq_user",
+                "max_active_runs": 16,
+                "max_active_tasks": 16,
+                "max_consecutive_failed_dag_runs": 0,
+            },
+            {"max_active_runs": 16, "max_active_tasks": 16, "max_consecutive_failed_dag_runs": 0},
+            id="user_value_equals_cfg",
+        ),
+        pytest.param(
+            {("scheduler", "catchup_by_default"): "True"},
+            {"dag_id": "test_dag_catchup_override", "catchup": False},
+            {"catchup": False},
+            id="catchup_false_with_catchup_by_default_true",
+        ),
+    ],
+)
+def test_dag_config_driven_fields_always_serialized(cfg_overrides, dag_kwargs, expected_wire):
+    """Config-driven DAG fields are always present on the wire regardless of the airflow.cfg value,
+    including when the user-set value matches the old schema default.
     """
-    from airflow.serialization.serialized_objects import LazyDeserializedDAG
-
-    with conf_vars(
-        {
-            ("core", "max_active_runs_per_dag"): "1",
-            ("core", "max_active_tasks_per_dag"): "1",
-            ("core", "max_consecutive_failed_dag_runs_per_dag"): "1",
-        }
-    ):
-        dag = DAG(
-            dag_id="test_dag_fields_with_airflow_config_defaults",
-            start_date=datetime(2023, 1, 1),
-            max_active_runs=16,
-            max_active_tasks=16,
-            max_consecutive_failed_dag_runs=0,
-        )
+    with conf_vars(cfg_overrides):
+        dag = DAG(start_date=datetime(2023, 1, 1), **dag_kwargs)
         serialized = DagSerialization.to_dict(dag)
 
-    dag_data = serialized["dag"]
-
-    assert dag_data["max_active_runs"] == 16
-    assert dag_data["max_active_tasks"] == 16
-    assert dag_data["max_consecutive_failed_dag_runs"] == 0
+    for field, value in expected_wire.items():
+        assert serialized["dag"][field] == value
 
     lazy_dag = LazyDeserializedDAG(data=serialized)
-    assert lazy_dag.max_active_runs == 16
-    assert lazy_dag.max_active_tasks == 16
-    assert lazy_dag.max_consecutive_failed_dag_runs == 0
-
-    # When user value == cfg value the field is still always on the wire.
-    with conf_vars(
-        {
-            ("core", "max_active_runs_per_dag"): "16",
-            ("core", "max_active_tasks_per_dag"): "16",
-            ("core", "max_consecutive_failed_dag_runs_per_dag"): "0",
-        }
-    ):
-        dag2 = DAG(
-            dag_id="test_dag_fields_with_airflow_config_defaults_omitted",
-            start_date=datetime(2023, 1, 1),
-            max_active_runs=16,
-            max_active_tasks=16,
-            max_consecutive_failed_dag_runs=0,
-        )
-        serialized2 = DagSerialization.to_dict(dag2)
-
-    dag_data2 = serialized2["dag"]
-
-    assert dag_data2["max_active_runs"] == 16
-    assert dag_data2["max_active_tasks"] == 16
-    assert dag_data2["max_consecutive_failed_dag_runs"] == 0
-
-    lazy_dag2 = LazyDeserializedDAG(data=serialized2)
-    assert lazy_dag2.max_active_runs == 16
-    assert lazy_dag2.max_active_tasks == 16
-    assert lazy_dag2.max_consecutive_failed_dag_runs == 0
-
-    # catchup=False with cfg catchup_by_default=True: user value differs from cfg, must be on the wire.
-    with conf_vars({("scheduler", "catchup_by_default"): "True"}):
-        dag3 = DAG(
-            dag_id="test_dag_catchup_override",
-            start_date=datetime(2023, 1, 1),
-            catchup=False,
-        )
-        serialized3 = DagSerialization.to_dict(dag3)
-
-    assert serialized3["dag"]["catchup"] is False
-    assert LazyDeserializedDAG(data=serialized3).catchup is False
+    for field, value in expected_wire.items():
+        assert getattr(lazy_dag, field) == value
 
 
 def test_email_optimization_removes_email_attrs_when_email_empty():
