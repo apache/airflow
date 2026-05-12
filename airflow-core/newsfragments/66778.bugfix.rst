@@ -1,0 +1,8 @@
+Avoid long row locks in the sensor reschedule path under high concurrency.
+
+The execution API's ``PATCH /task-instances/{id}/state`` reschedule branch now retries
+transient database deadlocks/lock-wait timeouts and, on MySQL, runs under a short
+per-session ``innodb_lock_wait_timeout`` so blocked writes fail fast and retry instead
+of keeping a worker DB connection idle for MySQL's default 50 s. The timeout is
+configurable via the new ``[scheduler] reschedule_lock_timeout_seconds`` setting
+(default 4 s).

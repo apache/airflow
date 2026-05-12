@@ -2500,6 +2500,20 @@ scheduler:
       type: integer
       example: ~
       default: "30"
+    reschedule_lock_timeout_seconds:
+      description: |
+        Per-session ``innodb_lock_wait_timeout`` (seconds) used by the execution API while
+        writing an UP_FOR_RESCHEDULE state transition. MySQL only; ignored on Postgres and SQLite.
+
+        Under high sensor concurrency, the reschedule write contends on the TaskInstance row
+        lock. With MySQL's default ``innodb_lock_wait_timeout`` of 50 s, a blocked worker
+        keeps its DB connection idle for nearly a minute. A short timeout combined with the
+        existing transaction retry lets the write fail fast and retry, so reschedules either
+        succeed quickly, deadlock-retry, or fail-fast after a few seconds.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "4"
     enable_health_check:
       description: |
         When you start a scheduler, airflow starts a tiny web server

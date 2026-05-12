@@ -33,7 +33,7 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue
-from sqlalchemy import and_, func, or_, tuple_, update
+from sqlalchemy import and_, func, or_, text, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
@@ -81,10 +81,12 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql.dml import Update
 
 router = VersionedAPIRouter()
@@ -99,6 +101,128 @@ ti_id_router = VersionedAPIRouter(
 
 log = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+@contextlib.contextmanager
+def _short_lock_wait_timeout(session: Session) -> Iterator[None]:
+    """
+    On MySQL, set a short ``innodb_lock_wait_timeout`` for the duration of the block.
+
+    Sensor reschedule writes race against scheduler state writes on the same TaskInstance
+    row. MySQL's default ``innodb_lock_wait_timeout`` is 50 s, which is long enough under
+    high sensor concurrency to stack up workers in ``IDLE_IN_TRANSACTION`` against the
+    connection pool. A short timeout combined with retry-on-deadlock lets blocked writes
+    fail fast and retry rather than holding a connection idle for nearly a minute.
+
+    No-op on non-MySQL backends (Postgres + SQLite handle this contention differently).
+    """
+    if get_dialect_name(session) != "mysql":
+        yield
+        return
+
+    timeout_seconds = conf.getint("scheduler", "reschedule_lock_timeout_seconds", fallback=4)
+    previous = session.execute(text("SELECT @@SESSION.innodb_lock_wait_timeout")).scalar()
+    session.execute(text("SET SESSION innodb_lock_wait_timeout = :t").bindparams(t=timeout_seconds))
+    try:
+        yield
+    finally:
+        # Restore so the connection going back to the pool doesn't carry the short timeout.
+        if previous is not None:
+            session.execute(text("SET SESSION innodb_lock_wait_timeout = :t").bindparams(t=int(previous)))
+
+
+@retry_db_transaction(retries=10)
+def _commit_reschedule_state(
+    *,
+    session: Session,
+    task_instance_id: UUID,
+    ti_patch_payload: TIRescheduleStatePayload,
+    dag_bag: DagBagDep,
+) -> tuple[TaskInstanceState, dict[str, Any]]:
+    """
+    Execute the lock-and-write sequence for an UP_FOR_RESCHEDULE state transition, with retry.
+
+    The reschedule path takes a row-level lock on the TaskInstance and inserts a
+    TaskReschedule row in the same transaction. Under high sensor concurrency this is the
+    contention hot spot, so we wrap it in ``@retry_db_transaction`` (transient deadlocks
+    retry instead of failing the task) and ``_short_lock_wait_timeout`` (fail fast under
+    MySQL's default 50 s lock-wait timeout). Together: succeed quickly, retry transparently,
+    or surface a real failure within a few seconds — never block a worker for 50 s.
+
+    Returns the resulting ``TaskInstanceState`` plus the row fields needed by the caller to
+    write the audit Log entry.
+    """
+    with _short_lock_wait_timeout(session):
+        old = (
+            select(
+                TI.state,
+                TI.try_number,
+                TI.dag_id,
+                TI.task_id,
+                TI.run_id,
+                TI.map_index,
+                TI.hostname,
+                DR.logical_date,
+                DagModel.owners,
+            )
+            .select_from(TI)
+            .join(DR, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+            .join(DagModel, TI.dag_id == DagModel.dag_id)
+            .where(TI.id == task_instance_id)
+            .with_for_update(of=TI)
+        )
+        (
+            previous_state,
+            try_number,
+            dag_id,
+            task_id,
+            run_id,
+            map_index,
+            hostname,
+            logical_date,
+            owners,
+        ) = session.execute(old).one()
+
+        if previous_state != TaskInstanceState.RUNNING:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "reason": "invalid_state",
+                    "message": "TI was not in the running state so it cannot be updated",
+                    "previous_state": previous_state,
+                },
+            )
+
+        data = ti_patch_payload.model_dump(
+            exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
+            exclude_unset=True,
+        )
+        query = update(TI).where(TI.id == task_instance_id).values(data)
+        query, updated_state = _create_ti_state_update_query_and_update_state(
+            ti_patch_payload=ti_patch_payload,
+            task_instance_id=task_instance_id,
+            session=session,
+            query=query,
+            dag_id=dag_id,
+            dag_bag=dag_bag,
+        )
+        result = session.execute(query)
+        log.info(
+            "Task instance state updated",
+            new_state=updated_state,
+            rows_affected=getattr(result, "rowcount", 0),
+        )
+
+    return updated_state, {
+        "task_id": task_id,
+        "dag_id": dag_id,
+        "run_id": run_id,
+        "map_index": map_index,
+        "try_number": try_number,
+        "logical_date": logical_date,
+        "owners": owners,
+        "hostname": hostname,
+    }
 
 
 @ti_id_router.patch(
@@ -343,6 +467,49 @@ def ti_update_state(
     """
     bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
+
+    # Reschedule writes are the contention hot spot for sensors with mode="reschedule".
+    # Route them through a retry-wrapped helper with a short MySQL lock-wait timeout so a
+    # blocked write either succeeds quickly, retries through a transient deadlock, or
+    # fails fast — instead of holding a worker DB connection idle for the default 50 s.
+    if isinstance(ti_patch_payload, TIRescheduleStatePayload):
+        try:
+            updated_state, log_fields = _commit_reschedule_state(
+                session=session,
+                task_instance_id=task_instance_id,
+                ti_patch_payload=ti_patch_payload,
+                dag_bag=dag_bag,
+            )
+        except NoResultFound:
+            log.error("Task Instance not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": "Task Instance not found",
+                },
+            )
+        except HTTPException:
+            raise
+        except SQLAlchemyError as e:
+            log.error("Error updating Task Instance state", error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            )
+        session.add(
+            Log(
+                event=updated_state.value,
+                task_id=log_fields["task_id"],
+                dag_id=log_fields["dag_id"],
+                run_id=log_fields["run_id"],
+                map_index=log_fields["map_index"],
+                try_number=log_fields["try_number"],
+                logical_date=log_fields["logical_date"],
+                owner=log_fields["owners"],
+                extra=json.dumps({"host_name": log_fields["hostname"]}) if log_fields["hostname"] else None,
+            )
+        )
+        return
 
     old = (
         select(

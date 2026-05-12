@@ -1612,6 +1612,94 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == State.FAILED
 
+    def test_ti_update_state_reschedule_retries_transient_deadlock(
+        self, client, session, create_task_instance, time_machine, monkeypatch
+    ):
+        """
+        Transient ``DBAPIError`` during the reschedule write should be retried by
+        ``_commit_reschedule_state`` (decorated with ``@retry_db_transaction``) and the
+        sensor task should not surface as a failure.
+        """
+        from sqlalchemy.exc import DBAPIError
+
+        from airflow.api_fastapi.execution_api.routes import task_instances as ti_module
+
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_reschedule_retries_transient_deadlock",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        original = ti_module._create_ti_state_update_query_and_update_state
+        call_count = {"n": 0}
+
+        def flaky_query_builder(**kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise DBAPIError("statement", "params", Exception("Deadlock found"))
+            return original(**kwargs)
+
+        monkeypatch.setattr(ti_module, "_create_ti_state_update_query_and_update_state", flaky_query_builder)
+
+        payload = {
+            "state": "up_for_reschedule",
+            "reschedule_date": "2024-10-31T11:03:00+00:00",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        assert call_count["n"] >= 2, "retry decorator should have re-attempted on DBAPIError"
+
+        session.expire_all()
+        refreshed = session.get(TaskInstance, ti.id)
+        assert refreshed.state == TaskInstanceState.UP_FOR_RESCHEDULE
+        trs = session.scalars(select(TaskReschedule)).all()
+        assert len(trs) == 1
+
+    def test_short_lock_wait_timeout_noop_on_non_mysql(self, session):
+        """``_short_lock_wait_timeout`` must be a no-op on Postgres / SQLite."""
+        from airflow.api_fastapi.execution_api.routes.task_instances import (
+            _short_lock_wait_timeout,
+        )
+
+        mock_session = mock.MagicMock()
+        mock_session.get_bind.return_value.dialect.name = "sqlite"
+
+        with _short_lock_wait_timeout(mock_session):
+            pass
+
+        # No SET / SELECT statements should be emitted on non-MySQL backends.
+        mock_session.execute.assert_not_called()
+
+    def test_short_lock_wait_timeout_sets_and_restores_on_mysql(self, session):
+        """On MySQL, the helper sets the short timeout and restores the previous value."""
+        from airflow.api_fastapi.execution_api.routes.task_instances import (
+            _short_lock_wait_timeout,
+        )
+
+        mock_session = mock.MagicMock()
+        mock_session.get_bind.return_value.dialect.name = "mysql"
+        # First execute() is the SELECT that returns the existing timeout.
+        mock_session.execute.return_value.scalar.return_value = 50
+
+        with conf_vars({("scheduler", "reschedule_lock_timeout_seconds"): "3"}):
+            with _short_lock_wait_timeout(mock_session):
+                pass
+
+        # Expect 3 calls: SELECT current, SET to 3, SET back to 50.
+        assert mock_session.execute.call_count == 3
+        sql_strings = [str(call.args[0]) for call in mock_session.execute.call_args_list]
+        assert "SELECT @@SESSION.innodb_lock_wait_timeout" in sql_strings[0]
+        assert "SET SESSION innodb_lock_wait_timeout" in sql_strings[1]
+        assert "SET SESSION innodb_lock_wait_timeout" in sql_strings[2]
+
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",
