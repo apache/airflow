@@ -453,7 +453,7 @@ class EdgeWorker:
         except Exception as e:
             logger.exception("Task execution failed")
             results_queue.put(e)
-            return 1
+            sys.exit(1)
 
     def _launch_job(self, workload: ExecuteTask) -> tuple[Process, Queue[Exception]]:
         # Improvement: Use frozen GC to prevent child process from copying unnecessary memory

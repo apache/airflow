@@ -278,9 +278,10 @@ class TestEdgeWorker:
         mock_supervise.side_effect = Exception("Supervise failed")
         edge_job = worker_with_job.jobs.pop().edge_job
         q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        with pytest.raises(SystemExit) as exc_info:
+            worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
-        assert result == 1
+        assert exc_info.value.code == 1
         q.put.assert_called_once()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
