@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 
     if AIRFLOW_V_3_3_PLUS:
         from airflow.executors.workloads.types import WorkloadKey
+    else:
+        from airflow.models.taskinstance import TaskInstanceKey as WorkloadKey  # type: ignore[assignment]
 
 CommandType = Sequence[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]

@@ -355,7 +355,7 @@ class AwsEcsExecutor(BaseExecutor):
 
     def __handle_failed_workload(self, task_arn: str, reason: str):
         """
-        If an API failure occurs, the task is rescheduled.
+        If an API failure occurs, the workload is rescheduled.
 
         This function will determine whether the task has been attempted the appropriate number
         of times, and determine whether the task should be marked failed or not. The task will
