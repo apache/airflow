@@ -68,6 +68,10 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
+    TaskDependencyCollectionResponse,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -718,6 +722,60 @@ class ProvidersOperations(BaseOperations):
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def list(self, dag_id: str) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks for a DAG."""
+        try:
+            self.response = self.client.get(f"/dags/{dag_id}/tasks")
+            return TaskCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+
+class TaskInstancesOperations(BaseOperations):
+    """TaskInstances operations."""
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a DAG run."""
+        return super().execute_list(
+            path=f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
+
+    def get(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskInstanceResponse | ServerResponseError:
+        """Get a task instance."""
+        try:
+            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
+            return TaskInstanceResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def get_dependencies(
+        self, dag_id: str, dag_run_id: str, task_id: str
+    ) -> TaskDependencyCollectionResponse | ServerResponseError:
+        """Get failed dependencies for a task instance."""
+        try:
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies"
+            )
+            return TaskDependencyCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def clear(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances for a DAG run."""
+        try:
+            self.response = self.client.post(
+                f"/dags/{dag_id}/clearTaskInstances",
+                json={"dag_run_id": dag_run_id, "dry_run": False},
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 
 class VariablesOperations(BaseOperations):

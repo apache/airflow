@@ -93,12 +93,21 @@ TEST_COMMANDS = [
     "dags update --dag-id=example_bash_operator --no-is-paused",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
+    # Task commands
+    "tasks list --dag-id=example_bash_operator",
+    'taskinstances list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
+    'taskinstances get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    (
+        "taskinstances get-dependencies --dag-id=example_bash_operator "
+        '--dag-run-id="manual__{date_param}" --task-id=runme_0'
+    ),
     # XCom commands - need a Dag run with completed tasks
     'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"test": "value"}}\'',
     'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
     'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
     'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"updated": "value"}}\'',
     'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
+    'taskinstances clear --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     # Jobs commands
     "jobs list",
     # Pools commands

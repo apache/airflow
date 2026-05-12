@@ -1625,6 +1625,7 @@ taskGroups
 TaskInstance
 taskInstance
 taskinstance
+taskinstances
 TaskInstanceKey
 taskinstancekey
 taskmeta
