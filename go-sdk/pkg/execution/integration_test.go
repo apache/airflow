@@ -60,7 +60,7 @@ func buildBundle(t *testing.T, register func(bundlev1.Registry)) bundlev1.Bundle
 func TestDagParsing(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		d := r.AddDag("test_dag")
-		d.AddTask(simpleTask)
+		d.AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	req := &DagFileParseRequest{
@@ -98,8 +98,8 @@ func TestDagParsing(t *testing.T) {
 
 func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("dag1").AddTask(simpleTask)
-		r.AddDag("dag2").AddTask(failingTask)
+		r.AddDag("dag1").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
+		r.AddDag("dag2").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	req := &DagFileParseRequest{File: "/bundle/main.go", BundlePath: "/bundle"}
@@ -117,7 +117,7 @@ func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
 
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask)
+		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -140,7 +140,7 @@ func TestTaskRunnerSuccess(t *testing.T) {
 
 func TestTaskRunnerFailure(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask)
+		r.AddDag("test_dag").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -164,7 +164,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask)
+		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -187,7 +187,7 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 
 func TestTaskRunnerPanic(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask)
+		r.AddDag("test_dag").AddTask(panicTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -268,7 +268,7 @@ func TestServeDagFileParseEndToEnd(t *testing.T) {
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
 			d := r.AddDag("simple_dag")
-			d.AddTask(simpleTask)
+			d.AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 			return nil
 		},
 	}
@@ -317,7 +317,7 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTask(simpleTask)
+			r.AddDag("dag1").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 			return nil
 		},
 	}
