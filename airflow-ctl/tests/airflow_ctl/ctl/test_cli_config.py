@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 from argparse import BooleanOptionalAction
+from pathlib import Path
 from textwrap import dedent
 
 import httpx
@@ -200,26 +201,26 @@ def test_args_delete():
 
 class TestCommandFactory:
     @classmethod
-    def _save_temp_operations_py(cls, temp_file: str, file_content) -> None:
+    def _save_temp_operations_py(cls, tmp_path: Path, file_content: str) -> Path:
         """
         Save a temporary operations.py file with a simple Command Class to test the command factory.
-        """
-        with open(temp_file, "w") as f:
-            f.write(dedent(file_content))
 
-    def teardown_method(self):
+        Writing inside a per-test ``tmp_path`` keeps the file isolated under
+        parallel execution (pytest-xdist), avoiding cross-worker overwrites of
+        a shared ``test_command.py`` in the cwd. Returns the full path.
         """
-        Remove the temporary file after the test.
-        """
-        try:
-            import os
-
-            os.remove("test_command.py")
-        except FileNotFoundError:
-            pass
+        temp_file = tmp_path / "test_command.py"
+        temp_file.write_text(dedent(file_content))
+        return temp_file
 
     def test_command_factory(
-        self, no_op_method, test_args_create, test_args_list, test_args_get, test_args_delete
+        self,
+        tmp_path,
+        no_op_method,
+        test_args_create,
+        test_args_list,
+        test_args_get,
+        test_args_delete,
     ):
         """
         Test the command factory.
@@ -227,9 +228,8 @@ class TestCommandFactory:
         # Create temporary file with pytest and write simple Command Class(check airflow-ctl/src/airflowctl/api/operations.py) to file
         # to test the command factory
         # Create a temporary file
-        temp_file = "test_command.py"
-        self._save_temp_operations_py(
-            temp_file=temp_file,
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
             file_content="""
                 class NotAnOperation:
                     def test_method(self):
@@ -256,7 +256,7 @@ class TestCommandFactory:
             """,
         )
 
-        command_factory = CommandFactory(file_path=temp_file)
+        command_factory = CommandFactory(file_path=str(temp_file))
         generated_group_commands = command_factory.group_commands
 
         for generated_group_command in generated_group_commands:
@@ -292,11 +292,10 @@ class TestCommandFactory:
                         assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
-    def test_command_factory_optional_bool_uses_boolean_optional_action(self):
+    def test_command_factory_optional_bool_uses_boolean_optional_action(self, tmp_path):
         """Optional bool parameters should support --flag and --no-flag forms."""
-        temp_file = "test_command.py"
-        self._save_temp_operations_py(
-            temp_file=temp_file,
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
             file_content="""
                 class JobsOperations(BaseOperations):
                     def list(self, is_alive: bool | None = None) -> JobCollectionResponse | ServerResponseError:
@@ -305,7 +304,7 @@ class TestCommandFactory:
             """,
         )
 
-        command_factory = CommandFactory(file_path=temp_file)
+        command_factory = CommandFactory(file_path=str(temp_file))
         generated_group_commands = command_factory.group_commands
 
         jobs_list_args = []
@@ -322,7 +321,7 @@ class TestCommandFactory:
         assert is_alive_arg.kwargs["default"] is None
         assert is_alive_arg.kwargs["type"] is bool
 
-    def test_command_factory_required_primitive_param_is_positional(self):
+    def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
 
         Following the dev-list lazy consensus on ``airflowctl`` parameter style
@@ -330,9 +329,8 @@ class TestCommandFactory:
         required parameters of auto-generated commands should be positional and
         optional parameters keep the ``--flag`` form.
         """
-        temp_file = "test_command.py"
-        self._save_temp_operations_py(
-            temp_file=temp_file,
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
             file_content="""
                 class WidgetsOperations(BaseOperations):
                     def get(self, widget_id: str) -> WidgetResponse | ServerResponseError:
@@ -352,7 +350,7 @@ class TestCommandFactory:
             """,
         )
 
-        command_factory = CommandFactory(file_path=temp_file)
+        command_factory = CommandFactory(file_path=str(temp_file))
         sub_commands = {}
         for generated_group_command in command_factory.group_commands:
             if generated_group_command.name != "widgets":
@@ -388,11 +386,10 @@ class TestCommandFactory:
         assert note_arg.flags == ("--note",)
         assert note_arg.kwargs["default"] is None
 
-    def test_command_factory_primitive_param_with_default_keeps_flag(self):
+    def test_command_factory_primitive_param_with_default_keeps_flag(self, tmp_path):
         """Primitive parameters with a default value keep the ``--flag`` form."""
-        temp_file = "test_command.py"
-        self._save_temp_operations_py(
-            temp_file=temp_file,
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
             file_content="""
                 class WidgetsOperations(BaseOperations):
                     def list(self, limit: int = 100) -> WidgetCollectionResponse | ServerResponseError:
@@ -401,7 +398,7 @@ class TestCommandFactory:
             """,
         )
 
-        command_factory = CommandFactory(file_path=temp_file)
+        command_factory = CommandFactory(file_path=str(temp_file))
         list_args = []
         for generated_group_command in command_factory.group_commands:
             if generated_group_command.name != "widgets":
