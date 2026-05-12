@@ -54,7 +54,7 @@ def test_get_provider_info_exposes_executable_runtime_components():
 
 
 def test_executable_provider_entrypoints_are_importable():
-    assert ExecutableCoordinator.runtime_name == "executable"
+    assert ExecutableCoordinator.sdk == "executable"
     assert ExecutableCoordinator.file_extension == ""
 
 
@@ -192,9 +192,9 @@ class TestCanHandleDagFile:
         assert ExecutableCoordinator.can_handle_dag_file("test_bundle", str(py_file)) is False
 
 
-class TestDagParsingRuntimeCmd:
+class TestDagParsingCmd:
     def test_builds_correct_command(self):
-        cmd = ExecutableCoordinator.dag_parsing_runtime_cmd(
+        cmd = ExecutableCoordinator.dag_parsing_cmd(
             dag_file_path="/path/to/my_bundle",
             bundle_name="test_bundle",
             bundle_path="/path/to",
@@ -208,7 +208,7 @@ class TestDagParsingRuntimeCmd:
         ]
 
 
-class TestTaskExecutionRuntimeCmd:
+class TestTaskExecutionCmd:
     def test_pure_executable_dag(self, tmp_path):
         """When dag_file_path points directly to the bundle binary."""
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
@@ -218,7 +218,7 @@ class TestTaskExecutionRuntimeCmd:
 
         bundle_info = MagicMock(spec=["name", "version"])
 
-        cmd = ExecutableCoordinator.task_execution_runtime_cmd(
+        cmd = ExecutableCoordinator.task_execution_cmd(
             what=what,
             dag_file_path=str(binary),
             bundle_path=str(tmp_path),
@@ -227,10 +227,78 @@ class TestTaskExecutionRuntimeCmd:
             logs_addr="127.0.0.1:12346",
         )
         assert cmd == [
-            str(binary),
+            str(binary.resolve()),
             "--comm=127.0.0.1:12345",
             "--logs=127.0.0.1:12346",
         ]
+
+    def test_python_stub_with_exec_bit_set_falls_through_to_bundles_folder(self, tmp_path):
+        """Python stub with X_OK set (e.g. bind-mounted in Breeze running as root)
+        must still be recognised as a stub and resolve via bundles_folder.
+
+        Regression test for the EACCES seen when running stub-mode DAGs from a
+        directory where files inherit the bind-mount's executable bits.
+        """
+        bundles_dir = tmp_path / "bundles"
+        bundles_dir.mkdir()
+        binary = _build_bundle(bundles_dir / "my_bundle", dag_ids=["tutorial_dag"])
+
+        what = MagicMock(spec=["dag_id"])
+        what.dag_id = "tutorial_dag"
+
+        bundle_info = MagicMock(spec=["name", "version"])
+
+        py_file = tmp_path / "stub_dag.py"
+        py_file.write_text("# stub dag")
+        py_file.chmod(py_file.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+        with patch("airflow.providers.common.compat.sdk.conf") as mock_conf:
+            mock_conf.get.return_value = str(bundles_dir)
+
+            cmd = ExecutableCoordinator.task_execution_cmd(
+                what=what,
+                dag_file_path=str(py_file),
+                bundle_path=str(tmp_path),
+                bundle_info=bundle_info,
+                comm_addr="127.0.0.1:12345",
+                logs_addr="127.0.0.1:12346",
+            )
+
+        assert cmd[0] == str(binary.resolve())
+        assert cmd[0] != str(py_file)
+
+    def test_py_extension_short_circuits_even_if_trailer_matches(self, tmp_path):
+        """A ``.py`` path is always treated as a stub, even if its bytes happen
+        to satisfy the AFBNDL01 trailer check. Defensive against a
+        pathologically-crafted Python file that could otherwise hit Case 1.
+        """
+        bundles_dir = tmp_path / "bundles"
+        bundles_dir.mkdir()
+        real_binary = _build_bundle(bundles_dir / "my_bundle", dag_ids=["tutorial_dag"])
+
+        # Build a file with the AFBNDL01 trailer but a .py name. Even with the
+        # trailer present, the .py extension forces the stub path.
+        rogue_py = _build_bundle(tmp_path / "stub_dag.py", dag_ids=["tutorial_dag"])
+
+        what = MagicMock(spec=["dag_id"])
+        what.dag_id = "tutorial_dag"
+
+        bundle_info = MagicMock(spec=["name", "version"])
+
+        with patch("airflow.providers.common.compat.sdk.conf") as mock_conf:
+            mock_conf.get.return_value = str(bundles_dir)
+
+            cmd = ExecutableCoordinator.task_execution_cmd(
+                what=what,
+                dag_file_path=str(rogue_py),
+                bundle_path=str(tmp_path),
+                bundle_info=bundle_info,
+                comm_addr="127.0.0.1:12345",
+                logs_addr="127.0.0.1:12346",
+            )
+
+        assert cmd[0] == str(real_binary.resolve())
+        assert cmd[0] != str(rogue_py)
 
     def test_python_stub_dag_with_bundles_folder(self, tmp_path):
         """When dag_file_path is a .py file, resolve from the configured bundles_folder."""
@@ -249,7 +317,7 @@ class TestTaskExecutionRuntimeCmd:
         with patch("airflow.providers.common.compat.sdk.conf") as mock_conf:
             mock_conf.get.return_value = str(bundles_dir)
 
-            cmd = ExecutableCoordinator.task_execution_runtime_cmd(
+            cmd = ExecutableCoordinator.task_execution_cmd(
                 what=what,
                 dag_file_path=str(py_file),
                 bundle_path=str(tmp_path),
@@ -278,7 +346,7 @@ class TestTaskExecutionRuntimeCmd:
             mock_conf.get.return_value = None
 
             with pytest.raises(ValueError, match="bundles_folder config must be set"):
-                ExecutableCoordinator.task_execution_runtime_cmd(
+                ExecutableCoordinator.task_execution_cmd(
                     what=what,
                     dag_file_path=str(py_file),
                     bundle_path=str(tmp_path),

@@ -23,11 +23,15 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from structlog import get_logger
+
 from airflow.providers.sdk.executable.bundle_scanner import BundleScanner, read_source_code
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+
+log = get_logger(__name__)
 
 
 class ExecutableCoordinator(BaseCoordinator):
@@ -86,11 +90,27 @@ class ExecutableCoordinator(BaseCoordinator):
         logs_addr: str,
     ) -> list[str]:
         """Build the subprocess command for executing a task in a native executable bundle."""
-        if os.access(dag_file_path, os.X_OK):
-            # Case 1: Pure executable DAG — the dag_file_path points directly
-            # to the bundle binary.
+        # Case 1: Pure executable DAG — dag_file_path is itself a bundle.
+        # A ``.py`` extension always indicates a Python stub, so short-circuit
+        # there before validating the AFBNDL01 trailer. Both checks are needed:
+        # ``os.access(_, X_OK)`` alone is not reliable because bind-mounted
+        # Python stubs can satisfy X_OK (e.g. when running as root inside
+        # Breeze) yet are not real bundles.
+        log.debug(
+            "Resolving executable for task execution",
+            what=what,
+            dag_file_path=dag_file_path,
+            bundle_path=bundle_path,
+            bundle_info=bundle_info,
+            comm_addr=comm_addr,
+            logs_addr=logs_addr,
+        )
+        if (
+            not dag_file_path.endswith(".py")
+            and (resolved := BundleScanner.resolve_executable(Path(dag_file_path))) is not None
+        ):
             return [
-                dag_file_path,
+                resolved,
                 f"--comm={comm_addr}",
                 f"--logs={logs_addr}",
             ]
