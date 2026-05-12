@@ -24,7 +24,6 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
-from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowFailException,
@@ -33,6 +32,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     SkipMixin,
     XComArg,
+    conf,
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -470,7 +470,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             self.log.info("result: %s", result)
             return result
 
-    def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
+    def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> Any:
         if event is None:
             raise AirflowException("Unknown error in SQLExecuteQueryTrigger")
         if event.get("status") == "error":
@@ -479,9 +479,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         results = event.get("results")
         if not self._should_run_output_processing() or results is None:
             return None
+        if isinstance(results, str):
+            results_list: list[Any] = [results]
+        else:
+            results_list = results
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
-            return self._process_output([results], [None])[-1]
-        result = self._process_output(results, [None] * len(results))
+            return self._process_output([results_list], [None])[-1]
+        result = self._process_output(results_list, [None] * len(results_list))
         self.log.info("result: %s", result)
         return result
 
