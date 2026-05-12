@@ -120,10 +120,10 @@ func TestSerializeTimetable(t *testing.T) {
 }
 
 func TestSerializeTask(t *testing.T) {
-	result := serializeTask(
-		bundlev1.TaskInfo{ID: "extract", TypeName: "extract", PkgPath: "main"},
-		[]string{"transform"},
-	)
+	result := serializeTask(bundlev1.TaskInfo{
+		ID: "extract", TypeName: "extract", PkgPath: "main",
+		Downstream: []string{"transform"},
+	})
 	assert.Equal(t, "operator", result["__type"])
 	data := result["__var"].(map[string]any)
 	assert.Equal(t, "extract", data["task_id"])
@@ -135,36 +135,36 @@ func TestSerializeTask(t *testing.T) {
 	assert.False(t, hasQueue, "queue should be omitted when unset")
 }
 
+func TestSerializeTaskDownstreamSorted(t *testing.T) {
+	result := serializeTask(bundlev1.TaskInfo{
+		ID: "extract", TypeName: "extract", PkgPath: "main",
+		Downstream: []string{"transform", "audit", "load"},
+	})
+	data := result["__var"].(map[string]any)
+	assert.Equal(t, []string{"audit", "load", "transform"}, data["downstream_task_ids"])
+}
+
 func TestSerializeTaskNoDownstream(t *testing.T) {
-	result := serializeTask(
-		bundlev1.TaskInfo{ID: "load", TypeName: "load", PkgPath: "main"},
-		nil,
-	)
+	result := serializeTask(bundlev1.TaskInfo{ID: "load", TypeName: "load", PkgPath: "main"})
 	data := result["__var"].(map[string]any)
 	_, hasDownstream := data["downstream_task_ids"]
 	assert.False(t, hasDownstream)
 }
 
 func TestSerializeTaskCustomQueue(t *testing.T) {
-	result := serializeTask(
-		bundlev1.TaskInfo{
-			ID: "extract", TypeName: "extract", PkgPath: "main",
-			Spec: bundlev1.TaskSpec{Queue: "high_mem"},
-		},
-		nil,
-	)
+	result := serializeTask(bundlev1.TaskInfo{
+		ID: "extract", TypeName: "extract", PkgPath: "main",
+		Spec: bundlev1.TaskSpec{Queue: "high_mem"},
+	})
 	data := result["__var"].(map[string]any)
 	assert.Equal(t, "high_mem", data["queue"])
 }
 
 func TestSerializeTaskDefaultQueueOmitted(t *testing.T) {
-	result := serializeTask(
-		bundlev1.TaskInfo{
-			ID: "extract", TypeName: "extract", PkgPath: "main",
-			Spec: bundlev1.TaskSpec{Queue: "default"},
-		},
-		nil,
-	)
+	result := serializeTask(bundlev1.TaskInfo{
+		ID: "extract", TypeName: "extract", PkgPath: "main",
+		Spec: bundlev1.TaskSpec{Queue: "default"},
+	})
 	data := result["__var"].(map[string]any)
 	_, hasQueue := data["queue"]
 	assert.False(t, hasQueue, "queue=\"default\" matches the schema default and should be omitted")
@@ -299,7 +299,10 @@ func TestSerializeDagWithTasks(t *testing.T) {
 	info := bundlev1.DagInfo{
 		DagID: "etl",
 		Tasks: []bundlev1.TaskInfo{
-			{ID: "extract", TypeName: "extract", PkgPath: "main"},
+			{
+				ID: "extract", TypeName: "extract", PkgPath: "main",
+				Downstream: []string{"load"},
+			},
 			{
 				ID: "load", TypeName: "load", PkgPath: "main",
 				Spec: bundlev1.TaskSpec{Queue: "high_mem"},
@@ -318,9 +321,12 @@ func TestSerializeDagWithTasks(t *testing.T) {
 	assert.Equal(t, "go", v["language"])
 	_, hasQueue := v["queue"]
 	assert.False(t, hasQueue, "extract has no queue set; field should be omitted")
+	assert.Equal(t, []string{"load"}, v["downstream_task_ids"])
 
 	second := tasks[1].(map[string]any)["__var"].(map[string]any)
 	assert.Equal(t, "high_mem", second["queue"])
+	_, hasDownstream := second["downstream_task_ids"]
+	assert.False(t, hasDownstream, "leaf task has no downstream")
 
 	tg := result["task_group"].(map[string]any)
 	children := tg["children"].(map[string]any)
