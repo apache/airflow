@@ -61,7 +61,7 @@ providers/amazon/src/airflow/providers/amazon/aws/hooks/rds.py::7
 providers/amazon/src/airflow/providers/amazon/aws/hooks/redshift_sql.py::3
 providers/amazon/src/airflow/providers/amazon/aws/hooks/s3.py::2
 providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker.py::10
-providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker_unified_studio.py::3
+providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker_unified_studio.py::2
 providers/amazon/src/airflow/providers/amazon/aws/links/emr.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/appflow.py::3
 providers/amazon/src/airflow/providers/amazon/aws/operators/athena.py::3
