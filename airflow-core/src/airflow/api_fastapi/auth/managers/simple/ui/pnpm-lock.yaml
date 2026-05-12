@@ -94,8 +94,8 @@ importers:
         specifier: ^55.0.0
         version: 55.0.0(eslint@9.23.0(jiti@1.21.7))
       happy-dom:
-        specifier: ^17.4.4
-        version: 17.4.4
+        specifier: ^17.6.3
+        version: 17.6.3
       prettier:
         specifier: ^3.5.3
         version: 3.5.3
@@ -113,7 +113,7 @@ importers:
         version: 3.5.2(vite@6.2.6(jiti@1.21.7))
       vitest:
         specifier: ^3.0.9
-        version: 3.0.9(happy-dom@17.4.4)(jiti@1.21.7)
+        version: 3.0.9(happy-dom@17.6.3)(jiti@1.21.7)
 
 packages:
 
@@ -1705,6 +1705,7 @@ packages:
 
   glob@10.4.5:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   globals@11.12.0:
@@ -1735,9 +1736,9 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@17.4.4:
-    resolution: {integrity: sha512-/Pb0ctk3HTZ5xEL3BZ0hK1AqDSAUuRQitOmROPHhfUYEWpmTImwfD8vFDGADmMAX0JYgbcgxWoLFKtsWhcpuVA==}
-    engines: {node: '>=18.0.0'}
+  happy-dom@17.6.3:
+    resolution: {integrity: sha512-UVIHeVhxmxedbWPCfgS55Jg2rDfwf2BCKeylcPSqazLz5w3Kri7Q4xdBJubsr/+VUzFLh0VjIvh13RaDA2/Xug==}
+    engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -2561,6 +2562,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -4913,7 +4915,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-dom@17.4.4:
+  happy-dom@17.6.3:
     dependencies:
       webidl-conversions: 7.0.0
       whatwg-mimetype: 3.0.0
@@ -5929,7 +5931,7 @@ snapshots:
       fsevents: 2.3.3
       jiti: 1.21.7
 
-  vitest@3.0.9(happy-dom@17.4.4)(jiti@1.21.7):
+  vitest@3.0.9(happy-dom@17.6.3)(jiti@1.21.7):
     dependencies:
       '@vitest/expect': 3.0.9
       '@vitest/mocker': 3.0.9(vite@6.2.6(jiti@1.21.7))
@@ -5952,7 +5954,7 @@ snapshots:
       vite-node: 3.0.9(jiti@1.21.7)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      happy-dom: 17.4.4
+      happy-dom: 17.6.3
     transitivePeerDependencies:
       - jiti
       - less
