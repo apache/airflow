@@ -86,6 +86,20 @@ hooks:
     python-modules:
       - airflow.providers.mongo.hooks.mongo
 
+asset-uris:
+  - schemes: [mongodb]
+    handler: airflow.providers.mongo.assets.mongo.sanitize_uri
+    factory: airflow.providers.mongo.assets.mongo.create_asset
+    to_openlineage_converter: airflow.providers.mongo.assets.mongo.convert_asset_to_openlineage
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [mongodb]
+    handler: airflow.providers.mongo.assets.mongo.sanitize_uri
+    factory: airflow.providers.mongo.assets.mongo.create_asset
+    to_openlineage_converter: airflow.providers.mongo.assets.mongo.convert_asset_to_openlineage
+
 connection-types:
   - hook-class-name: airflow.providers.mongo.hooks.mongo.MongoHook
     hook-name: "MongoDB"

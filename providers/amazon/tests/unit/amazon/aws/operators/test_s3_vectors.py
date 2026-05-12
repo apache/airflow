@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.s3_vectors import (
     S3VectorsCreateVectorBucketOperator,
     S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
+    S3VectorsPutVectorsOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -219,6 +220,33 @@ class TestS3VectorsDeleteIndexOperator:
         self.operator.execute({})
 
         mock_conn.delete_index.assert_called_once_with(vectorBucketName=BUCKET_NAME, indexName=INDEX_NAME)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3VectorsPutVectorsOperator:
+    VECTORS = [{"key": "vec1", "data": {"float32": [0.1, 0.2, 0.3]}}]
+
+    def setup_method(self):
+        self.operator = S3VectorsPutVectorsOperator(
+            task_id="put_vectors",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+            vectors=self.VECTORS,
+        )
+
+    def test_execute(self):
+        mock_conn = MagicMock()
+        self.operator.hook.conn = mock_conn
+
+        self.operator.execute({})
+
+        mock_conn.put_vectors.assert_called_once_with(
+            vectorBucketName=BUCKET_NAME,
+            indexName=INDEX_NAME,
+            vectors=self.VECTORS,
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
