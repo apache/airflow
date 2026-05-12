@@ -2219,6 +2219,24 @@ class TestTriggerDagRun:
         assert response.json() == {"detail": error_message}
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
+    def test_dagrun_creation_conf_too_large_returns_413(self, mock_create_dagrun, test_client):
+        """Oversized ``conf`` must surface as 413 with an actionable message instead of a 500."""
+        from airflow.exceptions import DagRunConfTooLargeError
+
+        now = timezone.utcnow().isoformat()
+        mock_create_dagrun.side_effect = DagRunConfTooLargeError(size=200, limit=100)
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "conf": {"k": "x" * 200}},
+        )
+        assert response.status_code == 413
+        detail = response.json()["detail"]
+        assert "200 bytes" in detail
+        assert "100 bytes" in detail
+        assert "max_dagrun_conf_size_bytes" in detail
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_non_validation_error_propagates(self, mock_create_dagrun, test_client):
         """
         Non-ParamValidationError exceptions from create_dagrun() must not be swallowed.

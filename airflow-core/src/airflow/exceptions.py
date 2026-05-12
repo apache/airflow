@@ -90,6 +90,30 @@ class AirflowBadRequest(AirflowException):
     status_code = HTTPStatus.BAD_REQUEST
 
 
+class DagRunConfTooLargeError(AirflowException):
+    """
+    Raise when a Dag run is triggered with a ``conf`` payload above the configured limit.
+
+    Carries the serialized payload size and the limit so callers (e.g. the FastAPI route handler)
+    can render an actionable 413 Payload Too Large response.
+
+    :param size: Size of the serialized conf payload in bytes.
+    :param limit: Configured maximum payload size in bytes.
+    """
+
+    status_code = HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+
+    def __init__(self, size: int, limit: int) -> None:
+        self.size = size
+        self.limit = limit
+        super().__init__(
+            f"Dag run conf payload is {size} bytes, which exceeds the configured limit of "
+            f"{limit} bytes ([core] max_dagrun_conf_size_bytes). "
+            f"Store large payloads externally (XCom, Variables, or file storage) and pass a "
+            f"reference (e.g. a URI or key) in conf instead."
+        )
+
+
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
 

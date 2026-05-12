@@ -1,0 +1,7 @@
+Validate ``conf`` payload size on Dag trigger, failing fast with a 413 instead of an opaque DB error.
+
+A new ``[core] max_dagrun_conf_size_bytes`` config (default 65535) bounds the JSON-encoded size of
+``conf`` accepted by ``DAG.create_dagrun()`` and the ``POST /api/v2/dags/{dag_id}/dagRuns`` route.
+Oversized payloads now raise ``airflow.exceptions.DagRunConfTooLargeError`` (returns 413 Payload
+Too Large) with a message pointing users to XCom, Variables, or external storage as the right
+place to keep large payloads. Set the limit to ``0`` to disable the check.

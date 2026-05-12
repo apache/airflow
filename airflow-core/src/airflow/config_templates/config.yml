@@ -162,6 +162,18 @@ core:
       type: integer
       example: ~
       default: "0"
+    max_dagrun_conf_size_bytes:
+      description: |
+        Maximum size in bytes of the JSON-serialized ``conf`` payload accepted when a Dag run is
+        triggered. Requests with a larger ``conf`` are rejected with a clear error before the row
+        reaches the database, instead of failing later with a ``Data too long for column 'conf'``
+        DB error. The default of 65535 fits the smallest MySQL ``JSON`` column variant; deployments
+        on Postgres or with larger MySQL column types may raise it. Set to ``0`` to disable the
+        check entirely.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "65535"
     load_examples:
       description: |
         Whether to load the Dag examples that ship with Airflow. It's good to

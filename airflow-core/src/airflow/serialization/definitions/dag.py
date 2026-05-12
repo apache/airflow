@@ -529,7 +529,7 @@ class SerializedDAG:
 
         :meta private:
         """
-        from airflow.models.dagrun import RUN_ID_REGEX
+        from airflow.models.dagrun import RUN_ID_REGEX, validate_dagrun_conf_size
 
         log.info(
             "creating dag run",
@@ -538,6 +538,7 @@ class SerializedDAG:
             logical_date=logical_date,
             partition_key=partition_key,
         )
+        validate_dagrun_conf_size(conf)
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:

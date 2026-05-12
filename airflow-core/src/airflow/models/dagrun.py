@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import logging
 import os
 import re
@@ -66,7 +67,7 @@ from airflow._shared.observability.traces import new_dagrun_trace_carrier, overr
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, NotMapped, TaskNotFound
+from airflow.exceptions import AirflowException, DagRunConfTooLargeError, NotMapped, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
@@ -145,6 +146,32 @@ def _creator_note(val):
     if isinstance(val, dict):
         return DagRunNote(**val)
     return DagRunNote(*val)
+
+
+def validate_dagrun_conf_size(conf: dict | None) -> None:
+    """
+    Validate that ``conf`` serializes to no more than ``[core] max_dagrun_conf_size_bytes``.
+
+    Called at the trigger boundary (Dag run creation paths) so an oversized payload is rejected
+    with a clear error before the row reaches the database, instead of failing later with a
+    backend-specific size error such as MySQL's ``Data too long for column 'conf'``.
+
+    A configured limit of ``0`` disables the check. ``None`` and empty dicts are no-ops.
+
+    :param conf: The conf payload to validate.
+    :raises DagRunConfTooLargeError: If the serialized payload exceeds the configured limit.
+    """
+    if not conf:
+        return
+    limit = airflow_conf.getint("core", "max_dagrun_conf_size_bytes", fallback=65535)
+    if limit <= 0:
+        return
+    # ``len`` on the JSON-encoded string is a tight upper bound on the bytes the backend will store:
+    # JSON only emits ASCII outside of string contents, where non-ASCII chars expand under UTF-8.
+    # Measuring the encoded bytes directly keeps the bound correct for unicode payloads.
+    size = len(json.dumps(conf, ensure_ascii=False).encode("utf-8"))
+    if size > limit:
+        raise DagRunConfTooLargeError(size=size, limit=limit)
 
 
 class DagRun(Base, LoggingMixin):

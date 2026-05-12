@@ -3382,6 +3382,63 @@ def test_dag_run_id_rejects_path_traversal(session, dag_maker, run_id):
         dag_maker.create_dagrun(run_id=run_id, run_type=DagRunType.MANUAL)
 
 
+class TestValidateDagRunConfSize:
+    """Tests for the ``validate_dagrun_conf_size`` trigger-boundary helper."""
+
+    @pytest.mark.parametrize(
+        "conf",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({}, id="empty_dict"),
+        ],
+    )
+    def test_empty_conf_is_noop(self, conf):
+        from airflow.models.dagrun import validate_dagrun_conf_size
+
+        # Should not raise regardless of the configured limit.
+        with conf_vars({("core", "max_dagrun_conf_size_bytes"): "1"}):
+            validate_dagrun_conf_size(conf)
+
+    def test_conf_at_or_below_limit_passes(self):
+        from airflow.models.dagrun import validate_dagrun_conf_size
+
+        with conf_vars({("core", "max_dagrun_conf_size_bytes"): "100"}):
+            validate_dagrun_conf_size({"key": "value"})
+
+    def test_conf_above_limit_raises_with_size_and_limit(self):
+        from airflow.exceptions import DagRunConfTooLargeError
+        from airflow.models.dagrun import validate_dagrun_conf_size
+
+        big_value = "x" * 200
+        with conf_vars({("core", "max_dagrun_conf_size_bytes"): "100"}):
+            with pytest.raises(DagRunConfTooLargeError) as exc_info:
+                validate_dagrun_conf_size({"k": big_value})
+        err = exc_info.value
+        assert err.limit == 100
+        assert err.size > 100
+        # The message should guide the user to the resolution.
+        assert "max_dagrun_conf_size_bytes" in str(err)
+        assert "XCom" in str(err)
+
+    def test_conf_size_check_disabled_when_limit_is_zero(self):
+        from airflow.models.dagrun import validate_dagrun_conf_size
+
+        # A 1 MiB payload should not raise when the check is disabled.
+        big_payload = {"k": "x" * (1024 * 1024)}
+        with conf_vars({("core", "max_dagrun_conf_size_bytes"): "0"}):
+            validate_dagrun_conf_size(big_payload)
+
+    def test_conf_size_check_measures_utf8_bytes_not_chars(self):
+        """Multibyte unicode in conf must count toward the limit by encoded byte length."""
+        from airflow.exceptions import DagRunConfTooLargeError
+        from airflow.models.dagrun import validate_dagrun_conf_size
+
+        # Each emoji is 4 UTF-8 bytes; the JSON-encoded form is wider than the limit.
+        with conf_vars({("core", "max_dagrun_conf_size_bytes"): "20"}):
+            with pytest.raises(DagRunConfTooLargeError):
+                validate_dagrun_conf_size({"emoji": "\U0001f4a1" * 10})
+
+
 def _get_states(dr):
     """
     For a given dag run, get a dict of states.
