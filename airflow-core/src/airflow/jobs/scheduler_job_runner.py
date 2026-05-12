@@ -895,6 +895,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 num_starving_tasks,
                 tags={"pool_name": pool_name},
             )
+            stats.timing(
+                "pool.starving_tasks.distribution",
+                num_starving_tasks,
+                tags={"pool_name": pool_name},
+            )
 
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
@@ -2756,13 +2761,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 slot_stats["open"],
                 tags={"pool_name": normalized_pool_name},
             )
+            stats.timing(
+                "pool.open_slots.distribution",
+                slot_stats["open"],
+                tags={"pool_name": normalized_pool_name},
+            )
             stats.gauge(
                 "pool.queued_slots",
                 slot_stats["queued"],
                 tags={"pool_name": normalized_pool_name},
             )
+            stats.timing(
+                "pool.queued_slots.distribution",
+                slot_stats["queued"],
+                tags={"pool_name": normalized_pool_name},
+            )
             stats.gauge(
                 "pool.running_slots",
+                slot_stats["running"],
+                tags={"pool_name": normalized_pool_name},
+            )
+            stats.timing(
+                "pool.running_slots.distribution",
                 slot_stats["running"],
                 tags={"pool_name": normalized_pool_name},
             )

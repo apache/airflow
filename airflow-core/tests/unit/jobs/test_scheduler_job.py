@@ -2690,6 +2690,46 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_pool_metrics_emits_gauge_and_histogram(self, mock_get_backend):
+        """
+        ``_emit_pool_metrics`` should emit a histogram (``stats.timing``)
+        alongside each existing gauge for ``open_slots``, ``queued_slots``,
+        and ``running_slots`` so backends can compute p50/p95/p99 of pool
+        utilization between scrapes. Gauge emissions stay unchanged so
+        existing scrapers keep working.
+        """
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        session = settings.Session()
+        pool_name = "test_pool_histograms"
+        session.add(Pool(pool=pool_name, slots=4, include_deferred=False))
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._emit_pool_metrics(session=session)
+
+        tags = {"pool_name": pool_name}
+        for stat_name in ("pool.open_slots", "pool.queued_slots", "pool.running_slots"):
+            gauge_calls = [c for c in mock_stats.gauge.call_args_list if c.args and c.args[0] == stat_name]
+            timing_calls = [
+                c
+                for c in mock_stats.timing.call_args_list
+                if c.args and c.args[0] == f"{stat_name}.distribution"
+            ]
+            assert gauge_calls, f"expected gauge emission for {stat_name}"
+            assert timing_calls, f"expected histogram emission for {stat_name}.distribution"
+            # The matched gauge/timing pair for this pool must report the same value.
+            gauge_for_pool = next(c for c in gauge_calls if c.kwargs.get("tags") == tags)
+            timing_for_pool = next(c for c in timing_calls if c.kwargs.get("tags") == tags)
+            assert gauge_for_pool.args[1] == timing_for_pool.args[1]
+
+        session.execute(delete(Pool).where(Pool.pool == pool_name))
+        session.commit()
+        session.close()
+
     def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_enqueue_task_instances_with_queued_state"
         task_id_1 = "dummy"
