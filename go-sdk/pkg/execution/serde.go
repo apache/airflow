@@ -161,8 +161,10 @@ func serializeTimetable(schedule *string) map[string]any {
 	}
 }
 
-// serializeTask converts a task to the Airflow serialization format.
-func serializeTask(info bundlev1.TaskInfo, downstream []string) map[string]any {
+// serializeTask converts a task to the Airflow serialization format. The
+// downstream_task_ids slice is read from info.Downstream (populated by the
+// registry from each task's `depends` argument) and sorted for stable JSON.
+func serializeTask(info bundlev1.TaskInfo) map[string]any {
 	typeName := info.TypeName
 	if typeName == "" {
 		typeName = info.ID
@@ -178,9 +180,9 @@ func serializeTask(info bundlev1.TaskInfo, downstream []string) map[string]any {
 		"language":     "go",
 	}
 	applyTaskSpec(data, info.Spec)
-	if len(downstream) > 0 {
-		sorted := make([]string, len(downstream))
-		copy(sorted, downstream)
+	if len(info.Downstream) > 0 {
+		sorted := make([]string, len(info.Downstream))
+		copy(sorted, info.Downstream)
 		sort.Strings(sorted)
 		data["downstream_task_ids"] = sorted
 	}
@@ -377,7 +379,7 @@ func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[st
 	tasks := make([]any, len(info.Tasks))
 	for i, t := range info.Tasks {
 		taskIDs[i] = t.ID
-		tasks[i] = serializeTask(t, nil)
+		tasks[i] = serializeTask(t)
 	}
 
 	var schedule *string
