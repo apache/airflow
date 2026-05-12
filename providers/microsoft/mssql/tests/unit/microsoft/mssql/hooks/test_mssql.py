@@ -112,6 +112,15 @@ def mssql_connections():
             port=8081,
             extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
         ),
+        "alt_3": Connection(
+            conn_type="mssql",
+            host="ip",
+            schema="testdb",
+            login="username",
+            password="password",
+            port=8081,
+            extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
+        ),
     }
 
 
@@ -120,6 +129,7 @@ URI_TEST_CASES = [
     ("alt", "mssql+pymssql://username:password@ip:8081"),
     ("alt_1", "mssql+testdriver://username:password@ip:8081/"),
     ("alt_2", "mssql+testdriver://username:password@ip:8081/?myparam=5%40-%2F%2F%2A"),
+    ("alt_3", "mssql+testdriver://username:password@ip:8081/testdb?myparam=5%40-%2F%2F%2A"),
 ]
 
 
