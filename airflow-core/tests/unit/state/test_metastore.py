@@ -248,6 +248,7 @@ class TestMetastoreStateBackendTaskScope:
         row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
         assert row is not None
         assert row.expires_at is not None
+        assert row.expires_at > row.updated_at
 
     @conf_vars({("state_store", "default_retention_days"): "30"})
     def test_set__with_retention_days(

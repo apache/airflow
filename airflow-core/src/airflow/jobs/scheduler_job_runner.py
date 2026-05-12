@@ -3218,7 +3218,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @staticmethod
     def _cleanup_orphaned_asset_state(*, session: Session) -> None:
         """
-        Delete asset_state rows for assets no longer active in any DAG.
+        Delete asset_state rows for assets no longer active in any Dag.
 
         When _orphan_unreferenced_assets removes an asset from asset_active, its
         asset_state rows become unreachable — no task can write to them anymore.

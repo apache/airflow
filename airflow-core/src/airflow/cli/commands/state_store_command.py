@@ -18,6 +18,9 @@ from __future__ import annotations
 
 import logging
 
+from airflow.state import get_state_backend
+from airflow.state.metastore import MetastoreStateBackend
+
 log = logging.getLogger(__name__)
 
 # Other state operations (list, get, delete per key) will be added here in the future.
@@ -25,9 +28,6 @@ log = logging.getLogger(__name__)
 
 def cleanup(args) -> None:
     """Remove expired task state rows via the configured state backend."""
-    from airflow.state import get_state_backend
-    from airflow.state.metastore import MetastoreStateBackend
-
     backend = get_state_backend()
 
     if args.dry_run:
@@ -40,7 +40,7 @@ def cleanup(args) -> None:
             print(f"Would delete {len(expired)} task state row(s):\n")
             for dag_id, run_id, task_id, map_index, key in expired:
                 print(
-                    f"  DAG {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
+                    f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}"
                 )
         else:
             print("Custom backend configured — cannot preview rows.")

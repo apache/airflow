@@ -22,114 +22,294 @@ from chart_utils.helm_template_generator import render_chart
 
 
 class TestPodLauncher:
-    """Tests pod launcher."""
+    @pytest.mark.parametrize(
+        "executor",
+        ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"],
+    )
+    def test_should_render(self, executor):
+        docs = render_chart(
+            values={"rbac": {"create": True}, "allowPodLaunching": True, "executor": executor},
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert len(docs) == 1
+
+    @pytest.mark.parametrize(("rbac", "allow"), [(True, False), (False, True), (False, False)])
+    @pytest.mark.parametrize(
+        "executor",
+        ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"],
+    )
+    def test_should_not_render(self, rbac, allow, executor):
+        docs = render_chart(
+            values={"rbac": {"create": rbac}, "allowPodLaunching": allow, "executor": executor},
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    def test_multi_namespace_mode_disabled(self):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={"rbac": {"create": True}, "allowPodLaunching": True, "multiNamespaceMode": False},
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+
+        role_ref = jmespath.search("roleRef", docs[0])
+        assert role_ref["kind"] == "Role"
+        assert role_ref["name"] == "prod-pod-launcher-role"
+
+        metadata = jmespath.search("metadata", docs[0])
+        assert metadata["namespace"] == "airflow"
+        assert metadata["name"] == "prod-pod-launcher-rolebinding"
+        assert "namespace" not in metadata["labels"]
+
+    def test_multi_namespace_mode_enabled(self):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={"rbac": {"create": True}, "allowPodLaunching": True, "multiNamespaceMode": True},
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "ClusterRoleBinding"
+
+        role_ref = jmespath.search("roleRef", docs[0])
+        assert role_ref["kind"] == "ClusterRole"
+        assert role_ref["name"] == "airflow-prod-pod-launcher-role"
+
+        metadata = jmespath.search("metadata", docs[0])
+        assert "namespace" not in metadata
+        assert metadata["name"] == "airflow-prod-pod-launcher-rolebinding"
+        assert metadata["labels"]["namespace"] == "airflow"
 
     @pytest.mark.parametrize(
-        ("executor", "rbac", "allow", "expected_accounts"),
-        [
-            ("KubernetesExecutor", True, True, ["scheduler", "worker"]),
-            (
-                "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
-                True,
-                True,
-                ["scheduler", "worker"],
-            ),
-            ("CeleryExecutor", True, True, ["worker"]),
-            (
-                "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                True,
-                True,
-                ["worker"],
-            ),
-            ("LocalExecutor", True, True, ["scheduler"]),
-            ("airflow.executors.local_executor.LocalExecutor", True, True, ["scheduler"]),
-            ("LocalExecutor", False, False, []),
-            ("CeleryExecutor,KubernetesExecutor", True, True, ["scheduler", "worker"]),
-            (
-                "CeleryExecutor,airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
-                True,
-                True,
-                ["scheduler", "worker"],
-            ),
-        ],
+        "executor", ["LocalExecutor", "KubernetesExecutor", "KubernetesExecutor,LocalExecutor,CeleryExecutor"]
     )
-    def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
+    def test_scheduler_role_binding_should_exists(self, executor):
         docs = render_chart(
+            name="prod",
+            namespace="airflow",
             values={
-                "rbac": {"create": rbac},
-                "allowPodLaunching": allow,
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
                 "executor": executor,
+                "scheduler": {"enabled": True},
             },
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
-        if expected_accounts:
-            for idx, suffix in enumerate(expected_accounts):
-                assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
-        else:
-            assert docs == []
+
+        assert jmespath.search("subjects[?name=='prod-airflow-scheduler'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "prod-airflow-scheduler",
+            "namespace": "airflow",
+        }
 
     @pytest.mark.parametrize(
-        ("multiNamespaceMode", "namespace", "expectedRole", "expectedRoleBinding"),
+        ("executor", "enabled"),
         [
-            (
-                True,
-                "namespace",
-                "namespace-release-name-pod-launcher-role",
-                "namespace-release-name-pod-launcher-rolebinding",
-            ),
-            (
-                True,
-                "other-ns",
-                "other-ns-release-name-pod-launcher-role",
-                "other-ns-release-name-pod-launcher-rolebinding",
-            ),
-            (False, "namespace", "release-name-pod-launcher-role", "release-name-pod-launcher-rolebinding"),
+            ("CeleryExecutor", False),
+            ("CeleryExecutor", True),
+            ("LocalExecutor", False),
+            ("KubernetesExecutor", False),
+            ("LocalExecutor,CeleryExecutor", False),
         ],
     )
-    def test_pod_launcher_rolebinding_multi_namespace(
-        self, multiNamespaceMode, namespace, expectedRole, expectedRoleBinding
-    ):
+    def test_scheduler_role_binding_should_not_exists(self, executor, enabled):
         docs = render_chart(
-            namespace=namespace,
-            values={"multiNamespaceMode": multiNamespaceMode},
+            name="prod",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "scheduler": {"enabled": enabled},
+            },
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
 
-        actualRoleBinding = jmespath.search("metadata.name", docs[0])
-        assert actualRoleBinding == expectedRoleBinding
-
-        actualRoleRef = jmespath.search("roleRef.name", docs[0])
-        assert actualRoleRef == expectedRole
-
-        actualKind = jmespath.search("kind", docs[0])
-        actualRoleRefKind = jmespath.search("roleRef.kind", docs[0])
-        if multiNamespaceMode:
-            assert actualKind == "ClusterRoleBinding"
-            assert actualRoleRefKind == "ClusterRole"
-        else:
-            assert actualKind == "RoleBinding"
-            assert actualRoleRefKind == "Role"
+        assert jmespath.search("subjects[?name=='prod-airflow-scheduler']", docs[0]) == []
 
     @pytest.mark.parametrize(
-        ("multiNamespaceMode", "namespace", "expectedRole"),
-        [
-            (True, "namespace", "namespace-release-name-pod-launcher-role"),
-            (True, "other-ns", "other-ns-release-name-pod-launcher-role"),
-            (False, "namespace", "release-name-pod-launcher-role"),
-        ],
+        "executor", ["CeleryExecutor", "KubernetesExecutor", "LocalExecutor,CeleryExecutor"]
     )
-    def test_pod_launcher_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
+    def test_worker_role_binding_should_exists(self, executor):
         docs = render_chart(
-            namespace=namespace,
-            values={"multiNamespaceMode": multiNamespaceMode},
-            show_only=["templates/rbac/pod-launcher-role.yaml"],
+            name="prod",
+            namespace="airflow",
+            values={"rbac": {"create": True}, "allowPodLaunching": True, "executor": executor},
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
 
-        actualRole = jmespath.search("metadata.name", docs[0])
-        assert actualRole == expectedRole
+        assert jmespath.search("subjects[?name=='prod-airflow-worker'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "prod-airflow-worker",
+            "namespace": "airflow",
+        }
 
-        actualKind = jmespath.search("kind", docs[0])
-        if multiNamespaceMode:
-            assert actualKind == "ClusterRole"
-        else:
-            assert actualKind == "Role"
+    def test_worker_role_binding_should_not_exists(self):
+        docs = render_chart(
+            name="prod",
+            values={"rbac": {"create": True}, "allowPodLaunching": True, "executor": "LocalExecutor"},
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-worker']", docs[0]) == []
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "LocalExecutor,CeleryExecutor,KubernetesExecutor",
+        ],
+    )
+    @pytest.mark.parametrize("create", [False, True, None])
+    def test_worker_role_binding_should_exists_with_kubernetes(self, executor, create):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "workers": {"kubernetes": {"serviceAccount": {"create": create}}},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-worker'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "prod-airflow-worker",
+            "namespace": "airflow",
+        }
+
+    @pytest.mark.parametrize(
+        "executor", ["KubernetesExecutor", "LocalExecutor", "LocalExecutor,KubernetesExecutor"]
+    )
+    @pytest.mark.parametrize("create", [False, True])
+    def test_worker_role_binding_should_not_exists_with_kubernetes(self, executor, create):
+        docs = render_chart(
+            name="prod",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "workers": {"kubernetes": {"serviceAccount": {"create": create}}},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-worker']", docs[0]) == []
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "KubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "LocalExecutor,CeleryExecutor,KubernetesExecutor",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "service_account_values",
+        [
+            {"create": True},
+            {"name": "prod-airflow-worker-kubernetes"},
+            {"create": False, "name": "prod-airflow-worker-kubernetes"},
+        ],
+    )
+    def test_worker_kubernetes_role_binding_should_exists(self, executor, service_account_values):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "workers": {"kubernetes": {"serviceAccount": service_account_values}},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-worker-kubernetes'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "prod-airflow-worker-kubernetes",
+            "namespace": "airflow",
+        }
+
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor"])
+    @pytest.mark.parametrize(
+        "service_account_values",
+        [{"create": False}, {"create": False, "name": None}, {"create": None, "name": None}, {}],
+    )
+    def test_worker_kubernetes_role_binding_should_not_exists(self, executor, service_account_values):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "workers": {"kubernetes": {"serviceAccount": service_account_values}},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-worker-kubernetes']", docs[0]) == []
+
+    @pytest.mark.parametrize(
+        "executor",
+        ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"],
+    )
+    def test_triggerer_role_binding_should_exists(self, executor):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "triggerer": {"enabled": True},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-triggerer'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "prod-airflow-triggerer",
+            "namespace": "airflow",
+        }
+
+    @pytest.mark.parametrize(
+        "executor",
+        ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"],
+    )
+    def test_triggerer_role_binding_should_not_exists(self, executor):
+        docs = render_chart(
+            name="prod",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": executor,
+                "triggerer": {"enabled": False},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-triggerer']", docs[0]) == []
+
+    def test_no_role_bindings(self):
+        docs = render_chart(
+            name="prod",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": "LocalExecutor",
+                "scheduler": {"enabled": False},
+                "triggerer": {"enabled": False},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-scheduler']", docs[0]) is None

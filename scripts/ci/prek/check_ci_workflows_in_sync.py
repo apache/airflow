@@ -27,13 +27,21 @@ Documented divergences:
 
 1. Header intro comment (different prose explaining what each file is for)
 2. Workflow ``name:`` — ``Tests (ARM)`` vs ``Tests (AMD)``
-3. Triggers — ARM = schedule + workflow_dispatch only; AMD = pull_request +
-   push (to release branches) + workflow_dispatch
+3. Triggers — ARM = its own schedule + push (to release-prep /
+   providers branches) + workflow_dispatch; AMD = its own schedule
+   (offset from ARM's cron) + the same push branches + pull_request +
+   workflow_dispatch. Both wrappers run on post-merge pushes to
+   stable / providers branches; only AMD runs on PRs (per-PR ARM
+   coverage stays cron-driven via the canary).
 4. ``concurrency.group`` prefix — ``ci-arm-`` vs ``ci-amd-``
 5. ``build-info`` outputs ``platform`` and ``runner-type`` — hardcoded per
    architecture (and the surrounding comment naming the "ARM/AMD copy")
 6. ``print-platform`` job — ``name:`` and the architecture echoed to
    GITHUB_STEP_SUMMARY
+7. ``notify-slack`` Slack-state artifact name — ``slack-state-tests-…-arm``
+   vs ``slack-state-tests-…-amd``, so the de-dup tracker in
+   ``slack_notification_state.py`` keeps independent state for each
+   platform on the same branch
 
 Anything else differing between the two files is a drift bug. To
 intentionally introduce a new divergence, update the rules in this script
@@ -86,6 +94,12 @@ LINE_RULES: list[tuple[str, str]] = [
         r"^        run: \"echo '## Architecture: (?:ARM|AMD)' >> \$GITHUB_STEP_SUMMARY\"$",
         "        run: \"echo '## Architecture: PLACEHOLDER' >> $GITHUB_STEP_SUMMARY\"",
     ),
+    # Slack-state artifact name in the notify-slack job — suffixed `-amd` /
+    # `-arm` so each platform tracks its own de-dup state on the same branch.
+    (
+        r'^(?P<indent>\s+)(?P<key>ARTIFACT_NAME|name): "slack-state-tests-\$\{\{ github\.ref_name \}\}-(?:amd|arm)"$',
+        r'\g<indent>\g<key>: "slack-state-tests-${{ github.ref_name }}-PLACEHOLDER"',
+    ),
 ]
 
 # Whole sections that legitimately exist in only one file. Each entry is the
@@ -96,10 +110,11 @@ ARM_ONLY_BLOCK = """  schedule:
     - cron: '28 1,3,7,9,13,15,19,21 * * *'
 """
 
-AMD_ONLY_BLOCK = """  push:
-    branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+AMD_ONLY_BLOCK = """  schedule:
+    # Mirror of the previous AMD canary cron from before the AMD/ARM split (PR #66348),
+    # offset by 30 min from ARM's `:28` slot in `ci-arm.yml` so the two scheduled
+    # canaries don't compete for runners at exactly the same minute.
+    - cron: '58 1,7,13,19 * * *'
   pull_request:
     branches:
       - main
@@ -108,6 +123,7 @@ AMD_ONLY_BLOCK = """  push:
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, ready_for_review]
 """
+
 
 # The header comment block (between the `---` document marker and the
 # `name:` line) is intentionally different between files — each describes
