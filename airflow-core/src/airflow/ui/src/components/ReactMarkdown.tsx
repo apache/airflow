@@ -169,7 +169,7 @@ const createPreComponent =
 
     // Extract language from className (format: "language-python")
     const { children: codeChildren, className } = codeElement.props;
-    const match = /language-(?<lang>\w+)/u.exec(className ?? "");
+    const match = /language-(?<lang>[-\w]+)/u.exec(className ?? "");
     const language = match?.groups?.lang;
     const childString = extractTextContent(codeChildren).replace(/\n$/u, "");
 
