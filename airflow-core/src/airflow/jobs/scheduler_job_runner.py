@@ -2927,6 +2927,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        # A task instance can be in RUNNING/RESTARTING without ever having sent a heartbeat
+        # (worker crashed before the first heartbeat, or the supervisor was killed mid-startup).
+        # In that case ``last_heartbeat_at`` is NULL, and ``last_heartbeat_at < limit_dttm``
+        # evaluates to NULL in SQL — not TRUE — so the row would be silently skipped and the
+        # task would stay in RUNNING forever. Fall back to ``start_date`` for the staleness
+        # check when no heartbeat has been recorded yet.
         task_instances_without_heartbeats = list(
             session.scalars(
                 select(TI)
@@ -2938,7 +2944,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(DM, TI.dag_id == DM.dag_id)
                 .where(
                     TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
-                    TI.last_heartbeat_at < limit_dttm,
+                    or_(
+                        TI.last_heartbeat_at < limit_dttm,
+                        and_(TI.last_heartbeat_at.is_(None), TI.start_date < limit_dttm),
+                    ),
                 )
                 .where(TI.queued_by_job_id == self.job.id)
             )
