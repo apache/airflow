@@ -423,11 +423,16 @@ class CommandFactory:
             args = []
             return_annotation: str = ""
 
-            for arg in node.args.args:
+            num_args = len(node.args.args)
+            num_defaults = len(node.args.defaults)
+            first_default_index = num_args - num_defaults
+
+            for idx, arg in enumerate(node.args.args):
                 arg_name = arg.arg
                 arg_type = ast.unparse(arg.annotation) if arg.annotation else "Any"
                 if arg_name != "self":
-                    args.append({arg_name: arg_type})
+                    has_default = idx >= first_default_index
+                    args.append({"name": arg_name, "type": arg_type, "has_default": has_default})
 
             if node.returns:
                 return_annotation = [
@@ -519,8 +524,8 @@ class CommandFactory:
         arg_flags: tuple,
         arg_type: type | Callable,
         arg_help: str,
-        arg_action: argparse.BooleanOptionalAction | None,
-        arg_dest: str | None = None,
+        arg_action: type[argparse.BooleanOptionalAction] | None,
+        arg_dest: Any = _UNSET,
         arg_default: Any | None = None,
     ) -> Arg:
         return Arg(
@@ -545,15 +550,20 @@ class CommandFactory:
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
+            is_required = field_type.is_required()
+            sanitized_field = self._sanitize_arg_parameter_key(field)
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
+                is_bool = field_type.annotation is bool
+                is_positional = is_required and not is_bool
+                arg_flags = (field,) if is_positional else ("--" + sanitized_field,)
                 commands.append(
                     self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_flags=arg_flags,
                         arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
+                        arg_default=False if is_bool else None,
                     )
                 )
             else:
@@ -562,13 +572,16 @@ class CommandFactory:
                 except AttributeError:
                     annotation = field_type.annotation
 
+                is_bool = annotation is bool
+                is_positional = is_required and not is_bool
+                arg_flags = (field,) if is_positional else ("--" + sanitized_field,)
                 commands.append(
                     self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_flags=arg_flags,
                         arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
+                        arg_default=False if is_bool else None,
                     )
                 )
         return commands
@@ -578,25 +591,29 @@ class CommandFactory:
         for operation in self.operations:
             args = []
             for parameter in operation.get("parameters"):
-                for parameter_key, parameter_type in parameter.items():
-                    if self._is_primitive_type(type_name=parameter_type):
-                        base_parameter_type = parameter_type.replace(" | None", "").strip()
-                        is_bool = base_parameter_type == "bool"
-                        args.append(
-                            self._create_arg(
-                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=self._python_type_from_string(parameter_type),
-                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
-                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=None,
-                            )
+                parameter_key = parameter["name"]
+                parameter_type = parameter["type"]
+                has_default = parameter["has_default"]
+                if self._is_primitive_type(type_name=parameter_type):
+                    base_parameter_type = parameter_type.replace(" | None", "").strip()
+                    is_bool = base_parameter_type == "bool"
+                    is_positional = not is_bool and not has_default
+                    sanitized_key = self._sanitize_arg_parameter_key(parameter_key)
+                    args.append(
+                        self._create_arg(
+                            arg_flags=(parameter_key,) if is_positional else ("--" + sanitized_key,),
+                            arg_type=self._python_type_from_string(parameter_type),
+                            arg_action=argparse.BooleanOptionalAction if is_bool else None,
+                            arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                            arg_default=None,
                         )
-                    else:
-                        args.extend(
-                            self._create_arg_for_non_primitive_type(
-                                parameter_type=parameter_type, parameter_key=parameter_key
-                            )
+                    )
+                else:
+                    args.extend(
+                        self._create_arg_for_non_primitive_type(
+                            parameter_type=parameter_type, parameter_key=parameter_key
                         )
+                    )
 
             if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
                 args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
@@ -646,23 +663,22 @@ class CommandFactory:
             datamodel_param_name = None
             args_dict = vars(args)
             for parameter in api_operation["parameters"]:
-                for parameter_key, parameter_type in parameter.items():
-                    if self._is_primitive_type(type_name=parameter_type):
-                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
-                            parameter_key
-                        ]
-                    else:
-                        datamodel = getattr(generated_datamodels, parameter_type)
-                        for expanded_parameter in self.datamodels_extended_map[parameter_type]:
-                            if parameter_key not in method_params:
-                                method_params[parameter_key] = {}
-                                datamodel_param_name = parameter_key
-                            if expanded_parameter in self.excluded_parameters:
-                                continue
-                            if expanded_parameter in args_dict.keys():
-                                method_params[parameter_key][
-                                    self._sanitize_method_param_key(expanded_parameter)
-                                ] = args_dict[expanded_parameter]
+                parameter_key = parameter["name"]
+                parameter_type = parameter["type"]
+                if self._is_primitive_type(type_name=parameter_type):
+                    method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[parameter_key]
+                else:
+                    datamodel = getattr(generated_datamodels, parameter_type)
+                    for expanded_parameter in self.datamodels_extended_map[parameter_type]:
+                        if parameter_key not in method_params:
+                            method_params[parameter_key] = {}
+                            datamodel_param_name = parameter_key
+                        if expanded_parameter in self.excluded_parameters:
+                            continue
+                        if expanded_parameter in args_dict.keys():
+                            method_params[parameter_key][
+                                self._sanitize_method_param_key(expanded_parameter)
+                            ] = args_dict[expanded_parameter]
 
             if datamodel:
                 if datamodel_param_name:
