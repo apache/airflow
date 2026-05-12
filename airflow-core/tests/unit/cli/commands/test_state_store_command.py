@@ -20,8 +20,12 @@ from argparse import Namespace
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.cli.commands.state_store_command import cleanup
 from airflow.state.metastore import MetastoreStateBackend
+
+pytestmark = pytest.mark.db_test
 
 
 class TestStateStoreCleanupCommand:
@@ -40,7 +44,7 @@ class TestStateStoreCleanupCommand:
         backend = MetastoreStateBackend()
         with (
             mock.patch("airflow.state.get_state_backend", return_value=backend),
-            patch.object(backend, "_dry_run_summary", return_value={"expired": []}),
+            patch.object(backend, "_summary_dry_run_", return_value={"expired": []}),
         ):
             cleanup(args)
 

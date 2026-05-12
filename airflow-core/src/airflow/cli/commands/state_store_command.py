@@ -32,7 +32,7 @@ def cleanup(args) -> None:
 
     if args.dry_run:
         if isinstance(backend, MetastoreStateBackend):
-            summary = backend._dry_run_summary()
+            summary = backend._summary_dry_run_()
             expired = summary["expired"]
             if not expired:
                 print("Nothing to delete.")
