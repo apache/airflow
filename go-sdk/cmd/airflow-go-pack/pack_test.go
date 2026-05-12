@@ -20,6 +20,7 @@ package main
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,4 +68,32 @@ func TestRenderManifest_EmptyDags(t *testing.T) {
 	got, err := renderManifest(spec, "main.go")
 	require.NoError(t, err)
 	assert.Contains(t, string(got), "dags: {}")
+}
+
+// TestRootArgs_AllowsBuildFlagsAfterDoubleDash regression-tests the
+// positional-arg validator: forwarded `go build` flags after "--" must not
+// be counted against MaximumNArgs(1). The runtime call would otherwise fail
+// with `accepts at most 1 arg(s), received N`.
+func TestRootArgs_AllowsBuildFlagsAfterDoubleDash(t *testing.T) {
+	cases := [][]string{
+		{"--", "-ldflags", "-X main.dagId=foo"},
+		{"./pkg", "--", "-ldflags", "-X main.dagId=foo"},
+		{"--", "-trimpath", "-tags=prod"},
+	}
+	for _, argv := range cases {
+		cmd := newRootCmd()
+		// Stop the command from actually running; we only want arg validation.
+		cmd.RunE = func(*cobra.Command, []string) error { return nil }
+		cmd.SetArgs(argv)
+		assert.NoError(t, cmd.Execute(), "args=%v should validate", argv)
+	}
+}
+
+func TestRootArgs_RejectsExtraPositionalBeforeDash(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.RunE = func(*cobra.Command, []string) error { return nil }
+	cmd.SetArgs([]string{"./pkg1", "./pkg2", "--", "-ldflags", "-X main.dagId=foo"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts at most 1 arg")
 }
