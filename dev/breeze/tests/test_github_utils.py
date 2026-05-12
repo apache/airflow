@@ -23,6 +23,7 @@ import pytest
 
 from airflow_breeze.utils.github import (
     env_without_github_tokens,
+    format_github_token_scope_guidance,
     retrieve_github_token,
     run_gh_command,
 )
@@ -51,7 +52,7 @@ def test_retrieve_github_token_prefers_clean_gh_auth_token(mock_run, monkeypatch
     monkeypatch.setenv("GITHUB_TOKEN", "env-github-token")
     mock_run.return_value = _completed_process(returncode=0, stdout="stored-gh-token\n")
 
-    assert retrieve_github_token() == "stored-gh-token"
+    assert retrieve_github_token(description="airflow-ci-upgrade", scopes="public_repo") == "stored-gh-token"
 
     mock_run.assert_called_once()
     call_env = mock_run.call_args.kwargs["env"]
@@ -65,7 +66,7 @@ def test_retrieve_github_token_falls_back_to_env_token(mock_run, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "env-github-token")
     mock_run.return_value = _completed_process(returncode=1)
 
-    assert retrieve_github_token() == "env-gh-token"
+    assert retrieve_github_token(description="airflow-ci-upgrade", scopes="public_repo") == "env-gh-token"
 
 
 @mock.patch("airflow_breeze.utils.github.subprocess.run")
@@ -88,7 +89,10 @@ def test_retrieve_github_token_falls_back_to_env_token_when_gh_returns_whitespac
 def test_retrieve_github_token_keeps_explicit_token(mock_run, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "env-token")
 
-    assert retrieve_github_token("explicit-token") == "explicit-token"
+    assert (
+        retrieve_github_token("explicit-token", description="airflow-ci-upgrade", scopes="public_repo")
+        == "explicit-token"
+    )
 
     mock_run.assert_not_called()
 
@@ -99,6 +103,21 @@ def test_retrieve_github_token_does_not_treat_env_token_argument_as_explicit(moc
     mock_run.return_value = _completed_process(returncode=0, stdout="stored-gh-token\n")
 
     assert retrieve_github_token("env-token") == "stored-gh-token"
+
+
+def test_format_github_token_scope_guidance_includes_description_and_scope():
+    assert (
+        format_github_token_scope_guidance(description="airflow-ci-upgrade", scopes="public_repo")
+        == "If creating a token manually for airflow-ci-upgrade, it needs public_repo scope."
+    )
+
+
+def test_format_github_token_scope_guidance_is_generic_without_metadata():
+    guidance = format_github_token_scope_guidance()
+
+    assert (
+        guidance == "If creating a token manually, make sure it has the permissions required by the command."
+    )
 
 
 @mock.patch("airflow_breeze.utils.github.subprocess.run")

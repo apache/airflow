@@ -58,7 +58,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github import retrieve_github_token
+from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -779,7 +779,7 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    github_token = retrieve_github_token(github_token)
+    github_token = retrieve_github_token(github_token, description="airflow-ci-upgrade", scopes="public_repo")
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
@@ -790,7 +790,8 @@ def upgrade(
     else:
         console_print(
             "[warning]Could not retrieve GitHub token from --github-token, gh CLI, or token env. "
-            "Commands may fail if they require authentication.[/]"
+            "Commands may fail if they require authentication. "
+            f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
     # All upgrade commands run locally with check=False to continue on errors.
