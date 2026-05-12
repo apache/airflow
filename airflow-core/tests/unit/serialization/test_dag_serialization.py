@@ -3836,7 +3836,13 @@ def test_dag_schema_defaults_optimization():
         assert field not in dag_data, f"Schema default field '{field}' should be excluded"
 
     # Config-driven fields have no schema default and are always present on the wire
-    for field in ("catchup", "max_active_runs", "max_active_tasks", "max_consecutive_failed_dag_runs", "disable_bundle_versioning"):
+    for field in (
+        "catchup",
+        "max_active_runs",
+        "max_active_tasks",
+        "max_consecutive_failed_dag_runs",
+        "disable_bundle_versioning",
+    ):
         assert field in dag_data, f"Config-driven field '{field}' must always be serialised"
 
     # None fields should also be excluded
@@ -3916,6 +3922,12 @@ def test_dag_schema_defaults_optimization():
             {"dag_id": "test_dag_catchup_override", "catchup": False},
             {"catchup": False},
             id="catchup_false_with_catchup_by_default_true",
+        ),
+        pytest.param(
+            {("dag_processor", "disable_bundle_versioning"): "False"},
+            {"dag_id": "test_dag_disable_bundle_versioning", "disable_bundle_versioning": True},
+            {"disable_bundle_versioning": True},
+            id="disable_bundle_versioning_true_with_cfg_false",
         ),
     ],
 )
