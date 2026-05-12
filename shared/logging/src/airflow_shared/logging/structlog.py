@@ -810,12 +810,14 @@ def reconfigure_logger(
 
 
 def clear_structlog_shared_lock(log_file_descriptor: IO[Any]):
+    """Temporary workaround that prevents a memory leak in the supervisor by removing the FD reference from WRITE_LOCKS."""
+    # TODO: remove this logic and bump the structlog version when the next release (possibly 26.1.0) is out
     try:
         from structlog._output import WRITE_LOCKS
     except ImportError:
         WRITE_LOCKS = None  # type: ignore[assignment]
 
-    if WRITE_LOCKS is not None:
+    if WRITE_LOCKS is not None and isinstance(WRITE_LOCKS, dict):
         WRITE_LOCKS.pop(log_file_descriptor, None)
 
 
