@@ -115,6 +115,23 @@ application/vnd.elasticsearch+json; compatible-with=<major>`` (and the matching
     [elasticsearch]
     es_compat_with = 8
 
+Only a positive integer major version is accepted (``"7"``, ``"8"``, ``"9"``);
+any other value (e.g. ``"v8"``, ``"8.0"``) fails fast with an
+``AirflowConfigException`` at client construction time so the misconfiguration
+is obvious in the worker startup log instead of producing a per-request 400
+storm.
+
+.. note::
+
+   The fix is installed at the **transport layer** (a wrapper around
+   ``client.transport.perform_request``) and therefore overrides the
+   per-API-method ``Accept`` / ``Content-Type`` headers that elasticsearch-py
+   negotiates from its own client major. Constructor-level ``headers=`` on
+   ``Elasticsearch.__init__`` and the ``elasticsearch_configs`` section do
+   **not** work for this purpose — elasticsearch-py re-applies its own
+   ``compatible-with=<client_major>`` headers right before the request goes
+   out, after any constructor headers.
+
 When the option is unset the client behaves as before (negotiating its own
 major version).
 

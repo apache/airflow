@@ -26,6 +26,7 @@ docstring for the regression context.
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import TYPE_CHECKING
 
@@ -92,16 +93,23 @@ def apply_compat_with(client: elasticsearch.Elasticsearch) -> elasticsearch.Elas
     sub = rf"application/vnd.elasticsearch+\g<1>; compatible-with={compat}"
     original_perform_request = transport.perform_request
 
-    def perform_request(method, target, *, body=None, headers=None, **kwargs):  # type: ignore[no-untyped-def]
+    # Accept ``*args, **kwargs`` so the wrapper survives future elastic_transport
+    # ``perform_request`` signature changes (new keyword-only params, reordered
+    # positionals). ``functools.wraps`` preserves the original ``__name__`` /
+    # ``__doc__`` / ``__wrapped__`` for tooling and introspection.
+    @functools.wraps(original_perform_request)
+    def perform_request(*args, **kwargs):  # type: ignore[no-untyped-def]
+        headers = kwargs.get("headers")
         if not headers:
-            return original_perform_request(method, target, body=body, headers=headers, **kwargs)
+            return original_perform_request(*args, **kwargs)
         # Walk every key case-insensitively so a future elastic_transport that
         # forwards PascalCase headers does not silently bypass the rewrite.
         merged = dict(headers)
         for key in list(merged):
             if key.lower() in ("accept", "content-type") and merged[key]:
                 merged[key] = _COMPAT_MIMETYPE_RE.sub(sub, merged[key])
-        return original_perform_request(method, target, body=body, headers=merged, **kwargs)
+        kwargs["headers"] = merged
+        return original_perform_request(*args, **kwargs)
 
     # ``setattr`` instead of direct attribute assignment so mypy does not flag a
     # ``method-assign`` error — we are *intentionally* shadowing the bound method
