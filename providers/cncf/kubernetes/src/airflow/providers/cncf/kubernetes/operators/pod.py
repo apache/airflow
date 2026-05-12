@@ -29,7 +29,7 @@ import re
 import shlex
 import string
 from collections.abc import Callable, Container, Iterable, Sequence
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
@@ -657,10 +657,8 @@ class KubernetesPodOperator(BaseOperator):
                 finally:
                     # Stop watching events
                     events_task.cancel()
-                    try:
+                    with suppress(asyncio.CancelledError):
                         await events_task
-                    except asyncio.CancelledError:
-                        pass
 
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
@@ -927,19 +925,19 @@ class KubernetesPodOperator(BaseOperator):
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
         )
-        container_state = trigger.define_container_state(self.pod) if self.pod else None
+        pod_container_state = trigger.define_pod_container_state(self.pod) if self.pod else None
         if context and (
-            container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
+            pod_container_state == ContainerState.TERMINATED or pod_container_state == ContainerState.FAILED
         ):
             self.log.info("Skipping deferral as pod is already in a terminal state")
             self.trigger_reentry(
                 context=context,
                 event={
-                    "status": "failed" if container_state == ContainerState.FAILED else "success",
+                    "status": "failed" if pod_container_state == ContainerState.FAILED else "success",
                     "namespace": trigger.pod_namespace,
                     "name": trigger.pod_name,
                     "message": "Container failed"
-                    if container_state == ContainerState.FAILED
+                    if pod_container_state == ContainerState.FAILED
                     else "Container succeeded",
                     "last_log_time": last_log_time,
                     **(self.trigger_kwargs or {}),

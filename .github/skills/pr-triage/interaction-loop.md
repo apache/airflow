@@ -4,9 +4,8 @@
 # Interaction loop
 
 This file documents how the skill **presents** proposals to the
-maintainer. The classification (from [`classify.md`](classify.md))
-and suggestion (from
-[`suggested-actions.md`](suggested-actions.md)) steps are
+maintainer. The classification + action selection (from
+[`classify-and-act.md`](classify-and-act.md)) is
 deterministic; this step is where the maintainer's time is
 actually spent. Every optimisation here translates directly
 into maintainer velocity.
@@ -229,7 +228,7 @@ previews per-PR.
 
 ## Optimistic lock (re-check before mutate)
 
-Between the fetch (Step 1 / 2) and the mutation (Step 5) the
+Between the fetch (Step 1 / 2) and the mutation (Step 4) the
 contributor may have pushed a new commit. Before executing any
 action for a given PR, re-check the PR's `head_sha` against
 the one captured at fetch time:

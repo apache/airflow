@@ -17,19 +17,20 @@
 
 ---
 package-name: apache-airflow-providers-openlineage
-name: OpenLineage Airflow
+name: OpenLineage
 description: |
   `OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.
   At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 state: ready
 lifecycle: production
-source-date-epoch: 1776779132
+source-date-epoch: 1777991095
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.16.0
   - 2.15.0
   - 2.14.0
   - 2.13.0

@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines -- virtualized Gantt body markup is kept in one file for readability */
 import { Badge, Box, Flex, Text } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
@@ -86,11 +84,9 @@ const toTooltipSummary = (
   }
 
   return {
-    // eslint-disable-next-line unicorn/no-null
     child_states: null,
     max_end_date: dayjs(segment.x[1]).toISOString(),
     min_start_date: dayjs(segment.x[0]).toISOString(),
-    // eslint-disable-next-line unicorn/no-null
     state: segment.state ?? null,
     task_display_name: segment.y,
     task_id: segment.taskId,

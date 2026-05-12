@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import tempfile
@@ -154,6 +155,22 @@ class TestTimeoutAsyncK8sApiClient:
             assert call_kwargs["kwargs_arg1"] == "fake"
             assert call_kwargs["_request_timeout"] == expected_timeout
             assert out == "ok"
+
+    @pytest.mark.asyncio
+    async def test_accepts_configuration_parameter(self):
+        """Constructor forwards configuration= to ApiClient so each instance is isolated."""
+        config = async_client.Configuration()
+        config.host = "https://test-cluster.example.com"
+        client = _TimeoutAsyncK8sApiClient(configuration=config)
+        assert client.configuration is config
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_no_arg_construction_works(self):
+        """No-arg construction must still work for backwards compatibility."""
+        client = _TimeoutAsyncK8sApiClient()
+        assert client is not None
+        await client.close()
 
 
 @pytest.fixture
@@ -1935,3 +1952,98 @@ class TestAsyncKubernetesHook:
             ]
         )
         mock_sleep.assert_awaited_once_with(10)
+
+    # -------------------------------------------------------------------------
+    # Tests for the per-instance Configuration isolation fix
+    # -------------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config_from_dict")
+    async def test_load_config_initialises_client_configuration(self, mock_load):
+        """_load_config allocates a fresh per-instance Configuration when none was supplied."""
+        mock_load.return_value = None
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_dict={"a": "b"})
+        assert hook.client_configuration is None
+
+        await hook._load_config()
+
+        assert isinstance(hook.client_configuration, async_client.Configuration)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_incluster_config")
+    async def test_load_config_incluster_passes_client_configuration(self, mock_incluster):
+        """load_incluster_config is called with the per-instance client_configuration."""
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=True)
+
+        await hook._load_config()
+
+        mock_incluster.assert_called_once_with(client_configuration=hook.client_configuration)
+        assert isinstance(hook.client_configuration, async_client.Configuration)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config_from_dict")
+    async def test_load_config_config_dict_passes_client_configuration(self, mock_load):
+        """load_kube_config_from_dict is called with the per-instance client_configuration."""
+        mock_load.return_value = None
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_dict={"a": "b"})
+
+        await hook._load_config()
+
+        mock_load.assert_called_once()
+        _, kwargs = mock_load.call_args
+        assert "client_configuration" in kwargs
+        assert kwargs["client_configuration"] is hook.client_configuration
+        assert isinstance(hook.client_configuration, async_client.Configuration)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config_from_dict")
+    async def test_get_conn_passes_client_configuration_to_async_client(self, mock_load):
+        """get_conn passes the per-instance configuration= to _TimeoutAsyncK8sApiClient."""
+        mock_load.return_value = None
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_dict={"a": "b"})
+
+        with mock.patch(HOOK_MODULE + "._TimeoutAsyncK8sApiClient") as mock_client_cls:
+            mock_client_cls.return_value.close = mock.AsyncMock()
+            async with hook.get_conn():
+                pass
+
+        mock_client_cls.assert_called_once_with(configuration=hook.client_configuration)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config_from_dict")
+    async def test_concurrent_hooks_have_isolated_configurations(self, mock_load):
+        """Two concurrent hooks for different clusters each use an independent Configuration.
+
+        This is the core regression test for the race condition: before the fix,
+        load_kube_config_from_dict was called with client_configuration=None, causing it
+        to overwrite the global kubernetes_asyncio Configuration via Configuration.set_default().
+        Concurrent triggerer coroutines for different clusters would interleave at the await
+        inside load_kube_config_from_dict and produce a mixed global state (e.g. cluster-a's
+        server URL paired with cluster-b's bearer token).
+        """
+
+        async def populate_config(config_dict, context, client_configuration):
+            # Yield to the event loop so concurrent coroutines can interleave,
+            # simulating the await points inside the real load_kube_config_from_dict.
+            await asyncio.sleep(0)
+            client_configuration.host = config_dict["server"]
+
+        mock_load.side_effect = populate_config
+
+        hook_a = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_dict={"server": "https://cluster-a.example.com"},
+        )
+        hook_b = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_dict={"server": "https://cluster-b.example.com"},
+        )
+
+        await asyncio.gather(hook_a._load_config(), hook_b._load_config())
+
+        # Each hook must own a separate, non-contaminated Configuration object.
+        assert hook_a.client_configuration is not hook_b.client_configuration
+        assert hook_a.client_configuration.host == "https://cluster-a.example.com"
+        assert hook_b.client_configuration.host == "https://cluster-b.example.com"

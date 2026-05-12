@@ -26,6 +26,7 @@ import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEven
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const AssetEvents = () => {
@@ -35,6 +36,7 @@ export const AssetEvents = () => {
   const { t: translate } = useTranslation(["assets"]);
 
   const [assetNameSearch, setAssetNameSearch] = useState(searchParams.get(NAME_PATTERN) ?? "");
+  const advancedSearch = useAdvancedSearch("asset-events");
 
   const parsedMapIndex = parseInt(mapIndex, 10);
 
@@ -85,7 +87,9 @@ export const AssetEvents = () => {
   const { data: assetEventsData, isLoading } = useAssetServiceGetAssetEvents(
     {
       limit: pagination.pageSize,
-      namePrefixPattern: assetNameSearch || undefined,
+      ...(advancedSearch.enabled
+        ? { namePattern: assetNameSearch || undefined }
+        : { namePrefixPattern: assetNameSearch || undefined }),
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       sourceDagId: dagId,
@@ -103,6 +107,7 @@ export const AssetEvents = () => {
     <Box>
       <Box maxWidth="500px" mb={4}>
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={assetNameSearch}
           hotkeyDisabled
           onChange={handleSearchChange}

@@ -80,6 +80,8 @@ class ErrorType(enum.Enum):
     VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
     XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
     ASSET_NOT_FOUND = "ASSET_NOT_FOUND"
+    TASK_STATE_NOT_FOUND = "TASK_STATE_NOT_FOUND"
+    ASSET_STATE_NOT_FOUND = "ASSET_STATE_NOT_FOUND"
     DAGRUN_ALREADY_EXISTS = "DAGRUN_ALREADY_EXISTS"
     GENERIC_ERROR = "GENERIC_ERROR"
     API_SERVER_ERROR = "API_SERVER_ERROR"
@@ -241,6 +243,7 @@ class DagRunTriggerException(AirflowException):
         dag_run_id: str,
         conf: dict | None,
         logical_date=None,
+        run_after=None,
         reset_dag_run: bool,
         skip_when_already_exists: bool,
         wait_for_completion: bool,
@@ -255,6 +258,7 @@ class DagRunTriggerException(AirflowException):
         self.dag_run_id = dag_run_id
         self.conf = conf
         self.logical_date = logical_date
+        self.run_after = run_after
         self.reset_dag_run = reset_dag_run
         self.skip_when_already_exists = skip_when_already_exists
         self.wait_for_completion = wait_for_completion
@@ -301,7 +305,7 @@ class XComNotFound(AirflowException):
         )
 
 
-class ParamValidationError(AirflowException):
+class ParamValidationError(AirflowException, ValueError):
     """Raise when DAG params is invalid."""
 
 

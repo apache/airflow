@@ -28,7 +28,7 @@ from cachetools import LRUCache, TTLCache
 from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
@@ -93,7 +93,7 @@ class DBDagBag:
             self._dags[serdag.dag_version_id] = dag
             cache_size = len(self._dags)
         if self._use_cache:
-            Stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
+            stats.gauge("api_server.dag_bag.cache_size", cache_size, rate=0.1)
         return dag
 
     def _get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
@@ -103,7 +103,7 @@ class DBDagBag:
 
         if dag:
             if self._use_cache:
-                Stats.incr("api_server.dag_bag.cache_hit")
+                stats.incr("api_server.dag_bag.cache_hit")
             return dag
 
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
@@ -118,9 +118,9 @@ class DBDagBag:
         if self._use_cache:
             with self._lock:
                 if dag := self._dags.get(version_id):
-                    Stats.incr("api_server.dag_bag.cache_hit")
+                    stats.incr("api_server.dag_bag.cache_hit")
                     return dag
-            Stats.incr("api_server.dag_bag.cache_miss")
+            stats.incr("api_server.dag_bag.cache_miss")
         return self._read_dag(serdag)
 
     def get_dag(self, version_id: UUID | str, session: Session) -> SerializedDAG | None:
@@ -152,8 +152,8 @@ class DBDagBag:
             self._dags.clear()
 
         if self._use_cache:
-            Stats.incr("api_server.dag_bag.cache_clear")
-            Stats.gauge("api_server.dag_bag.cache_size", 0)
+            stats.incr("api_server.dag_bag.cache_clear")
+            stats.gauge("api_server.dag_bag.cache_size", 0)
         return count
 
     @staticmethod

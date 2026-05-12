@@ -36,6 +36,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
 import { Schedule } from "../DagsList/Schedule";
+import { DeadlineAlertsBadge } from "./DeadlineAlertsBadge";
 
 type LatestRunInfo = {
   dag_id: string;
@@ -64,12 +65,13 @@ export const Header = ({
     : [
         {
           label: translate("dagDetails.nextRun"),
-          value: Boolean(dag?.next_dagrun_run_after) ? (
-            <DagRunInfo
-              logicalDate={dag?.next_dagrun_logical_date}
-              runAfter={dag?.next_dagrun_run_after as string}
-            />
-          ) : undefined,
+          value:
+            !dag?.is_paused && Boolean(dag?.next_dagrun_run_after) ? (
+              <DagRunInfo
+                logicalDate={dag?.next_dagrun_logical_date}
+                runAfter={dag?.next_dagrun_run_after as string}
+              />
+            ) : undefined,
         },
       ];
 
@@ -131,6 +133,7 @@ export const Header = ({
       actions={
         dag === undefined ? undefined : (
           <>
+            <DeadlineAlertsBadge dagId={dag.dag_id} />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
                 header={translate("dagDetails.documentation")}

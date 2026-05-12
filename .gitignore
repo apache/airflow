@@ -136,8 +136,10 @@ ENV/
 .claude/*
 !.claude/skills/
 .claude/skills/*
+!.claude/skills/aip-user-stories
 !.claude/skills/pr-stats
 !.claude/skills/pr-triage
+!.claude/skills/maintainer-review
 
 # Kiro
 .kiro/
