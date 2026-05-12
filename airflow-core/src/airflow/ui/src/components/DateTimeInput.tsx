@@ -74,7 +74,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
     onDateChange({
       ...event,
       target: { ...event.currentTarget, value: localFormat },
-    } as unknown as ChangeEvent<HTMLInputElement>);
+    });
     // Override the display set by onDateChange (which uses DEFAULT_DATETIME_FORMAT)
     // so the datetime-local input keeps the YYYY-MM-DDTHH:mm format it requires.
     setDisplayDate(localFormat);
