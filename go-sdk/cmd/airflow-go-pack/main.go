@@ -65,7 +65,17 @@ Examples:
   go tool airflow-go-pack ./cmd/my-bundle -- -trimpath -tags=prod
   go tool airflow-go-pack --executable ./build/example --source main.go
 `,
-		Args: cobra.MaximumNArgs(1),
+		// Only count args BEFORE "--" toward the positional limit; args
+		// after "--" are forwarded verbatim to `go build` and must not
+		// inflate the count (e.g. `-- -ldflags "-X main.foo=bar"`).
+		Args: func(cmd *cobra.Command, args []string) error {
+			dashAt := cmd.ArgsLenAtDash()
+			pkgArgs := args
+			if dashAt >= 0 {
+				pkgArgs = args[:dashAt]
+			}
+			return cobra.MaximumNArgs(1)(cmd, pkgArgs)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Anything after "--" is forwarded to the internal `go build`
 			// invocation. ArgsLenAtDash() returns the count of args before
