@@ -65,7 +65,7 @@ with DAG(
         vector_bucket_name=bucket_name,
         index_name=index_name,
         data_type="float32",
-        dimension=128,
+        dimension=4,
         distance_metric="cosine",
     )
     # [END howto_operator_s3vectors_create_index]
