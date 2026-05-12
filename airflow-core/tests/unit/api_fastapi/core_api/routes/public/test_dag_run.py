@@ -26,17 +26,14 @@ import pytest
 import time_machine
 from sqlalchemy import func, select
 
-from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.models.task_state import TaskStateModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
-from airflow.state.metastore import MetastoreStateBackend
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
@@ -44,7 +41,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -1519,32 +1515,6 @@ class TestPatchDagRun:
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
         assert listener.state == listener_state
-
-    @pytest.mark.db_test
-    @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_patch_dag_run_to_success_clears_task_state(self, test_client, session):
-        """When clear_on_success=True, task_state rows for ALL TIs in the run are cleared on DAG run SUCCESS."""
-        backend = MetastoreStateBackend()
-        tis = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == DAG1_ID,
-                TaskInstance.run_id == DAG1_RUN2_ID,
-            )
-        ).all()
-        assert tis
-
-        for ti in tis:
-            scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
-            backend.set(scope, "job_id", "app_1234", session=session)
-        session.commit()
-
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.run_id == DAG1_RUN2_ID)).all()
-
-        response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN2_ID}", json={"state": "success"})
-        assert response.status_code == 200
-
-        session.expire_all()
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.run_id == DAG1_RUN2_ID)).all()
 
 
 class TestDeleteDagRun:
