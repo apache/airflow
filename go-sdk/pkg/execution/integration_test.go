@@ -61,7 +61,7 @@ func buildBundle(t *testing.T, register func(bundlev1.Registry)) bundlev1.Bundle
 
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask)
+		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -84,7 +84,7 @@ func TestTaskRunnerSuccess(t *testing.T) {
 
 func TestTaskRunnerFailure(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask)
+		r.AddDag("test_dag").AddTask(failingTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -108,7 +108,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask)
+		r.AddDag("test_dag").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -131,7 +131,7 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 
 func TestTaskRunnerPanic(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask)
+		r.AddDag("test_dag").AddTask(panicTask, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := &StartupDetails{
@@ -241,7 +241,7 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTask(simpleTask)
+			r.AddDag("dag1").AddTask(simpleTask, bundlev1.TaskSpec{}, nil)
 			return nil
 		},
 	}

@@ -33,8 +33,14 @@ type (
 	Bundle = worker.Bundle
 
 	Dag interface {
-		AddTask(fn any, spec ...TaskSpec)
-		AddTaskWithName(taskId string, fn any, spec ...TaskSpec)
+		// AddTask registers fn as a task in this Dag using fn's Go name as
+		// the task id. spec carries optional per-task configuration (pass
+		// TaskSpec{} for defaults). depends lists task ids in the same Dag
+		// that must run before this one; each must already be registered.
+		// Pass nil for no dependencies.
+		AddTask(fn any, spec TaskSpec, depends []string)
+		// AddTaskWithName is AddTask with an explicit task id.
+		AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string)
 	}
 
 	// Registry defines the interface that lets user code add dags and tasks, and extends Bundle for execution
@@ -120,6 +126,10 @@ type (
 		// Spec carries the optional per-task configuration supplied at
 		// registration. The zero value means "no overrides".
 		Spec TaskSpec
+		// Downstream lists task ids that depend on this task, populated as
+		// later tasks declare this id in their AddTask `depends` argument.
+		// Order is registration order; the serializer sorts before emit.
+		Downstream []string
 	}
 
 	// DagInfo describes a registered dag together with its tasks in
@@ -154,12 +164,12 @@ type dagShim struct {
 	registry *registry
 }
 
-func (d dagShim) AddTask(fn any, spec ...TaskSpec) {
-	d.registry.registerTask(d.dagId, fn, optionalSpec(spec, "AddTask"))
+func (d dagShim) AddTask(fn any, spec TaskSpec, depends []string) {
+	d.registry.registerTask(d.dagId, fn, spec, depends)
 }
 
-func (d dagShim) AddTaskWithName(taskId string, fn any, spec ...TaskSpec) {
-	d.registry.registerTaskWithName(d.dagId, taskId, fn, optionalSpec(spec, "AddTaskWithName"))
+func (d dagShim) AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string) {
+	d.registry.registerTaskWithName(d.dagId, taskId, fn, spec, depends)
 }
 
 // Bool returns a pointer to b. Use it for the *bool fields on TaskSpec /
@@ -222,7 +232,7 @@ func (r *registry) AddDag(dagId string, spec ...DagSpec) Dag {
 	return dagShim{dagId, r}
 }
 
-func (r *registry) registerTask(dagId string, fn any, spec TaskSpec) {
+func (r *registry) registerTask(dagId string, fn any, spec TaskSpec, depends []string) {
 	val := reflect.ValueOf(fn)
 
 	if val.Kind() != reflect.Func {
@@ -231,10 +241,15 @@ func (r *registry) registerTask(dagId string, fn any, spec TaskSpec) {
 
 	fnName := getFnName(val)
 
-	r.registerTaskWithName(dagId, fnName, fn, spec)
+	r.registerTaskWithName(dagId, fnName, fn, spec, depends)
 }
 
-func (r *registry) registerTaskWithName(dagId, taskId string, fn any, spec TaskSpec) {
+func (r *registry) registerTaskWithName(
+	dagId, taskId string,
+	fn any,
+	spec TaskSpec,
+	depends []string,
+) {
 	task, err := NewTaskFunction(fn)
 	if err != nil {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
@@ -259,6 +274,29 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any, spec TaskS
 
 	if _, exists := dagTasks[taskId]; exists {
 		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
+	}
+
+	// Resolve depends to upstream TaskInfo entries, validating each exists.
+	// We dedupe so a repeated id in `depends` only records one downstream
+	// edge on the parent.
+	seen := make(map[string]bool, len(depends))
+	for _, dep := range depends {
+		if dep == taskId {
+			panic(fmt.Errorf("task %q cannot depend on itself in DAG %q", taskId, dagId))
+		}
+		if seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		parent, ok := r.taskInfo[dagId][dep]
+		if !ok {
+			panic(fmt.Errorf(
+				"task %q depends on unknown task %q in DAG %q; register upstream tasks first",
+				taskId, dep, dagId,
+			))
+		}
+		parent.Downstream = append(parent.Downstream, taskId)
+		r.taskInfo[dagId][dep] = parent
 	}
 
 	dagTasks[taskId] = task
