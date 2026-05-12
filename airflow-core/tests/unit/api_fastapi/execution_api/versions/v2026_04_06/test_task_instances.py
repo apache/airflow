@@ -24,6 +24,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -125,7 +126,7 @@ class TestDagRunStartDateNullableBackwardCompat:
 
         assert response.status_code == 200
         assert dag_run["start_date"] is not None, "start_date should not be None when DagRun has started"
-        assert dag_run["start_date"] == TIMESTAMP.isoformat().replace("+00:00", "Z")
+        assert dag_run["start_date"] == from_datetime_to_zulu_without_ms(TIMESTAMP)
 
 
 class TestNextKwargsBackwardCompat:

@@ -77,7 +77,7 @@ gh api graphql \
 
 ---
 
-## Closed / merged triaged PRs (since cutoff)
+## Closed-merged-triaged PRs
 
 Table 1 needs PRs that were closed or merged since the cutoff date AND had a triage comment posted at some point in their lifetime. Use GitHub's search with an `-is:open` filter plus a `closed:>=<cutoff>` date predicate, then client-side scan the `comments` subfield for the `Pull Request quality criteria` marker.
 
@@ -145,7 +145,7 @@ In this case the visible body contains no "Pull Request quality criteria" text a
 
 Raw bodies are slightly noisier (Markdown formatting characters) but the marker string is distinctive enough that false positives are not a concern on `apache/airflow`.
 
-### Known limitation — GitHub search-index lag for closed-since counts
+### Known limitation
 
 Two GitHub-search behaviours conspire to make Table 1 hard to get right:
 
@@ -281,6 +281,41 @@ On REST responses that contain a PR body with an invalid JSON escape
 sequence (e.g. `\z`, `\e`), even `strict=False` fails with
 `Invalid \escape`. These are rare but possible — fall through to
 `gh api --jq` for those calls.
+
+---
+
+## Ready-label timeline
+
+Needed for the dashboard's "Ready-for-review trend" chart (see [`aggregate.md#ready-for-review-trend-by-top-areas`](aggregate.md#ready-for-review-trend-by-top-areas)). The open-PRs query above tells us *which* PRs currently carry the `ready for maintainer review` label, but not *when* the label was added. Without that timestamp the trend chart can't show growth.
+
+Run an aliased GraphQL query, **30 PRs per call**, that fetches each PR's `LabeledEvent` timeline filtered to the relevant label:
+
+```graphql
+query {
+  repository(owner:"<owner>",name:"<name>") {
+    pr12345: pullRequest(number:12345) {
+      number
+      timelineItems(last:50, itemTypes:[LABELED_EVENT]) {
+        nodes {
+          ... on LabeledEvent {
+            createdAt
+            label { name }
+          }
+        }
+      }
+    }
+    # … repeated for the other 29 PRs in the batch
+  }
+}
+```
+
+Per-PR processing: pick the most recent `LabeledEvent` whose `label.name == "ready for maintainer review"`. That `createdAt` is the PR's `ready_at` timestamp. PRs that never had the label (shouldn't happen — input set is filtered to currently-labelled PRs) are dropped silently.
+
+`itemTypes:[LABELED_EVENT]` is critical — without it the timeline returns every event (commits, comments, reviews) and blows the complexity budget. With the filter, the per-PR cost is tiny.
+
+Budget: ~7 GraphQL calls for ~200 currently-ready PRs on `apache/airflow`. Well under the per-session ceiling.
+
+Cache the per-PR `ready_at` in `/tmp/pr-stats-cache-<repo-slug>.json` keyed by `(pr_number, head_sha)` — same convention as the rest of the cache. The label-add timestamp is stable across head SHAs (it's a label event, not a commit event), so the cache hit rate is high.
 
 ---
 

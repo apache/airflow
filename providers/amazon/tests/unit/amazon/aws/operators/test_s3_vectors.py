@@ -18,11 +18,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.operators.s3_vectors import (
+    S3VectorsCreateIndexOperator,
     S3VectorsCreateVectorBucketOperator,
+    S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
+    S3VectorsPutVectorsOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -112,3 +116,137 @@ class TestS3VectorsDeleteVectorBucketOperator:
             vector_bucket_name=BUCKET_NAME,
         )
         validate_template_fields(op)
+
+
+INDEX_NAME = "test-index"
+INDEX_ARN = "arn:aws:s3vectors:us-east-1:123456789012:vector-bucket/test-bucket/index/test-index"
+
+
+class TestS3VectorsCreateIndexOperator:
+    def setup_method(self):
+        self.operator = S3VectorsCreateIndexOperator(
+            task_id="create_index",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+            data_type="float32",
+            dimension=128,
+        )
+
+    def test_execute(self):
+        mock_conn = MagicMock()
+        mock_conn.create_index.return_value = {"indexArn": INDEX_ARN}
+        self.operator.hook.conn = mock_conn
+
+        result = self.operator.execute({})
+
+        mock_conn.create_index.assert_called_once_with(
+            vectorBucketName=BUCKET_NAME,
+            indexName=INDEX_NAME,
+            dataType="float32",
+            dimension=128,
+            distanceMetric="cosine",
+        )
+        assert result == INDEX_ARN
+
+    def test_execute_with_metadata_config(self):
+        meta_config = {"nonFilterableMetadataKeys": ["key1"]}
+        op = S3VectorsCreateIndexOperator(
+            task_id="create_index",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+            data_type="float32",
+            dimension=128,
+            distance_metric="euclidean",
+            metadata_configuration=meta_config,
+        )
+        mock_conn = MagicMock()
+        mock_conn.create_index.return_value = {"indexArn": INDEX_ARN}
+        op.hook.conn = mock_conn
+
+        result = op.execute({})
+
+        call_kwargs = mock_conn.create_index.call_args[1]
+        assert call_kwargs["distanceMetric"] == "euclidean"
+        assert call_kwargs["metadataConfiguration"] == meta_config
+        assert result == INDEX_ARN
+
+    def test_execute_skip_existing(self):
+        mock_conn = MagicMock()
+        mock_conn.create_index.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateIndex",
+        )
+        mock_conn.get_index.return_value = {"index": {"indexArn": INDEX_ARN}}
+        self.operator.hook.conn = mock_conn
+
+        result = self.operator.execute({})
+        assert result == INDEX_ARN
+
+    def test_execute_fail_on_conflict(self):
+        op = S3VectorsCreateIndexOperator(
+            task_id="create_index",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+            data_type="float32",
+            dimension=128,
+            if_exists="fail",
+        )
+        mock_conn = MagicMock()
+        mock_conn.create_index.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateIndex",
+        )
+        op.hook.conn = mock_conn
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3VectorsDeleteIndexOperator:
+    def setup_method(self):
+        self.operator = S3VectorsDeleteIndexOperator(
+            task_id="delete_index",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+        )
+
+    def test_execute(self):
+        mock_conn = MagicMock()
+        self.operator.hook.conn = mock_conn
+
+        self.operator.execute({})
+
+        mock_conn.delete_index.assert_called_once_with(vectorBucketName=BUCKET_NAME, indexName=INDEX_NAME)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3VectorsPutVectorsOperator:
+    VECTORS = [{"key": "vec1", "data": {"float32": [0.1, 0.2, 0.3]}}]
+
+    def setup_method(self):
+        self.operator = S3VectorsPutVectorsOperator(
+            task_id="put_vectors",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+            vectors=self.VECTORS,
+        )
+
+    def test_execute(self):
+        mock_conn = MagicMock()
+        self.operator.hook.conn = mock_conn
+
+        self.operator.execute({})
+
+        mock_conn.put_vectors.assert_called_once_with(
+            vectorBucketName=BUCKET_NAME,
+            indexName=INDEX_NAME,
+            vectors=self.VECTORS,
+        )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

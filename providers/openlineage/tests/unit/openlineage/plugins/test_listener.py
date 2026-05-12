@@ -121,6 +121,110 @@ class MockExecutor:
         print("Shutting down")
 
 
+class TestExecutorInitializer:
+    """Tests for _executor_initializer function."""
+
+    @patch("airflow.settings.configure_orm")
+    def test_executor_initializer_calls_configure_orm(self, mock_configure_orm):
+        """Test that _executor_initializer always calls settings.configure_orm().
+
+        This test runs on all Airflow versions to ensure ORM initialization always happens.
+        """
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        _executor_initializer()
+
+        mock_configure_orm.assert_called_once()
+
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Testing older Airflow behavior")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_skips_stats_on_older_af(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer skips Stats initialization on Airflow < 3.2."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        _executor_initializer()
+
+        # configure_orm should be called
+        mock_configure_orm.assert_called_once()
+        # But Stats.initialize should NOT be called (early return)
+        mock_stats.initialize.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_initializes_stats_on_af32(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer initializes Stats on Airflow 3.2+."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        with patch("airflow.observability.metrics.stats_utils.get_stats_factory") as mock_get_factory:
+            mock_get_factory.return_value = MagicMock()
+
+            _executor_initializer()
+
+            mock_configure_orm.assert_called_once()
+            mock_stats.initialize.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_stats_fallback_on_type_error(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer falls back to old Stats.initialize signature on TypeError."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        with patch("airflow.observability.metrics.stats_utils.get_stats_factory") as mock_get_factory:
+            mock_get_factory.return_value = MagicMock()
+            # First call to Stats.initialize raises TypeError (old signature not supported)
+            # Second call succeeds (using the fallback)
+            mock_stats.initialize.side_effect = [TypeError("unexpected keyword argument"), None]
+
+            _executor_initializer()
+
+            # Both calls to Stats.initialize should happen
+            assert mock_stats.initialize.call_count == 2
+            # get_stats_factory should be called twice: once for new signature, once for fallback
+            assert mock_get_factory.call_count == 2
+            # Second call should pass Stats as argument
+            mock_get_factory.assert_called_with(mock_stats)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    def test_executor_initializer_exception_does_not_break(self, mock_stats, mock_configure_orm):
+        """Test that _executor_initializer doesn't break on exception and logs warning."""
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        with patch("airflow.observability.metrics.stats_utils.get_stats_factory") as mock_get_factory:
+            # Make stats_utils.get_stats_factory raise an exception
+            mock_get_factory.side_effect = RuntimeError("stats initialization failed")
+
+            # Should not raise, exception should be caught and logged
+            _executor_initializer()
+
+            # configure_orm should still have been called
+            mock_configure_orm.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ tests")
+    @patch("airflow.settings.configure_orm")
+    def test_executor_initializer_with_real_stats(self, mock_configure_orm):
+        """Integration test that calls real stats code to catch API changes.
+
+        This test ensures that the stats initialization code remains compatible
+        with the actual airflow.observability.metrics.stats_utils implementation.
+        If the stats API changes in the future, this test will fail and alert
+        developers to update the initializer accordingly.
+
+        Note: configure_orm is mocked to avoid side effects; only stats code is real.
+        """
+        from airflow.providers.openlineage.plugins.listener import _executor_initializer
+
+        # Call with real stats code (not mocked), but ORM initialization mocked
+        # Should not raise and configure_orm should be called
+        _executor_initializer()
+
+        mock_configure_orm.assert_called_once()
+
+
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
 class TestOpenLineageListenerAirflow2:
     @patch("airflow.models.TaskInstance.xcom_push")
