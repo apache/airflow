@@ -402,6 +402,43 @@ def test_trigger_logger_fd_closed_when_removed(session):
     trigger_runner_supervisor.kill(force=False)
 
 
+@pytest.fixture
+def jobless_supervisor(mocker):
+    """Build a TriggerRunnerSupervisor with a mock Job, for testing request-handling paths
+    that don't depend on a real DB-backed Job.
+
+    Named ``jobless_supervisor`` for naming parity with main, where the supervisor's ``job``
+    parameter is genuinely optional (made optional in #66006 — not backported to v3-2-test).
+    The test that uses this fixture (``test_trigger_logger_fd_closed_when_upload_to_remote_raises``)
+    only exercises ``logger_cache``, ``running_triggers``, and ``_handle_request``, none of
+    which touch the ``job`` attribute, so a Mock(spec=Job) is sufficient.
+    """
+    import psutil
+
+    job = mocker.Mock(spec=Job)
+    job.id = 42
+    job.hostname = "test-host"
+
+    process = mocker.Mock(spec=psutil.Process, pid=42)
+    mock_stdin = mocker.Mock(spec=socket)
+    mock_stdin.write = mocker.Mock()
+    mock_stdin.sendall = mocker.Mock()
+
+    supervisor = TriggerRunnerSupervisor(
+        process_log=mocker.Mock(spec=FilteringBoundLogger),
+        id=uuid.uuid4(),
+        job=job,
+        pid=process.pid,
+        stdin=mock_stdin,
+        process=process,
+        capacity=10,
+    )
+    mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
+    mock_selector.select.return_value = []
+    supervisor.selector = mock_selector
+    return supervisor
+
+
 def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_supervisor):
     """If upload_to_remote() raises during finished-trigger cleanup, the FD must still be closed.
 
