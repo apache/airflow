@@ -3114,6 +3114,31 @@ class TestSchedulerJob:
         mock_executors[0].fail.assert_not_called()
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
+    def test_handle_stuck_queued_tasks_revokes_before_failing(self, dag_maker, session, mock_executors):
+        with dag_maker("test_revoke_stuck_queued_task_before_fail"):
+            EmptyOperator(task_id="op1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="op1", session=session)
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        session.add_all(
+            [
+                Log(event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT, task_instance=ti.key),
+                Log(event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT, task_instance=ti.key),
+            ]
+        )
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._maybe_requeue_stuck_ti(ti=ti, session=session, executor=mock_executors[0])
+
+        refreshed_ti = dr.get_task_instance(task_id="op1", session=session)
+        assert refreshed_ti.state == State.FAILED
+        mock_executors[0].revoke_task.assert_called_once()
+        mock_executors[0].fail.assert_called_once_with(ti.key)
+
+    @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
         """Verify that tasks stuck in queued will be rescheduled up to N times."""
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
