@@ -427,10 +427,13 @@ class TestOtelMetrics:
 
         call_kwargs = mock_provider.call_args.kwargs
         views = call_kwargs["views"]
-        assert len(views) == 1
-        view = views[0]
-        assert isinstance(view, View)
-        assert isinstance(view._aggregation, ExponentialBucketHistogramAggregation)
+        # First view is the instrument-type baseline; remaining views come from
+        # the pattern-keyed bucket map in histogram_buckets.
+        assert all(isinstance(v, View) for v in views)
+        baseline = views[0]
+        assert isinstance(baseline._aggregation, ExponentialBucketHistogramAggregation)
+        pattern_names = {v._instrument_name for v in views[1:]}
+        assert pattern_names == {"*_count", "*_duration", "*_delay"}
 
     def test_atexit_flush_on_process_exit(self):
         """
