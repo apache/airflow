@@ -895,7 +895,9 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_references = []
                 continue
-            referenced_assets = {assets[r.name, r.uri]: r.allow_producer_teams for r in references}
+            referenced_assets = {
+                assets[r.name, r.uri]: r.access_control.get("producer_teams", []) for r in references
+            }
             referenced_asset_ids = {a.id for a in referenced_assets}
             orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
