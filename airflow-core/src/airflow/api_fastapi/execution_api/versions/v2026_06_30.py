@@ -17,27 +17,12 @@
 
 from __future__ import annotations
 
-from pydantic import Field
-
-from airflow.api_fastapi.core_api.base import StrictBaseModel
+from cadwyn import VersionChange, endpoint
 
 
-class VariableResponse(StrictBaseModel):
-    """Variable schema for responses with fields that are needed for Runtime."""
+class AddVariableKeysEndpoint(VersionChange):
+    """Add GET /variables/keys endpoint for listing variable keys with optional prefix filter."""
 
-    key: str
-    val: str | None = Field(alias="value")
+    description = __doc__
 
-
-class VariablePostBody(StrictBaseModel):
-    """Request body schema for creating variables."""
-
-    value: str | None = Field(alias="val")
-    description: str | None = Field(default=None)
-
-
-class VariableKeysResponse(StrictBaseModel):
-    """Variable keys schema for list responses."""
-
-    keys: list[str]
-    total_entries: int
+    instructions_to_migrate_to_previous_version = (endpoint("/variables/keys", ["GET"]).didnt_exist,)

@@ -17,27 +17,19 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+import pytest
 
-from airflow.api_fastapi.core_api.base import StrictBaseModel
-
-
-class VariableResponse(StrictBaseModel):
-    """Variable schema for responses with fields that are needed for Runtime."""
-
-    key: str
-    val: str | None = Field(alias="value")
+pytestmark = pytest.mark.db_test
 
 
-class VariablePostBody(StrictBaseModel):
-    """Request body schema for creating variables."""
+@pytest.fixture
+def old_ver_client(client):
+    """Last released execution API before `GET /variables/keys` was added."""
+    client.headers["Airflow-API-Version"] = "2026-06-16"
+    return client
 
-    value: str | None = Field(alias="val")
-    description: str | None = Field(default=None)
 
+def test_variable_keys_endpoint_not_available_in_previous_version(old_ver_client):
+    response = old_ver_client.get("/execution/variables/keys")
 
-class VariableKeysResponse(StrictBaseModel):
-    """Variable keys schema for list responses."""
-
-    keys: list[str]
-    total_entries: int
+    assert response.status_code == 404
