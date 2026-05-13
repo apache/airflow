@@ -971,7 +971,7 @@ class TestPodManager:
             assert self.pod_manager.stop_watching_events is True
             assert mock_time_sleep.call_count == 3
             mock_log_info.assert_any_call(
-                "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+                "::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout
             )
             mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
 
@@ -1594,7 +1594,7 @@ class TestAsyncPodManager:
         )
         assert mock_time_sleep.call_count == 3
         mock_log_info.assert_any_call(
-            "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+            "::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout
         )
         mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
         assert self.async_pod_manager.stop_watching_events is True
