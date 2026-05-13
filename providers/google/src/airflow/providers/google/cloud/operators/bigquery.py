@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, SupportsAbs
 from google.api_core.exceptions import Conflict
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
+from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -2570,3 +2571,494 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
             )
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
+
+
+class BigQueryCreateRoutineOperator(GoogleCloudBaseOperator):
+    """
+    Create a BigQuery routine (UDF, stored procedure, table-valued function, or aggregate).
+
+    The routine is defined by a ``Routine`` resource as documented at
+    https://cloud.google.com/bigquery/docs/reference/rest/v2/routines#Routine. The full resource
+    may be passed via ``routine_resource``, or individual fields can be passed as keyword
+    arguments, which are merged into ``routine_resource`` at execute time.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateRoutineOperator`
+
+    :param dataset_id: The dataset that will own the routine.
+    :param routine_id: The identifier of the routine to create.
+    :param routine_resource: The routine resource as a dict or
+        :class:`~google.cloud.bigquery.routine.Routine`. If omitted, the resource is assembled
+        from the individual keyword arguments below.
+    :param project_id: Optional. The project that owns the dataset. Falls back to the connection's
+        default.
+    :param routine_type: Optional. One of ``"SCALAR_FUNCTION"``, ``"PROCEDURE"``,
+        ``"TABLE_VALUED_FUNCTION"``, ``"AGGREGATE_FUNCTION"``.
+    :param language: Optional. ``"SQL"`` or ``"JAVASCRIPT"``.
+    :param definition_body: Optional. The body of the routine (SQL or JavaScript).
+    :param arguments: Optional. Sequence of argument dicts in the Google API representation
+        (see the ``Routine.Argument`` schema).
+    :param return_type: Optional. The return type of the routine as a ``StandardSqlDataType``
+        dict.
+    :param return_table_type: Optional. The return table type for table-valued functions as a
+        ``StandardSqlTableType`` dict.
+    :param imported_libraries: Optional. URIs of Cloud Storage libraries to import (JavaScript
+        UDFs only).
+    :param determinism_level: Optional. Determinism level for the routine.
+    :param security_mode: Optional. Security mode (``"DEFINER"`` or ``"INVOKER"``).
+    :param data_governance_type: Optional. Data governance type for the routine.
+    :param description: Optional. Description of the routine.
+    :param remote_function_options: Optional. Options for remote functions.
+    :param spark_options: Optional. Options for Spark stored procedures.
+    :param if_exists: What to do if a routine with the same identifier already exists.
+        ``"fail"`` (default) raises, ``"skip"`` returns the existing routine, ``"replace"``
+        deletes the existing routine and creates the new one.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param location: The location of the BigQuery dataset.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts.
+    :param retry: A retry object used to retry requests.
+    :param timeout: The amount of time, in seconds, to wait for the request.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "routine_id",
+        "definition_body",
+        "arguments",
+        "routine_resource",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    template_fields_renderers = {"routine_resource": "json", "arguments": "json"}
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = BigQueryUIColors.TABLE.value
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        routine_id: str,
+        routine_resource: dict[str, Any] | Routine | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        routine_type: str | None = None,
+        language: str | None = None,
+        definition_body: str | None = None,
+        arguments: Sequence[dict[str, Any]] | None = None,
+        return_type: dict[str, Any] | None = None,
+        return_table_type: dict[str, Any] | None = None,
+        imported_libraries: Sequence[str] | None = None,
+        determinism_level: str | None = None,
+        security_mode: str | None = None,
+        data_governance_type: str | None = None,
+        description: str | None = None,
+        remote_function_options: dict[str, Any] | None = None,
+        spark_options: dict[str, Any] | None = None,
+        if_exists: str = "fail",
+        gcp_conn_id: str = "google_cloud_default",
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        if if_exists not in {"fail", "skip", "replace"}:
+            raise ValueError(f"`if_exists` must be one of 'fail', 'skip', 'replace'; got {if_exists!r}")
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.routine_id = routine_id
+        self.routine_resource = routine_resource
+        self.routine_type = routine_type
+        self.language = language
+        self.definition_body = definition_body
+        self.arguments = arguments
+        self.return_type = return_type
+        self.return_table_type = return_table_type
+        self.imported_libraries = imported_libraries
+        self.determinism_level = determinism_level
+        self.security_mode = security_mode
+        self.data_governance_type = data_governance_type
+        self.description = description
+        self.remote_function_options = remote_function_options
+        self.spark_options = spark_options
+        self.if_exists = if_exists
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+
+    def _build_resource(self) -> dict[str, Any]:
+        if isinstance(self.routine_resource, Routine):
+            resource = self.routine_resource.to_api_repr()
+        elif self.routine_resource is not None:
+            resource = dict(self.routine_resource)
+        else:
+            resource = {}
+
+        field_map = {
+            "routineType": self.routine_type,
+            "language": self.language,
+            "definitionBody": self.definition_body,
+            "arguments": list(self.arguments) if self.arguments is not None else None,
+            "returnType": self.return_type,
+            "returnTableType": self.return_table_type,
+            "importedLibraries": (
+                list(self.imported_libraries) if self.imported_libraries is not None else None
+            ),
+            "determinismLevel": self.determinism_level,
+            "securityMode": self.security_mode,
+            "dataGovernanceType": self.data_governance_type,
+            "description": self.description,
+            "remoteFunctionOptions": self.remote_function_options,
+            "sparkOptions": self.spark_options,
+        }
+        for key, value in field_map.items():
+            if value is not None:
+                resource.setdefault(key, value)
+        return resource
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        resource = self._build_resource()
+        self.log.info(
+            "Creating routine %s.%s.%s (if_exists=%s)",
+            self.project_id or hook.project_id,
+            self.dataset_id,
+            self.routine_id,
+            self.if_exists,
+        )
+        routine = hook.create_routine(
+            routine=resource,
+            dataset_id=self.dataset_id,
+            routine_id=self.routine_id,
+            project_id=self.project_id,
+            if_exists=self.if_exists,
+            retry=self.retry,
+            timeout=self.timeout,
+        )
+        return routine.to_api_repr()
+
+
+class BigQueryUpdateRoutineOperator(GoogleCloudBaseOperator):
+    """
+    Patch selected fields of an existing BigQuery routine.
+
+    Only the fields listed in ``fields`` are updated. Any field listed but left unset in
+    ``routine_resource`` is cleared on the server.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpdateRoutineOperator`
+
+    :param dataset_id: The dataset that owns the routine.
+    :param routine_id: The identifier of the routine to update.
+    :param routine_resource: The routine resource (dict or
+        :class:`~google.cloud.bigquery.routine.Routine`) with the new values for the fields
+        listed in ``fields``.
+    :param fields: Properties to update (e.g. ``["definitionBody", "description"]``).
+    :param project_id: Optional. The project that owns the dataset.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param location: The location of the BigQuery dataset.
+    :param impersonation_chain: Optional service account to impersonate.
+    :param retry: A retry object used to retry requests.
+    :param timeout: The amount of time, in seconds, to wait for the request.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "routine_id",
+        "routine_resource",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    template_fields_renderers = {"routine_resource": "json"}
+    template_ext: Sequence[str] = (".json", ".sql")
+    ui_color = BigQueryUIColors.TABLE.value
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        routine_id: str,
+        routine_resource: dict[str, Any] | Routine,
+        fields: Sequence[str],
+        project_id: str = PROVIDE_PROJECT_ID,
+        gcp_conn_id: str = "google_cloud_default",
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        if not fields:
+            raise ValueError("`fields` must be a non-empty sequence of routine properties to update.")
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.routine_id = routine_id
+        self.routine_resource = routine_resource
+        self.fields = list(fields)
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info(
+            "Updating routine %s.%s.%s (fields=%s)",
+            self.project_id or hook.project_id,
+            self.dataset_id,
+            self.routine_id,
+            self.fields,
+        )
+        routine = hook.update_routine(
+            routine=self.routine_resource,
+            fields=self.fields,
+            dataset_id=self.dataset_id,
+            routine_id=self.routine_id,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+        )
+        return routine.to_api_repr()
+
+
+class BigQueryDeleteRoutineOperator(GoogleCloudBaseOperator):
+    """
+    Delete a BigQuery routine.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryDeleteRoutineOperator`
+
+    :param dataset_id: The dataset that owns the routine.
+    :param routine_id: The identifier of the routine to delete.
+    :param project_id: Optional. The project that owns the dataset.
+    :param ignore_if_missing: If ``True``, do not fail when the routine does not exist.
+        Defaults to ``False``.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param location: The location of the BigQuery dataset.
+    :param impersonation_chain: Optional service account to impersonate.
+    :param retry: A retry object used to retry requests.
+    :param timeout: The amount of time, in seconds, to wait for the request.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "routine_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    ui_color = BigQueryUIColors.TABLE.value
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        routine_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        ignore_if_missing: bool = False,
+        gcp_conn_id: str = "google_cloud_default",
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.routine_id = routine_id
+        self.ignore_if_missing = ignore_if_missing
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+
+    def execute(self, context: Context) -> None:
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info(
+            "Deleting routine %s.%s.%s",
+            self.project_id or hook.project_id,
+            self.dataset_id,
+            self.routine_id,
+        )
+        hook.delete_routine(
+            dataset_id=self.dataset_id,
+            routine_id=self.routine_id,
+            project_id=self.project_id,
+            not_found_ok=self.ignore_if_missing,
+            retry=self.retry,
+            timeout=self.timeout,
+        )
+
+
+class BigQueryGetRoutineOperator(GoogleCloudBaseOperator):
+    """
+    Fetch an existing BigQuery routine and return its serialized API representation via XCom.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetRoutineOperator`
+
+    :param dataset_id: The dataset that owns the routine.
+    :param routine_id: The identifier of the routine to fetch.
+    :param project_id: Optional. The project that owns the dataset.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param location: The location of the BigQuery dataset.
+    :param impersonation_chain: Optional service account to impersonate.
+    :param retry: A retry object used to retry requests.
+    :param timeout: The amount of time, in seconds, to wait for the request.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "routine_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    ui_color = BigQueryUIColors.TABLE.value
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        routine_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        gcp_conn_id: str = "google_cloud_default",
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.routine_id = routine_id
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info(
+            "Fetching routine %s.%s.%s",
+            self.project_id or hook.project_id,
+            self.dataset_id,
+            self.routine_id,
+        )
+        routine = hook.get_routine(
+            dataset_id=self.dataset_id,
+            routine_id=self.routine_id,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+        )
+        return routine.to_api_repr()
+
+
+class BigQueryListRoutinesOperator(GoogleCloudBaseOperator):
+    """
+    List routines in a BigQuery dataset and return them as a list via XCom.
+
+    The returned items are API representations. Only a subset of routine fields is populated
+    on list responses; fetch individual routines with :class:`BigQueryGetRoutineOperator` for
+    the complete resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryListRoutinesOperator`
+
+    :param dataset_id: The dataset to list routines for.
+    :param project_id: Optional. The project that owns the dataset.
+    :param max_results: Optional. Maximum number of routines to return.
+    :param page_token: Optional. Token identifying a page of results to return.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param location: The location of the BigQuery dataset.
+    :param impersonation_chain: Optional service account to impersonate.
+    :param retry: A retry object used to retry requests.
+    :param timeout: The amount of time, in seconds, to wait for the request.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    ui_color = BigQueryUIColors.TABLE.value
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        max_results: int | None = None,
+        page_token: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.max_results = max_results
+        self.page_token = page_token
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+
+    def execute(self, context: Context) -> list[dict[str, Any]]:
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info(
+            "Listing routines in %s.%s",
+            self.project_id or hook.project_id,
+            self.dataset_id,
+        )
+        routines = hook.list_routines(
+            dataset_id=self.dataset_id,
+            project_id=self.project_id,
+            max_results=self.max_results,
+            page_token=self.page_token,
+            retry=self.retry,
+            timeout=self.timeout,
+        )
+        return [routine.to_api_repr() for routine in routines]

@@ -75,6 +75,7 @@ with DAG(
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
             "SerdeInfo": {"SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"},
         },
+        "PartitionKeys": [{"Name": "dt", "Type": "string"}],
         "TableType": "EXTERNAL_TABLE",
     }
 

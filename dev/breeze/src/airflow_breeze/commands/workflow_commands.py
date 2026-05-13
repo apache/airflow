@@ -145,10 +145,28 @@ def workflow_run_publish(
         tag_respo = json.loads(stdout)
 
         if not tag_respo.get("ref"):
-            console_print(
-                f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
+            # Check whether the ref exists as a branch (common case for -docs branches)
+            branch_result = run_gh_command(
+                ["gh", "api", f"repos/apache/airflow/git/refs/heads/{ref}"],
+                capture_output=True,
+                check=False,
             )
-            console_print("\nYou can add --skip-tag-validation to skip this validation.")
+            branch_stdout = branch_result.stdout.decode("utf-8")
+            branch_respo = json.loads(branch_stdout)
+
+            if branch_respo.get("ref"):
+                console_print(
+                    f"[red]Error: Ref {ref} exists as a branch but not as a tag.[/red]",
+                )
+                console_print(
+                    "\nTo publish docs from a branch (e.g. a `providers/YYYY-MM-DD-docs` "
+                    "post-release fix branch), add [bold]--skip-tag-validation[/bold] to your command."
+                )
+            else:
+                console_print(
+                    f"[red]Error: Ref {ref} does not exist as a tag or branch in repo apache/airflow.[/red]",
+                )
+                console_print("\nYou can add --skip-tag-validation to skip this validation.")
             sys.exit(1)
 
     console_print(

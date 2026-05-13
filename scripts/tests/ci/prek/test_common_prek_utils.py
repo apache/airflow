@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
+import ci.prek.common_prek_utils as common_prek_utils
 import pytest
 from ci.prek.common_prek_utils import (
     ConsoleDiff,
@@ -31,11 +33,99 @@ from ci.prek.common_prek_utils import (
     read_airflow_version,
     read_allowed_kubernetes_versions,
     read_default_python_major_minor_version_for_images,
+    resolve_github_token,
+    retrieve_gh_token,
     temporary_tsc_project,
 )
 
 PROVIDERS_AMAZON_S3_PATH = "providers/amazon/hooks/s3.py"
 AIRFLOW_MODELS_DAG_PATH = "airflow/models/dag.py"
+
+
+def _completed_process(returncode: int, stdout: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=["gh"], returncode=returncode, stdout=stdout, stderr="")
+
+
+class TestResolveGithubToken:
+    def test_keeps_explicit_token(self, monkeypatch):
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("subprocess.run should not be called")
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", fail_if_called)
+
+        assert (
+            resolve_github_token(token="explicit-token", env={"GITHUB_TOKEN": "env-token"})
+            == "explicit-token"
+        )
+
+    def test_prefers_clean_gh_auth_token_over_env_token(self, monkeypatch):
+        calls = []
+
+        def fake_run(*args, **kwargs):
+            calls.append(kwargs)
+            return _completed_process(returncode=0, stdout="stored-gh-token\n")
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", fake_run)
+
+        assert (
+            resolve_github_token(env={"GH_TOKEN": "env-gh-token", "GITHUB_TOKEN": "env-github-token"})
+            == "stored-gh-token"
+        )
+
+        assert calls
+        assert "GH_TOKEN" not in calls[0]["env"]
+        assert "GITHUB_TOKEN" not in calls[0]["env"]
+
+    @pytest.mark.parametrize(
+        ("returncode", "stdout"),
+        [
+            pytest.param(1, "", id="gh-auth-failure"),
+            pytest.param(0, "  \n", id="blank-gh-auth-token"),
+        ],
+    )
+    def test_falls_back_to_env_token(self, monkeypatch, returncode, stdout):
+        monkeypatch.setattr(
+            common_prek_utils.subprocess,
+            "run",
+            lambda *args, **kwargs: _completed_process(returncode=returncode, stdout=stdout),
+        )
+
+        assert (
+            resolve_github_token(env={"GH_TOKEN": "env-gh-token", "GITHUB_TOKEN": "env-github-token"})
+            == "env-gh-token"
+        )
+
+    def test_falls_back_to_env_token_when_gh_is_missing(self, monkeypatch):
+        def raise_file_not_found(*args, **kwargs):
+            raise FileNotFoundError
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", raise_file_not_found)
+
+        assert resolve_github_token(env={"GITHUB_TOKEN": "env-github-token"}) == "env-github-token"
+
+    def test_retrieve_gh_token_exits_with_help_when_no_token_resolves(self, monkeypatch):
+        class DummyConsole:
+            def __init__(self):
+                self.messages = []
+
+            def print(self, message):
+                self.messages.append(message)
+
+        dummy_console = DummyConsole()
+        monkeypatch.setattr(common_prek_utils, "console", dummy_console)
+        monkeypatch.delenv("GH_TOKEN", raising=False)
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        monkeypatch.setattr(
+            common_prek_utils.subprocess,
+            "run",
+            lambda *args, **kwargs: _completed_process(returncode=1),
+        )
+
+        with pytest.raises(SystemExit):
+            retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
+
+        assert dummy_console.messages
+        assert "GITHUB_TOKEN environment variable is not set" in dummy_console.messages[0]
 
 
 class TestPreProcessMypyFiles:

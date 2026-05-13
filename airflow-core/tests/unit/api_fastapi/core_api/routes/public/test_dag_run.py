@@ -2207,15 +2207,32 @@ class TestTriggerDagRun:
         ]
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
-    def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
-        now = timezone.utcnow().isoformat()
-        error_message = "Encountered Error"
+    def test_dagrun_creation_param_validation_error_returns_400(self, mock_create_dagrun, test_client):
+        from airflow.exceptions import ParamValidationError
 
-        mock_create_dagrun.side_effect = ValueError(error_message)
+        now = timezone.utcnow().isoformat()
+        error_message = "Invalid input for param x"
+        mock_create_dagrun.side_effect = ParamValidationError(error_message)
 
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
+    def test_dagrun_creation_non_validation_error_propagates(self, mock_create_dagrun, test_client):
+        """
+        Non-ParamValidationError exceptions from create_dagrun() must not be swallowed.
+
+        TestClient's default raise_server_exceptions=True surfaces server-side
+        exceptions to the caller; in production these would become a 500. The
+        regression we are guarding against is the old behavior where any
+        ValueError got silently converted to 400.
+        """
+        now = timezone.utcnow().isoformat()
+        mock_create_dagrun.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
 
     def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session, testing_dag_bundle):
         now = timezone.utcnow().isoformat()

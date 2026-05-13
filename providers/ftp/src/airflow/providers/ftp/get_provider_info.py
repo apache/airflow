@@ -46,6 +46,22 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.ftp.sensors.ftp"],
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["ftp"],
+                "handler": "airflow.providers.ftp.assets.ftp.sanitize_uri",
+                "factory": "airflow.providers.ftp.assets.ftp.create_asset",
+                "to_openlineage_converter": "airflow.providers.ftp.assets.ftp.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["ftp"],
+                "handler": "airflow.providers.ftp.assets.ftp.sanitize_uri",
+                "factory": "airflow.providers.ftp.assets.ftp.create_asset",
+                "to_openlineage_converter": "airflow.providers.ftp.assets.ftp.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "File Transfer Protocol (FTP)",
