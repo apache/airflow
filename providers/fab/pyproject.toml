@@ -97,9 +97,6 @@ dependencies = [
     "wtforms>=3.0",
     "cachetools>=6.0",
     "marshmallow>=3",
-    # flask-jwt-extended imports jwt.types.Options, which was introduced in PyJWT 2.11.0.
-    # Pin PyJWT directly so compat installs paired with older airflow-core releases do not resolve to 2.10.x.
-    "pyjwt>=2.11.0",
 
     # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
     # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
