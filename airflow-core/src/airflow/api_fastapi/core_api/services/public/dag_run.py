@@ -154,6 +154,19 @@ def _authorize_dag_run(
     return cache[dag_id]
 
 
+def _cached_dag_for_run(
+    dag_bag: DagBagDep,
+    dag_run: DagRun,
+    session: Session,
+    cache: dict[str, SerializedDAG],
+) -> SerializedDAG:
+    """Return the SerializedDAG for ``dag_run``, memoising lookups by ``dag_id``."""
+    dag_id = dag_run.dag_id
+    if dag_id not in cache:
+        cache[dag_id] = get_dag_for_run(dag_bag, dag_run, session=session)
+    return cache[dag_id]
+
+
 def _apply_state_change(
     dag_run: DagRun,
     new_state: DAGRunPatchStates,
@@ -310,6 +323,7 @@ class BulkDagRunService(BulkService[BulkDagRunBody]):
         """Bulk update Dag runs (state and/or note)."""
         update_mask = action.update_mask
         auth_cache: dict[str, bool] = {}
+        dag_cache: dict[str, SerializedDAG] = {}
         keys: set[tuple[str, str]] = set()
         entity_map: dict[tuple[str, str], BulkDagRunBody] = {}
 
@@ -358,7 +372,7 @@ class BulkDagRunService(BulkService[BulkDagRunBody]):
 
                 try:
                     with self.session.begin_nested():
-                        dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
+                        dag = _cached_dag_for_run(self.dag_bag, dag_run, self.session, dag_cache)
                         if "state" in fields_to_update and entity.state is not None:
                             _apply_state_change(dag_run, entity.state, dag, self.session)
                         if "note" in fields_to_update:
@@ -459,6 +473,7 @@ def bulk_clear_dag_runs(
     """
     results = BulkActionResponse()
     auth_cache: dict[str, bool] = {}
+    dag_cache: dict[str, SerializedDAG] = {}
     keys_to_fetch: list[tuple[str, str]] = []
 
     for identifier in body.runs:
@@ -507,7 +522,7 @@ def bulk_clear_dag_runs(
 
         try:
             with session.begin_nested():
-                dag = get_dag_for_run(dag_bag, dag_run, session=session)
+                dag = _cached_dag_for_run(dag_bag, dag_run, session, dag_cache)
                 if body.dry_run:
                     dag.clear(
                         run_id=run_id,
