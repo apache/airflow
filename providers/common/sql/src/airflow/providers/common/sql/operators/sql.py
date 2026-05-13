@@ -199,7 +199,7 @@ class BaseSQLOperator(BaseOperator):
         self.database = database
         self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
-        self._check_results: list[SQLCheckResult] = []  # Used by listeners
+        self.check_results: list[SQLCheckResult] = []  # Used by listeners
 
     @classmethod
     # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
@@ -344,7 +344,7 @@ class BaseSQLOperator(BaseOperator):
             database_specific_lineage = None
 
         if database_specific_lineage is None:
-            if not self._check_results:
+            if not self.check_results:
                 return operator_lineage
             try:
                 return self._attach_check_facets(operator_lineage)
@@ -358,7 +358,7 @@ class BaseSQLOperator(BaseOperator):
             run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
             job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
         )
-        if not self._check_results:
+        if not self.check_results:
             return merged
         try:
             return self._attach_check_facets(merged)
@@ -383,7 +383,7 @@ class BaseSQLOperator(BaseOperator):
         from openlineage.client.facet_v2 import data_quality_assertions_dataset, test_run
 
         by_table: dict[str | None, list[SQLCheckResult]] = {}
-        for r in self._check_results:
+        for r in self.check_results:
             by_table.setdefault(r.table, []).append(r)
 
         run_level: list[SQLCheckResult] = list(by_table.pop(None, []))
@@ -448,10 +448,10 @@ class BaseSQLOperator(BaseOperator):
                 for r in run_level
             ]
             operator_lineage.run_facets = operator_lineage.run_facets or {}
-            existing = operator_lineage.run_facets.get("testRunFacet")
+            existing = operator_lineage.run_facets.get("test")
             if existing is not None:
                 tests = existing.tests + tests
-            operator_lineage.run_facets["testRunFacet"] = test_run.TestRunFacet(tests=tests)
+            operator_lineage.run_facets["test"] = test_run.TestRunFacet(tests=tests)
 
         return operator_lineage
 
@@ -701,7 +701,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             )
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results()
+        self.check_results = self._build_check_results()
 
         failed_tests = [
             f"Column: {col}\n\tCheck: {check},\n\tCheck Values: {check_values}\n"
@@ -1010,7 +1010,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 self.checks[check]["success"] = _parse_boolean(str(result))
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results(records)
+        self.check_results = self._build_check_results(records)
 
         if not records:
             # accept_none prevents an error from being thrown if there are no records in the table
@@ -1158,7 +1158,7 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results(records)
+        self.check_results = self._build_check_results(records)
 
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
@@ -1269,7 +1269,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         records = self.get_db_hook().get_first(self.sql, self.parameters)
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results(records)
+        self.check_results = self._build_check_results(records)
 
         self.check_value(records)
 
@@ -1472,7 +1472,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
             )
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results(all_tests_results)
+        self.check_results = self._build_check_results(all_tests_results)
 
         failed_tests = [single for single in all_tests_results.values() if not single["success"]]
         if failed_tests:
@@ -1606,7 +1606,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         self.push(meta_data)
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results(result, meta_data)
+        self.check_results = self._build_check_results(result, meta_data)
 
         if not meta_data["within_threshold"]:
             result = (
@@ -1746,7 +1746,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         # Save check results before raising exception, to be used by listeners
-        self._check_results = self._build_check_results(query_result)
+        self.check_results = self._build_check_results(query_result)
 
         self.skip_all_except(context["ti"], self.follow_branch)
 

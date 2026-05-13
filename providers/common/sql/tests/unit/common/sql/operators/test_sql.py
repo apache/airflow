@@ -1739,7 +1739,7 @@ class TestSQLColumnCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_records.return_value = [("col", "null_check", 0)]
         op = self._make_operator({"col": {"null_check": {"equal_to": 0}}})
         op.execute(MagicMock())
-        assert op._check_results == []
+        assert op.check_results == []
 
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
     def test_execute_populates_check_results(self, mock_hook):
@@ -1747,8 +1747,8 @@ class TestSQLColumnCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_records.return_value = [("col", "null_check", 0)]
         op = self._make_operator({"col": {"null_check": {"equal_to": 0}}})
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "col.null_check"
         assert r.check_type == "not_null"
         assert r.success is True
@@ -1907,15 +1907,15 @@ class TestSQLTableCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_records.return_value = [("row_count_check", 1)]
         op = self._make_operator({"row_count_check": {"check_statement": "COUNT(*) >= 1"}})
         op.execute(MagicMock())
-        assert op._check_results == []
+        assert op.check_results == []
 
     @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
     def test_execute_populates_check_results(self, mock_hook):
         mock_hook.return_value.get_records.return_value = [("row_count_check", "1")]
         op = self._make_operator({"row_count_check": {"check_statement": "COUNT(*) >= 1"}})
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "row_count_check"
         assert r.check_type == "expression_is_true"
         assert r.success is True
@@ -1993,15 +1993,15 @@ class TestSQLCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_first.return_value = [1]
         op = self._make_operator()
         op.execute(MagicMock())
-        assert op._check_results == []
+        assert op.check_results == []
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_execute_populates_check_results(self, mock_hook):
         mock_hook.return_value.get_first.return_value = [1, 2, 3]
         op = self._make_operator()
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "test_task"
         assert r.check_type == "expression_is_true"
         assert r.success is True
@@ -2078,15 +2078,15 @@ class TestSQLValueCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_first.return_value = [5]
         op = self._make_operator(pass_value="5")
         op.execute(MagicMock())
-        assert op._check_results == []
+        assert op.check_results == []
 
     @mock.patch.object(SQLValueCheckOperator, "get_db_hook")
     def test_execute_populates_check_results(self, mock_hook):
         mock_hook.return_value.get_first.return_value = [5]
         op = self._make_operator(pass_value="5")
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "test_task"
         assert r.check_type == "accepted_values"
         assert r.success is True
@@ -2104,8 +2104,8 @@ class TestSQLValueCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_first.return_value = [5]
         op = self._make_operator(pass_value=5, tolerance=0.1)
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "test_task"
         assert r.check_type == "accepted_range"
         assert r.success is True
@@ -2229,7 +2229,7 @@ class TestSQLIntervalCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_first.side_effect = [[10], [10]]
         op = self._make_operator({"f1": 1.5})
         op.execute(MagicMock())
-        assert op._check_results == []
+        assert op.check_results == []
 
     @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
     def test_execute_populates_check_results(self, mock_hook):
@@ -2237,8 +2237,8 @@ class TestSQLIntervalCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_first.side_effect = [[9], [10]]
         op = self._make_operator({"f1": 1.5})
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "interval_f1"
         assert r.check_type == "accepted_range"
         assert r.success is True
@@ -2326,15 +2326,15 @@ class TestSQLThresholdCheckOperatorBuildCheckResults:
         mock_hook.return_value.get_first.return_value = (50,)
         op = self._make_operator(min_threshold=1, max_threshold=100)
         op.execute(MagicMock())
-        assert op._check_results == []
+        assert op.check_results == []
 
     @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
     def test_execute_populates_check_results(self, mock_hook):
         mock_hook.return_value.get_first.return_value = (50,)
         op = self._make_operator(min_threshold=1, max_threshold=100)
         op.execute(MagicMock())
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "test_task"
         assert r.check_type == "accepted_range"
         assert r.success is True
@@ -2421,7 +2421,7 @@ class TestBranchSQLOperatorBuildCheckResults:
         mock_hook.return_value.get_first.return_value = 1
         op = self._make_operator()
         op.execute({"ti": MagicMock()})
-        assert op._check_results == []
+        assert op.check_results == []
         mock_skip.assert_called_once()
 
     @mock.patch.object(BranchSQLOperator, "skip_all_except")
@@ -2430,8 +2430,8 @@ class TestBranchSQLOperatorBuildCheckResults:
         mock_hook.return_value.get_first.return_value = 1
         op = self._make_operator()
         op.execute({"ti": MagicMock()})
-        assert len(op._check_results) == 1
-        r = op._check_results[0]
+        assert len(op.check_results) == 1
+        r = op.check_results[0]
         assert r.name == "test_task"
         assert r.check_type == "expression_is_true"
         assert r.success is True
@@ -2482,7 +2482,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
         op = self._make_operator()
-        op._check_results = [SQLCheckResult(name="t", check_type="expr", success=True)]
+        op.check_results = [SQLCheckResult(name="t", check_type="expr", success=True)]
         with mock.patch(
             "airflow.providers.common.compat.openlineage.check.metadata.version", return_value="1.46.0"
         ):
@@ -2496,7 +2496,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="my_check",
                 check_type="expression_is_true",
@@ -2513,7 +2513,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         ]
         result = op._attach_check_facets(OperatorLineage())
 
-        facet = result.run_facets.get("testRunFacet")
+        facet = result.run_facets.get("test")
         assert facet is not None
         assert len(facet.tests) == 1
         t = facet.tests[0]
@@ -2540,10 +2540,10 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [SQLCheckResult(name="bad_check", check_type="not_null", success=False)]
+        op.check_results = [SQLCheckResult(name="bad_check", check_type="not_null", success=False)]
         result = op._attach_check_facets(OperatorLineage())
 
-        facet = result.run_facets.get("testRunFacet")
+        facet = result.run_facets.get("test")
         assert facet is not None
         assert facet.tests[0].status == "fail"
 
@@ -2554,7 +2554,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="col.null_check",
                 check_type="not_null",
@@ -2596,7 +2596,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="col_a.null_check",
                 check_type="not_null",
@@ -2664,7 +2664,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="col.null_check",
                 check_type="not_null",
@@ -2707,7 +2707,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="col.null_check",
                 check_type="not_null",
@@ -2726,7 +2726,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         result = op._attach_check_facets(lineage)
 
         assert result.inputs[0].facets == {}
-        facet = result.run_facets.get("testRunFacet")
+        facet = result.run_facets.get("test")
         assert facet is not None
         assert len(facet.tests) == 1
         t = facet.tests[0]
@@ -2753,7 +2753,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="col.null_check",
                 check_type="not_null",
@@ -2785,7 +2785,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             SQLCheckResult(
                 name="col.null_check",
                 check_type="not_null",
@@ -2822,7 +2822,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         op = self._make_operator()
-        op._check_results = [
+        op.check_results = [
             # matched input dataset → DataQualityAssertionsDatasetFacet
             SQLCheckResult(
                 name="col_a.null_check",
@@ -2868,7 +2868,7 @@ class TestSqlBaseOperatorAttachCheckFacets:
         assert a.column == "col_a"
 
         # unmatched-table check and no-table check both land in the run facet
-        run_facet = result.run_facets.get("testRunFacet")
+        run_facet = result.run_facets.get("test")
         assert run_facet is not None
         assert len(run_facet.tests) == 2
 
