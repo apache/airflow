@@ -1131,6 +1131,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
