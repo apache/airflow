@@ -73,18 +73,15 @@ class DAGRunClearBody(StrictBaseModel):
         return data
 
 
-class BulkDagRunBody(DAGRunPatchBody, StrictBaseModel):
-    """Request body for bulk update and delete Dag runs."""
-
-    dag_run_id: str
-    dag_id: str | None = None
-
-
 class DagRunIdentifier(StrictBaseModel):
     """Identifier for a Dag run targeted by a bulk operation."""
 
     dag_run_id: str
     dag_id: str | None = None
+
+
+class BulkDagRunBody(DagRunIdentifier, DAGRunPatchBody):
+    """Request body for bulk update and delete Dag runs (patch fields plus run identity)."""
 
 
 class BulkClearDagRunsBody(StrictBaseModel):

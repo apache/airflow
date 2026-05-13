@@ -285,7 +285,7 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
- * Request body for bulk update and delete Dag runs.
+ * Request body for bulk update and delete Dag runs (patch fields plus run identity).
  */
 export type BulkDagRunBody = {
     state?: DAGRunPatchStates | null;

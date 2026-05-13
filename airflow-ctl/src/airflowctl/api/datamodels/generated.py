@@ -1254,7 +1254,7 @@ class BulkCreateActionVariableBody(BaseModel):
 
 class BulkDagRunBody(BaseModel):
     """
-    Request body for bulk update and delete Dag runs.
+    Request body for bulk update and delete Dag runs (patch fields plus run identity).
     """
 
     model_config = ConfigDict(

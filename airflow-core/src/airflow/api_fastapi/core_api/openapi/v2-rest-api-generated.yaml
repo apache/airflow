@@ -11149,7 +11149,8 @@ components:
       required:
       - dag_run_id
       title: BulkDagRunBody
-      description: Request body for bulk update and delete Dag runs.
+      description: Request body for bulk update and delete Dag runs (patch fields
+        plus run identity).
     BulkDeleteAction_BulkDagRunBody_:
       properties:
         action:

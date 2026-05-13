@@ -980,7 +980,7 @@ export const $BulkDagRunBody = {
     type: 'object',
     required: ['dag_run_id'],
     title: 'BulkDagRunBody',
-    description: 'Request body for bulk update and delete Dag runs.'
+    description: 'Request body for bulk update and delete Dag runs (patch fields plus run identity).'
 } as const;
 
 export const $BulkDeleteAction_BulkDagRunBody_ = {
