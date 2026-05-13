@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.operators.s3_vectors import (
     S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
     S3VectorsPutVectorsOperator,
+    S3VectorsQueryVectorsOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -247,6 +248,52 @@ class TestS3VectorsPutVectorsOperator:
             indexName=INDEX_NAME,
             vectors=self.VECTORS,
         )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+QUERY_VECTOR = {"float32": [0.1, 0.2, 0.3, 0.4]}
+QUERY_RESULTS = [{"key": "vec1", "distance": 0.95, "metadata": {"label": "test"}}]
+
+
+class TestS3VectorsQueryVectorsOperator:
+    def setup_method(self):
+        self.operator = S3VectorsQueryVectorsOperator(
+            task_id="query_vectors",
+            vector_bucket_name=BUCKET_NAME,
+            index_name=INDEX_NAME,
+            top_k=5,
+            query_vector=QUERY_VECTOR,
+        )
+
+    def test_execute(self):
+        mock_conn = MagicMock()
+        mock_conn.query_vectors.return_value = {"vectors": QUERY_RESULTS, "distanceMetric": "cosine"}
+        self.operator.hook.conn = mock_conn
+
+        result = self.operator.execute({})
+
+        mock_conn.query_vectors.assert_called_once_with(
+            vectorBucketName=BUCKET_NAME,
+            indexName=INDEX_NAME,
+            topK=5,
+            queryVector=QUERY_VECTOR,
+            returnMetadata=True,
+            returnDistance=True,
+        )
+        assert result == QUERY_RESULTS
+
+    def test_execute_with_filter(self):
+        mock_conn = MagicMock()
+        mock_conn.query_vectors.return_value = {"vectors": []}
+        self.operator.hook.conn = mock_conn
+        self.operator.filter = {"equals": {"key": "label", "value": "test"}}
+
+        self.operator.execute({})
+
+        call_kwargs = mock_conn.query_vectors.call_args[1]
+        assert call_kwargs["filter"] == {"equals": {"key": "label", "value": "test"}}
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

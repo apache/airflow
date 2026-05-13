@@ -36,6 +36,7 @@ from google.cloud.bigquery import (
     TableReference,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
+from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
@@ -1010,6 +1011,177 @@ class TestTableOperations(_BigQueryBaseTestClass):
             retry=DEFAULT_RETRY,
             timeout=None,
         )
+
+
+@pytest.mark.db_test
+class TestRoutineOperations(_BigQueryBaseTestClass):
+    ROUTINE_ID = "bq_routine"
+    ROUTINE_REF_REPR = {
+        "projectId": PROJECT_ID,
+        "datasetId": DATASET_ID,
+        "routineId": ROUTINE_ID,
+    }
+    ROUTINE_RESOURCE = {
+        "routineReference": ROUTINE_REF_REPR,
+        "routineType": "SCALAR_FUNCTION",
+        "language": "SQL",
+        "definitionBody": "x + 1",
+        "arguments": [{"name": "x", "dataType": {"typeKind": "INT64"}}],
+        "returnType": {"typeKind": "INT64"},
+    }
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_fail_mode(self, mock_client):
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+        )
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
+        call = mock_client.return_value.create_routine.call_args
+        assert call.kwargs["exists_ok"] is False
+        mock_client.return_value.delete_routine.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_skip_mode(self, mock_client):
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+            if_exists="skip",
+        )
+        assert mock_client.return_value.create_routine.call_args.kwargs["exists_ok"] is True
+        mock_client.return_value.delete_routine.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_replace_mode_deletes_first(self, mock_client):
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+            if_exists="replace",
+        )
+        mock_client.return_value.delete_routine.assert_called_once()
+        create_call = mock_client.return_value.create_routine.call_args
+        assert create_call.kwargs["exists_ok"] is False
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_replace_ignores_not_found_on_delete(self, mock_client):
+        mock_client.return_value.delete_routine.side_effect = NotFound("nope")
+        self.hook.create_routine(
+            routine=dict(self.ROUTINE_RESOURCE),
+            project_id=PROJECT_ID,
+            if_exists="replace",
+        )
+        mock_client.return_value.create_routine.assert_called_once()
+
+    def test_create_routine_invalid_if_exists(self):
+        with pytest.raises(ValueError, match="must be one of"):
+            self.hook.create_routine(
+                routine=dict(self.ROUTINE_RESOURCE),
+                project_id=PROJECT_ID,
+                if_exists="bogus",
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_create_routine_fills_missing_reference(self, mock_client):
+        body = {
+            "routineType": "SCALAR_FUNCTION",
+            "language": "SQL",
+            "definitionBody": "1",
+        }
+        self.hook.create_routine(
+            routine=body,
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+        create_call = mock_client.return_value.create_routine.call_args
+        created_routine = (
+            create_call.kwargs["routine"] if "routine" in create_call.kwargs else create_call.args[0]
+        )
+        ref = created_routine.reference
+        assert ref.project == PROJECT_ID
+        assert ref.dataset_id == DATASET_ID
+        assert ref.routine_id == self.ROUTINE_ID
+
+    def test_create_routine_missing_reference_raises(self):
+        with pytest.raises(ValueError, match="missing required fields"):
+            self.hook.create_routine(
+                routine={"routineType": "SCALAR_FUNCTION", "language": "SQL", "definitionBody": "1"},
+                project_id=PROJECT_ID,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_update_routine(self, mock_client):
+        existing_repr = dict(self.ROUTINE_RESOURCE)
+        existing_repr["description"] = "original"
+        mock_client.return_value.get_routine.return_value = Routine.from_api_repr(existing_repr)
+
+        self.hook.update_routine(
+            routine={"description": "new", "definitionBody": "x + 2"},
+            fields=["description", "definitionBody"],
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+
+        mock_client.return_value.get_routine.assert_called_once()
+        update_call = mock_client.return_value.update_routine.call_args
+        sent_routine = update_call.args[0] if update_call.args else update_call.kwargs["routine"]
+        sent_fields = update_call.args[1] if len(update_call.args) > 1 else update_call.kwargs["fields"]
+        # Merged resource carries the updated values plus the untouched original metadata.
+        assert sent_routine.description == "new"
+        assert sent_routine.body == "x + 2"
+        assert sent_routine.type_ == "SCALAR_FUNCTION"
+        # Full-resource PUT: all writable properties are included in the outbound fields list.
+        assert "description" in sent_fields
+        assert "body" in sent_fields
+        assert "type_" in sent_fields
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_delete_routine(self, mock_client):
+        self.hook.delete_routine(
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+        mock_client.return_value.delete_routine.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_delete_routine_not_found_ok(self, mock_client):
+        mock_client.return_value.delete_routine.side_effect = NotFound("nope")
+        # default not_found_ok=True — should not raise
+        self.hook.delete_routine(
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_delete_routine_raises_when_not_found_ok_false(self, mock_client):
+        mock_client.return_value.delete_routine.side_effect = NotFound("nope")
+        with pytest.raises(NotFound):
+            self.hook.delete_routine(
+                dataset_id=DATASET_ID,
+                routine_id=self.ROUTINE_ID,
+                project_id=PROJECT_ID,
+                not_found_ok=False,
+            )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_get_routine(self, mock_client):
+        self.hook.get_routine(
+            dataset_id=DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            project_id=PROJECT_ID,
+        )
+        mock_client.return_value.get_routine.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_list_routines(self, mock_client):
+        mock_client.return_value.list_routines.return_value = iter([mock.MagicMock(), mock.MagicMock()])
+        result = self.hook.list_routines(dataset_id=DATASET_ID, project_id=PROJECT_ID)
+        assert len(result) == 2
+        list_call = mock_client.return_value.list_routines.call_args
+        assert list_call.kwargs["max_results"] is None
 
 
 @pytest.mark.db_test
