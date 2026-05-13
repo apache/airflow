@@ -24,10 +24,12 @@ from google.api_core.exceptions import NotFound
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryRoutineExistenceSensor,
+    BigQueryStreamingBufferEmptySensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
+    BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
@@ -291,3 +293,108 @@ def context():
     """
     context = {}
     return context
+
+
+def _make_streaming_sensor(**overrides):
+    kwargs = {
+        "task_id": "task-id",
+        "project_id": TEST_PROJECT_ID,
+        "dataset_id": TEST_DATASET_ID,
+        "table_id": TEST_TABLE_ID,
+    }
+    kwargs.update(overrides)
+    return BigQueryStreamingBufferEmptySensor(**kwargs)
+
+
+class TestBigQueryStreamingBufferEmptySensor:
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_returns_true_when_buffer_absent(self, mock_hook):
+        sensor = _make_streaming_sensor(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_table = mock.MagicMock(streaming_buffer=None)
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock_table
+
+        assert sensor.poke(mock.MagicMock()) is True
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.get_client.assert_called_once_with(project_id=TEST_PROJECT_ID)
+        mock_hook.return_value.get_client.return_value.get_table.assert_called_once_with(
+            f"{TEST_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_returns_false_when_buffer_present(self, mock_hook):
+        sensor = _make_streaming_sensor()
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer={"estimatedRows": 10}
+        )
+
+        assert sensor.poke(mock.MagicMock()) is False
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_raises_value_error_when_table_not_found(self, mock_hook):
+        mock_hook.return_value.get_client.return_value.get_table.side_effect = NotFound("missing")
+
+        with pytest.raises(ValueError, match="not found"):
+            _make_streaming_sensor().poke(mock.MagicMock())
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_propagates_unexpected_errors(self, mock_hook):
+        mock_hook.return_value.get_client.return_value.get_table.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            _make_streaming_sensor().poke(mock.MagicMock())
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor.defer")
+    def test_execute_does_not_defer_when_buffer_already_empty(self, mock_defer, mock_hook):
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer=None
+        )
+
+        _make_streaming_sensor(deferrable=True).execute(mock.MagicMock())
+
+        mock_defer.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_execute_defers_with_trigger_when_buffer_not_empty(self, mock_hook):
+        sensor = _make_streaming_sensor(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
+            streaming_buffer={"estimatedRows": 1}
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(mock.MagicMock())
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, BigQueryStreamingBufferEmptyTrigger)
+        # impersonation_chain must be passed directly to the trigger, not buried in hook_params,
+        # otherwise async hook construction silently drops it.
+        assert trigger.impersonation_chain == TEST_IMPERSONATION_CHAIN
+        assert trigger.gcp_conn_id == TEST_GCP_CONN_ID
+        assert trigger.project_id == TEST_PROJECT_ID
+        assert trigger.dataset_id == TEST_DATASET_ID
+        assert trigger.table_id == TEST_TABLE_ID
+
+    def test_execute_complete_returns_message_on_success(self):
+        sensor = _make_streaming_sensor(deferrable=True)
+        assert sensor.execute_complete(context={}, event={"status": "success", "message": "ok"}) == "ok"
+
+    def test_execute_complete_raises_runtime_error_on_error_event(self):
+        with pytest.raises(RuntimeError, match="boom"):
+            _make_streaming_sensor(deferrable=True).execute_complete(
+                context={}, event={"status": "error", "message": "boom"}
+            )
+
+    def test_execute_complete_raises_value_error_when_event_is_none(self):
+        with pytest.raises(ValueError, match="No event received in trigger callback"):
+            _make_streaming_sensor(deferrable=True).execute_complete(context={}, event=None)
