@@ -1,0 +1,1 @@
+Extend listener-error structured-log change to remaining call sites (DagRun, asset events, DAG import errors, component lifecycle).
