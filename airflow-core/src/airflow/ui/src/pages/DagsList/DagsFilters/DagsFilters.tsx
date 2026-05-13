@@ -146,7 +146,7 @@ export const DagsFilters = () => {
 
   return (
     <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
-      <Box overflowX="auto" pb={1}>
+      <Box overflowX="auto">
         <StateFilters onChange={handleStateChange} value={stateValue} />
       </Box>
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
