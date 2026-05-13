@@ -421,6 +421,15 @@ class CloudSQLHook(GoogleBaseHook):
         return response
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_operation(self, project_id: str, operation_name: str) -> dict:
+        return (
+            self.get_conn()
+            .operations()
+            .get(project=project_id, operation=operation_name)
+            .execute(num_retries=self.num_retries)
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
         self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
@@ -432,13 +441,8 @@ class CloudSQLHook(GoogleBaseHook):
         :param time_to_sleep: Time to sleep between active checks of the operation results.
         :return: None
         """
-        service = self.get_conn()
         while True:
-            operation_response = (
-                service.operations()
-                .get(project=project_id, operation=operation_name)
-                .execute(num_retries=self.num_retries)
-            )
+            operation_response = self.get_operation(project_id=project_id, operation_name=operation_name)
             if operation_response.get("status") == CloudSqlOperationStatus.DONE:
                 error = operation_response.get("error")
                 if error:
@@ -473,6 +477,12 @@ class CloudSQLAsyncHook(GoogleBaseAsyncHook):
                 "Authorization": f"Bearer {await token.get()}",
             }
         return await session_aio.get(url=url, headers=headers)
+
+    async def get_sync_hook(self, api_version: str = "v1beta4"):
+        if not self._sync_hook:
+            self._hook_kwargs["api_version"] = api_version
+            return await super().get_sync_hook()
+        return self._sync_hook
 
     async def get_operation_name(self, project_id: str, operation_name: str, session):
         url = f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{project_id}/operations/{operation_name}"
