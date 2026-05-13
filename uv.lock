@@ -6392,8 +6392,8 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "attrs", specifier = ">=22.2" },
-    { name = "openlineage-integration-common", specifier = ">=1.46.0" },
-    { name = "openlineage-python", specifier = ">=1.46.0" },
+    { name = "openlineage-integration-common", specifier = ">=1.47.0" },
+    { name = "openlineage-python", specifier = ">=1.47.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
 provides-extras = ["sqlalchemy"]
@@ -16380,7 +16380,7 @@ wheels = [
 
 [[package]]
 name = "openlineage-integration-common"
-version = "1.46.0"
+version = "1.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -16389,12 +16389,12 @@ dependencies = [
     { name = "pyyaml" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/52/d81eca43a980058b661868fdeb9f5d4af876d1dab982635c859756907fee/openlineage_integration_common-1.46.0-py3-none-any.whl", hash = "sha256:bdc50613b94346dd9f3441d079260282e7cc85cc16ea1469630a9c76912d5d92", size = 59006, upload-time = "2026-04-08T13:20:18.972Z" },
+    { url = "https://files.pythonhosted.org/packages/10/ee/ddb3e68fd3b796edd899d9bafb1d22cf9bcbe49c05dbbb30c8bdf9c7712c/openlineage_integration_common-1.47.0-py3-none-any.whl", hash = "sha256:a7457dc826e85212cfc199e7f7eeb95fe916799339e0e7805be26a8ebb023088", size = 60218, upload-time = "2026-05-08T16:09:46.485Z" },
 ]
 
 [[package]]
 name = "openlineage-python"
-version = "1.46.0"
+version = "1.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -16405,7 +16405,7 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/97/f5614980b5d43884ce7e71568239555b4e959bdf7098d9734e22c32ef5c6/openlineage_python-1.46.0-py3-none-any.whl", hash = "sha256:f6228a01d34990e76ede5b55b3f99169e54e2e624814c4493f064b9cb1bfba37", size = 112669, upload-time = "2026-04-08T13:20:20.024Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/cd/d376aca3344b30e6b5160cf3031d134ab4d31d596c1d89c3609099acd556/openlineage_python-1.47.0-py3-none-any.whl", hash = "sha256:fcdee97c9466dfb3c87b9f798b9db441f6f8fcb8aa8d65ff9eaffeeb3901747a", size = 113172, upload-time = "2026-05-08T16:09:47.901Z" },
 ]
 
 [[package]]
