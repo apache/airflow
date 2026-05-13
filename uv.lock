@@ -4961,7 +4961,7 @@ requires-dist = [
     { name = "blinker", specifier = ">=1.6.2" },
     { name = "cachetools", specifier = ">=6.0" },
     { name = "flask", specifier = ">=2.2.1" },
-    { name = "flask-appbuilder", specifier = "==5.2.0" },
+    { name = "flask-appbuilder", specifier = "==5.2.1" },
     { name = "flask-limiter", specifier = ">3,!=3.13" },
     { name = "flask-login", marker = "python_full_version < '3.14'", specifier = ">=0.6.2" },
     { name = "flask-login", marker = "python_full_version >= '3.14'", specifier = ">=0.6.3" },
@@ -11388,7 +11388,7 @@ wheels = [
 
 [[package]]
 name = "flask-appbuilder"
-version = "5.2.0"
+version = "5.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apispec", extra = ["yaml"] },
@@ -11413,9 +11413,9 @@ dependencies = [
     { name = "werkzeug" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/ca/a617a4b39d6c1336a3dbc0b2e2ee24c2cbd3183174620de965affa355741/flask_appbuilder-5.2.0.tar.gz", hash = "sha256:dd153b4649f0cd127aeed056a409141299c6f491ecbe297960b37ace07117e72", size = 7060586, upload-time = "2026-03-02T14:42:08.376Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/97/b2/ad1784b3393cda84fd68b90689b1d6db037c13a62a9726ef639068bf8a75/flask_appbuilder-5.2.1.tar.gz", hash = "sha256:a5f6f34aa4ae0092a9eeb5051dc210869d9360429a429b0be88416c2616e1281", size = 7077970, upload-time = "2026-04-09T11:06:35.649Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/33/c3c98b590f644fe80298e368401a2ad920c153210bc1ebb4cb60d6ed6478/flask_appbuilder-5.2.0-py3-none-any.whl", hash = "sha256:054b9372e2f3785c8b0012bac744a807c5740bf4dff1ed207473a696a6321ce8", size = 2216573, upload-time = "2026-03-02T14:42:05.513Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/af/bdfd96170b1159ddc0e8424dfebbbac93d7270a1a749b0857fdaf384f027/flask_appbuilder-5.2.1-py3-none-any.whl", hash = "sha256:c5a134870fc0b780ac8d9de15fea8c470613ebe44feeddf01a2c18d2c066e144", size = 2217302, upload-time = "2026-04-09T11:06:32.891Z" },
 ]
 
 [[package]]
