@@ -107,6 +107,14 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class InvalidBackfillDateRange(AirflowException):
+    """
+    Raised when from_date is after to_date in a backfill request.
+
+    :meta private:
+    """
+
+
 class InvalidBackfillConf(AirflowException):
     """
     Raised when the provided ``dag_run_conf`` fails validation against the DAG's params.
@@ -268,7 +276,7 @@ def _validate_backfill_params(
 ) -> None:
 
     if from_date > to_date:
-        raise InvalidBackfillDate(
+        raise InvalidBackfillDateRange(
             f"from_date ({from_date.isoformat()}) must not be after to_date ({to_date.isoformat()})."
         )
 
