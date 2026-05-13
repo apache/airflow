@@ -314,7 +314,7 @@ providers/google/src/airflow/providers/google/cloud/triggers/cloud_composer.py::
 providers/google/src/airflow/providers/google/cloud/triggers/cloud_run.py::1
 providers/google/src/airflow/providers/google/cloud/triggers/dataproc.py::5
 providers/google/src/airflow/providers/google/cloud/triggers/kubernetes_engine.py::1
-providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.py::17
+providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.py::16
 providers/google/src/airflow/providers/google/common/hooks/base_google.py::7
 providers/google/src/airflow/providers/google/common/hooks/operation_helpers.py::2
 providers/google/src/airflow/providers/google/firebase/hooks/firestore.py::1

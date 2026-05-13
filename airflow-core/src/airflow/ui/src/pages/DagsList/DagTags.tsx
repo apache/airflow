@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Link } from "@chakra-ui/react";
 import { FiTag } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -35,9 +36,9 @@ export const DagTags = ({ hideIcon = false, tags }: Props) => (
     icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
     interactive
     items={tags.map(({ name }) => (
-      <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${encodeURIComponent(name)}`}>
-        {name}
-      </RouterLink>
+      <Link asChild color="fg.info" key={name}>
+        <RouterLink to={`/dags?${SearchParamsKeys.TAGS}=${encodeURIComponent(name)}`}>{name}</RouterLink>
+      </Link>
     ))}
     maxItems={MAX_TAGS}
   />
