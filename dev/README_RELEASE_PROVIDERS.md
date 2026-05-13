@@ -1646,7 +1646,7 @@ Trying to send HTML content will result in failure.
 ## Send announcements about security issues fixed in the release
 
 The release manager should review and mark as READY all the security issues fixed in the release.
-Such issues can be listed under the `Next wave of providers` milestone in [security issues](https://github.com/airflow-s/airflow-s/issues?q=is%3Aissue%20state%3Aopen%20milestone%3A%22Next%20wave%20of%20providers%22).
+Such issues can be listed under the section `Providers {RELEASE_DATE}` in [security issues board](https://github.com/orgs/airflow-s/projects/2).
 Go through the list of these issues and check for each of them the fix has been released as part of this release.
 Then the release manager should announce the issues via the CVE management tool at https://cveprocess.apache.org/.
 

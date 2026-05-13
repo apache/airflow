@@ -622,7 +622,7 @@ class FileTaskHandler(logging.Handler):
                 # If the logs are in legacy format, convert them to a generator of log lines
                 remote_logs = [
                     # We don't need to use the log_pos here, as we are using the metadata to track the position
-                    _get_compatible_log_stream(cast("list[str]", logs))
+                    _get_compatible_log_stream(logs)
                 ]
             elif isinstance(logs, list) and _is_logs_stream_like(logs[0]):
                 # If the logs are already in a stream-like format, we can use them directly
@@ -779,11 +779,9 @@ class FileTaskHandler(logging.Handler):
             out_stream = cast("Generator[StructuredLogMessage, None, None]", out_stream)
             return out_stream, metadata
         if isinstance(out_stream, list) and isinstance(out_stream[0], StructuredLogMessage):
-            out_stream = cast("list[StructuredLogMessage]", out_stream)
             return (log for log in out_stream), metadata
         if isinstance(out_stream, list) and isinstance(out_stream[0], str):
             # If the out_stream is a list of strings, convert it to a generator
-            out_stream = cast("list[str]", out_stream)
             raw_stream = _stream_lines_by_chunk(io.StringIO("".join(out_stream)))
             out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
             return out_stream, metadata
