@@ -3028,7 +3028,7 @@ state_store:
     default_retention_days:
       description: |
         Number of days to retain task state after their last update.
-        Rows older than this are removed by the scheduler's periodic cleanup.
+        Rows older than this are removed when cleanup is triggered.
         This config does not affect asset_state rows.
         Set to 0 to disable time-based cleanup entirely.
       version_added: 3.3.0

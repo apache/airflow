@@ -35,7 +35,7 @@ def cleanup_task_states(args) -> None:
         return
 
     if args.dry_run:
-        summary = backend._summary_dry_run_()
+        summary = backend._summary_dry_run()
         expired = summary["expired"]
         if not expired:
             print("Nothing to delete.")

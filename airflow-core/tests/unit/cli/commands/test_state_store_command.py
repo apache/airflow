@@ -45,7 +45,7 @@ class TestStateStoreCleanupCommand:
         backend = MetastoreStateBackend()
         with (
             mock.patch("airflow.cli.commands.state_store_command.get_state_backend", return_value=backend),
-            patch.object(backend, "_summary_dry_run_", return_value={"expired": []}),
+            patch.object(backend, "_summary_dry_run", return_value={"expired": []}),
         ):
             cleanup_task_states(args)
 

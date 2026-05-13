@@ -130,6 +130,4 @@ class BaseStateBackend(ABC):
         This is a no-op by default. Custom backends override this to implement their own
         retention policy. The backend is responsible for reading any relevant config (e.g.
         ``[state_store] default_retention_days``) and deciding what to delete.
-        Airflow does not call this from any standard job — the scheduler triggers it via
-        ``call_regular_interval`` for the default backend.
         """
