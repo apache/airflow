@@ -21,7 +21,7 @@ import json
 import time
 from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 import svcs
@@ -168,7 +168,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
         resp = await super().openapi_jsons(req)
-        open_apischema = json.loads(resp.body)
+        open_apischema = json.loads(cast("bytes", resp.body))
         open_apischema = self.customize_openapi(open_apischema)
 
         resp.body = resp.render(open_apischema)
