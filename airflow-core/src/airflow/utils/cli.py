@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
@@ -329,6 +329,22 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
         if from_db:
             return [get_db_dag(bundle_names=bundle_names, dag_id=dag_id)]
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
+
+    if from_db:
+        # Query serialized Dags from the metadata DB so callers (e.g. `tasks clear`) get
+        # SerializedDAG instances that expose `clear()`, rather than SDK DAG objects.
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        matched_dags = [
+            dag
+            for dag_id_key, dag in SerializedDagModel.read_all_dags().items()
+            if re.search(dag_id, dag_id_key)
+        ]
+        if not matched_dags:
+            raise DagNotFound(
+                f"dag_id could not be found with regex: {dag_id}. No matching serialized Dags in the database."
+            )
+        return matched_dags
 
     def _find_dag(bundle):
         dagbag = BundleDagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)

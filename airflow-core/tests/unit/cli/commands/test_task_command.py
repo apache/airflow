@@ -541,6 +541,36 @@ class TestCliTasks:
         # no indentation before property name
         assert "# property: bash_command" in output.split("\n")
 
+    def test_task_clear_with_dag_regex_returns_serialized_dags(self):
+        """
+        ``get_dags(use_regex=True, from_db=True)`` must return ``SerializedDAG`` instances.
+
+        ``task_clear`` relies on this: it passes the matched Dags to
+        ``SerializedDAG.clear_dags``, which calls ``.clear()`` on each — a method
+        only present on ``SerializedDAG``, not on the SDK ``DAG``.
+
+        The pattern is passed to ``re.search`` (unanchored), matching real CLI usage.
+        """
+        from airflow.utils.cli import get_dags
+
+        dags = get_dags(bundle_names=None, dag_id="example_python_operator", use_regex=True, from_db=True)
+        assert dags
+        for dag in dags:
+            assert hasattr(dag, "clear"), f"{type(dag).__name__} is missing .clear()"
+
+    def test_task_clear_dag_regex_does_not_attribute_error(self):
+        """End-to-end: ``tasks clear -R <pattern>`` clears matched Dags without error."""
+        args = self.parser.parse_args(
+            [
+                "tasks",
+                "clear",
+                "example_python_operator",
+                "-R",
+                "-y",
+            ]
+        )
+        task_command.task_clear(args)
+
 
 def _set_state_and_try_num(ti, session):
     ti.state = TaskInstanceState.QUEUED
