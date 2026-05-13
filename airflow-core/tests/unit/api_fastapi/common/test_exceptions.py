@@ -21,14 +21,17 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import FastAPI, HTTPException, status
+from fastapi.testclient import TestClient
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.exceptions import (
+    ERROR_HANDLERS,
     DagErrorHandler,
     _DatabaseDialect,
+    _DataErrorHandler,
     _UniqueConstraintErrorHandler,
 )
 from airflow.configuration import conf
@@ -386,6 +389,83 @@ class TestUniqueConstraintErrorHandler:
         assert response_detail == expected_detail
         assert "INSERT INTO dag_run" in actual_statement
         assert exeinfo_response_error.value.detail == expected_exception.detail
+
+
+class TestDataErrorHandler:
+    handler = _DataErrorHandler()
+
+    @staticmethod
+    def _make_data_error(orig_msg: str) -> DataError:
+        return DataError(
+            statement="INSERT INTO dag_run (conf) VALUES (?)",
+            params={},
+            orig=Exception(orig_msg),
+        )
+
+    @pytest.mark.parametrize(
+        ("orig_msg", "expected_status", "expected_reason"),
+        [
+            pytest.param(
+                "(1406, \"Data too long for column 'conf' at row 1\")",
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                "Payload exceeded database column limit",
+                id="mysql-1406-data-too-long",
+            ),
+            pytest.param(
+                "value too long for type character varying(250)",
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                "Payload exceeded database column limit",
+                id="postgres-value-too-long",
+            ),
+            pytest.param(
+                "string or blob too big",
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                "Payload exceeded database column limit",
+                id="sqlite-blob-too-big",
+            ),
+            pytest.param(
+                "(1264, \"Out of range value for column 'slots' at row 1\")",
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Value rejected by database",
+                id="mysql-1264-out-of-range",
+            ),
+            pytest.param(
+                "numeric field overflow",
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Value rejected by database",
+                id="postgres-numeric-field-overflow",
+            ),
+        ],
+    )
+    def test_dataerror_translates_to_actionable_http_response(
+        self,
+        orig_msg: str,
+        expected_status: int,
+        expected_reason: str,
+    ) -> None:
+        exc = self._make_data_error(orig_msg)
+        with pytest.raises(HTTPException) as exc_info:
+            self.handler.exception_handler(Mock(), exc)
+        assert exc_info.value.status_code == expected_status
+        assert exc_info.value.detail["reason"] == expected_reason
+        assert exc_info.value.detail["orig_error"] == orig_msg
+        assert "MEDIUMTEXT" in exc_info.value.detail["message"]
+
+    def test_dataerror_dispatched_through_fastapi_app(self) -> None:
+        """End-to-end: a route raising DataError returns 413 via the registered handler."""
+        app = FastAPI()
+        for h in ERROR_HANDLERS:
+            app.add_exception_handler(h.exception_cls, h.exception_handler)
+
+        @app.post("/test")
+        def trigger_data_error():
+            raise self._make_data_error("(1406, \"Data too long for column 'conf' at row 1\")")
+
+        response = TestClient(app, raise_server_exceptions=False).post("/test")
+        assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
+        body = response.json()
+        assert body["detail"]["reason"] == "Payload exceeded database column limit"
+        assert "MEDIUMTEXT" in body["detail"]["message"]
 
 
 class TestDagErrorHandler:
