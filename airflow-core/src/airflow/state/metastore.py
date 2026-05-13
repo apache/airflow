@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, select
@@ -36,9 +38,6 @@ if TYPE_CHECKING:
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
-
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
