@@ -98,7 +98,7 @@ class FixedDatetimeDeadline(BaseDeadlineReference):
 
     @classmethod
     def deserialize_reference(cls, reference_data: dict[str, Any]) -> FixedDatetimeDeadline:
-        from airflow._shared.timezones import timezone
+        from airflow.sdk._shared.timezones import timezone
 
         return cls(_datetime=timezone.from_timestamp(reference_data["datetime"]))
 

@@ -18,7 +18,7 @@
  */
 
 /**
- * Audit log data fixture — triggers DAG runs to generate audit log entries.
+ * Audit log data fixture — triggers Dag runs to generate audit log entries.
  */
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";

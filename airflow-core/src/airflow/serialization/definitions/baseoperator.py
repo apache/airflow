@@ -126,6 +126,7 @@ class SerializedBaseOperator(DAGNode):
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
     retry_exponential_backoff: float = 0
+    has_retry_policy: bool = False
     run_as_user: str | None = None
     task_group: SerializedTaskGroup | None = None
 

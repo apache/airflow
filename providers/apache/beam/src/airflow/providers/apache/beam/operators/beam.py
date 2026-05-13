@@ -313,7 +313,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
     will be merged to specify pipeline execution parameter, and
     ``default_pipeline_options`` is expected to save high-level options,
     for instances, project and zone information, which apply to all beam
-    operators in the DAG.
+    operators in the Dag.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -517,7 +517,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
     ``default_pipeline_options`` and ``pipeline_options`` will be merged to specify pipeline
     execution parameter, and ``default_pipeline_options`` is expected to save
     high-level pipeline_options, for instances, project and zone information, which
-    apply to all Apache Beam operators in the DAG.
+    apply to all Apache Beam operators in the Dag.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -714,7 +714,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
     will be merged to specify pipeline execution parameter, and
     ``default_pipeline_options`` is expected to save high-level options,
     for instances, project and zone information, which apply to all beam
-    operators in the DAG.
+    operators in the Dag.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

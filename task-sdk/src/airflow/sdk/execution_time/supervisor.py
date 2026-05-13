@@ -56,7 +56,6 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
-    VariableResponse,
     XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
@@ -65,12 +64,19 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
+    ClearTaskState,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
+    DeleteTaskState,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -78,6 +84,9 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -88,6 +97,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
+    GetTaskState,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -98,37 +108,50 @@ from airflow.sdk.execution_time.comms import (
     HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskState,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskState,
+    TaskStateResult,
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
-    VariableResult,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.log import mask_secret
+from airflow.sdk.execution_time.request_handlers import (
+    handle_get_connection,
+    handle_get_variable,
+    handle_mask_secret,
+)
 
 try:
     from socket import send_fds
 except ImportError:
     send_fds = None  # type: ignore[assignment]
+
+from opentelemetry import context as otel_context, trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+_trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -159,13 +182,15 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
-STATES_SENT_DIRECTLY = [
-    TaskInstanceState.DEFERRED,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
-    TaskInstanceState.UP_FOR_RETRY,
-    TaskInstanceState.SUCCESS,
-    SERVER_TERMINATED,
-]
+STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
+    {
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.SUCCESS,
+        SERVER_TERMINATED,
+    }
+)
 
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
@@ -736,7 +761,13 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", body=request.body)
                 continue
 
+            # Restore the task runner's trace context so that any outbound HTTP calls made while
+            # handling this request are linked to the correct task span, not the supervisor's own span.
+            token = None
             try:
+                if request.context_carrier:
+                    ctx = _trace_propagator.extract(request.context_carrier)
+                    token = otel_context.attach(ctx)
                 self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
@@ -760,6 +791,9 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
+            finally:
+                if token is not None:
+                    otel_context.detach(token)
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
@@ -997,6 +1031,33 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
 
     _REMOTE_LOGGING_CONN_CACHE[conn_id] = result
     return result
+
+
+@contextlib.contextmanager
+def _ensure_client(
+    server: str | None,
+    token: str,
+    client: Client | None = None,
+    dry_run: bool = False,
+) -> Generator[Client, None, None]:
+    """
+    Yield an API client, creating one if not provided.
+
+    If a client is created internally, it will be closed when the context exits.
+    Pre-existing clients are yielded as-is and left open for the caller to manage.
+    """
+    if client:
+        yield client
+        return
+
+    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+    new_client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
+    log.debug("Connecting to execution API server", server=server)
+    try:
+        yield new_client
+    finally:
+        with suppress(Exception):
+            new_client.close()
 
 
 @contextlib.contextmanager
@@ -1363,7 +1424,7 @@ class ActivitySubprocess(WatchedSubprocess):
         else:
             log.debug("Received message from task runner", msg=msg)
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -1387,29 +1448,13 @@ class ActivitySubprocess(WatchedSubprocess):
                 id=self.id,
                 end_date=msg.end_date,
                 rendered_map_index=self._rendered_map_index,
+                retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
+                retry_reason=getattr(msg, "retry_reason", None),
             )
         elif isinstance(msg, GetConnection):
-            conn = self.client.connections.get(msg.conn_id)
-            if isinstance(conn, ConnectionResponse):
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
-                conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result
-                dump_opts = {"exclude_unset": True, "by_alias": True}
-            else:
-                resp = conn
+            resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
-            var = self.client.variables.get(msg.key)
-            if isinstance(var, VariableResponse):
-                if var.value:
-                    mask_secret(var.value, var.key)
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
+            resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
@@ -1482,6 +1527,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = asset_resp
+        elif isinstance(msg, GetAssetsByAlias):
+            resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(
                 uri=msg.uri,
@@ -1512,7 +1559,7 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
-                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.reset_dag_run, msg.note
+                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
             )
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
@@ -1595,12 +1642,60 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
-            mask_secret(msg.value, msg.name)
+            handle_mask_secret(msg)
         elif isinstance(msg, GetDag):
             dag = self.client.dags.get(
                 dag_id=msg.dag_id,
             )
             resp = DagResult.from_api_response(dag)
+        elif isinstance(msg, GetTaskState):
+            task_state = self.client.task_state.get(msg.ti_id, msg.key)
+            resp = (
+                task_state
+                if isinstance(task_state, ErrorResponse)
+                else TaskStateResult.from_task_state_response(task_state)
+            )
+        elif isinstance(msg, SetTaskState):
+            self.client.task_state.set(msg.ti_id, msg.key, msg.value)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteTaskState):
+            self.client.task_state.delete(msg.ti_id, msg.key)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearTaskState):
+            self.client.task_state.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, GetAssetStateByName):
+            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+        elif isinstance(msg, GetAssetStateByUri):
+            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+        elif isinstance(msg, SetAssetStateByName):
+            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, SetAssetStateByUri):
+            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByName):
+            self.client.asset_state.delete(msg.key, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByUri):
+            self.client.asset_state.delete(msg.key, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByName):
+            self.client.asset_state.clear(name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByUri):
+            self.client.asset_state.clear(uri=msg.uri)
+            resp = OKResponse(ok=True)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -2190,58 +2285,52 @@ def supervise_task(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
-    close_client = False
-    if not client:
-        limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-        client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
-        close_client = True
-        log.debug("Connecting to execution API server", server=server)
+    with _ensure_client(server, token, client=client, dry_run=dry_run) as client:
+        start = time.monotonic()
 
-    start = time.monotonic()
+        # TODO: Use logging providers to handle the chunked upload for us etc.
+        logger: FilteringBoundLogger | None = None
+        log_file_descriptor: BinaryIO | TextIO | None = None
+        if log_path:
+            logger, log_file_descriptor = _configure_logging(log_path, client)
 
-    # TODO: Use logging providers to handle the chunked upload for us etc.
-    logger: FilteringBoundLogger | None = None
-    log_file_descriptor: BinaryIO | TextIO | None = None
-    if log_path:
-        logger, log_file_descriptor = _configure_logging(log_path, client)
-
-    backends = ensure_secrets_backend_loaded()
-    log.info(
-        "Secrets backends loaded for worker",
-        count=len(backends),
-        backend_classes=[type(b).__name__ for b in backends],
-    )
-
-    reset_secrets_masker()
-
-    try:
-        process = ActivitySubprocess.start(
-            dag_rel_path=dag_rel_path,
-            what=ti,
-            client=client,
-            logger=logger,
-            bundle_info=bundle_info,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-        )
-
-        exit_code = process.wait()
-        end = time.monotonic()
+        backends = ensure_secrets_backend_loaded()
         log.info(
-            "Workload finished",
-            workload_type="ExecuteTask",
-            workload_id=str(ti.id),
-            exit_code=exit_code,
-            duration=end - start,
-            final_state=process.final_state,
+            "Secrets backends loaded for worker",
+            count=len(backends),
+            backend_classes=[type(b).__name__ for b in backends],
         )
-        return exit_code
-    finally:
-        if log_path and log_file_descriptor:
-            log_file_descriptor.close()
-        if close_client and client:
-            with suppress(Exception):
-                client.close()
+
+        reset_secrets_masker()
+
+        try:
+            process = ActivitySubprocess.start(
+                dag_rel_path=dag_rel_path,
+                what=ti,
+                client=client,
+                logger=logger,
+                bundle_info=bundle_info,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+            )
+
+            exit_code = process.wait()
+            end = time.monotonic()
+            log.info(
+                "Workload finished",
+                workload_type="ExecuteTask",
+                workload_id=str(ti.id),
+                exit_code=exit_code,
+                duration=end - start,
+                final_state=process.final_state,
+            )
+            return exit_code
+        finally:
+            if log_path and log_file_descriptor:
+                log_file_descriptor.close()
+            provider = trace.get_tracer_provider()
+            if hasattr(provider, "force_flush"):
+                provider.force_flush(timeout_millis=5000)  # upper bound, not a fixed wait
 
 
 def supervise(**kwargs) -> int:

@@ -15,6 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
+airflowctl unreleased
+---------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- Expose required primitive parameters of auto-generated commands as positional
+  arguments instead of ``--flag`` options. Optional parameters keep the
+  ``--flag`` form. Follows the dev-list lazy consensus on airflowctl parameter
+  style (see `<https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm>`_).
+
 airflowctl 0.1.4 (2026-04-18)
 -----------------------------
 

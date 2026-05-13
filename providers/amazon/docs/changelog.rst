@@ -26,6 +26,80 @@
 Changelog
 ---------
 
+9.28.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3TablesDeleteNamespaceOperator' (#66375)``
+* ``Add 'GlueCatalogDeleteTableOperator' (#66380)``
+* ``Add AWS SageMakerUnifiedStudioNotebookOperator (#62240)``
+* ``Add 'GlueCatalogCreateTableOperator' (#66362)``
+* ``Add 'S3VectorsDeleteIndexOperator' (#66361)``
+* ``Add 'MwaaServerlessCreateWorkflowOperator' (#66363)``
+* ``Add 'BedrockCreateGuardrailVersionOperator' (#66372)``
+* ``Add 'S3TablesCreateNamespaceOperator' (#66360)``
+* ``Add 'S3TablesDeleteTableBucketOperator' (#66120)``
+* ``Add 'S3VectorsCreateIndexOperator' (#66121)``
+* ``Add MwaaServerlessStartWorkflowRunOperator (#66046)``
+* ``Add 'BedrockDeleteGuardrailOperator' (#66140)``
+* ``Add 'S3TablesCreateTableBucketOperator' (#66119)``
+* ``Add ExecuteCallback support to AwsLambdaExecutor (#63035)``
+* ``Add 'BedrockCreateGuardrailOperator' (#66035)``
+* ``Add 'S3TablesDeleteTableOperator' (#66019)``
+* ``Add 'GlueCatalogDeleteDatabaseOperator' (#66021)``
+* ``Add 'S3VectorsDeleteVectorBucketOperator' (#66048)``
+* ``Add 'S3VectorsCreateVectorBucketOperator' for Amazon S3 Vectors (#65968)``
+* ``Add 'GlueCatalogCreateDatabaseOperator' (#65977)``
+* ``Migrate EmrServerlessStartJobTrigger from CancelledError to on_kill() (#65740)``
+* ``Add 'S3TablesCreateTableOperator' (#65816)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS auth manager batch team context (#66203)``
+* ``Fix ASYNC110 violation in RedshiftDataTrigger (#66157)``
+* ``Fix double cancellation for airflow 3.3+ for EmrServerlessStartJobTrigger (#65997)``
+
+Misc
+~~~~
+
+* ``Word changed from DAG to Dag in providers/amazon/ (#66152)``
+* ``Added logging for skipped lookups in SM and SSM backends (#66059)``
+* ``Configure S3Hook transfer_config_args via service_config (#65963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``Apply AIR201-style replacements (#65197)``
+   * ``fix: Align DAG_ID with module name in S3 Tables and S3 Vectors system tests (#66134)``
+   * ``Providers wave 2026-04-26 (#65902)``
+   * ``Providers wave 2026-04-26``
+
+9.27.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3ReadObjectOperator' (#65789)``
+* ``Add multi-team dimensions to boto3 user agent string (#65821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent unauthorized access to team-scoped secrets in SM and SSM (#65703)``
+
+Misc
+~~~~
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 9.26.0
 ......
 

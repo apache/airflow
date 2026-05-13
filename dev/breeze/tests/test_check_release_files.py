@@ -19,6 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from airflow_breeze.utils.check_release_files import (
+    PROVIDERS_DOCKER,
     check_airflow_ctl_release,
     check_airflow_release,
     check_providers,
@@ -220,3 +221,35 @@ def test_check_python_client_release_fail():
         "apache_airflow_client-2.5.0.tar.gz.sha512",
         "apache_airflow_python_client-2.5.0-source.tar.gz.asc",
     ]
+
+
+def test_providers_docker_upgrades_uv_before_install():
+    """The generated Dockerfile.pmc must upgrade uv to satisfy the copied
+    pyproject.toml's [tool.uv] required-version floor before `uv pip install`
+    runs, otherwise the install step fails with a version-pin error when the
+    CI image ships an older uv.
+    """
+    install_cmd = "RUN uv pip install --pre --system 'apache-airflow-providers-amazon==9.26.0rc1'"
+    rendered = PROVIDERS_DOCKER.format(install_cmd)
+
+    assert "pip install --upgrade 'uv>=" in rendered
+    upgrade_idx = rendered.index("pip install --upgrade 'uv>=")
+    install_idx = rendered.index(install_cmd)
+    assert upgrade_idx < install_idx, "uv upgrade must precede uv pip install"
+
+
+def test_providers_docker_uv_version_matches_required_version():
+    """The hard-coded uv floor in PROVIDERS_DOCKER must equal the current
+    [tool.uv] required-version from the root pyproject.toml. The
+    `sync-uv-min-version-markers` prek hook enforces this at commit time;
+    this test is a belt-and-braces guard for accidental drift.
+    """
+    from airflow_breeze.utils.check_release_files import _PROVIDERS_DOCKER_UV_MIN_VERSION
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+
+    pyproject = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text()
+    import re
+
+    match = re.search(r'required-version\s*=\s*"\s*>=\s*([0-9]+(?:\.[0-9]+){0,2})\s*"', pyproject)
+    assert match, "Could not find [tool.uv] required-version in root pyproject.toml"
+    assert match.group(1) == _PROVIDERS_DOCKER_UV_MIN_VERSION

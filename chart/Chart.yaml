@@ -19,7 +19,7 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.21.0
+version: 1.22.0
 appVersion: 3.2.1
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
@@ -48,9 +48,9 @@ annotations:
   artifacthub.io/screenshots: |
     - title: Home Page
       url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/home_dark.png
-    - title: DAG Overview Dashboard
+    - title: Dag Overview Dashboard
       url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dag_overview_dashboard.png
-    - title: DAGs View
+    - title: Dags View
       url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/dags.png
     - title: Assets View
       url: https://airflow.apache.org/docs/apache-airflow/3.2.1/_images/asset_view.png

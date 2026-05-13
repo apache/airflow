@@ -38,6 +38,22 @@ def get_provider_info():
             {"integration-name": "MongoDB", "python-modules": ["airflow.providers.mongo.sensors.mongo"]}
         ],
         "hooks": [{"integration-name": "MongoDB", "python-modules": ["airflow.providers.mongo.hooks.mongo"]}],
+        "asset-uris": [
+            {
+                "schemes": ["mongodb"],
+                "handler": "airflow.providers.mongo.assets.mongo.sanitize_uri",
+                "factory": "airflow.providers.mongo.assets.mongo.create_asset",
+                "to_openlineage_converter": "airflow.providers.mongo.assets.mongo.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["mongodb"],
+                "handler": "airflow.providers.mongo.assets.mongo.sanitize_uri",
+                "factory": "airflow.providers.mongo.assets.mongo.create_asset",
+                "to_openlineage_converter": "airflow.providers.mongo.assets.mongo.convert_asset_to_openlineage",
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.mongo.hooks.mongo.MongoHook",

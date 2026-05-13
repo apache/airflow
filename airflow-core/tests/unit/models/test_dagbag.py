@@ -252,7 +252,7 @@ class TestDBDagBagCache:
         # Cache should be empty -- iter doesn't cache to prevent thrashing
         assert len(dag_bag._dags) == 0
 
-    @patch("airflow.models.dagbag.Stats")
+    @patch("airflow.models.dagbag.stats")
     def test_cache_hit_metric_emitted(self, mock_stats):
         """Test that cache hit metric is emitted when caching is enabled."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
@@ -263,7 +263,7 @@ class TestDBDagBagCache:
 
         mock_stats.incr.assert_called_with("api_server.dag_bag.cache_hit")
 
-    @patch("airflow.models.dagbag.Stats")
+    @patch("airflow.models.dagbag.stats")
     def test_cache_miss_metric_emitted(self, mock_stats):
         """Test that cache miss metric is emitted when DAG is found in DB but not in cache."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
@@ -281,7 +281,7 @@ class TestDBDagBagCache:
 
         mock_stats.incr.assert_any_call("api_server.dag_bag.cache_miss")
 
-    @patch("airflow.models.dagbag.Stats")
+    @patch("airflow.models.dagbag.stats")
     def test_cache_clear_metric_emitted(self, mock_stats):
         """Test that cache clear metric is emitted when caching is enabled."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
@@ -291,7 +291,7 @@ class TestDBDagBagCache:
 
         mock_stats.incr.assert_called_with("api_server.dag_bag.cache_clear")
 
-    @patch("airflow.models.dagbag.Stats")
+    @patch("airflow.models.dagbag.stats")
     def test_cache_size_gauge_emitted(self, mock_stats):
         """Test that cache size gauge is emitted when a DAG is cached."""
         dag_bag = DBDagBag(cache_size=10, cache_ttl=60)

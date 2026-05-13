@@ -18,14 +18,14 @@
  */
 import { test } from "tests/e2e/fixtures/dag-runs-data";
 
-test.describe("DAG Runs Page", () => {
+test.describe("Dag Runs Page", () => {
   test.setTimeout(60_000);
 
   // dagRunsPageData is triggered once per worker via beforeEach.
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- triggers worker-scoped data fixture
   test.beforeEach(async ({ dagRunsPageData: _data }) => {});
 
-  test("verify DAG runs table displays data", async ({ dagRunsPage }) => {
+  test("verify Dag runs table displays data", async ({ dagRunsPage }) => {
     await dagRunsPage.navigate();
     await dagRunsPage.verifyDagRunsExist();
   });
@@ -45,7 +45,7 @@ test.describe("DAG Runs Page", () => {
     await dagRunsPage.verifyStateFiltering("Success", dagRunsPageData.dag1Id);
   });
 
-  test("verify filtering by DAG ID", async ({ dagRunsPage, dagRunsPageData }) => {
+  test("verify filtering by Dag ID", async ({ dagRunsPage, dagRunsPageData }) => {
     await dagRunsPage.navigate();
     await dagRunsPage.verifyDagIdFiltering(dagRunsPageData.dag1Id);
   });

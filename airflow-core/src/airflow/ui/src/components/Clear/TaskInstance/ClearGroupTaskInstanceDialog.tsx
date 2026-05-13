@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
@@ -30,6 +30,8 @@ import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
 type Props = {
   readonly onClose: () => void;
@@ -56,6 +58,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const userToggledRunOnLatestRef = useRef(false);
 
   const [note, setNote] = useState<string | null>(null);
 
@@ -106,8 +109,21 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     total_entries: 0,
   };
 
-  const shouldShowBundleVersionOption =
-    dagDetails?.bundle_version !== null && dagDetails?.bundle_version !== "";
+  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedDagVersionNumber: taskInstance.dag_version_number,
+    // Fall back to legacy heuristic when grid summary has no version (older API).
+    useLatestBundleVersionAsFallback: true,
+  });
+
+  useEffect(() => {
+    if (!open) {
+      userToggledRunOnLatestRef.current = false;
+    } else if (!userToggledRunOnLatestRef.current) {
+      setRunOnLatestVersion(dagVersionsDiffer);
+    }
+  }, [open, dagVersionsDiffer]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -160,14 +176,18 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex
-            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
-            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+            {...(shouldShowRunOnLatestOption ? { alignItems: "center" } : {})}
+            gap={3}
+            justifyContent={shouldShowRunOnLatestOption ? "space-between" : "end"}
             mt={3}
           >
-            {shouldShowBundleVersionOption ? (
+            {shouldShowRunOnLatestOption ? (
               <Checkbox
                 checked={runOnLatestVersion}
-                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                onCheckedChange={(event) => {
+                  userToggledRunOnLatestRef.current = true;
+                  setRunOnLatestVersion(Boolean(event.checked));
+                }}
               >
                 {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
               </Checkbox>

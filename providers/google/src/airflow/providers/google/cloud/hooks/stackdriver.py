@@ -57,12 +57,16 @@ class StackdriverHook(GoogleBaseHook):
 
     def _get_policy_client(self):
         if not self._policy_client:
-            self._policy_client = monitoring_v3.AlertPolicyServiceClient()
+            self._policy_client = monitoring_v3.AlertPolicyServiceClient(
+                client_options=self.get_client_options()
+            )
         return self._policy_client
 
     def _get_channel_client(self):
         if not self._channel_client:
-            self._channel_client = monitoring_v3.NotificationChannelServiceClient()
+            self._channel_client = monitoring_v3.NotificationChannelServiceClient(
+                client_options=self.get_client_options()
+            )
         return self._channel_client
 
     @GoogleBaseHook.fallback_to_default_project_id
