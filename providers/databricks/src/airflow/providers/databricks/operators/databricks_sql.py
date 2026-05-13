@@ -46,21 +46,44 @@ _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DISALLOWED_SQL_TOKENS = (";", "--", "/*", "*/")
 
 
+def _escape_query_tag_value(value: str) -> str:
+    """Escape Databricks query-tag separators in a tag value."""
+    return str(value).replace("\\", "\\\\").replace(",", "\\,").replace(":", "\\:")
+
+
 def _format_query_tags(context: Context) -> str:
     """Format Airflow context metadata into databricks-sql-connector query tags."""
-
-    def escape(val: str) -> str:
-        return str(val).replace("\\", "\\\\").replace(",", "\\,").replace(":", "\\:")
-
     tags = []
     if "dag" in context and getattr(context["dag"], "dag_id", None):
-        tags.append(f"airflow_dag_id:{escape(context['dag'].dag_id)}")
+        tags.append(f"airflow_dag_id:{_escape_query_tag_value(context['dag'].dag_id)}")
     if "task" in context and getattr(context["task"], "task_id", None):
-        tags.append(f"airflow_task_id:{escape(context['task'].task_id)}")
+        tags.append(f"airflow_task_id:{_escape_query_tag_value(context['task'].task_id)}")
     if "run_id" in context and context["run_id"]:
-        tags.append(f"airflow_run_id:{escape(context['run_id'])}")
+        tags.append(f"airflow_run_id:{_escape_query_tag_value(context['run_id'])}")
 
     return ",".join(tags)
+
+
+def _merge_query_tags(session_config: dict[str, Any], query_tags: str) -> dict[str, Any]:
+    """Return a copied session config with Airflow query tags appended."""
+    updated_config = session_config.copy()
+    existing_tags = updated_config.get("query_tags", "")
+    updated_config["query_tags"] = f"{existing_tags},{query_tags}" if existing_tags else query_tags
+    return updated_config
+
+
+def _inject_query_tags(hook: DatabricksSqlHook, context: Context) -> None:
+    """Inject Airflow context metadata into Databricks query tags."""
+    query_tags = _format_query_tags(context)
+    if not query_tags:
+        return
+
+    if hook.session_config is None:
+        conn_extra = hook.databricks_conn.extra_dejson
+        hook.session_config = conn_extra.get("session_configuration", {})
+
+    if isinstance(hook.session_config, dict):
+        hook.session_config = _merge_query_tags(hook.session_config, query_tags)
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -171,21 +194,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         return self._hook
 
     def execute(self, context: Context) -> Any:
-        hook = self.get_db_hook()
-        query_tags = _format_query_tags(context)
-        if query_tags:
-            if hook.session_config is None:
-                conn_extra = hook.databricks_conn.extra_dejson
-                hook.session_config = conn_extra.get("session_configuration", {})
-
-            if isinstance(hook.session_config, dict):
-                hook.session_config = hook.session_config.copy()
-                existing_tags = hook.session_config.get("query_tags", "")
-                if existing_tags:
-                    hook.session_config["query_tags"] = f"{existing_tags},{query_tags}"
-                else:
-                    hook.session_config["query_tags"] = query_tags
-
+        _inject_query_tags(self.get_db_hook(), context)
         return super().execute(context)
 
     def _should_run_output_processing(self) -> bool:
@@ -553,20 +562,7 @@ FILEFORMAT = {self._file_format}
         self._sql = self._create_sql_query()
         self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()
-
-        query_tags = _format_query_tags(context)
-        if query_tags:
-            if hook.session_config is None:
-                conn_extra = hook.databricks_conn.extra_dejson
-                hook.session_config = conn_extra.get("session_configuration", {})
-            if isinstance(hook.session_config, dict):
-                hook.session_config = hook.session_config.copy()
-                existing_tags = hook.session_config.get("query_tags", "")
-                if existing_tags:
-                    hook.session_config["query_tags"] = f"{existing_tags},{query_tags}"
-                else:
-                    hook.session_config["query_tags"] = query_tags
-
+        _inject_query_tags(hook, context)
         hook.run(self._sql)
 
     def on_kill(self) -> None:
