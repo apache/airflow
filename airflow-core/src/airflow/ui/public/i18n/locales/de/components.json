@@ -88,7 +88,7 @@
     "directionRight": "Von Links nach Rechts",
     "directionUp": "Von Unten nach Oben",
     "downloadImage": "Graph-Bild herunterladen",
-    "downloadImageError": "Herunterladen des Graph-Bild fehlgeschlagen.",
+    "downloadImageError": "Herunterladen des Graph-Bildes fehlgeschlagen.",
     "downloadImageErrorTitle": "Herunterladen fehlgeschlagen",
     "otherDagRuns": "+Weitere Dag Läufe",
     "taskCount_one": "{{count}} Task",

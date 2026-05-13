@@ -51,7 +51,7 @@
     }
   },
   "deadlineStatus": {
-    "actual": "Aktuell",
+    "actual": "Tatsächlich",
     "expected": "Erwartet",
     "finishedEarly": "{{duration}} vor der Frist abgeschlossen",
     "finishedLate": "{{duration}} nach der Frist abgeschlossen",
