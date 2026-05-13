@@ -4711,12 +4711,6 @@ class TestTaskRunnerCallsCallbacks:
     def test_airflow_fail_exception_in_on_retry_callback_fails_task(
         self, create_runtime_ti, mock_supervisor_comms
     ):
-        """
-        AirflowFailException raised in on_retry_callback should fail the task without retrying.
-
-        Regression test for #60172.
-        """
-
         def _execute_failure(context):
             raise RuntimeError("transient")
 
@@ -4747,10 +4741,11 @@ class TestTaskRunnerCallsCallbacks:
         finalize(runtime_ti, state, context, log, error, msg=msg)
 
         assert runtime_ti.state == TaskInstanceState.FAILED
-        # Both callbacks should have run (retry callback first, then failure callback after
-        # AirflowFailException promoted the state to FAILED).
-        assert len(retry_callback_calls) == 1
-        assert len(failure_callback_calls) == 1
+        # Retry callback fires while the task is UP_FOR_RETRY; once it raises
+        # AirflowFailException the state is promoted to FAILED, and the failure
+        # callback fires under that state.
+        assert retry_callback_calls == [TaskInstanceState.UP_FOR_RETRY]
+        assert failure_callback_calls == [TaskInstanceState.FAILED]
 
         # Supervisor should have received exactly one terminal-state message and it should be
         # TaskState(FAILED), not RetryTask.
