@@ -40,6 +40,8 @@ from airflow.utils.helpers import merge_dicts
 if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
 if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -93,9 +95,7 @@ class AwsBatchExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
     if AIRFLOW_V_3_3_PLUS:
-        supported_workload_types: frozenset[WorkloadType] = frozenset(
-            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
-        )
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
@@ -130,12 +130,12 @@ class AwsBatchExecutor(BaseExecutor):
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
-        for w in workload_items:
-            if isinstance(w, workloads.ExecuteTask):
-                task_command = [w]
-                task_key = w.ti.key
-                queue = w.ti.queue
-                executor_config = w.ti.executor_config or {}
+        for workload in workload_items:
+            if isinstance(workload, workloads.ExecuteTask):
+                task_command = [workload]
+                task_key = workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
 
                 if AIRFLOW_V_3_3_PLUS:
                     del self.executor_queues[WorkloadType.EXECUTE_TASK][task_key]
@@ -148,18 +148,18 @@ class AwsBatchExecutor(BaseExecutor):
                     executor_config=executor_config,
                 )
                 self.running.add(task_key)
-            elif AIRFLOW_V_3_3_PLUS and isinstance(w, workloads.ExecuteCallback):
-                callback_command = [w]
-                callback_key = w.callback.key
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
+                callback_command = [workload]
+                callback_key = workload.callback.key
                 queue = None
-                if isinstance(w.callback.data, dict) and "queue" in w.callback.data:
-                    queue = w.callback.data["queue"]
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
 
                 del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][callback_key]
                 self.execute_async(key=callback_key, command=callback_command, queue=queue)  # type: ignore[arg-type]
                 self.running.add(callback_key)
             else:
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def check_health(self):
         """Make a test API call to check the health of the Batch Executor."""
