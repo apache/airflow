@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Spinner, Text } from "@chakra-ui/react";
 import { useEffect, useId, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { LazyClipboard } from "src/components/ui";
 import { renderMermaidDiagram } from "src/utils/renderMermaid";
@@ -72,15 +73,17 @@ export const MarkdownCodeBlock = ({
   readonly style: SyntaxTheme;
   readonly value: string;
 }) => {
+  const { t: translate } = useTranslation("components");
   const languageLabel = language ?? "text";
 
   return (
     <MarkdownBlockFrame
       action={
         <LazyClipboard
-          aria-label="Copy code block"
+          aria-label={translate("clipboard.copy")}
           data-testid="markdown-copy-button"
           getValue={() => value}
+          title={translate("clipboard.copy")}
         />
       }
       label={languageLabel}
@@ -113,9 +116,11 @@ export const MarkdownMermaid = ({
   readonly fallbackStyle: SyntaxTheme;
   readonly theme: "dark" | "default";
 }) => {
+  const { t: translate } = useTranslation("components");
   const diagramId = useId().replaceAll(":", "");
   const [error, setError] = useState(false);
   const [svg, setSvg] = useState<string>();
+  const mermaidLabel = "mermaid";
 
   useEffect(() => {
     let cancelled = false;
@@ -155,18 +160,19 @@ export const MarkdownMermaid = ({
     <MarkdownBlockFrame
       action={
         <LazyClipboard
-          aria-label="Copy Mermaid source"
+          aria-label={translate("clipboard.copy")}
           data-testid="markdown-mermaid-copy-button"
           getValue={() => chart}
+          title={translate("clipboard.copy")}
         />
       }
-      label="mermaid"
+      label={mermaidLabel}
     >
       <Box maxWidth="100%" minHeight="8rem" minWidth={0} overflow="hidden" p={3} width="100%">
         {svg === undefined ? (
-          <Text color="fg.muted" fontSize="sm">
-            Rendering diagram...
-          </Text>
+          <Box alignItems="center" color="fg.muted" data-testid="markdown-mermaid-loading" display="inline-flex" minHeight="2rem">
+            <Spinner size="sm" />
+          </Box>
         ) : (
           <Box
             css={{

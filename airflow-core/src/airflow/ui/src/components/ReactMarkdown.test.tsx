@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import i18n from "src/i18n/config";
 import { SyntaxHighlighter as HighlightSyntaxHighlighter } from "src/utils/syntaxHighlighter";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -80,7 +80,7 @@ describe("ReactMarkdown", () => {
 
     expect(screen.getByText("javascript")).toBeInTheDocument();
     expect(screen.getByTestId("markdown-copy-button")).toBeInTheDocument();
-    expect(screen.getByLabelText("Copy code block")).toBeInTheDocument();
+    expect(screen.getByLabelText(i18n.t("components:clipboard.copy"))).toBeInTheDocument();
     expect(screen.getByText("console")).toBeInTheDocument();
     expect(container.querySelectorAll(".react-syntax-highlighter-line-number")).toHaveLength(2);
     expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({ overflowX: "auto", overflowY: "hidden", width: "100%" });
@@ -139,9 +139,9 @@ describe("ReactMarkdown", () => {
       </BaseWrapper>,
     );
 
-    expect(screen.getByLabelText("Copy Mermaid source")).toBeInTheDocument();
+    expect(screen.getByLabelText(i18n.t("components:clipboard.copy"))).toBeInTheDocument();
     expect(renderMermaidDiagramMock).toHaveBeenCalled();
-    const loadingState = screen.getByText("Rendering diagram...");
+    const loadingState = screen.getByTestId("markdown-mermaid-loading");
 
     expect(loadingState).toBeInTheDocument();
     expect(loadingState.parentElement).toHaveStyle({

@@ -16,19 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import mermaid from "mermaid";
-
 type MermaidTheme = "dark" | "default";
+type MermaidApi = {
+  initialize: (config: { securityLevel: "strict"; startOnLoad: false; theme: MermaidTheme }) => void;
+  render: (diagramId: string, chart: string) => Promise<{ svg: string }>;
+};
 
 let initializedTheme: MermaidTheme | undefined;
+let mermaidModulePromise: Promise<{ default: MermaidApi }> | undefined;
 
-const initializeMermaid = (theme: MermaidTheme) => {
+const getMermaid = async () => {
+  mermaidModulePromise ??= import("mermaid");
+
+  const mermaidModule = await mermaidModulePromise;
+
+  return mermaidModule.default;
+};
+
+const initializeMermaid = async (theme: MermaidTheme) => {
+  const mermaid = await getMermaid();
+
   if (initializedTheme === theme) {
-    return;
+    return mermaid;
   }
 
   mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
   initializedTheme = theme;
+
+  return mermaid;
 };
 
 export const renderMermaidDiagram = async ({
@@ -40,7 +55,7 @@ export const renderMermaidDiagram = async ({
   readonly diagramId: string;
   readonly theme: MermaidTheme;
 }): Promise<string> => {
-  initializeMermaid(theme);
+  const mermaid = await initializeMermaid(theme);
 
   const { svg } = await mermaid.render(diagramId, chart);
 
