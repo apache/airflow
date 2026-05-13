@@ -278,10 +278,13 @@ class TestAwsBatchExecutor:
     def test_task_sdk_callback(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution for callbacks from end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import WorkloadType
 
         workload = mock.Mock(spec=ExecuteCallback)
         workload.callback = mock.Mock()
         workload.callback.key = mock_airflow_key()
+        workload.type = WorkloadType.EXECUTE_CALLBACK
+        workload.key = workload.callback.key
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
@@ -345,11 +348,14 @@ class TestAwsBatchExecutor:
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test task sdk execution for callbacks with queue from end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import WorkloadType
 
         workload = mock.Mock(spec=ExecuteCallback)
         workload.callback = mock.Mock()
         workload.callback.key = mock_airflow_key()
         workload.callback.data = {"queue": "fast-queue"}
+        workload.type = WorkloadType.EXECUTE_CALLBACK
+        workload.key = workload.callback.key
 
         mock_executor.queue_workload(workload, mock.Mock())
 
