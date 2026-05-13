@@ -19,7 +19,16 @@ from __future__ import annotations
 
 import calendar
 
-from airflow.sdk.definitions.timetables._cron import CRON_PRESETS as cron_presets  # noqa: F401
+# NOTE: Keep in sync with CRON_PRESETS in task-sdk/src/airflow/sdk/definitions/timetables/_cron.py
+# The SDK cannot import from core, so both dicts must be updated together.
+cron_presets: dict[str, str] = {
+    "@hourly": "0 * * * *",
+    "@daily": "0 0 * * *",
+    "@weekly": "0 0 * * 0",
+    "@monthly": "0 0 1 * *",
+    "@quarterly": "0 0 1 */3 *",
+    "@yearly": "0 0 1 1 *",
+}
 
 
 def datetime_to_nano(datetime) -> int | None:

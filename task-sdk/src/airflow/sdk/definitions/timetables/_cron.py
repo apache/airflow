@@ -27,8 +27,8 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
 
-# Single source of truth for cron presets. airflow-core re-exports this via
-# airflow.utils.dates.cron_presets so both stay in sync automatically.
+# NOTE: Keep in sync with cron_presets in airflow-core/src/airflow/utils/dates.py
+# Core cannot be imported from the SDK, so both dicts must be updated together.
 CRON_PRESETS: dict[str, str] = {
     "@hourly": "0 * * * *",
     "@daily": "0 0 * * *",
