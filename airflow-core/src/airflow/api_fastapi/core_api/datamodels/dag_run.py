@@ -101,11 +101,7 @@ class BulkClearDagRunsBody(StrictBaseModel):
         description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
     )
     dry_run: bool = True
-    note: str | None = Field(
-        default=None,
-        max_length=1000,
-        description="Optional note applied to every Dag Run that is successfully cleared. Ignored on dry runs.",
-    )
+    note: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="before")
     @classmethod

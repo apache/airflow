@@ -221,9 +221,6 @@ export type BulkClearDagRunsBody = {
      */
     run_on_latest_version?: boolean;
     dry_run?: boolean;
-    /**
-     * Optional note applied to every Dag Run that is successfully cleared. Ignored on dry runs.
-     */
     note?: string | null;
 };
 

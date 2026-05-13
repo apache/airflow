@@ -109,17 +109,6 @@ class BulkActionResponse(BaseModel):
 
 
 class Note(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description="Optional note applied to every Dag Run that is successfully cleared. Ignored on dry runs.",
-            max_length=1000,
-            title="Note",
-        ),
-    ]
-
-
-class Note1(RootModel[str]):
     root: Annotated[str, Field(max_length=1000, title="Note")]
 
 
@@ -184,7 +173,7 @@ class ClearTaskInstancesBody(BaseModel):
         ),
     ] = False
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
-    note: Annotated[Note1 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class Value(RootModel[list]):
@@ -1221,13 +1210,7 @@ class BulkClearDagRunsBody(BaseModel):
         ),
     ] = False
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
-    note: Annotated[
-        Note | None,
-        Field(
-            description="Optional note applied to every Dag Run that is successfully cleared. Ignored on dry runs.",
-            title="Note",
-        ),
-    ] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class BulkCreateActionConnectionBody(BaseModel):
@@ -1278,7 +1261,7 @@ class BulkDagRunBody(BaseModel):
         extra="forbid",
     )
     state: DAGRunPatchStates | None = None
-    note: Annotated[Note1 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     dag_id: Annotated[str | None, Field(title="Dag Id")] = None
 
@@ -1348,7 +1331,7 @@ class BulkTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
-    note: Annotated[Note1 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False
@@ -1600,7 +1583,7 @@ class DAGRunPatchBody(BaseModel):
         extra="forbid",
     )
     state: DAGRunPatchStates | None = None
-    note: Annotated[Note1 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class DAGRunResponse(BaseModel):
@@ -1769,7 +1752,7 @@ class PatchTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
-    note: Annotated[Note1 | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
     include_future: Annotated[bool | None, Field(title="Include Future")] = False

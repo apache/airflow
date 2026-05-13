@@ -791,8 +791,7 @@ export const $BulkClearDagRunsBody = {
                     type: 'null'
                 }
             ],
-            title: 'Note',
-            description: 'Optional note applied to every Dag Run that is successfully cleared. Ignored on dry runs.'
+            title: 'Note'
         }
     },
     additionalProperties: false,

@@ -11008,8 +11008,6 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
-          description: Optional note applied to every Dag Run that is successfully
-            cleared. Ignored on dry runs.
       additionalProperties: false
       type: object
       required:
