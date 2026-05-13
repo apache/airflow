@@ -1780,6 +1780,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._start_queued_dagruns(session)
             guard.commit()
 
+            # Detach phase 1's instances so phase 2 starts with an empty
+            # identity map. Without this, stale DagRun rows loaded by
+            # `_start_queued_dagruns` can be re-dirtied via `flush` / `merge`
+            # inside `_schedule_all_dag_runs` (a `merge` with the same primary
+            # key marks the existing identity-map entry dirty even when the
+            # values are unchanged) and end up in the final `guard.commit()`
+            # in a row-lock order that differs from what other scheduler
+            # replicas are taking, producing A-B / B-A deadlocks on `dag_run`
+            # and `task_instance` under HA scheduler deployments. `expire_all`
+            # is not enough: expired entries are still subject to `merge`-side
+            # re-dirtying. See
+            # https://github.com/apache/airflow/issues/66817.
+            session.expunge_all()
+
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
             dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)

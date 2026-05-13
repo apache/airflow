@@ -3789,6 +3789,14 @@ class TestSchedulerJob:
 
         self.job_runner._do_scheduling(session)
 
+        # `_do_scheduling` expunges the identity map between its phases so phase 2
+        # starts fresh (see `scheduler_job_runner.SchedulerJobRunner._do_scheduling`),
+        # which leaves the local `dr` / `ti` ORM references detached. Re-query both
+        # from the database so the expected payload matches the post-scheduling state
+        # captured in the actual callback.
+        dr = session.scalars(select(DagRun).where(DagRun.id == dr.id)).one()
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.id == ti.id)).one()
+
         expected_callback = DagCallbackRequest(
             filepath=dag.relative_fileloc,
             dag_id=dr.dag_id,
@@ -3864,6 +3872,11 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun(start_date=DEFAULT_DATE)
 
         self.job_runner._do_scheduling(session)
+
+        # `_do_scheduling` expunges the identity map between its phases so phase 2 starts fresh,
+        # leaving the local `dr` ORM reference detached. Re-query so the expected payload reflects
+        # the post-scheduling state captured in the stored callback.
+        dr = session.scalars(select(DagRun).where(DagRun.id == dr.id)).one()
 
         callback = (
             session.scalars(select(DbCallbackRequest).order_by(DbCallbackRequest.id.desc()))
@@ -5572,6 +5585,42 @@ class TestSchedulerJob:
                     )
 
             assert mock_schedule.call_count == 1
+
+    def test_do_scheduling_expunges_identity_map_between_phases(self, dag_maker, session):
+        """Phase 2 must start with a clean identity map, otherwise stale DagRun
+        objects loaded by phase 1 can be re-dirtied by `flush` / `merge` during
+        `_schedule_all_dag_runs` and committed in a row-lock order that conflicts
+        with other scheduler replicas, producing A-B / B-A deadlocks on
+        `dag_run` and `task_instance`. Regression test for #66817.
+
+        Exercises the real phase 1 (`_start_queued_dagruns`) instead of mocking
+        it: a `QUEUED` DagRun is created up front, the real phase 1 transitions
+        it to `RUNNING`, and we then capture the identity-map keys that phase 2
+        sees at its first query. Without the fix the queued-then-running
+        DagRun stays in the identity map; with the fix the identity map is
+        empty.
+        """
+        with dag_maker(dag_id="test_expunge_between_phases", schedule="@once"):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        phase2_identity_map_keys: list = []
+
+        def capture_identity_map(*, session):
+            phase2_identity_map_keys.extend(session.identity_map.keys())
+            return []
+
+        with (
+            patch.object(DagRun, "get_running_dag_runs_to_examine", side_effect=capture_identity_map),
+            patch.object(self.job_runner, "_schedule_all_dag_runs", return_value=[]),
+        ):
+            self.job_runner._do_scheduling(session)
+
+        assert phase2_identity_map_keys == [], f"identity map leaked into phase 2: {phase2_identity_map_keys}"
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
