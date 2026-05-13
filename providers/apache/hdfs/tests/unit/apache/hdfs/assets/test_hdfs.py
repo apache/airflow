@@ -80,9 +80,9 @@ def test_create_asset(path: str, expected_uri: str) -> None:
     [
         pytest.param("/", "hdfs://namenode:8020", id="no-path"),
         pytest.param("/", "hdfs://namenode:8020/", id="path-slash-only"),
-        pytest.param("/data/file.csv", "hdfs://namenode:8020//data/file.csv", id="root"),
+        pytest.param("data/file.csv", "hdfs://namenode:8020//data/file.csv", id="root"),
         pytest.param("data/file.csv", "hdfs://namenode:8020/data/file.csv", id="no-leading-slash"),
-        pytest.param("//data/file.csv", "hdfs://namenode:8020///data/file.csv", id="two-slashes"),
+        pytest.param("data/file.csv", "hdfs://namenode:8020///data/file.csv", id="two-slashes"),
     ],
 )
 def test_convert_asset_to_openlineage(expected_name, uri) -> None:

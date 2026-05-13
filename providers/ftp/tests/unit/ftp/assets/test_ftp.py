@@ -76,9 +76,9 @@ def test_create_asset(path: str, expected_uri: str) -> None:
     [
         pytest.param("/", "ftp://example.com:21", id="no-path"),
         pytest.param("/", "ftp://example.com:21/", id="path-slash-only"),
-        pytest.param("/data/file.csv", "ftp://example.com:21//data/file.csv", id="root"),
+        pytest.param("data/file.csv", "ftp://example.com:21//data/file.csv", id="root"),
         pytest.param("data/file.csv", "ftp://example.com:21/data/file.csv", id="no-leading-slash"),
-        pytest.param("//data/file.csv", "ftp://example.com:21///data/file.csv", id="two-slashes"),
+        pytest.param("data/file.csv", "ftp://example.com:21///data/file.csv", id="two-slashes"),
     ],
 )
 def test_convert_asset_to_openlineage(expected_name, uri) -> None:

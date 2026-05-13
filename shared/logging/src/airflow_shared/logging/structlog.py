@@ -756,9 +756,15 @@ def init_log_folder(directory: str | os.PathLike[str], new_folder_permissions: i
     user.
     """
     directory = _PatchedPath(directory)
-    for parent in reversed(_PatchedPath(directory).parents):
-        parent.mkdir(mode=new_folder_permissions, exist_ok=True)
-    directory.mkdir(mode=new_folder_permissions, exist_ok=True)
+    try:
+        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
+    except OSError as e:
+        log.warning(
+            "Could not create log folder %s: %s. "
+            "Airflow will continue but logging to this directory may fail.",
+            directory,
+            e,
+        )
 
 
 def init_log_file(

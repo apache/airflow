@@ -24,6 +24,8 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import NotFound
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -146,6 +148,67 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
 
         message = "No event received in trigger callback"
         raise AirflowException(message)
+
+
+class BigQueryRoutineExistenceSensor(BaseSensorOperator):
+    """
+    Checks for the existence of a routine (UDF, procedure, or TVF) in a BigQuery dataset.
+
+    :param project_id: The Google Cloud project that owns the dataset.
+    :param dataset_id: The dataset that owns the routine.
+    :param routine_id: The identifier of the routine to check.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "routine_id",
+        "impersonation_chain",
+    )
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        routine_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.routine_id = routine_id
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def poke(self, context: Context) -> bool:
+        routine_uri = f"{self.project_id}.{self.dataset_id}.{self.routine_id}"
+        self.log.info("Sensor checks existence of routine: %s", routine_uri)
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            hook.get_routine(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                routine_id=self.routine_id,
+            )
+        except NotFound:
+            return False
+        return True
 
 
 class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
