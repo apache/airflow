@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+5.7.5
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP: add async retrieve_file / store_file / mkdir to SFTPHookAsync and introduce SFTPClientPool``
+
 5.7.4
 .....
 

@@ -122,11 +122,54 @@ class TestEnableMemrayTrackDecorator:
         result = decorated_function("arg1", "arg2", kwarg1="value1")
 
         expected_profile_path = f"{AIRFLOW_HOME}/{MemrayTraceComponents.scheduler.value}_memory.bin"
-        self.mock_memray_module.Tracker.assert_called_once_with(expected_profile_path)
+        self.mock_memray_module.Tracker.assert_called_once_with(
+            file_name=expected_profile_path,
+            native_traces=False,
+            trace_python_allocators=False,
+        )
         self.mock_tracker.__enter__.assert_called_once()
         self.mock_function.assert_called_once_with("arg1", "arg2", kwarg1="value1")
         self.mock_tracker.__exit__.assert_called_once()
         assert result == "test_result"
+
+    @conf_vars(
+        {
+            ("profiling", "memray_trace_components"): "scheduler",
+            ("profiling", "memray_detailed_tracing"): "True",
+        }
+    )
+    def test_detailed_tracing_enables_native_and_python_allocators(self):
+        """
+        Verify that memray_detailed_tracing=True turns on native_traces and
+        trace_python_allocators on the Tracker.
+        """
+        decorated_function = enable_memray_trace(MemrayTraceComponents.scheduler)(self.mock_function)
+        decorated_function()
+
+        expected_profile_path = f"{AIRFLOW_HOME}/{MemrayTraceComponents.scheduler.value}_memory.bin"
+        self.mock_memray_module.Tracker.assert_called_once_with(
+            file_name=expected_profile_path,
+            native_traces=True,
+            trace_python_allocators=True,
+        )
+
+    @conf_vars(
+        {
+            ("profiling", "memray_trace_components"): "scheduler",
+            ("profiling", "memray_detailed_tracing"): "False",
+        }
+    )
+    def test_detailed_tracing_disabled_keeps_tracker_options_off(self):
+        """
+        Verify that when memray_detailed_tracing=False both Tracker options stay off
+        even though tracing for the component is enabled.
+        """
+        decorated_function = enable_memray_trace(MemrayTraceComponents.scheduler)(self.mock_function)
+        decorated_function()
+
+        _, kwargs = self.mock_memray_module.Tracker.call_args
+        assert kwargs["native_traces"] is False
+        assert kwargs["trace_python_allocators"] is False
 
     @conf_vars({("profiling", "memray_trace_components"): "scheduler,api,dag_processor,triggerer"})
     def test_function_metadata_preserved_after_decoration(self):

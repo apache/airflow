@@ -3049,3 +3049,18 @@ profiling:
       type: string
       example: "scheduler,api,dag_processor"
       default: ~
+    memray_detailed_tracing:
+      description: |
+        Whether to enable memray's ``native_traces`` and ``trace_python_allocators`` options
+        when ``memray_trace_components`` is set. Captures C/C++ stack frames for compiled
+        extensions (numpy, pandas, etc.) and small ``pymalloc`` allocations that would
+        otherwise be invisible.
+
+        This adds significant runtime overhead and produces much larger profile files, so
+        leave it disabled unless the default trace lacks the detail you need. Native symbol
+        resolution is most accurate on Linux and less precise on macOS. See
+        https://bloomberg.github.io/memray/api.html for the underlying ``Tracker`` options.
+      version_added: 3.3.0
+      type: boolean
+      example: ~
+      default: "False"

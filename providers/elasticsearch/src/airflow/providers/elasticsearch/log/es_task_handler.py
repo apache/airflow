@@ -695,13 +695,31 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         offset = 1
         for line in logs:
             # Make sure line is not empty
-            if line.strip():
-                # construct log_id which is {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
-                # also construct the offset field (default is 'offset')
+            if not line.strip():
+                continue
+
+            try:
                 log_dict = json.loads(line)
-                log_dict.update({"log_id": log_id, self.offset_field: offset})
-                offset += 1
-                parsed_logs.append(log_dict)
+            except json.JSONDecodeError:
+                # Best-effort fallback: preserve the raw line
+                self.log.debug("Failed to parse log line as JSON", exc_info=True)
+                log_dict = {
+                    "message": line,
+                    "unparsed": True,
+                }
+
+            # Ensure minimal compatibility with Airflow log expectations
+            if "event" not in log_dict and "message" not in log_dict:
+                log_dict["message"] = str(line)
+
+            log_dict.update(
+                {
+                    "log_id": log_id,
+                    self.offset_field: offset,
+                }
+            )
+            offset += 1
+            parsed_logs.append(log_dict)
 
         return parsed_logs
 
