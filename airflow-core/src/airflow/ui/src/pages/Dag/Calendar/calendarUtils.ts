@@ -55,6 +55,11 @@ const FAILURE_COLOR_INTENSITIES = [
   { _dark: "red.300", _light: "red.800" },
 ];
 
+const getActualRunCount = (counts: RunCounts, viewMode: CalendarColorMode) =>
+  viewMode === "total" ? counts.total - counts.planned - counts.queued : counts.failed;
+
+const getPendingRunCount = (counts: RunCounts) => counts.planned + counts.queued;
+
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
@@ -181,19 +186,33 @@ export const calculateDataBounds = (
   }
 
   const counts: Array<number> = [];
+  const pendingCounts: Array<number> = [];
   const mapCreator = granularity === "daily" ? createDailyDataMap : createHourlyDataMap;
   const dataMap = mapCreator(data);
 
   dataMap.forEach((runs) => {
     const runCounts = calculateRunCounts(runs);
-    const targetCount = viewMode === "total" ? runCounts.total : runCounts.failed;
+    const targetCount = getActualRunCount(runCounts, viewMode);
 
     if (targetCount > 0) {
       counts.push(targetCount);
+    } else {
+      const pendingCount = getPendingRunCount(runCounts);
+
+      if (pendingCount > 0) {
+        pendingCounts.push(pendingCount);
+      }
     }
   });
 
   if (counts.length === 0) {
+    if (pendingCounts.length > 0) {
+      return {
+        maxCount: Math.max(...pendingCounts),
+        minCount: Math.min(...pendingCounts),
+      };
+    }
+
     return { maxCount: 0, minCount: 0 };
   }
 
@@ -226,18 +245,18 @@ export const createCalendarScale = (
 
     return {
       getColor: (counts: RunCounts) => {
-        const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
-        const hasPlanned = counts.planned > 0;
+        const actualCount = getActualRunCount(counts, viewMode);
+        const hasPending = getPendingRunCount(counts) > 0;
         const hasActual = actualCount > 0;
 
-        if (hasPlanned && hasActual) {
+        if (hasPending && hasActual) {
           return {
             actual: singleColor,
             planned: PLANNED_COLOR,
           };
         }
 
-        if (hasPlanned && !hasActual) {
+        if (hasPending && !hasActual) {
           return PLANNED_COLOR;
         }
 
@@ -274,11 +293,11 @@ export const createCalendarScale = (
         actual: string | { _dark: string; _light: string };
         planned: string | { _dark: string; _light: string };
       } => {
-    const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
-    const hasPlanned = counts.planned > 0;
+    const actualCount = getActualRunCount(counts, viewMode);
+    const hasPending = getPendingRunCount(counts) > 0;
     const hasActual = actualCount > 0;
 
-    if (hasPlanned && hasActual) {
+    if (hasPending && hasActual) {
       let actualColor = colorScheme[0] ?? EMPTY_COLOR;
 
       for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
@@ -300,7 +319,7 @@ export const createCalendarScale = (
       };
     }
 
-    if (hasPlanned && !hasActual) {
+    if (hasPending && !hasActual) {
       return PLANNED_COLOR;
     }
 
