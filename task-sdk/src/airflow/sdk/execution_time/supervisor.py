@@ -48,7 +48,7 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
-from airflow.sdk._shared.logging.structlog import clear_structlog_shared_lock, reconfigure_logger
+from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -2328,7 +2328,6 @@ def supervise_task(
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
-                clear_structlog_shared_lock(log_file_descriptor)
 
             provider = trace.get_tracer_provider()
             if hasattr(provider, "force_flush"):

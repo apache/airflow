@@ -24,11 +24,12 @@ import logging
 import os
 import re
 import sys
+import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
 from types import ModuleType
-from typing import IO, TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import pygtrie
 import structlog
@@ -593,6 +594,17 @@ def configure_logging(
             text_output = cast("TextIO", output)
         logger_factory = LoggerFactory(NamedWriteLogger, io=text_output)
 
+    # Replace structlog's WRITE_LOCKS dict with a WeakKeyDictionary so entries
+    # for closed file descriptors are garbage-collected instead of leaking.
+    # TODO: drop once structlog ships the upstream fix (tracked for 26.1.0).
+    try:
+        from structlog import _output as _structlog_output
+
+        if isinstance(_structlog_output.WRITE_LOCKS, dict):
+            _structlog_output.WRITE_LOCKS = weakref.WeakKeyDictionary()  # type: ignore[assignment]
+    except Exception:
+        pass
+
     structlog.configure(
         processors=shared_pre_chain + [for_structlog],
         cache_logger_on_first_use=cache_logger_on_first_use,
@@ -807,18 +819,6 @@ def reconfigure_logger(
         **getattr(logger, "_context", {}),
         __level_override=level_override,
     )
-
-
-def clear_structlog_shared_lock(log_file_descriptor: IO[Any]):
-    """Temporary workaround that prevents a memory leak in the supervisor by removing the FD reference from WRITE_LOCKS."""
-    # TODO: remove this logic and bump the structlog version when the next release (possibly 26.1.0) is out
-    try:
-        from structlog._output import WRITE_LOCKS
-    except ImportError:
-        WRITE_LOCKS = None  # type: ignore[assignment]
-
-    if WRITE_LOCKS is not None and isinstance(WRITE_LOCKS, dict):
-        WRITE_LOCKS.pop(log_file_descriptor, None)
 
 
 if __name__ == "__main__":
