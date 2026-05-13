@@ -1521,13 +1521,14 @@ TEAMS_COMMANDS = (
 )
 STATE_STORE_COMMANDS = (
     ActionCommand(
-        name="cleanup",
-        help="Remove expired stored state via the configured state backend",
+        name="cleanup-task-states",
+        help="Remove expired task state rows (MetastoreStateBackend only)",
         description=(
             "Reads [state_store] default_retention_days from config and deletes task_state rows "
-            "older than the configured threshold. Use --dry-run to preview without deleting."
+            "older than the configured threshold. Only applies when MetastoreStateBackend is configured; "
+            "custom backends are skipped. Use --dry-run to preview without deleting."
         ),
-        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup"),
+        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup_task_states"),
         args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
     ),
 )
