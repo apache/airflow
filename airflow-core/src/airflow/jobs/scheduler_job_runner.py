@@ -2977,12 +2977,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue
+            # ``_purge_task_instances_without_heartbeats`` doesn't load ``ti.task``, so
+            # ``ti.is_eligible_to_retry()`` takes a fallback branch that misclassifies
+            # tasks declared with ``retries=0`` as retry-eligible. Decide directly from
+            # ``max_tries`` and ``try_number`` to match the "task loaded" branch instead.
+            task_callback_type = (
+                TaskInstanceState.UP_FOR_RETRY
+                if ti.max_tries > 0 and ti.try_number <= ti.max_tries
+                else TaskInstanceState.FAILED
+            )
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
                 bundle_name=_hb_bundle_name,
                 bundle_version=_hb_bundle_version,
                 ti=ti,
                 msg=str(task_instance_heartbeat_timeout_message_details),
+                task_callback_type=task_callback_type,
                 context_from_server=TIRunContext(
                     dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                     max_tries=ti.max_tries,

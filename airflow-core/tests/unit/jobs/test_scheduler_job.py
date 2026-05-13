@@ -7983,6 +7983,85 @@ class TestSchedulerJob:
         assert callback_request.context_from_server.max_tries == ti.max_tries
 
     @pytest.mark.parametrize(
+        ("retries", "try_number", "expected_callback_type", "expected_dispatched_callback"),
+        [
+            pytest.param(0, 1, TaskInstanceState.FAILED, "on_failure_callback", id="no_retries"),
+            pytest.param(
+                2,
+                1,
+                TaskInstanceState.UP_FOR_RETRY,
+                "on_retry_callback",
+                id="retries_available_first_attempt",
+            ),
+            pytest.param(
+                2, 2, TaskInstanceState.UP_FOR_RETRY, "on_retry_callback", id="retries_available_mid_chain"
+            ),
+            pytest.param(2, 3, TaskInstanceState.FAILED, "on_failure_callback", id="retries_exhausted"),
+        ],
+    )
+    def test_heartbeat_timeout_sets_callback_type_by_retry_eligibility(
+        self, dag_maker, session, retries, try_number, expected_callback_type, expected_dispatched_callback
+    ):
+        """Heartbeat-timeout cleanup must populate ``task_callback_type`` so the Dag processor
+        fires ``on_retry_callback`` when the task still has retries left, not
+        ``on_failure_callback``.
+
+        Reproduces the bug end-to-end through the actual scheduler purge path:
+
+        1. A TI is in ``RUNNING`` state with a stale ``last_heartbeat_at`` (worker OOMKilled,
+           node evicted, scheduler restarted, etc.).
+        2. ``_find_and_purge_task_instances_without_heartbeats`` builds a
+           ``TaskCallbackRequest`` and hands it to the executor's ``send_callback``.
+        3. The Dag processor branches on ``request.task_callback_type``:
+           ``UP_FOR_RETRY`` -> ``task.on_retry_callback``; anything else (including ``None``)
+           -> ``task.on_failure_callback``. See
+           ``airflow-core/src/airflow/dag_processing/processor.py``::``_execute_task_callbacks``.
+
+        Before the fix, step 2 left ``task_callback_type`` as ``None``, so step 3 always fell
+        into the ``else`` branch and ``on_failure_callback`` fired even when the task still had
+        retries left -- producing spurious failure alerts for tasks that ultimately succeeded on
+        retry.
+
+        The four parametrized cases cover the full ``max_tries`` / ``try_number`` matrix:
+        no retries at all, a first attempt with retries available, a mid-chain attempt, and a
+        final attempt with retries exhausted (``try_number > max_tries``). The
+        ``expected_dispatched_callback`` column mirrors the Dag processor's branch so the
+        assertion captures the user-visible outcome, not just the field value.
+        """
+        with dag_maker(dag_id=f"hb_timeout_r{retries}_t{try_number}", session=session):
+            EmptyOperator(task_id="test_task", retries=retries)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = try_number
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        mock_executor.send_callback.assert_called_once()
+        request = mock_executor.send_callback.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected_callback_type
+        # Mirror processor._execute_task_callbacks: UP_FOR_RETRY -> on_retry_callback, else
+        # on_failure_callback. Asserting the dispatched callback closes the loop on the
+        # user-visible behaviour, not just the field value.
+        dispatched_callback = (
+            "on_retry_callback"
+            if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY
+            else "on_failure_callback"
+        )
+        assert dispatched_callback == expected_dispatched_callback
+
+    @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),
         [
             (1, "retry", TaskInstanceState.UP_FOR_RETRY),
