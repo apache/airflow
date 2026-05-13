@@ -1,0 +1,1 @@
+Avoid long row locks in the sensor reschedule path under high concurrency by retrying transient DB deadlocks/lock-wait timeouts and bounding MySQL ``innodb_lock_wait_timeout`` via the new ``[scheduler] reschedule_lock_timeout_seconds`` setting (default 4 s).
