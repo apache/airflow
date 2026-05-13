@@ -1429,6 +1429,14 @@ def _handle_current_task_success(
     stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
     stats.incr("ti_successes", tags=stats_tags)
 
+    # TODO: uncomment below once https://github.com/apache/airflow/pull/66699 is merged
+    # if conf.getboolean("state_store", "clear_on_success"):
+    #     log.info("Task state will be cleared by the server because clear_on_success is enabled.")
+    #
+    #     if _get_worker_state_backend() is not None:
+    #         # clear the task state keys for custom state backends configured on worker side
+    #         context["task_state"].clear()
+
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(

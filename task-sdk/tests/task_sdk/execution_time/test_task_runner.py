@@ -5104,3 +5104,123 @@ class TestTaskInstanceStateOperations:
         mock_supervisor_comms.send.assert_any_call(
             SetAssetStateByName(name="asset_b", key="watermark_b", value="2026-05-02")
         )
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_calls_clear_when_worker_backend_configured(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When clear_on_success=True and a worker backend is configured, clear() is called on task success."""
+        mock_backend = mock.MagicMock()
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=mock_backend
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(ClearTaskState(ti_id=runtime_ti.id, all_map_indices=False))
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_skips_when_no_worker_backend(self, create_runtime_ti, mock_supervisor_comms):
+        """When clear_on_success=True but no worker backend configured, clear() is not called."""
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=None
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        calls = [str(c) for c in mock_supervisor_comms.send.call_args_list]
+        assert not any("ClearTaskState" in c for c in calls)
+
+    @conf_vars({("state_store", "clear_on_success"): "False"})
+    def test_clear_on_success_disabled_does_not_call_clear(self, create_runtime_ti, mock_supervisor_comms):
+        """When clear_on_success=False, clear() is not called even if a worker backend is configured."""
+        mock_backend = mock.MagicMock()
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch(
+            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=mock_backend
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        calls = [str(c) for c in mock_supervisor_comms.send.call_args_list]
+        assert not any("ClearTaskState" in c for c in calls)
+
+    def test_asset_state_set_sends_reference_via_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When a worker backend is configured, asset state set() sends a reference, not the actual value."""
+        watched = Asset(name="my_asset", uri="s3://bucket/data")
+
+        class WatcherOperator(BaseOperator):
+            def execute(self, context):
+                context["asset_state"].set("watermark", "2026-05-01")
+
+        task = WatcherOperator(task_id="t", inlets=[watched])
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
+
+        mock_backend = mock.MagicMock()
+        mock_backend.serialize_asset_state_value.return_value = "mem://my_asset/watermark"
+
+        with mock.patch(
+            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_backend.serialize_asset_state_value.assert_called_once_with(
+            value="2026-05-01", key="watermark", asset_name="my_asset"
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            SetAssetStateByName(name="my_asset", key="watermark", value="mem://my_asset/watermark")
+        )
+
+    def test_task_state_set_sends_reference_via_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When a worker backend is configured, task state set() sends a reference, not the actual value."""
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                context["task_state"].set("job_id", "app_001")
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+        mock_supervisor_comms.send.side_effect = [
+            OKResponse(ok=True),  # SetTaskState
+            SucceedTask(...),  # finalize
+        ]
+
+        mock_backend = mock.MagicMock()
+        mock_backend.serialize_task_state_value.return_value = f"mem://{runtime_ti.id}/job_id"
+
+        with mock.patch(
+            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_backend.serialize_task_state_value.assert_called_once_with(
+            value="app_001", key="job_id", ti_id=str(runtime_ti.id)
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(ti_id=runtime_ti.id, key="job_id", value=f"mem://{runtime_ti.id}/job_id")
+        )
