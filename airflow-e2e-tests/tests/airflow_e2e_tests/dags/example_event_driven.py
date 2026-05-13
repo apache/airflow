@@ -34,35 +34,34 @@ KAFKA_CONFIG_ID = "kafka_default"
 TOPICS = ["fizz_buzz"]
 DLQ_TOPIC = "dlq"
 RETRY_COUNT = 3
-"""Airflow Kafka connection
-AIRFLOW_CONN_KAFKA_DEFAULT='{
-  "conn_type": "general",
-  "extra": {
-    "bootstrap.servers": "broker:29092",
-    "group.id": "kafka_default_group",
-    "security.protocol": "PLAINTEXT",
-    "enable.auto.commit": false,
-    "auto.offset.reset": "latest"
-  }
-}'
-"""
-"""Kafka Command to verify messages are being produced to the topic:
 
+# Airflow Kafka connection:
+# AIRFLOW_CONN_KAFKA_DEFAULT='{
+#   "conn_type": "general",
+#   "extra": {
+#     "bootstrap.servers": "broker:29092",
+#     "group.id": "kafka_default_group",
+#     "security.protocol": "PLAINTEXT",
+#     "enable.auto.commit": false,
+#     "auto.offset.reset": "latest"
+#   }
+# }'
+#
+# Kafka commands to verify messages are being produced to the topic:
+#
 # Create Topic
-/bin/kafka-topics --bootstrap-server broker:29092 --create --topic fizz_buzz
-/bin/kafka-topics --bootstrap-server broker:29092 --create --topic dlq
-
-
+# /bin/kafka-topics --bootstrap-server broker:29092 --create --topic fizz_buzz
+# /bin/kafka-topics --bootstrap-server broker:29092 --create --topic dlq
+#
 # Get offsets for the topic to verify messages are being produced
-/bin/kafka-get-offsets --bootstrap-server broker:29092 --topic fizz_buzz
-/bin/kafka-get-offsets --bootstrap-server broker:29092 --topic dlq
-
+# /bin/kafka-get-offsets --bootstrap-server broker:29092 --topic fizz_buzz
+# /bin/kafka-get-offsets --bootstrap-server broker:29092 --topic dlq
+#
 # List consumer groups to verify our consumer group is being registered
-/bin/kafka-consumer-groups --bootstrap-server broker:29092 --list
-
+# /bin/kafka-consumer-groups --bootstrap-server broker:29092 --list
+#
 # Get current offsets for the consumer group to verify messages are being consumed
-/bin/kafka-consumer-groups --bootstrap-server broker:29092 --describe --group group_1
-"""
+# /bin/kafka-consumer-groups --bootstrap-server broker:29092 --describe --group group_1
 
 SAMPLE_ORDERS = [
     {"order_id": "ORD-1001", "customer": "alice", "item": "widget", "quantity": 2, "price": 9.99},

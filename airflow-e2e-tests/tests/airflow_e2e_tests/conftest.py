@@ -123,7 +123,7 @@ def _setup_opensearch_integration(dot_env_file, tmp_dir):
 
 
 def _copy_kafka_files(tmp_dir):
-    """Copy Kafka compose file, init script, and provider source into the temp directory."""
+    """Copy the Kafka compose file and broker init script into the temp directory."""
     copyfile(KAFKA_DIR_PATH.parent / "kafka.yml", tmp_dir / "kafka.yml")
 
     kafka_dir = tmp_dir / "kafka"
@@ -159,7 +159,7 @@ def _setup_event_driven_integration(dot_env_file, tmp_dir):
 
 
 def _create_kafka_topics(compose_instance):
-    """Create Kafka topics required by the event-driven DAG."""
+    """Create Kafka topics required by the event-driven Dag."""
     for topic in ("fizz_buzz", "dlq"):
         compose_instance.exec_in_container(
             command=[

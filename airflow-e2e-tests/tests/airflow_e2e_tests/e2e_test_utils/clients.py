@@ -107,9 +107,9 @@ class AirflowClient:
     def wait_for_dag(self, dag_id: str, timeout: int = 120, check_interval: int = 3):
         """Poll until *dag_id* is registered (parsed & serialized) and reachable via the API.
 
-        On remote CI runners the DAG processor may need extra time to parse & serialize
-        new DAG files, so calling ``un_pause_dag`` immediately can return a 404. Retry
-        until the DAG exists or *timeout* seconds elapse.
+        On remote CI runners the Dag processor may need extra time to parse & serialize
+        new Dag files, so calling ``un_pause_dag`` immediately can return a 404. Retry
+        until the Dag exists or *timeout* seconds elapse.
         """
         start = time.monotonic()
         last_error: Exception | None = None
@@ -121,7 +121,7 @@ class AirflowClient:
                     raise
                 last_error = exc
             time.sleep(check_interval)
-        raise TimeoutError(f"DAG {dag_id} was not registered within {timeout}s. Last error: {last_error}")
+        raise TimeoutError(f"Dag {dag_id} was not registered within {timeout}s. Last error: {last_error}")
 
     def un_pause_dag(self, dag_id: str):
         self.wait_for_dag(dag_id)
@@ -178,7 +178,7 @@ class AirflowClient:
         )
 
     def list_dag_runs(self, dag_id: str, limit: int = 100):
-        """List DAG runs for a given DAG."""
+        """List Dag runs for a given Dag."""
         return self._make_request(
             method="GET",
             endpoint=f"dags/{dag_id}/dagRuns?limit={limit}",

@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""E2E tests for the event-driven DAG pattern using Apache Kafka.
+"""E2E tests for the event-driven Dag pattern using Apache Kafka.
 
-The producer DAG sends 8 valid orders + 1 malformed message to the ``fizz_buzz``
-Kafka topic. The consumer DAG is scheduled on an Asset with a Kafka AssetWatcher,
-so each message triggers a separate consumer DAG run (9 total).
+The producer Dag sends 8 valid orders + 1 malformed message to the ``fizz_buzz``
+Kafka topic. The consumer Dag is scheduled on an Asset with a Kafka AssetWatcher,
+so each message triggers a separate consumer Dag run (9 total).
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def _parse_topic_offset(raw_output: str, topic: str) -> int:
 
 
 class TestEventDrivenDag:
-    """Test the Kafka-based event-driven producer/consumer DAG pair."""
+    """Test the Kafka-based event-driven producer/consumer Dag pair."""
 
     airflow_client = AirflowClient()
 
@@ -73,7 +73,7 @@ class TestEventDrivenDag:
     def _wait_for_consumer_dag_runs(
         self, expected_count: int, timeout: int = 600, check_interval: int = 10
     ) -> list[dict]:
-        """Poll until *expected_count* consumer DAG runs reach a terminal state."""
+        """Poll until *expected_count* consumer Dag runs reach a terminal state."""
         start = time.monotonic()
         while time.monotonic() - start < timeout:
             response = self.airflow_client.list_dag_runs(CONSUMER_DAG_ID)
@@ -99,7 +99,7 @@ class TestEventDrivenDag:
         runs = response.get("dag_runs", [])
         states = {r["dag_run_id"]: r["state"] for r in runs}
         raise TimeoutError(
-            f"Expected {expected_count} terminal consumer DAG runs within {timeout}s, "
+            f"Expected {expected_count} terminal consumer Dag runs within {timeout}s, "
             f"but only found {len([r for r in runs if r['state'] in ('success', 'failed')])}. "
             f"Run states: {states}"
         )
@@ -131,7 +131,7 @@ class TestEventDrivenDag:
         return offset
 
     def _get_task_states(self, run_id: str) -> dict[str, str]:
-        """Return a mapping of task_id -> state for a consumer DAG run."""
+        """Return a mapping of task_id -> state for a consumer Dag run."""
         response = self.airflow_client.get_task_instances(CONSUMER_DAG_ID, run_id)
         return {ti["task_id"]: ti["state"] for ti in response["task_instances"]}
 
@@ -139,11 +139,11 @@ class TestEventDrivenDag:
         """Trigger the producer once and verify 9 consumer runs and Kafka offsets.
 
         Steps:
-        1. Unpause the consumer DAG so the triggerer starts the AssetWatcher.
+        1. Unpause the consumer Dag so the triggerer starts the AssetWatcher.
         2. Wait for the Kafka MessageQueueTrigger to begin polling.
-        3. Trigger the producer DAG and wait for it to succeed.
-        4. Wait for 9 consumer DAG runs to reach a terminal state.
-        5. All 9 DAG runs succeed. Verify task-level behavior:
+        3. Trigger the producer Dag and wait for it to succeed.
+        4. Wait for 9 consumer Dag runs to reach a terminal state.
+        5. All 9 Dag runs succeed. Verify task-level behavior:
            - 1 run has a failed ``process_message`` task and executes ``handle_dlq``.
            - 8 runs succeed on ``process_message`` and skip ``handle_dlq``.
         6. Verify that the ``fizz_buzz`` topic has offset 9 (all messages produced).
@@ -159,15 +159,15 @@ class TestEventDrivenDag:
 
         # 3. Trigger producer and wait for it to complete
         producer_state = self.airflow_client.trigger_dag_and_wait(PRODUCER_DAG_ID)
-        assert producer_state == "success", f"Producer DAG did not succeed. Final state: {producer_state}"
+        assert producer_state == "success", f"Producer Dag did not succeed. Final state: {producer_state}"
 
-        # 4. Wait for all 9 consumer DAG runs
+        # 4. Wait for all 9 consumer Dag runs
         consumer_runs = self._wait_for_consumer_dag_runs(expected_count=EXPECTED_CONSUMER_RUNS)
         assert len(consumer_runs) == EXPECTED_CONSUMER_RUNS, (
             f"Expected {EXPECTED_CONSUMER_RUNS} consumer runs, got {len(consumer_runs)}"
         )
 
-        # 5. All 9 DAG runs should succeed
+        # 5. All 9 Dag runs should succeed
         for run in consumer_runs:
             assert run["state"] == "success", (
                 f"Expected all consumer runs to succeed, but run {run['dag_run_id']} "
