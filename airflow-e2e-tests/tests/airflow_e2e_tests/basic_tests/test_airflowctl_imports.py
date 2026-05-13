@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,34 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import copy
-from typing import Any
-
-from airflow.listeners import hookimpl
-
-changed: list[Any] = []
-created: list[Any] = []
-emitted: list[Any] = []
+import subprocess
+import sys
 
 
-@hookimpl
-def on_asset_changed(asset):
-    changed.append(copy.deepcopy(asset))
-
-
-@hookimpl
-def on_asset_event_emitted(asset_event):
-    emitted.append(copy.deepcopy(asset_event))
-
-
-@hookimpl
-def on_asset_created(asset):
-    created.append(copy.deepcopy(asset))
-
-
-def clear():
-    changed.clear()
-    created.clear()
-    emitted.clear()
+def test_airflowctl_is_importable():
+    # checks if airflowctl imports correctly
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import airflowctl; print('airflowctl imported successfully')",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"airflowctl import failed!\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
