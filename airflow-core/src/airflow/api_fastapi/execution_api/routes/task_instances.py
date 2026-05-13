@@ -35,7 +35,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
@@ -302,6 +302,9 @@ def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
+    except DataError:
+        # Re-raise unchanged so the app-level _DataErrorHandler can translate to 4xx.
+        raise
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
@@ -454,6 +457,9 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
+    except DataError:
+        # Re-raise unchanged so the app-level _DataErrorHandler can translate to 4xx.
+        raise
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
