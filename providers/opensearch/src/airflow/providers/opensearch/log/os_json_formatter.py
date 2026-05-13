@@ -16,10 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-
-import pendulum
-
+from airflow.sdk import timezone
 from airflow.utils.log.json_formatter import JSONFormatter
 
 
@@ -32,9 +29,7 @@ class OpensearchJSONFormatter(JSONFormatter):
 
     def formatTime(self, record, datefmt=None):
         """Return the creation time of the LogRecord in ISO 8601 date/time format in the local time zone."""
-        # TODO: Use airflow.utils.timezone.from_timestamp(record.created, tz="local")
-        #  as soon as min Airflow 2.9.0
-        dt = datetime.fromtimestamp(record.created, tz=pendulum.local_timezone())
+        dt = timezone.from_timestamp(record.created, tz="local")
         s = dt.strftime(datefmt or self.default_time_format)
         if self.default_msec_format:
             s = self.default_msec_format % (s, record.msecs)
