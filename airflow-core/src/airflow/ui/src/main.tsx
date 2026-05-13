@@ -34,7 +34,7 @@ import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
-import { getRedirectPath } from "src/utils/links.ts";
+import { getNextHref, getRedirectPath } from "src/utils/links.ts";
 
 import i18n from "./i18n/config";
 import { client } from "./queryClient";
@@ -75,7 +75,7 @@ axios.interceptors.response.use(
     ) {
       const params = new URLSearchParams();
 
-      params.set("next", globalThis.location.href);
+      params.set("next", getNextHref(globalThis.location));
       const loginPath = getRedirectPath("api/v2/auth/login");
 
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
