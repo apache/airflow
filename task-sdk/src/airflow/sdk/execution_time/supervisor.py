@@ -145,7 +145,6 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
-    handle_get_xcom,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
     handle_get_xcom_sequence_slice,
@@ -484,7 +483,8 @@ def _fork_main(
         except Exception as e:
             with suppress(Exception):
                 print(
-                    f"--- Last chance exception handler failed --- {repr(str(e))}\n", file=last_chance_stderr
+                    f"--- Last chance exception handler failed --- {repr(str(e))}\n",
+                    file=last_chance_stderr,
                 )
             exit(125)
 
@@ -722,13 +722,22 @@ class WatchedSubprocess:
                     # execv replaces the process -- unreachable on success
                 else:
                     # Run the child entrypoint
-                    _fork_main(child_requests, child_stdout, child_stderr, child_logs.fileno(), target)
+                    _fork_main(
+                        child_requests,
+                        child_stdout,
+                        child_stderr,
+                        child_logs.fileno(),
+                        target,
+                    )
             except BaseException as e:
                 import traceback
 
                 with suppress(BaseException):
                     # We can't use log here, as if we except out of the child something _weird_ went on.
-                    print("Exception in child process, exiting with code 124", file=sys.stderr)
+                    print(
+                        "Exception in child process, exiting with code 124",
+                        file=sys.stderr,
+                    )
                     traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
 
             # It's really super super important we never exit this block. We are in the forked child, and if we
@@ -805,7 +814,8 @@ class WatchedSubprocess:
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers),
+                on_close=self._on_socket_closed,
             ),
         )
         self.selector.register(
@@ -999,7 +1009,11 @@ class WatchedSubprocess:
             return
 
         # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
-        escalation_path: list[signal.Signals] = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+        escalation_path: list[signal.Signals] = [
+            signal.SIGINT,
+            signal.SIGTERM,
+            signal.SIGKILL,
+        ]
 
         if force and signal_to_send in escalation_path:
             # Start from `signal_to_send` and escalate to the end of the escalation path
@@ -1020,10 +1034,17 @@ class WatchedSubprocess:
                     # read from any of the sockets, so we need to re-run it if the process is still alive
                     if (
                         exit_code := self._service_subprocess(
-                            max_wait_time=end - now, raise_on_timeout=False, expect_signal=sig
+                            max_wait_time=end - now,
+                            raise_on_timeout=False,
+                            expect_signal=sig,
                         )
                     ) is not None:
-                        log.info("Process exited", pid=self.pid, exit_code=exit_code, signal_sent=sig.name)
+                        log.info(
+                            "Process exited",
+                            pid=self.pid,
+                            exit_code=exit_code,
+                            signal_sent=sig.name,
+                        )
                         return
 
                     now = time.monotonic()
@@ -1057,7 +1078,10 @@ class WatchedSubprocess:
         return rep + " >"
 
     def _service_subprocess(
-        self, max_wait_time: float, raise_on_timeout: bool = False, expect_signal: None | int = None
+        self,
+        max_wait_time: float,
+        raise_on_timeout: bool = False,
+        expect_signal: None | int = None,
     ):
         """
         Service subprocess events by processing socket activity and checking for process exit.
@@ -1333,7 +1357,12 @@ class ActivitySubprocess(WatchedSubprocess):
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and sys.platform in _FORK_EXEC_PLATFORMS
         proc: Self = super().start(
-            id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
+            id=what.id,
+            client=client,
+            target=target,
+            logger=logger,
+            use_exec=use_exec,
+            **kwargs,
         )
         # Tell the task process what it needs to do!
         proc._on_child_started(
@@ -1388,7 +1417,10 @@ class ActivitySubprocess(WatchedSubprocess):
             self.send_msg(msg, request_id=0)
         except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
-            log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
+            log.debug(
+                "Couldn't send startup message to Subprocess - it died very early",
+                pid=self.pid,
+            )
 
     def wait(self) -> int:
         if self._exit_code is not None:
@@ -1615,7 +1647,11 @@ class ActivitySubprocess(WatchedSubprocess):
             # Reset the counter on success
             self.failed_heartbeats = 0
         except ServerResponseError as e:
-            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.GONE, HTTPStatus.CONFLICT}:
+            if e.response.status_code in {
+                HTTPStatus.NOT_FOUND,
+                HTTPStatus.GONE,
+                HTTPStatus.CONFLICT,
+            }:
                 log.error(
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
@@ -1648,7 +1684,8 @@ class ActivitySubprocess(WatchedSubprocess):
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
             log.error(
-                "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
+                "Too many failed heartbeats; terminating process",
+                failed_heartbeats=self.failed_heartbeats,
             )
             self.kill(signal.SIGTERM, force=True)
 
@@ -1707,7 +1744,18 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
-            resp, dump_opts = handle_get_xcom(self.client, msg)
+            xcom = self.client.xcoms.get(
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.map_index,
+                msg.include_prior_dates,
+            )
+            xcom_result = XComResult.from_xcom_response(xcom)
+            resp = xcom_result
+        elif isinstance(msg, GetXComCount):
+            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
         elif isinstance(msg, GetXComSequenceItem):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
@@ -1779,7 +1827,13 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
-                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
+                msg.dag_id,
+                msg.run_id,
+                msg.conf,
+                msg.logical_date,
+                msg.run_after,
+                msg.reset_dag_run,
+                msg.note,
             )
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
@@ -1908,7 +1962,8 @@ class ActivitySubprocess(WatchedSubprocess):
             read_logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers),
+                on_close=self._on_socket_closed,
             ),
         )
         # We don't explicitly close the old log socket, that will get handled for us if/when the other end is
@@ -2041,7 +2096,11 @@ class InProcessTestSupervisor(ActivitySubprocess):
             **kwargs,
         )
 
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+        from airflow.sdk.execution_time.task_runner import (
+            RuntimeTaskInstance,
+            finalize,
+            run,
+        )
 
         supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
         with set_supervisor_comms(supervisor.comms):
@@ -2105,7 +2164,11 @@ class InProcessTestSupervisor(ActivitySubprocess):
         return client
 
     def send_msg(
-        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
+        self,
+        msg: BaseModel | None,
+        request_id: int,
+        error: ErrorResponse | None = None,
+        **dump_opts,
     ):
         """Override to use in-process comms."""
         self.comms.messages.append(msg)
@@ -2410,7 +2473,11 @@ def _configure_logging(log_path: str, client: Client) -> Generator[FilteringBoun
     # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
     # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
     # lands on the same node as before.
-    from airflow.sdk.log import init_log_file, load_remote_log_handler, logging_processors
+    from airflow.sdk.log import (
+        init_log_file,
+        load_remote_log_handler,
+        logging_processors,
+    )
 
     log_file_descriptor: BinaryIO | TextIO | None = None
 
@@ -2439,7 +2506,7 @@ def _configure_logging(log_path: str, client: Client) -> Generator[FilteringBoun
         # Without this, the only thing that ever closes the handler is
         # Python's logging.shutdown() at process exit, which fires after
         # supervise_task() returns. Any messages still queued in the handler
-        # at that point are silently dropped, producing:
+        # at that point are silently dropped. The AWS CloudWatch logger for example will emit
         #
         # WatchtowerWarning: "Received message after logging system shutdown"
         remote_handler = load_remote_log_handler()
