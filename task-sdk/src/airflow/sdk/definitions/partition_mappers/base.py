@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from airflow.sdk.definitions.partition_mappers.wait_policy import WaitForAll, WaitPolicy
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.window import Window
 
@@ -41,15 +43,28 @@ class RollupMapper(PartitionMapper):
     """
     Partition mapper that rolls up many upstream keys into one downstream key.
 
-    Compose a ``upstream_mapper`` (which normalizes each upstream key to the
+    Compose an ``upstream_mapper`` (which normalizes each upstream key to the
     downstream granularity) with a ``window`` that declares the full set of
-    upstream keys required for a given downstream key. The scheduler holds
-    the Dag run until every upstream key in the window has arrived.
+    upstream keys required for a given downstream key, and a
+    ``wait_policy`` that decides when the downstream Dag run fires given
+    the expected window and the upstream keys that have actually arrived.
+
+    The ``wait_policy`` is a :class:`WaitPolicy` instance. The default
+    ``WaitForAll()`` fires only when every expected upstream key has arrived.
+    ``MinimumCount(n)`` fires once at least ``n`` keys have arrived when
+    ``n`` is positive, or once at most ``-n`` keys are still missing when
+    ``n`` is negative.
     """
 
     is_rollup: ClassVar[bool] = True
 
-    def __init__(self, *, upstream_mapper: PartitionMapper, window: Window) -> None:
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        wait_policy: WaitPolicy = WaitForAll(),  # noqa: B008
+    ) -> None:
         # Mirrors the core-side ``RollupMapper.__init__`` check so user code
         # ``from airflow.sdk import RollupMapper`` fails at Dag parse time rather
         # than slipping through to the scheduler tick (where the misconfiguration
@@ -67,3 +82,4 @@ class RollupMapper(PartitionMapper):
             )
         self.upstream_mapper = upstream_mapper
         self.window = window
+        self.wait_policy = wait_policy

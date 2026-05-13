@@ -20,6 +20,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from airflow.partition_mappers.wait_policy import WaitForAll, WaitPolicy
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -104,15 +106,23 @@ class RollupMapper(PartitionMapper):
     """
     Partition mapper that rolls up many upstream keys into one downstream key.
 
-    Compose a ``upstream_mapper`` (which normalizes each upstream key to the
+    Compose an ``upstream_mapper`` (which normalizes each upstream key to the
     downstream granularity) with a ``window`` that declares the full set of
-    upstream keys required for a given downstream key. The scheduler holds
-    the Dag run until every upstream key in the window has arrived.
+    upstream keys required for a given downstream key, and a
+    ``wait_policy`` that decides when the downstream Dag run fires given
+    the expected window and the upstream keys that have actually arrived.
+    The default policy waits for every expected upstream key.
     """
 
     is_rollup: ClassVar[bool] = True
 
-    def __init__(self, *, upstream_mapper: PartitionMapper, window: Window) -> None:
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        wait_policy: WaitPolicy = WaitForAll(),  # noqa: B008
+    ) -> None:
         decode_overridden = type(upstream_mapper).decode_downstream is not PartitionMapper.decode_downstream
         if not decode_overridden and window.expected_decoded_type is not str:
             raise TypeError(
@@ -126,6 +136,7 @@ class RollupMapper(PartitionMapper):
             )
         self.upstream_mapper = upstream_mapper
         self.window = window
+        self.wait_policy = wait_policy
 
     def to_downstream(self, key: str) -> str | Iterable[str]:
         return self.upstream_mapper.to_downstream(key)
@@ -139,18 +150,37 @@ class RollupMapper(PartitionMapper):
         )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_partition_mapper, encode_window
+        # NOTE: For builtin ``RollupMapper`` instances the *live* serialization
+        # path is ``_Serializer.serialize_partition_mapper`` registered in
+        # ``airflow.serialization.encoders`` — ``encode_partition_mapper`` hits
+        # ``BUILTIN_PARTITION_MAPPERS`` first and dispatches there, never
+        # reaching this method. This body exists only as the extension-point
+        # fallback for non-builtin subclasses that are not registered. **When
+        # adding a new field, edit ``encoders.py`` (including
+        # ``encode_wait_policy``) too** or the change will be silently
+        # ignored for the builtin class.
+        from airflow.serialization.encoders import (
+            encode_partition_mapper,
+            encode_wait_policy,
+            encode_window,
+        )
 
         return {
             "upstream_mapper": encode_partition_mapper(self.upstream_mapper),
             "window": encode_window(self.window),
+            "wait_policy": encode_wait_policy(self.wait_policy),
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
-        from airflow.serialization.decoders import decode_partition_mapper, decode_window
+        from airflow.serialization.decoders import (
+            decode_partition_mapper,
+            decode_wait_policy,
+            decode_window,
+        )
 
         return cls(
             upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
             window=decode_window(data["window"]),
+            wait_policy=decode_wait_policy(data["wait_policy"]),
         )

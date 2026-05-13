@@ -76,6 +76,11 @@ from airflow.sdk.definitions.partition_mappers.temporal import (
     StartOfWeekMapper,
     StartOfYearMapper,
 )
+from airflow.sdk.definitions.partition_mappers.wait_policy import (
+    MinimumCount,
+    WaitForAll,
+    WaitPolicy,
+)
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
     HourWindow,
@@ -155,6 +160,7 @@ __all__ = [
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MinimumCount",
     "MonthWindow",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
@@ -182,6 +188,8 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WaitForAll",
+    "WaitPolicy",
     "WeekWindow",
     "WeightRule",
     "Window",
