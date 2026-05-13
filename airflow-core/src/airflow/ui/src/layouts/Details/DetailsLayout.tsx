@@ -51,7 +51,6 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { HoverProvider, useHover } from "src/context/hover";
-import { DagImportError } from "src/pages/Dag/DagImportError";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -221,7 +220,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <HStack justifyContent="space-between" mb={2}>
             <Flex alignItems="center" gap={1}>
               <DagBreadcrumb />
-              {dag === undefined ? undefined : <DagImportError dag={dag} />}
             </Flex>
             <Flex gap={1}>
               <SearchDagsButton />

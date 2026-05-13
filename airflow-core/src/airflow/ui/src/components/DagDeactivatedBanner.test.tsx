@@ -23,12 +23,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
-import dashboardLocale from "../../../public/i18n/locales/en/dashboard.json";
-import { DagImportError } from "./DagImportError";
+import dagLocale from "../../public/i18n/locales/en/dag.json";
+import dashboardLocale from "../../public/i18n/locales/en/dashboard.json";
+import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
 
-const { mockUseImportErrorServiceGetImportErrors } = vi.hoisted(() => ({
+const { mockUseDagServiceGetDag, mockUseImportErrorServiceGetImportErrors } = vi.hoisted(() => ({
+  mockUseDagServiceGetDag: vi.fn(),
   mockUseImportErrorServiceGetImportErrors: vi.fn(),
 }));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+
+  return {
+    ...actual,
+    useParams: () => ({ dagId: "stale_dag" }),
+  };
+});
 
 vi.mock("openapi/queries", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- `import()` type is the standard pattern for typing `importOriginal` in Vitest mocks.
@@ -36,9 +47,20 @@ vi.mock("openapi/queries", async (importOriginal) => {
 
   return {
     ...actual,
+    useDagServiceGetDag: mockUseDagServiceGetDag,
     useImportErrorServiceGetImportErrors: mockUseImportErrorServiceGetImportErrors,
   };
 });
+
+const staleDagQuery = {
+  data: { is_stale: true, relative_fileloc: "stale_dag.py" },
+  isLoading: false,
+};
+
+const notStaleDagQuery = {
+  data: { is_stale: false, relative_fileloc: "stale_dag.py" },
+  isLoading: false,
+};
 
 const emptyImportErrorsQuery = {
   data: { import_errors: [], total_entries: 0 },
@@ -48,29 +70,42 @@ const emptyImportErrorsQuery = {
   isPending: false,
 };
 
-const staleDagFields = {
-  bundle_name: "dags-folder",
-  is_stale: true,
-  relative_fileloc: "stale_dag.py",
-} as const;
-
-describe("DagImportError", () => {
+describe("DagDeactivatedBanner", () => {
   beforeEach(() => {
+    i18n.addResourceBundle("en", "dag", dagLocale, true, true);
     i18n.addResourceBundle("en", "dashboard", dashboardLocale, true, true);
+    mockUseDagServiceGetDag.mockReturnValue(staleDagQuery);
     mockUseImportErrorServiceGetImportErrors.mockReturnValue(emptyImportErrorsQuery);
   });
 
-  it("does not render when there is no matching import error", () => {
+  it("does not render when the dag is not stale", () => {
+    mockUseDagServiceGetDag.mockReturnValue(notStaleDagQuery);
+
     render(
       <Wrapper>
-        <DagImportError dag={staleDagFields} />
+        <DagDeactivatedBanner />
       </Wrapper>,
     );
 
-    expect(screen.queryByTestId("dag-import-error")).not.toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("header.status.deactivated", { ns: "dag" }))).not.toBeInTheDocument();
   });
 
-  it("shows a matching import error when the API returns a file-scoped error", async () => {
+  it("shows a deactivated banner when stale with no import error", () => {
+    render(
+      <Wrapper>
+        <DagDeactivatedBanner />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("header.status.deactivated", { ns: "dag" }))).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: i18n.t("importErrors.dagImportError", { count: 1, ns: "dashboard" }),
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a deactivated banner with an import error button when the API returns a file-scoped error", async () => {
     mockUseImportErrorServiceGetImportErrors.mockReturnValue({
       ...emptyImportErrorsQuery,
       data: {
@@ -89,52 +124,24 @@ describe("DagImportError", () => {
 
     render(
       <Wrapper>
-        <DagImportError dag={staleDagFields} />
+        <DagDeactivatedBanner />
       </Wrapper>,
     );
 
-    expect(screen.getByTestId("dag-import-error")).toBeInTheDocument();
-    const openButton = screen.getByRole("button", {
+    expect(screen.getByText(i18n.t("header.status.deactivated", { ns: "dag" }))).toBeInTheDocument();
+
+    const importErrorButton = screen.getByRole("button", {
       name: i18n.t("importErrors.dagImportError", { count: 1, ns: "dashboard" }),
     });
 
-    expect(openButton).toBeInTheDocument();
+    expect(importErrorButton).toBeInTheDocument();
     expect(screen.queryByText(/SyntaxError: invalid syntax/u)).not.toBeInTheDocument();
 
-    fireEvent.click(openButton);
+    fireEvent.click(importErrorButton);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(i18n.t("importErrors.dagImportError", { count: 1, ns: "dashboard" })),
-      ).toBeInTheDocument();
+      expect(screen.getByText("stale_dag.py")).toBeInTheDocument();
     });
-    expect(screen.getByText("stale_dag.py")).toBeInTheDocument();
     expect(screen.getByText(/SyntaxError: invalid syntax/u)).toBeInTheDocument();
-  });
-
-  it("does not render when the dag is not stale", () => {
-    mockUseImportErrorServiceGetImportErrors.mockReturnValue({
-      ...emptyImportErrorsQuery,
-      data: {
-        import_errors: [
-          {
-            bundle_name: "dags-folder",
-            filename: "stale_dag.py",
-            import_error_id: 1,
-            stack_trace: "would match if stale",
-            timestamp: "2025-02-01T12:00:00Z",
-          },
-        ],
-        total_entries: 1,
-      },
-    });
-
-    render(
-      <Wrapper>
-        <DagImportError dag={{ ...staleDagFields, is_stale: false }} />
-      </Wrapper>,
-    );
-
-    expect(screen.queryByTestId("dag-import-error")).not.toBeInTheDocument();
   });
 });
