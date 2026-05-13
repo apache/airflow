@@ -61,7 +61,8 @@ class TestAirbyteTriggerSyncOp:
             wait_seconds=self.wait_seconds,
             timeout=self.timeout,
         )
-        op.execute({})
+
+        op.execute(context=mock.MagicMock())
 
         mock_submit_sync_connection.assert_called_once_with(
             request=JobCreateRequest(connection_id=self.connection_id, job_type=JobTypeEnum.SYNC)
