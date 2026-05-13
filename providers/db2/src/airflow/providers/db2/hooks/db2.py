@@ -103,9 +103,11 @@ class Db2Hook(DbApiHook):
         """
         Return connection URI for SQLAlchemy using ibm-db-sa dialect.
 
+        Includes extra connection parameters (like SSL configuration) as query parameters.
+
         :return: SQLAlchemy connection URI
         """
-        from urllib.parse import quote_plus
+        from urllib.parse import quote_plus, urlencode
 
         conn = self.get_connection(self.get_conn_id())
         defaults = self._get_default_values(conn)
@@ -113,4 +115,21 @@ class Db2Hook(DbApiHook):
         # URL encode password if it contains special characters
         password = quote_plus(defaults["password"]) if defaults["password"] else ""
 
-        return f"db2+ibm_db://{defaults['login']}:{password}@{defaults['host']}:{defaults['port']}/{defaults['schema']}"
+        # Build base URI
+        base_uri = f"db2+ibm_db://{defaults['login']}:{password}@{defaults['host']}:{defaults['port']}/{defaults['schema']}"
+
+        # Add extra parameters as query string (e.g., SSL configuration)
+        extra = conn.extra_dejson
+        if extra:
+            query_params = {}
+            for key, value in extra.items():
+                # Convert boolean values to appropriate strings
+                if isinstance(value, bool):
+                    query_params[key.upper()] = "true" if value else "false"
+                else:
+                    query_params[key.upper()] = str(value)
+
+            query_string = urlencode(query_params)
+            return f"{base_uri}?{query_string}"
+
+        return base_uri
