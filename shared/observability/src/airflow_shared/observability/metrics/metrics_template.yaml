@@ -218,7 +218,7 @@ metrics:
     name_variables: ["dag_id"]
 
   - name: "dagrun.deadlocked"
-    description: "Number of DagRuns that failed because all unfinished tasks were unrunnable (task deadlock).
+    description: "Number of DagRuns that failed because all unfinished tasks were hung (task deadlock).
     Metric with dag_id and run_type tagging."
     type: "counter"
     legacy_name: "-"
