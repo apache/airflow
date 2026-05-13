@@ -422,6 +422,11 @@ def ti_update_state(
             dag_id=dag_id,
             dag_bag=dag_bag,
         )
+    except DataError:
+        # Re-raise unchanged so the app-level _DataErrorHandler can translate to 4xx.
+        # The user's payload was rejected by the DB, so the right behaviour is to
+        # surface 413/422 to the caller rather than silently mark the task FAILED.
+        raise
     except Exception:
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(
