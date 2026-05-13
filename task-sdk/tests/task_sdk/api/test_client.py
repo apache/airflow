@@ -36,6 +36,8 @@ from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponse
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
+    AssetStateItem,
+    AssetStateListResponse,
     AssetStateResponse,
     ConnectionResponse,
     DagResponse,
@@ -44,6 +46,8 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    TaskStateItem,
+    TaskStateListResponse,
     TaskStateResponse,
     TerminalTIState,
     VariableResponse,
@@ -1804,6 +1808,34 @@ class TestTaskStateOperations:
         result = client.task_state.clear(ti_id=self.TI_ID, all_map_indices=True)
         assert result == OKResponse(ok=True)
 
+    def test_list_returns_key_value_pairs(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == f"/state/ti/{self.TI_ID}"
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "items": [{"key": "job_id", "value": "app_001"}, {"key": "checkpoint", "value": "step_3"}]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.list(ti_id=self.TI_ID)
+        assert isinstance(result, TaskStateListResponse)
+        assert result.items == [
+            TaskStateItem(key="job_id", value="app_001"),
+            TaskStateItem(key="checkpoint", value="step_3"),
+        ]
+
+    def test_list_returns_empty_when_no_state(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200, json={"items": []})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.list(ti_id=self.TI_ID)
+        assert isinstance(result, TaskStateListResponse)
+        assert result.items == []
+
 
 class TestAssetStateOperations:
     def test_get_by_name_success(self):
@@ -1920,3 +1952,40 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
+
+    def test_list_all_by_name_returns_items(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == "/state/asset/by-name/all"
+            assert request.url.params["name"] == "test_asset"
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "items": [
+                        {"key": "watermark", "value": "2026-05-01"},
+                        {"key": "file_count", "value": "42"},
+                    ]
+                },
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state.list(name="test_asset")
+        assert isinstance(result, AssetStateListResponse)
+        assert result.items == [
+            AssetStateItem(key="watermark", value="2026-05-01"),
+            AssetStateItem(key="file_count", value="42"),
+        ]
+
+    def test_list_all_by_uri_returns_items(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "GET"
+            assert request.url.path == "/state/asset/by-uri/all"
+            assert request.url.params["uri"] == "s3://bucket/key"
+            return httpx.Response(
+                status_code=200, json={"items": [{"key": "watermark", "value": "2026-05-01"}]}
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.asset_state.list(uri="s3://bucket/key")
+        assert isinstance(result, AssetStateListResponse)
+        assert result.items == [AssetStateItem(key="watermark", value="2026-05-01")]
