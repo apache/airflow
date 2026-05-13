@@ -52,7 +52,6 @@ def clear(args, api_client=NEW_API_CLIENT) -> None:
         f"for dag {args.dag_id}, task {args.task_id}[/green]"
     )
     AirflowConsole().print_as(data=response_list, output=args.output)
-    return response_list
 
 
 def _parse_date(value: str) -> datetime.datetime | None:

@@ -416,7 +416,13 @@ class CommandFactory:
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
         self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
-        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
+        self.exclude_operation_names = [
+            "LoginOperations",
+            "VersionOperations",
+            "BaseOperations",
+            "TasksOperations",
+            "TaskInstancesOperations",
+        ]
         self.exclude_method_names = [
             "error",
             "__init__",

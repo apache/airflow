@@ -37,7 +37,13 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, console, parse_operations
 OPERATIONS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "api" / "operations.py"
 HELP_TEXTS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "ctl" / "help_texts.yaml"
 # Operations excluded from CLI (see cli_config.py)
-EXCLUDED_OPERATION_CLASSES = {"BaseOperations", "LoginOperations", "VersionOperations"}
+EXCLUDED_OPERATION_CLASSES = {
+    "BaseOperations",
+    "LoginOperations",
+    "TaskInstancesOperations",
+    "TasksOperations",
+    "VersionOperations",
+}
 EXCLUDED_METHODS = {
     "__init__",
     "__init_subclass__",

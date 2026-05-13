@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflowctl.api.client import ClientKind
@@ -35,7 +37,7 @@ class TestTaskCommands:
             "total_entries": 0,
         }
 
-    def test_clear_success(self, api_client_maker, monkeypatch):
+    def test_clear_success(self, api_client_maker):
         response_json = self._make_clear_response()
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}/clearTaskInstances",
@@ -43,13 +45,15 @@ class TestTaskCommands:
             expected_http_status_code=200,
             kind=ClientKind.CLI,
         )
-        result = task_command.clear(
-            self.parser.parse_args(["tasks", "clear", self.dag_id, self.task_id]),
-            api_client=api_client,
-        )
-        assert result == []
+        with mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole") as mock_console_cls:
+            task_command.clear(
+                self.parser.parse_args(["tasks", "clear", self.dag_id, self.task_id]),
+                api_client=api_client,
+            )
 
-    def test_clear_with_dates(self, api_client_maker, monkeypatch):
+        mock_console_cls.return_value.print_as.assert_called_once_with(data=[], output="json")
+
+    def test_clear_with_dates(self, api_client_maker):
         response_json = self._make_clear_response()
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}/clearTaskInstances",
@@ -57,24 +61,26 @@ class TestTaskCommands:
             expected_http_status_code=200,
             kind=ClientKind.CLI,
         )
-        result = task_command.clear(
-            self.parser.parse_args(
-                [
-                    "tasks",
-                    "clear",
-                    self.dag_id,
-                    self.task_id,
-                    "--start-date",
-                    "2026-01-01T00:00:00",
-                    "--end-date",
-                    "2026-01-02T00:00:00",
-                ]
-            ),
-            api_client=api_client,
-        )
-        assert result == []
+        with mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole") as mock_console_cls:
+            task_command.clear(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "clear",
+                        self.dag_id,
+                        self.task_id,
+                        "--start-date",
+                        "2026-01-01T00:00:00",
+                        "--end-date",
+                        "2026-01-02T00:00:00",
+                    ]
+                ),
+                api_client=api_client,
+            )
 
-    def test_clear_fail(self, api_client_maker, monkeypatch):
+        mock_console_cls.return_value.print_as.assert_called_once_with(data=[], output="json")
+
+    def test_clear_fail(self, api_client_maker):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}/clearTaskInstances",
             response_json={"detail": "DAG not found"},
