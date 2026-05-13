@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import attrs
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
@@ -230,6 +230,23 @@ def _validate_path_dag_id_match(
     return True
 
 
+def _fetch_dag_runs(
+    session: Session,
+    keys: set[tuple[str, str]],
+) -> tuple[dict[tuple[str, str], DagRun], set[tuple[str, str]]]:
+    """Batch-fetch Dag runs by ``(dag_id, dag_run_id)`` pairs in a single query."""
+    if not keys:
+        return {}, set()
+    dag_runs = session.scalars(
+        select(DagRun)
+        .options(joinedload(DagRun.dag_model))
+        .where(tuple_(DagRun.dag_id, DagRun.run_id).in_(keys))
+    ).all()
+    found = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
+    not_found = keys - set(found.keys())
+    return found, not_found
+
+
 class BulkDagRunService(BulkService[BulkDagRunBody]):
     """Service for handling bulk operations on Dag runs."""
 
@@ -277,25 +294,6 @@ class BulkDagRunService(BulkService[BulkDagRunBody]):
             return False
         return True
 
-    def _fetch_dag_runs(
-        self,
-        keys: set[tuple[str, str]],
-    ) -> tuple[dict[tuple[str, str], DagRun], set[tuple[str, str]]]:
-        if not keys:
-            return {}, set()
-        keys_list = list(keys)
-        dag_runs = self.session.scalars(
-            select(DagRun)
-            .options(joinedload(DagRun.dag_model))
-            .where(
-                DagRun.dag_id.in_({k[0] for k in keys_list}),
-                DagRun.run_id.in_({k[1] for k in keys_list}),
-            )
-        ).all()
-        found = {(dr.dag_id, dr.run_id): dr for dr in dag_runs if (dr.dag_id, dr.run_id) in keys}
-        not_found = keys - set(found.keys())
-        return found, not_found
-
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkDagRunBody], results: BulkActionResponse
     ) -> None:
@@ -340,7 +338,7 @@ class BulkDagRunService(BulkService[BulkDagRunBody]):
             entity_map[(dag_id, dag_run_id)] = entity
 
         try:
-            found, not_found = self._fetch_dag_runs(keys)
+            found, not_found = _fetch_dag_runs(self.session, keys)
 
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found:
                 missing = [{"dag_id": d, "dag_run_id": r} for d, r in not_found]
@@ -416,7 +414,7 @@ class BulkDagRunService(BulkService[BulkDagRunBody]):
             keys.add((dag_id, dag_run_id))
 
         try:
-            found, not_found = self._fetch_dag_runs(keys)
+            found, not_found = _fetch_dag_runs(self.session, keys)
 
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found:
                 missing = [{"dag_id": d, "dag_run_id": r} for d, r in not_found]
@@ -461,6 +459,7 @@ def bulk_clear_dag_runs(
     """
     results = BulkActionResponse()
     auth_cache: dict[str, bool] = {}
+    keys_to_fetch: list[tuple[str, str]] = []
 
     for identifier in body.runs:
         run_dag_id = identifier.dag_id or dag_id
@@ -475,7 +474,6 @@ def bulk_clear_dag_runs(
             results=results,
         ):
             continue
-
         if not _authorize_dag_run(
             session=session, user=user, dag_id=run_dag_id, method="PUT", cache=auth_cache
         ):
@@ -489,11 +487,13 @@ def bulk_clear_dag_runs(
             )
             continue
 
-        dag_run = session.scalar(
-            select(DagRun)
-            .options(joinedload(DagRun.dag_model))
-            .where(DagRun.dag_id == run_dag_id, DagRun.run_id == run_id)
-        )
+        keys_to_fetch.append((run_dag_id, run_id))
+
+    found, _ = _fetch_dag_runs(session, set(keys_to_fetch))
+
+    for key in keys_to_fetch:
+        run_dag_id, run_id = key
+        dag_run = found.get(key)
         if dag_run is None:
             results.errors.append(
                 {
