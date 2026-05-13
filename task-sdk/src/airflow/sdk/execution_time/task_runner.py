@@ -1420,10 +1420,9 @@ def run(
     finally:
         stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
-        # For UP_FOR_RETRY, defer sending the message until after on_retry_callback has run
-        # (finalize() sends it). This lets an AirflowFailException raised inside the callback
-        # promote the state to FAILED instead of letting the supervisor record a retry that
-        # the user explicitly asked to skip. See #60172.
+        # Delay reporting UP_FOR_RETRY to the supervisor until after
+        # on_retry_callback runs so AirflowFailException can promote
+        # the task to FAILED and suppress the retry.
         if msg and state != TaskInstanceState.UP_FOR_RETRY:
             # If the supervisor rejects the terminal-state report
             # (e.g. the server already moved the TI to a terminal state and
@@ -1928,6 +1927,28 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
+def _handle_failure_notifications(
+    *,
+    task: BaseOperator | MappedOperator,
+    ti: RuntimeTaskInstance,
+    context: Context,
+    error: BaseException | str | None,
+    log: Logger,
+    send_email: bool,
+) -> None:
+    try:
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING,
+            task_instance=ti,
+            error=error,
+        )
+    except Exception:
+        log.exception("error calling listener")
+
+    if send_email and task.email:
+        _send_error_email_notification(task, ti, context, error, log)
+
+
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -2004,33 +2025,33 @@ def finalize(
                 rendered_map_index=ti.rendered_map_index,
             )
             _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
-            try:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-                )
-            except Exception:
-                log.exception("error calling listener")
-            if task.email_on_failure and task.email:
-                _send_error_email_notification(task, ti, context, error, log)
+            _handle_failure_notifications(
+                task=task,
+                ti=ti,
+                context=context,
+                error=error,
+                log=log,
+                send_email=task.email_on_failure,
+            )
         else:
-            try:
-                get_listener_manager().hook.on_task_instance_failed(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-                )
-            except Exception:
-                log.exception("error calling listener")
-            if error and task.email_on_retry and task.email:
-                _send_error_email_notification(task, ti, context, error, log)
+            _handle_failure_notifications(
+                task=task,
+                ti=ti,
+                context=context,
+                error=error,
+                log=log,
+                send_email=bool(error and task.email_on_retry),
+            )
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
-        try:
-            get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
-            )
-        except Exception:
-            log.exception("error calling listener")
-        if error and task.email_on_failure and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
+        _handle_failure_notifications(
+            task=task,
+            ti=ti,
+            context=context,
+            error=error,
+            log=log,
+            send_email=bool(error and task.email_on_failure),
+        )
 
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
