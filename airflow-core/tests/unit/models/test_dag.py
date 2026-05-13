@@ -1719,6 +1719,9 @@ class TestDag:
         mock_task_object_2.assert_not_called()
 
     def test_dag_test_failure_callback_receives_exception_in_context(self, testing_dag_bundle):
+        class TestDagException(Exception):
+            pass
+
         captured: dict = {}
 
         def handle_task_failure(context):
@@ -1735,7 +1738,7 @@ class TestDag:
 
         @task_decorator
         def boom():
-            raise AirflowException("boooom")
+            raise TestDagException("boooom")
 
         with dag:
             boom()
@@ -1748,7 +1751,7 @@ class TestDag:
         # The in-process supervisor must mirror task_runner.main(): expose the raised
         # exception in context["exception"] so on_failure_callback can use it.
         assert captured.get("task_id") == "boom"
-        assert isinstance(captured.get("exception"), AirflowException)
+        assert isinstance(captured.get("exception"), TestDagException)
         assert str(captured["exception"]) == "boooom"
 
     def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
