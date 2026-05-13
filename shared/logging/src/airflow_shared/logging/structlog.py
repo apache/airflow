@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import sys
+import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
@@ -713,7 +714,14 @@ def _showwarning(
             structlog.get_logger("py.warnings").bind(),
             structlog.processors.CallsiteParameterAdder,
         )
-        warning_log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
+        warning_log.warning(
+            str(message),
+            category=category.__name__,
+            filename=filename,
+            lineno=lineno,
+            process=os.getpid(),
+            thread=threading.get_ident(),
+        )
 
 
 def _install_excepthook() -> None:
