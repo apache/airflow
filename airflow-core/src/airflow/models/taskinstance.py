@@ -26,7 +26,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import quote
 from uuid import UUID
 
@@ -128,6 +128,13 @@ if TYPE_CHECKING:
     from airflow.triggers.base import StartTriggerArgs
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+
+class OutletEventPayload(NamedTuple):
+    """A single outlet emission carrying its ``extra`` payload and optional per-emission ``partition_key``."""
+
+    extra: dict
+    partition_key: str | None
 
 
 @provide_session
@@ -1485,15 +1492,32 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             SerializedAssetUriRef,
         )
 
-        events_by_asset: dict[SerializedAssetUniqueKey, list[tuple[dict, str | None]]] = defaultdict(list)
+        payloads_by_asset: dict[SerializedAssetUniqueKey, list[OutletEventPayload]] = defaultdict(list)
         for outlet_event in outlet_events:
+            # Alias-emitted events are handled separately further down via
+            # register_asset_change_for_alias, which uses the DagRun-level
+            # partition_key. Per-emission partition keys do not fan out through
+            # the alias path — emission via an alias produces one event per
+            # resolved asset, all carrying the same dag_run_partition_key.
             if "source_alias_name" in outlet_event:
                 continue
             asset_key = SerializedAssetUniqueKey(**outlet_event["dest_asset_key"])
-            events_by_asset[asset_key].append((outlet_event["extra"], outlet_event.get("partition_key")))
+            payloads_by_asset[asset_key].append(
+                OutletEventPayload(
+                    extra=outlet_event["extra"], partition_key=outlet_event.get("partition_key")
+                )
+            )
 
+        # Back-fill DagRun.partition_key from the task emission when the task
+        # emitted exactly one distinct partition_key across all outlet events
+        # and the DagRun did not already have one set. This lets a task that
+        # discovers the partition at runtime (rather than via params) act as
+        # the source of truth for the DagRun-level key.
         runtime_pks: set[str] = {
-            pk for events in events_by_asset.values() for _, pk in events if pk is not None
+            payload.partition_key
+            for payloads in payloads_by_asset.values()
+            for payload in payloads
+            if payload.partition_key is not None
         }
         if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
             ti.dag_run.partition_key = next(iter(runtime_pks))
@@ -1526,8 +1550,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         }
 
         def _register(am: AssetModel, key: SerializedAssetUniqueKey) -> None:
-            events_for_asset = events_by_asset.get(key, [])
-            if not events_for_asset:
+            payloads_for_asset = payloads_by_asset.get(key, [])
+            if not payloads_for_asset:
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
@@ -1536,12 +1560,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     session=session,
                 )
                 return
-            for extra, event_pk in events_for_asset:
+            for payload in payloads_for_asset:
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
-                    extra=extra,
-                    partition_key=event_pk if event_pk is not None else dag_run_partition_key,
+                    extra=payload.extra,
+                    partition_key=payload.partition_key
+                    if payload.partition_key is not None
+                    else dag_run_partition_key,
                     session=session,
                 )
 
