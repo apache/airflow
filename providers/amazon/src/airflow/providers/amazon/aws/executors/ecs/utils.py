@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 if AIRFLOW_V_3_3_PLUS:
     from airflow.executors.workloads import ExecuteCallback, ExecuteTask
 
-    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask | ExecuteCallback]
+    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask] | Sequence[ExecuteCallback]
 else:
     CommandType: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
