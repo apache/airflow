@@ -23,11 +23,12 @@ import { useTranslation } from "react-i18next";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
-import { useOpenGroups } from "src/context/openGroups";
+import { useGroups } from "src/context/groups";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { SegmentedStateBar } from "./SegmentedStateBar";
 import { TaskLink } from "./TaskLink";
+import { opacityStyle } from "./graphTypes";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const TaskNode = ({
@@ -35,6 +36,7 @@ export const TaskNode = ({
     childCount,
     depth,
     height = 0,
+    isFiltered,
     isGroup,
     isMapped,
     isOpen,
@@ -49,7 +51,7 @@ export const TaskNode = ({
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
   const { t: translate } = useTranslation("components");
-  const { toggleGroupId } = useOpenGroups();
+  const { toggleGroupId } = useGroups();
   const onClick = () => {
     if (isGroup) {
       toggleGroupId(id);
@@ -83,7 +85,7 @@ export const TaskNode = ({
 
   return (
     <NodeWrapper>
-      <Flex alignItems="center" cursor="default" flexDirection="column">
+      <Flex alignItems="center" cursor="default" flexDirection="column" {...opacityStyle(isFiltered)}>
         <TaskInstanceTooltip
           openDelay={500}
           positioning={{

@@ -285,6 +285,10 @@ class RedshiftSQLHook(DbApiHook):
         parts = hostname.split(".")
         if hostname.endswith("amazonaws.com") and len(parts) == 6:
             return f"{parts[0]}.{parts[2]}"
+        # AWS China regions use the amazonaws.com.cn endpoint suffix
+        # e.g. my-cluster.id.cn-north-1.redshift.amazonaws.com.cn (7 parts vs 6 for global)
+        if hostname.endswith("amazonaws.com.cn") and len(parts) == 7:
+            return f"{parts[0]}.{parts[2]}"
         self.log.debug(
             """Could not parse identifier from hostname '%s'.
             You are probably using IP to connect to Redshift cluster.

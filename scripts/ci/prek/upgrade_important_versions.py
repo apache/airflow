@@ -67,7 +67,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
@@ -80,11 +79,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd-arm.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
@@ -95,6 +89,79 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
     (AIRFLOW_ROOT_PATH / "dev" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "go-sdk" / ".pre-commit-config.yaml", False),
+    # Files that pin Docker Hub `alpine:` / `busybox:` tags and should be
+    # auto-bumped alongside the rest of the "important versions". Adding new
+    # call sites? Add them here too — the regex in SIMPLE_VERSION_PATTERNS
+    # only mutates files in this list.
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "utils"
+        / "xcom_sidecar.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "system"
+        / "cncf"
+        / "kubernetes"
+        / "example_kubernetes.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "system"
+        / "cncf"
+        / "kubernetes"
+        / "example_kubernetes_async.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "providers"
+        / "cncf"
+        / "kubernetes"
+        / "tests"
+        / "unit"
+        / "cncf"
+        / "kubernetes"
+        / "operators"
+        / "test_pod.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "kubernetes-tests"
+        / "tests"
+        / "kubernetes_tests"
+        / "test_kubernetes_pod_operator.py",
+        False,
+    ),
+    (
+        AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "commands"
+        / "kubernetes_commands.py",
+        False,
+    ),
 ]
 for file in DOCKER_IMAGES_EXAMPLE_DIR_PATH.rglob("*.sh"):
     FILES_TO_UPDATE.append((file, False))
@@ -233,6 +300,14 @@ def get_latest_lts_node_version() -> str:
     return latest_version
 
 
+# Match date-shaped tags published by official images for daily / edge
+# builds, e.g. Alpine's `20260127` or `v20260127`. These parse as valid
+# PEP 440 versions and would otherwise sort above any normal release tag.
+# Pattern: optional leading `v`, then 8 digits (YYYYMMDD), optionally
+# followed by `.N` (revision suffix on the same date).
+_DATE_SHAPED_TAG_RE = re.compile(r"^v?\d{8}(\.\d+)?$")
+
+
 def get_latest_image_version(image: str) -> str:
     """
     Fetch the latest tag released for a DockerHub image.
@@ -273,17 +348,32 @@ def get_latest_image_version(image: str) -> str:
     version_tags = []
     for tag in tags:
         tag_name = tag["name"]
-        # Skip tags like 'latest', 'stable', '0', 'v0', etc.
-        if tag_name in ["latest", "stable", "main", "master", "0", "v0"]:
+        # Skip well-known floating tags.
+        if tag_name in ["latest", "stable", "main", "master", "0", "v0", "edge"]:
+            continue
+        # Skip date-shaped tags (`YYYYMMDD`, `YYYYMMDD.N`, `vYYYYMMDD`).
+        # Several official images publish daily / edge builds under
+        # date-stamped numeric tags (e.g. Alpine's `20260127`). PEP 440
+        # parses those as valid `Version("20260127")` and they sort higher
+        # than any normal release version like `3.23`, so the bumper would
+        # auto-pin the daily edge image instead of the latest release.
+        if _DATE_SHAPED_TAG_RE.match(tag_name):
             continue
         try:
-            # Try to parse as version to filter out non-version tags
-            # Remove leading 'v' if present
+            # Try to parse as version to filter out non-version tags.
+            # Remove leading 'v' if present.
             version_str = tag_name.lstrip("v")
             version_obj = Version(version_str)
+            # Belt-and-braces sanity check: any version whose major component
+            # is implausibly large (≥ 10000) is a date stamp the regex above
+            # missed, not a release. The largest legitimate image major
+            # version on Docker Hub today is in the low hundreds (e.g.
+            # `node:24`), so 10000 is a safe ceiling.
+            if version_obj.major >= 10000:
+                continue
             version_tags.append((version_obj, tag_name))
         except Exception:
-            # Skip tags that don't parse as versions
+            # Skip tags that don't parse as versions.
             continue
 
     if not version_tags:
@@ -414,6 +504,13 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.abrd]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    # Intentionally NOT matching `[tool.uv] required-version = ">=X.Y.Z"` in the root
+    # pyproject.toml. That value is a hard minimum contributors must have installed —
+    # not the exact uv version CI ships with. Bumping it on every uv release would force
+    # the whole contributor base to upgrade uv in lockstep, which is far more churn than
+    # the check is worth. `required-version` stays a deliberate, manual bump only. If
+    # you're tempted to auto-track it here, don't — the breeze/prek uv version check
+    # reads it dynamically and tolerates a stale floor.
     (
         re.compile(
             r"(\")([0-9.abrc]+)(\" {2}# Keep this comment to "
@@ -476,6 +573,8 @@ if UPGRADE_ALL_BY_DEFAULT and VERBOSE:
     console.print("[bright_blue]Upgrading all important versions")
 
 # Package upgrade flags
+UPGRADE_ALPINE: bool = get_env_bool("UPGRADE_ALPINE")
+UPGRADE_BUSYBOX: bool = get_env_bool("UPGRADE_BUSYBOX")
 UPGRADE_FLIT_CORE: bool = get_env_bool("UPGRADE_FLIT_CORE")
 UPGRADE_GITPYTHON: bool = get_env_bool("UPGRADE_GITPYTHON")
 UPGRADE_GOLANG: bool = get_env_bool("UPGRADE_GOLANG")
@@ -603,6 +702,19 @@ SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "openapi_generator": [
         (r"(OPENAPI_GENERATOR_CLI_VER = )(\"[0-9.]+\")", 'OPENAPI_GENERATOR_CLI_VER = "{version}"'),
     ],
+    # Pinning Docker Hub base-image tags used by Airflow's K8s system tests
+    # protects CI from anonymous-pull rate limits — the kind cluster
+    # `kind load`s the pre-pulled image so kubelet (default
+    # imagePullPolicy=IfNotPresent for tagged images) never reaches Docker
+    # Hub. Pattern matches both `alpine:X.Y[.Z]` literals in code and
+    # `ARG ALPINE_VERSION="X.Y[.Z]"` in chart Dockerfiles.
+    "alpine": [
+        (r"(alpine:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "alpine:{version}"),
+        (r'(ALPINE_VERSION=")([0-9.]+)(")', 'ALPINE_VERSION="{version}"'),
+    ],
+    "busybox": [
+        (r"(busybox:)([0-9]+\.[0-9]+(?:\.[0-9]+)?)", "busybox:{version}"),
+    ],
     "sphinx_airflow_theme": [
         (
             r"(sphinx-airflow-theme@https://airflow\.apache\.org/sphinx-airflow-theme/sphinx_airflow_theme-)([0-9.]+)(-py3-none-any\.whl)",
@@ -639,6 +751,8 @@ def fetch_all_package_versions() -> dict[str, str]:
         "mypy": get_latest_pypi_version("mypy", UPGRADE_MYPY),
         "node_lts": get_latest_lts_node_version() if UPGRADE_NODE_LTS else "",
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
+        "alpine": get_latest_image_version("alpine") if UPGRADE_ALPINE else "",
+        "busybox": get_latest_image_version("busybox") if UPGRADE_BUSYBOX else "",
         "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
         "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
         "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()

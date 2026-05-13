@@ -1,5 +1,3 @@
-/* eslint-disable unicorn/no-null */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -67,6 +65,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  is_backfillable: true,
   is_favorite: false,
   is_paused: false,
   is_stale: false,
@@ -110,6 +109,7 @@ const mockDag = {
   tags: [],
   timetable_description: "Every minute",
   timetable_partitioned: false,
+  timetable_periodic: true,
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
 
@@ -207,6 +207,14 @@ describe("DagCard", () => {
     expect(nextRunElement).toBeInTheDocument();
     // Should display the formatted next run timestamp (converted to GMT timezone)
     expect(nextRunElement).toHaveTextContent("2024-08-22 19:00:00");
+  });
+
+  it("DagCard should not render next run timestamp for a paused Dag", () => {
+    render(<DagCard dag={{ ...mockDag, is_paused: true }} />, { wrapper: GMTWrapper });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
   });
 
   it("DagCard should render StateBadge as success", () => {

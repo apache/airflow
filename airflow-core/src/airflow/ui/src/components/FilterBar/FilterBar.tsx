@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, HStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
@@ -66,6 +66,46 @@ export const FilterBar = ({
         };
       }),
   );
+
+  // Sync external URL changes (e.g. ceiling logic setting RUN_AFTER_LTE) into the filters state.
+  // We use a JSON key to detect when initialValues actually changes rather than re-rendering.
+  const initialValuesKey = JSON.stringify(initialValues);
+
+  useEffect(() => {
+    // Pre-compute which pills are valid to add based on current configs and initialValues.
+    const pillsToAdd: Array<FilterState> = [];
+
+    for (const [key, value] of Object.entries(initialValues)) {
+      const config = configs.find((cfg) => cfg.key === key);
+
+      if (config && isValidFilterValue(config.type, value)) {
+        pillsToAdd.push({ config, id: `${key}-${Date.now()}`, value });
+      }
+    }
+
+    setFilters((prevFilters) => {
+      // Use a Set to avoid O(n²) lookup when checking for existing pills.
+      const existingKeys = new Set(prevFilters.map((filter) => filter.config.key));
+      const toAdd = pillsToAdd.filter((pill) => !existingKeys.has(pill.config.key));
+
+      // Remove pills that had a committed value but whose URL param was cleared externally.
+      const afterRemove = prevFilters.filter((filter) => {
+        const pillHadValue = isValidFilterValue(filter.config.type, filter.value);
+        const urlValue = initialValues[filter.config.key];
+
+        return !pillHadValue || isValidFilterValue(filter.config.type, urlValue);
+      });
+
+      if (toAdd.length === 0 && afterRemove.length === prevFilters.length) {
+        return prevFilters;
+      }
+
+      return [...afterRemove, ...toAdd];
+    });
+    // configs is intentionally omitted — it is structurally stable across renders and including
+    // it would risk infinite re-render loops. initialValuesKey captures all relevant URL changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValuesKey]);
 
   const debouncedOnFiltersChange = useDebouncedCallback((filtersRecord: Record<string, FilterValue>) => {
     onFiltersChange(filtersRecord);

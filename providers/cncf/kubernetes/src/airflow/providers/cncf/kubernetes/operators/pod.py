@@ -29,12 +29,13 @@ import re
 import shlex
 import string
 from collections.abc import Callable, Container, Iterable, Sequence
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
 import kubernetes
+import pendulum
 import tenacity
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
@@ -66,7 +67,10 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_completed,
+    container_is_running,
     container_is_succeeded,
+    container_is_wait,
     get_container_termination_message,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -77,9 +81,10 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodNotFoundException,
     PodPhase,
+    detect_pod_terminate_early_issues,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred, conf
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -267,6 +272,7 @@ class KubernetesPodOperator(BaseOperator):
     KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
+    MAX_REDEFER_ATTEMPTS = 3
 
     template_fields: Sequence[str] = (
         "image",
@@ -656,10 +662,8 @@ class KubernetesPodOperator(BaseOperator):
                 finally:
                     # Stop watching events
                     events_task.cancel()
-                    try:
+                    with suppress(asyncio.CancelledError):
                         await events_task
-                    except asyncio.CancelledError:
-                        pass
 
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
@@ -759,7 +763,7 @@ class KubernetesPodOperator(BaseOperator):
                 result = self.extract_xcom(pod=self.pod)
             istio_enabled = self.is_istio_enabled(self.pod)
             self.remote_pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
+                self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
@@ -926,19 +930,19 @@ class KubernetesPodOperator(BaseOperator):
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
         )
-        container_state = trigger.define_container_state(self.pod) if self.pod else None
+        pod_container_state = trigger.define_pod_container_state(self.pod) if self.pod else None
         if context and (
-            container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
+            pod_container_state == ContainerState.TERMINATED or pod_container_state == ContainerState.FAILED
         ):
             self.log.info("Skipping deferral as pod is already in a terminal state")
             self.trigger_reentry(
                 context=context,
                 event={
-                    "status": "failed" if container_state == ContainerState.FAILED else "success",
+                    "status": "failed" if pod_container_state == ContainerState.FAILED else "success",
                     "namespace": trigger.pod_namespace,
                     "name": trigger.pod_name,
                     "message": "Container failed"
-                    if container_state == ContainerState.FAILED
+                    if pod_container_state == ContainerState.FAILED
                     else "Container succeeded",
                     "last_log_time": last_log_time,
                     **(self.trigger_kwargs or {}),
@@ -959,18 +963,54 @@ class KubernetesPodOperator(BaseOperator):
         """
         self.pod = None
         xcom_sidecar_output = None
+        pod_name = event["name"]
+        pod_namespace = event["namespace"]
+
+        self.pod = self.hook.get_pod(pod_name, pod_namespace)
+
+        if not self.pod:
+            raise PodNotFoundException("Could not find pod after resuming from deferral")
+
+        follow = self.logging_interval is None
+        last_log_time = event.get("last_log_time")
+
+        pod_is_not_done = (
+            not container_is_completed(self.pod, self.base_container_name)
+            and (
+                container_is_running(self.pod, self.base_container_name)
+                or container_is_wait(self.pod, self.base_container_name)
+                or (self.pod.status and self.pod.status.phase == "Pending")
+            )
+            and not detect_pod_terminate_early_issues(self.pod)
+        )
+        redefer_count = event.get("_redefer_count", 0)
+
+        if event["status"] == "error" and pod_is_not_done and redefer_count < self.MAX_REDEFER_ATTEMPTS:
+            self.log.warning(
+                "Trigger returned but pod %s is still in phase %s. "
+                "Re-deferring to continue monitoring (attempt %d/%d). Trigger event: %s",
+                event["name"],
+                self.pod.status.phase if self.pod.status else "Unknown",
+                redefer_count + 1,
+                self.MAX_REDEFER_ATTEMPTS,
+                event,
+            )
+            self.trigger_kwargs = dict(self.trigger_kwargs or {})
+            self.trigger_kwargs["_redefer_count"] = redefer_count + 1
+            self.invoke_defer_method(
+                last_log_time=last_log_time,
+            )
+            # invoke_defer_method raises TaskDeferred, execution does not continue here
+
+        if event["status"] == "error" and pod_is_not_done:
+            self.log.error(
+                "Pod %s is still in phase %s but maximum re-defer attempts (%d) exceeded.",
+                event["name"],
+                self.pod.status.phase if self.pod.status else "Unknown",
+                self.MAX_REDEFER_ATTEMPTS,
+            )
+
         try:
-            pod_name = event["name"]
-            pod_namespace = event["namespace"]
-
-            self.pod = self.hook.get_pod(pod_name, pod_namespace)
-
-            if not self.pod:
-                raise PodNotFoundException("Could not find pod after resuming from deferral")
-
-            follow = self.logging_interval is None
-            last_log_time = event.get("last_log_time")
-
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
                     try:
@@ -1001,14 +1041,19 @@ class KubernetesPodOperator(BaseOperator):
 
                 xcom_sidecar_output = self.extract_xcom(pod=self.pod) if self.do_xcom_push else None
 
-                if event["status"] != "success":
+                if event["status"] == "error" and container_is_succeeded(self.pod, self.base_container_name):
+                    self.log.warning(
+                        "Base container terminated successfully but trigger emitted an error event. "
+                        "Treating as success. Event: %s, Message: %s",
+                        event.get("status"),
+                        event.get("message"),
+                    )
+                elif event["status"] != "success":
                     self.log.error(
                         "Trigger emitted an %s event, failing the task: %s", event["status"], event["message"]
                     )
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
-        except TaskDeferred:
-            raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
@@ -1025,7 +1070,7 @@ class KubernetesPodOperator(BaseOperator):
         if event["status"] != "timeout":
             try:
                 self.pod = self.pod_manager.await_pod_completion(
-                    self.pod, istio_enabled, self.base_container_name
+                    self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
                 )
             except ApiException as e:
                 if e.status == 404:
@@ -1051,11 +1096,19 @@ class KubernetesPodOperator(BaseOperator):
         reraise=True,
     )
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        since_seconds = (
-            math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-            if since_time
-            else None
-        )
+        since_seconds = None
+        if since_time:
+            try:
+                if isinstance(since_time, str):  # against interface spec but accept string as safeguard
+                    since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
+                since_seconds = math.ceil(
+                    (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
+                )
+            except (TypeError, ValueError):
+                self.log.warning(
+                    "Error calculating since_seconds with since_time %s. Using None instead.",
+                    since_time,
+                )
         logs = self.client.read_namespaced_pod_log(
             name=pod.metadata.name,
             namespace=pod.metadata.namespace,
@@ -1110,9 +1163,10 @@ class KubernetesPodOperator(BaseOperator):
         ):
             self.patch_already_checked(remote_pod, reraise=False)
 
-        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
-            istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
-        )
+        if istio_enabled or self.do_xcom_push:
+            failed = not container_is_succeeded(remote_pod, self.base_container_name)
+        else:
+            failed = pod_phase != PodPhase.SUCCEEDED
 
         if failed:
             if self.do_xcom_push and xcom_result and context:

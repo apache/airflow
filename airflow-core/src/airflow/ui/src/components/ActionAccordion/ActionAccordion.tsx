@@ -55,6 +55,7 @@ const TasksTable = ({
       displayMode="table"
       modelName="common:taskInstance"
       noRowsMessage={noRowsMessage}
+      showRowCountHeading={false}
       total={tasks.length}
     />
   );
@@ -99,7 +100,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
           <Accordion.ItemTrigger>
             <Text fontWeight="bold">
               {translate("dags:runAndTaskActions.affectedTasks.title", {
-                count: affectedTasks.total_entries,
+                count: affectedTasks.total_entries ?? 0,
               })}
             </Text>
           </Accordion.ItemTrigger>

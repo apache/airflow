@@ -38,6 +38,7 @@ from airflow.providers.opensearch.log.os_task_handler import (
     _build_log_fields,
     _format_error_detail,
     _render_log_id,
+    _strip_userinfo,
     get_os_kwargs_from_config,
     getattr_nested,
 )
@@ -110,9 +111,10 @@ def _assert_log_events(logs, metadatas, *, expected_events: list[str], expected_
     if AIRFLOW_V_3_0_PLUS:
         logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
-        assert logs[0].sources == expected_sources
-        assert logs[1].event == "::endgroup::"
-        assert [log.event for log in logs[2:]] == expected_events
+        for i, source in enumerate(expected_sources, start=1):
+            assert logs[i].event == source
+        assert logs[1 + len(expected_sources)].event == "::endgroup::"
+        assert [log.event for log in logs[(2 + len(expected_sources)) :]] == expected_events
     else:
         assert len(logs) == 1
         assert len(logs[0]) == 1
@@ -221,6 +223,21 @@ class TestOpensearchTaskHandler:
                 OpensearchTaskHandler.format_url(host)
         else:
             assert OpensearchTaskHandler.format_url(host) == expected
+
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("https://user:pass@opensearch.example.com:9200", "https://opensearch.example.com:9200"),
+            ("http://USER:PASS@opensearch.example.com", "http://opensearch.example.com"),
+            ("https://opensearch.example.com:9200", "https://opensearch.example.com:9200"),
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://user@opensearch.example.com", "https://opensearch.example.com"),
+            ("not-a-url", "not-a-url"),
+            ("", ""),
+        ],
+    )
+    def test_strip_userinfo(self, host, expected):
+        assert _strip_userinfo(host) == expected
 
     def test_client(self):
         assert isinstance(self.os_task_handler.client, opensearchpy.OpenSearch)

@@ -34,7 +34,7 @@ Environment variables (required):
 
 Environment variables (optional):
   MAX_RUNS           - Maximum number of workflow runs to analyze (default: 10)
-  WORKFLOW_NAME      - Workflow file name to query (default: ci-amd-arm.yml)
+  WORKFLOW_NAME      - Workflow file name to query (default: ci-amd.yml)
   BRANCH             - Branch to filter runs (default: main)
   OUTPUT_FILE        - Path for the Slack message output (default: slack-message.json)
   GITHUB_OUTPUT      - Path to GitHub Actions output file
@@ -65,8 +65,13 @@ def escape_slack_mrkdwn(text: str) -> str:
 
 
 def gh_api(endpoint: str, **kwargs: str) -> str | None:
-    """Call GitHub API via gh CLI."""
-    cmd = ["gh", "api", endpoint]
+    """Call GitHub API via gh CLI.
+
+    Forces ``--method GET``: ``gh api`` defaults to POST whenever ``-f``
+    parameters are present, which makes read-only endpoints (such as the
+    workflow runs list) return 404.
+    """
+    cmd = ["gh", "api", "--method", "GET", endpoint]
     for key, value in kwargs.items():
         cmd.extend(["-f", f"{key}={value}"])
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -520,7 +525,7 @@ def write_step_summary(
 def main() -> None:
     repo = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
     max_runs = int(os.environ.get("MAX_RUNS", "10"))
-    workflow = os.environ.get("WORKFLOW_NAME", "ci-amd-arm.yml")
+    workflow = os.environ.get("WORKFLOW_NAME", "ci-amd.yml")
     branch = os.environ.get("BRANCH", "main")
     output_file = Path(os.environ.get("OUTPUT_FILE", "slack-message.json"))
 

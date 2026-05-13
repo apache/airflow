@@ -34,6 +34,7 @@
   },
   "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
   "collapseDetailsPanel": "Zwiń panel szczegółów",
+  "consumingAsset": "Zabierający zasób",
   "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
   "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
   "createdAssetEvent_one": "Utworzone zdarzenie zasobu",
@@ -115,6 +116,12 @@
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Nie masz uprawnień do wykonania tej akcji.",
+      "title": "Dostęp zabroniony"
+    }
+  },
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
@@ -137,9 +144,11 @@
     "logicalDateTo": "Data logiczna do",
     "runAfterFrom": "Uruchom po (od)",
     "runAfterTo": "Uruchom po (do)",
+    "searchAsset": "Szukaj zasobu",
     "selectDateRange": "Wybierz zakres dat",
     "startTime": "Czas rozpoczęcia"
   },
+  "generateToken": "Wygeneruj token",
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
@@ -187,6 +196,7 @@
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
+    "asset_materialization": "Materializacja zasobu",
     "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
@@ -207,6 +217,7 @@
     "users": "Użytkownicy"
   },
   "selectLanguage": "Wybierz język",
+  "selected": "Wybrano",
   "showDetailsPanel": "Pokaż panel szczegółów",
   "signedInAs": "Zalogowano jako",
   "source": {
@@ -315,11 +326,25 @@
     "utc": "UTC (Uniwersalny Czas Koordynowany)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Nie udało się wykonać żądania grupowego wyczyszczenia {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie wyczyszczono {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie grupowego wyczyszczenia {{resourceName}}"
+      }
+    },
     "bulkDelete": {
-      "error": "Nie udało się wykonać żądania masowego usunięcia {{resourceName}}",
+      "error": "Nie udało się wykonać żądania grupowego usunięcia {{resourceName}}",
       "success": {
         "description": "Pomyślnie usunięto {{count}} {{resourceName}}. Klucze: {{keys}}",
-        "title": "Wysłano żądanie masowego usunięcia {{resourceName}}"
+        "title": "Wysłano żądanie grupowego usunięcia {{resourceName}}"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Nie udało się wykonać żądania grupowej aktualizacji {{resourceName}}",
+      "success": {
+        "description": "Pomyślnie zaktualizowano {{count}} {{resourceName}}. Klucze: {{keys}}",
+        "title": "Wysłano żądanie grupowej aktualizacji {{resourceName}}"
       }
     },
     "create": {
@@ -351,10 +376,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Token API",
+    "cliToken": "Token CLI",
+    "errorDescription": "Podczas generowania tokenu wystąpił błąd. Spróbuj ponownie.",
+    "errorTitle": "Nie udało się wygenerować tokenu",
+    "generate": "Wygeneruj",
+    "selectType": "Wybierz typ tokenu do wygenerowania.",
+    "title": "Wygeneruj token",
+    "tokenExpiresIn": "Ten token wygasa za {{duration}}.",
+    "tokenGenerated": "Twój token został wygenerowany.",
+    "tokenShownOnce": "Ten token zostanie wyświetlony tylko raz. Skopiuj go teraz."
+  },
   "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "user": "Profil",
+  "validation": {
+    "mustBeAtLeast": "Musi wynosić co najmniej {{min}}.",
+    "mustBeValidNumber": "Musi być prawidłową liczbą."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",

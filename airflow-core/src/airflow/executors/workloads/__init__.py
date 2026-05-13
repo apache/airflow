@@ -34,6 +34,12 @@ All = Annotated[
 
 TaskInstance = TaskInstanceDTO
 
+ExecutorWorkload = Annotated[
+    ExecuteTask | ExecuteCallback,
+    Field(discriminator="type"),
+]
+"""Workload types that can be sent to executors (excludes RunTrigger, which is handled by the triggerer)."""
+
 __all__ = [
     "All",
     "BaseWorkload",
@@ -41,6 +47,7 @@ __all__ = [
     "CallbackFetchMethod",
     "ExecuteCallback",
     "ExecuteTask",
+    "ExecutorWorkload",
     "TaskInstance",
     "TaskInstanceDTO",
 ]

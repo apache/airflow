@@ -18,7 +18,6 @@
  */
 import { expect } from "@playwright/test";
 import type { Page, Locator } from "@playwright/test";
-import { waitForServerReady } from "tests/e2e/utils/health";
 
 /**
  * Base Page Object
@@ -54,12 +53,17 @@ export class BasePage {
   }
 
   public async navigateTo(path: string): Promise<void> {
-    await this.safeGoto(path, { waitUntil: "domcontentloaded" });
+    await this.page.goto(path, { waitUntil: "domcontentloaded" });
   }
 
-  /** Health-checked navigation. Subclasses should use this instead of `this.page.goto()`. */
-  protected async safeGoto(path: string, options?: Parameters<Page["goto"]>[1]): Promise<void> {
-    await waitForServerReady(this.page);
-    await this.page.goto(path, options);
+  // Chakra v3 / Ark UI keeps the backdrop in the DOM until the close animation
+  // ends. On WebKit the animationend/transitionend event is occasionally
+  // dropped under CI load, leaving a `data-state="closed"` backdrop attached
+  // that intercepts pointer events on subsequent actions. Wait for every
+  // dialog backdrop to be detached before continuing.
+  public async waitForAllDialogsClosed(timeout = 15_000): Promise<void> {
+    await expect(this.page.locator('[data-scope="dialog"][data-part="backdrop"]')).toHaveCount(0, {
+      timeout,
+    });
   }
 }

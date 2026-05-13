@@ -45,6 +45,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
+from airflow_breeze.commands.ui_commands import run_compile_ui_assets
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_TO,
     ALLOWED_EXECUTORS,
@@ -61,6 +62,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
+from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
@@ -90,7 +92,12 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
+from airflow_breeze.utils.run_utils import (
+    RunCommandResult,
+    assert_prek_installed,
+    check_if_image_exists,
+    run_command,
+)
 
 KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
@@ -248,6 +255,18 @@ option_parallelism_cluster = click.option(
     default=max(1, (mp.cpu_count() + 1) // 3) if not generating_command_images() else 2,
     envvar="PARALLELISM",
     show_default=True,
+)
+option_skip_image_build = click.option(
+    "--skip-image-build",
+    help="Skips execution of breeze k8s build-k8s-image in deploy-cluster command.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_BUILD",
+)
+option_skip_compile_ui_assets = click.option(
+    "--skip-compile-ui-assets",
+    help="Skips execution of breeze ui compile-assets in deploy-cluster command.",
+    is_flag=True,
+    envvar="SKIP_IMAGE_BUILD",
 )
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
 
@@ -686,6 +705,98 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
             f"KinD cluster {cluster_name}."
         )
     return kind_load_result.returncode, f"Uploaded K8S image to {cluster_name}"
+
+
+# Test-suite container images that Airflow's K8s system tests pull from Docker
+# Hub. Tagged (not `:latest`) so kubelet's default imagePullPolicy is
+# IfNotPresent — combined with `kind load` below, this means kubelet uses the
+# already-loaded image and never reaches out to Docker Hub.  The pin protects
+# CI runs from Docker Hub anonymous-pull rate limits, which intermittently
+# turn the scheduled K8s test job red. Auto-bumped by
+# scripts/ci/prek/upgrade_important_versions.py.
+K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
+    "alpine:3.23.4",  # xcom_sidecar default in providers/cncf/kubernetes
+    "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
+    "busybox:1.37.0",  # busybox-based system tests in kubernetes-tests/
+    "ubuntu:24.04",  # ubuntu-based system tests in kubernetes-tests/
+)
+
+
+def _docker_pull_with_429_retry(image: str, output: Output | None, max_attempts: int = 5) -> int:
+    """Run `docker pull <image>` retrying with exponential backoff on Docker Hub 429s.
+
+    Returns the final docker exit code (0 on success). Non-429 failures fail
+    fast — only the rate-limit pattern is retried, since for everything else
+    retrying would just amplify a real error.
+    """
+    import time
+
+    delay = 5
+    for attempt in range(1, max_attempts + 1):
+        result = run_command(
+            ["docker", "pull", image],
+            check=False,
+            output=output,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return 0
+        stderr = (result.stderr or "") + (result.stdout or "")
+        rate_limited = "429" in stderr or "Too Many Requests" in stderr or "toomanyrequests" in stderr
+        if not rate_limited:
+            get_console(output=output).print(
+                f"[error]docker pull {image} failed (non-rate-limit): {stderr.strip()[:500]}"
+            )
+            return result.returncode
+        if attempt == max_attempts:
+            get_console(output=output).print(
+                f"[error]docker pull {image} hit Docker Hub 429 on every {max_attempts} attempts; giving up."
+            )
+            return result.returncode
+        get_console(output=output).print(
+            f"[warning]docker pull {image} hit Docker Hub 429 "
+            f"(attempt {attempt}/{max_attempts}); sleeping {delay}s before retry."
+        )
+        time.sleep(delay)
+        delay *= 2
+    return 1
+
+
+def _preload_test_images_to_kind(
+    python: str,
+    kubernetes_version: str,
+    output: Output | None,
+) -> tuple[int, str]:
+    """Pre-pull and `kind load` the pinned test-suite images.
+
+    See K8S_TEST_IMAGES_TO_PRELOAD for the list and rationale. Each image is
+    pulled once on the host (with retry-on-429), then loaded into every kind
+    node. Pods that reference these images then start without kubelet ever
+    reaching out to Docker Hub.
+    """
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    for image in K8S_TEST_IMAGES_TO_PRELOAD:
+        get_console(output=output).print(
+            f"[info]Pre-pulling test image {image} for kind cluster {cluster_name}"
+        )
+        pull_rc = _docker_pull_with_429_retry(image, output=output)
+        if pull_rc != 0:
+            return pull_rc, f"docker pull {image} failed"
+        get_console(output=output).print(f"[info]Loading {image} into kind cluster {cluster_name}")
+        kind_load_result = run_command_with_k8s_env(
+            ["kind", "load", "docker-image", "--name", cluster_name, image],
+            python=python,
+            output=output,
+            kubernetes_version=kubernetes_version,
+            check=False,
+        )
+        if kind_load_result.returncode != 0:
+            get_console(output=output).print(
+                f"[error]kind load docker-image {image} into {cluster_name} failed."
+            )
+            return kind_load_result.returncode, f"kind load {image} failed"
+    return 0, f"Pre-loaded {len(K8S_TEST_IMAGES_TO_PRELOAD)} test images into {cluster_name}"
 
 
 @kubernetes_group.command(
@@ -2028,6 +2139,16 @@ def _run_complete_tests(
             _logs(python=python, kubernetes_version=kubernetes_version)
             return returncode, message
         get_console(output=output).print(
+            f"\n[info]Pre-loading pinned test images into kind cluster for "
+            f"Python {python}, Kubernetes {kubernetes_version}\n"
+        )
+        returncode, message = _preload_test_images_to_kind(
+            python=python, kubernetes_version=kubernetes_version, output=output
+        )
+        if returncode != 0:
+            _logs(python=python, kubernetes_version=kubernetes_version)
+            return returncode, message
+        get_console(output=output).print(
             f"\n[info]Deploying Airflow for Python {python}, Kubernetes {kubernetes_version}\n"
         )
         returncode, message = _deploy_airflow(
@@ -2231,3 +2352,87 @@ def run_complete_tests(
         )
         if result != 0:
             sys.exit(result)
+
+
+@kubernetes_group.command(
+    name="deploy-cluster",
+    help="Create, configure kind cluster and build Airflow image for Airflow Chart deployment.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+)
+@option_force_venv_setup
+@option_force_recreate_cluster
+@option_python
+@option_kubernetes_version
+@option_rebuild_base_image
+@option_use_uv
+@option_skip_image_build
+@option_skip_compile_ui_assets
+def deploy_cluster(
+    force_venv_setup: bool,
+    force_recreate_cluster: bool,
+    python: str,
+    kubernetes_version: str,
+    rebuild_base_image: bool,
+    use_uv: bool,
+    skip_image_build: bool,
+    skip_compile_ui_assets: bool,
+):
+    console_print("[info]Syncing Virtual Environment[/]")
+    result = sync_virtualenv(force_venv_setup=force_venv_setup)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_kubernetes_tools_are_installed()
+
+    return_code, _ = _create_cluster(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+        force_recreate_cluster=force_recreate_cluster,
+        num_tries=1,
+        show_hints=False,
+    )
+    if return_code != 0:
+        sys.exit(return_code)
+
+    return_code, _ = _configure_k8s_cluster(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+    )
+    if return_code != 0:
+        sys.exit(return_code)
+
+    if skip_compile_ui_assets:
+        console_print("[info]Skipping compilation of Airflow UI assets[/]")
+    else:
+        console_print("[info]Compiling Airflow UI assets[/]")
+        perform_environment_checks()
+        assert_prek_installed()
+        result = run_compile_ui_assets(
+            dev=False, run_in_background=False, force_clean=False, additional_ui_hooks=[]
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+    if skip_image_build:
+        console_print("[info]Skipping Airflow Image Build[/]")
+    else:
+        return_code, _ = _rebuild_k8s_image(
+            python=python,
+            rebuild_base_image=rebuild_base_image,
+            copy_local_sources=True,
+            use_uv=use_uv,
+            output=None,
+        )
+        if return_code != 0:
+            sys.exit(return_code)
+
+    return_code, _ = _upload_k8s_image(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+    )
+    if return_code != 0:
+        sys.exit(return_code)

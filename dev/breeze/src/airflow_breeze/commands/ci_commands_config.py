@@ -55,6 +55,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--github-actor",
                 "--github-context",
+                "--github-context-input",
             ],
         },
     ],

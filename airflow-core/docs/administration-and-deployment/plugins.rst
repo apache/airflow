@@ -173,8 +173,6 @@ Plugin Management Interface
 Airflow 3.1 introduces a Plugin Management Interface, available under *Admin → Plugins* in the Airflow UI.
 This page allows you to view installed plugins.
 
-...
-
 External Views
 --------------
 

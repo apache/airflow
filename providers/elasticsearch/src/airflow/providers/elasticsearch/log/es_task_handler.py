@@ -166,6 +166,28 @@ def getattr_nested(obj, item, default):
         return default
 
 
+def _strip_userinfo(url: str) -> str:
+    """
+    Return ``url`` with any ``user:password@`` userinfo removed.
+
+    The Elasticsearch ``[elasticsearch] host`` config commonly embeds
+    credentials (``https://user:password@elk.example.com:9200``). This
+    value is reused as a display label for log-source grouping, so the
+    credentials would otherwise end up in task logs. Anything that is
+    not a valid URL is returned unchanged.
+    """
+    try:
+        parsed = urlparse(url)
+    except (TypeError, ValueError):
+        return url
+    if not parsed.hostname or (not parsed.username and not parsed.password):
+        return url
+    netloc = parsed.hostname
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return parsed._replace(netloc=netloc).geturl()
+
+
 def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
     return log_id_template.format(
         dag_id=ti.dag_id,
@@ -406,10 +428,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 header = [
-                    StructuredLogMessage(
-                        event="::group::Log message source details",
-                        sources=[host for host in logs_by_host.keys()],
-                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::group::Log message source details"),
+                    *[StructuredLogMessage(event=host) for host in logs_by_host.keys()],
                     StructuredLogMessage(event="::endgroup::"),
                 ]
 
@@ -675,13 +695,31 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         offset = 1
         for line in logs:
             # Make sure line is not empty
-            if line.strip():
-                # construct log_id which is {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
-                # also construct the offset field (default is 'offset')
+            if not line.strip():
+                continue
+
+            try:
                 log_dict = json.loads(line)
-                log_dict.update({"log_id": log_id, self.offset_field: offset})
-                offset += 1
-                parsed_logs.append(log_dict)
+            except json.JSONDecodeError:
+                # Best-effort fallback: preserve the raw line
+                self.log.debug("Failed to parse log line as JSON", exc_info=True)
+                log_dict = {
+                    "message": line,
+                    "unparsed": True,
+                }
+
+            # Ensure minimal compatibility with Airflow log expectations
+            if "event" not in log_dict and "message" not in log_dict:
+                log_dict["message"] = str(line)
+
+            log_dict.update(
+                {
+                    "log_id": log_id,
+                    self.offset_field: offset,
+                }
+            )
+            offset += 1
+            parsed_logs.append(log_dict)
 
         return parsed_logs
 
@@ -801,8 +839,9 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 

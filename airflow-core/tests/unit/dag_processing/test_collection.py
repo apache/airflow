@@ -53,12 +53,14 @@ from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
 from airflow.serialization.definitions.assets import SerializedAsset
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -141,6 +143,45 @@ class TestAssetModelOperation:
         yield
         self.clean_db()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_sync_assets_preserves_allow_producer_teams_from_other_bundle(self, dag_maker, session):
+        """When a producer bundle (without allow_producer_teams) is synced after a consumer bundle
+        (with allow_producer_teams), the stored allow_producer_teams must not be wiped out."""
+        from airflow.models.asset import DagScheduleAssetReference
+
+        # First sync: consumer bundle sets allow_producer_teams on the asset.
+        consumer_asset = Asset("shared_asset", allow_producer_teams=["team1", "team2"])
+        with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
+            EmptyOperator(task_id="mytask")
+
+        consumer_dags = {consumer_dag.dag_id: LazyDeserializedDAG.from_dag(consumer_dag)}
+        orm_dags = DagModelOperation(consumer_dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(consumer_dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == "consumer_dag")
+        )
+        assert ref.allow_producer_teams == ["team1", "team2"]
+
+        # Second sync: producer bundle references the same asset WITHOUT allow_producer_teams.
+        producer_asset = Asset("shared_asset")
+        with dag_maker(dag_id="producer_dag", schedule="@once") as producer_dag:
+            EmptyOperator(task_id="produce", outlets=[producer_asset])
+
+        producer_dags = {producer_dag.dag_id: LazyDeserializedDAG.from_dag(producer_dag)}
+        DagModelOperation(producer_dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(producer_dags)
+        asset_op.sync_assets(session=session)
+        session.flush()
+
+        # Consumer's allow_producer_teams must still be preserved.
+        session.expire(ref)
+        assert ref.allow_producer_teams == ["team1", "team2"]
+
     @pytest.mark.parametrize(
         ("is_active", "is_paused", "expected_num_triggers"),
         [
@@ -188,10 +229,6 @@ class TestAssetModelOperation:
         from the DB-stored Trigger row.  A mismatch causes the scheduler to
         recreate trigger rows on every heartbeat.
         """
-        from airflow.models.trigger import Trigger
-        from airflow.serialization.encoders import encode_trigger
-        from airflow.triggers.base import BaseEventTrigger
-
         trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
         asset = Asset(
             "test_hash_consistency_asset",
@@ -236,8 +273,6 @@ class TestAssetModelOperation:
         """Calling add_asset_trigger_references twice with the same trigger
         must not create duplicate rows.
         """
-        from airflow.models.trigger import Trigger
-
         trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
         asset = Asset(
             "test_idempotent_asset",

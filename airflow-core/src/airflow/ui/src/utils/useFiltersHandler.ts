@@ -145,6 +145,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
   const handleFiltersChange = (filters: Record<string, FilterValue>) => {
     setTableURLState({
+      cursor: undefined,
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
@@ -167,6 +168,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
       });
 
       newParams.delete(SearchParamsKeys.OFFSET);
+      newParams.delete(SearchParamsKeys.CURSOR);
 
       return newParams;
     });

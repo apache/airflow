@@ -22,7 +22,6 @@
         "title": "Backfill gegenereerd"
       }
     },
-    "tooltip": "Backfill benodigd een planning",
     "unpause": "Hervat {{dag_display_name}} na een trigger",
     "validation": {
       "datesRequired": "Data interval startdatum en einddatum moeten beide gegeven zijn.",
@@ -46,7 +45,6 @@
   },
   "dagWarnings": {
     "error_one": "1 fout",
-    "error_other": "{{count}} fouten",
     "errorAndWarning": "1 fout en {{warningText}}",
     "warning_one": "1 waarschuwing",
     "warning_other": "{{count}} waarschuwingen"
@@ -132,6 +130,7 @@
     "intervalStart": "Start",
     "loading": "Dag informatie aan het laden...",
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
+    "manualRunDenied": "Handmatige runs zijn niet toegestaan voor deze Dag",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
@@ -145,6 +144,7 @@
         "title": "Dag Run getriggerd"
       }
     },
+    "triggerAgainWithConfig": "Trigger opnieuw met deze configuratie",
     "unpause": "Hervat {{dagDisplayName}} op trigger"
   },
   "trimText": {

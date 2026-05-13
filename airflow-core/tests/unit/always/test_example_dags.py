@@ -118,7 +118,8 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = [
         "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
-        "providers/**/example_*.py",
+        "providers/**/tests/system/**/example_*.py",
+        "providers/**/example_dags/example_*.py",
     ]
 
     default_branch = os.environ.get("DEFAULT_BRANCH", "main")

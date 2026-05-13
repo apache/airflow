@@ -59,11 +59,15 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: true
       COLLLECTOR_ZIPKIN_HOST_PORT: 9411
+    # Host ports are intentionally below 32768 to stay outside Linux's default
+    # ephemeral port range (32768-60999). Picking high ports inside that range
+    # causes intermittent CI failures when the kernel transiently grabs the
+    # same port for an outbound connection from another process on the runner.
     ports:
-      - "36686:16686"
-      - "34317:4317"
-      - "34318:4318"
-      - "39422:9422"
+      - "26686:16686"
+      - "24317:4317"
+      - "27318:4318"
+      - "29422:9422"
 
   airflow:
     environment:

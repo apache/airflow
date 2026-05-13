@@ -84,7 +84,7 @@ CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
 # minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "amazon": parse_version("2.1.3"),
-    "fab": parse_version("2.2.0"),
+    "fab": parse_version("3.6.0"),
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
@@ -166,7 +166,10 @@ def _fallback_provider_version(
             f"[yellow]Provider id {provider_id} min version fallback:[/] "
             f"local provider pyproject.toml -> {local_version}"
         )
-        return local_version, " # Set from local provider pyproject.toml"
+        # No trailing comment: a local-fallback version flips to a real PyPI release
+        # without any other change to the pin, and a stale comment would then trigger
+        # the update-pyproject-toml prek hook on unrelated PRs / on main.
+        return local_version, ""
     return None, ""
 
 

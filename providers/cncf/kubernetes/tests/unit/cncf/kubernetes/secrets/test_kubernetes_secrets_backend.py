@@ -63,7 +63,7 @@ class TestKubernetesSecretsBackendConnections:
         assert result == uri
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/connection-id=my_db",
+            label_selector="airflow.apache.org/connection-id=my_db,!airflow.apache.org/team",
             resource_version="0",
         )
 
@@ -103,6 +103,60 @@ class TestKubernetesSecretsBackendConnections:
 
         assert result is None
 
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_conn_value_uses_team_specific_secret_first(self, mock_client, mock_namespace):
+        mock_client.return_value.list_namespaced_secret.side_effect = [
+            _make_secret_list([_make_secret({"value": "team-conn"})]),
+        ]
+
+        backend = KubernetesSecretsBackend()
+        result = backend.get_conn_value("my_db", team_name="team_a")
+
+        assert result == "team-conn"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/connection-id=my_db,airflow.apache.org/team=team_a",
+            resource_version="0",
+        )
+
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_conn_value_falls_back_to_global_secret_when_team_secret_is_missing(
+        self, mock_client, mock_namespace
+    ):
+        mock_client.return_value.list_namespaced_secret.side_effect = [
+            _make_secret_list([]),
+            _make_secret_list([_make_secret({"value": "global-conn"})]),
+        ]
+
+        backend = KubernetesSecretsBackend()
+        result = backend.get_conn_value("my_db", team_name="team_a")
+
+        assert result == "global-conn"
+        assert mock_client.return_value.list_namespaced_secret.call_args_list == [
+            mock.call(
+                "default",
+                label_selector="airflow.apache.org/connection-id=my_db,airflow.apache.org/team=team_a",
+                resource_version="0",
+            ),
+            mock.call(
+                "default",
+                label_selector="airflow.apache.org/connection-id=my_db,!airflow.apache.org/team",
+                resource_version="0",
+            ),
+        ]
+
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_conn_value_returns_none_for_team_scoped_id_without_team_name(
+        self, mock_client, mock_namespace
+    ):
+        backend = KubernetesSecretsBackend()
+
+        assert backend.get_conn_value("_teama___my_db") is None
+        mock_client.return_value.list_namespaced_secret.assert_not_called()
+
 
 class TestKubernetesSecretsBackendVariables:
     @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
@@ -119,7 +173,7 @@ class TestKubernetesSecretsBackendVariables:
         assert result == "my-value"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/variable-key=api_key",
+            label_selector="airflow.apache.org/variable-key=api_key,!airflow.apache.org/team",
             resource_version="0",
         )
 
@@ -133,6 +187,43 @@ class TestKubernetesSecretsBackendVariables:
         result = backend.get_variable("nonexistent")
 
         assert result is None
+
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_variable_falls_back_to_global_secret_when_team_secret_is_missing(
+        self, mock_client, mock_namespace
+    ):
+        mock_client.return_value.list_namespaced_secret.side_effect = [
+            _make_secret_list([]),
+            _make_secret_list([_make_secret({"value": "global-value"})]),
+        ]
+
+        backend = KubernetesSecretsBackend()
+        result = backend.get_variable("api_key", team_name="team_a")
+
+        assert result == "global-value"
+        assert mock_client.return_value.list_namespaced_secret.call_args_list == [
+            mock.call(
+                "default",
+                label_selector="airflow.apache.org/variable-key=api_key,airflow.apache.org/team=team_a",
+                resource_version="0",
+            ),
+            mock.call(
+                "default",
+                label_selector="airflow.apache.org/variable-key=api_key,!airflow.apache.org/team",
+                resource_version="0",
+            ),
+        ]
+
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_get_variable_returns_none_for_team_scoped_key_without_team_name(
+        self, mock_client, mock_namespace
+    ):
+        backend = KubernetesSecretsBackend()
+
+        assert backend.get_variable("_teama___api_key") is None
+        mock_client.return_value.list_namespaced_secret.assert_not_called()
 
 
 class TestKubernetesSecretsBackendConfig:
@@ -150,7 +241,7 @@ class TestKubernetesSecretsBackendConfig:
         assert result == "sqlite:///airflow.db"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="airflow.apache.org/config-key=sql_alchemy_conn",
+            label_selector="airflow.apache.org/config-key=sql_alchemy_conn,!airflow.apache.org/team",
             resource_version="0",
         )
 
@@ -181,7 +272,7 @@ class TestKubernetesSecretsBackendCustomConfig:
         assert result == "postgresql://localhost/db"
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "default",
-            label_selector="my-org/conn=my_db",
+            label_selector="my-org/conn=my_db,!airflow.apache.org/team",
             resource_version="0",
         )
 
@@ -224,6 +315,23 @@ class TestKubernetesSecretsBackendCustomConfig:
         result = backend.get_conn_value("my_db")
 
         assert result is None
+
+    @mock.patch(f"{MODULE_PATH}.namespace", new_callable=mock.PropertyMock, return_value="default")
+    @mock.patch(f"{MODULE_PATH}.client", new_callable=mock.PropertyMock)
+    def test_team_specific_lookup_uses_custom_team_label(self, mock_client, mock_namespace):
+        mock_client.return_value.list_namespaced_secret.return_value = _make_secret_list(
+            [_make_secret({"value": "team-conn"})]
+        )
+
+        backend = KubernetesSecretsBackend(team_label="my-org.io/team")
+        result = backend.get_conn_value("my_db", team_name="team_a")
+
+        assert result == "team-conn"
+        mock_client.return_value.list_namespaced_secret.assert_called_once_with(
+            "default",
+            label_selector="airflow.apache.org/connection-id=my_db,my-org.io/team=team_a",
+            resource_version="0",
+        )
 
 
 class TestKubernetesSecretsBackendLabelNone:
@@ -332,7 +440,7 @@ class TestKubernetesSecretsBackendNamespace:
 
         mock_client.return_value.list_namespaced_secret.assert_called_once_with(
             "airflow",
-            label_selector="airflow.apache.org/connection-id=my_db",
+            label_selector="airflow.apache.org/connection-id=my_db,!airflow.apache.org/team",
             resource_version="0",
         )
 

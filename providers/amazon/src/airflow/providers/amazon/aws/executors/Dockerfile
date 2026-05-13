@@ -36,7 +36,7 @@ RUN curl "https://raw.githubusercontent.com/apache/airflow/main/scripts/docker/e
 COPY <<"EOF" /install_dags_entrypoint.sh
 #!/bin/bash
 
-echo "Downloading DAGs from S3 bucket"
+echo "Downloading Dags from S3 bucket"
 aws s3 sync "$S3_URI" "$CONTAINER_DAG_PATH"
 
 /home/airflow/entrypoint.sh "$@"
@@ -81,27 +81,27 @@ ENV AWS_DEFAULT_REGION=$aws_default_region
 ENV AWS_SESSION_TOKEN=$aws_session_token
 
 
-## Loading DAGs
-# This Dockerfile supports 2 ways to load DAGs onto the container.
-# One is to upload all the DAGs onto an S3 bucket, and then
+## Loading Dags
+# This Dockerfile supports 2 ways to load Dags onto the container.
+# One is to upload all the Dags onto an S3 bucket, and then
 # download them onto the container. The other is to copy a local folder with
-# the DAGs onto the container.
-# If you would like to use an alternative method of loading DAGs, feel free to make the
+# the Dags onto the container.
+# If you would like to use an alternative method of loading Dags, feel free to make the
 # necessary changes to this file.
 
 ARG host_dag_path=./dags
 ENV HOST_DAG_PATH=$host_dag_path
 ARG container_dag_path=/opt/airflow/dags
 ENV CONTAINER_DAG_PATH=$container_dag_path
-# Set host_dag_path to the path of the DAGs on the host
+# Set host_dag_path to the path of the Dags on the host
 # COPY --chown=airflow:root $HOST_DAG_PATH $CONTAINER_DAG_PATH
 
 
-# Use these arguments to load DAGs onto the container from S3
+# Use these arguments to load Dags onto the container from S3
 ARG s3_uri
 ENV S3_URI=$s3_uri
-# If using S3 bucket as source of DAGs, uncommenting the next ENTRYPOINT command will overwrite this one.
+# If using S3 bucket as source of Dags, uncommenting the next ENTRYPOINT command will overwrite this one.
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/home/airflow/entrypoint.sh"]
 
-# Uncomment the line if using S3 bucket as the source of DAGs
+# Uncomment the line if using S3 bucket as the source of Dags
 # ENTRYPOINT ["/usr/bin/dumb-init", "--", "/install_dags_entrypoint.sh"]
