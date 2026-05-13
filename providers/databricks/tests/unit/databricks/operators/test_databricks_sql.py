@@ -453,3 +453,32 @@ def test_parse_gcs_path():
     bucket, object_name = op._parse_gcs_path("gs://my-bucket/path/to/file.parquet")
     assert bucket == "my-bucket"
     assert object_name == "path/to/file.parquet"
+
+
+def test_query_tags_injection():
+    """Test that Airflow context is correctly injected into query_tags in session_configuration."""
+    from unittest.mock import MagicMock
+    
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1",
+            session_configuration={"query_tags": "user_tag:value"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.session_config = {"query_tags": "user_tag:value"}
+        
+        class MockConn:
+            extra_dejson = {}
+        db_mock.databricks_conn = MockConn()
+        
+        context = {
+            "dag": MagicMock(dag_id="test_dag"),
+            "task": MagicMock(task_id="test_task"),
+            "run_id": "test_run_123",
+        }
+        
+        op.execute(context)
+        
+        expected_tags = "user_tag:value,airflow_dag_id:test_dag,airflow_task_id:test_task,airflow_run_id:test_run_123"
+        assert db_mock.session_config["query_tags"] == expected_tags

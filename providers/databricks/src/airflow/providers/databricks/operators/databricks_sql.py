@@ -46,6 +46,23 @@ _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DISALLOWED_SQL_TOKENS = (";", "--", "/*", "*/")
 
 
+def _format_query_tags(context: Context) -> str:
+    """Format Airflow context metadata into databricks-sql-connector query tags."""
+
+    def escape(val: str) -> str:
+        return str(val).replace("\\", "\\\\").replace(",", "\\,").replace(":", "\\:")
+
+    tags = []
+    if "dag" in context and getattr(context["dag"], "dag_id", None):
+        tags.append(f"airflow_dag_id:{escape(context['dag'].dag_id)}")
+    if "task" in context and getattr(context["task"], "task_id", None):
+        tags.append(f"airflow_task_id:{escape(context['task'].task_id)}")
+    if "run_id" in context and context["run_id"]:
+        tags.append(f"airflow_run_id:{escape(context['run_id'])}")
+
+    return ",".join(tags)
+
+
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Databricks SQL endpoint or a Databricks cluster.
@@ -152,6 +169,24 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
     def get_db_hook(self) -> DatabricksSqlHook:
         return self._hook
+
+    def execute(self, context: Context) -> Any:
+        hook = self.get_db_hook()
+        query_tags = _format_query_tags(context)
+        if query_tags:
+            if hook.session_config is None:
+                conn_extra = hook.databricks_conn.extra_dejson
+                hook.session_config = conn_extra.get("session_configuration", {})
+
+            if isinstance(hook.session_config, dict):
+                hook.session_config = hook.session_config.copy()
+                existing_tags = hook.session_config.get("query_tags", "")
+                if existing_tags:
+                    hook.session_config["query_tags"] = f"{existing_tags},{query_tags}"
+                else:
+                    hook.session_config["query_tags"] = query_tags
+
+        return super().execute(context)
 
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push or bool(self._output_path)
@@ -518,6 +553,20 @@ FILEFORMAT = {self._file_format}
         self._sql = self._create_sql_query()
         self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()
+
+        query_tags = _format_query_tags(context)
+        if query_tags:
+            if hook.session_config is None:
+                conn_extra = hook.databricks_conn.extra_dejson
+                hook.session_config = conn_extra.get("session_configuration", {})
+            if isinstance(hook.session_config, dict):
+                hook.session_config = hook.session_config.copy()
+                existing_tags = hook.session_config.get("query_tags", "")
+                if existing_tags:
+                    hook.session_config["query_tags"] = f"{existing_tags},{query_tags}"
+                else:
+                    hook.session_config["query_tags"] = query_tags
+
         hook.run(self._sql)
 
     def on_kill(self) -> None:

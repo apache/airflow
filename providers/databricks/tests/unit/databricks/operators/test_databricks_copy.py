@@ -522,3 +522,34 @@ def test_get_openlineage_facets():
         "externalQuery": ExternalQueryRunFacet(externalQueryId="query_id", source="scheme://host")
     }
     assert result.job_facets == {"sql": SQLJobFacet(query=op._sql)}
+
+
+def test_query_tags_injection():
+    """Test that Airflow context is correctly injected into query_tags in session_configuration."""
+    from unittest.mock import MagicMock
+    
+    with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+        op = DatabricksCopyIntoOperator(
+            task_id=TASK_ID,
+            file_location=COPY_FILE_LOCATION,
+            file_format="JSON",
+            table_name="test",
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.session_config = {"query_tags": "user_tag:value"}
+        
+        class MockConn:
+            extra_dejson = {}
+        db_mock.databricks_conn = MockConn()
+        
+        context = {
+            "dag": MagicMock(dag_id="test_dag"),
+            "task": MagicMock(task_id="test_task"),
+            "run_id": "test_run_123",
+        }
+        
+        op.execute(context)
+        
+        expected_tags = "user_tag:value,airflow_dag_id:test_dag,airflow_task_id:test_task,airflow_run_id:test_run_123"
+        assert db_mock.session_config["query_tags"] == expected_tags
+
