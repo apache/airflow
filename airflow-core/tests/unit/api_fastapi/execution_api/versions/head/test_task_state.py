@@ -51,6 +51,34 @@ def _api_url(ti_id, key: str | None = None) -> str:
     return f"{base}/{key}" if key else base
 
 
+class TestListTaskState:
+    def test_list_returns_all_keys(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+        client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})
+        client.put(_api_url(ti.id, "checkpoint"), json={"value": "step_3"})
+
+        response = client.get(_api_url(ti.id))
+
+        assert response.status_code == 200
+        items = {item["key"]: item["value"] for item in response.json()["items"]}
+        assert items == {"job_id": "spark_001", "checkpoint": "step_3"}
+
+    def test_list_returns_empty_when_no_state(
+        self, client: TestClient, create_task_instance: CreateTaskInstance
+    ):
+        ti = create_task_instance()
+
+        response = client.get(_api_url(ti.id))
+
+        assert response.status_code == 200
+        assert response.json() == {"items": []}
+
+    def test_list_missing_ti_returns_404(self, client: TestClient):
+        response = client.get(_api_url(uuid4()))
+
+        assert response.status_code == 404
+
+
 class TestGetTaskState:
     def test_get_returns_value(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()

@@ -30,3 +30,16 @@ class AssetStatePutBody(StrictBaseModel):
     """Request body for setting an asset state value."""
 
     value: str
+
+
+class AssetStateItem(StrictBaseModel):
+    """Asset state key/value pair returned by the list endpoint."""
+
+    key: str
+    value: str
+
+
+class AssetStateListResponse(StrictBaseModel):
+    """All asset state entries for an asset."""
+
+    items: list[AssetStateItem]
