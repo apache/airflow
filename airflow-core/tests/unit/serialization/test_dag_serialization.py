@@ -3885,7 +3885,7 @@ def test_dag_schema_defaults_optimization():
 
 
 @pytest.mark.parametrize(
-    "cfg_overrides, dag_kwargs, expected_wire",
+    ("cfg_overrides", "dag_kwargs", "expected_wire"),
     [
         pytest.param(
             {
