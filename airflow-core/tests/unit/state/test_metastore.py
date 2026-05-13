@@ -28,7 +28,7 @@ from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.task_state import TaskStateModel
 from airflow.state import AssetScope, TaskScope, resolve_state_backend
 from airflow.state.metastore import MetastoreStateBackend
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, create_session_async
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
@@ -378,6 +378,16 @@ class TestMetastoreStateBackendAsync:
         scope = TaskScope(dag_id="nonexistent_dag", run_id="nonexistent_run", task_id=TASK_ID)
         with pytest.raises(ValueError, match="No DagRun found"):
             await backend.aset(scope, "job_id", "app_async")
+
+    async def test_aset_and_aget_with_provided_session(
+        self, backend: MetastoreStateBackend, dag_run_committed: DagRun
+    ):
+        """async methods use a provided AsyncSession when one is given."""
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        async with create_session_async() as session:
+            await backend.aset(scope, "job_id", "app_with_session", session=session)
+            result = await backend.aget(scope, "job_id", session=session)
+        assert result == "app_with_session"
 
 
 class TestResolveStateBackend:

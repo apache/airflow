@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
 
@@ -114,29 +115,38 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    async def aget(self, scope: StateScope, key: str) -> str | None:
+    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
         """
         Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``.
 
-        Async methods do not take a ``session`` argument — implementations are expected
-        to manage their own async sessions internally (e.g. via ``create_session_async``).
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
         """
 
     @abstractmethod
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
-        """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
+    async def aset(
+        self, scope: StateScope, key: str, value: str, *, session: AsyncSession | None = None
+    ) -> None:
+        """
+        Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
-    async def adelete(self, scope: StateScope, key: str) -> None:
+    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
         """
         Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``.
 
-        Async methods do not take a ``session`` argument — implementations manage their
-        own async sessions internally.
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
         """
 
     @abstractmethod
-    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
+    async def aclear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+    ) -> None:
         """
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
 
@@ -144,6 +154,6 @@ class BaseStateBackend(ABC):
         scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
         mapped instance of the task. For ``AssetScope`` the flag has no effect.
 
-        Async methods do not take a ``session`` argument — implementations manage their
-        own async sessions internally.
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
         """

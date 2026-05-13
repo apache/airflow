@@ -37,6 +37,19 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _async_session(session: AsyncSession | None) -> AsyncGenerator[AsyncSession, None]:
+    """Use provided async session or create a new one."""
+    if session is not None:
+        yield session
+    else:
+        async with create_session_async() as s:
+            yield s
+
 
 def _build_upsert_stmt(
     dialect: str | None,
@@ -122,43 +135,47 @@ class MetastoreStateBackend(BaseStateBackend):
             case _:
                 assert_never(scope)
 
-    async def aget(self, scope: StateScope, key: str) -> str | None:
-        async with create_session_async() as session:
+    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    return await self._aget_task_state(scope, key, session=session)
+                    return await self._aget_task_state(scope, key, session=s)
                 case AssetScope():
-                    return await self._aget_asset_state(scope, key, session=session)
+                    return await self._aget_asset_state(scope, key, session=s)
                 case _:
                     assert_never(scope)
 
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
-        async with create_session_async() as session:
+    async def aset(
+        self, scope: StateScope, key: str, value: str, *, session: AsyncSession | None = None
+    ) -> None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aset_task_state(scope, key, value, session=session)
+                    await self._aset_task_state(scope, key, value, session=s)
                 case AssetScope():
-                    await self._aset_asset_state(scope, key, value, session=session)
+                    await self._aset_asset_state(scope, key, value, session=s)
                 case _:
                     assert_never(scope)
 
-    async def adelete(self, scope: StateScope, key: str) -> None:
-        async with create_session_async() as session:
+    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._adelete_task_state(scope, key, session=session)
+                    await self._adelete_task_state(scope, key, session=s)
                 case AssetScope():
-                    await self._adelete_asset_state(scope, key, session=session)
+                    await self._adelete_asset_state(scope, key, session=s)
                 case _:
                     assert_never(scope)
 
-    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
-        async with create_session_async() as session:
+    async def aclear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+    ) -> None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aclear_task_state(scope, all_map_indices=all_map_indices, session=session)
+                    await self._aclear_task_state(scope, all_map_indices=all_map_indices, session=s)
                 case AssetScope():
-                    await self._aclear_asset_state(scope, session=session)
+                    await self._aclear_asset_state(scope, session=s)
                 case _:
                     assert_never(scope)
 
