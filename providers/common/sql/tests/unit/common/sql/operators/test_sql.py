@@ -2746,6 +2746,75 @@ class TestSqlBaseOperatorAttachCheckFacets:
             "accept_none": False,
         }
 
+    def test_exact_match_preferred_over_suffix_match(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op._check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=True,
+                column="col",
+                table="orders",
+            )
+        ]
+        suffix_match = self._dataset("schema.orders")  # endswith match — listed first
+        exact_match = self._dataset("orders")  # exact match — listed second
+        lineage = OperatorLineage(inputs=[suffix_match, exact_match])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        # confirm ordering is preserved so index assertions below are unambiguous
+        assert result.inputs[0].name == "schema.orders"
+        assert result.inputs[1].name == "orders"
+        # suffix-match dataset must not receive the facet
+        assert result.inputs[0].facets == {}
+        # exact-match dataset must receive it
+        dq_facet = result.inputs[1].facets.get("dataQualityAssertions")
+        assert dq_facet is not None
+        assert dq_facet.assertions[0].name == "col.null_check"
+
+    def test_same_table_in_inputs_and_outputs_both_receive_assertions(self):
+        pytest.importorskip(
+            "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        op = self._make_operator()
+        op._check_results = [
+            SQLCheckResult(
+                name="col.null_check",
+                check_type="not_null",
+                success=True,
+                column="col",
+                table="orders",
+                expected="0 nulls",
+                actual="0",
+            )
+        ]
+        input_ds = self._dataset("schema.orders")
+        output_ds = self._dataset("schema.orders")
+        lineage = OperatorLineage(inputs=[input_ds], outputs=[output_ds])
+        result = op._attach_check_facets(lineage)
+
+        assert result.run_facets == {}
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+
+        for ds in (result.inputs[0], result.outputs[0]):
+            dq_facet = ds.facets.get("dataQualityAssertions")
+            assert dq_facet is not None, f"missing facet on {ds.name}"
+            assert len(dq_facet.assertions) == 1
+            a = dq_facet.assertions[0]
+            assert a.name == "col.null_check"
+            assert a.assertion == "not_null"
+            assert a.success is True
+            assert a.column == "col"
+
     def test_mixed_results_dataset_facet_and_run_facet_populated_correctly(self):
         pytest.importorskip(
             "openlineage.client", minversion="1.47.0", reason="openlineage-python >= 1.47.0 required"

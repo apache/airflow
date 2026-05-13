@@ -405,22 +405,29 @@ class BaseSQLOperator(BaseOperator):
                 )
                 for r in results
             ]
+            table_lower = table.lower()  # type: ignore[union-attr]
             matched = False
-            for dataset in [*operator_lineage.inputs, *operator_lineage.outputs]:
-                table_lower = table.lower()  # type: ignore[union-attr]
-                dataset_lower = dataset.name.lower()
-                if dataset_lower == table_lower or dataset_lower.endswith(f".{table_lower}"):
-                    dataset.facets = dataset.facets or {}
-                    existing = dataset.facets.get("dataQualityAssertions")
-                    if existing is not None:
-                        assertions = existing.assertions + assertions
-                    dataset.facets["dataQualityAssertions"] = (
+            for group in (operator_lineage.inputs, operator_lineage.outputs):
+                # Exact match takes priority over suffix match when both are present in the same group.
+                target = next(
+                    (ds for ds in group if ds.name.lower() == table_lower),
+                    None,
+                ) or next(
+                    (ds for ds in group if ds.name.lower().endswith(f".{table_lower}")),
+                    None,
+                )
+                if target is not None:
+                    target.facets = target.facets or {}
+                    existing = target.facets.get("dataQualityAssertions")
+                    facet_assertions = (
+                        existing.assertions + assertions if existing is not None else assertions
+                    )
+                    target.facets["dataQualityAssertions"] = (
                         data_quality_assertions_dataset.DataQualityAssertionsDatasetFacet(
-                            assertions=assertions
+                            assertions=facet_assertions
                         )
                     )
                     matched = True
-                    break
             if not matched:
                 run_level.extend(results)
 
