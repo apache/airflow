@@ -93,6 +93,15 @@ with DAG(
 
     workflow_arn = create_workflow.output
 
+    # Test idempotent create (if_exists="skip" path)
+    create_workflow_again = MwaaServerlessCreateWorkflowOperator(
+        task_id="create_workflow_again",
+        workflow_name=bucket_name,
+        definition_s3_location={"Bucket": bucket_name, "ObjectKey": "workflow.yaml"},
+        role_arn=role_arn,
+        if_exists="skip",
+    )
+
     # [START howto_operator_mwaa_serverless_start_workflow_run]
     start_workflow = MwaaServerlessStartWorkflowRunOperator(
         task_id="start_workflow",
@@ -156,6 +165,7 @@ with DAG(
         upload_workflow_yaml,
         workflow_arn,
         # TEST BODY
+        create_workflow_again,
         start_workflow,
         wait_for_run,
         update_workflow,
