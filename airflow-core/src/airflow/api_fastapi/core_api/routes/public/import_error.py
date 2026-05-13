@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
+    QueryParseImportErrorFilenameFilter,
     QueryParseImportErrorFilenamePatternSearch,
     QueryParseImportErrorFilenamePrefixPatternSearch,
     SortParam,
@@ -145,6 +146,7 @@ def get_import_errors(
     ],
     filename_pattern: QueryParseImportErrorFilenamePatternSearch,
     filename_prefix_pattern: QueryParseImportErrorFilenamePrefixPatternSearch,
+    filename: QueryParseImportErrorFilenameFilter,
     session: SessionDep,
     user: GetUserDep,
 ) -> ImportErrorCollectionResponse:
@@ -230,6 +232,7 @@ def get_import_errors(
     # import error objects, not to the joined Dag rows.
     paginated_import_error_ids_select, _ = paginated_select(
         statement=import_error_ids_stmt,
+        filters=[filename_pattern, filename_prefix_pattern, filename],
         order_by=order_by,
         offset=offset,
         limit=limit,

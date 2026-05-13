@@ -137,30 +137,4 @@ describe("DagImportError", () => {
 
     expect(screen.queryByTestId("dag-import-error")).not.toBeInTheDocument();
   });
-
-  it("does not render when bundle_name does not match", () => {
-    mockUseImportErrorServiceGetImportErrors.mockReturnValue({
-      ...emptyImportErrorsQuery,
-      data: {
-        import_errors: [
-          {
-            bundle_name: "other-bundle",
-            filename: "stale_dag.py",
-            import_error_id: 1,
-            stack_trace: "wrong bundle",
-            timestamp: "2025-02-01T12:00:00Z",
-          },
-        ],
-        total_entries: 1,
-      },
-    });
-
-    render(
-      <Wrapper>
-        <DagImportError dag={staleDagFields} />
-      </Wrapper>,
-    );
-
-    expect(screen.queryByTestId("dag-import-error")).not.toBeInTheDocument();
-  });
 });

@@ -34,7 +34,7 @@ type ImportDAGErrorModalProps = {
 
 const PAGE_LIMIT = 15;
 
-export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
+export const DagImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
