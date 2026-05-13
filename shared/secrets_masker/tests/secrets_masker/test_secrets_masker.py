@@ -690,6 +690,44 @@ class TestSecretsMasker:
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
+    @pytest.mark.parametrize(
+        ("val", "expected"),
+        [
+            # Sensitive key at exactly MAX_RECURSION_DEPTH (5) is redacted.
+            (
+                {"a": {"b": {"c": {"d": {"password": "leaked"}}}}},
+                {"a": {"b": {"c": {"d": {"password": "***"}}}}},
+            ),
+            # Sensitive key one level past MAX_RECURSION_DEPTH is also redacted.
+            (
+                {"a": {"b": {"c": {"d": {"e": {"password": "leaked"}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"password": "***"}}}}}},
+            ),
+            # Two levels past MAX_RECURSION_DEPTH, under a non-sensitive
+            # intermediate key, still fails closed.
+            (
+                {"a": {"b": {"c": {"d": {"e": {"f": {"token": "leaked"}}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"f": {"token": "***"}}}}}}},
+            ),
+            # Other sensitive key names recognised by should_hide_value_for_key.
+            (
+                {"a": {"b": {"c": {"d": {"e": {"secret": "leaked"}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"secret": "***"}}}}}},
+            ),
+            (
+                {"a": {"b": {"c": {"d": {"e": {"api_key": "leaked"}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"api_key": "***"}}}}}},
+            ),
+        ],
+    )
+    def test_redact_sensitive_key_past_max_depth(self, val, expected):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
+            assert redact(val) == expected
+
     def test_redact_with_str_type(self, logger, caplog):
         """
         SecretsMasker's re replacer has issues handling a redactable item of type

@@ -7,6 +7,7 @@ settings:
 overrides:
   brace-expansion@<1.1.13: '>=1.1.13'
   liquidjs@<10.25.0: '>=10.25.0'
+  liquidjs@<10.25.7: '>=10.25.7'
   liquidjs@<=10.25.2: '>=10.25.3'
   liquidjs@<=10.25.3: '>=10.25.4'
   liquidjs@<=10.25.4: '>=10.25.5'

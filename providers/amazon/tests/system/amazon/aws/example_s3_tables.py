@@ -25,6 +25,8 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
     S3TablesDeleteTableOperator,
+    S3TablesPutTableBucketPolicyOperator,
+    S3TablesRenameTableOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -65,6 +67,7 @@ with DAG(
     bucket_name = f"{env_id}-s3tables"
     namespace = f"{env_id}_ns"
     table_name = f"{env_id}_tbl"
+    renamed_table_name = f"{env_id}_tbl_renamed"
 
     @task
     def create_namespace(table_bucket_arn: str, namespace: str):
@@ -79,6 +82,15 @@ with DAG(
         table_bucket_name=bucket_name,
     )
     # [END howto_operator_s3tables_create_table_bucket]
+
+    # [START howto_operator_s3tables_put_table_bucket_policy]
+    put_policy = S3TablesPutTableBucketPolicyOperator(
+        task_id="put_table_bucket_policy",
+        table_bucket_arn=create_table_bucket.output,
+        resource_policy='{"Version":"2012-10-17","Statement":[]}',
+    )
+    # [END howto_operator_s3tables_put_table_bucket_policy]
+
     # [START howto_operator_s3tables_create_namespace]
     setup_namespace = S3TablesCreateNamespaceOperator(
         task_id="create_namespace",
@@ -97,12 +109,22 @@ with DAG(
     )
     # [END howto_operator_s3tables_create_table]
 
+    # [START howto_operator_s3tables_rename_table]
+    rename_table = S3TablesRenameTableOperator(
+        task_id="rename_table",
+        table_bucket_arn=create_table_bucket.output,
+        namespace=namespace,
+        table_name=table_name,
+        new_name=renamed_table_name,
+    )
+    # [END howto_operator_s3tables_rename_table]
+
     # [START howto_operator_s3tables_delete_table]
     delete_table = S3TablesDeleteTableOperator(
         task_id="delete_table",
         table_bucket_arn=create_table_bucket.output,
         namespace=namespace,
-        table_name=table_name,
+        table_name=renamed_table_name,
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_s3tables_delete_table]
@@ -128,9 +150,11 @@ with DAG(
         # TEST SETUP
         test_context,
         create_table_bucket,
+        put_policy,
         setup_namespace,
         # TEST BODY
         create_table,
+        rename_table,
         # TEST TEARDOWN
         delete_table,
         delete_namespace,

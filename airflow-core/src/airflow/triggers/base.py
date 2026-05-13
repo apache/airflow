@@ -120,9 +120,16 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
             # does not build a template context, so render_template_fields is
             # never called and empty template_fields is safe.
             start_trigger_args = getattr(self.task, "start_trigger_args", None)
-            trigger_kwarg_keys = (
-                set((start_trigger_args.trigger_kwargs or {}).keys()) if start_trigger_args else set()
-            )
+            if start_trigger_args:
+                from airflow.serialization.enums import Encoding
+
+                raw = start_trigger_args.trigger_kwargs or {}
+                # trigger_kwargs may be BaseSerialization-encoded; extract inner dict keys
+                if isinstance(raw, dict) and Encoding.TYPE in raw:
+                    raw = raw.get(Encoding.VAR) or {}
+                trigger_kwarg_keys = set(raw.keys())
+            else:
+                trigger_kwarg_keys = set()
             if trigger_kwarg_keys:
                 self.template_fields = tuple(
                     f for f in self.task.template_fields if f in trigger_kwarg_keys and hasattr(self, f)
@@ -256,9 +263,11 @@ class BaseEventTrigger(BaseTrigger):
         We do not want to have this logic in ``BaseTrigger`` because, when used to defer tasks, 2 triggers
         can have the same classpath and kwargs. This is not true for event driven scheduling.
         """
+        from airflow.serialization.encoders import encode_trigger
         from airflow.serialization.serialized_objects import BaseSerialization
 
-        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
+        normalized = encode_trigger({"classpath": classpath, "kwargs": kwargs})["kwargs"]
+        return hash((classpath, json.dumps(BaseSerialization.serialize(normalized)).encode("utf-8")))
 
 
 class TriggerEvent(BaseModel):
