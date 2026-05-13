@@ -122,7 +122,6 @@ breeze release-management prepare-provider-documentation \
     --non-interactive \
     --skip-changelog \
     --skip-readme \
-    --skip-git-fetch=false \
     --release-date "$RELEASE_DATE"
 ```
 

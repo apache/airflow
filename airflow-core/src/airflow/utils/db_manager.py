@@ -20,7 +20,6 @@ import inspect as _inspect
 import os
 from typing import TYPE_CHECKING
 
-from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
@@ -48,6 +47,20 @@ def _callable_accepts_use_migration_files(callable_) -> bool:
     return any(
         parameter.kind == _inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()
     )
+
+
+def _get_alembic_command():
+    from alembic import command
+
+    return command
+
+
+class _AlembicCommandProxy:
+    def __getattr__(self, name):
+        return getattr(_get_alembic_command(), name)
+
+
+command = _AlembicCommandProxy()
 
 
 class BaseDBManager(LoggingMixin):

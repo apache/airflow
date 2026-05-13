@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Sequence
-from typing import TYPE_CHECKING, Any, SupportsAbs
+from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -26,14 +26,14 @@ from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-if not AIRFLOW_V_3_0_PLUS:
+if not AIRFLOW_V_3_3_PLUS:
     from sqlalchemy import select
 
     from airflow.models.taskinstance import TaskInstance
@@ -103,7 +103,20 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             },
         )
 
-    if not AIRFLOW_V_3_0_PLUS:
+    async def on_kill(self) -> None:
+        """Cancel the BigQuery job when the task is killed by a user action."""
+        if self.job_id and self.cancel_on_kill:
+            self.log.info(
+                "Cancelling BigQuery job. Project ID: %s, Location: %s, Job ID: %s",
+                self.project_id,
+                self.location,
+                self.job_id,
+            )
+            hook = self._get_async_hook()
+            await hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+            self.log.info("BigQuery job %s cancelled successfully.", self.job_id)
+
+    if not AIRFLOW_V_3_3_PLUS:
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
@@ -125,41 +138,41 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 )
             return task_instance
 
-    async def get_task_state(self):
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        async def get_task_state(self):
+            from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
-        task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-            dag_id=self.task_instance.dag_id,
-            task_ids=[self.task_instance.task_id],
-            run_ids=[self.task_instance.run_id],
-            map_index=self.task_instance.map_index,
-        )
-        try:
-            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-        except Exception:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+            task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                dag_id=self.task_instance.dag_id,
+                task_ids=[self.task_instance.task_id],
+                run_ids=[self.task_instance.run_id],
+                map_index=self.task_instance.map_index,
             )
-        return task_state
+            try:
+                task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+            except Exception:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_state
 
-    async def safe_to_cancel(self) -> bool:
-        """
-        Whether it is safe to cancel the external job which is being executed by this trigger.
+        async def safe_to_cancel(self) -> bool:
+            """
+            Whether it is safe to cancel the external job which is being executed by this trigger.
 
-        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
-        Because in those cases, we should NOT cancel the external job.
-        """
-        if AIRFLOW_V_3_0_PLUS:
-            task_state = await self.get_task_state()
-        else:
-            # Database query is needed to get the latest state of the task instance.
-            task_instance = self.get_task_instance()  # type: ignore[call-arg]
-            task_state = task_instance.state
-        return task_state != TaskInstanceState.DEFERRED
+            This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+            Because in those cases, we should NOT cancel the external job.
+            """
+            if AIRFLOW_V_3_0_PLUS:
+                task_state = await self.get_task_state()
+            else:
+                # Database query is needed to get the latest state of the task instance.
+                task_instance = self.get_task_instance()  # type: ignore[call-arg]
+                task_state = task_instance.state
+            return task_state != TaskInstanceState.DEFERRED
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent."""
@@ -196,25 +209,28 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     )
                     await asyncio.sleep(self.poll_interval)
         except asyncio.CancelledError:
-            if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
-                self.log.info(
-                    "The job is safe to cancel the as airflow TaskInstance is not in deferred state."
-                )
-                self.log.info(
-                    "Cancelling job. Project ID: %s, Location: %s, Job ID: %s",
-                    self.project_id,
-                    self.location,
-                    self.job_id,
-                )
-                await hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
-            else:
-                self.log.info(
-                    "Trigger may have shutdown. Skipping to cancel job because the airflow "
-                    "task is not cancelled yet: Project ID: %s, Location:%s, Job ID:%s",
-                    self.project_id,
-                    self.location,
-                    self.job_id,
-                )
+            # Legacy path for Airflow < 3.3.0
+            # On Airflow 3.3.0+, on_kill() handles user-initiated kills
+            if not AIRFLOW_V_3_3_PLUS:
+                if self.job_id and self.cancel_on_kill and await self.safe_to_cancel():
+                    self.log.info(
+                        "Cancelling job (legacy path). Project ID: %s, Location: %s, Job ID: %s",
+                        self.project_id,
+                        self.location,
+                        self.job_id,
+                    )
+                    await hook.cancel_job(
+                        job_id=self.job_id, project_id=self.project_id, location=self.location
+                    )
+                else:
+                    self.log.info(
+                        "Trigger may have shutdown. Skipping to cancel job because the airflow "
+                        "task is not cancelled yet: Project ID: %s, Location:%s, Job ID:%s",
+                        self.project_id,
+                        self.location,
+                        self.job_id,
+                    )
+            raise
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -299,6 +315,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
 
     def __init__(self, as_dict: bool = False, selected_fields: str | None = None, **kwargs):
         super().__init__(**kwargs)
+
         self.as_dict = as_dict
         self.selected_fields = selected_fields
 
@@ -323,17 +340,38 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent with response data."""
         hook = self._get_async_hook()
+
         try:
             while True:
-                # Poll for job execution status
-                job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
+                job_status = await hook.get_job_status(
+                    job_id=self.job_id, project_id=self.project_id, location=self.location
+                )
+
                 if job_status["status"] == "success":
-                    query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(
-                        query_results=query_results,
-                        as_dict=self.as_dict,
-                        selected_fields=self.selected_fields,
-                    )
+                    sync_hook = await hook.get_sync_hook()
+
+                    if sync_hook.is_default_universe():
+                        query_results = await hook.get_job_output(
+                            job_id=self.job_id, project_id=self.project_id
+                        )
+                        records = hook.get_records(
+                            query_results=query_results,
+                            as_dict=self.as_dict,
+                            selected_fields=self.selected_fields,
+                        )
+                    else:
+                        if not self.location:
+                            raise ValueError(
+                                "Location cannot be empty or None. Please provide a valid location."
+                            )
+                        query_results_args = {
+                            "job_id": self.job_id,
+                            "location": self.location,
+                            "selected_fields": self.selected_fields,
+                            "project_id": self.project_id,
+                        }
+                        records = await sync_to_async(sync_hook.get_query_results)(**query_results_args)
+
                     self.log.debug("Response from hook: %s", job_status["status"])
                     yield TriggerEvent(
                         {
@@ -456,41 +494,70 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         try:
             while True:
                 first_job_response_from_hook = await hook.get_job_status(
-                    job_id=self.first_job_id, project_id=self.project_id
+                    job_id=self.first_job_id,
+                    project_id=self.project_id,
+                    location=self.location,
                 )
                 second_job_response_from_hook = await hook.get_job_status(
-                    job_id=self.second_job_id, project_id=self.project_id
+                    job_id=self.second_job_id,
+                    project_id=self.project_id,
+                    location=self.location,
                 )
 
                 if (
                     first_job_response_from_hook["status"] == "success"
                     and second_job_response_from_hook["status"] == "success"
                 ):
-                    first_query_results = await hook.get_job_output(
-                        job_id=self.first_job_id, project_id=self.project_id
-                    )
+                    sync_hook = await hook.get_sync_hook()
 
-                    second_query_results = await hook.get_job_output(
-                        job_id=self.second_job_id, project_id=self.project_id
-                    )
+                    if sync_hook.is_default_universe():
+                        first_query_results = await hook.get_job_output(
+                            job_id=self.first_job_id, project_id=self.project_id
+                        )
 
-                    first_records = hook.get_records(first_query_results)
+                        second_query_results = await hook.get_job_output(
+                            job_id=self.second_job_id, project_id=self.project_id
+                        )
 
-                    second_records = hook.get_records(second_query_results)
+                        first_records = hook.get_records(first_query_results)
 
-                    # If empty list, then no records are available
-                    if not first_records:
-                        first_job_row: str | None = None
+                        second_records = hook.get_records(second_query_results)
+
+                        # If empty list, then no records are available
+                        if not first_records:
+                            first_job_row: str | None = None
+                        else:
+                            # Extract only first record from the query results
+                            first_job_row = first_records.pop(0)
+
+                        # If empty list, then no records are available
+                        if not second_records:
+                            second_job_row: str | None = None
+                        else:
+                            # Extract only first record from the query results
+                            second_job_row = second_records.pop(0)
                     else:
-                        # Extract only first record from the query results
-                        first_job_row = first_records.pop(0)
-
-                    # If empty list, then no records are available
-                    if not second_records:
-                        second_job_row: str | None = None
-                    else:
-                        # Extract only first record from the query results
-                        second_job_row = second_records.pop(0)
+                        if not self.location:
+                            raise ValueError(
+                                "Location cannot be empty or None. Please provide a valid location."
+                            )
+                        query_args_base = {
+                            "location": self.location,
+                            "max_results": 1,
+                            "project_id": self.project_id,
+                        }
+                        first_job_result = await sync_to_async(sync_hook.get_query_results)(
+                            **(query_args_base | {"job_id": self.first_job_id})
+                        )
+                        second_job_result = await sync_to_async(sync_hook.get_query_results)(
+                            **(query_args_base | {"job_id": self.second_job_id})
+                        )
+                        first_job_row = (
+                            cast("Any", list(first_job_result[0].values())) if first_job_result else None
+                        )
+                        second_job_row = (
+                            cast("Any", list(second_job_result[0].values())) if second_job_result else None
+                        )
 
                     hook.interval_check(
                         first_job_row,

@@ -91,9 +91,7 @@ describe("Task log grouping", () => {
     await waitForLogs();
 
     // Group headers use the summary-{name} testid pattern and are always visible
-    const summarySource = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
-    );
+    const summarySource = screen.getByTestId("summary-Log message source details");
 
     expect(summarySource).toBeVisible();
 
@@ -190,9 +188,7 @@ describe("Task Identity preamble", () => {
 
     await waitForLogs();
 
-    const sourceGroup = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=ti_context/attempt=1.log"]',
-    );
+    const sourceGroup = screen.getByTestId("summary-Log message source details");
 
     expect(sourceGroup).toBeInTheDocument();
 
@@ -432,8 +428,8 @@ describe("Task log search", () => {
 
     fireEvent.click(summaryDependency);
 
-    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
-    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
-    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 1);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 2);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 3);
   }, 10_000);
 });

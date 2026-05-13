@@ -33,6 +33,20 @@ To create an Amazon S3 Tables table bucket, use
     :start-after: [START howto_operator_s3tables_create_table_bucket]
     :end-before: [END howto_operator_s3tables_create_table_bucket]
 
+.. _howto/operator:S3TablesCreateNamespaceOperator:
+
+Create a Namespace
+------------------
+
+To create a namespace in an Amazon S3 Tables table bucket, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesCreateNamespaceOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_create_namespace]
+    :end-before: [END howto_operator_s3tables_create_namespace]
+
 .. _howto/operator:S3TablesCreateTableOperator:
 
 Create a Table
@@ -46,6 +60,20 @@ To create a new Iceberg table in an Amazon S3 Tables namespace you can use
     :dedent: 4
     :start-after: [START howto_operator_s3tables_create_table]
     :end-before: [END howto_operator_s3tables_create_table]
+
+.. _howto/operator:S3TablesDeleteNamespaceOperator:
+
+Delete a Namespace
+------------------
+
+To delete a namespace from an Amazon S3 Tables table bucket, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesDeleteNamespaceOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_delete_namespace]
+    :end-before: [END howto_operator_s3tables_delete_namespace]
 
 .. _howto/operator:S3TablesDeleteTableOperator:
 
@@ -74,6 +102,35 @@ To delete an Amazon S3 Tables table bucket, use
     :dedent: 4
     :start-after: [START howto_operator_s3tables_delete_table_bucket]
     :end-before: [END howto_operator_s3tables_delete_table_bucket]
+
+.. _howto/operator:S3TablesRenameTableOperator:
+
+Rename a Table
+--------------
+
+To rename a table in an Amazon S3 Tables namespace, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesRenameTableOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_rename_table]
+    :end-before: [END howto_operator_s3tables_rename_table]
+
+
+.. _howto/operator:S3TablesPutTableBucketPolicyOperator:
+
+Put a Table Bucket Policy
+-------------------------
+
+To set a resource policy on an Amazon S3 Tables table bucket, use
+:class:`~airflow.providers.amazon.aws.operators.s3_tables.S3TablesPutTableBucketPolicyOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3tables_put_table_bucket_policy]
+    :end-before: [END howto_operator_s3tables_put_table_bucket_policy]
 
 Reference
 ---------

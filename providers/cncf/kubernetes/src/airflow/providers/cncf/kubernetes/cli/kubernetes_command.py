@@ -149,10 +149,11 @@ def cleanup_pods(args):
     # * OnFailure: Restart Container; Pod phase stays Running.
     # * Never: Pod phase becomes Failed.
     pod_restart_policy_never = "never"
-
-    print("Loading Kubernetes configuration")
+    if args.verbose:
+        print("Loading Kubernetes configuration")
     kube_client = get_kube_client()
-    print(f"Listing pods in namespace {namespace}")
+    if args.verbose:
+        print(f"Listing pods in namespace {namespace}")
     airflow_pod_labels = [
         "dag_id",
         "task_id",
@@ -165,7 +166,8 @@ def cleanup_pods(args):
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
-            print(f"Inspecting pod {pod_name}")
+            if args.verbose:
+                print(f"Inspecting pod {pod_name}")
             pod_phase = pod.status.phase.lower()
             pod_reason = pod.status.reason.lower() if pod.status.reason else ""
             pod_restart_policy = pod.spec.restart_policy.lower()
@@ -190,7 +192,8 @@ def cleanup_pods(args):
                 except ApiException as e:
                     print(f"Can't remove POD: {e}", file=sys.stderr)
             else:
-                print(f"No action taken on pod {pod_name}")
+                if args.verbose:
+                    print(f"No action taken on pod {pod_name}")
         continue_token = pod_list.metadata._continue
         if not continue_token:
             break

@@ -59,7 +59,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
@@ -156,6 +156,12 @@ class EdgeWorker:
         )
         self.push_logs = self.conf.getboolean("edge", "push_logs")
         self.push_log_chunk_size = self.conf.getint("edge", "push_log_chunk_size")
+        self.automatic_maintenance_on = (
+            self.conf.get("edge", "automatic_maintenance_on", fallback="Off") or "Off"
+        ).lower()
+        self.automatic_maintenance_exit = (
+            self.conf.get("edge", "automatic_maintenance_exit", fallback="Off") or "Off"
+        ).lower()
 
         self.extended_sysinfo: Callable[[], Awaitable[dict[str, str | int | float | datetime]]] | None = None
         extended_sysinfo_func_path = self.conf.get("edge", "extended_system_info_function", fallback=None)
@@ -326,6 +332,33 @@ class EdgeWorker:
             return True
         return False
 
+    def _adjust_maintenance_mode_based_on_sysinfo(
+        self, sysinfo: dict[str, str | int | float | datetime]
+    ) -> None:
+        """Adjust maintenance mode based on sysinfo status and config."""
+        status: int = sysinfo.get("status")  # type: ignore
+        if not self.maintenance_mode and (
+            (status >= logging.WARNING and self.automatic_maintenance_on == "warning")
+            or (status >= logging.ERROR and self.automatic_maintenance_on == "error")
+        ):
+            logger.info(
+                "Entering maintenance mode due to status %s in sysinfo.", logging.getLevelName(status)
+            )
+            self.maintenance_mode = True
+            self.maintenance_comments = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] - Automatic maintenance mode entered due to status {logging.getLevelName(status)} in sysinfo."
+        elif (
+            self.maintenance_mode
+            and self.maintenance_comments
+            and "] - Automatic maintenance mode entered due to status " in self.maintenance_comments
+            and (
+                (status < logging.WARNING and self.automatic_maintenance_exit == "info")
+                or (status < logging.ERROR and self.automatic_maintenance_exit == "warning")
+            )
+        ):
+            logger.info("Exiting maintenance mode due to status %s in sysinfo.", logging.getLevelName(status))
+            self.maintenance_mode = False
+            self.maintenance_comments = None
+
     async def _get_sysinfo(self) -> dict[str, str | int | float | datetime]:
         """Produce the sysinfo from worker to post to central site."""
         sysinfo: dict[str, str | int | float | datetime] = {
@@ -358,6 +391,8 @@ class EdgeWorker:
             except Exception:
                 logger.exception("Failed to get extended sysinfo, skipping it.")
 
+        # After grabbing status, check if we need to enter/exit maintenance mode
+        self._adjust_maintenance_mode_based_on_sysinfo(sysinfo)
         return sysinfo
 
     def _get_state(self) -> EdgeWorkerState:
@@ -381,30 +416,38 @@ class EdgeWorker:
     def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
         _reset_parent_signal_state()
 
-        from airflow.sdk.execution_time.supervisor import supervise
-
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
         os.setpgrp()
 
         logger.info("Worker starting up pid=%d", os.getpid())
-        ti = workload.ti
-        setproctitle(
-            "airflow edge supervisor: "
-            f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
-            f"try_number={ti.try_number}"
-        )
 
         try:
-            supervise(
-                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                # Same like in airflow/executors/local_executor.py:_execute_workload()
-                ti=ti,  # type: ignore[arg-type]
-                dag_rel_path=workload.dag_rel_path,
-                bundle_info=workload.bundle_info,
-                token=workload.token,
-                server=self._execution_api_server_url,
-                log_path=workload.log_path,
-            )
+            if AIRFLOW_V_3_3_PLUS:
+                from airflow.executors.base_executor import BaseExecutor
+
+                BaseExecutor.run_workload(
+                    workload=workload,
+                    server=self._execution_api_server_url,
+                )
+            else:
+                from airflow.sdk.execution_time.supervisor import supervise
+
+                ti = workload.ti
+                setproctitle(
+                    "airflow edge supervisor: "
+                    f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
+                    f"try_number={ti.try_number}"
+                )
+                supervise(
+                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                    # Same like in airflow/executors/local_executor.py:_execute_workload()
+                    ti=ti,  # type: ignore[arg-type]
+                    dag_rel_path=workload.dag_rel_path,
+                    bundle_info=workload.bundle_info,
+                    token=workload.token,
+                    server=self._execution_api_server_url,
+                    log_path=workload.log_path,
+                )
             results_queue.put("OK")
             return 0
         except Exception as e:
@@ -448,11 +491,12 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
+            sysinfo = await self._get_sysinfo()
             register_result = await worker_register(
                 self.hostname,
-                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_MODE if self.maintenance_mode else EdgeWorkerState.STARTING,
                 self.queues,
-                await self._get_sysinfo(),
+                sysinfo,
                 self.team_name,
             )
             self.versions_match = register_result.versions_match
@@ -595,8 +639,8 @@ class EdgeWorker:
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
-        state = self._get_state()
         sysinfo = await self._get_sysinfo()
+        state = self._get_state()
         worker_state_changed: bool = False
         try:
             worker_info = await worker_set_state(
@@ -605,7 +649,7 @@ class EdgeWorker:
                 len(self.jobs),
                 self.queues,
                 sysinfo,
-                new_maintenance_comments,
+                new_maintenance_comments or self.maintenance_comments,
                 team_name=self.team_name,
             )
             self.versions_match = worker_info.versions_match

@@ -357,6 +357,29 @@ In these examples, you see how a trigger timetable creates Dag runs more intuiti
 people expect a workflow to behave, while a data interval timetable is designed heavily around the data
 interval it processes, and does not reflect a workflow's own properties.
 
+Switching between trigger and data interval timetables on an existing Dag
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The two kinds of timetable anchor ``logical_date`` differently: a trigger
+timetable uses the trigger time, a data interval timetable uses
+``data_interval_start``. Switching a Dag from a trigger timetable to a data
+interval timetable when it already has existing dagruns will skip one
+scheduled run, because the next run is advanced one period to avoid colliding
+with the previous run's ``logical_date``. The reverse direction (data
+interval -> trigger) does not skip a run.
+
+This transition can happen without editing a Dag, in two ways:
+
+- Flipping ``[scheduler] create_cron_data_intervals`` changes how every Dag
+  with a bare cron string in ``schedule=`` resolves its timetable.
+- Crossing a version boundary where the default differs. Airflow 3 defaults
+  to ``False``; Airflow 2.x defaults to ``True``.
+
+To keep ``logical_date`` semantics stable across either change, decide which
+timetable you want and pin it before the change: set the flag explicitly to
+the same value on both sides, or convert affected Dags to use an explicit
+timetable instance in ``schedule=`` so the flag no longer applies.
+
 
 .. _Differences between the cron and delta data interval timetables:
 
