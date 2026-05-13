@@ -1,0 +1,1 @@
+Fix ``task_instance`` row-lock contention under high asset-event concurrency: asset events are now emitted after the TI state commit (releasing the PostgreSQL row lock), and alias-event associations are written via direct INSERT instead of ORM lazy-load.
