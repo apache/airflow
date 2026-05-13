@@ -405,6 +405,19 @@ class VariableAccessor:
             raise
 
 
+@cache
+def _get_worker_state_backend():
+    """
+    Return the configured worker-side state backend, instantiated once and cached.
+
+    # TODO: rebase / include https://github.com/apache/airflow/pull/66699 once merged
+    # to also forward ``retention_days`` through the comms layer.
+    """
+    from airflow.sdk.configuration import get_state_backend
+
+    return get_state_backend()
+
+
 class TaskStateAccessor:
     """Accessor for task state scoped to the current task instance. Available as ``context['task_state']`` at task execution time."""
 
@@ -435,7 +448,11 @@ class TaskStateAccessor:
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.TASK_STATE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, TaskStateResult):
-            return resp.value
+            stored = resp.value
+            # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
+            # custom backend using the reference
+            backend = _get_worker_state_backend()
+            return backend.deserialize_task_state_value(stored) if backend else stored
         return None
 
     def set(self, key: str, value: str) -> None:
@@ -443,13 +460,33 @@ class TaskStateAccessor:
         from airflow.sdk.execution_time.comms import SetTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value))
+        # if custom backend is configured, store the value on the custom backend, and return the reference
+        # to the stored value to store in the DB
+        backend = _get_worker_state_backend()
+        stored = (
+            backend.serialize_task_state_value(value=value, key=key, ti_id=str(self._ti_id))
+            if backend
+            else value
+        )
+        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=stored))
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
-        from airflow.sdk.execution_time.comms import DeleteTaskState
+        from airflow.sdk.execution_time.comms import (
+            DeleteTaskState,
+            GetTaskState,
+            TaskStateResult,
+        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        backend = _get_worker_state_backend()
+        # if custom backend is configured, fetch the reference of the stored value from DB,
+        # and delete the actual value from custom backend using the reference, then delete the reference from DB
+        # as well
+        if backend is not None:
+            resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
+            if isinstance(resp, TaskStateResult):
+                backend.purge_task_state(resp.value)
         SUPERVISOR_COMMS.send(DeleteTaskState(ti_id=self._ti_id, key=key))
 
     def clear(self, all_map_indices: bool = False) -> None:
@@ -460,9 +497,18 @@ class TaskStateAccessor:
         instance of the task (fleet-wide reset). Defaults to clearing only
         this task instance's own state.
         """
-        from airflow.sdk.execution_time.comms import ClearTaskState
+        from airflow.sdk.execution_time.comms import AllTaskStateResult, ClearTaskState, GetAllTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # if custom backend is configured, fetch the references of all stored values for this task instance
+        # from DB, and delete the actual values from custom backend using the references, then delete
+        # the references from DB as well.
+        backend = _get_worker_state_backend()
+        if backend is not None:
+            resp = SUPERVISOR_COMMS.send(GetAllTaskState(ti_id=self._ti_id))
+            if isinstance(resp, AllTaskStateResult):
+                for item in resp.items:
+                    backend.purge_task_state(item.value)
         SUPERVISOR_COMMS.send(ClearTaskState(ti_id=self._ti_id, all_map_indices=all_map_indices))
 
 
@@ -513,7 +559,11 @@ class AssetStateAccessor:
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STATE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStateResult):
-            return resp.value
+            stored = resp.value
+            # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
+            # custom backend using the reference
+            backend = _get_worker_state_backend()
+            return backend.deserialize_asset_state_value(stored) if backend else stored
         return None
 
     def set(self, key: str, value: str) -> None:
@@ -521,21 +571,48 @@ class AssetStateAccessor:
         from airflow.sdk.execution_time.comms import SetAssetStateByName, SetAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # if custom backend is configured, store the value on the custom backend, and return the reference
+        # to the stored value to store in the DB
+        backend = _get_worker_state_backend()
+        asset_name = self._name or self._uri or ""
+        stored = (
+            backend.serialize_asset_state_value(value=value, key=key, asset_name=asset_name)
+            if backend
+            else value
+        )
+
         msg: ToSupervisor
         if self._name:
-            msg = SetAssetStateByName(name=self._name, key=key, value=value)
+            msg = SetAssetStateByName(name=self._name, key=key, value=stored)
         elif self._uri:
-            msg = SetAssetStateByUri(uri=self._uri, key=key, value=value)
+            msg = SetAssetStateByUri(uri=self._uri, key=key, value=stored)
         SUPERVISOR_COMMS.send(msg)
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
         from airflow.sdk.execution_time.comms import (
+            AssetStateResult,
             DeleteAssetStateByName,
             DeleteAssetStateByUri,
+            GetAssetStateByName,
+            GetAssetStateByUri,
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        backend = _get_worker_state_backend()
+        # if custom backend is configured, fetch the reference of the stored value from DB,
+        # and delete the actual value from custom backend using the reference, then delete the reference from DB
+        # as well
+        if backend is not None:
+            get_msg: ToSupervisor
+            if self._name:
+                get_msg = GetAssetStateByName(name=self._name, key=key)
+            elif self._uri:
+                get_msg = GetAssetStateByUri(uri=self._uri, key=key)
+            resp = SUPERVISOR_COMMS.send(get_msg)
+            if isinstance(resp, AssetStateResult):
+                backend.purge_asset_state(resp.value)
 
         msg: ToSupervisor
         if self._name:
@@ -546,8 +623,30 @@ class AssetStateAccessor:
 
     def clear(self) -> None:
         """Delete all state keys for this asset."""
-        from airflow.sdk.execution_time.comms import ClearAssetStateByName, ClearAssetStateByUri, ToSupervisor
+        from airflow.sdk.execution_time.comms import (
+            AllAssetStateResult,
+            ClearAssetStateByName,
+            ClearAssetStateByUri,
+            GetAllAssetStateByName,
+            GetAllAssetStateByUri,
+            ToSupervisor,
+        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        # if custom backend is configured, fetch the references of all stored values for this asset
+        # from DB, and delete the actual values from custom backend using the references, then delete
+        # the references from DB as well.
+        backend = _get_worker_state_backend()
+        if backend is not None:
+            list_msg: ToSupervisor
+            if self._name:
+                list_msg = GetAllAssetStateByName(name=self._name)
+            elif self._uri:
+                list_msg = GetAllAssetStateByUri(uri=self._uri)
+            resp = SUPERVISOR_COMMS.send(list_msg)
+            if isinstance(resp, AllAssetStateResult):
+                for item in resp.items:
+                    backend.purge_asset_state(item.value)
 
         msg: ToSupervisor
         if self._name:
