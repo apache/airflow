@@ -69,6 +69,20 @@ To wait for an Amazon MWAA Serverless workflow run to complete, use
     :start-after: [START howto_sensor_mwaa_serverless_workflow_run]
     :end-before: [END howto_sensor_mwaa_serverless_workflow_run]
 
+.. _howto/operator:MwaaServerlessUpdateWorkflowOperator:
+
+Update a Workflow
+-----------------
+
+To update an existing Amazon MWAA Serverless workflow, use
+:class:`~airflow.providers.amazon.aws.operators.mwaa_serverless.MwaaServerlessUpdateWorkflowOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_mwaa_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_mwaa_serverless_update_workflow]
+    :end-before: [END howto_operator_mwaa_serverless_update_workflow]
+
 .. _howto/operator:MwaaServerlessStopWorkflowRunOperator:
 
 Stop a Workflow Run

@@ -1665,7 +1665,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # either a no-op, or they will check-in on currently running tasks and send out new
                 # events to be processed below.
                 for executor in self.executors:
-                    executor.heartbeat()
+                    with stats.timer(
+                        "scheduler.executor_heartbeat_duration",
+                        tags={"executor": type(executor).__name__},
+                    ):
+                        executor.heartbeat()
 
                 with create_session() as session:
                     num_finished_events = 0

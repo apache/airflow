@@ -298,3 +298,72 @@ class S3VectorsPutVectorsOperator(AwsBaseOperator[AwsBaseHook]):
             vectors=self.vectors,
         )
         self.log.info("Put %d vectors successfully", len(self.vectors))
+
+
+class S3VectorsQueryVectorsOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Query vectors by similarity in an Amazon S3 Vectors index.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3VectorsQueryVectorsOperator`
+
+    :param vector_bucket_name: The name of the vector bucket. (templated)
+    :param index_name: The name of the index. (templated)
+    :param top_k: The number of results to return.
+    :param query_vector: The query vector dict (e.g. ``{"float32": [0.1, 0.2, ...]}``)
+    :param filter: Optional filter expression dict.
+    :param return_metadata: Whether to return metadata with results.
+    :param return_distance: Whether to return distance scores.
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "vector_bucket_name",
+        "index_name",
+        "top_k",
+    )
+
+    def __init__(
+        self,
+        *,
+        vector_bucket_name: str,
+        index_name: str,
+        top_k: int,
+        query_vector: dict[str, Any],
+        filter: dict[str, Any] | None = None,
+        return_metadata: bool = True,
+        return_distance: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.vector_bucket_name = vector_bucket_name
+        self.index_name = index_name
+        self.top_k = top_k
+        self.query_vector = query_vector
+        self.filter = filter
+        self.return_metadata = return_metadata
+        self.return_distance = return_distance
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "s3vectors"}
+
+    def execute(self, context: Context) -> list[dict[str, Any]]:
+        self.log.info("Querying top %d vectors from index %s", self.top_k, self.index_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "vectorBucketName": self.vector_bucket_name,
+                "indexName": self.index_name,
+                "topK": self.top_k,
+                "queryVector": self.query_vector,
+                "filter": self.filter,
+                "returnMetadata": self.return_metadata,
+                "returnDistance": self.return_distance,
+            }
+        )
+        response = self.hook.conn.query_vectors(**kwargs)
+        vectors = response.get("vectors", [])
+        self.log.info("Query returned %d results", len(vectors))
+        return vectors

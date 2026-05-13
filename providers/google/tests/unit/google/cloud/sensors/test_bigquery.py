@@ -19,9 +19,11 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import NotFound
 
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
+    BigQueryRoutineExistenceSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
@@ -243,6 +245,43 @@ class TestBigqueryTablePartitionExistenceSensor:
         mock_log_info.assert_called_with(
             'Sensor checks existence of partition: "%s" in table: %s', TEST_PARTITION_ID, table_uri
         )
+
+
+class TestBigQueryRoutineExistenceSensor:
+    ROUTINE_ID = "test_routine_id"
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_returns_true_when_routine_exists(self, mock_hook):
+        task = BigQueryRoutineExistenceSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        assert task.poke(mock.MagicMock()) is True
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.get_routine.assert_called_once_with(
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_returns_false_when_routine_missing(self, mock_hook):
+        mock_hook.return_value.get_routine.side_effect = NotFound("not found")
+        task = BigQueryRoutineExistenceSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            routine_id=self.ROUTINE_ID,
+        )
+        assert task.poke(mock.MagicMock()) is False
 
 
 @pytest.fixture
