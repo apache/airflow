@@ -61,7 +61,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
 
         if isinstance(obj, dict):
             # Serialize keys/values first so each key is a string and the output is hash-stable,
-            # then sort by the serialized key to prevents hash inconsistencies when dict ordering varies.
+            # then sort by the serialized key to prevent hash inconsistencies when dict ordering varies.
             serialized_pairs = [(normalize_dict_key(k), serialize_object(v)) for k, v in obj.items()]
             return dict(sorted(serialized_pairs, key=lambda kv: kv[0]))
 
@@ -71,26 +71,34 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         if isinstance(obj, (set, frozenset)):
             # JSON has no set type → flatten to a list with deterministic ordering
             # so hash randomization on element types cannot shift cross-process iteration order.
-            return sorted(
-                (serialize_object(item) for item in obj),
-                key=lambda x: (type(x).__name__, str(x)),
-            )
+            serialized_set = [serialize_object(e) for e in obj]
+            return sorted(serialized_set, key=lambda x: (type(x).__name__, str(x)))
 
         # Use inspect.getattr_static to bypass any custom __getattr__ / metaclass magic
         if callable(inspect.getattr_static(obj, "serialize", None)):
             return serialize_object(obj.serialize())
 
-        # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict()
-        if callable(inspect.getattr_static(obj, "to_dict", None)):
+        # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict().
+        # Scope the branch to the kubernetes namespace so unrelated user classes that happen to
+        # define a to_dict() method fall through to str() instead of being treated as K8s payloads.
+        if getattr(type(obj), "__module__", "").startswith("kubernetes.") and callable(
+            inspect.getattr_static(obj, "to_dict", None)
+        ):
             return serialize_object(obj.to_dict())
 
         if callable(obj):
             # Use qualified name; default repr embeds memory addresses, which would change the DAG hash on every parse
             return f"<callable {qualname(obj, True)}>"
 
-        # Non-primitive objects without a serialize attribute are converted to str
-        # So they don't break json.dumps downstream
-        return str(obj)
+        # A custom __str__ or __repr__ is treated as an intentional textual representation
+        # supplied by the author and used as-is.
+        if type(obj).__str__ is not object.__str__ or type(obj).__repr__ is not object.__repr__:
+            return str(obj)
+
+        # Otherwise fall back to a qualname marker. The default object repr is
+        # `<ClassName object at 0x...>`, which embeds a memory address that flips per process
+        # and would break DAG hash stability — use the class qualname instead.
+        return f"<{qualname(type(obj), True)} object>"
 
     max_length = conf.getint("core", "max_templated_field_length")
 

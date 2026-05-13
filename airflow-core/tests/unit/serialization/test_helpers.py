@@ -213,6 +213,33 @@ def test_serialize_template_field_object_with_getattr_no_serialize():
     assert result == "tricky-object"
 
 
+def test_serialize_template_field_non_kubernetes_to_dict_falls_through_to_str():
+    """User classes that happen to define to_dict() must not be treated as K8s payloads."""
+
+    class CustomWithToDict:
+        def to_dict(self):
+            return {"should": "not be used"}
+
+        def __str__(self):
+            return "custom-via-str"
+
+    result = serialize_template_field(CustomWithToDict(), "field")
+    assert result == "custom-via-str"
+
+
+def test_serialize_template_field_kubernetes_object_uses_to_dict():
+    """Objects whose class is defined under the kubernetes.* namespace are normalized via to_dict()."""
+
+    class FakeK8sObject:
+        def to_dict(self):
+            return {"kind": "Pod", "metadata": {"name": "test"}}
+
+    FakeK8sObject.__module__ = "kubernetes.client.models.v1_pod"
+
+    result = serialize_template_field(FakeK8sObject(), "field")
+    assert result == {"kind": "Pod", "metadata": {"name": "test"}}
+
+
 def test_serialize_template_field_bytes_become_str():
     """Bytes are not JSON-encodable; they must be coerced via str()."""
     result = serialize_template_field(b"binary", "field")
@@ -233,6 +260,41 @@ def test_serialize_template_field_no_memory_address_in_output():
     }
     result = serialize_template_field(value, "op_kwargs")
     assert "at 0x" not in str(result)
+
+
+def test_serialize_template_field_plain_object_has_no_memory_address():
+    """Objects relying on the default object.__str__ would leak `<ClassName object at 0x...>`."""
+
+    class Opaque:
+        pass
+
+    result = serialize_template_field(Opaque(), "field")
+    assert isinstance(result, str)
+    assert "at 0x" not in result
+    assert "Opaque" in result
+
+
+def test_serialize_template_field_plain_object_repr_preserved_when_custom():
+    """A user-defined __repr__ is a meaningful representation and must be kept as-is."""
+
+    class WithRepr:
+        def __repr__(self):
+            return "stable-repr"
+
+    result = serialize_template_field(WithRepr(), "field")
+    assert result == "stable-repr"
+
+
+def test_serialize_template_field_set_of_plain_objects_is_deterministic():
+    """Repeated serialization of a set of plain objects must produce identical output across calls."""
+
+    class Opaque:
+        pass
+
+    first = serialize_template_field({Opaque(), Opaque()}, "field")
+    second = serialize_template_field({Opaque(), Opaque()}, "field")
+    assert first == second
+    assert "at 0x" not in str(first)
 
 
 def test_serialize_template_field_output_is_jsonable():
