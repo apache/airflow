@@ -122,3 +122,59 @@ class BaseStateBackend(ABC):
         scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
         mapped instance of the task. For ``AssetScope`` the flag has no effect.
         """
+
+    def serialize_task_state_value(self, *, value: str, key: str, ti_id: str) -> str:
+        """
+        Serialize a task state value before it is sent to the execution API for db persistence.
+
+        Called by ``TaskStateAccessor.set()`` on the worker. The return value is what gets
+        stored in the DB — typically a reference path (e.g. an S3 key) rather than the
+        actual value. Default: return ``value`` unchanged.
+        """
+        return value
+
+    def deserialize_task_state_value(self, stored: str) -> str:
+        """
+        Resolve a stored task state string back to the actual value.
+
+        Called by ``TaskStateAccessor.get()`` after the stored string is retrieved from
+        the execution API. Default: return ``stored`` unchanged.
+        """
+        return stored
+
+    def serialize_asset_state_value(self, *, value: str, key: str, asset_name: str) -> str:
+        """
+        Serialize an asset state value before it is sent to the Execution API for db persistence.
+
+        Called by ``AssetStateAccessor.set()`` on the worker. The return value is what gets
+        stored in the DB — typically a reference path rather than the actual value.
+        Default: return ``value`` unchanged.
+        """
+        return value
+
+    def deserialize_asset_state_value(self, stored: str) -> str:
+        """
+        Resolve a stored asset state string back to the actual value.
+
+        Called by ``AssetStateAccessor.get()`` after the stored string is retrieved from
+        the Execution API. Default: return ``stored`` unchanged.
+        """
+        return stored
+
+    def purge_task_state(self, stored: str) -> None:
+        """
+        Clean up the task state storage object on the custom backend identified by ``stored``.
+
+        Called by ``TaskStateAccessor.delete()`` and ``TaskStateAccessor.clear()`` before
+        the DB reference is removed. ``stored`` is whatever ``serialize_task_state_value``
+        returned. Default: no-op.
+        """
+
+    def purge_asset_state(self, stored: str) -> None:
+        """
+        Clean up the asset state storage object on the custom backend identified by ``stored``.
+
+        Called by ``AssetStateAccessor.delete()`` and ``AssetStateAccessor.clear()`` before
+        the DB reference is removed. ``stored`` is whatever ``serialize_asset_state_value``
+        returned. Default: no-op.
+        """
