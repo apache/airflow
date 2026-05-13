@@ -44,6 +44,8 @@ EXAMPLE_TRACE_ID = "0af7651916cd43dd8448eb211c80319c"
 EXAMPLE_SPAN_ID = "b7ad6b7169203331"
 EXAMPLE_TRACEPARENT = f"00-{EXAMPLE_TRACE_ID}-{EXAMPLE_SPAN_ID}-01"
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def captured_spans():
