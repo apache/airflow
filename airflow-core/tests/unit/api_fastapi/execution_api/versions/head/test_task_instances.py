@@ -1368,6 +1368,54 @@ class TestTIUpdateState:
 
         assert response.status_code == 422
 
+    def test_ti_update_state_to_success_asset_registration_failure_returns_204(
+        self, client, session, create_task_instance
+    ):
+        """Regression: asset registration failure after TI state commit must return 204, not 500.
+
+        The TI state is committed (and the row lock released) before asset registration runs.
+        If registration fails at that point, the task outcome is already durable as SUCCESS,
+        so surfacing HTTP 500 would be misleading and cause unnecessary worker retries.
+        """
+        asset = AssetModel(
+            id=42,
+            name="fail-asset",
+            uri="s3://bucket/fail-asset",
+            group="asset",
+            extra={},
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+
+        ti = create_task_instance(
+            task_id="test_asset_reg_failure",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            side_effect=Exception("simulated DB explosion during asset registration"),
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [
+                        {"name": "fail-asset", "uri": "s3://bucket/fail-asset", "type": "Asset"}
+                    ],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204, f"Expected 204, got {response.status_code}: {response.text}"
+        session.expire_all()
+        ti_db = session.get(TaskInstance, ti.id)
+        assert ti_db is not None
+        assert ti_db.state == TaskInstanceState.SUCCESS
+
     def test_ti_update_state_database_error(self, client, session, create_task_instance):
         """
         Test that a database error is handled correctly when updating the Task Instance state.
