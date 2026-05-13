@@ -21,6 +21,7 @@ import logging
 from unittest import mock
 
 import httplib2
+import paramiko
 import pytest
 from googleapiclient.errors import HttpError
 from paramiko.ssh_exception import SSHException
@@ -566,16 +567,12 @@ class TestHostKeyPolicyResolution:
     """Tests for the ``host_key_policy`` constructor argument."""
 
     def test_default_is_auto_add(self):
-        import paramiko
-
         hook = ComputeEngineSSHHook()
 
         assert hook.host_key_policy == "auto_add"
         assert isinstance(hook._resolve_host_key_policy(), paramiko.AutoAddPolicy)
 
     def test_string_aliases(self):
-        import paramiko
-
         assert isinstance(
             ComputeEngineSSHHook(host_key_policy="auto_add")._resolve_host_key_policy(),
             paramiko.AutoAddPolicy,
@@ -590,8 +587,6 @@ class TestHostKeyPolicyResolution:
         )
 
     def test_custom_policy_instance_is_returned_unchanged(self):
-        import paramiko
-
         custom_policy = paramiko.RejectPolicy()
         hook = ComputeEngineSSHHook(host_key_policy=custom_policy)
 

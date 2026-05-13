@@ -112,6 +112,13 @@ class ComputeEngineSSHHook(SSHHook):
     :param impersonation_chain: Optional. The service account email to impersonate using short-term
         credentials. The provided service account must grant the originating account
         the Service Account Token Creator IAM role and have the sufficient rights to perform the request
+    :param host_key_policy: Policy used by the underlying ``paramiko.SSHClient`` for unknown host keys.
+        Accepts the string aliases ``"auto_add"`` (default, historical behaviour — adds unknown keys
+        without prompting), ``"reject"`` (refuse to connect to hosts whose key is not in ``known_hosts``)
+        and ``"warning"`` (log a warning but still connect). Alternatively, pass an instance of
+        ``paramiko.MissingHostKeyPolicy`` (or a subclass) to plug in a custom policy — for example one
+        that loads pinned host keys from GCE guest attributes. Any other value raises ``ValueError``
+        when the connection is opened.
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -174,7 +181,7 @@ class ComputeEngineSSHHook(SSHHook):
           callers can plug in a custom policy (e.g. one that loads pinned
           host keys from GCE guest attributes).
 
-        Any other value raises :class:`AirflowException`.
+        Any other value raises :class:`ValueError`.
 
         The default value (``"auto_add"``) preserves the historical behaviour
         of this hook. Callers that want the remote SSH server authenticated
@@ -198,7 +205,7 @@ class ComputeEngineSSHHook(SSHHook):
                 f"Unknown host_key_policy {self.host_key_policy!r}. "
                 "Expected one of 'auto_add', 'reject', 'warning', "
                 "or an instance of paramiko.MissingHostKeyPolicy."
-            )
+            ) from None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
