@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
     S3TablesDeleteTableOperator,
+    S3TablesPutTableBucketPolicyOperator,
     S3TablesRenameTableOperator,
 )
 
@@ -388,6 +389,33 @@ class TestS3TablesRenameTableOperator:
             newName="new_table",
             newNamespaceName="new_ns",
             versionToken="token123",
+        )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+POLICY = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3tables:*","Resource":"*"}]}'
+
+
+class TestS3TablesPutTableBucketPolicyOperator:
+    def setup_method(self):
+        self.operator = S3TablesPutTableBucketPolicyOperator(
+            task_id="put_policy",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+            resource_policy=POLICY,
+        )
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.put_table_bucket_policy.assert_called_once_with(
+            tableBucketARN=TABLE_BUCKET_ARN,
+            resourcePolicy=POLICY,
         )
 
     def test_template_fields(self):
