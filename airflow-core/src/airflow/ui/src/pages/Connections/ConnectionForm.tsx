@@ -81,7 +81,11 @@ const ConnectionForm = ({
     setValue("conn_type", selectedConnType, {
       shouldDirty: true,
     });
-    setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
+    try {
+      setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
+    } catch {
+      setConf(initialConnection.extra);
+    }
   }, [selectedConnType, initialConnection, setConf, setValue]);
 
   // Automatically reset form when conf is fetched

@@ -161,7 +161,7 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
 # Breeze here as we want to do it quickly
-ALL_PYPROJECT_TOML_FILES = []
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
