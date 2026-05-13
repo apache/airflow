@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import calendar
 
-from airflow.sdk.definitions.timetables._cron import CRON_PRESETS as cron_presets
+from airflow.sdk.definitions.timetables._cron import CRON_PRESETS as cron_presets  # noqa: F401
 
 
 def datetime_to_nano(datetime) -> int | None:
