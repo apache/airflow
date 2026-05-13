@@ -38,6 +38,7 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
@@ -161,6 +162,90 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    def test_register_asset_change_with_alias_no_lazy_load(
+        self, session, mock_task_instance, testing_dag_bundle
+    ):
+        """Regression: alias-event association must use a direct INSERT, not ORM .append().
+
+        ORM .append() lazy-loads the entire asset_events collection before writing.
+        On long-running deployments with thousands of past events, this query runs
+        while the task_instance row lock is held in ti_update_state, causing idle-in-transaction
+        pile-up that exhausts API server memory and triggers OOMKill.
+        """
+        from sqlalchemy import insert as sa_insert
+
+        asm = AssetModel(uri="test://asset-nolazy/", name="test_nolazy_asset", group="asset")
+        session.add(asm)
+        asam = AssetAliasModel(name="test_nolazy_alias", group="test")
+        session.add(asam)
+        session.flush()
+
+        # Pre-populate existing alias-event rows to simulate a long-running deployment.
+        # If .append() is used, SQLAlchemy will lazy-load ALL of these before inserting the new one.
+        existing_events = [AssetEvent(asset_id=asm.id, extra={}) for _ in range(5)]
+        session.add_all(existing_events)
+        session.flush()
+        for ev in existing_events:
+            session.execute(
+                sa_insert(asset_alias_asset_event_association_table).values(alias_id=asam.id, event_id=ev.id)
+            )
+        session.flush()
+
+        # Expire the alias so a lazy-load would have to hit the DB (no in-memory cache).
+        session.expire(asam)
+
+        asset = Asset(uri="test://asset-nolazy", name="test_nolazy_asset")
+        asset_manager = AssetManager()
+
+        lazy_load_selects: list[str] = []
+        real_execute = session.execute
+
+        def tracking_execute(stmt, *args, **kwargs):
+            try:
+                compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+            except Exception:
+                compiled = str(stmt)
+            # Detect a lazy-load SELECT joining asset_alias_asset_event with asset_event
+            if (
+                "asset_alias_asset_event" in compiled.lower()
+                and "asset_event" in compiled.lower()
+                and compiled.strip().upper().startswith("SELECT")
+            ):
+                lazy_load_selects.append(compiled[:120])
+            return real_execute(stmt, *args, **kwargs)
+
+        with mock.patch.object(session, "execute", side_effect=tracking_execute):
+            asset_manager.register_asset_change(
+                task_instance=mock_task_instance,
+                asset=asset,
+                source_alias_names=["test_nolazy_alias"],
+                session=session,
+            )
+        session.flush()
+
+        # The new association row must exist
+        new_events = session.scalars(
+            select(AssetEvent).where(
+                AssetEvent.asset_id == asm.id,
+                AssetEvent.id.notin_([ev.id for ev in existing_events]),
+            )
+        ).all()
+        assert len(new_events) == 1, "Expected exactly one new AssetEvent"
+
+        row_count = session.scalar(
+            select(func.count())
+            .select_from(asset_alias_asset_event_association_table)
+            .where(
+                asset_alias_asset_event_association_table.c.alias_id == asam.id,
+                asset_alias_asset_event_association_table.c.event_id == new_events[0].id,
+            )
+        )
+        assert row_count == 1, "Expected the alias-event association row to be written"
+
+        assert lazy_load_selects == [], (
+            f"Unexpected lazy-load SELECT on asset_alias_asset_event: {lazy_load_selects}"
+        )
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()

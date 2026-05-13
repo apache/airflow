@@ -467,6 +467,12 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
+        # Commit the TI state update now to release the task_instance row lock before
+        # running asset-event queries. Asset registration can hold the lock for seconds
+        # under high concurrency (many aliases with large event histories), causing
+        # idle-in-transaction pile-up that exhausts API server memory and triggers OOMKill.
+        # The task outcome is durable from this point on.
+        session.commit()
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
@@ -497,6 +503,26 @@ def ti_update_state(
                     run_id=run_id,
                     task_id=task_id,
                 )
+
+    # Asset registration runs outside the TI row lock. Failures here are logged and
+    # swallowed — the task state is already committed, so returning HTTP 500 would be
+    # misleading and would cause unnecessary worker retries.
+    if isinstance(ti_patch_payload, TISuccessStatePayload) and ti_patch_payload.task_outlets:
+        try:
+            ti_for_assets = session.get(TI, task_instance_id)
+            if ti_for_assets is not None:
+                TI.register_asset_changes_in_db(
+                    ti_for_assets,
+                    ti_patch_payload.task_outlets,
+                    ti_patch_payload.outlet_events,
+                    session,
+                )
+        except Exception:
+            log.exception(
+                "Failed to register asset changes; task state is already committed",
+                task_instance_id=str(task_instance_id),
+                new_state=updated_state,
+            )
 
 
 def _emit_task_span(ti, state):
@@ -586,13 +612,8 @@ def _create_ti_state_update_query_and_update_state(
                 retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
             )
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            if ti is not None:
-                TI.register_asset_changes_in_db(
-                    ti,
-                    ti_patch_payload.task_outlets,
-                    ti_patch_payload.outlet_events,
-                    session,
-                )
+            pass  # Asset registration happens after the TI state is committed; see ti_update_state.
+
         try:
             _emit_task_span(ti, state=updated_state)
         except Exception:
