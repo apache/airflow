@@ -32,6 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
     expand_env_var,
 )
+from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -210,6 +211,21 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
             self.remove_section(section)
 
 
+def get_state_backend():
+    """
+    Get the state backend if configured via ``[workers] state_backend``.
+
+    Returns the instantiated backend, or ``None`` if not configured.
+    """
+    # Lazy import to trigger __getattr__ and lazy initialization
+    from airflow.sdk.configuration import conf
+
+    class_name = conf.get("workers", "state_backend", fallback="")
+    if not class_name:
+        return None
+    return import_string(class_name)()
+
+
 def get_custom_secret_backend(worker_mode: bool = False):
     """
     Get Secret Backend if defined in airflow.cfg.
@@ -236,8 +252,6 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
-    from airflow.sdk._shared.module_loading import import_string
-
     backend_list = []
     worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode
