@@ -203,7 +203,7 @@ export const TaskLogHeader = ({
         <HStack gap={1}>
           <Menu.Root tooltipLabel={translate("dag:logs.settings")}>
             <Menu.Trigger asChild>
-              <IconButton data-testid="log-settings-button">
+              <IconButton aria-label={translate("dag:logs.settings")} data-testid="log-settings-button">
                 <MdSettings />
               </IconButton>
             </Menu.Trigger>

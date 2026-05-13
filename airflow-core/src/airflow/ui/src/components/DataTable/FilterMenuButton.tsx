@@ -36,7 +36,7 @@ const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
   return (
     <Menu.Root closeOnSelect={false} tooltipLabel={translate("table.filterColumns")}>
       <Menu.Trigger asChild>
-        <IconButton>
+        <IconButton aria-label={translate("table.filterColumns")}>
           <LuColumns3 />
         </IconButton>
       </Menu.Trigger>
