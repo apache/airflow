@@ -18,25 +18,18 @@
  */
 import { Box, ClipboardRoot, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
-import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Accordion, ClipboardIconButton } from "src/components/ui";
 
 type Props = {
   readonly defaultValue?: Array<string>;
   readonly importErrors: ReadonlyArray<ImportErrorResponse>;
-  readonly showFileErrorIndicator?: boolean;
 };
 
-export const DagImportErrorAccordion = ({
-  defaultValue,
-  importErrors,
-  showFileErrorIndicator = false,
-}: Props) => {
+export const DagImportErrorAccordion = ({ defaultValue, importErrors }: Props) => {
   const { t: translate } = useTranslation(["dashboard", "components"]);
 
   if (importErrors.length === 0) {
@@ -50,11 +43,6 @@ export const DagImportErrorAccordion = ({
           <HStack align="stretch" gap={0} w="100%">
             <Accordion.ItemTrigger cursor="pointer" flex="1">
               <HStack alignItems="center" flexWrap="wrap" gap={2} w="100%">
-                {showFileErrorIndicator ? (
-                  <StateBadge borderRadius="full" colorPalette="failed" fontSize="lg" py={1}>
-                    <LuFileWarning />
-                  </StateBadge>
-                ) : undefined}
                 <Text display="flex" fontWeight="bold">
                   {translate("components:versionDetails.bundleName")}
                   {": "}

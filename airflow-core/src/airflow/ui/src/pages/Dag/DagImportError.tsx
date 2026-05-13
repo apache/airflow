@@ -23,10 +23,7 @@ import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { DagImportErrorsIconBadge } from "src/components/DagImportErrorsIconBadge";
 
-import { StaleDagImportErrorModal } from "./StaleDagImportErrorModal";
-import { selectLatestMatchingImportError } from "./selectLatestMatchingImportError";
-
-const IMPORT_ERROR_FETCH_LIMIT = 100;
+import { DagImportErrorModal } from "./DagImportErrorModal";
 
 type Props = {
   readonly dag: Pick<DAGResponse, "bundle_name" | "is_stale" | "relative_fileloc">;
@@ -40,22 +37,15 @@ export const DagImportError = ({ dag }: Props) => {
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
-      filenamePattern: relativeFileloc,
-      limit: IMPORT_ERROR_FETCH_LIMIT,
-      offset: 0,
-      orderBy: ["-timestamp"],
+      filename: relativeFileloc,
     },
     undefined,
     { enabled: shouldFetch },
   );
 
-  if (!shouldFetch) {
-    return undefined;
-  }
+  const importError = data?.import_errors[0];
 
-  const matched = selectLatestMatchingImportError(data?.import_errors, relativeFileloc, dag.bundle_name);
-
-  if (matched === undefined) {
+  if (!shouldFetch || !importError) {
     return undefined;
   }
 
@@ -69,7 +59,7 @@ export const DagImportError = ({ dag }: Props) => {
         onClick={onOpen}
         title={importErrorLabel}
       />
-      <StaleDagImportErrorModal importError={matched} onClose={onClose} open={open} />
+      <DagImportErrorModal importError={importError} onClose={onClose} open={open} />
     </Box>
   );
 };

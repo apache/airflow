@@ -25,7 +25,7 @@ import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
-import { DAGImportErrors } from "./DAGImportErrors";
+import { DagImportErrors } from "./DagImportErrors";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
@@ -64,7 +64,7 @@ export const Stats = () => {
           state="failed"
         />
 
-        <DAGImportErrors />
+        <DagImportErrors />
 
         <PluginImportErrors />
 

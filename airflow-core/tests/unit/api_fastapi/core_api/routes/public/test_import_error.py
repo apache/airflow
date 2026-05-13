@@ -402,6 +402,35 @@ class TestGetImportErrors:
             import_error["filename"] for import_error in response_json["import_errors"]
         ] == expected_filenames
 
+    @pytest.mark.parametrize(
+        ("filename", "expected_total_entries", "expected_filenames"),
+        [
+            (FILENAME1, 1, [FILENAME1]),
+            (FILENAME2, 1, [FILENAME2]),
+            ("nonexistent.py", 0, []),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_errors_exact_filename_filter(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        filename,
+        expected_total_entries,
+        expected_filenames,
+        permitted_dag_model_all,
+    ):
+        """Test that the exact ``filename`` filter returns only the matching file."""
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors", params={"filename": filename})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == expected_total_entries
+        assert [ie["filename"] for ie in response_json["import_errors"]] == expected_filenames
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/importErrors")
         assert response.status_code == 401

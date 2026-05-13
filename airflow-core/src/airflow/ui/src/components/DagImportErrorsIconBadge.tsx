@@ -40,12 +40,12 @@ export const DagImportErrorsIconBadge = ({
     aria-label={ariaLabel ?? title}
     as={Button}
     colorPalette="failed"
-    {...(dataTestId === undefined ? {} : { "data-testid": dataTestId })}
+    data-testid={dataTestId}
     height={7}
     onClick={onClick}
     title={title}
   >
     <LuFileWarning size={8} />
-    {count ?? undefined}
+    {count}
   </StateBadge>
 );

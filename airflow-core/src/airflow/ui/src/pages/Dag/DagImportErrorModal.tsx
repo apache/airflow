@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack } from "@chakra-ui/react";
+import { ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
+import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
-import { DagImportErrorAccordion } from "src/components/DagImportErrorAccordion";
-import { Dialog } from "src/components/ui";
+import Time from "src/components/Time";
+import { ClipboardIconButton, Dialog } from "src/components/ui";
 
 type Props = {
   readonly importError: ImportErrorResponse;
@@ -30,9 +31,8 @@ type Props = {
   readonly open: boolean;
 };
 
-export const StaleDagImportErrorModal = ({ importError, onClose, open }: Props) => {
-  const { t: translate } = useTranslation("dashboard");
-  const itemValue = String(importError.import_error_id);
+export const DagImportErrorModal = ({ importError, onClose, open }: Props) => {
+  const { t: translate } = useTranslation(["dashboard", "components"]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} scrollBehavior="inside" size="lg">
@@ -45,7 +45,26 @@ export const StaleDagImportErrorModal = ({ importError, onClose, open }: Props) 
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>
-          <DagImportErrorAccordion defaultValue={[itemValue]} importErrors={[importError]} />
+          <HStack alignItems="center" flexWrap="wrap" gap={2} mb={2}>
+            <Text fontWeight="bold">
+              {translate("components:versionDetails.bundleName")}
+              {": "}
+              {importError.bundle_name}
+            </Text>
+            <PiFilePy />
+            {importError.filename}
+            <ClipboardRoot value={importError.filename}>
+              <ClipboardIconButton variant="outline" />
+            </ClipboardRoot>
+          </HStack>
+          <Text color="fg.muted" fontSize="sm" mb={2}>
+            {translate("importErrors.timestamp")}
+            {": "}
+            <Time datetime={importError.timestamp} />
+          </Text>
+          <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
+            <code>{importError.stack_trace}</code>
+          </Text>
         </Dialog.Body>
       </Dialog.Content>
     </Dialog.Root>
