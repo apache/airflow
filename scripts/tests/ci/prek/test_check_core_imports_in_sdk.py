@@ -168,6 +168,11 @@ class TestNocheckMarker:
                 id="other-code-only-not-suppressed",
             ),
             pytest.param(
+                "from airflow.models import DagRun  # noqa: F401 - see SDK002 docs\n",
+                [(1, "from airflow.models import DagRun")],
+                id="code-in-explanation-not-suppressed",
+            ),
+            pytest.param(
                 "from airflow.models import DagRun  # noqa\n",
                 [(1, "from airflow.models import DagRun")],
                 id="bare-noqa-not-suppressed",

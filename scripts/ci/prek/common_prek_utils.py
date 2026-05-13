@@ -527,15 +527,25 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
 
 
 _NOQA_RE = re.compile(r"#\s*noqa\s*:\s*([^\n]*)", re.IGNORECASE)
-_NOQA_CODE_RE = re.compile(r"\b([A-Z]+\d+)\b")
+_NOQA_CODE_RE = re.compile(r"[A-Z]+\d+")
 
 
 def _parse_noqa_codes(line: str) -> set[str]:
-    """Extract codes from a ``# noqa: <codes>`` comment in a source line."""
+    """Extract codes from the leading comma-separated list in a ``# noqa: <codes>`` comment.
+
+    Anything after the first non-code token is treated as explanatory text and
+    ignored, so ``# noqa: F401 - see SDK002 docs`` only yields ``{"F401"}``.
+    """
     match = _NOQA_RE.search(line)
     if not match:
         return set()
-    return set(_NOQA_CODE_RE.findall(match.group(1)))
+    codes: set[str] = set()
+    for raw in match.group(1).split(","):
+        code_match = _NOQA_CODE_RE.match(raw.strip())
+        if not code_match:
+            break
+        codes.add(code_match.group(0))
+    return codes
 
 
 def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom | ast.Import, nocheck_code: str) -> bool:
