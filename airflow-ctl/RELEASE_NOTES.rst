@@ -40,7 +40,6 @@ Significant Changes
 Bug Fixes
 ^^^^^^^^^
 
-- Fix ``airflowctl backfill pause``, ``unpause``, and ``cancel`` API methods
 - Declare ``pyyaml`` as a runtime dependency so ``airflowctl`` starts without crashing on ``ModuleNotFoundError``
 - Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl (#64618)
 - Fix ``is_alive`` default in ``airflowctl jobs list`` to show all jobs (#65065)
