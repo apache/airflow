@@ -324,11 +324,12 @@ class LLMDataQualityOperator(LLMOperator):
 
         When ``require_approval=True``, the task runs in two phases:
 
-        1. **Phase 1** — the LLM discovers schema, executes SQL queries, and selects
-           validators (but does *not* call ``apply_validator``).  The resulting plan
-           (SQL queries + validator choices) is shown to a human reviewer.
-        2. **Phase 2** (in :meth:`execute_complete`) — after approval, validators are
-           applied in pure Python and the :class:`~...DQReport` is produced.
+        1. **Phase 1** — the LLM discovers schema and selects validators *without
+           executing any SQL queries*.  The resulting plan (check names,
+           descriptions, and validator assignments) is shown to a human reviewer.
+        2. **Phase 2** (in :meth:`execute_complete`) — after approval, SQL queries
+           are executed and validators are applied in pure Python to produce the
+           :class:`~...DQReport`.
 
         :returns: :class:`~airflow.providers.common.ai.utils.dataquality.models.DQReport`
             as a dict when the DQ toolset is in ``"execute"`` mode, or a config

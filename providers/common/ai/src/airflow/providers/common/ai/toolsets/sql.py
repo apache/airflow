@@ -170,7 +170,10 @@ class SQLToolset(AbstractToolset[Any]):
             return self._explicit_dialect
         if self._resolved_dialect is not None:
             return self._resolved_dialect
-        conn_type = BaseHook.get_connection(self._db_conn_id).conn_type
+        if self._hook is not None:
+            conn_type = getattr(self._hook, "conn_type", None)
+        else:
+            conn_type = BaseHook.get_connection(self._db_conn_id).conn_type
         self._resolved_dialect = _CONN_TYPE_TO_DIALECT.get(conn_type or "")
         return self._resolved_dialect
 

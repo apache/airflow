@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from airflow.providers.common.ai.operators.llm_data_quality import LLMDataQualityOperator
 from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
@@ -38,6 +39,8 @@ from airflow.providers.common.sql.config import DataSourceConfig
 # Module-level custom validator used across multiple DAGs
 # ------------------------------------------------------------------
 
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
 
 # [START howto_operator_llm_dq_email_format_validator]
 @register_validator(
@@ -53,14 +56,11 @@ from airflow.providers.common.sql.config import DataSourceConfig
 )
 def email_format_check(*, max_invalid_pct: float = 0.0):
     """Return a per-row predicate used by row-level aggregation in SQLDQToolset."""
-    import re as _re
-
-    _pattern = _re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
     def _check(value: object) -> bool:
         if value in (None, ""):
             return False
-        return bool(_pattern.match(str(value)))
+        return bool(_EMAIL_PATTERN.match(str(value)))
 
     return _check
 
@@ -232,10 +232,11 @@ def example_llm_dq_require_approval():
     """
     Gate check execution on human review using the built-in HITL mechanism.
 
-    When ``require_approval=True`` the task defers *before* the LLM agent runs
-    and surfaces the check plan (names, descriptions, and pre-assigned validators)
-    to a human reviewer in the Airflow UI.  The agent only executes after the
-    reviewer approves.  If rejected, the task raises
+    When ``require_approval=True`` the task runs the LLM planning phase first,
+    then defers *before* SQL execution and validator application so the generated
+    check plan (names, descriptions, and pre-assigned validators) can be reviewed
+    in the Airflow UI.  SQL queries and validators only run after the reviewer
+    approves.  If rejected, the task raises
     :class:`~airflow.providers.standard.exceptions.HITLRejectException`.
 
     Connections required:

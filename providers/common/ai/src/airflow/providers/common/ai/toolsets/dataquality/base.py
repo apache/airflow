@@ -48,7 +48,7 @@ class BaseDQToolset(AbstractToolset[Any]):
       the operator expects a
       :class:`~airflow.providers.common.ai.utils.dataquality.models.DQReport` as the
       agent's final output.  The task fails when any check does not pass.
-    * ``"generate"`` — the toolset produces a configuration artefact (e.g. a
+    * ``"generate"`` — the toolset produces a configuration artifact (e.g. a
       SODA YAML or Great Expectations suite JSON) that a downstream operator
       can feed to an external DQ framework.  The operator returns the config
       string as its XCom value without performing pass/fail gating.
