@@ -60,6 +60,7 @@ __all__ = [
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MinimumCount",
     "MonthWindow",
     "MultipleCronTriggerTimetable",
     "NEVER_EXPIRE",
@@ -92,6 +93,8 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WaitForAll",
+    "WaitPolicy",
     "WeekWindow",
     "WeightRule",
     "Window",
@@ -154,7 +157,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
-    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
+    from airflow.sdk.definitions.partition_mappers.base import (
+        PartitionMapper,
+        RollupMapper,
+    )
     from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
     from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
@@ -167,6 +173,11 @@ if TYPE_CHECKING:
         StartOfQuarterMapper,
         StartOfWeekMapper,
         StartOfYearMapper,
+    )
+    from airflow.sdk.definitions.partition_mappers.wait_policy import (
+        MinimumCount,
+        WaitForAll,
+        WaitPolicy,
     )
     from airflow.sdk.definitions.partition_mappers.window import (
         DayWindow,
@@ -253,6 +264,7 @@ __lazy_imports: dict[str, str] = {
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MinimumCount": ".definitions.partition_mappers.wait_policy",
     "MonthWindow": ".definitions.partition_mappers.window",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
@@ -285,6 +297,8 @@ __lazy_imports: dict[str, str] = {
     "TaskInstanceState": ".api.datamodels._generated",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
+    "WaitForAll": ".definitions.partition_mappers.wait_policy",
+    "WaitPolicy": ".definitions.partition_mappers.wait_policy",
     "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
     "Window": ".definitions.partition_mappers.window",

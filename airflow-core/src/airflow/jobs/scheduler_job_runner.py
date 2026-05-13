@@ -110,6 +110,7 @@ from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
+from airflow.partition_mappers.wait_policy import WaitForAll
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
@@ -349,6 +350,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._log = log
 
         self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+
+        # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
+        # are permanently unreachable for the rollup window's cardinality — the
+        # Dag run can never fire, and we warn once per process lifetime so an
+        # unreachable APDR is visible in scheduler logs without spamming every
+        # tick.
+        self._partition_unreachable_seen: set[tuple[str, str, str]] = set()
 
     @provide_session
     def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
@@ -1927,13 +1935,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _check_rollup_asset_status(
         self,
         *,
-        asset_id: int,
-        apdr: AssetPartitionDagRun,
         mapper: RollupMapper,
-        actual_by_asset: dict[int, set[str]],
+        expected_count: int,
+        matched_count: int,
     ) -> bool:
-        expected = mapper.to_upstream(apdr.partition_key)
-        return expected.issubset(actual_by_asset.get(asset_id, set()))
+        return mapper.wait_policy.is_satisfied(matched=matched_count, expected=expected_count)
 
     def _resolve_asset_partition_status(
         self,
@@ -1963,11 +1969,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             mapper = timetable.get_partition_mapper(name=name, uri=uri)
             if not is_rollup(mapper):
                 return True
+            if TYPE_CHECKING:
+                assert apdr.partition_key is not None
+            expected = mapper.to_upstream(apdr.partition_key)
+            actual = actual_by_asset.get(asset_id, set())
+
+            # ``WaitForAll`` fast path: ``set.issubset`` short-circuits on the
+            # first missing key, so a typical backfill / catch-up tick with even
+            # one upstream gap returns without materializing the full intersection.
+            # The general dispatcher below pays O(|expected|) per call to stay a
+            # pure function of counts; this branch keeps the common case bounded
+            # by the *first* missing key rather than window cardinality.
+            if isinstance(mapper.wait_policy, WaitForAll):
+                return expected.issubset(actual)
+
+            # A policy where the threshold can never be met given the rollup
+            # window's cardinality is permanently unreachable. Surface this as a
+            # deduplicated warning so the operator can spot a stuck APDR in
+            # scheduler logs instead of seeing it silently never fire. Return
+            # ``False`` directly to skip the intersection that cannot succeed.
+            if mapper.wait_policy.is_unreachable(len(expected)):
+                unreachable_key = (apdr.target_dag_id, name, uri)
+                if unreachable_key not in self._partition_unreachable_seen:
+                    self.log.warning(
+                        "Wait policy %r is unreachable for asset (name=%r, uri=%r) on Dag %r "
+                        "given the window's cardinality %d; downstream Dag run is permanently "
+                        "unreachable.",
+                        mapper.wait_policy,
+                        name,
+                        uri,
+                        apdr.target_dag_id,
+                        len(expected),
+                    )
+                    self._partition_unreachable_seen.add(unreachable_key)
+                return False
+
             return self._check_rollup_asset_status(
-                asset_id=asset_id,
-                apdr=apdr,
                 mapper=mapper,
-                actual_by_asset=actual_by_asset,
+                expected_count=len(expected),
+                matched_count=len(expected & actual),
             )
         except Exception:
             self.log.exception(

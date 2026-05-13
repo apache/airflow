@@ -117,6 +117,7 @@ from airflow.sdk import (
     FixedKeyMapper,
     HourWindow,
     IdentityMapper,
+    MinimumCount,
     RollupMapper,
     SegmentWindow,
     StartOfDayMapper,
@@ -10419,6 +10420,128 @@ def test_partitioned_dag_run_segment_rollup_holds_until_all_segments_arrive(
     assert apdr.created_dag_run_id is not None
     assert apdr.partition_key == "all_regions"
     assert partition_dags == {"segment-rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_minimum_count_negative_fires_with_tolerated_gaps(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """``MinimumCount(-3)`` fires once at most 3 of the 60 expected keys are still missing."""
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+                wait_policy=MinimumCount(-3),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # 56 of 60 keys arrive — still 4 short of the 57-key threshold, so the APDR
+    # must not fire yet.
+    apdr = None
+    for minute in range(56):
+        apdr = _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+    assert apdr is not None
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # One more key arrives, bringing the matched count to 57 (= 60 - 3). The
+    # policy's tolerance is met and the Dag run is created on the next tick.
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-56",
+        asset=asset_1,
+        partition_key="2024-01-01T00:56:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"rollup-consumer"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_rollup_minimum_count_fires_when_threshold_met(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """``MinimumCount(5)`` fires as soon as 5 of the 60 expected keys arrive."""
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="rollup-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=RollupMapper(
+                upstream_mapper=StartOfHourMapper(),
+                window=HourWindow(),
+                wait_policy=MinimumCount(5),
+            ),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+
+    # 4 of 60 keys arrive — one short of the 5-key threshold, so the APDR
+    # must not fire yet.
+    apdr = None
+    for minute in range(4):
+        apdr = _produce_and_register_asset_event(
+            dag_id=f"rollup-producer-{minute}",
+            asset=asset_1,
+            partition_key=f"2024-01-01T00:{minute:02d}:00",
+            session=session,
+            dag_maker=dag_maker,
+            expected_partition_key="2024-01-01T00",
+        )
+    assert apdr is not None
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+    assert partition_dags == set()
+
+    # The 5th key arrives and the threshold is met; the Dag run is created on
+    # the next tick even though 55 of the 60 expected keys are still missing.
+    _produce_and_register_asset_event(
+        dag_id="rollup-producer-4",
+        asset=asset_1,
+        partition_key="2024-01-01T00:04:00",
+        session=session,
+        dag_maker=dag_maker,
+        expected_partition_key="2024-01-01T00",
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert partition_dags == {"rollup-consumer"}
 
 
 @pytest.mark.need_serialized_dag
