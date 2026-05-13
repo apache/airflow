@@ -136,12 +136,12 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         import structlog.stdlib
 
         logRecordFactory = getLogRecordFactory()
-        # Eagerly init the handler to avoid infinite loops from logging during handler creation.
-        # We do NOT capture it in a closure variable — instead we access self.handler each time
-        # so that if the handler is killed by logging.shutdown() and recreated, the processor
-        # always uses the live instance rather than a dead one.#
-        _ = self.handler
+        # Eagerly initialize the handler before the closure is created.
+        # Without this, the first log emission would trigger handler creation,
+        # which itself logs, causing an infinite loop.
+        self._handler
         _self = self
+
         from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):

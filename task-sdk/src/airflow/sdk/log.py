@@ -119,7 +119,7 @@ def configure_logging(
         extra_processors += (mask_logs,)
 
     # NOTE: Do NOT call getattr(remote, "processors") here.
-    # Accessing remote.processors triggers creation of the watchtower CloudWatchLogHandler
+    # Accessing remote.processors triggers creation of, for example, the watchtower CloudWatchLogHandler
     # via a cached_property. The configure_logging() call below runs dictConfig() internally,
     # which calls _clearExistingHandlers() -> logging.shutdown() on ALL existing handlers —
     # including the watchtower handler we would have just built. The handler ends up dead
