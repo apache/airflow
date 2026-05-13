@@ -140,7 +140,7 @@ class ConfiguredSentry(NoopSentry):
         @functools.wraps(run)
         def wrapped_run(ti: RuntimeTaskInstance, context: Context, log: Logger) -> RunReturn:
             self.prepare_to_enrich_errors(ti.sentry_integration)
-            with sentry_sdk.isolation_scope():
+            with sentry_sdk.new_scope():
                 try:
                     self.add_tagging(context["dag_run"], ti)
                     self.add_breadcrumbs(ti)

@@ -127,7 +127,7 @@ class TestSentryHook:
         sentry_sdk = types.ModuleType("sentry_sdk")
         sentry_sdk.init = mock.MagicMock()
         sentry_sdk.integrations = mock.Mock(logging=sentry_sdk_integrations_logging)
-        sentry_sdk.isolation_scope = mock.MagicMock()
+        sentry_sdk.new_scope = mock.MagicMock()
         sentry_sdk.get_current_scope = mock.MagicMock()
         sentry_sdk.add_breadcrumb = mock.MagicMock()
         sentry_sdk.capture_exception = mock.MagicMock()
