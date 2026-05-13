@@ -18,7 +18,10 @@
  */
 import type { CSSProperties } from "react";
 
-export { atomOneDark as oneDark, atomOneLight as oneLight } from "react-syntax-highlighter/dist/esm/styles/hljs";
+export {
+  atomOneDark as oneDark,
+  atomOneLight as oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 export { default as SyntaxHighlighter } from "react-syntax-highlighter";
 

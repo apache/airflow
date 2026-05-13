@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/// <reference types="@testing-library/jest-dom" />
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import i18n from "src/i18n/config";
-import { SyntaxHighlighter as HighlightSyntaxHighlighter } from "src/utils/syntaxHighlighter";
 import { BaseWrapper } from "src/utils/Wrapper";
+import { SyntaxHighlighter as HighlightSyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 import ReactMarkdown from "./ReactMarkdown";
 
@@ -43,7 +45,9 @@ describe("ReactMarkdown", () => {
       supportedLanguages: Array<string>;
     };
 
-    expect(supportedLanguages).toEqual(expect.arrayContaining(["bash", "javascript", "typescript", "go", "rust"]));
+    expect(supportedLanguages).toEqual(
+      expect.arrayContaining(["bash", "javascript", "typescript", "go", "rust"]),
+    );
   });
 
   it("renders inline code spans as inline code", () => {
@@ -83,8 +87,15 @@ describe("ReactMarkdown", () => {
     expect(screen.getByLabelText(i18n.t("components:clipboard.copy"))).toBeInTheDocument();
     expect(screen.getByText("console")).toBeInTheDocument();
     expect(container.querySelectorAll(".react-syntax-highlighter-line-number")).toHaveLength(2);
-    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({ overflowX: "auto", overflowY: "hidden", width: "100%" });
-    expect(screen.getByTestId("markdown-code-content")).toHaveStyle({ display: "inline-block", minWidth: "100%" });
+    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({
+      overflowX: "auto",
+      overflowY: "hidden",
+      width: "100%",
+    });
+    expect(screen.getByTestId("markdown-code-content")).toHaveStyle({
+      display: "inline-block",
+      minWidth: "100%",
+    });
     expect(codeElement).toHaveStyle({ overflowWrap: "normal", whiteSpace: "pre", wordBreak: "normal" });
   });
 
@@ -98,7 +109,10 @@ describe("ReactMarkdown", () => {
 
     render(
       <BaseWrapper>
-        <div data-testid="markdown-host" style={{ alignItems: "flex-start", display: "flex", flexDirection: "column", width: "320px" }}>
+        <div
+          data-testid="markdown-host"
+          style={{ alignItems: "flex-start", display: "flex", flexDirection: "column", width: "320px" }}
+        >
           <ReactMarkdown>{markdown}</ReactMarkdown>
         </div>
       </BaseWrapper>,
@@ -106,7 +120,12 @@ describe("ReactMarkdown", () => {
 
     const markdownRoot = screen.getByTestId("markdown-host").firstElementChild;
 
-    expect(markdownRoot).toHaveStyle({ alignSelf: "stretch", maxWidth: "100%", minWidth: "0", width: "100%" });
+    expect(markdownRoot).toHaveStyle({
+      alignSelf: "stretch",
+      maxWidth: "100%",
+      minWidth: "0",
+      width: "100%",
+    });
     expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({ overflowX: "auto", width: "100%" });
   });
 

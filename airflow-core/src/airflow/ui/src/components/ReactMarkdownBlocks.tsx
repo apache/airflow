@@ -88,7 +88,14 @@ export const MarkdownCodeBlock = ({
       }
       label={languageLabel}
     >
-      <Box data-testid="markdown-code-scroll-area" maxWidth="100%" minWidth={0} overflowX="auto" overflowY="hidden" width="100%">
+      <Box
+        data-testid="markdown-code-scroll-area"
+        maxWidth="100%"
+        minWidth={0}
+        overflowX="auto"
+        overflowY="hidden"
+        width="100%"
+      >
         <Box data-testid="markdown-code-content" display="inline-block" minWidth="100%">
           <SyntaxHighlighter
             codeTagProps={{ style: { overflowWrap: "normal", whiteSpace: "pre", wordBreak: "normal" } }}
@@ -170,7 +177,13 @@ export const MarkdownMermaid = ({
     >
       <Box maxWidth="100%" minHeight="8rem" minWidth={0} overflow="hidden" p={3} width="100%">
         {svg === undefined ? (
-          <Box alignItems="center" color="fg.muted" data-testid="markdown-mermaid-loading" display="inline-flex" minHeight="2rem">
+          <Box
+            alignItems="center"
+            color="fg.muted"
+            data-testid="markdown-mermaid-loading"
+            display="inline-flex"
+            minHeight="2rem"
+          >
             <Spinner size="sm" />
           </Box>
         ) : (

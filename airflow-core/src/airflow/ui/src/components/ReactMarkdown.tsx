@@ -156,11 +156,7 @@ const CodeComponent = ({ children }: PropsWithChildren) => <Code display="inline
 // Factory function for the pre component that needs style
 const createPreComponent =
   (style: SyntaxTheme, mermaidTheme: MermaidDiagramProps["theme"]) =>
-  ({
-    children,
-  }: {
-    readonly children?: ReactNode;
-  }) => {
+  ({ children }: { readonly children?: ReactNode }) => {
     const [codeElement] = Children.toArray(children);
 
     if (!isValidElement<CodeElementProps>(codeElement)) {
