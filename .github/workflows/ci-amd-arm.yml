@@ -713,7 +713,9 @@ jobs:
     permissions:
       contents: read
       packages: read
-    if: needs.build-info.outputs.run-unit-tests == 'true'
+    if: >
+      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.run-unit-tests == 'true'
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}

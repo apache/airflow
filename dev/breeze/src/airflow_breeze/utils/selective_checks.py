@@ -944,7 +944,11 @@ class SelectiveChecks:
 
     @cached_property
     def run_ui_e2e_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
+        return (
+            self._should_be_run(FileGroupForCi.UI_FILES)
+            and self._default_branch != "main"
+            and (not self._default_branch.startswith("chart/v1-2x"))
+        )
 
     @cached_property
     def run_remote_logging_s3_e2e_tests(self) -> bool:
@@ -1468,7 +1472,7 @@ class SelectiveChecks:
 
     @cached_property
     def skip_providers_tests(self) -> bool:
-        if self._default_branch != "main":
+        if self._default_branch != "main" or (not self._default_branch.startswith("chart/v1-2x")):
             return True
         if self.full_tests_needed:
             return False
