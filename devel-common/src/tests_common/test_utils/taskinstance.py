@@ -26,7 +26,11 @@ from airflow.utils.session import NEW_SESSION, create_session
 
 from tests_common.test_utils.compat import SerializedBaseOperator, SerializedMappedOperator
 from tests_common.test_utils.dag import create_scheduler_dag
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 try:
     from airflow.serialization.serialized_objects import create_scheduler_operator
@@ -141,13 +145,21 @@ def run_task_instance(
         **session_kwargs,
     )
     # Some tests don't even save the ti at all, in which case new_ti is None.
-    # ``_run_task`` requires a real session for the inline DEFERRED → SCHEDULED
-    # transition (AIP-72: task-sdk does not open its own DB session).
-    if session is not None:
-        taskrun_result = _run_task(ti=new_ti or ti, task=task, session=session)
+    if AIRFLOW_V_3_3_PLUS:
+        # On 3.3+, ``_run_task`` requires a real session for the inline
+        # DEFERRED → SCHEDULED transition (AIP-72: task-sdk does not open
+        # its own DB session).
+        if session is not None:
+            taskrun_result = _run_task(ti=new_ti or ti, task=task, session=session)
+        else:
+            with create_session() as run_task_session:
+                taskrun_result = _run_task(ti=new_ti or ti, task=task, session=run_task_session)
     else:
-        with create_session() as run_task_session:
-            taskrun_result = _run_task(ti=new_ti or ti, task=task, session=run_task_session)
+        # 3.2.x ``_run_task`` opens its own session internally and doesn't
+        # accept a ``session`` kwarg. mypy types against current main where
+        # ``session`` is required, so suppress the call-arg error for this
+        # backwards-compatible branch.
+        taskrun_result = _run_task(ti=new_ti or ti, task=task)  # type: ignore[call-arg]
     ti.refresh_from_db(**session_kwargs)  # Some tests expect side effects.
     if not taskrun_result:
         raise RuntimeError("task failed to finish with a result")
