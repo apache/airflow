@@ -192,6 +192,10 @@ If you use the ``CeleryExecutor`` with the built-in Redis, it is recommended tha
 
 .. note::
 
+   Due to security concerts, it is not advised to set sensitive values like passwords within the ``values.yaml``.
+
+.. note::
+
    By default, Helm hooks are also enabled for ``extraSecrets`` or ``extraConfigMaps``. When using the above CI/CD tools, you might encounter issues due to these default hooks.
 
 To avoid potential problems, it is recommended to disable these hooks by setting ``useHelmHooks=false`` as shown in the following examples:
@@ -223,6 +227,10 @@ It is not enabled by default as this may cause unexpected behaviours on existing
    useStandardNaming: true
 
 For existing installations, all your resources will be recreated with a new name and helm will delete previous resources.
+
+.. note::
+
+   In current ``useStandardNaming`` implementation, the standard name is not affecting Kubernetes Service Accounts created by Airflow Helm Chart.
 
 This won't delete existing PVCs for logs used by StatefulSets/Deployments, but it will recreate them with brand new PVCs.
 If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after

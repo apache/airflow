@@ -21,7 +21,7 @@ Extending the Chart
 The Airflow Helm Chart can be easily extended by creating a custom chart which will depend on the Airflow chart.
 That can be useful in cases where there is a need for custom templates deployment (e.g. maintenance CronJobs),
 which are not directly related to the Airflow Helm Chart and should not be added to it in the source repository.
-During installation of custom chart, the Airflow chart will also be installed too.
+During installation of custom chart, the Airflow chart will also be installed.
 
 You can extend the official Airflow chart by applying the following steps.
 
@@ -65,7 +65,7 @@ add the following lines to your ``Chart.yaml`` file:
 
 .. note::
 
-   Make sure you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
+   Make sure that you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
 
 .. tip::
 
@@ -101,7 +101,7 @@ you can download it by running the following command:
 
 .. note::
 
-   Make sure you are inside the directory which contains the ``Chart.yaml`` file.
+   Make sure that you are inside the directory which contains the ``Chart.yaml`` file.
 
 The chart will be downloaded and saved inside the ``charts/`` directory.
 
