@@ -4120,7 +4120,7 @@ def test_recompute_next_dagrun_fields_after_unpause(dag_maker, session):
     with dag_maker(schedule="@daily", catchup=False, start_date=TEST_DATE):
         BashOperator(task_id="hi", bash_command="yo")
 
-    run = dag_maker.create_dagrun()
+    dag_maker.create_dagrun()
     dag_model = dag_maker.dag_model
 
     # Simulate the pause-frozen state.
