@@ -161,6 +161,10 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
     def _update_is_paused(dag_model: DagModel) -> bool:
         old_is_paused = dag_model.is_paused
         dag_model.is_paused = is_paused
+        if old_is_paused and not is_paused:
+            # Re-populate next_dagrun_* immediately on unpause so the API and
+            # scheduler see a fresh value rather than the frozen pre-pause one.
+            dag_model.recompute_next_dagrun_fields_after_unpause(session=session)
         return old_is_paused
 
     old_values = [

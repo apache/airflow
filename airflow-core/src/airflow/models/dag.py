@@ -771,6 +771,21 @@ class DagModel(Base):
         # TODO: AIP-76 perhaps we need to add validation for manual runs ensure consistency between
         #   partition_key / partition_date and run_after
 
+        if self.is_paused:
+            # While the Dag is paused, the scheduler will not materialise any run
+            # regardless of what these fields hold. Recomputing them every parse
+            # cycle (the DAG processor calls this for every Dag, paused or not)
+            # has two user-visible costs: (a) ``catchup=False`` timetables advance
+            # the ``next_dagrun`` value forward one cron period per parse cycle
+            # while it stays strictly before "now", so any external consumer of
+            # ``/api/v2/dags/.../details`` sees a Dag whose "Next Run" is
+            # perpetually in the past (see #66462 / #66907 / #66552); and (b) we
+            # pay the timetable computation cost on every paused Dag every parse
+            # cycle for a value nothing will read until unpause. Stop touching the
+            # fields here; the unpause path triggers a fresh recompute via
+            # ``recompute_next_dagrun_fields_after_unpause``.
+            return
+
         if isinstance(last_automated_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
@@ -800,6 +815,42 @@ class DagModel(Base):
             next_dagrun_partition_key=self.next_dagrun_partition_key,
             next_dagrun_partition_date=str(self.next_dagrun_partition_date),
         )
+
+    @provide_session
+    def recompute_next_dagrun_fields_after_unpause(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Refresh ``next_dagrun_*`` immediately after a Dag transitions to unpaused.
+
+        Companion to the ``is_paused`` short-circuit in
+        ``calculate_dagrun_date_fields``: while paused the fields stay frozen, so
+        callers that flip the Dag back to running need a way to force one fresh
+        computation without waiting for the next parse cycle. Reads the latest
+        serialized Dag for the timetable and the most recent automated DagRun,
+        then delegates to the normal recompute path.
+
+        Safe no-op if the serialized Dag is missing (next parse will repopulate).
+        """
+        from airflow.models.dagrun import DagRun
+        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.utils.types import DagRunType
+
+        if self.is_paused:
+            return
+        serialized = session.scalar(
+            select(SerializedDagModel)
+            .where(SerializedDagModel.dag_id == self.dag_id)
+            .order_by(SerializedDagModel.last_updated.desc())
+            .limit(1)
+        )
+        if serialized is None:
+            return
+        last_automated_run = session.scalar(
+            select(DagRun)
+            .where(DagRun.dag_id == self.dag_id, DagRun.run_type != DagRunType.MANUAL)
+            .order_by(DagRun.logical_date.desc())
+            .limit(1)
+        )
+        self.calculate_dagrun_date_fields(serialized.dag, last_automated_run=last_automated_run)
 
     @provide_session
     def get_asset_triggered_next_run_info(

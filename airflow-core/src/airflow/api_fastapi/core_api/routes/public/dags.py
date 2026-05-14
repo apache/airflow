@@ -303,8 +303,14 @@ def patch_dag(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
+    was_paused = dag.is_paused
     for key, val in data.items():
         setattr(dag, key, val)
+
+    if was_paused and dag.is_paused is False:
+        # Re-populate next_dagrun_* immediately on unpause so the API and scheduler
+        # see a fresh value rather than the frozen pre-pause snapshot.
+        dag.recompute_next_dagrun_fields_after_unpause(session=session)
 
     return dag
 
@@ -388,6 +394,14 @@ def patch_dags(
         .values(is_paused=patch_body.is_paused)
         .execution_options(synchronize_session="fetch")
     )
+
+    if patch_body.is_paused is False:
+        # Re-populate next_dagrun_* immediately on bulk unpause so the API and
+        # scheduler see fresh values rather than frozen pre-pause snapshots.
+        for dag in dags:
+            session.refresh(dag, ["is_paused"])
+            if dag.is_paused is False:
+                dag.recompute_next_dagrun_fields_after_unpause(session=session)
 
     return DAGCollectionResponse(
         dags=dags,

@@ -4087,3 +4087,68 @@ def test_calculate_dagrun_date_fields(
     assert dag_model.next_dagrun_create_after == next_run_after
     assert dag_model.next_dagrun_partition_key == next_partition_key
     assert dag_model.next_dagrun_partition_date == next_partition_date
+
+
+@pytest.mark.need_serialized_dag
+def test_calculate_dagrun_date_fields_short_circuits_when_paused(dag_maker):
+    """Paused Dags must not have ``next_dagrun_*`` recomputed each parse cycle."""
+    with dag_maker(schedule="@daily", catchup=False, start_date=TEST_DATE):
+        BashOperator(task_id="hi", bash_command="yo")
+
+    run = dag_maker.create_dagrun()
+    serdag = dag_maker.serialized_dag
+    dag_model = dag_maker.dag_model
+
+    # Establish a baseline while unpaused.
+    dag_model.is_paused = False
+    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    baseline_next_dagrun = dag_model.next_dagrun
+    baseline_create_after = dag_model.next_dagrun_create_after
+    assert baseline_next_dagrun is not None  # sanity
+
+    # Pause the Dag and recompute many "parse cycles" later. The fields must not move.
+    dag_model.is_paused = True
+    with time_machine.travel("2030-01-01T00:00:00Z", tick=False):
+        dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    assert dag_model.next_dagrun == baseline_next_dagrun
+    assert dag_model.next_dagrun_create_after == baseline_create_after
+
+
+@pytest.mark.need_serialized_dag
+def test_recompute_next_dagrun_fields_after_unpause(dag_maker, session):
+    """Unpause path must refresh ``next_dagrun_*`` so the API/scheduler see fresh values."""
+    with dag_maker(schedule="@daily", catchup=False, start_date=TEST_DATE):
+        BashOperator(task_id="hi", bash_command="yo")
+
+    run = dag_maker.create_dagrun()
+    dag_model = dag_maker.dag_model
+
+    # Simulate the pause-frozen state.
+    dag_model.is_paused = True
+    dag_model.next_dagrun = None
+    dag_model.next_dagrun_create_after = None
+    session.commit()
+
+    # Unpause and call the helper.
+    dag_model.is_paused = False
+    dag_model.recompute_next_dagrun_fields_after_unpause(session=session)
+    assert dag_model.next_dagrun is not None
+    assert dag_model.next_dagrun_create_after is not None
+
+
+@pytest.mark.need_serialized_dag
+def test_recompute_next_dagrun_fields_after_unpause_noop_when_still_paused(dag_maker, session):
+    """The helper must not touch the fields if the Dag is still paused."""
+    with dag_maker(schedule="@daily", catchup=False, start_date=TEST_DATE):
+        BashOperator(task_id="hi", bash_command="yo")
+
+    dag_maker.create_dagrun()
+    dag_model = dag_maker.dag_model
+    dag_model.is_paused = True
+    dag_model.next_dagrun = None
+    dag_model.next_dagrun_create_after = None
+    session.commit()
+
+    dag_model.recompute_next_dagrun_fields_after_unpause(session=session)
+    assert dag_model.next_dagrun is None
+    assert dag_model.next_dagrun_create_after is None
