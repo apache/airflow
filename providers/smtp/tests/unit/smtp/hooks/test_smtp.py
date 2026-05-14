@@ -546,6 +546,29 @@ class TestSmtpHook:
         assert ehlo_call == call.ehlo()
         assert login_call == call.login(SMTP_LOGIN, SMTP_PASSWORD)
 
+    @pytest.mark.parametrize(
+        ("noop_response", "expected_result"),
+        [
+            pytest.param(
+                (250, b"2.0.0 Ok"),
+                (True, "Connection successfully tested"),
+                id="success",
+            ),
+            pytest.param(
+                (421, b"4.3.0 Service not available"),
+                (False, "Failed to establish connection"),
+                id="failure",
+            ),
+        ],
+    )
+    @patch(smtplib_string)
+    def test_test_connection_handles_noop_responses(self, mock_smtplib, noop_response, expected_result):
+        mock_conn = _create_fake_smtp(mock_smtplib)
+        mock_conn.noop.return_value = noop_response
+
+        assert SmtpHook().test_connection() == expected_result
+        mock_conn.noop.assert_called_once_with()
+
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Async support was added to BaseNotifier in 3.1.0")

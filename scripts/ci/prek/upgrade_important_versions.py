@@ -300,6 +300,14 @@ def get_latest_lts_node_version() -> str:
     return latest_version
 
 
+# Match date-shaped tags published by official images for daily / edge
+# builds, e.g. Alpine's `20260127` or `v20260127`. These parse as valid
+# PEP 440 versions and would otherwise sort above any normal release tag.
+# Pattern: optional leading `v`, then 8 digits (YYYYMMDD), optionally
+# followed by `.N` (revision suffix on the same date).
+_DATE_SHAPED_TAG_RE = re.compile(r"^v?\d{8}(\.\d+)?$")
+
+
 def get_latest_image_version(image: str) -> str:
     """
     Fetch the latest tag released for a DockerHub image.
@@ -340,17 +348,32 @@ def get_latest_image_version(image: str) -> str:
     version_tags = []
     for tag in tags:
         tag_name = tag["name"]
-        # Skip tags like 'latest', 'stable', '0', 'v0', etc.
-        if tag_name in ["latest", "stable", "main", "master", "0", "v0"]:
+        # Skip well-known floating tags.
+        if tag_name in ["latest", "stable", "main", "master", "0", "v0", "edge"]:
+            continue
+        # Skip date-shaped tags (`YYYYMMDD`, `YYYYMMDD.N`, `vYYYYMMDD`).
+        # Several official images publish daily / edge builds under
+        # date-stamped numeric tags (e.g. Alpine's `20260127`). PEP 440
+        # parses those as valid `Version("20260127")` and they sort higher
+        # than any normal release version like `3.23`, so the bumper would
+        # auto-pin the daily edge image instead of the latest release.
+        if _DATE_SHAPED_TAG_RE.match(tag_name):
             continue
         try:
-            # Try to parse as version to filter out non-version tags
-            # Remove leading 'v' if present
+            # Try to parse as version to filter out non-version tags.
+            # Remove leading 'v' if present.
             version_str = tag_name.lstrip("v")
             version_obj = Version(version_str)
+            # Belt-and-braces sanity check: any version whose major component
+            # is implausibly large (≥ 10000) is a date stamp the regex above
+            # missed, not a release. The largest legitimate image major
+            # version on Docker Hub today is in the low hundreds (e.g.
+            # `node:24`), so 10000 is a safe ceiling.
+            if version_obj.major >= 10000:
+                continue
             version_tags.append((version_obj, tag_name))
         except Exception:
-            # Skip tags that don't parse as versions
+            # Skip tags that don't parse as versions.
             continue
 
     if not version_tags:

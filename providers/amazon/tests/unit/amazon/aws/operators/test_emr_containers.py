@@ -162,6 +162,16 @@ class TestEmrContainerOperator:
         assert trigger.waiter_delay == self.emr_container.poll_interval
         assert trigger.attempts == self.emr_container.max_polling_attempts
 
+    def test_execute_complete_returns_job_id_on_success(self):
+        event = {"status": "success", "job_id": "test_job_id"}
+        result = self.emr_container.execute_complete(context=None, event=event)
+        assert result == "test_job_id"
+
+    def test_execute_complete_raises_on_error_event(self):
+        event = {"status": "error", "message": "Job failed", "job_id": "test_job_id"}
+        with pytest.raises(AirflowException, match="Error while running job"):
+            self.emr_container.execute_complete(context=None, event=event)
+
 
 class TestEmrEksCreateClusterOperator:
     def setup_method(self):

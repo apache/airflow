@@ -148,6 +148,7 @@ integrations:
   - integration-name: Google BigQuery
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/bigquery.rst
+      - /docs/apache-airflow-providers-google/operators/cloud/bigquery_routines.rst
     external-doc-url: https://cloud.google.com/bigquery/
     logo: /docs/integration-logos/BigQuery.png
     tags: [gcp]
@@ -310,10 +311,6 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/compute_ssh.rst
     logo: /docs/integration-logos/Compute-Engine.png
     tags: [gcp]
-  - integration-name: Google Data Proc
-    external-doc-url: https://cloud.google.com/dataproc/
-    logo: /docs/integration-logos/Google-Data-Proc.png
-    tags: [gcp]
   - integration-name: Google Dataflow
     external-doc-url: https://cloud.google.com/dataflow/
     how-to-guide:
@@ -326,7 +323,7 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/datafusion.rst
     logo: /docs/integration-logos/Google-Data-Fusion.png
     tags: [gcp]
-  - integration-name: Google Dataplex
+  - integration-name: Google Knowledge Catalog
     external-doc-url: https://cloud.google.com/dataplex/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataplex.rst
@@ -342,7 +339,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataproc_metastore.rst
     tags: [gcp]
-  - integration-name: Google Dataproc
+  - integration-name: Google Managed Service for Apache Spark
     external-doc-url: https://cloud.google.com/dataproc/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataproc.rst
@@ -418,12 +415,6 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst
     logo: /docs/integration-logos/Kubernetes-Engine.png
     tags: [gcp]
-  - integration-name: Google Machine Learning Engine
-    external-doc-url: https://cloud.google.com/vertex-ai/
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/mlengine.rst
-    logo: /docs/integration-logos/AI-Platform.png
-    tags: [gcp]
   - integration-name: Google Cloud Natural Language
     external-doc-url: https://cloud.google.com/natural-language/
     how-to-guide:
@@ -445,7 +436,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/vertex_ai.rst
     tags: [gcp]
-  - integration-name: Google Looker
+  - integration-name: Google Data Studio
     external-doc-url: https://cloud.google.com/looker
     logo: /docs/integration-logos/Cloud-Looker.png
     how-to-guide:
@@ -521,18 +512,20 @@ operators:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
-  - integration-name: Google Dataplex
+  - integration-name: Google Knowledge Catalog
     python-modules:
       - airflow.providers.google.cloud.operators.dataplex
+      - airflow.providers.google.cloud.operators.knowledge_catalog
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.operators.dataprep
   - integration-name: Google Dataproc Metastore
     python-modules:
       - airflow.providers.google.cloud.operators.dataproc_metastore
-  - integration-name: Google Dataproc
+  - integration-name: Google Managed Service for Apache Spark
     python-modules:
       - airflow.providers.google.cloud.operators.dataproc
+      - airflow.providers.google.cloud.operators.managed_spark
   - integration-name: Google Datastore
     python-modules:
       - airflow.providers.google.cloud.operators.datastore
@@ -618,7 +611,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
       - airflow.providers.google.cloud.operators.vertex_ai.feature_store
       - airflow.providers.google.cloud.operators.vertex_ai.ray
-  - integration-name: Google Looker
+  - integration-name: Google Data Studio
     python-modules:
       - airflow.providers.google.cloud.operators.looker
   - integration-name: Google Cloud Dataform
@@ -668,10 +661,10 @@ sensors:
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.sensors.dataprep
-  - integration-name: Google Dataplex
+  - integration-name: Google Knowledge Catalog
     python-modules:
       - airflow.providers.google.cloud.sensors.dataplex
-  - integration-name: Google Dataproc
+  - integration-name: Google Managed Service for Apache Spark
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
   - integration-name: Google Dataproc Metastore
@@ -698,7 +691,7 @@ sensors:
   - integration-name: Google Display&Video 360
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.display_video
-  - integration-name: Google Looker
+  - integration-name: Google Data Studio
     python-modules:
       - airflow.providers.google.cloud.sensors.looker
   - integration-name: Google Cloud Dataform
@@ -784,7 +777,7 @@ hooks:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion
-  - integration-name: Google Dataplex
+  - integration-name: Google Knowledge Catalog
     python-modules:
       - airflow.providers.google.cloud.hooks.dataplex
   - integration-name: Google Dataprep
@@ -793,7 +786,7 @@ hooks:
   - integration-name: Google Dataproc Metastore
     python-modules:
       - airflow.providers.google.cloud.hooks.dataproc_metastore
-  - integration-name: Google Dataproc
+  - integration-name: Google Managed Service for Apache Spark
     python-modules:
       - airflow.providers.google.cloud.hooks.dataproc
   - integration-name: Google Datastore
@@ -817,9 +810,6 @@ hooks:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.hooks.kubernetes_engine
-  - integration-name: Google Machine Learning Engine
-    python-modules:
-      - airflow.providers.google.cloud.hooks.mlengine
   - integration-name: Google Cloud Natural Language
     python-modules:
       - airflow.providers.google.cloud.hooks.natural_language
@@ -908,7 +898,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
       - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
       - airflow.providers.google.cloud.hooks.vertex_ai.ray
-  - integration-name: Google Looker
+  - integration-name: Google Data Studio
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
   - integration-name: Google Cloud Dataform
@@ -966,10 +956,10 @@ triggers:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.triggers.datafusion
-  - integration-name: Google Dataplex
+  - integration-name: Google Knowledge Catalog
     python-modules:
       - airflow.providers.google.cloud.triggers.dataplex
-  - integration-name: Google Dataproc
+  - integration-name: Google Managed Service for Apache Spark
     python-modules:
       - airflow.providers.google.cloud.triggers.dataproc
   - integration-name: Google Cloud Storage (GCS)
@@ -978,9 +968,6 @@ triggers:
   - integration-name: Google Kubernetes Engine
     python-modules:
       - airflow.providers.google.cloud.triggers.kubernetes_engine
-  - integration-name: Google Machine Learning Engine
-    python-modules:
-      - airflow.providers.google.cloud.triggers.mlengine
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.triggers.pubsub
@@ -1342,7 +1329,7 @@ connection-types:
           type: ["string", "null"]
           format: password
   - hook-class-name: airflow.providers.google.cloud.hooks.looker.LookerHook
-    hook-name: "Google Looker"
+    hook-name: "Google Data Studio"
     connection-type: gcp_looker
 
 extra-links:
@@ -1451,11 +1438,6 @@ extra-links:
   - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypesListLink
   - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPInfoTypeDetailsLink
   - airflow.providers.google.cloud.links.data_loss_prevention.CloudDLPPossibleInfoTypesListLink
-  - airflow.providers.google.cloud.links.mlengine.MLEngineModelLink
-  - airflow.providers.google.cloud.links.mlengine.MLEngineModelsListLink
-  - airflow.providers.google.cloud.links.mlengine.MLEngineJobDetailsLink
-  - airflow.providers.google.cloud.links.mlengine.MLEngineJobSListLink
-  - airflow.providers.google.cloud.links.mlengine.MLEngineModelVersionDetailsLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
   - airflow.providers.google.marketing_platform.links.analytics_admin.GoogleAnalyticsPropertyLink
