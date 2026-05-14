@@ -138,7 +138,7 @@ def _setup_event_driven_integration(dot_env_file, tmp_dir):
 
     kafka_conn = json.dumps(
         {
-            "conn_type": "general",
+            "conn_type": "kafka",
             "extra": {
                 "bootstrap.servers": "broker:29092",
                 "group.id": "kafka_default_group",
