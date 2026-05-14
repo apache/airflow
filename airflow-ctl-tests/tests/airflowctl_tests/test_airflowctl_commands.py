@@ -126,6 +126,8 @@ TEST_COMMANDS = [
     # Plugins command
     "plugins list",
     "plugins list-import-errors",
+    # Tasks commands
+    "tasks clear example_bash_operator",
 ]
 
 NO_AUTH_TEST_COMMANDS = [
