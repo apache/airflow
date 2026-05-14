@@ -442,8 +442,8 @@ def task_test(args, dag: DAG | None = None) -> None:
         # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
         from airflow.sdk._shared.secrets_masker import RedactedIO
 
-        with redirect_stdout(RedactedIO()):
-            _run_task(ti=ti, task=sdk_task, run_triggerer=True)
+        with redirect_stdout(RedactedIO()), create_session() as session:
+            _run_task(ti=ti, task=sdk_task, run_triggerer=True, session=session)
         if ti.state == State.FAILED and args.post_mortem:
             debugger = _guess_debugger()
             debugger.set_trace()
