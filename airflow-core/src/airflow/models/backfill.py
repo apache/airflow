@@ -295,6 +295,7 @@ def _do_dry_run(
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
+    dag_run_conf: dict | None = None,
 ) -> Iterable[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -310,7 +311,7 @@ def _do_dry_run(
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
-    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
+    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
 
     dagrun_info_list = _get_info_list(
         dag=dag,
@@ -487,6 +488,7 @@ def _create_backfill_dag_run_partitioned(
         ),
         logical_date=info.logical_date,
         partition_key=info.partition_key,
+        partition_date=info.partition_date,
         data_interval=info.data_interval if info.logical_date else None,
         run_after=info.run_after,
         conf=dag_run_conf,

@@ -7,7 +7,7 @@ Every comment the skill posts comes from this file. The
 templates exist to keep the tone consistent across the project
 and to make the `Pull Request quality criteria` marker show up
 in the same place on every triage comment so
-[`classify.md#c4-already_triaged`](classify.md) can find them.
+the `already_triaged` rows in [`classify-and-act.md#decision-table`](classify-and-act.md#decision-table) (rows 3–4) can find them.
 
 Placeholders:
 
@@ -157,8 +157,8 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 The "Multiple flagged PRs" line is appended to the violations
 list before rendering — do not re-render `<violations>` without
 it. If `flagged_count <= 3` (which shouldn't happen on this
-template per suggested-actions rules), render the close
-comment without this extra line.
+template per [`classify-and-act.md`](classify-and-act.md) row 8),
+render the close comment without this extra line.
 
 ---
 
@@ -279,7 +279,7 @@ in-thread reply.
 Used when the action is `mark-ready-with-ping` (see
 [`actions.md#mark-ready-with-ping`](actions.md)). The PR's
 only outstanding signal is unresolved review threads, the
-[`unresolved_threads_only_likely_addressed`](classify.md#sub-flag-unresolved_threads_only_likely_addressed)
+[`unresolved_threads_only_likely_addressed`](classify-and-act.md#unresolved_threads_only_likely_addressed)
 heuristic fired, and we are promoting the PR to
 `ready for maintainer review` while inviting the original
 reviewer(s) to confirm the resolution.

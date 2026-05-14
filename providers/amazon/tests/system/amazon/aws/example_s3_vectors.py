@@ -19,8 +19,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3_vectors import (
+    S3VectorsCreateIndexOperator,
     S3VectorsCreateVectorBucketOperator,
+    S3VectorsDeleteIndexOperator,
     S3VectorsDeleteVectorBucketOperator,
+    S3VectorsPutVectorsOperator,
+    S3VectorsQueryVectorsOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
 
@@ -36,6 +40,7 @@ DAG_ID = "example_s3_vectors"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
+
 with DAG(
     dag_id=DAG_ID,
     schedule=None,
@@ -45,6 +50,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     bucket_name = f"{env_id}-test-vectors"
+    index_name = f"{env_id}-test-index"
 
     # [START howto_operator_s3vectors_create_vector_bucket]
     create_vector_bucket = S3VectorsCreateVectorBucketOperator(
@@ -52,6 +58,26 @@ with DAG(
         vector_bucket_name=bucket_name,
     )
     # [END howto_operator_s3vectors_create_vector_bucket]
+
+    # [START howto_operator_s3vectors_create_index]
+    create_index = S3VectorsCreateIndexOperator(
+        task_id="create_index",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        data_type="float32",
+        dimension=4,
+        distance_metric="cosine",
+    )
+    # [END howto_operator_s3vectors_create_index]
+
+    # [START howto_operator_s3vectors_put_vectors]
+    put_vectors = S3VectorsPutVectorsOperator(
+        task_id="put_vectors",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        vectors=[{"key": "test-vec-1", "data": {"float32": [0.1, 0.2, 0.3, 0.4]}}],
+    )
+    # [END howto_operator_s3vectors_put_vectors]
 
     # [START howto_operator_s3vectors_delete_vector_bucket]
     delete_vector_bucket = S3VectorsDeleteVectorBucketOperator(
@@ -61,9 +87,32 @@ with DAG(
     )
     # [END howto_operator_s3vectors_delete_vector_bucket]
 
+    # [START howto_operator_s3vectors_query_vectors]
+    query_vectors = S3VectorsQueryVectorsOperator(
+        task_id="query_vectors",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        top_k=3,
+        query_vector={"float32": [0.1, 0.2, 0.3, 0.4]},
+    )
+    # [END howto_operator_s3vectors_query_vectors]
+
+    # [START howto_operator_s3vectors_delete_index]
+    delete_index = S3VectorsDeleteIndexOperator(
+        task_id="delete_index",
+        vector_bucket_name=bucket_name,
+        index_name=index_name,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3vectors_delete_index]
+
     chain(
         test_context,
         create_vector_bucket,
+        create_index,
+        put_vectors,
+        query_vectors,
+        delete_index,
         delete_vector_bucket,
     )
 

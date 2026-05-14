@@ -37,7 +37,6 @@ from requests.exceptions import ConnectionError, HTTPError, Timeout
 from sqlalchemy import create_engine
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowOptionalProviderFeatureException,
     Connection,
     conf,
@@ -586,7 +585,7 @@ class SnowflakeHook(DbApiHook):
         p_key = None
 
         if private_key_content and private_key_file:
-            raise AirflowException(
+            raise ValueError(
                 "The private_key_file and private_key_content extra fields are mutually exclusive. "
                 "Please remove one."
             )

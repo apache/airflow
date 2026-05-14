@@ -45,6 +45,7 @@ Helm Chart for Apache Airflow
 
    production-guide
    service-account-token-examples
+   upgrading-to-airflow-3
 
 .. toctree::
    :hidden:

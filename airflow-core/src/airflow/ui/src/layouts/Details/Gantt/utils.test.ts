@@ -102,8 +102,8 @@ describe("buildMaxTryByTaskId", () => {
 describe("buildGanttRowSegments", () => {
   it("groups items by task id in flat node order", () => {
     const flatNodes: Array<GridTask> = [
-      { depth: 0, id: "t1", is_mapped: false, label: "a" } as GridTask,
-      { depth: 0, id: "t2", is_mapped: false, label: "b" } as GridTask,
+      { depth: 0, id: "t1", is_mapped: false, label: "a" },
+      { depth: 0, id: "t2", is_mapped: false, label: "b" },
     ];
     const items: Array<GanttDataItem> = [
       { taskId: "t2", x: [1_577_836_800_000, 1_577_923_200_000], y: "b" },

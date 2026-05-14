@@ -244,6 +244,70 @@ class TestPutVariable:
         assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
 
 
+class TestGetVariableKeys:
+    @pytest.mark.parametrize(
+        ("prefix", "expected_keys"),
+        [
+            pytest.param(
+                None,
+                {"prod_db_url", "prod_api_key", "dev_debug", "prodXdb", "50%off", "50abc"},
+                id="no-prefix",
+            ),
+            pytest.param("prod_", {"prod_db_url", "prod_api_key"}, id="underscore-is-literal"),
+            pytest.param("50%", {"50%off"}, id="percent-is-literal"),
+            pytest.param("staging_", set(), id="no-match"),
+        ],
+    )
+    def test_get_variable_keys(self, client, session, prefix, expected_keys):
+        Variable.set(key="prod_db_url", value="postgres://...", session=session)
+        Variable.set(key="prod_api_key", value="secret", session=session)
+        Variable.set(key="dev_debug", value="true", session=session)
+        Variable.set(key="prodXdb", value="x", session=session)
+        Variable.set(key="50%off", value="x", session=session)
+        Variable.set(key="50abc", value="x", session=session)
+        session.commit()
+
+        params = {"prefix": prefix} if prefix is not None else {}
+        response = client.get("/execution/variables/keys", params=params)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert set(body["keys"]) == expected_keys
+        assert body["total_entries"] == len(expected_keys)
+
+    def test_get_variable_keys_empty_db(self, client):
+        response = client.get("/execution/variables/keys")
+
+        assert response.status_code == 200
+        assert response.json() == {"keys": [], "total_entries": 0}
+
+    def test_get_variable_keys_paginates_with_limit_and_offset(self, client, session):
+        for i in range(5):
+            Variable.set(key=f"k{i}", value=str(i), session=session)
+        session.commit()
+
+        first = client.get("/execution/variables/keys", params={"limit": 2, "offset": 0})
+        second = client.get("/execution/variables/keys", params={"limit": 2, "offset": 2})
+        third = client.get("/execution/variables/keys", params={"limit": 2, "offset": 4})
+
+        # Order is stable (sorted by key) so pagination is deterministic.
+        assert first.json() == {"keys": ["k0", "k1"], "total_entries": 5}
+        assert second.json() == {"keys": ["k2", "k3"], "total_entries": 5}
+        assert third.json() == {"keys": ["k4"], "total_entries": 5}
+
+    @pytest.mark.parametrize(
+        ("params", "expected_status"),
+        [
+            pytest.param({"limit": 0}, 422, id="limit-below-min"),
+            pytest.param({"limit": 10_001}, 422, id="limit-above-max"),
+            pytest.param({"offset": -1}, 422, id="offset-negative"),
+        ],
+    )
+    def test_get_variable_keys_validates_pagination_bounds(self, client, params, expected_status):
+        response = client.get("/execution/variables/keys", params=params)
+        assert response.status_code == expected_status
+
+
 class TestDeleteVariable:
     @pytest.mark.parametrize(
         ("keys_to_create", "key_to_delete"),

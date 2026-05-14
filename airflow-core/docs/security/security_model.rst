@@ -92,9 +92,9 @@ Non-authenticated UI users
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
 must be assessed and addressed by the Deployment Manager. However, there are exceptions to this.
-The ``/health`` endpoint responsible to get health check updates should be publicly accessible.
-This is because other systems would want to retrieve that information. Another exception is the
-``/login`` endpoint, as the users are expected to be unauthenticated to use it.
+The ``/api/v2/monitor/health`` endpoint responsible for health check updates should be publicly
+accessible. This is because other systems would want to retrieve that information. Another exception
+is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -217,6 +217,13 @@ Processor and Triggerer potentially still has direct database access. Regardless
 have access to all Dags in the Airflow installation and they can
 modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
 modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
+
+This applies to every interface a Dag author's code can reach — including the Task Execution API
+that workers use via the Task SDK. The Execution JWT issued to a running task does **not** carry
+per-Dag authorization: a task holding a valid token can call state-mutating Execution API endpoints
+(triggering Dag runs, clearing Dag runs, reading or writing variables, connections and XComs, etc.)
+for **any** Dag in the installation. The ``ti:self`` token scope restricts cross-task-instance state
+mutation only; it is not a per-Dag access control.
 
 There is an **experimental** multi-team feature in Airflow (``[core] multi_team``) that provides UI-level and
 REST API-level RBAC isolation between teams. However, this feature **does not yet guarantee task-level isolation**.

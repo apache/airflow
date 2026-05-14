@@ -27,6 +27,7 @@ from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
+    AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT,
     AWS_INIT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
     DOCKER_COMPOSE_PATH,
@@ -34,9 +35,12 @@ from airflow_e2e_tests.constants import (
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
     ELASTICSEARCH_PATH,
+    KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     OPENSEARCH_PATH,
+    PROVIDERS_MOUNT_CONTAINER_PATH,
+    PROVIDERS_ROOT_PATH,
     TEST_REPORT_FILE,
     XCOM_BUCKET,
 )
@@ -121,6 +125,94 @@ def _setup_opensearch_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _copy_kafka_files(tmp_dir):
+    """Copy the Kafka compose file and broker init script into the temp directory."""
+    copyfile(KAFKA_DIR_PATH.parent / "kafka.yml", tmp_dir / "kafka.yml")
+
+    kafka_dir = tmp_dir / "kafka"
+    kafka_dir.mkdir()
+    copyfile(KAFKA_DIR_PATH / "update_run.sh", kafka_dir / "update_run.sh")
+    current_permissions = os.stat(kafka_dir / "update_run.sh").st_mode
+    os.chmod(kafka_dir / "update_run.sh", current_permissions | 0o111)
+
+
+def _write_providers_mount_override(tmp_dir: Path, providers: list[str]) -> list[str]:
+    """Write a docker-compose override that bind-mounts in-tree provider sources.
+
+    Each entry in ``providers`` is a provider id with dot-separated path segments (e.g.
+    ``"apache.kafka"``). The host source ``providers/<dotted/as/slashes>`` is mounted
+    read-only into every airflow service at ``<PROVIDERS_MOUNT_CONTAINER_PATH>/<dashed>``.
+    Returns the list of in-container paths suitable for ``_PIP_ADDITIONAL_REQUIREMENTS``
+    so pip installs the in-tree (latest, possibly unreleased) provider instead of the
+    PyPI release.
+    """
+    in_container_paths: list[str] = []
+    volume_entries: list[str] = []
+    for provider_id in providers:
+        host_path = PROVIDERS_ROOT_PATH / provider_id.replace(".", "/")
+        if not host_path.is_dir():
+            raise RuntimeError(f"Provider source directory not found: {host_path}")
+        container_path = f"{PROVIDERS_MOUNT_CONTAINER_PATH}/{provider_id.replace('.', '-')}"
+        in_container_paths.append(container_path)
+        volume_entries.append(f"      - {host_path}:{container_path}:ro")
+
+    volumes_block = "\n".join(volume_entries)
+    services_block = "\n".join(
+        f"  {svc}:\n    volumes:\n{volumes_block}" for svc in AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT
+    )
+    (tmp_dir / "providers-mount.yml").write_text(f"---\nservices:\n{services_block}\n")
+    return in_container_paths
+
+
+def _setup_event_driven_integration(dot_env_file, tmp_dir):
+    _copy_kafka_files(tmp_dir)
+
+    # Install kafka and common-messaging providers from the in-tree sources so the
+    # test exercises the latest code even before a PyPI release is cut.
+    provider_paths = _write_providers_mount_override(tmp_dir, ["apache.kafka", "common.messaging"])
+
+    kafka_conn = json.dumps(
+        {
+            "conn_type": "kafka",
+            "extra": {
+                "bootstrap.servers": "broker:29092",
+                "group.id": "kafka_default_group",
+                "security.protocol": "PLAINTEXT",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "latest",
+            },
+        }
+    )
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        f"AIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n"
+        f"_PIP_ADDITIONAL_REQUIREMENTS={' '.join(provider_paths)}\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _create_kafka_topics(compose_instance):
+    """Create Kafka topics required by the event-driven Dag."""
+    for topic in ("fizz_buzz", "dlq"):
+        compose_instance.exec_in_container(
+            command=[
+                "kafka-topics",
+                "--bootstrap-server",
+                "broker:29092",
+                "--create",
+                "--topic",
+                topic,
+                "--partitions",
+                "1",
+                "--replication-factor",
+                "1",
+                "--if-not-exists",
+            ],
+            service_name="broker",
+        )
+
+
 def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     _copy_localstack_files(tmp_dir)
 
@@ -180,6 +272,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "xcom_object_storage":
         compose_file_names.append("localstack.yml")
         _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "event_driven":
+        compose_file_names.extend(["kafka.yml", "providers-mount.yml"])
+        _setup_event_driven_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -203,6 +298,10 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.exec_in_container(
             command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
         )
+
+        if E2E_TEST_MODE == "event_driven":
+            console.print("[yellow]Creating Kafka topics...")
+            _create_kafka_topics(_E2ETestState.compose_instance)
 
     except Exception:
         console.print("[red]Failed to start docker compose")
@@ -263,6 +362,12 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
             _print_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
             _E2ETestState.compose_instance.stop()
+
+
+@pytest.fixture(scope="session")
+def compose_instance():
+    """Provide access to the running Docker Compose instance."""
+    return _E2ETestState.compose_instance
 
 
 def generate_test_report(results):

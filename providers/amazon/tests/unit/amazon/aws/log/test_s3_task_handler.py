@@ -38,7 +38,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
 try:
     from airflow.sdk.timezone import datetime
@@ -295,7 +295,17 @@ class TestS3TaskHandler:
 
         expected_s3_uri = f"s3://bucket/{self.remote_log_key}"
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_2_PLUS:
+            log = list(log)
+            assert log[0].event == "::group::Log message source details"
+            assert expected_s3_uri in log[1].event
+            assert log[3].event == "::endgroup::"
+            assert log[4].event == "Log line"
+            assert log[5].event == "Line 2"
+            assert log[6].event == "Log line 3"
+            assert log[7].event == "Line 4"
+            assert metadata == {"end_of_log": True, "log_pos": 4}
+        elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
             assert expected_s3_uri in log[0].sources

@@ -307,6 +307,23 @@ class TestCliTasks:
         with redirect_stdout(io.StringIO()):
             task_command.task_render(args)
 
+    @pytest.mark.db_test
+    def test_task_render_handles_expired_dagrun(self, dag_maker, session):
+        """Test that model_validate extracts state from an expired DagRun instance."""
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DagRunPydantic
+        from airflow.utils.state import DagRunState
+
+        with dag_maker(dag_id="test_expired", session=session):
+            pass
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        session.commit()
+        # After commit, SQLAlchemy expires all attributes — _state is no longer in insp.dict
+        # but the instance is still attached, so direct access triggers a lazy reload.
+
+        pydantic_dr = DagRunPydantic.model_validate(dr)
+        assert pydantic_dr.state == DagRunState.RUNNING
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render(self):
         """

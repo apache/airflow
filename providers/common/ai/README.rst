@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``0.1.1``
+Release: ``0.2.0``
 
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.2.0/>`_.
 
 Installation
 ------------
@@ -98,4 +98,4 @@ Extra           Dependencies
 ==============  =============================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.2.0/changelog.html>`_.

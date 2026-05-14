@@ -49,8 +49,9 @@ on a still-open PR is a worse state than no comment at all.
 ### If the PR is already a draft
 
 Skip the `gh pr ready --undo` step. Post only the comment. The
-`suggested-actions` logic should have chosen `comment` instead
-in this case, but double-check here as a guard.
+decision table in [`classify-and-act.md`](classify-and-act.md)
+should have chosen `comment` instead in this case, but
+double-check here as a guard.
 
 ### Collaborator-authored PRs
 
@@ -111,13 +112,15 @@ recover from.
 
 ---
 
+<a id="mark-ready"></a>
+
 ## `mark-ready` — add `ready for maintainer review` label
 
 **Mandatory pre-mutation check.** Before adding the label, the
 implementation MUST verify there are no GitHub Actions workflow
 runs awaiting approval for the PR's head SHA. The classifier's
 rollup-state and real-CI-context checks
-(see [`classify.md#verifying-real-ci-ran`](classify.md)) are a
+(see [`classify-and-act.md#real-ci-guard`](classify-and-act.md)) are a
 first line of defense; this REST check is the authoritative
 second line that catches the case where the classifier was
 right at fetch time but a new push or a freshly-indexed run
@@ -148,7 +151,7 @@ gh pr edit <N> --repo <repo> --add-label "ready for maintainer review"
 
 When the guard refuses, the implementation should **reclassify
 the PR as `pending_workflow_approval`** (see
-[`classify.md#c1-pending_workflow_approval`](classify.md)) and
+[`classify-and-act.md#decision-table`](classify-and-act.md), row 1) and
 route to the workflow-approval flow rather than silently dropping
 the mutation.
 
@@ -159,12 +162,14 @@ error; this is the only action of the skill whose sole purpose
 
 ---
 
+<a id="mark-ready-with-ping"></a>
+
 ## `mark-ready-with-ping` — promote a likely-addressed PR + ping reviewers
 
 A composite of `mark-ready` plus a `ping` comment. Used when
 the only `deterministic_flag` signal is unresolved review
 threads **and** the
-[`unresolved_threads_only_likely_addressed`](classify.md#sub-flag-unresolved_threads_only_likely_addressed)
+[`unresolved_threads_only_likely_addressed`](classify-and-act.md#unresolved_threads_only_likely_addressed)
 sub-flag is true (the author has engaged with every unresolved
 thread via a post-comment commit or an in-thread reply).
 
@@ -288,9 +293,10 @@ branch into the PR head; the merge fails deterministically
 when the conflicts can't be auto-resolved, returns `422`, and
 burns a round-trip. The skill empirically hit this on every
 conflicting PR it tried during testing on `apache/airflow`.
-The `suggested-actions.md` rules route CONFLICTING PRs to
-`draft` instead — if a `rebase` action arrives here despite
-that, treat the conflict state itself as a hard refuse.
+The decision table in [`classify-and-act.md`](classify-and-act.md)
+routes CONFLICTING PRs to `draft` (row 9) instead — if a `rebase`
+action arrives here despite that, treat the conflict state itself
+as a hard refuse.
 
 Pre-flight guard:
 

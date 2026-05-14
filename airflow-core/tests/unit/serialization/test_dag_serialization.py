@@ -82,6 +82,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
+    LazyDeserializedDAG,
     OperatorSerialization,
     _XComRef,
 )
@@ -114,6 +115,7 @@ from tests_common.test_utils.timetables import (
     cron_timetable,
     delta_timetable,
 )
+from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -257,6 +259,7 @@ serialized_simple_dag_ground_truth = {
                         },
                     },
                     "doc_md": "### Task Tutorial Documentation",
+                    "has_retry_policy": False,
                     "_needs_expansion": False,
                     "inlets": [
                         {
@@ -298,6 +301,7 @@ serialized_simple_dag_ground_truth = {
                     "task_type": "CustomOperator",
                     "_operator_name": "@custom",
                     "_task_module": "tests_common.test_utils.mock_operators",
+                    "has_retry_policy": False,
                     "_needs_expansion": False,
                 },
             },
@@ -702,6 +706,43 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @pytest.mark.db_test
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_make_equal_hash_with_dag_processor(self):
+        dagbag1 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        hash_result1 = LazyDeserializedDAG.from_dag(next(iter(dagbag1.dags.values()))).hash
+
+        dagbag2 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        hash_result2 = LazyDeserializedDAG.from_dag(next(iter(dagbag2.dags.values()))).hash
+
+        assert hash_result1 == hash_result2
+
+    @pytest.mark.db_test
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_hash_succeeds_for_dag_with_mixed_primitive_key_template_field(self):
+        """SerializedDagModel.hash() must not raise on a template field whose dict has mixed-type primitive keys.
+
+        Building the Dag twice via ``create_dag()`` produces independent Dag and
+        operator instances, so the hashes must also be equal across calls —
+        otherwise the serialization path is leaking non-deterministic state
+        (memory addresses, dict ordering, etc.) into the hash.
+        """
+        from airflow.providers.standard.operators.python import PythonOperator
+
+        def create_dag():
+            with DAG(dag_id="dag_mixed_keys", schedule=None, start_date=datetime(2024, 1, 1)) as dag:
+                PythonOperator(
+                    task_id="op",
+                    python_callable=empty_function,
+                    op_kwargs={"data": {1: "a", "b": "c", None: "z", 2: "d"}, empty_function: "t"},
+                )
+            return dag
+
+        first_hash = LazyDeserializedDAG.from_dag(create_dag()).hash
+        second_hash = LazyDeserializedDAG.from_dag(create_dag()).hash
+
+        assert first_hash == second_hash
+
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
@@ -815,6 +856,8 @@ class TestStringifiedDAGs:
                 "on_failure_fail_dagrun",
                 "_needs_expansion",
                 "_is_sensor",
+                # trigger_kwargs is kept as raw JSON after deserialization; checked separately
+                "start_trigger_args",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, SerializedMappedOperator)
@@ -854,6 +897,20 @@ class TestStringifiedDAGs:
             assert task.resources is None or task.resources == []
         else:
             assert serialized_task.resources == task.resources
+
+        # start_trigger_args: trigger_kwargs is kept as raw BaseSerialization-encoded form
+        # after deserialization. Compare the encoded forms directly — s.trigger_kwargs is
+        # exactly BaseSerialization.serialize(o.trigger_kwargs) since _encode_start_trigger_args
+        # serializes it and _decode_start_trigger_args keeps it raw.
+        if task.start_trigger_args is not None:
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            s = serialized_task.start_trigger_args
+            o = task.start_trigger_args
+            assert s.trigger_cls == o.trigger_cls
+            assert s.next_method == o.next_method
+            assert s.timeout == o.timeout
+            assert s.trigger_kwargs == BaseSerialization.serialize(o.trigger_kwargs or {})
 
         assert [ensure_serialized_asset(i) for i in task.inlets] == serialized_task.inlets
         assert [ensure_serialized_asset(o) for o in task.outlets] == serialized_task.outlets
@@ -1567,6 +1624,7 @@ class TestStringifiedDAGs:
             "has_on_retry_callback": False,
             "has_on_skipped_callback": False,
             "has_on_success_callback": False,
+            "has_retry_policy": False,
             "ignore_first_depends_on_past": False,
             "is_setup": False,
             "is_teardown": False,
@@ -2626,6 +2684,42 @@ class TestStringifiedDAGs:
             "timeout": None,
         }
         assert tasks[1]["__var"]["start_from_trigger"] is True
+
+    def test_trigger_kwargs_not_deserialised_through_serdag(self):
+        """trigger_kwargs and next_kwargs are kept as raw BaseSerialization JSON when loading a serialized DAG."""
+
+        class TestOperator(BaseOperator):
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
+                trigger_kwargs={"delta": timedelta(seconds=2)},
+                next_method="execute_complete",
+                next_kwargs={"resume_after": timedelta(seconds=5)},
+                timeout=None,
+            )
+            start_from_trigger = True
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            def execute_complete(self):
+                pass
+
+        dag = DAG(dag_id="test_dag_kwargs_raw", schedule=None, start_date=datetime(2023, 11, 9))
+        with dag:
+            TestOperator(task_id="test_task")
+
+        serialized = DagSerialization.to_dict(dag)
+        deserialized_dag = DagSerialization.from_dict(serialized)
+
+        task = deserialized_dag.get_task("test_task")
+        assert task.start_trigger_args.trigger_kwargs == {
+            "__type": "dict",
+            "__var": {"delta": {"__type": "timedelta", "__var": 2.0}},
+        }
+        assert task.start_trigger_args.next_kwargs == {
+            "__type": "dict",
+            "__var": {"resume_after": {"__type": "timedelta", "__var": 5.0}},
+        }
 
 
 def test_kubernetes_optional():

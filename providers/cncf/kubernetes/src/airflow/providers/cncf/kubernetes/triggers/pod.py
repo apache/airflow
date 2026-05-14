@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import traceback
 from collections.abc import AsyncIterator
@@ -288,12 +289,10 @@ class KubernetesPodTrigger(BaseTrigger):
         finally:
             # Stop watching events
             events_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await events_task
-            except asyncio.CancelledError:
-                pass
 
-        return self.define_container_state(await self._get_pod())
+        return self.define_pod_container_state(await self._get_pod())
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
         """
@@ -308,8 +307,8 @@ class KubernetesPodTrigger(BaseTrigger):
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
         while True:
             pod = await self._get_pod()
-            container_state = self.define_container_state(pod)
-            if container_state == ContainerState.TERMINATED:
+            pod_container_state = self.define_pod_container_state(pod)
+            if pod_container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
                     {
                         "status": "success",
@@ -319,7 +318,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         **self.trigger_kwargs,
                     }
                 )
-            if container_state == ContainerState.FAILED:
+            if pod_container_state == ContainerState.FAILED:
                 return TriggerEvent(
                     {
                         "status": "failed",
@@ -508,6 +507,19 @@ class KubernetesPodTrigger(BaseTrigger):
                     return state
                 return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
         return ContainerState.UNDEFINED
+
+    def define_pod_container_state(self, pod: V1Pod) -> ContainerState:
+        """Infer workload state from terminal pod phase first, then from the base container state."""
+        if pod.status is None:
+            return ContainerState.UNDEFINED
+
+        if pod.status.phase == PodPhase.SUCCEEDED:
+            return ContainerState.TERMINATED
+
+        if pod.status.phase == PodPhase.FAILED:
+            return ContainerState.FAILED
+
+        return self.define_container_state(pod)
 
     @staticmethod
     def should_wait(pod_phase: PodPhase, container_state: ContainerState) -> bool:
