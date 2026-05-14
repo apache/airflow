@@ -45,21 +45,39 @@ if TYPE_CHECKING:
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DISALLOWED_SQL_TOKENS = (";", "--", "/*", "*/")
 
+_QUERY_TAG_FIELDS = {
+    "airflow_dag_id": ("dag", "dag_id"),
+    "airflow_task_id": ("task", "task_id"),
+    "airflow_run_id": ("run_id", None),
+}
+
+_QUERY_TAG_ESCAPE_SEQUENCES = {
+    "\\": "\\\\",
+    ",": "\\,",
+    ":": "\\:",
+}
+
 
 def _escape_query_tag_value(value: str) -> str:
-    """Escape Databricks query-tag separators in a tag value."""
-    return str(value).replace("\\", "\\\\").replace(",", "\\,").replace(":", "\\:")
+    escaped = str(value)
+
+    for char, replacement in _QUERY_TAG_ESCAPE_SEQUENCES.items():
+        escaped = escaped.replace(char, replacement)
+
+    return escaped
 
 
 def _format_query_tags(context: Context) -> str:
-    """Format Airflow context metadata into databricks-sql-connector query tags."""
     tags = []
-    if "dag" in context and getattr(context["dag"], "dag_id", None):
-        tags.append(f"airflow_dag_id:{_escape_query_tag_value(context['dag'].dag_id)}")
-    if "task" in context and getattr(context["task"], "task_id", None):
-        tags.append(f"airflow_task_id:{_escape_query_tag_value(context['task'].task_id)}")
-    if "run_id" in context and context["run_id"]:
-        tags.append(f"airflow_run_id:{_escape_query_tag_value(context['run_id'])}")
+
+    for tag_name, (context_key, attr) in _QUERY_TAG_FIELDS.items():
+        value = context.get(context_key)
+
+        if attr:
+            value = getattr(value, attr, None)
+
+        if value:
+            tags.append(f"{tag_name}:{_escape_query_tag_value(value)}")
 
     return ",".join(tags)
 
