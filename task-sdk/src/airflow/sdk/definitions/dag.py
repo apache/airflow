@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias, TypeVar
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
+    from sqlalchemy.orm import Session
     from typing_extensions import Self, TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
@@ -1438,7 +1439,7 @@ class DAG:
                                 ti.set_state(TaskInstanceState.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
-                                _run_task(ti=ti, task=task, run_triggerer=True)
+                                _run_task(ti=ti, task=task, run_triggerer=True, session=session)
                         except Exception:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -1460,6 +1461,7 @@ def _run_task(
     *,
     ti: SchedulerTaskInstance,
     task: Operator,
+    session: Session,
     run_triggerer: bool = False,
 ) -> TaskRunResult | None:
     """
@@ -1467,10 +1469,13 @@ def _run_task(
 
     Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
     possible.  This function is only meant for the `dag.test` function as a helper function.
+
+    The DEFERRED → SCHEDULED transition needed to resume a task after running its
+    trigger inline writes through the caller-supplied ``session`` — task-sdk must not
+    open its own DB session (AIP-72 server-client boundary).
     """
     from airflow.sdk._shared.module_loading import import_string
     from airflow.sdk.serde import deserialize, serialize
-    from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
@@ -1481,7 +1486,6 @@ def _run_task(
             from airflow.sdk.api.datamodels._generated import TaskInstance as TaskInstanceSDK
             from airflow.sdk.execution_time.comms import DeferTask
             from airflow.sdk.execution_time.supervisor import run_task_in_process
-            from airflow.serialization.serialized_objects import create_scheduler_operator
 
             # The API Server expects the task instance to be in QUEUED state before
             # it is run.
@@ -1499,7 +1503,6 @@ def _run_task(
             taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)
             msg = taskrun_result.msg
             ti.set_state(taskrun_result.ti.state)
-            ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
                 # API Server expects the task instance to be in QUEUED state before
@@ -1520,10 +1523,12 @@ def _run_task(
                 ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
-                # Set the state to SCHEDULED so that the task can be resumed.
-                with create_session() as session:
-                    ti.state = TaskInstanceState.SCHEDULED
-                    session.add(ti)
+                # Set the state to SCHEDULED so that the task can be resumed. The
+                # next iteration's run_task_in_process reads ti.state via the API
+                # server, so this must be committed before the loop continues.
+                ti.state = TaskInstanceState.SCHEDULED
+                session.add(ti)
+                session.commit()
                 continue
 
             break

@@ -22,7 +22,7 @@ import copy
 from typing import TYPE_CHECKING
 
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.session import NEW_SESSION
+from airflow.utils.session import NEW_SESSION, create_session
 
 from tests_common.test_utils.compat import SerializedBaseOperator, SerializedMappedOperator
 from tests_common.test_utils.dag import create_scheduler_dag
@@ -141,7 +141,13 @@ def run_task_instance(
         **session_kwargs,
     )
     # Some tests don't even save the ti at all, in which case new_ti is None.
-    taskrun_result = _run_task(ti=new_ti or ti, task=task)
+    # ``_run_task`` requires a real session for the inline DEFERRED → SCHEDULED
+    # transition (AIP-72: task-sdk does not open its own DB session).
+    if session is not None:
+        taskrun_result = _run_task(ti=new_ti or ti, task=task, session=session)
+    else:
+        with create_session() as run_task_session:
+            taskrun_result = _run_task(ti=new_ti or ti, task=task, session=run_task_session)
     ti.refresh_from_db(**session_kwargs)  # Some tests expect side effects.
     if not taskrun_result:
         raise RuntimeError("task failed to finish with a result")
