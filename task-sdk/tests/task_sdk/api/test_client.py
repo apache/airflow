@@ -1280,6 +1280,63 @@ class TestDagRunOperations:
 
         assert result == OKResponse(ok=True)
 
+    def test_trigger_treats_ambiguous_request_error_as_success_when_dag_run_exists(self):
+        requests: list[tuple[str, str]] = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append((request.method, request.url.path))
+            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
+                raise httpx.ReadError("Trigger response was lost", request=request)
+            if request.method == "GET" and request.url.path == "/dag-runs/test_trigger/test_run_id":
+                return httpx.Response(status_code=200, json={"detail": "exists"})
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
+
+        assert result == OKResponse(ok=True)
+        assert requests == [
+            ("POST", "/dag-runs/test_trigger/test_run_id"),
+            ("GET", "/dag-runs/test_trigger/test_run_id"),
+        ]
+
+    def test_trigger_reraises_ambiguous_request_error_when_dag_run_is_missing(self):
+        requests: list[tuple[str, str]] = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append((request.method, request.url.path))
+            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
+                raise httpx.ReadError("Trigger response was lost", request=request)
+            if request.method == "GET" and request.url.path == "/dag-runs/test_trigger/test_run_id":
+                return httpx.Response(status_code=404, json={"detail": "Dag run not found"})
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(httpx.ReadError, match="Trigger response was lost"):
+            client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id")
+
+        assert requests == [
+            ("POST", "/dag-runs/test_trigger/test_run_id"),
+            ("GET", "/dag-runs/test_trigger/test_run_id"),
+        ]
+
+    def test_trigger_reraises_ambiguous_request_error_when_resetting_dag_run(self):
+        requests: list[tuple[str, str]] = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append((request.method, request.url.path))
+            if request.method == "POST" and request.url.path == "/dag-runs/test_trigger/test_run_id":
+                raise httpx.ReadError("Trigger response was lost", request=request)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(httpx.ReadError, match="Trigger response was lost"):
+            client.dag_runs.trigger(dag_id="test_trigger", run_id="test_run_id", reset_dag_run=True)
+
+        assert requests == [("POST", "/dag-runs/test_trigger/test_run_id")]
+
     def test_trigger_conflict(self):
         """Test that if the dag run already exists, the client returns an error when default reset_dag_run=False"""
 
