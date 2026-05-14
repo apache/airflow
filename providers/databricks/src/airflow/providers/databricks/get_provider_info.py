@@ -85,6 +85,22 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.databricks.operators.databricks_workflow"],
             },
         ],
+        "asset-uris": [
+            {
+                "schemes": ["databricks"],
+                "handler": "airflow.providers.databricks.assets.databricks.sanitize_uri",
+                "factory": "airflow.providers.databricks.assets.databricks.create_asset",
+                "to_openlineage_converter": "airflow.providers.databricks.assets.databricks.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["databricks"],
+                "handler": "airflow.providers.databricks.assets.databricks.sanitize_uri",
+                "factory": "airflow.providers.databricks.assets.databricks.create_asset",
+                "to_openlineage_converter": "airflow.providers.databricks.assets.databricks.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Databricks",

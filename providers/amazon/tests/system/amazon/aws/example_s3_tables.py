@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
     S3TablesDeleteTableOperator,
+    S3TablesPutTableBucketPolicyOperator,
     S3TablesRenameTableOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, chain
@@ -81,6 +82,15 @@ with DAG(
         table_bucket_name=bucket_name,
     )
     # [END howto_operator_s3tables_create_table_bucket]
+
+    # [START howto_operator_s3tables_put_table_bucket_policy]
+    put_policy = S3TablesPutTableBucketPolicyOperator(
+        task_id="put_table_bucket_policy",
+        table_bucket_arn=create_table_bucket.output,
+        resource_policy='{"Version":"2012-10-17","Statement":[]}',
+    )
+    # [END howto_operator_s3tables_put_table_bucket_policy]
+
     # [START howto_operator_s3tables_create_namespace]
     setup_namespace = S3TablesCreateNamespaceOperator(
         task_id="create_namespace",
@@ -140,6 +150,7 @@ with DAG(
         # TEST SETUP
         test_context,
         create_table_bucket,
+        put_policy,
         setup_namespace,
         # TEST BODY
         create_table,

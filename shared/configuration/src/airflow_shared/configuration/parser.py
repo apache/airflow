@@ -1577,12 +1577,12 @@ class AirflowConfigParser(ConfigParser):
             raise ValueError(f"The value {section}/{key} should be set!")
         return value
 
-    def read(
+    def read(  # type: ignore[override]
         self,
         filenames: str | bytes | os.PathLike | Iterable[str | bytes | os.PathLike],
         encoding: str | None = None,
     ) -> list[str]:
-        return super().read(filenames=filenames, encoding=encoding)
+        return super().read(filenames=filenames, encoding=encoding)  # type: ignore[arg-type,return-value]
 
     def read_dict(  # type: ignore[override]
         self, dictionary: dict[str, dict[str, Any]], source: str = "<dict>"

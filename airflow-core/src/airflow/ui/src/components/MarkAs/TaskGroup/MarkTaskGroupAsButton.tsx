@@ -47,7 +47,7 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled && groupTaskInstance.state !== "failed" },
+    { enabled: isHotkeyEnabled },
   );
 
   useHotkeys(
@@ -56,7 +56,7 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled && groupTaskInstance.state !== "success" },
+    { enabled: isHotkeyEnabled },
   );
 
   return (
@@ -96,19 +96,17 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
               <Tooltip
                 closeDelay={100}
                 content={content}
-                disabled={!isHotkeyEnabled || groupTaskInstance.state === menuState}
+                disabled={!isHotkeyEnabled}
                 key={menuState}
                 openDelay={100}
               >
+                {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item
                   asChild
-                  disabled={groupTaskInstance.state === menuState}
                   key={menuState}
                   onClick={() => {
-                    if (groupTaskInstance.state !== menuState) {
-                      setState(menuState);
-                      onOpen();
-                    }
+                    setState(menuState);
+                    onOpen();
                   }}
                   value={menuState}
                 >

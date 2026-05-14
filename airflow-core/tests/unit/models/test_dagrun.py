@@ -39,6 +39,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -1147,6 +1148,86 @@ class TestDagRun:
             session.rollback()
             session.close()
 
+    @pytest.mark.parametrize(
+        ("queued_at_offset", "expected"),
+        [
+            (datetime.timedelta(seconds=30), True),
+            (None, False),
+        ],
+    )
+    def test_emit_first_task_start_delay(self, session, queued_at_offset, expected, testing_dag_bundle):
+        """
+        Tests that `dagrun.first_task_start_delay` measures `queued_at -> first_start_date`
+        and is only emitted when `queued_at` is set and the delta is positive.
+        """
+        dag = DAG(
+            dag_id="test_emit_first_task_start_delay",
+            start_date=DEFAULT_DATE,
+            schedule="*/5 * * * *",
+        )
+        dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
+        expected_stat_tags = {"dag_id": dag.dag_id, "run_type": DagRunType.SCHEDULED}
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        try:
+            info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
+            orm_dag_kwargs = {
+                "dag_id": dag.dag_id,
+                "bundle_name": "testing",
+                "has_task_concurrency_limits": False,
+                "is_stale": False,
+            }
+            if info is not None:
+                orm_dag_kwargs.update(
+                    {
+                        "next_dagrun": info.logical_date,
+                        "next_dagrun_data_interval": info.data_interval,
+                        "next_dagrun_create_after": info.run_after,
+                    },
+                )
+            orm_dag = DagModel(**orm_dag_kwargs)
+            session.merge(orm_dag)
+            session.flush()
+
+            ti_start_date = dag.start_date + datetime.timedelta(minutes=1)
+            queued_at = ti_start_date - queued_at_offset if queued_at_offset else None
+
+            dag_run = scheduler_dag.create_dagrun(
+                run_id=scheduler_dag.timetable.generate_run_id(
+                    run_type=DagRunType.SCHEDULED,
+                    run_after=dag.start_date,
+                    data_interval=infer_automated_data_interval(scheduler_dag.timetable, dag.start_date),
+                ),
+                run_type=DagRunType.SCHEDULED,
+                state=DagRunState.SUCCESS,
+                logical_date=dag.start_date,
+                data_interval=infer_automated_data_interval(scheduler_dag.timetable, dag.start_date),
+                run_after=dag.start_date,
+                start_date=dag.start_date,
+                triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
+            )
+            dag_run.queued_at = queued_at
+            ti = dag_run.get_task_instance(dag_task.task_id, session)
+            ti.set_state(TaskInstanceState.SUCCESS, session)
+            ti.start_date = ti_start_date
+            session.flush()
+
+            with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
+                dag_run.update_state(session)
+
+            start_delay_call = call("dagrun.first_task_start_delay", mock.ANY, tags=expected_stat_tags)
+            if expected:
+                expected_delta = ti_start_date - queued_at
+                assert (
+                    call("dagrun.first_task_start_delay", expected_delta, tags=expected_stat_tags)
+                    in stats_mock.mock_calls
+                )
+            else:
+                assert start_delay_call not in stats_mock.mock_calls
+        finally:
+            session.rollback()
+            session.close()
+
     def test_states_sets(self, dag_maker, session):
         """
         Tests that adding State.failed_states and State.success_states work as expected.
@@ -1446,6 +1527,29 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
             .order_by(TI.map_index)
         ).all()
         assert indices == [0, 1, 2, 3]
+
+
+def test_verify_integrity_handles_stale_data_error(dag_maker, session):
+    """Test that StaleDataError during _create_task_instances is caught and session is rolled back."""
+    with dag_maker("test_stale_data_error_dag", session=session) as dag:
+        task = EmptyOperator(task_id="task1")
+
+    dr = dag_maker.create_dagrun()
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+
+    with mock.patch.object(session, "flush", side_effect=StaleDataError()):
+        with mock.patch.object(session, "rollback") as mock_rollback:
+            # Should not raise — StaleDataError must be caught gracefully.
+            # Call _create_task_instances directly with a non-empty task list so the
+            # test exercises the session.flush() → StaleDataError → session.rollback() path.
+            dr._create_task_instances(
+                dag_id=dag.dag_id,
+                tasks=[TI(task=task, run_id=dr.run_id, dag_version_id=dag_version_id)],
+                created_counts={"EmptyOperator": 1},
+                hook_is_noop=False,
+                session=session,
+            )
+            mock_rollback.assert_called_once()
 
 
 def test_mapped_literal_verify_integrity(dag_maker, session):

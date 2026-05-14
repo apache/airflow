@@ -601,6 +601,12 @@ class AssetsByAliasResult(BaseModel):
         )
 
 
+class VariableKeysResult(BaseModel):
+    keys: list[str]
+    total_entries: int
+    type: Literal["VariableKeysResult"] = "VariableKeysResult"
+
+
 class DagRunResult(DagRun):
     type: Literal["DagRunResult"] = "DagRunResult"
 
@@ -809,6 +815,7 @@ ToTask = Annotated[
     | TaskBreadcrumbsResult
     | TaskStatesResult
     | VariableResult
+    | VariableKeysResult
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
@@ -1037,6 +1044,13 @@ class GetVariable(BaseModel):
     type: Literal["GetVariable"] = "GetVariable"
 
 
+class GetVariableKeys(BaseModel):
+    prefix: str | None = None
+    limit: int = 1000
+    offset: int = 0
+    type: Literal["GetVariableKeys"] = "GetVariableKeys"
+
+
 class PutVariable(BaseModel):
     key: str
     value: str | None
@@ -1254,6 +1268,7 @@ ToSupervisor = Annotated[
     | GetTaskBreadcrumbs
     | GetTaskStates
     | GetVariable
+    | GetVariableKeys
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem

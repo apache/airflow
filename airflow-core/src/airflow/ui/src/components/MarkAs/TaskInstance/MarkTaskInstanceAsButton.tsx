@@ -47,7 +47,7 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled && taskInstance.state !== "failed" },
+    { enabled: isHotkeyEnabled },
   );
 
   useHotkeys(
@@ -56,7 +56,7 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled && taskInstance.state !== "success" },
+    { enabled: isHotkeyEnabled },
   );
 
   return (
@@ -96,19 +96,17 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
               <Tooltip
                 closeDelay={100}
                 content={content}
-                disabled={!isHotkeyEnabled || taskInstance.state === menuState}
+                disabled={!isHotkeyEnabled}
                 key={menuState}
                 openDelay={100}
               >
+                {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item
                   asChild
-                  disabled={taskInstance.state === menuState}
                   key={menuState}
                   onClick={() => {
-                    if (taskInstance.state !== menuState) {
-                      setState(menuState);
-                      onOpen();
-                    }
+                    setState(menuState);
+                    onOpen();
                   }}
                   value={menuState}
                 >
