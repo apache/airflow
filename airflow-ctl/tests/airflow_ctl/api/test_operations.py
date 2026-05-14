@@ -1140,6 +1140,27 @@ class TestDagOperations:
         assert response == self.dag_run_response
 
 
+class TestTasksOperations:
+    dag_id = "dag_id"
+    task_instance_response = Mock()
+
+    def test_clear(self):
+        from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, TaskInstanceCollectionResponse
+
+        clear_body = ClearTaskInstancesBody(dry_run=True, task_ids=["task_1", "task_2"])
+        expected_response = TaskInstanceCollectionResponse(task_instances=[], total_entries=0)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            # Ensure body is correctly serialized
+            assert json.loads(request.content.decode()) == clear_body.model_dump(exclude_unset=True, by_alias=True)
+            return httpx.Response(200, json=json.loads(expected_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.clear(dag_id=self.dag_id, body=clear_body)
+        assert response == expected_response
+
+
 class TestDagRunOperations:
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
