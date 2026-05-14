@@ -527,11 +527,14 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
 
 
 _NOQA_RE = re.compile(r"#\s*noqa\s*:\s*([^\n]*)", re.IGNORECASE)
-_NOQA_CODE_RE = re.compile(r"[A-Z]+\d+")
+_NOQA_CODE_RE = re.compile(r"[A-Z]+\d+\b")
 
 
 def _parse_noqa_codes(line: str) -> set[str]:
     """Extract codes from the leading comma-separated list in a ``# noqa: <codes>`` comment.
+
+    Each code must be terminated by a word boundary, so tokens like ``SDK002x``
+    or ``F401foo`` are not treated as the corresponding code.
 
     Anything after the first non-code token is treated as explanatory text and
     ignored, so ``# noqa: F401 - see SDK002 docs`` only yields ``{"F401"}``.
@@ -588,11 +591,22 @@ def find_import_violations(
 
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            if node.module and is_violating_module(node.module):
-                if has_nocheck_marker(source_lines, node, nocheck_code):
-                    continue
-                import_names = ", ".join(alias.name for alias in node.names)
-                violations.append((node.lineno, f"from {node.module} import {import_names}"))
+            if not node.module:
+                continue
+            if is_violating_module(node.module):
+                violating_names = [alias.name for alias in node.names]
+            else:
+                # Catch ``from airflow import settings`` style imports where the
+                # offending module is the dotted ``<module>.<name>`` path.
+                violating_names = [
+                    alias.name for alias in node.names if is_violating_module(f"{node.module}.{alias.name}")
+                ]
+            if not violating_names:
+                continue
+            if has_nocheck_marker(source_lines, node, nocheck_code):
+                continue
+            statement = f"from {node.module} import {', '.join(violating_names)}"
+            violations.append((node.lineno, statement))
         elif check_plain_imports and isinstance(node, ast.Import):
             for alias in node.names:
                 if is_violating_module(alias.name):

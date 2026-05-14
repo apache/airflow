@@ -62,6 +62,26 @@ class TestCheckFileForCoreImports:
                 [],
                 id="stdlib-only",
             ),
+            pytest.param(
+                "from airflow import settings\n",
+                [(1, "from airflow import settings")],
+                id="from-airflow-import-name",
+            ),
+            pytest.param(
+                "from airflow import sdk\n",
+                [],
+                id="from-airflow-import-sdk-allowed",
+            ),
+            pytest.param(
+                "from airflow import settings, models\n",
+                [(1, "from airflow import settings, models")],
+                id="from-airflow-import-multiple-names",
+            ),
+            pytest.param(
+                "from airflow import sdk, settings\n",
+                [(1, "from airflow import settings")],
+                id="from-airflow-import-mixed-names",
+            ),
         ],
     )
     def test_detects_core_imports(self, tmp_path: Path, code: str, expected: list[tuple[int, str]]):
@@ -176,6 +196,16 @@ class TestNocheckMarker:
                 "from airflow.models import DagRun  # noqa: F401, SDK002 - needed for compat\n",
                 [],
                 id="combined-codes-with-explanation-suppressed",
+            ),
+            pytest.param(
+                "from airflow.models import DagRun  # noqa: SDK002x\n",
+                [(1, "from airflow.models import DagRun")],
+                id="partial-code-match-not-suppressed",
+            ),
+            pytest.param(
+                "from airflow import settings  # noqa: SDK002\n",
+                [],
+                id="from-airflow-import-name-suppressed",
             ),
             pytest.param(
                 "from airflow.models import DagRun  # noqa\n",
