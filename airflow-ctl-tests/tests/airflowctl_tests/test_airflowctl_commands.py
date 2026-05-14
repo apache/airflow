@@ -93,23 +93,14 @@ TEST_COMMANDS = [
     "dags update example_bash_operator --no-is-paused",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
-<<<<<<< airflow_ctl_clear
     # Clear task instances (dry run only; avoid changing TI state in shared compose)
     'tasks clear --dry-run --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
-    # XCom commands - need a DAG run with completed tasks
-    'xcom add --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"test": "value"}}\'',
-    'xcom get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
-    'xcom list --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
-    'xcom edit --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key} --value=\'{{"updated": "value"}}\'',
-    'xcom delete --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0 --key={xcom_key}',
-=======
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
     'xcom list example_bash_operator "manual__{date_param}" runme_0',
     'xcom edit example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"updated": "value"}}\'',
     'xcom delete example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
->>>>>>> main
     # Jobs commands
     "jobs list",
     # Pools commands
