@@ -65,7 +65,7 @@ Requirements
 .. jinja:: global_ctx
 
    -  Kubernetes {{ min_k8s_version }}+ cluster
-   -  Helm 3.10+
+   -  Helm 3.19+
    -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features
