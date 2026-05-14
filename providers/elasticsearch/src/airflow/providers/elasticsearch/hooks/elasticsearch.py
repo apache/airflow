@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from functools import cached_property
@@ -56,6 +57,10 @@ class ElasticsearchSQLCursor:
         }
         self._response: ObjectApiResponse | None = None
 
+        # Internal mutable row buffer used to progressively consume
+        # paginated Elasticsearch SQL cursor results.
+        self._rows: deque[list[Any]] = deque()
+
     @property
     def response(self) -> ObjectApiResponse:
         return self._response or {}  # type: ignore
@@ -70,11 +75,11 @@ class ElasticsearchSQLCursor:
 
     @property
     def rows(self):
-        return self.response.get("rows", [])
+        return self._rows
 
     @property
     def rowcount(self) -> int:
-        return len(self.rows)
+        return len(self.response.get("rows", []))
 
     @property
     def description(self) -> list[tuple]:
@@ -83,26 +88,57 @@ class ElasticsearchSQLCursor:
     def execute(
         self, statement: str, params: Iterable | Mapping[str, Any] | None = None
     ) -> ObjectApiResponse:
-        self.body["query"] = statement
-        if params:
-            self.body["params"] = params
-        self.response = self.es.sql.query(**self.body)
+
+        if self.body.get("cursor"):
+            self.response = self.es.sql.query(cursor=self.body["cursor"])
+        else:
+            self.body["query"] = statement
+
+            if params:
+                self.body["params"] = params
+
+            self.response = self.es.sql.query(**self.body)
+
+        self._rows = deque(self.response.get("rows", []))
+
         if self.cursor:
             self.body["cursor"] = self.cursor
         else:
             self.body.pop("cursor", None)
+
         return self.response
 
     def fetchone(self):
-        if self.rows:
-            return self.rows[0]
-        return None
+        while True:
+            if self._rows:
+                return self._rows.popleft()
+
+            if not self.cursor:
+                return None
+
+            self.execute(statement=self.body["query"])
 
     def fetchmany(self, size: int | None = None):
-        raise NotImplementedError()
+        size = size or self.body["fetch_size"]
+
+        results: list[list[Any]] = []
+
+        while len(results) < size:
+            while self._rows and len(results) < size:
+                results.append(self._rows.popleft())
+
+            if len(results) >= size:
+                break
+
+            if not self.cursor:
+                break
+
+            self.execute(statement=self.body["query"])
+
+        return results
 
     def fetchall(self):
-        results = self.rows
+        results = list(self.rows)
         while self.cursor:
             self.execute(statement=self.body["query"])
             results.extend(self.rows)

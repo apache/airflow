@@ -17,15 +17,16 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
-from aiohttp import ClientResponseError, RequestInfo
+from aiohttp import ClientResponseError, ClientSession, RequestInfo
 from gcloud.aio.bigquery import Table
-from multidict import CIMultiDict
+from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryTableAsyncHook
@@ -34,11 +35,14 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryGetDataTrigger,
     BigQueryInsertJobTrigger,
     BigQueryIntervalCheckTrigger,
+    BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
     BigQueryValueCheckTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 TEST_CONN_ID = "bq_default"
 TEST_JOB_ID = "1234"
@@ -234,72 +238,81 @@ class TestBigQueryInsertJobTrigger:
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.cancel_job")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="on_kill() handles cancellation for Airflow 3.3.0+")
+    @pytest.mark.parametrize("is_safe_to_cancel", [True, False])
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger._get_async_hook")
     @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger.safe_to_cancel")
-    async def test_bigquery_insert_job_trigger_cancellation(
-        self, mock_get_task_instance, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
+    async def test_insert_job_trigger_run_cancelled(
+        self, mock_safe_to_cancel, mock_get_async_hook, insert_job_trigger, is_safe_to_cancel
     ):
-        """
-        Test that BigQueryInsertJobTrigger handles cancellation correctly, logs the appropriate message,
-        and conditionally cancels the job based on the `cancel_on_kill` attribute.
-        """
-        mock_get_task_instance.return_value = True
-        insert_job_trigger.cancel_on_kill = True
-        insert_job_trigger.job_id = "1234"
+        """Test CancelledError handling for Airflow < 3.3.0."""
+        mock_safe_to_cancel.return_value = is_safe_to_cancel
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.get_job_status = AsyncMock()
+        mock_hook.get_job_status.side_effect = asyncio.CancelledError
+        mock_hook.cancel_job = AsyncMock()
 
-        mock_get_job_status.side_effect = [
-            {"status": "running", "message": "Job is still running"},
-            asyncio.CancelledError(),
-        ]
+        async_gen = insert_job_trigger.run()
+        try:
+            await async_gen.asend(None)
+        except (asyncio.CancelledError, StopAsyncIteration):
+            pass
+        except Exception as e:
+            pytest.fail(f"Unexpected exception raised: {e}")
 
-        mock_cancel_job.return_value = asyncio.Future()
-        mock_cancel_job.return_value.set_result(None)
+        if insert_job_trigger.cancel_on_kill and is_safe_to_cancel:
+            mock_hook.cancel_job.assert_awaited_once_with(
+                job_id=insert_job_trigger.job_id,
+                project_id=insert_job_trigger.project_id,
+                location=insert_job_trigger.location,
+            )
+        else:
+            mock_hook.cancel_job.assert_not_awaited()
 
-        caplog.set_level(logging.INFO)
-
-        with pytest.raises(asyncio.CancelledError):
-            async for _ in insert_job_trigger.run():
-                pass
-
-        assert (
-            "Task was killed" in caplog.text
-            or "Bigquery job status is running. Sleeping for 4.0 seconds." in caplog.text
-        ), "Expected messages about task status or cancellation not found in log."
-        mock_cancel_job.assert_awaited_once()
+        await async_gen.aclose()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.cancel_job")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger.safe_to_cancel")
-    async def test_bigquery_insert_job_trigger_cancellation_unsafe_cancellation(
-        self, mock_safe_to_cancel, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
-    ):
-        """
-        Test that BigQueryInsertJobTrigger logs the appropriate message and does not cancel the job
-        if safe_to_cancel returns False even when the task is cancelled.
-        """
-        mock_safe_to_cancel.return_value = False
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger._get_async_hook")
+    async def test_on_kill_cancels_job(self, mock_get_async_hook, insert_job_trigger):
+        """Test that on_kill cancels the BigQuery job."""
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.cancel_job = AsyncMock()
+        insert_job_trigger.job_id = TEST_JOB_ID
         insert_job_trigger.cancel_on_kill = True
-        insert_job_trigger.job_id = "1234"
 
-        # Simulate the initial job status as running
-        mock_get_job_status.side_effect = [
-            {"status": "running", "message": "Job is still running"},
-            asyncio.CancelledError(),
-            {"status": "running", "message": "Job is still running after cancellation"},
-        ]
+        await insert_job_trigger.on_kill()
 
-        caplog.set_level(logging.INFO)
-
-        with pytest.raises(asyncio.CancelledError):
-            async for _ in insert_job_trigger.run():
-                pass
-
-        assert "Skipping to cancel job" in caplog.text, (
-            "Expected message about skipping cancellation not found in log."
+        mock_hook.cancel_job.assert_awaited_once_with(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_LOCATION,
         )
-        assert mock_get_job_status.call_count == 2, "Job status should be checked multiple times"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger._get_async_hook")
+    async def test_on_kill_respects_cancel_on_kill_false(self, mock_get_async_hook, insert_job_trigger):
+        """Test that on_kill does not cancel the job when cancel_on_kill is False."""
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.cancel_job = AsyncMock()
+        insert_job_trigger.job_id = TEST_JOB_ID
+        insert_job_trigger.cancel_on_kill = False
+
+        await insert_job_trigger.on_kill()
+
+        mock_hook.cancel_job.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger._get_async_hook")
+    async def test_on_kill_no_job_id_does_not_cancel(self, mock_get_async_hook, insert_job_trigger):
+        """Test that on_kill does not attempt to cancel when job_id is not set."""
+        mock_hook = mock_get_async_hook.return_value
+        mock_hook.cancel_job = AsyncMock()
+        insert_job_trigger.job_id = None
+        insert_job_trigger.cancel_on_kill = True
+
+        await insert_job_trigger.on_kill()
+
+        mock_hook.cancel_job.assert_not_called()
 
 
 class TestBigQueryGetDataTrigger:
@@ -985,3 +998,179 @@ class TestBigQueryTablePartitionExistenceTrigger:
             "poll_interval": POLLING_PERIOD_SECONDS,
             "hook_params": TEST_HOOK_PARAMS,
         }
+
+
+@pytest.fixture
+def streaming_buffer_trigger():
+    return BigQueryStreamingBufferEmptyTrigger(
+        project_id=TEST_GCP_PROJECT_ID,
+        dataset_id=TEST_DATASET_ID,
+        table_id=TEST_TABLE_ID,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        poll_interval=POLLING_PERIOD_SECONDS,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+    )
+
+
+def _make_client_response_error(status: int, message: str = "Not Found") -> ClientResponseError:
+    return ClientResponseError(
+        history=(),
+        request_info=RequestInfo(
+            headers=CIMultiDictProxy(CIMultiDict()),
+            real_url=URL("https://example.com"),
+            method="GET",
+            url=URL("https://example.com"),
+        ),
+        status=status,
+        message=message,
+    )
+
+
+_TRIGGER_PATH = "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger"
+
+
+class TestBigQueryStreamingBufferEmptyTrigger:
+    def test_serialization(self, streaming_buffer_trigger):
+        classpath, kwargs = streaming_buffer_trigger.serialize()
+        assert classpath == _TRIGGER_PATH
+        assert kwargs == {
+            "project_id": TEST_GCP_PROJECT_ID,
+            "dataset_id": TEST_DATASET_ID,
+            "table_id": TEST_TABLE_ID,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "poll_interval": POLLING_PERIOD_SECONDS,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+        }
+
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryTableAsyncHook")
+    def test_async_hook_receives_impersonation_chain(self, mock_hook_cls, streaming_buffer_trigger):
+        streaming_buffer_trigger._get_async_hook()
+        mock_hook_cls.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{_TRIGGER_PATH}._is_streaming_buffer_empty")
+    @mock.patch(f"{_TRIGGER_PATH}._get_async_hook")
+    async def test_run_yields_success_when_buffer_empty(
+        self, _mock_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        mock_is_empty.return_value = True
+        actual = await streaming_buffer_trigger.run().asend(None)
+
+        table_uri = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        assert actual == TriggerEvent(
+            {"status": "success", "message": f"Streaming buffer is empty for table: {table_uri}"}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{_TRIGGER_PATH}._is_streaming_buffer_empty")
+    @mock.patch(f"{_TRIGGER_PATH}._get_async_hook")
+    async def test_run_keeps_polling_while_buffer_not_empty(
+        self, _mock_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        mock_is_empty.return_value = False
+        task = asyncio.create_task(streaming_buffer_trigger.run().__anext__())
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(task), timeout=0.2)
+            assert not task.done()
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{_TRIGGER_PATH}._is_streaming_buffer_empty")
+    @mock.patch(f"{_TRIGGER_PATH}._get_async_hook")
+    async def test_run_yields_error_when_table_not_found(
+        self, _mock_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        message = f"Table {TEST_GCP_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_ID} not found"
+        mock_is_empty.side_effect = ValueError(message)
+
+        actual = await streaming_buffer_trigger.run().asend(None)
+
+        assert actual == TriggerEvent({"status": "error", "message": message})
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{_TRIGGER_PATH}._is_streaming_buffer_empty")
+    @mock.patch(f"{_TRIGGER_PATH}._get_async_hook")
+    async def test_run_yields_error_on_unexpected_exception(
+        self, _mock_hook, mock_is_empty, streaming_buffer_trigger
+    ):
+        mock_is_empty.side_effect = Exception("API failure")
+
+        actual = await streaming_buffer_trigger.run().asend(None)
+
+        assert actual == TriggerEvent({"status": "error", "message": "API failure"})
+
+    @pytest.mark.asyncio
+    async def test_is_streaming_buffer_empty_true_when_key_absent(self, streaming_buffer_trigger):
+        mock_hook = mock.MagicMock(spec=BigQueryTableAsyncHook)
+        mock_client = mock.MagicMock()
+        mock_client.get = AsyncMock(return_value={"id": "some-table"})
+        mock_hook.get_table_client = AsyncMock(return_value=mock_client)
+
+        async with ClientSession() as session:
+            result = await streaming_buffer_trigger._is_streaming_buffer_empty(
+                hook=mock_hook,
+                session=session,
+                project_id=TEST_GCP_PROJECT_ID,
+                dataset_id=TEST_DATASET_ID,
+                table_id=TEST_TABLE_ID,
+            )
+
+        assert result is True
+        mock_hook.get_table_client.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_is_streaming_buffer_empty_false_when_key_present(self, streaming_buffer_trigger):
+        mock_hook = mock.MagicMock(spec=BigQueryTableAsyncHook)
+        mock_client = mock.MagicMock()
+        mock_client.get = AsyncMock(
+            return_value={"streamingBuffer": {"estimatedRows": "10"}, "id": "some-table"}
+        )
+        mock_hook.get_table_client = AsyncMock(return_value=mock_client)
+
+        async with ClientSession() as session:
+            result = await streaming_buffer_trigger._is_streaming_buffer_empty(
+                hook=mock_hook,
+                session=session,
+                project_id=TEST_GCP_PROJECT_ID,
+                dataset_id=TEST_DATASET_ID,
+                table_id=TEST_TABLE_ID,
+            )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_is_streaming_buffer_empty_raises_value_error_on_404(self, streaming_buffer_trigger):
+        mock_hook = mock.MagicMock(spec=BigQueryTableAsyncHook)
+        mock_hook.get_table_client = AsyncMock(side_effect=_make_client_response_error(404))
+
+        async with ClientSession() as session:
+            with pytest.raises(ValueError, match="not found"):
+                await streaming_buffer_trigger._is_streaming_buffer_empty(
+                    hook=mock_hook,
+                    session=session,
+                    project_id=TEST_GCP_PROJECT_ID,
+                    dataset_id=TEST_DATASET_ID,
+                    table_id=TEST_TABLE_ID,
+                )
+
+    @pytest.mark.asyncio
+    async def test_is_streaming_buffer_empty_propagates_other_client_errors(self, streaming_buffer_trigger):
+        mock_hook = mock.MagicMock(spec=BigQueryTableAsyncHook)
+        mock_hook.get_table_client = AsyncMock(side_effect=_make_client_response_error(500, "Server Error"))
+
+        async with ClientSession() as session:
+            with pytest.raises(ClientResponseError):
+                await streaming_buffer_trigger._is_streaming_buffer_empty(
+                    hook=mock_hook,
+                    session=session,
+                    project_id=TEST_GCP_PROJECT_ID,
+                    dataset_id=TEST_DATASET_ID,
+                    table_id=TEST_TABLE_ID,
+                )

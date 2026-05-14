@@ -383,3 +383,39 @@ class S3TablesRenameTableOperator(AwsBaseOperator[S3TablesHook]):
         )
         self.hook.conn.rename_table(**kwargs)
         self.log.info("Renamed table %s to %s", self.table_name, self.new_name)
+
+
+class S3TablesPutTableBucketPolicyOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Set a resource policy on an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesPutTableBucketPolicyOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param resource_policy: The JSON resource policy string. (templated)
+    """
+
+    aws_hook_class = S3TablesHook
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn", "resource_policy")
+    template_fields_renderers = {"resource_policy": "json"}
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        resource_policy: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.resource_policy = resource_policy
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Setting policy on table bucket %s", self.table_bucket_arn)
+        self.hook.conn.put_table_bucket_policy(
+            tableBucketARN=self.table_bucket_arn,
+            resourcePolicy=self.resource_policy,
+        )
+        self.log.info("Policy set on table bucket %s", self.table_bucket_arn)

@@ -393,6 +393,27 @@ class TestCliDb:
                 b"port     = 3306\ndatabase = airflow",
                 id="password_with_special_chars_is_escaped",
             ),
+            pytest.param(
+                # %0A and %0D in a query value get percent-decoded to LF/CR by
+                # SQLAlchemy. Without sanitization those would inject extra
+                # lines into the [client] section of the rendered my.cnf.
+                "mysql://root@mysql:3306/airflow?ssl_ca=/etc/ssl/ca.crt%0Amalicious=evil%0Dmore=bad",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-ca = /etc/ssl/ca.crtmalicious=evilmore=bad",
+                id="cr_lf_in_query_value_is_stripped_no_option_injection",
+            ),
+            pytest.param(
+                # SQLAlchemy returns a tuple when the same query key repeats;
+                # mysql's option file is one value per key, so the last wins
+                # (mirroring command-line override semantics) and any CR/LF
+                # in the chosen value is still stripped.
+                "mysql://root@mysql:3306/airflow?ssl_ca=/etc/ssl/old.crt&ssl_ca=/etc/ssl/new.crt%0Ainjected=x",
+                b"[client]\nhost     = mysql\nuser     = root\npassword = \n"
+                b"port     = 3306\ndatabase = airflow\n"
+                b"ssl-ca = /etc/ssl/new.crtinjected=x",
+                id="repeated_query_key_collapses_to_last_value",
+            ),
         ],
     )
     def test_build_mysql_cnf(self, sql_alchemy_conn, expected_cnf):

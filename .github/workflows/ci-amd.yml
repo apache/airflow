@@ -25,10 +25,11 @@
 # Edit both files together when changing pipeline shape.
 name: Tests (AMD)
 on:  # yamllint disable-line rule:truthy
-  push:
-    branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+  schedule:
+    # Mirror of the previous AMD canary cron from before the AMD/ARM split (PR #66348),
+    # offset by 30 min from ARM's `:28` slot in `ci-arm.yml` so the two scheduled
+    # canaries don't compete for runners at exactly the same minute.
+    - cron: '58 1,7,13,19 * * *'
   pull_request:
     branches:
       - main
@@ -36,6 +37,15 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, ready_for_review]
+  push:
+    # Post-merge pushes to release-prep / providers branches run on both
+    # AMD and ARM (the matching block lives in the other wrapper too —
+    # `check-ci-workflows-in-sync` enforces they stay identical). `main` is
+    # intentionally NOT in this list: main pushes stay AMD-only via
+    # `ci-amd.yml`; ARM main coverage is the cron-driven canary above.
+    branches:
+      - v[0-9]+-[0-9]+-test
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -122,6 +132,7 @@ jobs:
       run-remote-logging-elasticsearch-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-elasticsearch-e2e-tests }}
       run-remote-logging-opensearch-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-opensearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-s3-e2e-tests }}
+      run-event-driven-e2e-tests: ${{ steps.selective-checks.outputs.run-event-driven-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -859,6 +870,7 @@ jobs:
       run-remote-logging-elasticsearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-elasticsearch-e2e-tests }}
       run-remote-logging-opensearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-opensearch-e2e-tests }}
       run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
+      run-event-driven-e2e-tests: ${{ needs.build-info.outputs.run-event-driven-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
@@ -1056,19 +1068,19 @@ jobs:
           gh auth status || gh auth login --with-token <<< "${GITHUB_TOKEN}"
           python3 scripts/ci/slack_notification_state.py
         env:
-          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}"
+          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}-amd"
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: "slack-state-tests-${{ github.ref_name }}"
+          name: "slack-state-tests-${{ github.ref_name }}-amd"
           path: ./slack-state/
           retention-days: 7
           overwrite: true
       - name: "Notify Slack (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1084,7 +1096,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1100,7 +1112,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (all tests passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

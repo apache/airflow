@@ -15,14 +15,14 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Cloud Looker Operators
-===============================
+Google Data Studio (Looker) Operators
+======================================
 
-Looker is a business intelligence software and big data analytics platform that
+Data Studio (Looker) is a business intelligence software and big data analytics platform that
 helps you explore, analyze and share real-time business analytics easily.
 
-Looker has a Public API and associated SDK clients in different languages,
-which allow programmatic access to the Looker data platform.
+Data Studio (Looker) has a Public API and associated SDK clients in different languages,
+which allow programmatic access to the Data Studio platform.
 
 For more information visit `Looker API documentation <https://docs.looker.com/reference/api-and-integration>`_.
 
@@ -39,15 +39,19 @@ To use these operators, you must do a few things:
 
 Detailed information is available for :doc:`Installation <apache-airflow:installation/index>`.
 
-* Setup a Looker connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`/connections/gcp_looker`
+* Setup a Data Studio connection in Airflow. You can check :doc:`apache-airflow:howto/connection` and :doc:`/connections/gcp_looker`
 
 Start a PDT materialization job
 -------------------------------
 
-To submit a PDT materialization job to Looker you need to provide a model and view name.
+To submit a PDT materialization job to Data Studio you need to provide a model and view name.
 
 The job configuration can be submitted in synchronous (blocking) mode by using:
 :class:`~airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator`.
+
+The executable example below still imports the compatibility name
+``LookerStartPdtBuildOperator``. The preferred alias for new code is
+``DataStudioStartPdtBuildOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/looker/example_looker.py
     :language: python
@@ -60,6 +64,10 @@ Alternatively, the job configuration can be submitted in asynchronous mode by us
 :class:`~airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator` and
 :class:`~airflow.providers.google.cloud.sensors.looker.LookerCheckPdtBuildSensor`.
 
+The executable example below still imports the compatibility name
+``LookerStartPdtBuildOperator``. The preferred alias for new code is
+``DataStudioStartPdtBuildOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/looker/example_looker.py
     :language: python
     :dedent: 4
@@ -67,4 +75,4 @@ Alternatively, the job configuration can be submitted in asynchronous mode by us
     :end-before: [END cloud_looker_async_start_pdt_sensor]
 
 There are more arguments to provide in the jobs than the examples show.
-For the complete list of arguments take a look at Looker operator arguments at :class:`airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator`
+For the complete list of arguments take a look at Data Studio operator arguments at :class:`airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator`

@@ -534,6 +534,28 @@ metrics:
     legacy_name: "edge_worker.ti.finish.{queue}.{state}.{dag_id}.{task_id}"
     name_variables: ["queue", "state", "dag_id", "task_id"]
 
+  - name: "kubernetes_executor.pod_creation_status"
+    description: "Number of Kubernetes create_namespaced_pod calls from the Kubernetes Executor,
+    tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on
+    failure, ``error`` for non-API exceptions)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
+  - name: "kubernetes_executor.pod_deletion_status"
+    description: "Number of Kubernetes delete_namespaced_pod calls from the Kubernetes Executor,
+    tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on failure)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
+  - name: "kubernetes_executor.pod_patching_status"
+    description: "Number of Kubernetes patch_namespaced_pod calls from the Kubernetes Executor,
+    tagged by HTTP response status (``200`` on success, the ``ApiException`` status code on failure)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["status"]
+
   # ==========
   # Timers
   # ==========
@@ -604,11 +626,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.executor_heartbeat_duration"
+    description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
+      by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.first_task_scheduling_delay"
     description: "Milliseconds elapsed between first task start_date and dagrun expected start"
     type: "timer"
     legacy_name: "dagrun.{dag_id}.first_task_scheduling_delay"
     name_variables: ["dag_id"]
+
+  - name: "dagrun.first_task_start_delay"
+    description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
 
   - name: "collect_db_dags"
     description: "Milliseconds taken for fetching all Serialized Dags from DB"
@@ -624,6 +659,24 @@ metrics:
 
   - name: "kubernetes_executor.adopt_task_instances.duration"
     description: "Milliseconds taken to adopt the task instances in Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation"
+    description: "Milliseconds taken for a Kubernetes create_namespaced_pod call from the Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_deletion"
+    description: "Milliseconds taken for a Kubernetes delete_namespaced_pod call from the Kubernetes Executor"
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_patching"
+    description: "Milliseconds taken for a Kubernetes patch_namespaced_pod call from the Kubernetes Executor"
     type: "timer"
     legacy_name: "-"
     name_variables: []
