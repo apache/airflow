@@ -28,7 +28,14 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { Children, isValidElement, type PropsWithChildren, type ReactNode, useEffect } from "react";
+import {
+  Children,
+  isValidElement,
+  type ComponentProps,
+  type PropsWithChildren,
+  type ReactNode,
+  useEffect,
+} from "react";
 import type { Components, Options } from "react-markdown";
 import ReactMD from "react-markdown";
 import rehypeKatex from "rehype-katex";
@@ -60,19 +67,29 @@ const makeHeading =
 
 // Static components that don't depend on props
 
-const LinkComponent = ({
-  children,
-  href,
-  title,
-}: {
-  readonly children?: ReactNode;
-  readonly href?: string;
+type MarkdownLinkProps = {
+  readonly children: ReactNode;
+  readonly href: string;
   readonly title?: string;
-}) => (
+};
+
+const MarkdownLink = ({ children, href, title }: MarkdownLinkProps) => (
   <Link color="fg.info" fontWeight="bold" href={href} title={title}>
     {children}
   </Link>
 );
+
+const LinkComponent = ({ children, href, title }: ComponentProps<"a">) => {
+  if (href === undefined || children === undefined) {
+    return children;
+  }
+
+  return (
+    <MarkdownLink href={href} title={title}>
+      {children}
+    </MarkdownLink>
+  );
+};
 
 const BlockquoteComponent = ({ children }: PropsWithChildren) => (
   <Box
