@@ -87,7 +87,7 @@ with DAG(
     put_policy = S3TablesPutTableBucketPolicyOperator(
         task_id="put_table_bucket_policy",
         table_bucket_arn=create_table_bucket.output,
-        resource_policy='{"Version":"2012-10-17","Statement":[]}',
+        resource_policy='{"Version":"2012-10-17","Statement":[{"Sid":"TestPolicy","Effect":"Allow","Principal":{"AWS":"558120655471"},"Action":"s3tables:GetTable","Resource":"*"}]}',
     )
     # [END howto_operator_s3tables_put_table_bucket_policy]
 
