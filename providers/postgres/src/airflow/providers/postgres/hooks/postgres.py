@@ -249,9 +249,9 @@ class PostgresHook(DbApiHook):
             if self.enable_log_db_messages and hasattr(connection, "add_notice_handler"):
                 connection.add_notice_handler(self._notice_handler)
 
-            return cast("CompatConnection", connection)
+            return connection
 
-        return cast("CompatConnection", ppg2_connect(**conn_args))
+        return ppg2_connect(**conn_args)
 
     def _generate_cursor_name(self):
         """Generate a unique name for server-side cursor."""
