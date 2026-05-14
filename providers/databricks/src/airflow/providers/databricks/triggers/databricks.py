@@ -61,6 +61,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.retry_args = retry_args
         self.run_page_url = run_page_url
         self.repair_run = repair_run
+        self.caller = caller
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -81,6 +82,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "retry_args": self.retry_args,
                 "run_page_url": self.run_page_url,
                 "repair_run": self.repair_run,
+                "caller": self.caller,
             },
         )
 
@@ -153,6 +155,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.retry_args = retry_args
+        self.caller = caller
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -172,6 +175,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
+                "caller": self.caller,
             },
         )
 
