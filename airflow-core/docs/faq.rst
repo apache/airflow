@@ -700,7 +700,7 @@ The API server caches serialized Dag objects in memory. Over time, as Dag versio
 
 There are two complementary approaches:
 
-**1. Bounded DAG caching (available since Airflow 3.3.0)**
+**1. Bounded DAG caching (available since Airflow 3.2.2)**
 
 The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
 in memory. Configure this in the ``[api]`` section:
@@ -714,8 +714,8 @@ in memory. Configure this in the ``[api]`` section:
 The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
 previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
 
-See :ref:`config:api__dag_cache_size` and :ref:`config:api__dag_cache_ttl` for the full
-configuration reference.
+See the ``[api] dag_cache_size`` and ``[api] dag_cache_ttl`` options in the configuration
+reference for full details.
 
 **2. Gunicorn with rolling worker restarts (available since Airflow 3.2.0)**
 
