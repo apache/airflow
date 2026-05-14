@@ -81,9 +81,9 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict().
         # Scope the branch to the kubernetes namespace so unrelated user classes that happen to
         # define a to_dict() method fall through to str() instead of being treated as K8s payloads.
-        if getattr(type(obj), "__module__", "").startswith("kubernetes.") and callable(
-            inspect.getattr_static(obj, "to_dict", None)
-        ):
+        if getattr(type(obj), "__module__", "").startswith(
+            ("kubernetes.", "kubernetes_asyncio.")
+        ) and callable(inspect.getattr_static(obj, "to_dict", None)):
             return serialize_object(obj.to_dict())
 
         if callable(obj):
