@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link as ChakraLink, type LinkProps } from "@chakra-ui/react";
+import { Link as ChakraLink, type LinkProps as ChakraLinkProps } from "@chakra-ui/react";
 import { Link as ReactRouterLink, type To } from "react-router-dom";
 
 type RouterLinkProps = {
   readonly to: To;
-} & Omit<LinkProps, "asChild" | "href">;
+} & Omit<ChakraLinkProps, "as" | "asChild" | "href">;
 
 export const RouterLink = ({ children, to, ...rest }: RouterLinkProps) => (
   <ChakraLink asChild color="fg.info" {...rest}>
