@@ -208,3 +208,24 @@ class TestOSSTaskHandler:
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         OSSTaskHandler(self.base_log_folder, self.oss_log_folder, filename_template=None)
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_read"))
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    def test_read_calls_oss_methods_via_io(self, mock_log_exists, mock_oss_read):
+        mock_log_exists.return_value = True
+        mock_oss_read.return_value = "mock log content"
+
+        log, metadata = self.oss_task_handler._read(self.ti, self.ti.try_number)
+
+        mock_log_exists.assert_called_once()
+        mock_oss_read.assert_called_once()
+        assert "mock log content" in log
+        assert metadata == {"end_of_log": True}
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_log_exists"))
+    def test_read_falls_back_to_local_when_no_remote_log(self, mock_log_exists):
+        mock_log_exists.return_value = False
+
+        self.oss_task_handler._read(self.ti, self.ti.try_number)
+
+        mock_log_exists.assert_called_once()

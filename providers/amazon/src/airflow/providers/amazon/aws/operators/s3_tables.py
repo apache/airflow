@@ -327,3 +327,95 @@ class S3TablesCreateNamespaceOperator(AwsBaseOperator[S3TablesHook]):
                 raise
         self.log.info("Namespace %s created.", self.namespace)
         return self.namespace
+
+
+class S3TablesRenameTableOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Rename a table in an Amazon S3 Tables namespace.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesRenameTableOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param namespace: The current namespace of the table. (templated)
+    :param table_name: The current name of the table. (templated)
+    :param new_name: The new name for the table. (templated)
+    :param new_namespace_name: Optional new namespace to move the table to. (templated)
+    :param version_token: Optional version token for optimistic concurrency. (templated)
+    """
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "table_bucket_arn", "namespace", "table_name", "new_name", "new_namespace_name", "version_token"
+    )
+    aws_hook_class = S3TablesHook
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        namespace: str,
+        table_name: str,
+        new_name: str,
+        new_namespace_name: str | None = None,
+        version_token: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.namespace = namespace
+        self.table_name = table_name
+        self.new_name = new_name
+        self.new_namespace_name = new_namespace_name
+        self.version_token = version_token
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Renaming table %s to %s", self.table_name, self.new_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "tableBucketARN": self.table_bucket_arn,
+                "namespace": self.namespace,
+                "name": self.table_name,
+                "newName": self.new_name,
+                "newNamespaceName": self.new_namespace_name,
+                "versionToken": self.version_token,
+            }
+        )
+        self.hook.conn.rename_table(**kwargs)
+        self.log.info("Renamed table %s to %s", self.table_name, self.new_name)
+
+
+class S3TablesPutTableBucketPolicyOperator(AwsBaseOperator[S3TablesHook]):
+    """
+    Set a resource policy on an Amazon S3 Tables table bucket.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3TablesPutTableBucketPolicyOperator`
+
+    :param table_bucket_arn: The ARN of the table bucket. (templated)
+    :param resource_policy: The JSON resource policy string. (templated)
+    """
+
+    aws_hook_class = S3TablesHook
+    template_fields: Sequence[str] = aws_template_fields("table_bucket_arn", "resource_policy")
+    template_fields_renderers = {"resource_policy": "json"}
+
+    def __init__(
+        self,
+        *,
+        table_bucket_arn: str,
+        resource_policy: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_bucket_arn = table_bucket_arn
+        self.resource_policy = resource_policy
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Setting policy on table bucket %s", self.table_bucket_arn)
+        self.hook.conn.put_table_bucket_policy(
+            tableBucketARN=self.table_bucket_arn,
+            resourcePolicy=self.resource_policy,
+        )
+        self.log.info("Policy set on table bucket %s", self.table_bucket_arn)
