@@ -23,7 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy import func, select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariableKeysResponse,
     VariablePostBody,
@@ -72,8 +72,8 @@ log = logging.getLogger(__name__)
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
     },
 )
-def get_variable_keys(
-    session: SessionDep,
+async def get_variable_keys(
+    session: AsyncSessionDep,
     team_name: Annotated[str | None, Depends(get_team_name_dep)] = None,
     prefix: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=10_000)] = 1000,
@@ -96,8 +96,8 @@ def get_variable_keys(
     if team_name is not None:
         stmt = stmt.where(Variable.team_name == team_name)
 
-    total_entries = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    keys = session.scalars(stmt.offset(offset).limit(limit)).all()
+    total_entries = await session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    keys = (await session.scalars(stmt.offset(offset).limit(limit))).all()
     return VariableKeysResponse(keys=list(keys), total_entries=total_entries)
 
 
