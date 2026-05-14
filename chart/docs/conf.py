@@ -71,6 +71,7 @@ with CHART_YAML_FILE_PATH.open() as chart_file:
     chart_yaml_contents = yaml.safe_load(chart_file)
 
 PACKAGE_VERSION: str = chart_yaml_contents["version"]
+MIN_KUBERNETES_VERSION: str = "1.30"
 
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
@@ -300,6 +301,7 @@ jinja_contexts = {
         "package_name": PACKAGE_NAME,
         "package_version": PACKAGE_VERSION,
     },
+    "global_ctx": {"package_version": PACKAGE_VERSION, "min_k8s_version": MIN_KUBERNETES_VERSION},
 }
 
 

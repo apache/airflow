@@ -55,13 +55,15 @@ This will give you the ability to add your custom templates without the need to 
 In order to add the Airflow chart as a dependency (often called ``subcharts``) to your chart,
 add the following lines to your ``Chart.yaml`` file:
 
-.. code-block:: yaml
-   :caption: Chart.yaml
+.. jinja:: global_ctx
 
-   dependencies:
-     - name: airflow
-       version: 1.11.0
-       repository: https://airflow.apache.org
+   .. code-block:: yaml
+      :caption: Chart.yaml
+
+      dependencies:
+        - name: airflow
+          version: {{ package_version }}
+          repository: https://airflow.apache.org
 
 .. note::
 
@@ -76,14 +78,16 @@ Adding the Airflow chart as a dependency means that it will be deployed together
 You can disable the installation of Airflow by adding the ``condition`` field to the ``dependencies`` section
 like in the example below:
 
-.. code-block:: yaml
-   :caption: Chart.yaml
+.. jinja:: global_ctx
 
-   dependencies:
-     - name: airflow
-       version: 1.11.0
-       repository: https://airflow.apache.org
-       condition: airflow.enabled
+   .. code-block:: yaml
+      :caption: Chart.yaml
+
+      dependencies:
+        - name: airflow
+          version: {{ package_version }}
+          repository: https://airflow.apache.org
+          condition: airflow.enabled
 
 This will check if the value of ``airflow.enabled`` inside your ``values.yaml`` is ``true``.
 If it is, the Airflow chart will be deployed together with your custom chart.
