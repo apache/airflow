@@ -276,9 +276,6 @@ class DagFileProcessorManager(LoggingMixin):
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
 
-    _runtime_file_extensions: tuple[str, ...] | None = attrs.field(default=None, init=False)
-    """File extensions registered by runtime coordinators (e.g. ".jar"). Lazily populated."""
-
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
     """API server to interact with Metadata DB"""
 
@@ -868,16 +865,6 @@ class DagFileProcessorManager(LoggingMixin):
 
         return rel_paths
 
-    def _get_runtime_file_extensions(self) -> tuple[str, ...]:
-        """Collect file extensions from configured runtime coordinators (cached after first call)."""
-        if self._runtime_file_extensions is not None:
-            return self._runtime_file_extensions
-
-        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
-
-        self._runtime_file_extensions = get_coordinator_manager().file_extensions()
-        return self._runtime_file_extensions
-
     def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
         """
         Return observed DAG source paths for bundle entries.
@@ -885,11 +872,7 @@ class DagFileProcessorManager(LoggingMixin):
         For regular files this includes the relative file path.
         For ZIP archives this includes DAG-like inner paths such as
         ``archive.zip/dag.py``.
-
-        Runtime coordinator file extensions (e.g. ``.jar``) are treated as
-        opaque files rather than ZIP archives.
         """
-        runtime_extensions = self._get_runtime_file_extensions()
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """Yield absolute paths for DAG-like files inside a ZIP archive."""
@@ -904,7 +887,7 @@ class DagFileProcessorManager(LoggingMixin):
         observed_filelocs: set[str] = set()
         for info in present:
             abs_path = str(info.absolute_path)
-            if abs_path.endswith((".py", *runtime_extensions)) or not zipfile.is_zipfile(abs_path):
+            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
                 observed_filelocs.add(str(info.rel_path))
             else:
                 if TYPE_CHECKING:

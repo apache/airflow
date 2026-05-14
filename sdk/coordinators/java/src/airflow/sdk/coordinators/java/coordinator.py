@@ -19,9 +19,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import os
-import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,9 +55,6 @@ class JavaCoordinator(BaseCoordinator):
         flow; unused for pure-Java DAGs.
     """
 
-    sdk = "java"
-    file_extension = ".jar"
-
     def __init__(
         self,
         *,
@@ -72,46 +66,12 @@ class JavaCoordinator(BaseCoordinator):
         self.jvm_args = list(jvm_args) if jvm_args else []
         self.bundles_folder = bundles_folder
 
-    def can_handle_dag_file(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
-        """Return ``True`` when *path* is a JAR with valid Airflow Java SDK manifest attributes."""
-        if not os.fspath(path).endswith(self.file_extension):
-            return False
-        with contextlib.suppress(FileNotFoundError, NotADirectoryError, zipfile.BadZipFile, KeyError):
-            return BundleScanner.resolve_jar(Path(path)) is not None
-        return False
-
     def get_code_from_file(self, fileloc: str) -> str:
         """Read embedded DAG source code from a JAR bundle."""
         code = read_dag_code(Path(fileloc))
         if code is None:
             raise FileNotFoundError(f"No DAG source code found in JAR: {fileloc}")
         return code
-
-    def dag_parsing_cmd(
-        self,
-        *,
-        dag_file_path: str,
-        bundle_name: str,
-        bundle_path: str,
-        comm_addr: str,
-        logs_addr: str,
-    ) -> list[str]:
-        """Build the ``java`` command for parsing a JAR bundle."""
-        jar_path = Path(dag_file_path)
-        # Java bundles are typically thin JARs: the main JAR only contains
-        # the bundle's own classes while its dependencies (the Airflow Java
-        # SDK, logging libraries, etc.) are separate JARs that live alongside
-        # it.  Using ``<dir>/*`` lets the JVM load every JAR in the directory.
-        classpath = f"{bundle_path}/*"
-        return [
-            self.java_executable,
-            *self.jvm_args,
-            "-classpath",
-            classpath,
-            BundleScanner.resolve_jar(jar_path),
-            f"--comm={comm_addr}",
-            f"--logs={logs_addr}",
-        ]
 
     def task_execution_cmd(
         self,

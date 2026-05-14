@@ -95,12 +95,6 @@ def _make_ti(dag_id: str = "test_dag") -> TaskInstanceDTO:
 
 
 class TestJavaCoordinatorAttributes:
-    def test_sdk(self):
-        assert JavaCoordinator.sdk == "java"
-
-    def test_file_extension(self):
-        assert JavaCoordinator.file_extension == ".jar"
-
     def test_default_kwargs(self):
         coordinator = JavaCoordinator()
         assert coordinator.java_executable == "java"
@@ -118,31 +112,6 @@ class TestJavaCoordinatorAttributes:
         assert coordinator.bundles_folder == "/airflow/java-bundles"
 
 
-class TestCanHandleDagFile:
-    def test_valid_jar_returns_true(self, tmp_path: Path):
-        jar = _create_bundle_jar(tmp_path / "valid.jar", dag_ids=["d"])
-        assert JavaCoordinator().can_handle_dag_file("bundle", str(jar)) is True
-
-    def test_non_jar_file_returns_false(self, tmp_path: Path):
-        py_file = tmp_path / "dag.py"
-        py_file.write_text("from airflow import DAG")
-        assert JavaCoordinator().can_handle_dag_file("bundle", str(py_file)) is False
-
-    def test_missing_file_returns_false(self, tmp_path: Path):
-        assert JavaCoordinator().can_handle_dag_file("bundle", str(tmp_path / "missing.jar")) is False
-
-    def test_bad_zip_returns_false(self, tmp_path: Path):
-        bad = tmp_path / "bad.jar"
-        bad.write_text("not a zip")
-        assert JavaCoordinator().can_handle_dag_file("bundle", str(bad)) is False
-
-    def test_jar_without_sdk_manifest_returns_false(self, tmp_path: Path):
-        jar = tmp_path / "plain.jar"
-        with zipfile.ZipFile(jar, "w") as zf:
-            zf.writestr("placeholder.class", b"")
-        assert JavaCoordinator().can_handle_dag_file("bundle", str(jar)) is False
-
-
 class TestGetCodeFromFile:
     def test_returns_embedded_code(self, tmp_path: Path):
         code = "from airflow import DAG\ndag = DAG('my_dag')"
@@ -153,52 +122,6 @@ class TestGetCodeFromFile:
         jar = _create_bundle_jar(tmp_path / "no_code.jar", dag_ids=["d"])
         with pytest.raises(FileNotFoundError, match="No DAG source code found in JAR"):
             JavaCoordinator().get_code_from_file(str(jar))
-
-
-class TestDagParsingCmd:
-    def test_builds_default_java_command(self, tmp_path: Path):
-        jar = _create_bundle_jar(tmp_path / "app.jar", dag_ids=["d"])
-        bundle_path = str(tmp_path)
-        cmd = JavaCoordinator().dag_parsing_cmd(
-            dag_file_path=str(jar),
-            bundle_name="my_bundle",
-            bundle_path=bundle_path,
-            comm_addr="localhost:1234",
-            logs_addr="localhost:5678",
-        )
-        assert cmd == [
-            "java",
-            "-classpath",
-            f"{bundle_path}/*",
-            TEST_MAIN_CLASS,
-            "--comm=localhost:1234",
-            "--logs=localhost:5678",
-        ]
-
-    def test_uses_custom_executable_and_jvm_args(self, tmp_path: Path):
-        jar = _create_bundle_jar(tmp_path / "app.jar", dag_ids=["d"])
-        bundle_path = str(tmp_path)
-        coordinator = JavaCoordinator(
-            java_executable="/opt/jdk-17/bin/java",
-            jvm_args=["-Xmx1024m", "-Xms256m"],
-        )
-        cmd = coordinator.dag_parsing_cmd(
-            dag_file_path=str(jar),
-            bundle_name="my_bundle",
-            bundle_path=bundle_path,
-            comm_addr="localhost:1234",
-            logs_addr="localhost:5678",
-        )
-        assert cmd == [
-            "/opt/jdk-17/bin/java",
-            "-Xmx1024m",
-            "-Xms256m",
-            "-classpath",
-            f"{bundle_path}/*",
-            TEST_MAIN_CLASS,
-            "--comm=localhost:1234",
-            "--logs=localhost:5678",
-        ]
 
 
 class TestTaskExecutionCmd:

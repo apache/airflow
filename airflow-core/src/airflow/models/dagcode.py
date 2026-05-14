@@ -119,14 +119,6 @@ class DagCode(Base):
 
     @staticmethod
     def get_code_from_file(fileloc):
-        # Try from runtime coordinator first.
-        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
-
-        coordinator = get_coordinator_manager().for_dag_file("", fileloc)
-        if coordinator is not None:
-            return coordinator.get_code_from_file(fileloc)
-
-        # Then fallback to python native
         try:
             with open_maybe_zipped(fileloc, "r") as f:
                 code = f.read()

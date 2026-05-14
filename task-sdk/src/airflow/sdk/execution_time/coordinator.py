@@ -24,13 +24,12 @@ Airflow supervisor and an external-SDK runtime (Java, Go, Rust, etc.),
 and :class:`CoordinatorManager`, the registry that loads coordinator
 instances from the ``[sdk] coordinators`` configuration.
 
-The coordinator's :meth:`~BaseCoordinator.run_dag_parsing` and
-:meth:`~BaseCoordinator.run_task_execution` methods handle the full lifecycle:
+The coordinator's :meth:`~BaseCoordinator.run_task_execution` handles the full
+lifecycle:
 
 1. Creates TCP servers for comm and logs channels, and a socketpair for stderr.
-2. Calls :meth:`~BaseCoordinator.dag_parsing_cmd` or
-   :meth:`~BaseCoordinator.task_execution_cmd` (provided by the subclass) to
-   obtain the subprocess command.
+2. Calls :meth:`~BaseCoordinator.task_execution_cmd` (provided by the subclass)
+   to obtain the subprocess command.
 3. Spawns the subprocess and accepts TCP connections from it.
 4. Runs a selector-based bridge that transparently forwards bytes
    between fd 0 (supervisor) and the subprocess comm socket, and
@@ -50,9 +49,9 @@ import selectors
 import socket
 import subprocess
 import time
-from typing import TYPE_CHECKING, ClassVar, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
-from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk._shared.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -183,14 +182,10 @@ class BaseCoordinator:
     constructed with the entry's ``kwargs``.
 
     Subclasses represent a specific SDK runtime (Java, Go, etc.) and only
-    need to implement :meth:`can_handle_dag_file`, :meth:`dag_parsing_cmd`
-    and :meth:`task_execution_cmd`.  The base class owns the entire bridge
-    lifecycle: TCP servers, subprocess management, selector-based I/O loop,
-    and cleanup.
+    need to implement :meth:`task_execution_cmd`.  The class owns the entire
+    bridge lifecycle: TCP servers, subprocess management, selector-based I/O
+    loop, and cleanup.
     """
-
-    sdk: ClassVar[str]
-    file_extension: ClassVar[str]
 
     class DagParsingInfo(NamedTuple):
         """Information needed for runtime Dag parsing."""
@@ -209,18 +204,6 @@ class BaseCoordinator:
         startup_details: StartupDetails
         mode: str = "task-execution"
 
-    def can_handle_dag_file(self, bundle_name: str, path: str | os.PathLike[str]) -> bool:
-        """
-        Return ``True`` if this coordinator should handle DAG-file parsing for *path*.
-
-        Called by :meth:`DagFileProcessorProcess._resolve_processor_target` to
-        decide whether to delegate parsing to this coordinator's
-        :meth:`run_dag_parsing` instead of the default Python entrypoint.
-
-        The default implementation returns ``False``; subclasses must override.
-        """
-        return False
-
     def get_code_from_file(self, fileloc: str) -> str:
         """
         Return the human-readable source code for a DAG file managed by this coordinator.
@@ -234,29 +217,6 @@ class BaseCoordinator:
         :param fileloc: Absolute path to the DAG file (e.g. a ``/path/to/example.jar``).
         :return: The source code as a string.
         :raises FileNotFoundError: If source code cannot be retrieved from *fileloc*.
-        """
-        raise NotImplementedError
-
-    def dag_parsing_cmd(
-        self,
-        *,
-        dag_file_path: str,
-        bundle_name: str,
-        bundle_path: str,
-        comm_addr: str,
-        logs_addr: str,
-    ) -> list[str]:
-        """
-        Return the subprocess command for DAG file parsing.
-
-        :param dag_file_path: Absolute path to the DAG file to parse.
-        :param bundle_name: Name of the DAG bundle.
-        :param bundle_path: Root path of the DAG bundle.
-        :param comm_addr: ``host:port`` the subprocess must connect to
-            for the bidirectional msgpack comm channel.
-        :param logs_addr: ``host:port`` the subprocess must connect to
-            for the structured JSON log channel.
-        :returns: Full command list (e.g. ``["java", "-cp", "...", ...]`` based on each runtime).
         """
         raise NotImplementedError
 
@@ -285,16 +245,6 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
-    def run_dag_parsing(self, *, path: str, bundle_name: str, bundle_path: str) -> None:
-        """Entry point for running runtime-specific Dag File Processing."""
-        self._runtime_subprocess_entrypoint(
-            self.DagParsingInfo(
-                dag_file_path=path,
-                bundle_name=bundle_name,
-                bundle_path=bundle_path,
-            )
-        )
-
     def run_task_execution(
         self,
         *,
@@ -320,7 +270,7 @@ class BaseCoordinator:
         bidirectional comms socket to the supervisor.  The method:
 
         1. Creates TCP servers for comm and logs.
-        2. Calls :meth:`dag_parsing_cmd` or :meth:`task_execution_cmd` to get the command.
+        2. Calls :meth:`task_execution_cmd` to get the command.
         3. Spawns the subprocess with ``stdin=/dev/null`` and stderr
            captured via a socketpair.
         4. Runs the selector-based bridge until the subprocess exits.
@@ -359,7 +309,7 @@ class BaseCoordinator:
         log = structlog.get_logger(logger_name="task")
         log.info(
             "Starting runtime subprocess",
-            sdk=self.sdk,
+            type=qualname(self),
             mode=entrypoint_info.mode,
         )
 
@@ -381,15 +331,7 @@ class BaseCoordinator:
         # garbage-collected while the runtime process is still running.
         bundle_version_lock: contextlib.AbstractContextManager = contextlib.nullcontext()
 
-        if isinstance(entrypoint_info, self.DagParsingInfo):
-            cmd = self.dag_parsing_cmd(
-                dag_file_path=entrypoint_info.dag_file_path,
-                bundle_name=entrypoint_info.bundle_name,
-                bundle_path=entrypoint_info.bundle_path,
-                comm_addr=comm_addr,
-                logs_addr=logs_addr,
-            )
-        elif isinstance(entrypoint_info, self.TaskExecutionInfo):
+        if isinstance(entrypoint_info, self.TaskExecutionInfo):
             from airflow.dag_processing.bundles.base import BundleVersionLock
             from airflow.sdk.execution_time.task_runner import resolve_bundle
 
@@ -512,25 +454,6 @@ class CoordinatorManager:
         if name is None:
             return None
         return self._instances_by_name.get(name)
-
-    def for_dag_file(self, bundle_name: str, path: str | os.PathLike[str]) -> BaseCoordinator | None:
-        """Return the first coordinator whose ``can_handle_dag_file`` matches *path*."""
-        for instance in self.all():
-            try:
-                if instance.can_handle_dag_file(bundle_name, path):
-                    return instance
-            except Exception:
-                continue
-        return None
-
-    def file_extensions(self) -> tuple[str, ...]:
-        """Return the file extensions registered by all loaded coordinators."""
-        extensions: list[str] = []
-        for instance in self.all():
-            ext = getattr(type(instance), "file_extension", None)
-            if ext:
-                extensions.append(ext)
-        return tuple(extensions)
 
 
 @functools.cache
