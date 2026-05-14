@@ -164,7 +164,7 @@ async def await_pod_start(
     :param check_interval: Interval (in seconds) between status checks.
     :param is_async: Set to True if called in an async context; otherwise, False.
     """
-    pod_manager.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+    pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
     is_async = isinstance(pod_manager, AsyncPodManager)

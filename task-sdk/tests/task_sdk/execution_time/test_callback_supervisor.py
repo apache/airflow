@@ -33,7 +33,9 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     GetConnection,
     GetVariable,
+    GetVariableKeys,
     MaskSecret,
+    VariableKeysResult,
     VariableResult,
     _RequestFrame,
 )
@@ -178,6 +180,15 @@ class TestCallbackHandleRequest:
                 method_path="variables.get",
                 args=("test_key",),
                 response=VariableResult(key="test_key", value="test_value"),
+            ),
+        ),
+        RequestCase(
+            message=GetVariableKeys(prefix="test_"),
+            test_id="get_variable_keys",
+            client_mock=ClientMock(
+                method_path="variables.keys",
+                kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
+                response=VariableKeysResult(keys=["test_key"], total_entries=1),
             ),
         ),
         RequestCase(

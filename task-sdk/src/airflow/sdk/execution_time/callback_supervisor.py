@@ -34,11 +34,13 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetConnection,
     GetVariable,
+    GetVariableKeys,
     MaskSecret,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
+    handle_get_variable_keys,
     handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import (
@@ -72,7 +74,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 # This is a minimal subset of ToSupervisor: read-only access to Connections
 # and Variables, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | MaskSecret,
+    GetConnection | GetVariable | GetVariableKeys | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -284,6 +286,8 @@ class CallbackSubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
         else:

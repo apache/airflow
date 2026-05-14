@@ -193,6 +193,12 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Übereinstimmung an beliebiger Stelle im Wert (Teilstring-Suche). Bei großen Installationen langsamer, da der standardmäßige Datenbank-Index nicht genutzt werden kann. Details hierzu finden Sie im Dokumentationsabschnitt zu benutzerdefinierten Metadaten-Indizes (Performance tuning (API and UI)).",
+      "title": "Übereinstimmung an beliebiger Stelle"
+    }
+  },
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
@@ -257,6 +263,8 @@
   "task_one": "Task",
   "task_other": "Tasks",
   "taskGroup": "Task Gruppe",
+  "taskGroup_one": "Task Gruppe",
+  "taskGroup_other": "Task Gruppen",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
