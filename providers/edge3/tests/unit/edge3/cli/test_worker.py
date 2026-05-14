@@ -365,15 +365,37 @@ class TestEdgeWorker:
         assert result == 0
         assert not error_file_path.exists()  # no error written on success
 
-    @patch("airflow.sdk.execution_time.supervisor.supervise_task")
+    @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow < 3.3.0 where supervise was used")
     @pytest.mark.asyncio
-    async def test_supervise_launch_fail(
+    async def test_supervise_launch_fail_pre_3_3(
         self,
         mock_supervise,
         worker_with_job: EdgeWorker,
         tmp_path: Path,
     ):
         mock_supervise.side_effect = Exception("Supervise failed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+
+        assert result == 1
+        assert error_file_path.exists()
+        assert "Supervise failed" in error_file_path.read_text()
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    @pytest.mark.asyncio
+    async def test_supervise_launch_fail(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        mock_run_workload.side_effect = Exception("Supervise failed")
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
         error_file_path = tmp_path / "fork-error.log"

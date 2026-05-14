@@ -244,6 +244,55 @@ class TestAirflowKubernetesScheduler:
         finally:
             kube_executor.end()
 
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.Stats")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    def test_delete_pod_emits_metrics_on_success(
+        self, mock_watcher, mock_client, mock_kube_client, mock_stats
+    ):
+        pod_name = "my-pod-1"
+        namespace = "my-namespace-1"
+        mock_kube_client.return_value.delete_namespaced_pod = mock.MagicMock()
+
+        kube_executor = KubernetesExecutor()
+        kube_executor.job_id = 1
+        kube_executor.start()
+        try:
+            kube_executor.kube_scheduler.delete_pod(pod_name, namespace)
+            mock_stats.timer.assert_any_call("kubernetes_executor.pod_deletion")
+            mock_stats.incr.assert_any_call("kubernetes_executor.pod_deletion_status", tags={"status": "200"})
+        finally:
+            kube_executor.end()
+
+    @pytest.mark.skipif(
+        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.Stats")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    def test_delete_pod_emits_metrics_on_failure(
+        self, mock_watcher, mock_client, mock_kube_client, mock_stats
+    ):
+        pod_name = "my-pod-1"
+        namespace = "my-namespace-2"
+        mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=429)
+
+        kube_executor = KubernetesExecutor()
+        kube_executor.job_id = 1
+        kube_executor.start()
+        try:
+            with pytest.raises(ApiException):
+                kube_executor.kube_scheduler.delete_pod(pod_name, namespace)
+            mock_stats.timer.assert_any_call("kubernetes_executor.pod_deletion")
+            mock_stats.incr.assert_any_call("kubernetes_executor.pod_deletion_status", tags={"status": "429"})
+        finally:
+            kube_executor.end()
+
     def test_running_pod_log_lines(self):
         # default behaviour
         kube_executor = KubernetesExecutor()

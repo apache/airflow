@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG testing Dataproc
+Example Airflow DAG testing Managed Spark
 operators for managing a cluster and submitting jobs.
 """
 
@@ -92,7 +92,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "managed-spark"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID

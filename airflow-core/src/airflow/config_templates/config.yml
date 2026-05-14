@@ -3025,6 +3025,38 @@ state_store:
       type: string
       example: "mypackage.state.CustomStateBackend"
       default: "airflow.state.metastore.MetastoreStateBackend"
+    clear_on_success:
+      description: |
+        If set to True, all task state keys for a task instance are automatically cleared
+        when that task instance moved to SUCCESS.
+
+        Defaults to False so that task state persists after success for observability —
+        operators and the UI can inspect what the task wrote (e.g. submitted job IDs,
+        advanced watermarks) after the run completes.
+        Consider setting to True if you do not need post-success visibility and want automatic
+        cleanup without waiting for the global retention period.
+      version_added: 3.3.0
+      type: boolean
+      example: "True"
+      default: "False"
+    default_retention_days:
+      description: |
+        Number of days to retain task state after their last update.
+        Rows older than this are removed when cleanup is triggered.
+        This config does not affect asset_state rows.
+        Set to 0 to disable time-based cleanup entirely.
+      version_added: 3.3.0
+      type: integer
+      example: "7"
+      default: "30"
+    state_cleanup_batch_size:
+      description: |
+        Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
+        Tune this on deployments with large task_state tables to improve performance per transaction.
+      version_added: 3.3.0
+      type: integer
+      example: "10000"
+      default: "0"
 
 profiling:
   description: |

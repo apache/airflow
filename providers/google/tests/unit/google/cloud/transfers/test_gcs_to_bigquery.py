@@ -27,6 +27,7 @@ from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 from sqlalchemy import select
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.trigger import Trigger
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -1739,20 +1740,21 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
 
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            schema_fields=SCHEMA_FIELDS,
-            write_disposition=WRITE_DISPOSITION,
-            external_table=True,
-            project_id=JOB_PROJECT_ID,
-            source_format="PARQUET",
-            src_fmt_configs={
-                "enableListInference": True,
-            },
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                schema_fields=SCHEMA_FIELDS,
+                write_disposition=WRITE_DISPOSITION,
+                external_table=True,
+                project_id=JOB_PROJECT_ID,
+                source_format="PARQUET",
+                src_fmt_configs={
+                    "enableListInference": True,
+                },
+            )
 
         operator.execute(context=MagicMock())
 
@@ -1841,19 +1843,20 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        operator = GCSToBigQueryOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            source_objects=TEST_SOURCE_OBJECTS,
-            write_disposition=WRITE_DISPOSITION,
-            destination_project_dataset_table=TEST_EXPLICIT_DEST,
-            external_table=False,
-            project_id=JOB_PROJECT_ID,
-            source_format="PARQUET",
-            src_fmt_configs={
-                "enableListInference": True,
-            },
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                write_disposition=WRITE_DISPOSITION,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                external_table=False,
+                project_id=JOB_PROJECT_ID,
+                source_format="PARQUET",
+                src_fmt_configs={
+                    "enableListInference": True,
+                },
+            )
 
         operator.execute(context=MagicMock())
 
@@ -1887,6 +1890,208 @@ class TestGCSToBigQueryOperator:
         ]
 
         hook.return_value.insert_job.assert_has_calls(calls)
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_extra_config_is_merged_into_load_config(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            extra_config={"columnNameCharacterMap": "STRICT"},
+        )
+
+        operator.execute(context=MagicMock())
+
+        config = hook.return_value.insert_job.call_args[1]["configuration"]
+        assert config["load"]["columnNameCharacterMap"] == "STRICT"
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_extra_config_takes_precedence_over_top_level_params(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            autodetect=True,
+            extra_config={"autodetect": False},
+        )
+
+        operator.execute(context=MagicMock())
+
+        config = hook.return_value.insert_job.call_args[1]["configuration"]
+        assert config["load"]["autodetect"] is False
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_extra_config_with_nested_format_options(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            source_format="PARQUET",
+            extra_config={"parquetOptions": {"enableListInference": True}},
+        )
+
+        operator.execute(context=MagicMock())
+
+        config = hook.return_value.insert_job.call_args[1]["configuration"]
+        assert config["load"]["parquetOptions"] == {"enableListInference": True}
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_extra_config_is_merged_into_external_config(self, hook):
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+            extra_config={"maxBadRecords": 10},
+        )
+
+        operator.execute(context=MagicMock())
+
+        table_resource = hook.return_value.create_table.call_args[1]["table_resource"]
+        assert table_resource["externalDataConfiguration"]["maxBadRecords"] == 10
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_max_bad_records_set_from_top_level_param_in_external_table(self, hook):
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+            max_bad_records=5,
+        )
+
+        operator.execute(context=MagicMock())
+
+        table_resource = hook.return_value.create_table.call_args[1]["table_resource"]
+        assert table_resource["externalDataConfiguration"]["maxBadRecords"] == 5
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_extra_config_takes_precedence_over_max_bad_records_in_external_table(self, hook):
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+            max_bad_records=5,
+            extra_config={"maxBadRecords": 10},
+        )
+
+        operator.execute(context=MagicMock())
+
+        table_resource = hook.return_value.create_table.call_args[1]["table_resource"]
+        assert table_resource["externalDataConfiguration"]["maxBadRecords"] == 10
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_extra_config_takes_precedence_over_schema_fields_in_external_table(self, hook):
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        override_schema = [{"name": "override_col", "type": "INTEGER", "mode": "NULLABLE"}]
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+            extra_config={"schema": {"fields": override_schema}},
+        )
+
+        operator.execute(context=MagicMock())
+
+        table_resource = hook.return_value.create_table.call_args[1]["table_resource"]
+        assert table_resource["externalDataConfiguration"]["schema"]["fields"] == override_schema
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_src_fmt_configs_emits_deprecation_warning(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                write_disposition=WRITE_DISPOSITION,
+                project_id=JOB_PROJECT_ID,
+                src_fmt_configs={"skipLeadingRows": 1},
+            )
+
+        operator.execute(context=MagicMock())
+
+        config = hook.return_value.insert_job.call_args[1]["configuration"]
+        assert config["load"]["skipLeadingRows"] == 1
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_src_fmt_configs_and_extra_config_both_applied_with_precedence(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                write_disposition=WRITE_DISPOSITION,
+                project_id=JOB_PROJECT_ID,
+                src_fmt_configs={"skipLeadingRows": 1},
+                extra_config={"skipLeadingRows": 5, "columnNameCharacterMap": "STRICT"},
+            )
+
+        operator.execute(context=MagicMock())
+
+        config = hook.return_value.insert_job.call_args[1]["configuration"]
+        # extra_config wins for overlapping key
+        assert config["load"]["skipLeadingRows"] == 5
+        assert config["load"]["columnNameCharacterMap"] == "STRICT"
 
 
 @pytest.fixture
