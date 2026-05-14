@@ -952,7 +952,7 @@ def datetime_range_filter_factory(
             upper_bound_lte=upper_bound_lte,
             upper_bound_lt=upper_bound_lt,
         )
-        if (attribute_name or filter_name) in ("start_date", "end_date"):
+        if filter_name in ("start_date", "end_date"):
             return NullableDatetimeRangeFilter(range_val, attr)
         return RangeFilter(range_val, attr)
 
