@@ -24,7 +24,7 @@ type RouterLinkProps = {
 } & Omit<LinkProps, "asChild" | "href">;
 
 export const RouterLink = ({ children, to, ...rest }: RouterLinkProps) => (
-  <ChakraLink asChild {...rest}>
+  <ChakraLink asChild color="fg.info" {...rest}>
     <ReactRouterLink to={to}>{children}</ReactRouterLink>
   </ChakraLink>
 );
