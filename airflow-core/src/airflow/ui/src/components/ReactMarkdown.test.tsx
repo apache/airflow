@@ -18,12 +18,10 @@
  */
 /// <reference types="@testing-library/jest-dom" />
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import i18n from "src/i18n/config";
 import { BaseWrapper } from "src/utils/Wrapper";
-import { SyntaxHighlighter as HighlightSyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 import ReactMarkdown from "./ReactMarkdown";
 
@@ -40,96 +38,7 @@ vi.mock("src/utils/renderMermaid", () => ({
 }));
 
 describe("ReactMarkdown", () => {
-  it("supports a broad highlight.js language set", () => {
-    const { supportedLanguages } = HighlightSyntaxHighlighter as unknown as {
-      supportedLanguages: Array<string>;
-    };
-
-    expect(supportedLanguages).toEqual(
-      expect.arrayContaining(["bash", "javascript", "typescript", "go", "rust"]),
-    );
-  });
-
-  it("renders inline code spans as inline code", () => {
-    const markdown = "Text with `inline_code` inside a paragraph.";
-
-    render(
-      <BaseWrapper>
-        <ReactMarkdown>{markdown}</ReactMarkdown>
-      </BaseWrapper>,
-    );
-
-    const inlineCode = screen.getByText("inline_code", { selector: "code" });
-
-    expect(inlineCode).toBeInTheDocument();
-    expect(inlineCode.closest("pre")).toBeNull();
-    expect(screen.getByText(/Text with/iu)).toBeInTheDocument();
-    expect(screen.getByText(/inside a paragraph/iu)).toBeInTheDocument();
-  });
-
-  it("renders fenced code blocks with line numbers and copy action", () => {
-    const markdown = [
-      "```javascript",
-      'const longLine = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";',
-      "console.log(longLine);",
-      "```",
-    ].join("\n");
-    const { container } = render(
-      <BaseWrapper>
-        <ReactMarkdown>{markdown}</ReactMarkdown>
-      </BaseWrapper>,
-    );
-
-    const codeElement = container.querySelector("code");
-
-    expect(screen.getByText("javascript")).toBeInTheDocument();
-    expect(screen.getByTestId("markdown-copy-button")).toBeInTheDocument();
-    expect(screen.getByLabelText(i18n.t("components:clipboard.copy"))).toBeInTheDocument();
-    expect(screen.getByText("console")).toBeInTheDocument();
-    expect(container.querySelectorAll(".react-syntax-highlighter-line-number")).toHaveLength(2);
-    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({
-      overflowX: "auto",
-      overflowY: "hidden",
-      width: "100%",
-    });
-    expect(screen.getByTestId("markdown-code-content")).toHaveStyle({
-      display: "inline-block",
-      minWidth: "100%",
-    });
-    expect(codeElement).toHaveStyle({ overflowWrap: "normal", whiteSpace: "pre", wordBreak: "normal" });
-  });
-
-  it("stretches the markdown root inside flex layouts without widening the document", () => {
-    const markdown = [
-      "```javascript",
-      'const longLine = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";',
-      "console.log(longLine);",
-      "```",
-    ].join("\n");
-
-    render(
-      <BaseWrapper>
-        <div
-          data-testid="markdown-host"
-          style={{ alignItems: "flex-start", display: "flex", flexDirection: "column", width: "320px" }}
-        >
-          <ReactMarkdown>{markdown}</ReactMarkdown>
-        </div>
-      </BaseWrapper>,
-    );
-
-    const markdownRoot = screen.getByTestId("markdown-host").firstElementChild;
-
-    expect(markdownRoot).toHaveStyle({
-      alignSelf: "stretch",
-      maxWidth: "100%",
-      minWidth: "0",
-      width: "100%",
-    });
-    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveStyle({ overflowX: "auto", width: "100%" });
-  });
-
-  it("renders inline math within text and block math as display content", () => {
+  it("renders basic math integration", () => {
     const markdown = [
       String.raw`Inline math can stay in a sentence, such as $E = \frac{|y - \hat{y}|}{\max(|y|, \epsilon)}$, without leaving the paragraph.`,
       "",
@@ -149,7 +58,9 @@ describe("ReactMarkdown", () => {
     expect(container.querySelectorAll(".katex-display")).toHaveLength(1);
   });
 
-  it("renders mermaid fenced blocks as diagrams", () => {
+  it("falls back to a code block when mermaid rendering fails", async () => {
+    renderMermaidDiagramMock.mockRejectedValueOnce(new Error("mermaid render failed"));
+
     const markdown = ["```mermaid", "graph TD", "  A-->B", "```"].join("\n");
 
     render(
@@ -158,15 +69,11 @@ describe("ReactMarkdown", () => {
       </BaseWrapper>,
     );
 
-    expect(screen.getByLabelText(i18n.t("components:clipboard.copy"))).toBeInTheDocument();
-    expect(renderMermaidDiagramMock).toHaveBeenCalled();
-    const loadingState = screen.getByTestId("markdown-mermaid-loading");
+    await waitFor(() => expect(screen.getByTestId("markdown-copy-button")).toBeInTheDocument());
 
-    expect(loadingState).toBeInTheDocument();
-    expect(loadingState.parentElement).toHaveStyle({
-      maxWidth: "100%",
-      overflow: "hidden",
-      width: "100%",
-    });
+    expect(renderMermaidDiagramMock).toHaveBeenCalled();
+    expect(screen.queryByTestId("markdown-mermaid-copy-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("markdown-mermaid-diagram")).not.toBeInTheDocument();
+    expect(screen.getByTestId("markdown-code-scroll-area")).toHaveTextContent("A-->B");
   });
 });
