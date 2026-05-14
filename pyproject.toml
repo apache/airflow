@@ -22,7 +22,7 @@ requires = [
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.4.28.13",
+    "trove-classifiers==2026.5.7.17",
 ]
 build-backend = "hatchling.build"
 
@@ -551,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.11",
+    "uv>=0.11.12",
 ]
 
 [project.urls]
