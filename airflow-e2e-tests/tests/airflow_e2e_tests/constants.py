@@ -49,3 +49,16 @@ AWS_INIT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "scripts" / "init-aws.
 XCOM_BUCKET = "test-xcom-objectstorage-backend"
 
 KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
+
+# Local provider sources are mounted into the airflow containers under this directory so
+# ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)
+# provider rather than the published one from PyPI.
+PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+PROVIDERS_MOUNT_CONTAINER_PATH = "/opt/airflow-providers"
+AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT = (
+    "airflow-apiserver",
+    "airflow-scheduler",
+    "airflow-dag-processor",
+    "airflow-worker",
+    "airflow-triggerer",
+)

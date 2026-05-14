@@ -27,6 +27,7 @@ from rich.console import Console
 from testcontainers.compose import DockerCompose
 
 from airflow_e2e_tests.constants import (
+    AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT,
     AWS_INIT_PATH,
     DOCKER_COMPOSE_HOST_PORT,
     DOCKER_COMPOSE_PATH,
@@ -38,6 +39,8 @@ from airflow_e2e_tests.constants import (
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     OPENSEARCH_PATH,
+    PROVIDERS_MOUNT_CONTAINER_PATH,
+    PROVIDERS_ROOT_PATH,
     TEST_REPORT_FILE,
     XCOM_BUCKET,
 )
@@ -133,8 +136,40 @@ def _copy_kafka_files(tmp_dir):
     os.chmod(kafka_dir / "update_run.sh", current_permissions | 0o111)
 
 
+def _write_providers_mount_override(tmp_dir: Path, providers: list[str]) -> list[str]:
+    """Write a docker-compose override that bind-mounts in-tree provider sources.
+
+    Each entry in ``providers`` is a provider id with dot-separated path segments (e.g.
+    ``"apache.kafka"``). The host source ``providers/<dotted/as/slashes>`` is mounted
+    read-only into every airflow service at ``<PROVIDERS_MOUNT_CONTAINER_PATH>/<dashed>``.
+    Returns the list of in-container paths suitable for ``_PIP_ADDITIONAL_REQUIREMENTS``
+    so pip installs the in-tree (latest, possibly unreleased) provider instead of the
+    PyPI release.
+    """
+    in_container_paths: list[str] = []
+    volume_entries: list[str] = []
+    for provider_id in providers:
+        host_path = PROVIDERS_ROOT_PATH / provider_id.replace(".", "/")
+        if not host_path.is_dir():
+            raise RuntimeError(f"Provider source directory not found: {host_path}")
+        container_path = f"{PROVIDERS_MOUNT_CONTAINER_PATH}/{provider_id.replace('.', '-')}"
+        in_container_paths.append(container_path)
+        volume_entries.append(f"      - {host_path}:{container_path}:ro")
+
+    volumes_block = "\n".join(volume_entries)
+    services_block = "\n".join(
+        f"  {svc}:\n    volumes:\n{volumes_block}" for svc in AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT
+    )
+    (tmp_dir / "providers-mount.yml").write_text(f"---\nservices:\n{services_block}\n")
+    return in_container_paths
+
+
 def _setup_event_driven_integration(dot_env_file, tmp_dir):
     _copy_kafka_files(tmp_dir)
+
+    # Install kafka and common-messaging providers from the in-tree sources so the
+    # test exercises the latest code even before a PyPI release is cut.
+    provider_paths = _write_providers_mount_override(tmp_dir, ["apache.kafka", "common.messaging"])
 
     kafka_conn = json.dumps(
         {
@@ -152,8 +187,7 @@ def _setup_event_driven_integration(dot_env_file, tmp_dir):
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         f"AIRFLOW_CONN_KAFKA_DEFAULT='{kafka_conn}'\n"
-        "_PIP_ADDITIONAL_REQUIREMENTS="
-        "apache-airflow-providers-apache-kafka apache-airflow-providers-common-messaging\n"
+        f"_PIP_ADDITIONAL_REQUIREMENTS={' '.join(provider_paths)}\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
@@ -239,7 +273,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         compose_file_names.append("localstack.yml")
         _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
     elif E2E_TEST_MODE == "event_driven":
-        compose_file_names.append("kafka.yml")
+        compose_file_names.extend(["kafka.yml", "providers-mount.yml"])
         _setup_event_driven_integration(dot_env_file, tmp_dir)
 
     #
