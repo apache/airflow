@@ -447,9 +447,11 @@ class TestDataErrorHandler:
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
         assert exc_info.value.status_code == expected_status
-        assert exc_info.value.detail["reason"] == expected_reason
-        assert exc_info.value.detail["orig_error"] == orig_msg
-        assert "MEDIUMTEXT" in exc_info.value.detail["message"]
+        detail = exc_info.value.detail
+        assert isinstance(detail, dict)
+        assert detail["reason"] == expected_reason
+        assert detail["orig_error"] == orig_msg
+        assert "MEDIUMTEXT" in detail["message"]
 
     def test_dataerror_dispatched_through_fastapi_app(self) -> None:
         """End-to-end: a route raising DataError returns 413 via the registered handler."""
@@ -464,8 +466,9 @@ class TestDataErrorHandler:
         response = TestClient(app, raise_server_exceptions=False).post("/test")
         assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
         body = response.json()
-        assert body["detail"]["reason"] == "Payload exceeded database column limit"
-        assert "MEDIUMTEXT" in body["detail"]["message"]
+        detail = body["detail"]
+        assert detail["reason"] == "Payload exceeded database column limit"
+        assert "MEDIUMTEXT" in detail["message"]
 
 
 class TestDagErrorHandler:
