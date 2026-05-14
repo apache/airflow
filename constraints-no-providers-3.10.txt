@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-12T22:22:20.103758
+# This constraints file was automatically generated on 2026-05-14T16:41:09.272002
 # via `uv sync --resolution highest` for the "v3-2-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -85,7 +85,7 @@ protobuf==6.33.6
 psutil==7.2.2
 pycparser==3.0
 pydantic-extra-types==2.11.1
-pydantic-settings==2.14.0
+pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
 pygtrie==2.5.0
@@ -121,7 +121,7 @@ uc-micro-py==2.0.0
 universal_pathlib==0.3.10
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.11
+uv==0.11.12
 uvicorn==0.46.0
 uvloop==0.22.1
 watchfiles==1.1.1
