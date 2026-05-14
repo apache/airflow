@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-14T09:06:45.526326
+# This constraints file was automatically generated on 2026-05-14T11:46:13.156588
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -325,6 +325,7 @@ importlib_resources==7.1.0
 impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.50.0
+influxdb3-python==0.19.0
 iniconfig==2.3.0
 inputimeout==1.0.4
 ipdb==0.13.13
