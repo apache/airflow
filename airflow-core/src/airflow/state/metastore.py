@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -44,18 +44,6 @@ if TYPE_CHECKING:
 
 
 log = structlog.get_logger(__name__)
-
-
-def _compute_expires_at(now: datetime) -> datetime | None:
-    """
-    Return the expiry timestamp for a new task state row based on config.
-
-    Returns None if default_retention_days is 0 (never expires).
-    """
-    retention_days = conf.getint("state_store", "default_retention_days")
-    if retention_days <= 0:
-        return None
-    return now + timedelta(days=retention_days)
 
 
 @asynccontextmanager
@@ -240,8 +228,6 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        if expires_at is None:
-            expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,
@@ -394,8 +380,6 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        if expires_at is None:
-            expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,

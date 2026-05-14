@@ -2722,12 +2722,17 @@ REQUEST_TEST_CASES = [
         expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
     ),
     RequestTestCase(
-        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
+        message=SetTaskState(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
         test_id="set_task_state",
         client_mock=ClientMock(
             method_path="task_state.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": None},
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},

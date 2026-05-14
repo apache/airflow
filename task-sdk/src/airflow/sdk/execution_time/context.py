@@ -29,6 +29,7 @@ from uuid import UUID
 import attrs
 import structlog
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -107,6 +108,11 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 
 
 log = structlog.get_logger(logger_name="task")
+
+#: Pass as ``retention`` to ``task_state.set()`` to store a key that never expires,
+#: regardless of the global ``[state_store] default_retention_days`` config.
+#: Example: ``context["task_state"].set("job_id", job_id, retention=NEVER_EXPIRE)``
+NEVER_EXPIRE: timedelta = timedelta.max
 
 T = TypeVar("T")
 
@@ -471,16 +477,24 @@ class TaskStateAccessor:
         """
         Write or overwrite the value for the given key.
 
-        ``retention`` is an optional per-key expiry override. Pass a :class:`~datetime.timedelta`
-        to set an explicit lifetime for this key (e.g. ``timedelta(hours=6)``).
-        If ``None`` (default), the global ``[state_store] default_retention_days`` config applies.
+        ``retention`` is an optional key that controls when this key expires:
+
+        - ``timedelta(...)`` — expire after the given duration (e.g. ``timedelta(hours=6)``).
+        - ``NEVER_EXPIRE`` — key never expires, regardless of the global config and is skipped by garbage collection.
+        - ``None`` (default) — use the global ``[state_store] default_retention_days`` config.
         """
         from airflow.sdk.execution_time.comms import SetTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # Compute expires_at on the worker in UTC so the server just stores it directly.
-        # Using an absolute timestamp avoids any clock-skew or timezone ambiguity between worker and server.
-        expires_at = datetime.now(tz=timezone.utc) + retention if retention is not None else None
+        # expires_at is always resolved on the worker in UTC before being sent.
+        now = datetime.now(tz=timezone.utc)
+        if retention is NEVER_EXPIRE:
+            expires_at = None
+        elif retention is not None:
+            expires_at = now + retention
+        else:
+            days = conf.getint("state_store", "default_retention_days")
+            expires_at = now + timedelta(days=days)
         SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value, expires_at=expires_at))
 
     def delete(self, key: str) -> None:

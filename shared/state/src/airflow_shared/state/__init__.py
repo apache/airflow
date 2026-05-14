@@ -100,8 +100,9 @@ class BaseStateBackend(ABC):
 
         Must handle both ``TaskScope`` and ``AssetScope``.
 
-        ``expires_at`` is an optional absolute UTC datetime after which the row may be deleted.
-        If ``None``, the global ``[state_store] default_retention_days`` config determines expiry.
+        ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
+        Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
+        skipped by garbage collection.
         """
 
     @abstractmethod

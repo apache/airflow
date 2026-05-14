@@ -252,27 +252,26 @@ class TestMetastoreStateBackendTaskScope:
         assert row.expires_at is not None
         assert row.expires_at > row.updated_at
 
-    @conf_vars({("state_store", "default_retention_days"): "30"})
-    def test_set_with_retention_days(
+    def test_set_with_explicit_expires_at(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun, time_machine
     ):
-        """retention_days=7 sets expires_at to now+7 days regardless of the global 30 day default."""
+        """An explicit expires_at is stored as-is, overriding any global default."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         time_machine.move_to(timezone.datetime(2026, 1, 1), tick=False)
-        backend.set(scope, "job_id", "app_1234", retention_days=7, session=session)
+        expires = timezone.datetime(2026, 1, 8)
+        backend.set(scope, "job_id", "app_1234", expires_at=expires, session=session)
         session.flush()
 
         row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
         assert row is not None
-        assert row.expires_at == timezone.datetime(2026, 1, 8)
+        assert row.expires_at == expires
 
-    @conf_vars({("state_store", "default_retention_days"): "30"})
-    def test_set_retention_days_zero_disables_expiry(
+    def test_set_expires_at_none_stores_null(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
-        """retention_days=0 sets expires_at=NULL, meaning the key never expires."""
+        """expires_at=None stores NULL — the key never expires regardless of global config."""
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
-        backend.set(scope, "job_id", "app_1234", retention_days=0, session=session)
+        backend.set(scope, "job_id", "app_1234", session=session)
         session.flush()
 
         row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))

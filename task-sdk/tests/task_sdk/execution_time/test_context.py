@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
 )
 from airflow.sdk.execution_time.context import (
+    NEVER_EXPIRE,
     AssetStateAccessor,
     AssetStateAccessors,
     ConnectionAccessor,
@@ -92,6 +93,8 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+
+from tests_common.test_utils.config import conf_vars
 
 
 def test_convert_connection_result_conn():
@@ -1086,16 +1089,27 @@ class TestTaskStateAccessor:
         with pytest.raises(AirflowRuntimeError):
             TaskStateAccessor(ti_id=self.TI_ID).get("some_key")
 
-    def test_set_operation(self, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+    def test_set_operation_with_global_retention(self, mock_supervisor_comms, time_machine):
+        """set() with no retention uses global default_retention_days config."""
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(now, tick=False)
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001")
+            SetTaskState(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value="app_001",
+                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            )
         )
 
     def test_set_with_retention_computes_expires_at(self, mock_supervisor_comms, time_machine):
+        """set(retention=timedelta(...)) computes expires_at on the worker and sends it."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
         now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(now, tick=False)
@@ -1111,11 +1125,25 @@ class TestTaskStateAccessor:
             )
         )
 
-    def test_set_without_retention_sends_none_expires_at(self, mock_supervisor_comms):
-        """set() with no retention sends expires_at=None — server applies global config."""
+    def test_set_with_never_expire_sends_null_expires_at(self, mock_supervisor_comms):
+        """set(retention=NEVER_EXPIRE) sends expires_at=None"""
+
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention=NEVER_EXPIRE)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
+        )
+
+    def test_set_global_default_zero_sends_null_expires_at(self, mock_supervisor_comms):
+        """When default_retention_days=0 (never expire globally), expires_at=None (stored as NULL)."""
+        from tests_common.test_utils.config import conf_vars
+
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+
+        with conf_vars({("state_store", "default_retention_days"): "0"}):
+            TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)

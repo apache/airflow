@@ -694,7 +694,7 @@ class TaskStateOperations:
             raise
         return TaskStateResponse.model_validate_json(resp.read())
 
-    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None = None) -> OKResponse:
+    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None) -> OKResponse:
         """Set a task state value via the API server."""
         body = TaskStatePutBody(value=value, expires_at=expires_at)
         self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
