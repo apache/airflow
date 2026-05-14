@@ -333,6 +333,14 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
     ``UPDATE/MERGE/DELETE statement over table ... would affect rows in the
     streaming buffer`` errors.
 
+    .. warning::
+        The sensor reads ``table.streaming_buffer`` from BigQuery's table
+        metadata, which is eventually consistent. For a short window right
+        after a streaming insert the buffer metadata is still absent, so the
+        sensor may report the buffer empty before it actually is. Known
+        limitation tracked at
+        https://github.com/apache/airflow/issues/66963
+
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
     :param table_id: Table to monitor.
