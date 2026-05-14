@@ -87,7 +87,7 @@ def get_asset_state_by_name(
 ) -> AssetStateResponse:
     """Get an asset state value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -105,7 +105,7 @@ def set_asset_state_by_name(
 ) -> None:
     """Set an asset state value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
 
 
 @router.delete("/by-name/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -116,7 +116,7 @@ def delete_asset_state_by_name(
 ) -> None:
     """Delete a single asset state key by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/by-name/clear", status_code=status.HTTP_204_NO_CONTENT)
@@ -126,7 +126,7 @@ def clear_asset_state_by_name(
 ) -> None:
     """Delete all state keys for an asset by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
 
 
 @router.get("/by-uri/value")
@@ -137,7 +137,7 @@ def get_asset_state_by_uri(
 ) -> AssetStateResponse:
     """Get an asset state value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -155,7 +155,7 @@ def set_asset_state_by_uri(
 ) -> None:
     """Set an asset state value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
 
 
 @router.delete("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
@@ -166,7 +166,7 @@ def delete_asset_state_by_uri(
 ) -> None:
     """Delete a single asset state key by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @router.delete("/by-uri/clear", status_code=status.HTTP_204_NO_CONTENT)
@@ -176,4 +176,4 @@ def clear_asset_state_by_uri(
 ) -> None:
     """Delete all state keys for an asset by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)

@@ -1531,6 +1531,20 @@ TEAMS_COMMANDS = (
         args=(ARG_VERBOSE,),
     ),
 )
+STATE_STORE_COMMANDS = (
+    ActionCommand(
+        name="cleanup-task-states",
+        help="Remove expired task state rows (MetastoreStateBackend only)",
+        description=(
+            "Reads [state_store] default_retention_days from config and deletes task_state rows "
+            "older than the configured threshold. Only applies when MetastoreStateBackend is configured; "
+            "custom backends are skipped. Use --dry-run to preview without deleting."
+        ),
+        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup_task_states"),
+        args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
+    ),
+)
+
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
@@ -2114,6 +2128,11 @@ core_commands: list[CLICommand] = [
         name="providers",
         help="Display providers",
         subcommands=PROVIDERS_COMMANDS,
+    ),
+    GroupCommand(
+        name="state-store",
+        help="Manage task and asset state storage",
+        subcommands=STATE_STORE_COMMANDS,
     ),
     ActionCommand(
         name="rotate-fernet-key",
