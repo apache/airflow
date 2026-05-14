@@ -1889,10 +1889,9 @@ workers:
     state_backend:
       description: |
         Full class name of the state backend to use on workers for direct task state access,
-        bypassing the execution API. When set, ``TaskStateAccessor`` calls this backend directly
-        instead of routing through the supervisor comms path.
+        bypassing the execution API.
 
-        Leave empty (default) to use the standard comms path through the supervisor.
+        Leave empty (default) to use the standard path through the task sdk supervisor.
       version_added: 3.3.0
       type: string
       example: "mypackage.state.S3StateBackend"
