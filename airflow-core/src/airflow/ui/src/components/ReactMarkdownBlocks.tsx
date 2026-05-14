@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import { LazyClipboard } from "src/components/ui";
 import { renderMermaidDiagram } from "src/utils/renderMermaid";
-import { SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
+import { resolveSyntaxLanguage, SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 
 const MarkdownBlockFrame = ({
   action,
@@ -74,7 +74,9 @@ export const MarkdownCodeBlock = ({
   readonly value: string;
 }) => {
   const { t: translate } = useTranslation("components");
+  const codeBlockStyle = style['pre[class*="language-"]'];
   const languageLabel = language ?? "text";
+  const syntaxLanguage = resolveSyntaxLanguage(language);
 
   return (
     <MarkdownBlockFrame
@@ -89,6 +91,7 @@ export const MarkdownCodeBlock = ({
       label={languageLabel}
     >
       <Box
+        css={{ ...codeBlockStyle, borderRadius: 0, margin: 0 }}
         data-testid="markdown-code-scroll-area"
         maxWidth="100%"
         minWidth={0}
@@ -98,9 +101,22 @@ export const MarkdownCodeBlock = ({
       >
         <Box data-testid="markdown-code-content" display="inline-block" minWidth="100%">
           <SyntaxHighlighter
-            codeTagProps={{ style: { overflowWrap: "normal", whiteSpace: "pre", wordBreak: "normal" } }}
-            customStyle={{ borderRadius: 0, margin: 0, width: "max-content" }}
-            language={languageLabel}
+            codeTagProps={{
+              style: {
+                background: "transparent",
+                overflowWrap: "normal",
+                whiteSpace: "pre",
+                wordBreak: "normal",
+              },
+            }}
+            customStyle={{
+              background: "transparent",
+              borderRadius: 0,
+              margin: 0,
+              padding: 0,
+              width: "max-content",
+            }}
+            language={syntaxLanguage}
             lineNumberStyle={{ minWidth: "2.5em", opacity: 0.6, paddingRight: "1em" }}
             PreTag="div"
             showLineNumbers

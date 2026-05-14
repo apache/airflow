@@ -17,12 +17,39 @@
  * under the License.
  */
 import type { CSSProperties } from "react";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
 
-export {
-  atomOneDark as oneDark,
-  atomOneLight as oneLight,
-} from "react-syntax-highlighter/dist/esm/styles/hljs";
+export { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-export { default as SyntaxHighlighter } from "react-syntax-highlighter";
+export const supportedSyntaxLanguages = ["bash", "json", "python", "sql", "yaml"] as const;
+
+type SupportedSyntaxLanguage = (typeof supportedSyntaxLanguages)[number];
+
+const supportedSyntaxLanguageSet = new Set<string>(supportedSyntaxLanguages);
+
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("yaml", yaml);
+SyntaxHighlighter.registerLanguage("sql", sql);
+SyntaxHighlighter.registerLanguage("bash", bash);
+
+export const resolveSyntaxLanguage = (language?: string): SupportedSyntaxLanguage | undefined => {
+  if (language === undefined) {
+    return undefined;
+  }
+
+  const normalizedLanguage = language.trim().toLowerCase();
+
+  return supportedSyntaxLanguageSet.has(normalizedLanguage)
+    ? (normalizedLanguage as SupportedSyntaxLanguage)
+    : undefined;
+};
 
 export type SyntaxTheme = Record<string, CSSProperties>;
+
+export { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
