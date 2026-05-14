@@ -65,7 +65,7 @@ def get_task_state(
 ) -> TaskStateResponse:
     """Get value for a task state."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    value = get_state_backend().get(scope, key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    value = get_state_backend().get(scope, key, session=session)
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -86,7 +86,7 @@ def set_task_state(
 ) -> None:
     """Set a task state key, creating or updating the row."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().set(scope, key, body.value, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().set(scope, key, body.value, session=session)
 
 
 @router.delete("/{task_instance_id}/{key}", status_code=status.HTTP_204_NO_CONTENT)
@@ -97,7 +97,7 @@ def delete_task_state(
 ) -> None:
     """Delete a single task state key."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().delete(scope, key, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().delete(scope, key, session=session)
 
 
 @router.delete("/{task_instance_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -125,4 +125,4 @@ def clear_task_state(
     accepted without error.
     """
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+    get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)

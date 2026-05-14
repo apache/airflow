@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
+    BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
@@ -319,3 +320,93 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
         message = "No event received in trigger callback"
         raise AirflowException(message)
+
+
+class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
+    """
+    Wait for the streaming buffer of a BigQuery table to be empty.
+
+    BigQuery DML statements (UPDATE, DELETE, MERGE) cannot run against rows that
+    are still in the streaming buffer; the buffer is flushed within ~90 minutes.
+    Use this sensor between a streaming insert and a DML step to avoid
+    ``UPDATE/MERGE/DELETE statement over table ... would affect rows in the
+    streaming buffer`` errors.
+
+    :param project_id: Google Cloud project containing the table.
+    :param dataset_id: Dataset of the table to monitor.
+    :param table_id: Table to monitor.
+    :param gcp_conn_id: Airflow connection ID for GCP.
+    :param impersonation_chain: Optional service account to impersonate, or a
+        chained list of accounts. See the Google provider docs for details.
+    :param deferrable: Run in deferrable mode using
+        :class:`BigQueryStreamingBufferEmptyTrigger`.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "impersonation_chain",
+    )
+
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        if deferrable and "poke_interval" not in kwargs:
+            kwargs["poke_interval"] = 30
+
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context)
+            return
+        if self.poke(context=context):
+            return
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=BigQueryStreamingBufferEmptyTrigger(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                poll_interval=self.poke_interval,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
+        if event is None:
+            raise ValueError("No event received in trigger callback")
+        if event["status"] == "success":
+            return event["message"]
+        raise RuntimeError(event["message"])
+
+    def poke(self, context: Context) -> bool:
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking streaming buffer state for table: %s", table_uri)
+
+        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        try:
+            table = hook.get_client(project_id=self.project_id).get_table(table_uri)
+        except NotFound as err:
+            raise ValueError(f"Table {table_uri} not found") from err
+        return table.streaming_buffer is None

@@ -16,16 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import importlib
 import json
 import logging
-import multiprocessing
+import os
 import signal
+import subprocess
+import sys
 from datetime import datetime
 from io import StringIO
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pathlib import Path
 from unittest import mock
 from unittest.mock import call, patch
@@ -52,6 +53,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerRegistrationReturn,
     WorkerSetStateReturn,
 )
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
@@ -81,21 +83,9 @@ MOCK_COMMAND = {
 }
 
 
-def _emit_large_exception_target(results_queue):
-    """Worker-process target used by ``test_fetch_and_run_job_possible_deadlock``.
-
-    Pushes a >64 KB pickled exception to ``results_queue``. On Linux the OS pipe
-    backing ``multiprocessing.Queue`` only has ~64 KB of buffer, so the queue's
-    feeder thread blocks on ``send_bytes`` and the subprocess can't terminate
-    until the parent reads from the queue — exactly the production deadlock
-    condition that #66144 fixed.
-    """
-    results_queue.put(Exception(f"Task execution failed with large error message {'-' * 66000}"))
-
-
 class _MockProcess(Process):
     def __init__(self, returncode=None):
-        self.generated_returncode = None
+        self.generated_returncode = returncode
         self._is_alive = False
 
     def poll(self):
@@ -103,6 +93,10 @@ class _MockProcess(Process):
 
     @property
     def returncode(self):
+        return self.generated_returncode
+
+    @property
+    def exitcode(self):
         return self.generated_returncode
 
     def is_alive(self):
@@ -116,6 +110,15 @@ class _MockProcess(Process):
 
     def join(self, timeout=None):
         pass
+
+
+class _MockPopen(subprocess.Popen):
+    def __init__(self, returncode: int | None = None, pid: int = 1234):
+        self.returncode = returncode
+        self.pid = pid
+
+    def poll(self):
+        return self.returncode
 
 
 class TestEdgeWorker:
@@ -234,6 +237,98 @@ class TestEdgeWorker:
             url = test_worker._execution_api_server_url
             assert url == expected_url
 
+    @pytest.mark.parametrize(
+        ("has_fork", "use_new_interpreter", "expected_launch_method"),
+        [
+            pytest.param(True, False, "fork", id="fork_available_config_false"),
+            pytest.param(True, True, "subprocess", id="fork_available_config_true"),
+            pytest.param(False, False, "subprocess", id="fork_unavailable_config_false"),
+            pytest.param(False, True, "subprocess", id="fork_unavailable_config_true"),
+        ],
+    )
+    def test_launch_job_honors_execute_tasks_new_python_interpreter(
+        self,
+        has_fork,
+        use_new_interpreter,
+        expected_launch_method,
+        monkeypatch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        if not has_fork:
+            monkeypatch.delattr(os, "fork", raising=False)
+        worker_with_job.conf = mock.MagicMock()
+        worker_with_job.conf.getboolean.return_value = use_new_interpreter
+        edge_job = worker_with_job.jobs[0].edge_job
+        workload = edge_job.command
+        logfile = tmp_path / "mock.log"
+        subprocess_process = _MockPopen(returncode=None)
+        stderr_file_path = tmp_path / "stderr.log"
+        fork_process = _MockProcess()
+        error_file_path = tmp_path / "fork-error.log"
+
+        with (
+            patch.object(
+                worker_with_job, "_launch_job_subprocess", return_value=(subprocess_process, stderr_file_path)
+            ) as mock_launch_subprocess,
+            patch.object(
+                worker_with_job, "_launch_job_fork", return_value=(fork_process, error_file_path)
+            ) as mock_launch_fork,
+        ):
+            job = worker_with_job._launch_job(edge_job, workload, logfile)
+
+        if has_fork:
+            worker_with_job.conf.getboolean.assert_called_once_with(
+                "core", "execute_tasks_new_python_interpreter", fallback=False
+            )
+        else:
+            worker_with_job.conf.getboolean.assert_not_called()
+        if expected_launch_method == "subprocess":
+            assert job.process is subprocess_process
+            assert job.stderr_file_path == stderr_file_path
+            mock_launch_subprocess.assert_called_once_with(workload)
+            mock_launch_fork.assert_not_called()
+        else:
+            assert job.process is fork_process
+            assert job.stderr_file_path == error_file_path
+            mock_launch_fork.assert_called_once_with(workload)
+            mock_launch_subprocess.assert_not_called()
+
+    @patch("airflow.providers.edge3.cli.worker.subprocess.Popen")
+    def test_launch_job_subprocess_uses_fresh_interpreter_and_spools_stderr(
+        self,
+        mock_popen,
+        worker_with_job: EdgeWorker,
+    ):
+        process = _MockPopen(returncode=None, pid=4321)
+        mock_popen.return_value = process
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        workload = worker_with_job.jobs[0].edge_job.command
+        stderr_file_path = None
+
+        try:
+            returned_process, stderr_file_path = worker_with_job._launch_job_subprocess(workload)
+            assert returned_process is process
+
+            popen_args, popen_kwargs = mock_popen.call_args
+            assert popen_args[0] == [
+                sys.executable,
+                "-m",
+                "airflow.sdk.execution_time.execute_workload",
+                "--json-string",
+                workload.model_dump_json(),
+            ]
+            assert (
+                popen_kwargs["env"]["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"]
+                == "https://mock-server/execution"
+            )
+            assert popen_kwargs["start_new_session"] is True
+            assert popen_kwargs["stderr"] is not subprocess.PIPE
+            assert Path(popen_kwargs["stderr"].name) == stderr_file_path
+        finally:
+            if stderr_file_path:
+                stderr_file_path.unlink(missing_ok=True)
+
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow < 3.3.0 where supervise was used")
     @pytest.mark.asyncio
@@ -241,14 +336,15 @@ class TestEdgeWorker:
         self,
         mock_supervise,
         worker_with_job: EdgeWorker,
+        tmp_path: Path,
     ):
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
-        q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
         assert result == 0
-        q.put.assert_called_once_with("OK")
+        assert not error_file_path.exists()  # no error written on success
 
     @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
     @pytest.mark.skipif(
@@ -259,32 +355,58 @@ class TestEdgeWorker:
         self,
         mock_run_workload,
         worker_with_job: EdgeWorker,
+        tmp_path: Path,
     ):
         worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
-        q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
         assert result == 0
-        q.put.assert_called_once_with("OK")
+        assert not error_file_path.exists()  # no error written on success
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow < 3.3.0 where supervise was used")
     @pytest.mark.asyncio
-    async def test_supervise_launch_fail(
+    async def test_supervise_launch_fail_pre_3_3(
         self,
         mock_supervise,
         worker_with_job: EdgeWorker,
+        tmp_path: Path,
     ):
         mock_supervise.side_effect = Exception("Supervise failed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
         edge_job = worker_with_job.jobs.pop().edge_job
-        q = mock.MagicMock()
-        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
 
         assert result == 1
-        q.put.assert_called_once()
+        assert error_file_path.exists()
+        assert "Supervise failed" in error_file_path.read_text()
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    @pytest.mark.asyncio
+    async def test_supervise_launch_fail(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+        tmp_path: Path,
+    ):
+        mock_run_workload.side_effect = Exception("Supervise failed")
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        error_file_path = tmp_path / "fork-error.log"
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, error_file_path)
+
+        assert result == 1
+        assert error_file_path.exists()
+        assert "Supervise failed" in error_file_path.read_text()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
-    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
     @pytest.mark.asyncio
     async def test_fetch_and_run_job_no_job(
         self,
@@ -301,7 +423,7 @@ class TestEdgeWorker:
         mock_launch_job.assert_not_called()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
-    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
@@ -315,20 +437,20 @@ class TestEdgeWorker:
         mock_jobs_set_state,
         mock_launch_job,
         mock_jobs_fetch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        mock_jobs_fetch.side_effect = [
-            EdgeJobFetched(
-                dag_id="test",
-                task_id="test",
-                run_id="test",
-                map_index=-1,
-                try_number=1,
-                concurrency_slots=1,
-                command=MOCK_COMMAND,  # type: ignore[arg-type]
-            ),
-            None,
-        ]
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
         worker_with_job.concurrency = 1  # only one job at a time
         assert worker_with_job.free_concurrency == 0
 
@@ -337,7 +459,9 @@ class TestEdgeWorker:
         mock_jobs_fetch.assert_called_once()
         fetch_args = mock_jobs_fetch.call_args
         assert fetch_args.args[3] is None  # team_name should be None
-        mock_launch_job.assert_called_once()
+        mock_launch_job.assert_called_once_with(
+            edge_job, edge_job.command, Path(worker_with_job.base_log_folder, "mock.log")
+        )
         assert mock_jobs_set_state.call_count == 2
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
@@ -348,109 +472,127 @@ class TestEdgeWorker:
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @pytest.mark.asyncio
-    async def test_fetch_and_run_job_possible_deadlock(
+    async def test_fetch_and_run_job_fork_failure_pushes_error_to_logs(
         self,
         mock_logs_push,
         mock_push_log_chunks,
         mock_jobs_set_state,
         mock_jobs_fetch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        """Verify that a large exception from the subprocess does not deadlock fetch_and_run_job.
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        worker_with_job.concurrency = 1
+        process = _MockProcess(returncode=1)
+        error_file_path = tmp_path / "fork-error.log"
+        error_file_path.write_text(
+            "Traceback (most recent call last):\n  ...\nRuntimeError: supervisor crashed\n"
+        )
+        launched_job = Job(edge_job, process, tmp_path / "mock.log", stderr_file_path=error_file_path)
 
-        Uses an explicit ``fork`` context to spawn the simulated worker subprocess. Python 3.14
-        flipped the POSIX default ``multiprocessing`` start method to ``forkserver``, which
-        spawns a fresh interpreter for the child — patches applied in the test process do not
-        propagate, so older variants of this test that mocked ``supervise`` no longer triggered
-        the deadlock condition. Forking a small top-level target sidesteps that and reproduces
-        the actual queue-feeder/pipe-buffer deadlock the fix targets.
-        """
-        mock_jobs_fetch.side_effect = [
-            EdgeJobFetched(
-                dag_id="test",
-                task_id="test",
-                run_id="test",
-                map_index=-1,
-                try_number=1,
-                concurrency_slots=1,
-                command=MOCK_COMMAND,  # type: ignore[arg-type]
-            ),
-            None,
-        ]
-        worker_with_job.concurrency = 1  # only one job at a time
-        assert worker_with_job.free_concurrency == 0
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
+            await worker_with_job.fetch_and_run_job()
 
-        ctx = multiprocessing.get_context("fork")
-        results_queue = ctx.Queue()
-        process = ctx.Process(target=_emit_large_exception_target, args=(results_queue,))
-
-        with patch.object(EdgeWorker, "_launch_job", return_value=(process, results_queue)):
-            process.start()
-            try:
-                await asyncio.wait_for(worker_with_job.fetch_and_run_job(), timeout=10.0)
-            except asyncio.TimeoutError:
-                # Clean up any hanging subprocess to prevent blocking pytest
-                if process.is_alive():
-                    process.terminate()
-                    process.join(timeout=1.0)
-                    if process.is_alive():
-                        process.kill()
-                        process.join()
-                pytest.fail("fetch_and_run_job timed out after 10s - DEADLOCK DETECTED. ")
-            finally:
-                if process.is_alive():
-                    process.join(timeout=1.0)
-                    if process.is_alive():
-                        process.terminate()
-                        process.join(timeout=1.0)
-
-        # If we reach here without timeout, the deadlock was not triggered
-        assert mock_jobs_set_state.call_count >= 1
-        mock_push_log_chunks.assert_called()
-        assert len(worker_with_job.jobs) <= 1  # new job removed, original fixture job still there
+        mock_jobs_fetch.assert_called_once()
+        mock_push_log_chunks.assert_called_once()
+        assert mock_jobs_set_state.call_args_list[-1].args[1] == TaskInstanceState.FAILED
+        log_chunk_data = mock_logs_push.call_args.kwargs["log_chunk_data"]
+        assert "Task fork exited with code 1" in log_chunk_data
+        assert "RuntimeError: supervisor crashed" in log_chunk_data
+        assert not error_file_path.exists()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
-    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @patch.object(Job, "is_running", property(lambda _: False))
     @patch.object(Job, "is_success", property(lambda _: False))
-    @patch("traceback.format_exception", return_value=[])
     @pytest.mark.asyncio
     async def test_fetch_and_run_job_one_job_fail(
         self,
-        mock_traceback,
         mock_logs_push,
         mock_push_log_chunks,
         mock_jobs_set_state,
         mock_launch_job,
         mock_jobs_fetch,
+        tmp_path: Path,
         worker_with_job: EdgeWorker,
     ):
-        mock_jobs_fetch.side_effect = [
-            EdgeJobFetched(
-                dag_id="test",
-                task_id="test",
-                run_id="test",
-                map_index=-1,
-                try_number=1,
-                concurrency_slots=1,
-                command=MOCK_COMMAND,  # type: ignore[arg-type]
-            ),
-            None,
-        ]
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
         worker_with_job.concurrency = 1  # only one job at a time
         assert worker_with_job.free_concurrency == 0
 
         await worker_with_job.fetch_and_run_job()
 
         mock_jobs_fetch.assert_called_once()
-        mock_launch_job.assert_called_once()
+        mock_launch_job.assert_called_once_with(
+            edge_job, edge_job.command, Path(worker_with_job.base_log_folder, "mock.log")
+        )
         assert mock_jobs_set_state.call_count == 2
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_called_once()
+
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_subprocess_failure_pushes_stderr_to_logs(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        worker_with_job.concurrency = 1
+        process = _MockPopen(returncode=1, pid=5678)
+        stderr_file_path = tmp_path / "subprocess-stderr.log"
+        stderr_file_path.write_text("ModuleNotFoundError: No module named 'common'\n")
+        launched_job = Job(edge_job, process, tmp_path / "mock.log", stderr_file_path=stderr_file_path)
+
+        with patch.object(worker_with_job, "_launch_job", return_value=launched_job):
+            await worker_with_job.fetch_and_run_job()
+
+        mock_jobs_fetch.assert_called_once()
+        mock_push_log_chunks.assert_called_once()
+        assert mock_jobs_set_state.call_args_list[-1].args[1] == TaskInstanceState.FAILED
+        log_chunk_data = mock_logs_push.call_args.kwargs["log_chunk_data"]
+        assert "Task subprocess exited with code 1" in log_chunk_data
+        assert "ModuleNotFoundError: No module named 'common'" in log_chunk_data
+        assert not stderr_file_path.exists()
 
     @time_machine.travel(datetime.now(), tick=False)
     @patch("airflow.providers.edge3.cli.worker.logs_push")
@@ -929,7 +1071,7 @@ class TestSignalHandling:
         ):
             rc = worker._run_job_via_supervisor(
                 workload=self._make_workload(),
-                results_queue=mock.MagicMock(),
+                error_file_path=tmp_path / "fork-error.log",
             )
         assert rc == 0
         assert [c.args[0] for c in order.call_args_list] == ["reset", "setpgrp", "supervise"]

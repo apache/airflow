@@ -39,7 +39,12 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    OnFinishAction,
+    PodLoggingStatus,
+    PodNotFoundException,
+    PodPhase,
+)
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.common.compat.sdk import (
     XCOM_RETURN_KEY,
@@ -3345,6 +3350,71 @@ class TestKubernetesPodOperatorAsync:
 
         k.execute(context)
         mocked_trigger_reentry.assert_called_once()
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_returns_when_pod_gcd_on_success(self, mocked_hook, mock_manager):
+        """Pod GC'd between trigger firing and reentry should not fail a successful task."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        # Should return cleanly without raising
+        result = k.trigger_reentry(
+            context=context,
+            event={
+                "status": "success",
+                "message": TEST_SUCCESS_MESSAGE,
+                "name": TEST_NAME,
+                "namespace": TEST_NAMESPACE,
+            },
+        )
+
+        assert result is None
+        # await_pod_completion in _clean must not be called with self.pod=None
+        mock_manager.return_value.await_pod_completion.assert_not_called()
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_raises_pod_not_found_on_failure(self, mocked_hook, mock_manager):
+        """Pod GC'd before reentry on a failed event surfaces as PodNotFoundException."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "failed",
+                    "message": "Some failure",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_propagates_non_404_api_exception(self, mocked_hook, mock_manager):
+        """Non-404 ApiException from get_pod should propagate unchanged."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=500, reason="Server Error")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(ApiException) as exc_info:
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "success",
+                    "message": TEST_SUCCESS_MESSAGE,
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+        assert exc_info.value.status == 500
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
