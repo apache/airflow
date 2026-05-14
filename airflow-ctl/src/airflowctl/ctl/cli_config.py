@@ -31,10 +31,12 @@ from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Any, NamedTuple
+from types import UnionType
+from typing import Annotated, Any, NamedTuple, Union, get_args, get_origin
 
 import httpx
 import rich
+from pydantic_core import PydanticUndefined
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
@@ -268,60 +270,6 @@ ARG_DAG_ID = Arg(
     help="The DAG ID of the DAG to pause or unpause",
 )
 
-ARG_TASK_CLEAR_DAG_ID = Arg(
-    flags=("--dag-id",),
-    type=str,
-    required=True,
-    dest="dag_id",
-    help="Dag ID whose task instances are cleared",
-)
-ARG_TASK_DAG_RUN_ID = Arg(
-    flags=("--dag-run-id",),
-    type=str,
-    required=True,
-    dest="dag_run_id",
-    help="Dag run ID that scopes which task instances are cleared",
-)
-ARG_TASK_IDS = Arg(
-    flags=("--task-ids",),
-    type=string_list_type,
-    default=None,
-    help=(
-        "Comma-separated task_id values to clear. "
-        "If omitted, selection uses only-failed / only-running and related filters."
-    ),
-)
-ARG_TASK_ONLY_FAILED = Arg(
-    flags=("--only-failed",),
-    action=argparse.BooleanOptionalAction,
-    default=True,
-    help="Restrict to failed task instances (default: true). Use --no-only-failed to disable.",
-)
-ARG_TASK_ONLY_RUNNING = Arg(
-    flags=("--only-running",),
-    action=argparse.BooleanOptionalAction,
-    default=False,
-    help="Restrict to running task instances (default: false).",
-)
-ARG_TASK_UPSTREAM = Arg(
-    flags=("--upstream",),
-    action="store_true",
-    default=False,
-    help="Include upstream tasks of the selected tasks in the clear operation.",
-)
-ARG_TASK_DOWNSTREAM = Arg(
-    flags=("--downstream",),
-    action="store_true",
-    default=False,
-    help="Include downstream tasks of the selected tasks in the clear operation.",
-)
-ARG_TASK_DRY_RUN = Arg(
-    flags=("--dry-run",),
-    action="store_true",
-    default=False,
-    help="Preview which task instances would be cleared without applying the operation.",
-)
-
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
@@ -448,7 +396,17 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -457,9 +415,6 @@ class CommandFactory:
             "_check_flag_and_exit_if_server_response_error",
             # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
             "bulk",
-            # Hand-written `airflowctl tasks clear` via `TasksOperations`. If this method were
-            # auto-generated, the factory would flatten ``ClearTaskInstancesBody`` into invalid flags.
-            "clear_task_instances",
         ]
         self.excluded_output_keys = [
             "total_entries",
@@ -568,8 +523,24 @@ class CommandFactory:
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
         if isinstance(type_name, type):
+            if type_name is datetime.datetime:
+                return datetime.datetime
             type_name = type_name.__name__
         return mapping.get(str(type_name), str)
+
+    @staticmethod
+    def _leaf_annotation(annotation: Any) -> Any:
+        """Resolve ``Annotated``, optional unions (``X | None``), for argparse metadata."""
+        origin = get_origin(annotation)
+        if origin is Annotated:
+            args = get_args(annotation)
+            return CommandFactory._leaf_annotation(args[0]) if args else annotation
+        if origin is Union or origin is UnionType:
+            args = tuple(a for a in get_args(annotation) if a is not type(None))
+            if len(args) == 1:
+                return CommandFactory._leaf_annotation(args[0])
+            return annotation
+        return annotation
 
     @staticmethod
     def _create_arg(
@@ -599,35 +570,62 @@ class CommandFactory:
         commands = []
         if parameter_type_map not in self.datamodels_extended_map.keys():
             self.datamodels_extended_map[parameter_type] = []
-        for field, field_type in parameter_type_map.model_fields.items():
+        for field, field_info in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
-            if type(field_type.annotation) is type:
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                    )
-                )
-            else:
-                try:
-                    annotation = field_type.annotation.__args__[0]
-                except AttributeError:
-                    annotation = field_type.annotation
+            leaf_ann = self._leaf_annotation(field_info.annotation)
+            pydantic_default = None if field_info.default is PydanticUndefined else field_info.default
 
+            if parameter_type == "ClearTaskInstancesBody" and field == "task_ids":
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_type=string_list_type,
+                        arg_action=None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
+                        arg_default=pydantic_default,
                     )
                 )
+                continue
+
+            if leaf_ann is bool:
+                cli_bool_default = pydantic_default
+                if parameter_type == "ClearTaskInstancesBody" and field == "dry_run":
+                    cli_bool_default = False
+                commands.append(
+                    self._create_arg(
+                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_type=bool,
+                        arg_action=argparse.BooleanOptionalAction,
+                        arg_help=f"{field} for {parameter_key} operation",
+                        arg_default=cli_bool_default,
+                    )
+                )
+                continue
+
+            origin = get_origin(leaf_ann)
+            if leaf_ann is list or origin is list:
+                commands.append(
+                    self._create_arg(
+                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_type=string_list_type,
+                        arg_action=None,
+                        arg_help=f"{field} for {parameter_key} operation",
+                        arg_default=pydantic_default,
+                    )
+                )
+                continue
+
+            commands.append(
+                self._create_arg(
+                    arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                    arg_type=self._python_type_from_string(leaf_ann),
+                    arg_action=None,
+                    arg_help=f"{field} for {parameter_key} operation",
+                    arg_default=pydantic_default,
+                )
+            )
         return commands
 
     def _create_args_map_from_operation(self):
@@ -983,25 +981,6 @@ DAG_COMMANDS = (
     ),
 )
 
-TASK_COMMANDS = (
-    ActionCommand(
-        name="clear",
-        help="Clear task instances in a DAG run",
-        func=lazy_load_command("airflowctl.ctl.commands.task_command.clear"),
-        args=(
-            ARG_TASK_CLEAR_DAG_ID,
-            ARG_TASK_DAG_RUN_ID,
-            ARG_TASK_IDS,
-            ARG_TASK_ONLY_FAILED,
-            ARG_TASK_ONLY_RUNNING,
-            ARG_TASK_UPSTREAM,
-            ARG_TASK_DOWNSTREAM,
-            ARG_TASK_DRY_RUN,
-            ARG_OUTPUT,
-        ),
-    ),
-)
-
 POOL_COMMANDS = (
     ActionCommand(
         name="import",
@@ -1050,11 +1029,6 @@ core_commands: list[CLICommand] = [
         name="dags",
         help="Manage Airflow Dags",
         subcommands=DAG_COMMANDS,
-    ),
-    GroupCommand(
-        name="tasks",
-        help="Manage Airflow task instances",
-        subcommands=TASK_COMMANDS,
     ),
     GroupCommand(
         name="pools",

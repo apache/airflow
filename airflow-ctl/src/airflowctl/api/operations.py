@@ -598,17 +598,10 @@ class DagsOperations(BaseOperations):
 class TasksOperations(BaseOperations):
     """Operations on task instances (paths are under ``dags/{dag_id}/…`` in the REST API)."""
 
-    def clear_task_instances(
+    def clear(
         self, dag_id: str, clear_body: ClearTaskInstancesBody
     ) -> TaskInstanceCollectionResponse | ServerResponseError:
-        """
-        Clear task instances (POST clearTaskInstances).
-
-        Invoked from hand-written :mod:`airflowctl.ctl.commands.task_command` only: the operation
-        name is listed in :attr:`CommandFactory.exclude_method_names` so the CLI factory does not
-        emit a synthetic ``tasks clear-task-instances`` command (the request body is not expressible
-        as flat argparse flags).
-        """
+        """Clear task instances (POST ``clearTaskInstances``)."""
         try:
             self.response = self.client.post(
                 f"dags/{dag_id}/clearTaskInstances",

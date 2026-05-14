@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 from argparse import BooleanOptionalAction
 from textwrap import dedent
 
@@ -74,7 +75,7 @@ def test_args_create():
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": str,
+                "type": datetime.datetime,
                 "dest": None,
             },
         ),
@@ -84,7 +85,7 @@ def test_args_create():
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": str,
+                "type": datetime.datetime,
                 "dest": None,
             },
         ),
@@ -113,7 +114,7 @@ def test_args_create():
             {
                 "help": "reprocess_behavior for backfill operation",
                 "action": None,
-                "default": None,
+                "default": "none",
                 "type": str,
                 "dest": None,
             },
@@ -123,8 +124,18 @@ def test_args_create():
             {
                 "help": "max_active_runs for backfill operation",
                 "action": None,
-                "default": None,
+                "default": 10,
                 "type": int,
+                "dest": None,
+            },
+        ),
+        (
+            "--run-on-latest-version",
+            {
+                "help": "run_on_latest_version for backfill operation",
+                "action": BooleanOptionalAction,
+                "default": True,
+                "type": bool,
                 "dest": None,
             },
         ),
@@ -656,6 +667,7 @@ class TestCliConfigMethods:
         [
             ("assets", "get", "Retrieve an asset by its ID"),
             ("connections", "get", "Retrieve a connection by its ID"),
+            ("tasks", "clear", "Clear task instances in a DAG run"),
         ],
     )
     def test_help_texts_used_for_auto_generated_commands(self, group_name, subcommand_name, expected_help):
@@ -669,10 +681,3 @@ class TestCliConfigMethods:
                             "Help message should match the help_text.yaml"
                         )
                         return
-
-    def test_clear_task_instances_not_auto_generated(self):
-        """Regression: TasksOperations.clear_task_instances must stay out of CommandFactory."""
-        command_factory = CommandFactory()
-        for group_command in command_factory.group_commands:
-            generated_names = {sub.name for sub in group_command.subcommands}
-            assert "clear-task-instances" not in generated_names
