@@ -47,14 +47,11 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
   const { selectedTimezone } = useTimezone();
   const [displayDate, setDisplayDate] = useState(value);
 
-  const emit = (
-    event: ChangeEvent<HTMLInputElement> | ClipboardEvent<HTMLInputElement>,
-    utc: string,
-  ) => {
+  const emit = (event: ChangeEvent<HTMLInputElement> | ClipboardEvent<HTMLInputElement>, utc: string) => {
     onChange?.({
       ...event,
       target: { ...event.currentTarget, value: utc },
-    } as ChangeEvent<HTMLInputElement>);
+    });
   };
 
   const onDateChange = (event: ChangeEvent<HTMLInputElement>) => {
