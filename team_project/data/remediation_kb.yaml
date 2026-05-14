@@ -1,0 +1,82 @@
+entries:
+
+  - category: TRANSIENT
+    signature: "timeout|timed out|connection reset"
+    title: "Task Timeout / Connection Reset"
+    steps:
+      - "Check network connectivity between the worker and the external service."
+      - "Increase the operator's execution_timeout to allow more time."
+      - "Add retry logic with retries and retry_delay on the operator."
+      - "Review upstream service SLAs and align Airflow timeouts accordingly."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#timeouts"
+
+  - category: TRANSIENT
+    signature: "scheduler.*heartbeat|heartbeat.*lost|missed.*heartbeat"
+    title: "Scheduler Heartbeat Lost"
+    steps:
+      - "Check the scheduler process health with: airflow jobs check."
+      - "Review scheduler logs for CPU starvation or memory pressure."
+      - "Restart the scheduler and monitor with: airflow scheduler."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html"
+
+  - category: RESOURCE
+    signature: "OOMKilled|OutOfMemory|out of memory"
+    title: "OOMKilled Task"
+    steps:
+      - "Increase memory limits on the Kubernetes pod or worker node."
+      - "Profile in-memory data usage and switch to chunked processing."
+      - "Use remote storage (S3, GCS) instead of XCom for large payloads."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#resources"
+
+  - category: RESOURCE
+    signature: "disk full|no space left|OSError.*28"
+    title: "Disk Full on Worker"
+    steps:
+      - "Free disk space by purging old logs: airflow db clean --clean-before-timestamp."
+      - "Increase the volume size on the worker node or expand the PVC."
+      - "Configure remote log storage (S3/GCS) to avoid local log accumulation."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html"
+
+  - category: CODE
+    signature: "ImportError|ModuleNotFoundError|DAG.*import.*error|broken DAG"
+    title: "DAG Import Error"
+    steps:
+      - "Install missing packages in the worker environment."
+      - "Run airflow dags list-import-errors to list all broken DAGs."
+      - "Inspect DAG file processor logs for the full traceback."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#loading-dags"
+
+  - category: CODE
+    signature: "Variable.*not.*found|KeyError.*Variable|variable.*does not exist"
+    title: "Missing Airflow Variable"
+    steps:
+      - "Add the variable via Admin > Variables in the Airflow UI."
+      - "Use Variable.get(key, default_var=...) to provide a safe fallback."
+      - "Audit all Variable.get() calls and document required variable names."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/variables.html"
+
+  - category: EXTERNAL_DEPENDENCY
+    signature: "connection.*not found|Connection.*does not exist|unknown.*conn_id"
+    title: "Missing Airflow Connection"
+    steps:
+      - "Add the connection via Admin > Connections in the Airflow UI."
+      - "Verify the conn_id in the operator matches the stored connection exactly."
+      - "Test the connection with the Test button in the Connections UI."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/connections.html"
+
+  - category: EXTERNAL_DEPENDENCY
+    signature: "AccessDenied|S3.*access denied|403.*S3|403.*Forbidden.*s3"
+    title: "S3 Access Denied"
+    steps:
+      - "Verify the IAM role or access key has the required S3 permissions."
+      - "Check the bucket policy and object ACLs for the target path."
+      - "Confirm the correct AWS connection ID is configured in Airflow."
+    doc_links:
+      - "https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/connections/aws.html"
