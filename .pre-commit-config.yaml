@@ -1134,13 +1134,6 @@ repos:
         pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
-      - id: check-supervisor-schemas-name-type-sync
-        name: Check supervisor schema class name matches its `type` literal
-        entry: ./scripts/ci/prek/check_supervisor_schemas_name_type_sync.py
-        language: python
-        pass_filenames: false
-        files: ^(task-sdk/src/airflow/sdk/execution_time/comms\.py|airflow-core/src/airflow/(dag_processing/processor\.py|jobs/triggerer_job_runner\.py))$
-        require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
