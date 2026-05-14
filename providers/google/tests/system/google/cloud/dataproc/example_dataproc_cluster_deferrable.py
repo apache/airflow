@@ -93,7 +93,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc", "deferrable"],
+    tags=["example", "managed-spark", "deferrable"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator_async]
     create_cluster = DataprocCreateClusterOperator(

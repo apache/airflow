@@ -394,6 +394,38 @@ class TestOtelMetrics:
                 "grpc",
                 id="type_specific_vars_take_precedence",
             ),
+            pytest.param(
+                {},
+                "::1",
+                "4318",
+                "http://[::1]:4318/v1/metrics",
+                "http",
+                id="airflow_config_ipv6_loopback_is_bracketed",
+            ),
+            pytest.param(
+                {},
+                "2001:db8::1",
+                "4318",
+                "http://[2001:db8::1]:4318/v1/metrics",
+                "http",
+                id="airflow_config_ipv6_literal_is_bracketed",
+            ),
+            pytest.param(
+                {},
+                "[::1]",
+                "4318",
+                "http://[::1]:4318/v1/metrics",
+                "http",
+                id="airflow_config_already_bracketed_ipv6_is_preserved",
+            ),
+            pytest.param(
+                {},
+                "10.0.0.1",
+                "4318",
+                "http://10.0.0.1:4318/v1/metrics",
+                "http",
+                id="airflow_config_ipv4_literal_passes_through_unchanged",
+            ),
         ],
     )
     def test_config_priorities(

@@ -29,7 +29,9 @@ import ast
 import sys
 from pathlib import Path
 
-from common_prek_utils import console
+from common_prek_utils import console, has_nocheck_marker
+
+NOCHECK_MARKER = "# noqa: SDK001"
 
 
 def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
@@ -41,11 +43,14 @@ def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
     except (OSError, UnicodeDecodeError, SyntaxError):
         return []
 
+    source_lines = source.splitlines()
     mismatches = []
 
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             if node.module and ("airflow.sdk" in node.module):
+                if has_nocheck_marker(source_lines, node, NOCHECK_MARKER):
+                    continue
                 import_names = ", ".join(alias.name for alias in node.names)
                 statement = f"from {node.module} import {import_names}"
                 mismatches.append((node.lineno, statement))

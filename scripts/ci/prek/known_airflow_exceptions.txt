@@ -61,7 +61,7 @@ providers/amazon/src/airflow/providers/amazon/aws/hooks/rds.py::7
 providers/amazon/src/airflow/providers/amazon/aws/hooks/redshift_sql.py::3
 providers/amazon/src/airflow/providers/amazon/aws/hooks/s3.py::2
 providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker.py::10
-providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker_unified_studio.py::3
+providers/amazon/src/airflow/providers/amazon/aws/hooks/sagemaker_unified_studio.py::2
 providers/amazon/src/airflow/providers/amazon/aws/links/emr.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/appflow.py::3
 providers/amazon/src/airflow/providers/amazon/aws/operators/athena.py::3
@@ -314,7 +314,7 @@ providers/google/src/airflow/providers/google/cloud/triggers/cloud_composer.py::
 providers/google/src/airflow/providers/google/cloud/triggers/cloud_run.py::1
 providers/google/src/airflow/providers/google/cloud/triggers/dataproc.py::5
 providers/google/src/airflow/providers/google/cloud/triggers/kubernetes_engine.py::1
-providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.py::17
+providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.py::16
 providers/google/src/airflow/providers/google/common/hooks/base_google.py::7
 providers/google/src/airflow/providers/google/common/hooks/operation_helpers.py::2
 providers/google/src/airflow/providers/google/firebase/hooks/firestore.py::1
@@ -392,10 +392,6 @@ providers/slack/src/airflow/providers/slack/transfers/sql_to_slack.py::1
 providers/slack/src/airflow/providers/slack/transfers/sql_to_slack_webhook.py::3
 providers/smtp/src/airflow/providers/smtp/hooks/smtp.py::16
 providers/smtp/src/airflow/providers/smtp/operators/smtp.py::3
-providers/snowflake/src/airflow/providers/snowflake/hooks/snowflake.py::1
-providers/snowflake/src/airflow/providers/snowflake/hooks/snowflake_sql_api.py::3
-providers/snowflake/src/airflow/providers/snowflake/operators/snowflake.py::3
-providers/snowflake/tests/unit/snowflake/operators/test_snowflake.py::1
 providers/ssh/src/airflow/providers/ssh/hooks/ssh.py::5
 providers/ssh/src/airflow/providers/ssh/operators/ssh.py::3
 providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::7

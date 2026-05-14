@@ -38,6 +38,20 @@ Changelog
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
 
+1.36.0
+......
+
+Features
+~~~~~~~~
+
+* ``GenericTransfer: switch paginated mode to non-deferred default with opt-in deferral (#64321)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
 1.35.0
 ......
 

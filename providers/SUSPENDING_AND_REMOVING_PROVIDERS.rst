@@ -43,8 +43,7 @@ This means:
 * Tests of the provider will not be run on our CI (in main branch)
 * Dependencies of the provider will not be installed in our main branch CI image nor included in constraints
 * We can still decide to apply security fixes to released providers - by adding fixes to the main branch
-  but cherry-picking, testing and releasing them in the patch-level branch of the provider similar to the
-  mixed governance model described in `3rd-party providers <THIRD_PARTY_PROVIDERS.rst#mixed-governance-model>`_.
+  but cherry-picking, testing and releasing them in a dedicated patch-level branch of the provider.
 
 The suspension may be triggered by any committer after the following criteria are met:
 

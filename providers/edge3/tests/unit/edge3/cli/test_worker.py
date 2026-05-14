@@ -54,7 +54,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
 )
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 pytestmark = [pytest.mark.asyncio]
@@ -235,8 +235,9 @@ class TestEdgeWorker:
             assert url == expected_url
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow < 3.3.0 where supervise was used")
     @pytest.mark.asyncio
-    async def test_supervise_launch(
+    async def test_supervise_launch_pre_3_3(
         self,
         mock_supervise,
         worker_with_job: EdgeWorker,
@@ -247,7 +248,25 @@ class TestEdgeWorker:
         result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
-        q.put.assert_called_once()
+        q.put.assert_called_once_with("OK")
+
+    @patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
+    @pytest.mark.asyncio
+    async def test_supervise_launch(
+        self,
+        mock_run_workload,
+        worker_with_job: EdgeWorker,
+    ):
+        worker_with_job.__dict__["_execution_api_server_url"] = "https://mock-server/execution"
+        edge_job = worker_with_job.jobs.pop().edge_job
+        q = mock.MagicMock()
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
+
+        assert result == 0
+        q.put.assert_called_once_with("OK")
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
@@ -889,6 +908,9 @@ class TestSignalHandling:
             for sig, prev in original.items():
                 signal.signal(sig, prev)
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Test is for Airflow >= 3.3.0 where BaseExecutor.run_workload is used"
+    )
     def test_run_job_via_supervisor_resets_signals_before_supervise(self, tmp_path):
         """Reset must run first: before ``os.setpgrp`` and before ``supervise``."""
         worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8)
@@ -901,7 +923,7 @@ class TestSignalHandling:
             ),
             mock.patch("os.setpgrp", side_effect=lambda: order("setpgrp")),
             mock.patch(
-                "airflow.sdk.execution_time.supervisor.supervise",
+                "airflow.executors.base_executor.BaseExecutor.run_workload",
                 side_effect=lambda **_: order("supervise"),
             ),
         ):

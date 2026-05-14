@@ -255,7 +255,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
                     f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
                 )
             if self.do_xcom_push:
-                return xcom_result
+                return xcom_result[0] if self.unwrap_single and len(xcom_result) == 1 else xcom_result
 
     def execute_deferrable(self):
         self.defer(
