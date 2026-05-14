@@ -45,7 +45,7 @@ Bug Fixes
 Improvements
 ^^^^^^^^^^^^
 
-- Add ``airflowctl tasks clear`` for clearing task instances in a DAG run using the REST API (AIP-94, `#66176 <https://github.com/apache/airflow/issues/66176>`__)
+- Add ``airflowctl tasks clear`` for clearing task instances in a Dag run using the REST API (AIP-94, `#66176 <https://github.com/apache/airflow/issues/66176>`__)
 - Support cursor-based pagination for ``get_task_instances`` in airflowctl ``datamodels`` (#64845)
 - Expose ``is_backfillable`` property on DAG responses in airflowctl ``datamodels`` (#64644)
 - Add ``operator`` value to ``DagRunType`` in airflowctl ``datamodels`` (#63733)
