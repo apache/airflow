@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-13T15:40:28.407403
+# This constraints file was automatically generated on 2026-05-14T09:07:37.672346
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -13,7 +13,7 @@ APScheduler==3.11.2
 Authlib==1.7.2
 Deprecated==1.3.1
 Events==0.5
-Flask-JWT-Extended==4.7.1
+Flask-JWT-Extended==4.7.3
 Flask-Limiter==3.12
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
@@ -91,7 +91,7 @@ astroid==4.1.2
 asttokens==3.0.1
 async-timeout==4.0.3
 asyncpg==0.31.0
-asyncssh==2.22.0
+asyncssh==2.23.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==26.1.0
@@ -99,7 +99,7 @@ aws-sam-translator==1.106.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.40.0
+azure-core==1.41.0
 azure-cosmos==4.15.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
@@ -201,7 +201,7 @@ facebook_business==25.0.1
 fastapi-cli==0.0.24
 fastapi==0.136.1
 fastavro==1.12.2
-fastcore==1.12.44
+fastcore==1.12.45
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.0
@@ -227,7 +227,7 @@ google-api-core==2.30.3
 google-api-python-client==2.196.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.51.0
+google-auth==2.52.0
 google-cloud-aiplatform==1.148.1
 google-cloud-alloydb==0.9.0
 google-cloud-appengine-logging==1.9.0
@@ -237,7 +237,7 @@ google-cloud-batch==0.21.0
 google-cloud-bigquery-datatransfer==3.22.0
 google-cloud-bigquery-storage==2.38.0
 google-cloud-bigquery==3.41.0
-google-cloud-bigtable==2.37.0
+google-cloud-bigtable==2.38.0
 google-cloud-build==3.36.0
 google-cloud-compute==1.47.0
 google-cloud-container==2.64.0
@@ -378,8 +378,8 @@ lz4==4.4.5
 markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
 marshmallow==3.26.2
-matplotlib-inline==0.2.1
-mcp==1.27.0
+matplotlib-inline==0.2.2
+mcp==1.27.1
 mdit-py-plugins==0.6.0
 mdurl==0.1.2
 memray==1.19.3
@@ -424,14 +424,14 @@ nh3==0.3.5
 nodeenv==1.10.0
 numpy==2.4.4
 oauthlib==3.3.1
-openai==2.35.1
+openai==2.36.0
 openapi-schema-validator==0.8.1
 openapi-spec-validator==0.8.5
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.46.0
-openlineage-python==1.46.0
-openlineage_sql==1.46.0
+openlineage-integration-common==1.47.0
+openlineage-python==1.47.0
+openlineage_sql==1.47.0
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
@@ -485,7 +485,7 @@ presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.25.0
 prompt_toolkit==3.0.52
-propcache==0.4.1
+propcache==0.5.2
 proto-plus==1.28.0
 protobuf==6.33.6
 psutil==7.2.2
@@ -504,10 +504,10 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.91.0
+pydantic-ai-slim==1.93.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.91.0
-pydantic-settings==2.14.0
+pydantic-graph==1.93.0
+pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
 pydata-google-auth==1.9.1
@@ -604,7 +604,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
 slack_sdk==3.41.0
-smart_open==7.6.0
+smart_open==7.6.1
 smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
@@ -669,31 +669,31 @@ towncrier==25.8.0
 tqdm==4.67.3
 traitlets==5.15.0
 trino==0.337.0
-trove-classifiers==2026.4.28.13
+trove-classifiers==2026.5.7.17
 twine==6.2.0
 typer-slim==0.24.0
 typer==0.25.1
-types-Deprecated==1.3.1.20260408
-types-Markdown==3.10.2.20260408
-types-PyMySQL==1.1.0.20260408
-types-PyYAML==6.0.12.20260408
-types-aiofiles==25.1.0.20260409
+types-Deprecated==1.3.1.20260508
+types-Markdown==3.10.2.20260508
+types-PyMySQL==1.1.0.20260508
+types-PyYAML==6.0.12.20260508
+types-aiofiles==25.1.0.20260508
 types-cachetools==7.0.0.20260503
 types-certifi==2021.10.8.3
-types-cffi==2.0.0.20260506
-types-croniter==6.2.2.20260408
-types-docutils==0.22.3.20260408
+types-cffi==2.0.0.20260508
+types-croniter==6.2.2.20260508
+types-docutils==0.22.3.20260508
 types-paramiko==3.5.0.20250801
-types-protobuf==7.34.1.20260503
+types-protobuf==7.34.1.20260508
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20260408
+types-python-dateutil==2.9.0.20260508
 types-python-slugify==8.0.2.20240310
 types-pytz==2026.2.0.20260506
 types-redis==4.6.0.20241004
-types-requests==2.33.0.20260503
-types-setuptools==82.0.0.20260408
-types-tabulate==0.10.0.20260408
-types-toml==0.10.8.20260408
+types-requests==2.33.0.20260508
+types-setuptools==82.0.0.20260508
+types-tabulate==0.10.0.20260508
+types-toml==0.10.8.20260508
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
@@ -705,7 +705,7 @@ uritemplate==4.2.0
 urllib3==2.7.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.11.11
+uv==0.11.12
 uvicorn==0.46.0
 uvloop==0.22.1
 validators==0.35.0
@@ -727,8 +727,8 @@ yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.389.0
 yarl==1.23.0
-ydb-dbapi==0.1.20
-ydb==3.28.4
+ydb-dbapi==0.1.21
+ydb==3.29.0
 zeep==4.3.2
 zenpy==2.0.57
 zipp==3.23.1

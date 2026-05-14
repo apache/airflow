@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-13T15:43:39.727696
+# This constraints file was automatically generated on 2026-05-14T09:10:57.674958
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -246,7 +246,7 @@ bleach==6.3.0
 blinker==1.9.0
 boto3==1.43.0
 botocore==1.43.0
-cachelib==0.13.0
+cachelib==0.14.0
 cachetools==7.1.1
 cadwyn==6.2.2
 cassandra-driver==3.30.0
@@ -300,7 +300,7 @@ facebook_business==25.0.1
 fastapi-cli==0.0.24
 fastapi==0.136.1
 fastavro==1.12.2
-fastcore==1.12.45
+fastcore==1.12.46
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.0
@@ -600,7 +600,7 @@ reactivex==4.1.0
 redis==6.4.0
 redshift_connector==2.1.13
 referencing==0.37.0
-regex==2026.4.4
+regex==2026.5.9
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
@@ -663,7 +663,7 @@ thrift==0.16.0
 tiktoken==0.12.0
 tinycss2==1.4.0
 tokenizers==0.23.1
-tomlkit==0.14.0
+tomlkit==0.15.0
 tornado==6.5.5
 tqdm==4.67.3
 traitlets==5.15.0
