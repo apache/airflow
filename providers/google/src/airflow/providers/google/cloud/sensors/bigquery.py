@@ -25,6 +25,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
+from google.cloud.bigquery import DatasetReference, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
@@ -404,9 +405,17 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
         self.log.info("Checking streaming buffer state for table: %s", table_uri)
 
+        # ``Client.get_table`` only accepts a ``TableReference`` or a standard-SQL
+        # ``project.dataset.table`` string -- not the legacy ``project:dataset.table``
+        # form -- so build an explicit reference here.
+        table_ref = TableReference(
+            dataset_ref=DatasetReference(self.project_id, self.dataset_id),
+            table_id=self.table_id,
+        )
+
         hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
-            table = hook.get_client(project_id=self.project_id).get_table(table_uri)
+            table = hook.get_client(project_id=self.project_id).get_table(table_ref)
         except NotFound as err:
             raise ValueError(f"Table {table_uri} not found") from err
         return table.streaming_buffer is None
