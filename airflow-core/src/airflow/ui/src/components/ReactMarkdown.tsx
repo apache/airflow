@@ -28,7 +28,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { Children, isValidElement, type PropsWithChildren, type ReactNode } from "react";
+import { Children, isValidElement, type PropsWithChildren, type ReactNode, useEffect } from "react";
 import type { Components, Options } from "react-markdown";
 import ReactMD from "react-markdown";
 import rehypeKatex from "rehype-katex";
@@ -39,6 +39,7 @@ import { useColorMode } from "src/context/colorMode";
 import { oneDark, oneLight, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 
 import { MarkdownCodeBlock, MarkdownMermaid } from "./ReactMarkdownBlocks";
+import { katexStyleLoader } from "./katexStyleLoader";
 
 const fontSizeMapping = {
   h1: "1.5em",
@@ -137,6 +138,9 @@ type MarkdownRendererProps = {
   readonly style: SyntaxTheme;
 };
 
+const hasDisplayMath = (children: Options["children"]): boolean =>
+  typeof children === "string" && children.includes("$$");
+
 const extractTextContent = (children: CodeElementProps["children"]): string => {
   if (typeof children === "number" || typeof children === "string") {
     return String(children);
@@ -206,21 +210,32 @@ const createMarkdownComponents = ({ mermaidTheme, style }: MarkdownRendererProps
   ul: UlComponent,
 });
 
-const ReactMarkdown = (props: Options) => {
+const ReactMarkdown = ({ children, ...props }: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
   const mermaidTheme = colorMode === "dark" ? "dark" : "default";
   const components = createMarkdownComponents({ mermaidTheme, style });
+  const shouldEnableMath = hasDisplayMath(children);
+
+  useEffect(() => {
+    if (shouldEnableMath) {
+      void katexStyleLoader.load();
+    }
+  }, [shouldEnableMath]);
 
   return (
     <Box alignSelf="stretch" css={markdownContentStyles} maxWidth="100%" minWidth={0} width="100%">
       <ReactMD
-        components={components}
         {...props}
-        rehypePlugins={[rehypeKatex]}
-        remarkPlugins={[remarkGfm, remarkMath]}
+        components={components}
+        rehypePlugins={shouldEnableMath ? [rehypeKatex] : []}
+        remarkPlugins={
+          shouldEnableMath ? [remarkGfm, [remarkMath, { singleDollarTextMath: false }]] : [remarkGfm]
+        }
         skipHtml
-      />
+      >
+        {children}
+      </ReactMD>
     </Box>
   );
 };

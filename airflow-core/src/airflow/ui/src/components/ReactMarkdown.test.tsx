@@ -24,6 +24,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import ReactMarkdown from "./ReactMarkdown";
+import { katexStyleLoader } from "./katexStyleLoader";
 
 const { renderMermaidDiagramMock } = vi.hoisted(() => ({
   renderMermaidDiagramMock: vi.fn().mockResolvedValue('<svg data-testid="mermaid-svg"></svg>'),
@@ -38,24 +39,38 @@ vi.mock("src/utils/renderMermaid", () => ({
 }));
 
 describe("ReactMarkdown", () => {
-  it("renders basic math integration", () => {
-    const markdown = [
-      String.raw`Inline math can stay in a sentence, such as $E = \frac{|y - \hat{y}|}{\max(|y|, \epsilon)}$, without leaving the paragraph.`,
-      "",
-      "$$",
-      String.raw`S = \sum_{i=1}^{n} w_i x_i`,
-      "$$",
-    ].join("\n");
+  it("loads KaTeX styles on demand and preserves plain dollar amounts", async () => {
+    const loadKatexStyles = vi.spyOn(katexStyleLoader, "load").mockResolvedValue(undefined);
+    const markdown = ["Costs $5 and $10 today.", "", "$$", String.raw`S = \sum_{i=1}^{n} w_i x_i`, "$$"].join(
+      "\n",
+    );
     const { container } = render(
       <BaseWrapper>
         <ReactMarkdown>{markdown}</ReactMarkdown>
       </BaseWrapper>,
     );
 
-    expect(container).toHaveTextContent("Inline math can stay in a sentence, such as");
-    expect(container).toHaveTextContent("without leaving the paragraph.");
-    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(2);
+    await waitFor(() => expect(loadKatexStyles).toHaveBeenCalled());
+
+    expect(screen.getByText("Costs $5 and $10 today.")).toBeInTheDocument();
+    expect(container.querySelectorAll(".katex")).toHaveLength(1);
     expect(container.querySelectorAll(".katex-display")).toHaveLength(1);
+
+    loadKatexStyles.mockRestore();
+  });
+
+  it("does not load KaTeX styles for markdown without display math", () => {
+    const loadKatexStyles = vi.spyOn(katexStyleLoader, "load").mockResolvedValue(undefined);
+
+    render(
+      <BaseWrapper>
+        <ReactMarkdown>Plain markdown with $5 but no math block.</ReactMarkdown>
+      </BaseWrapper>,
+    );
+
+    expect(loadKatexStyles).not.toHaveBeenCalled();
+
+    loadKatexStyles.mockRestore();
   });
 
   it("falls back to a code block when mermaid rendering fails", async () => {
