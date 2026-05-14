@@ -367,6 +367,161 @@ def test_hook_is_cached():
     assert hook is hook2
 
 
+def _make_context(*, dag_id=None, task_id=None, run_id=None):
+    context: dict = {}
+    if dag_id is not None:
+        context["dag"] = mock.MagicMock(dag_id=dag_id)
+    if task_id is not None:
+        context["task"] = mock.MagicMock(task_id=task_id)
+    if run_id is not None:
+        context["run_id"] = run_id
+    return context
+
+
+def _run_with_mocked_hook(op, context, initial_session_config, conn_extra=None):
+    """Execute the operator with a mocked hook and return the resulting session_config."""
+    with mock.patch(
+        "airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook"
+    ) as db_mock_class:
+        db_mock = db_mock_class.return_value
+        db_mock.session_config = initial_session_config
+        db_mock.databricks_conn = mock.MagicMock(extra_dejson=conn_extra or {})
+        op.execute(context)
+        return db_mock.session_config
+
+
+def test_query_tags_injection_appends_to_existing_tags():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+    context = _make_context(dag_id="test_dag", task_id="test_task", run_id="test_run_123")
+
+    result = _run_with_mocked_hook(op, context, {"query_tags": "user_tag:value"})
+
+    assert result["query_tags"] == (
+        "user_tag:value,airflow_dag_id:test_dag,"
+        "airflow_task_id:test_task,airflow_run_id:test_run_123"
+    )
+
+
+def test_query_tags_injection_with_no_existing_tags():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+    context = _make_context(dag_id="d", task_id="t", run_id="r")
+
+    result = _run_with_mocked_hook(op, context, {})
+
+    assert result["query_tags"] == "airflow_dag_id:d,airflow_task_id:t,airflow_run_id:r"
+
+
+def test_query_tags_injection_with_partial_context():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+    context = _make_context(task_id="only_task")
+
+    result = _run_with_mocked_hook(op, context, {})
+
+    assert result["query_tags"] == "airflow_task_id:only_task"
+
+
+def test_query_tags_injection_with_empty_context():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+
+    result = _run_with_mocked_hook(op, {}, {"unrelated": "keep"})
+
+    assert result == {"unrelated": "keep"}
+
+
+def test_query_tags_injection_escapes_special_chars():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+    context = _make_context(
+        dag_id="dag,with,commas",
+        task_id="task:with:colons",
+        run_id="run\\with\\backslashes",
+    )
+
+    result = _run_with_mocked_hook(op, context, {})
+
+    assert result["query_tags"] == (
+        "airflow_dag_id:dag\\,with\\,commas,"
+        "airflow_task_id:task\\:with\\:colons,"
+        "airflow_run_id:run\\\\with\\\\backslashes"
+    )
+
+
+def test_query_tags_injection_preserves_unrelated_session_config():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+    context = _make_context(dag_id="d", task_id="t", run_id="r")
+    initial = {"spark.sql.shuffle.partitions": "200", "query_tags": "x:y"}
+
+    result = _run_with_mocked_hook(op, context, initial)
+
+    assert result["spark.sql.shuffle.partitions"] == "200"
+    assert result["query_tags"] == "x:y,airflow_dag_id:d,airflow_task_id:t,airflow_run_id:r"
+
+
+def test_query_tags_injection_falls_back_to_conn_extra_when_session_config_none():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+    )
+    context = _make_context(dag_id="d", task_id="t", run_id="r")
+
+    result = _run_with_mocked_hook(
+        op,
+        context,
+        initial_session_config=None,
+        conn_extra={"session_configuration": {"query_tags": "conn_tag:1"}},
+    )
+
+    assert result["query_tags"] == (
+        "conn_tag:1,airflow_dag_id:d,airflow_task_id:t,airflow_run_id:r"
+    )
+
+
+def test_query_tags_injection_disabled():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="test",
+        inject_query_tags=False,
+    )
+    context = _make_context(dag_id="d", task_id="t", run_id="r")
+
+    result = _run_with_mocked_hook(op, context, {"query_tags": "user_tag:value"})
+
+    assert result == {"query_tags": "user_tag:value"}
+
+
 @pytest.mark.parametrize(
     ("file_location", "expected_namespace", "expected_name"),
     (
@@ -522,34 +677,3 @@ def test_get_openlineage_facets():
         "externalQuery": ExternalQueryRunFacet(externalQueryId="query_id", source="scheme://host")
     }
     assert result.job_facets == {"sql": SQLJobFacet(query=op._sql)}
-
-
-def test_query_tags_injection():
-    """Test that Airflow context is correctly injected into query_tags in session_configuration."""
-    from unittest.mock import MagicMock
-    
-    with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
-        op = DatabricksCopyIntoOperator(
-            task_id=TASK_ID,
-            file_location=COPY_FILE_LOCATION,
-            file_format="JSON",
-            table_name="test",
-        )
-        db_mock = db_mock_class.return_value
-        db_mock.session_config = {"query_tags": "user_tag:value"}
-        
-        class MockConn:
-            extra_dejson = {}
-        db_mock.databricks_conn = MockConn()
-        
-        context = {
-            "dag": MagicMock(dag_id="test_dag"),
-            "task": MagicMock(task_id="test_task"),
-            "run_id": "test_run_123",
-        }
-        
-        op.execute(context)
-        
-        expected_tags = "user_tag:value,airflow_dag_id:test_dag,airflow_task_id:test_task,airflow_run_id:test_run_123"
-        assert db_mock.session_config["query_tags"] == expected_tags
-

@@ -141,6 +141,11 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param gcs_impersonation_chain: Optional service account to impersonate using short-term
         credentials for GCS upload, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request. (templated)
+    :param inject_query_tags: If ``True`` (default), Airflow context metadata
+        (``airflow_dag_id``, ``airflow_task_id``, ``airflow_run_id``) is injected into the
+        Databricks session ``query_tags`` at execution time, preserving any user-defined
+        ``query_tags`` already present in ``session_configuration``. Set to ``False`` to
+        retain full control over ``session_configuration`` and skip the automatic injection.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -175,6 +180,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         client_parameters: dict[str, Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         gcs_impersonation_chain: str | Sequence[str] | None = None,
+        inject_query_tags: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=databricks_conn_id, **kwargs)
@@ -192,6 +198,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self.schema = schema
         self._gcp_conn_id = gcp_conn_id
         self._gcs_impersonation_chain = gcs_impersonation_chain
+        self.inject_query_tags = inject_query_tags
 
     @cached_property
     def _hook(self) -> DatabricksSqlHook:
@@ -212,7 +219,8 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         return self._hook
 
     def execute(self, context: Context) -> Any:
-        _inject_query_tags(self.get_db_hook(), context)
+        if self.inject_query_tags:
+            _inject_query_tags(self.get_db_hook(), context)
         return super().execute(context)
 
     def _should_run_output_processing(self) -> bool:
@@ -410,6 +418,11 @@ class DatabricksCopyIntoOperator(BaseOperator):
     :param validate: optional configuration for schema & data validation. ``True`` forces validation
         of all rows, integer number - validate only N first rows
     :param copy_options: optional dictionary of copy options. Right now only ``force`` option is supported.
+    :param inject_query_tags: If ``True`` (default), Airflow context metadata
+        (``airflow_dag_id``, ``airflow_task_id``, ``airflow_run_id``) is injected into the
+        Databricks session ``query_tags`` at execution time, preserving any user-defined
+        ``query_tags`` already present in ``session_configuration``. Set to ``False`` to
+        retain full control over ``session_configuration`` and skip the automatic injection.
     """
 
     template_fields: Sequence[str] = (
@@ -443,6 +456,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         force_copy: bool | None = None,
         copy_options: dict[str, str] | None = None,
         validate: bool | int | None = None,
+        inject_query_tags: bool = True,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSqlOperator``."""
@@ -477,6 +491,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         self._client_parameters = client_parameters or {}
         if force_copy is not None:
             self._copy_options["force"] = "true" if force_copy else "false"
+        self.inject_query_tags = inject_query_tags
         self._sql: str | None = None
 
     def _get_hook(self) -> DatabricksSqlHook:
@@ -580,7 +595,8 @@ FILEFORMAT = {self._file_format}
         self._sql = self._create_sql_query()
         self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()
-        _inject_query_tags(hook, context)
+        if self.inject_query_tags:
+            _inject_query_tags(hook, context)
         hook.run(self._sql)
 
     def on_kill(self) -> None:
