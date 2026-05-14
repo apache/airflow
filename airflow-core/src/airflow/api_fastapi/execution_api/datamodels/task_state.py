@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from datetime import datetime
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
@@ -32,4 +32,4 @@ class TaskStatePutBody(StrictBaseModel):
     """Request body for setting a task state value."""
 
     value: str
-    retention_days: int | None = Field(default=None, ge=0)
+    expires_at: datetime | None = None

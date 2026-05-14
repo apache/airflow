@@ -21,6 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
+from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -58,7 +59,6 @@ from airflow.sdk.api.datamodels._generated import (
     HITLUser,
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
-    RetentionDays,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatePutBody,
@@ -694,10 +694,9 @@ class TaskStateOperations:
             raise
         return TaskStateResponse.model_validate_json(resp.read())
 
-    def set(self, ti_id: uuid.UUID, key: str, value: str, retention_days: int | None = None) -> OKResponse:
+    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None = None) -> OKResponse:
         """Set a task state value via the API server."""
-        rd = RetentionDays(retention_days) if retention_days is not None else None
-        body = TaskStatePutBody(value=value, retention_days=rd)
+        body = TaskStatePutBody(value=value, expires_at=expires_at)
         self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 

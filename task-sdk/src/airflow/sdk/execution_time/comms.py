@@ -924,7 +924,7 @@ class SetTaskState(BaseModel):
     ti_id: UUID
     key: str
     value: str
-    retention_days: int | None = None
+    expires_at: AwareDatetime | None = None
     type: Literal["SetTaskState"] = "SetTaskState"
 
 

@@ -58,16 +58,6 @@ def _compute_expires_at(now: datetime) -> datetime | None:
     return now + timedelta(days=retention_days)
 
 
-def _compute_expires_at_from_provided_retention_days(
-    retention_days: int | None, now: datetime
-) -> datetime | None:
-    if retention_days is None:
-        return _compute_expires_at(now)
-    if retention_days == 0:
-        return None
-    return now + timedelta(days=retention_days)
-
-
 @asynccontextmanager
 async def _async_session(session: AsyncSession | None) -> AsyncGenerator[AsyncSession, None]:
     """Use provided async session or create a new one."""
@@ -127,14 +117,14 @@ class MetastoreStateBackend(BaseStateBackend):
         key: str,
         value: str,
         *,
-        retention_days: int | None = None,
+        expires_at: datetime | None = None,
         session: Session | None = NEW_SESSION,
     ) -> None:
         if TYPE_CHECKING:
             assert session is not None
         match scope:
             case TaskScope():
-                self._set_task_state(scope, key, value, retention_days=retention_days, session=session)
+                self._set_task_state(scope, key, value, expires_at=expires_at, session=session)
             case AssetScope():
                 self._set_asset_state(scope, key, value, session=session)
             case _:
@@ -186,13 +176,13 @@ class MetastoreStateBackend(BaseStateBackend):
         key: str,
         value: str,
         *,
-        retention_days: int | None = None,
+        expires_at: datetime | None = None,
         session: AsyncSession | None = None,
     ) -> None:
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aset_task_state(scope, key, value, session=s)
+                    await self._aset_task_state(scope, key, value, expires_at=expires_at, session=s)
                 case AssetScope():
                     await self._aset_asset_state(scope, key, value, session=s)
                 case _:
@@ -238,7 +228,7 @@ class MetastoreStateBackend(BaseStateBackend):
         key: str,
         value: str,
         *,
-        retention_days: int | None = None,
+        expires_at: datetime | None = None,
         session: Session,
     ) -> None:
         dag_run_id = session.scalar(
@@ -250,7 +240,8 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        expires_at = _compute_expires_at_from_provided_retention_days(retention_days, now)
+        if expires_at is None:
+            expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,
@@ -391,7 +382,7 @@ class MetastoreStateBackend(BaseStateBackend):
         key: str,
         value: str,
         *,
-        retention_days: int | None = None,
+        expires_at: datetime | None = None,
         session: AsyncSession,
     ) -> None:
         dag_run_id = await session.scalar(
@@ -403,7 +394,8 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        expires_at = _compute_expires_at_from_provided_retention_days(retention_days, now)
+        if expires_at is None:
+            expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,

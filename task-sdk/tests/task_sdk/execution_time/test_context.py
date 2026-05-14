@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
@@ -1094,23 +1095,30 @@ class TestTaskStateAccessor:
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001")
         )
 
-    def test_set_with_retention_days_passes_value(self, mock_supervisor_comms):
+    def test_set_with_retention_computes_expires_at(self, mock_supervisor_comms, time_machine):
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(now, tick=False)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention_days=7)
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention=timedelta(days=7))
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", retention_days=7)
+            SetTaskState(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value="app_001",
+                expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+            )
         )
 
-    def test_set_with_retention_days_zero_passes_zero(self, mock_supervisor_comms):
-        """retention_days=0 means never expire — must be forwarded as 0, not None."""
+    def test_set_without_retention_sends_none_expires_at(self, mock_supervisor_comms):
+        """set() with no retention sends expires_at=None — server applies global config."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention_days=0)
+        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", retention_days=0)
+            SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
         )
 
     def test_delete_operation(self, mock_supervisor_comms):

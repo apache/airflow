@@ -21,7 +21,7 @@ import contextlib
 import functools
 import inspect
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from uuid import UUID
@@ -467,22 +467,21 @@ class TaskStateAccessor:
             return resp.value
         return None
 
-    def set(self, key: str, value: str, *, retention_days: int | None = None) -> None:
+    def set(self, key: str, value: str, *, retention: timedelta | None = None) -> None:
         """
         Write or overwrite the value for the given key.
 
-        ``retention_days`` is an optional per-key retention override:
-
-        - Positive int: expire this key in N days, overriding the global ``default_retention_days``.
-        - ``0``: never expire this key, regardless of the global default.
-        - ``None`` (default): use the global ``[state_store] default_retention_days`` config.
+        ``retention`` is an optional per-key expiry override. Pass a :class:`~datetime.timedelta`
+        to set an explicit lifetime for this key (e.g. ``timedelta(hours=6)``).
+        If ``None`` (default), the global ``[state_store] default_retention_days`` config applies.
         """
         from airflow.sdk.execution_time.comms import SetTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(
-            SetTaskState(ti_id=self._ti_id, key=key, value=value, retention_days=retention_days)
-        )
+        # Compute expires_at on the worker in UTC so the server just stores it directly.
+        # Using an absolute timestamp avoids any clock-skew or timezone ambiguity between worker and server.
+        expires_at = datetime.now(tz=timezone.utc) + retention if retention is not None else None
+        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value, expires_at=expires_at))
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""

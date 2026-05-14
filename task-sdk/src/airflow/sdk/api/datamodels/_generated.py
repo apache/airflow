@@ -367,10 +367,6 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
-class RetentionDays(RootModel[int]):
-    root: Annotated[int, Field(ge=0, title="Retention Days")]
-
-
 class TaskStatePutBody(BaseModel):
     """
     Request body for setting a task state value.
@@ -380,7 +376,7 @@ class TaskStatePutBody(BaseModel):
         extra="forbid",
     )
     value: Annotated[str, Field(title="Value")]
-    retention_days: Annotated[RetentionDays | None, Field(title="Retention Days")] = None
+    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
 
 
 class TaskStateResponse(BaseModel):

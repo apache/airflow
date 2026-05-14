@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
@@ -90,7 +92,7 @@ class BaseStateBackend(ABC):
         key: str,
         value: str,
         *,
-        retention_days: int | None = None,
+        expires_at: datetime | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -98,11 +100,8 @@ class BaseStateBackend(ABC):
 
         Must handle both ``TaskScope`` and ``AssetScope``.
 
-        ``retention_days`` is an optional per-key override for how long the row should be retained:
-
-        - ``N > 0``: expire this key in N days, overriding the global ``default_retention_days``.
-        - ``0``: never expire this key (disables expiry regardless of the global default).
-        - ``None`` (default): use the global ``[state_store] default_retention_days`` config.
+        ``expires_at`` is an optional absolute UTC datetime after which the row may be deleted.
+        If ``None``, the global ``[state_store] default_retention_days`` config determines expiry.
         """
 
     @abstractmethod
@@ -144,7 +143,7 @@ class BaseStateBackend(ABC):
         key: str,
         value: str,
         *,
-        retention_days: int | None = None,
+        expires_at: datetime | None = None,
         session: AsyncSession | None = None,
     ) -> None:
         """

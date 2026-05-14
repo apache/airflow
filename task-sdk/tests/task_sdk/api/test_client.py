@@ -1774,29 +1774,32 @@ class TestTaskStateOperations:
         result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="spark_app_001")
         assert result == OKResponse(ok=True)
 
-    def test_set_with_retention_days_sends_field(self):
+    def test_set_with_expires_at_sends_field(self):
+        """expires_at is forwarded as an ISO datetime string in the request body."""
+        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             body = json.loads(request.content)
             assert body["value"] == "spark_app_001"
-            assert body["retention_days"] == 7
+            assert body["expires_at"] == "2026-05-21T12:00:00Z"
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_state.set(
-            ti_id=self.TI_ID, key="job_id", value="spark_app_001", retention_days=7
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
         )
         assert result == OKResponse(ok=True)
 
-    def test_set_with_retention_days_zero_sends_zero(self):
-        """retention_days=0 (never expire) must be serialized as 0, not omitted."""
+    def test_set_without_expires_at_omits_field(self):
+        """expires_at=None means the server applies the global retention config."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             body = json.loads(request.content)
-            assert body["retention_days"] == 0
+            assert body.get("expires_at") is None
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="v", retention_days=0)
+        result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="v")
         assert result == OKResponse(ok=True)
 
     def test_delete_success(self):
