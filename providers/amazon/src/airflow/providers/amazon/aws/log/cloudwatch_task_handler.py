@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import attrs
+import structlog
+import structlog.typing
 import watchtower
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -39,8 +41,6 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    import structlog.typing
-
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.amazon.aws.hooks.logs import CloudWatchLogEvent
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -119,14 +119,23 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             json_serialize_default=_json_serialize or json_serialize_legacy,
         )
 
+    _handler_creating: bool = attrs.field(default=False, init=False, repr=False)
+
     @property
     def handler(self) -> watchtower.CloudWatchLogHandler:
-        # Defensive self-healing: if the handler was killed by logging.shutdown()
-        # (shutting_down=True), recreate it. This can happen if dictConfig() is called
-        # after the handler was first created, since dictConfig calls
-        # _clearExistingHandlers() -> logging.shutdown() on all existing handlers.
+        if self._handler_creating:
+            # Re-entrant call during handler creation, some libraries log internally
+            # during initialization, which triggers this process again before
+            # handler is fully constructed.
+            if self._handler is not None and isinstance(self._handler, watchtower.CloudWatchLogHandler):
+                return self._handler
+            raise structlog.DropEvent()
         if self._handler is None or self._handler.shutting_down:
-            self._handler = self._create_handler()
+            self._handler_creating = True
+            try:
+                self._handler = self._create_handler()
+            finally:
+                self._handler_creating = False
         return self._handler
 
     @cached_property
