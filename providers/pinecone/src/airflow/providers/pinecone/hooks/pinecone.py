@@ -29,9 +29,19 @@ from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
+    from multiprocessing.pool import ApplyResult
+
     from pinecone import Vector
-    from pinecone.core.client.model.sparse_values import SparseValues
-    from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
+    from pinecone.core.openapi.db_data.models import IndexDescription as DescribeIndexStatsResponse
+    from pinecone.db_data import QueryResponse, UpsertResponse
+    from pinecone.db_data.dataclasses.sparse_values import SparseValues
+    from pinecone.db_data.types import (
+        FilterTypedDict,
+        SparseVectorTypedDict,
+        VectorTuple,
+        VectorTupleWithMetadata,
+        VectorTypedDict,
+    )
 
     from airflow.models.connection import Connection
 
@@ -143,12 +153,12 @@ class PineconeHook(BaseHook):
     def upsert(
         self,
         index_name: str,
-        vectors: list[Vector] | list[tuple] | list[dict],
+        vectors: list[Vector] | list[VectorTuple] | list[VectorTupleWithMetadata] | list[VectorTypedDict],
         namespace: str = "",
         batch_size: int | None = None,
         show_progress: bool = True,
         **kwargs: Any,
-    ) -> UpsertResponse:
+    ) -> UpsertResponse | ApplyResult:
         """
         Write vectors into a namespace.
 
@@ -308,11 +318,11 @@ class PineconeHook(BaseHook):
         query_id: str | None = None,
         top_k: int = 10,
         namespace: str | None = None,
-        query_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]] | None = None,
+        query_filter: FilterTypedDict | None = None,
         include_values: bool | None = None,
         include_metadata: bool | None = None,
-        sparse_vector: SparseValues | dict[str, list[float] | list[int]] | None = None,
-    ) -> QueryResponse:
+        sparse_vector: SparseValues | SparseVectorTypedDict | None = None,
+    ) -> QueryResponse | ApplyResult:
         """
         Search a namespace using query vector.
 
@@ -381,7 +391,7 @@ class PineconeHook(BaseHook):
     def describe_index_stats(
         self,
         index_name: str,
-        stats_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]] | None = None,
+        stats_filter: FilterTypedDict | None = None,
         **kwargs: Any,
     ) -> DescribeIndexStatsResponse:
         """

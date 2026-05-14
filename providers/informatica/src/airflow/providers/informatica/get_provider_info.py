@@ -40,6 +40,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.informatica.hooks.edc.InformaticaEDCHook",
+                "hook-name": "Informatica EDC",
                 "connection-type": "informatica_edc",
             }
         ],

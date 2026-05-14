@@ -25,35 +25,19 @@ from chart_utils.log_groomer import LogGroomerTestBase
 class TestDagProcessor:
     """Tests DAG processor."""
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "num_docs"),
-        [
-            ("2.11.0", 0),
-            ("3.0.0", 1),
-        ],
-    )
-    def test_enabled_by_airflow_version(self, airflow_version, num_docs):
+    def test_enabled_by_airflow_version(self):
         """Tests that Dag Processor is enabled by default with Airflow 3"""
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert len(docs) == num_docs
+        assert len(docs) == 1
 
-    @pytest.mark.parametrize(
-        ("airflow_version", "enabled"),
-        [
-            ("2.11.0", False),
-            ("2.11.0", True),
-            ("3.0.0", False),
-            ("3.0.0", True),
-        ],
-    )
-    def test_enabled_explicit(self, airflow_version, enabled):
+    @pytest.mark.parametrize("enabled", [False, True])
+    def test_enabled_explicit(self, enabled):
         """Tests that Dag Processor can be enabled/disabled regardless of version"""
         docs = render_chart(
-            values={"airflowVersion": airflow_version, "dagProcessor": {"enabled": enabled}},
+            values={"dagProcessor": {"enabled": enabled}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
@@ -460,10 +444,9 @@ class TestDagProcessor:
             "wow such test",
         ]
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_livenessprobe_command(self, airflow_version):
+    def test_livenessprobe_command(self):
         docs = render_chart(
-            values={"airflowVersion": f"{airflow_version}", "dagProcessor": {"enabled": True}},
+            values={"dagProcessor": {"enabled": True}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
         assert (
@@ -724,45 +707,6 @@ class TestDagProcessor:
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
-
-    @pytest.mark.parametrize(
-        ("webserver_config", "should_add_volume"),
-        [
-            ("CSRF_ENABLED = True", True),
-            (None, False),
-        ],
-    )
-    def test_should_add_webserver_config_volume_and_volume_mount_when_exists(
-        self, webserver_config, should_add_volume
-    ):
-        expected_volume = {
-            "name": "webserver-config",
-            "configMap": {"name": "release-name-webserver-config"},
-        }
-        expected_volume_mount = {
-            "name": "webserver-config",
-            "mountPath": "/opt/airflow/webserver_config.py",
-            "subPath": "webserver_config.py",
-            "readOnly": True,
-        }
-
-        docs = render_chart(
-            values={
-                "dagProcessor": {"enabled": True},
-                "webserver": {"webserverConfig": webserver_config},
-            },
-            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
-        )
-
-        created_volumes = jmespath.search("spec.template.spec.volumes", docs[0])
-        created_volume_mounts = jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0])
-
-        if should_add_volume:
-            assert expected_volume in created_volumes
-            assert expected_volume_mount in created_volume_mounts
-        else:
-            assert expected_volume not in created_volumes
-            assert expected_volume_mount not in created_volume_mounts
 
     def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
         docs = render_chart(

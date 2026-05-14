@@ -37,11 +37,18 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 
 import requests
-from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
+from common_prek_utils import (
+    AIRFLOW_CORE_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    console,
+    read_default_python_major_minor_version_for_images,
+    retrieve_gh_token,
+)
 from packaging.version import Version
 
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
@@ -60,7 +67,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
     (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
     (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "airflow-distributions-tests.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
@@ -73,11 +79,6 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "release_dockerhub_image.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-prek" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "breeze" / "action.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "basic-tests.yml", False),
-    (AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd-arm.yml", False),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "doc" / "ci" / "02_images.md", True),
     (AIRFLOW_ROOT_PATH / "docker-stack-docs" / "build-arg-ref.rst", True),
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
@@ -98,6 +99,20 @@ for file in PREK_DIR_PATH.rglob("*"):
         FILES_TO_UPDATE.append((file, False))
 
 
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+COOLDOWN_DAYS = 4
+
+
+def _is_version_within_cooldown(releases: dict, version: str) -> bool:
+    """Return True if the given version was uploaded within the cooldown period."""
+    files = releases.get(version, [])
+    if not files:
+        return False
+    upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=COOLDOWN_DAYS)
+    return upload_time > cutoff
+
+
 def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     if not should_upgrade:
         return ""
@@ -108,10 +123,20 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     )
     response.raise_for_status()  # Ensure we got a successful response
     data = response.json()
-    if os.environ.get(f"UPGRADE_{package_name.upper()}_INCLUDE_PRE_RELEASES", ""):
-        latest_version = str(sorted([Version(version) for version in data["releases"].keys()])[-1])
+    releases = data["releases"]
+    include_pre = os.environ.get(f"UPGRADE_{package_name.upper()}_INCLUDE_PRE_RELEASES", "")
+    if include_pre:
+        sorted_versions = sorted([Version(v) for v in releases.keys()])
     else:
-        latest_version = data["info"]["version"]  # The version info is under the 'info' key
+        sorted_versions = sorted([Version(v) for v in releases.keys() if not Version(v).is_prerelease])
+    # Skip versions released within the cooldown period
+    latest_version = ""
+    for version in reversed(sorted_versions):
+        if not _is_version_within_cooldown(releases, str(version)):
+            latest_version = str(version)
+            break
+    if not latest_version:
+        latest_version = data["info"]["version"]
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
     return latest_version
@@ -383,6 +408,13 @@ UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"^(\s*UV_VERSION = )(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"^(\s*UV_VERSION=)(\"[0-9.abrc]+\")", re.MULTILINE), Quoting.DOUBLE_QUOTED),
     (re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.abrd]+`)( *\|)"), Quoting.REVERSE_SINGLE_QUOTED),
+    # Intentionally NOT matching `[tool.uv] required-version = ">=X.Y.Z"` in the root
+    # pyproject.toml. That value is a hard minimum contributors must have installed —
+    # not the exact uv version CI ships with. Bumping it on every uv release would force
+    # the whole contributor base to upgrade uv in lockstep, which is far more churn than
+    # the check is worth. `required-version` stays a deliberate, manual bump only. If
+    # you're tempted to auto-track it here, don't — the breeze/prek uv version check
+    # reads it dynamically and tolerates a stale floor.
     (
         re.compile(
             r"(\")([0-9.abrc]+)(\" {2}# Keep this comment to "
@@ -465,7 +497,7 @@ UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
-DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
+DEFAULT_PROD_IMAGE_PYTHON_VERSION = read_default_python_major_minor_version_for_images()
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:

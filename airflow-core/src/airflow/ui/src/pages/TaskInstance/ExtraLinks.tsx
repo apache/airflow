@@ -26,6 +26,16 @@ type ExtraLinksProps = {
   readonly refetchInterval: number | false;
 };
 
+const getTarget = (url: string) => {
+  try {
+    return new URL(url, globalThis.location.origin).origin === globalThis.location.origin
+      ? "_self"
+      : "_blank";
+  } catch {
+    return "_blank";
+  }
+};
+
 export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
@@ -47,15 +57,21 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
     <Box py={1}>
       <Heading size="sm">{translate("extraLinks")}</Heading>
       <HStack gap={2} py={2}>
-        {Object.entries(data.extra_links).map(([key, value], _) =>
-          value === null ? undefined : (
+        {Object.entries(data.extra_links).map(([key, url]) => {
+          if (url === null) {
+            return undefined;
+          }
+
+          const target = getTarget(url);
+
+          return (
             <Button asChild colorPalette="brand" key={key} variant="surface">
-              <a href={value} rel="noopener noreferrer" target="_blank">
+              <a href={url} rel="noopener noreferrer" target={target}>
                 {key}
               </a>
             </Button>
-          ),
-        )}
+          );
+        })}
       </HStack>
     </Box>
   ) : undefined;

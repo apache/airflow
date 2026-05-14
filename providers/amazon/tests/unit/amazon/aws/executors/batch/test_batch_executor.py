@@ -28,7 +28,6 @@ import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
 from semver import VersionInfo
 
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -43,7 +42,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
 from airflow.version import version as airflow_version_str

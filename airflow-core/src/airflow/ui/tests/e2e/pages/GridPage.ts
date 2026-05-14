@@ -87,9 +87,13 @@ export class GridPage extends BasePage {
     const firstCell = this.gridCells.first();
 
     await expect(firstCell).toBeVisible();
-    await firstCell.hover();
 
-    await expect(this.page.getByRole("tooltip").first()).toBeVisible({ timeout: 10_000 });
+    // Firefox may not trigger the tooltip on the first hover attempt.
+    await expect(async () => {
+      await this.page.mouse.move(0, 0);
+      await firstCell.hover();
+      await expect(this.page.getByRole("tooltip").first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [1000, 2000], timeout: 15_000 });
   }
 
   public async waitForGridToLoad(): Promise<void> {

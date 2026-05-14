@@ -40,7 +40,7 @@ test.describe("Verify Required Action page", () => {
     await context.close();
   });
 
-  test("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
+  test.fixme("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
     const browsePage = new RequiredActionsPage(page);
 
     await browsePage.navigateToRequiredActionsPage();

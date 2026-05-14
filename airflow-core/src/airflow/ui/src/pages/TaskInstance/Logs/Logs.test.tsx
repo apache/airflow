@@ -37,9 +37,12 @@ const waitForLogs = async () => {
   await waitFor(() => expect(screen.getByTestId("virtualized-list")).toBeInTheDocument());
 
   // Wait for virtualized items to be rendered - they might not all be visible initially
+  // Items can have either virtualized-item- or group-header- testid prefixes
   await waitFor(() => {
     const virtualizedList = screen.getByTestId("virtualized-list");
-    const virtualizedItems = virtualizedList.querySelectorAll('[data-testid^="virtualized-item-"]');
+    const virtualizedItems = virtualizedList.querySelectorAll(
+      '[data-testid^="virtualized-item-"], [data-testid^="group-header-"]',
+    );
 
     expect(virtualizedItems.length).toBeGreaterThan(0);
   });
@@ -87,36 +90,52 @@ describe("Task log grouping", () => {
 
     await waitForLogs();
 
+    // Group headers use the summary-{name} testid pattern and are always visible
     const summarySource = screen.getByTestId(
       'summary-Log message source details sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
     );
 
     expect(summarySource).toBeVisible();
-    fireEvent.click(summarySource);
-    await waitFor(() => expect(screen.queryByText(/sources=\[/iu)).toBeVisible());
 
     const summaryPre = screen.getByTestId("summary-Pre task execution logs");
 
     expect(summaryPre).toBeVisible();
-    fireEvent.click(summaryPre);
-    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeVisible());
 
+    // All groups start collapsed. Verify Post header is in the virtualizer range.
     const summaryPost = screen.getByTestId("summary-Post task execution logs");
 
     expect(summaryPost).toBeVisible();
-    fireEvent.click(summaryPost);
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
 
+    // Groups start collapsed — content should not be in DOM
+    expect(screen.queryByText(/starting attempt 1 of 3/iu)).toBeNull();
+
+    // Click to expand Pre
     fireEvent.click(summaryPre);
-    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
+    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
+
+    // Click Pre to collapse
     fireEvent.click(summaryPre);
-    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).toBeVisible());
+    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).toBeNull());
 
-    fireEvent.click(summaryPost);
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
-    fireEvent.click(summaryPost);
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeVisible());
+    // Click Pre to expand again
+    fireEvent.click(summaryPre);
+    await waitFor(() =>
+      expect(screen.queryByText(/Task instance is in running state/iu)).toBeInTheDocument(),
+    );
 
+    // Click Pre to collapse again (to return to compact view)
+    fireEvent.click(summaryPre);
+    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).toBeNull());
+
+    // Now expand Post (which is visible because Pre is collapsed again)
+    fireEvent.click(screen.getByTestId("summary-Post task execution logs"));
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeInTheDocument());
+
+    // Collapse Post
+    fireEvent.click(screen.getByTestId("summary-Post task execution logs"));
+    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeNull());
+
+    // Test Expand All / Collapse All via settings menu
     const settingsBtn = screen.getByRole("button", { name: /settings/iu });
 
     fireEvent.click(settingsBtn);
@@ -125,12 +144,245 @@ describe("Task log grouping", () => {
 
     fireEvent.click(expandItem);
 
-    /* ─── NEW: open again & click  "Collapse"  ─── */
-    fireEvent.click(settingsBtn); // menu is closed after previous click, so reopen
+    // After "Expand All", Pre group content near the top should be visible
+    await waitFor(() => expect(screen.queryByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
+
+    /* ─── Click  "Collapse"  ─── */
+    fireEvent.click(settingsBtn);
     const collapseItem = await screen.findByRole("menuitem", { name: /collapse/iu });
 
     fireEvent.click(collapseItem);
 
-    await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
+    // After "Collapse All", group content should be gone from the DOM
+    await waitFor(() => expect(screen.queryByText(/starting attempt 1 of 3/iu)).toBeNull());
+  }, 10_000);
+
+  it("renders nested groups correctly", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    // The nested group "Dependency check details" should have a header
+    // First expand the parent group "Pre task execution logs"
+    const summaryPre = screen.getByTestId("summary-Pre task execution logs");
+
+    fireEvent.click(summaryPre);
+
+    // The nested group header should now be visible
+    await waitFor(() => expect(screen.getByTestId("summary-Dependency check details")).toBeInTheDocument());
+
+    // But nested group content is collapsed
+    expect(screen.queryByText(/dep_context=non-requeueable/iu)).toBeNull();
+
+    // Expand the nested group
+    fireEvent.click(screen.getByTestId("summary-Dependency check details"));
+    await waitFor(() => expect(screen.getByText(/dep_context=non-requeueable/iu)).toBeInTheDocument());
+  }, 10_000);
+});
+
+describe("Task log search", () => {
+  it("search input is rendered in the log header", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    expect(screen.getByTestId("log-search-input")).toBeInTheDocument();
+  });
+
+  it("typing in the search input enables navigation buttons for a known term", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    // "running state" appears in the mock log data
+    fireEvent.change(searchInput, { target: { value: "running state" } });
+
+    // Navigation buttons should become enabled once matches are found
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled();
+    });
+  });
+
+  it("shows no-matches indicator for a term that does not exist in logs", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "zzz_not_in_logs_zzz" } });
+
+    await waitFor(() => {
+      // Navigation buttons should be disabled with zero matches
+      const nextBtn = screen.getByRole("button", { name: /next match/iu });
+
+      expect(nextBtn).toBeDisabled();
+    });
+  });
+
+  it("pressing Escape clears the search query", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "running" } });
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: /next match/iu })).toBeInTheDocument());
+
+    fireEvent.keyDown(searchInput, { key: "Escape" });
+
+    await waitFor(() => {
+      expect((searchInput as HTMLInputElement).value).toBe("");
+    });
+  });
+
+  it("pressing Enter keeps navigation buttons enabled (navigates to next match)", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    // "state" appears multiple times in the mock log data
+    fireEvent.change(searchInput, { target: { value: "state" } });
+
+    // Wait for matches to be found (navigation buttons become enabled)
+    await waitFor(() => expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled());
+
+    // Navigate forward — buttons remain enabled
+    fireEvent.keyDown(searchInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+    });
+  });
+
+  it("pressing Shift+Enter keeps navigation buttons enabled (navigates to previous match)", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "state" } });
+
+    // Wait for matches to be found
+    await waitFor(() => expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled());
+
+    // Navigate backward — buttons remain enabled
+    fireEvent.keyDown(searchInput, { key: "Enter", shiftKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled();
+    });
+  });
+
+  it("search finds matches per-line inside log groups (not collapsed into 1 match per group)", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    // "INFO" appears in many individual log lines across multiple groups.
+    // With the old code, each group collapsed into 1 match. Now each line is a separate match.
+    fireEvent.change(searchInput, { target: { value: "INFO" } });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+    });
+
+    // Verify per-line search by navigating through matches.
+    // With the old code (1 match per group), there were only 3 matches for "INFO".
+    // Now each line is a separate match, so we can navigate through many more.
+    const nextBtn = screen.getByRole("button", { name: /next match/iu });
+
+    // Navigate forward 4 times — if only 3 matches existed, the 4th click would wrap to #1
+    // We just verify it stays enabled (which it always does with >0 matches).
+    // The real proof is that the auto-expand test passes: searching "starting attempt"
+    // finds a match INSIDE a group, which was impossible with the old collapsed approach.
+    for (let navStep = 0; navStep < 4; navStep += 1) {
+      fireEvent.click(nextBtn);
+    }
+
+    await waitFor(() => {
+      expect(nextBtn).not.toBeDisabled();
+    });
+  }, 10_000);
+
+  it("search navigating to match in collapsed group auto-expands it", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    // All groups start collapsed. Search for text that only appears inside a group.
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "starting attempt" } });
+
+    await waitFor(() => {
+      const nextBtn = screen.getByRole("button", { name: /next match/iu });
+
+      expect(nextBtn).not.toBeDisabled();
+    });
+
+    // The match is inside "Pre task execution logs" group.
+    // Auto-expand should make it visible.
+    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
+  }, 10_000);
+
+  it("skips group markers when assigning line numbers", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
+    );
+
+    await waitForLogs();
+
+    const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
+      const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
+
+      expect(row).not.toBeNull();
+
+      const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
+
+      expect(anchor).not.toBeNull();
+
+      expect(Number(anchor?.id)).toBe(expectedLineNumber);
+    };
+
+    const summaryPre = screen.getByTestId("summary-Pre task execution logs");
+
+    fireEvent.click(summaryPre);
+
+    const summaryDependency = await screen.findByTestId("summary-Dependency check details");
+
+    fireEvent.click(summaryDependency);
+
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
   }, 10_000);
 });

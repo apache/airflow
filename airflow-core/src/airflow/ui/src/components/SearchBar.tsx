@@ -17,7 +17,7 @@
  * under the License.
  */
 import { CloseButton, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
-import { useState, useRef, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
@@ -46,9 +46,19 @@ export const SearchBar = ({
   const [value, setValue] = useState(defaultValue);
   const metaKey = getMetaKey();
   const { t: translate } = useTranslation(["dags"]);
+
+  useEffect(() => {
+    setValue(defaultValue);
+  }, [defaultValue]);
+
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value);
     handleSearchChange(event.target.value);
+  };
+  const clearSearch = () => {
+    handleSearchChange.cancel();
+    setValue("");
+    onChange("");
   };
 
   useHotkeys(
@@ -70,10 +80,7 @@ export const SearchBar = ({
               aria-label={translate("search.clear")}
               colorPalette="brand"
               data-testid="clear-search"
-              onClick={() => {
-                setValue("");
-                onChange("");
-              }}
+              onClick={clearSearch}
               size="xs"
             />
           ) : undefined}

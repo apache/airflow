@@ -43,7 +43,6 @@ class TestKeda:
         "executor",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "CeleryExecutor,KubernetesExecutor",
         ],
     )
@@ -66,9 +65,7 @@ class TestKeda:
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
 
-    @pytest.mark.parametrize(
-        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
-    )
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
     def test_include_event_source_container_name_in_scaled_object(self, executor):
         docs = render_chart(
             values={
@@ -79,9 +76,7 @@ class TestKeda:
         )
         assert jmespath.search("spec.scaleTargetRef.envSourceContainerName", docs[0]) == "worker"
 
-    @pytest.mark.parametrize(
-        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
-    )
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -176,10 +171,7 @@ class TestKeda:
         queues_str = ",".join(f"'{q}'" for q in queues)
         query += f" AND queue IN ({queues_str})"
 
-        if "CeleryKubernetesExecutor" in executor:
-            queue_value = kubernetes_queue or "kubernetes"
-            query += f" AND queue != '{queue_value}'"
-        elif "KubernetesExecutor" in executor:
+        if "KubernetesExecutor" in executor:
             query += " AND executor IS DISTINCT FROM 'KubernetesExecutor'"
         elif "airflow.providers.edge3.executors.EdgeExecutor" in executor:
             query += " AND executor IS DISTINCT FROM 'EdgeExecutor'"
@@ -190,8 +182,6 @@ class TestKeda:
         [
             ("CeleryExecutor", 8),
             ("CeleryExecutor", 16),
-            ("CeleryKubernetesExecutor", 8),
-            ("CeleryKubernetesExecutor", 16),
             ("CeleryExecutor,KubernetesExecutor", 8),
             ("CeleryExecutor,KubernetesExecutor", 16),
             ("CeleryExecutor,airflow.providers.edge3.executors.EdgeExecutor", 8),
@@ -216,8 +206,6 @@ class TestKeda:
         [
             ("CeleryExecutor", None),
             ("CeleryExecutor", "my_queue"),
-            ("CeleryKubernetesExecutor", None),
-            ("CeleryKubernetesExecutor", "my_queue"),
             ("CeleryExecutor,KubernetesExecutor", "None"),
             ("CeleryExecutor,KubernetesExecutor", "my_queue"),
         ],

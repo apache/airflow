@@ -116,6 +116,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.0": "cc92b33c6709",
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
+    "3.3.0": "9fabad868fdb",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -151,15 +152,24 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
         raise TimeoutException(message)
 
     # Set the signal handler
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    timeout_supported = False
+    try:
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        timeout_supported = True
+    except (AttributeError, ValueError):
+        log.warning(
+            "timeout_with_traceback requires signal.SIGALRM and the main thread. "
+            "Proceeding without a timeout."
+        )
 
     try:
         yield
     finally:
-        # Cancel the alarm and restore the old handler
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+        if timeout_supported:
+            # Cancel the alarm and restore the old handler
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session
@@ -1193,6 +1203,13 @@ def _run_upgradedb(
         current_revision = _get_current_revision(session=work_session)
         with _configured_alembic_environment() as env:
             source_heads = env.script.get_heads()
+
+        # End the read-only transaction from _get_current_revision before
+        # external DB manager migrations, which may run DDL that is blocked by
+        # open transactions (e.g. CREATE INDEX CONCURRENTLY). The advisory lock
+        # from create_global_lock() is unaffected: it is session-level and held
+        # on a separate connection.
+        work_session.rollback()
 
         if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
             external_db_manager = RunDBManager()

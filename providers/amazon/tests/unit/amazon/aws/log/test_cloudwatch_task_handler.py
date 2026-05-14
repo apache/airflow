@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 import textwrap
 import time
@@ -60,6 +61,26 @@ def get_time_str(time_in_milliseconds):
 def logmock():
     with mock_aws():
         yield
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_cloudwatch_handlers():
+    # Watchtower's CloudWatchLogHandler spawns a queue worker thread that keeps
+    # the handler alive even after the test fixture tears down, so it stays
+    # registered in logging._handlerList. Several tests here never call close()
+    # or mock watchtower.CloudWatchLogHandler.close, leaking the handler across
+    # tests. When a later test in the same xdist worker calls
+    # logging.config.dictConfig (e.g. settings.configure_logging()), its
+    # _clearExistingHandlers path runs close() on the leaked handler and blocks
+    # up to FLUSH_TIMEOUT waiting for an undrainable queue — mock_aws is gone.
+    # Closing here while mock_aws is still active drains cleanly.
+    yield
+    for handler_ref in logging._handlerList[:]:
+        handler = handler_ref()
+        if handler is not None and isinstance(handler, CloudWatchLogHandler):
+            with contextlib.suppress(Exception):
+                handler.close()
+            logging._removeHandlerRef(handler_ref)
 
 
 # We only test this directly on Airflow 3

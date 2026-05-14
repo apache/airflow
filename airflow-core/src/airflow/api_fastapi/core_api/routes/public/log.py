@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import textwrap
+from collections.abc import Generator, Iterable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -35,10 +36,13 @@ from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.log import ExternalLogUrlResponse, TaskInstancesLogResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
+from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.log.log_reader import TaskLogReader
+
+_NDJSON_BATCH_SIZE = conf.getint("api", "log_stream_buffer_size")
 
 task_instances_log_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
@@ -57,6 +61,19 @@ ndjson_example_response_for_get_log = {
         }
     }
 }
+
+
+def _buffered_ndjson_stream(
+    raw_stream: Iterable[str],
+) -> Generator[str, None, None]:
+    buf: list[str] = []
+    for line in raw_stream:
+        buf.append(line)
+        if len(buf) >= _NDJSON_BATCH_SIZE:
+            yield "".join(buf)
+            buf.clear()
+    if buf:
+        yield "".join(buf)
 
 
 @task_instances_log_router.get(
@@ -146,7 +163,8 @@ def get_log(
 
     if accept == Mimetype.NDJSON:  # only specified application/x-ndjson will return streaming response
         # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
-        log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
+        raw_stream = task_log_reader.read_log_stream(ti, try_number, metadata)  # type: ignore[arg-type]
+        log_stream = _buffered_ndjson_stream(raw_stream)
         headers = None
         if not metadata.get("end_of_log", False):
             headers = {

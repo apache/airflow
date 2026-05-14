@@ -24,20 +24,29 @@ import os
 import selectors
 import time
 import typing
+import uuid
 from collections.abc import AsyncIterator
 from socket import socket
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    _USER_ACTION_CANCEL_MSG,
     ToTriggerRunner,
     ToTriggerSupervisor,
     TriggerCommsDecoder,
@@ -45,6 +54,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
+    _make_trigger_span,
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
@@ -111,9 +121,9 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.merge(testing_bundle)
     session.flush()
 
-    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
-    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     date = pendulum.datetime(2023, 1, 1)
+    dag_model = DagModel(dag_id="test_dag", bundle_name=bundle_name)
+    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=date)
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -219,6 +229,62 @@ def supervisor_builder(mocker, session):
     return builder
 
 
+def test_run_invokes_seams_in_order(supervisor_builder, mocker):
+    """run() enters run_context, drives run_once while not should_stop, then exits run_context."""
+    from contextlib import contextmanager
+
+    supervisor = supervisor_builder()
+    events: list[str] = []
+
+    @contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+
+    counter = {"n": 0}
+
+    def fake_run_once(self):
+        counter["n"] += 1
+        events.append(f"tick-{counter['n']}")
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", fake_run_once)
+    mocker.patch.object(TriggerRunnerSupervisor, "should_stop", side_effect=lambda: counter["n"] >= 3)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", return_value=True)
+
+    supervisor.run()
+
+    assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
+
+
+def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
+    """Breaking out of the loop on a dead subprocess still unwinds run_context."""
+    from contextlib import contextmanager
+
+    supervisor = supervisor_builder()
+    events: list[str] = []
+
+    @contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", side_effect=lambda: events.append("tick"))
+    mocker.patch.object(TriggerRunnerSupervisor, "should_stop", return_value=False)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", side_effect=[True, False])
+
+    supervisor.run()
+
+    assert events == ["enter", "tick", "exit"]
+
+
 def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -256,6 +322,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 classpath=trigger.serialize()[0],
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
+                dag_data=ANY,
             )
         )
         # OK, now remove it from the DB
@@ -318,7 +385,6 @@ def test_trigger_logger_close():
 
 
 def test_trigger_logger_fd_closed_when_removed(session):
-
     trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
 
     create_trigger_in_db(session, trigger)
@@ -349,11 +415,12 @@ class TestTriggerRunner:
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-    # @pytest.mark.asyncio
     def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
@@ -361,6 +428,8 @@ class TestTriggerRunner:
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError()
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(
@@ -369,6 +438,87 @@ class TestTriggerRunner:
                 )
             )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
+
+    def test_run_trigger_calls_on_kill_for_user_action(self, session, cap_structlog) -> None:
+        """on_kill() is called when CancelledError carries the user-action sentinel."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_awaited_once()
+        assert {
+            "event": "Trigger cancelled by user action, invoking on_kill",
+            "log_level": "info",
+            "name": "mock_name",
+        } in cap_structlog
+
+    def test_run_trigger_skips_on_kill_without_user_action_message(self, session) -> None:
+        """on_kill() is not called when CancelledError has no user-action sentinel (shutdown/EOF)."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError()
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_not_called()
+
+    def test_run_trigger_on_kill_exception_does_not_swallow_cancelled_error(self, session) -> None:
+        """CancelledError propagates even if on_kill() raises."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.on_kill = AsyncMock(side_effect=RuntimeError("external API down"))
+        mock_trigger.cleanup = AsyncMock()
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.on_kill.assert_awaited_once()
+        mock_trigger.cleanup.assert_awaited_once()
+
+    def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
+        """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+
+        async def hanging_on_kill():
+            await asyncio.sleep(9999)
+
+        mock_trigger.on_kill = hanging_on_kill
+        mock_trigger.cleanup = AsyncMock()
+
+        with patch("airflow.jobs.triggerer_job_runner._ON_CANCEL_TIMEOUT", 0.01):
+            with pytest.raises(asyncio.CancelledError):
+                asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.cleanup.assert_awaited_once()
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
     @patch(
@@ -1358,3 +1508,89 @@ class TestTriggererMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToTriggerRunner or update in_task_but_not_in_trigger_runner list."
         )
+
+
+class TestMakeTriggerSpan:
+    """Tests for the _make_trigger_span helper in the triggerer job runner."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        self.exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(self.exporter))
+        test_tracer = provider.get_tracer("test")
+        with mock.patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            yield
+
+    def _make_ti_dto(self, task_id="my_task", map_index=-1, context_carrier=None):
+        return TaskInstanceDTO(
+            id=uuid.uuid4(),
+            dag_version_id=uuid.uuid4(),
+            task_id=task_id,
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=map_index,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+            context_carrier=context_carrier,
+        )
+
+    def test_make_trigger_span_name_with_task_instance(self):
+        ti = self._make_ti_dto(task_id="sensor_task", map_index=-1)
+        with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
+            pass
+        assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task"
+
+    def test_make_trigger_span_name_with_mapped_task(self):
+        ti = self._make_ti_dto(task_id="sensor_task", map_index=2)
+        with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
+            pass
+        assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task_2"
+
+    def test_make_trigger_span_name_without_task_instance(self):
+        with _make_trigger_span(ti=None, trigger_id=42, name="Some trigger name"):
+            pass
+        assert self.exporter.get_finished_spans()[0].name == "trigger.Some trigger name"
+
+    def test_make_trigger_span_uses_task_context_carrier(self):
+        # Build a valid ti carrier from a separate provider so we have a known parent span.
+        setup_provider = TracerProvider()
+        setup_tracer = setup_provider.get_tracer("setup")
+        parent_span = setup_tracer.start_span("ti_parent")
+        parent_ctx = otel_trace.set_span_in_context(parent_span)
+        ti_carrier: dict = {}
+        TraceContextTextMapPropagator().inject(ti_carrier, context=parent_ctx)
+        expected_parent_span_id = parent_span.get_span_context().span_id
+
+        ti = self._make_ti_dto(context_carrier=ti_carrier)
+        with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
+            pass
+
+        spans = self.exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].parent is not None
+        assert spans[0].parent.span_id == expected_parent_span_id
+
+    def test_make_trigger_span_sets_attributes_with_ti(self):
+        ti = self._make_ti_dto(task_id="my_task", map_index=1)
+        with _make_trigger_span(ti=ti, trigger_id=5, name="MyTrigger"):
+            pass
+
+        attrs = self.exporter.get_finished_spans()[0].attributes
+        assert attrs["airflow.trigger.name"] == "MyTrigger"
+        assert attrs["airflow.dag_id"] == "test_dag"
+        assert attrs["airflow.task_id"] == "my_task"
+        assert attrs["airflow.dag_run.run_id"] == "test_run"
+        assert attrs["airflow.task_instance.try_number"] == 1
+        assert attrs["airflow.task_instance.map_index"] == 1
+
+    def test_make_trigger_span_sets_only_trigger_name_without_ti(self):
+        with _make_trigger_span(ti=None, trigger_id=99, name="OnlyTrigger"):
+            pass
+
+        attrs = self.exporter.get_finished_spans()[0].attributes
+        assert attrs["airflow.trigger.name"] == "OnlyTrigger"
+        assert "airflow.dag_id" not in attrs
+        assert "airflow.task_id" not in attrs

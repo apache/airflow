@@ -36,11 +36,14 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
+    QueryAssetAliasNamePrefixPatternSearch,
     QueryAssetDagIdPatternSearch,
     QueryAssetNamePatternSearch,
+    QueryAssetNamePrefixPatternSearch,
     QueryLimit,
     QueryOffset,
     QueryUriPatternSearch,
+    QueryUriPrefixPatternSearch,
     RangeFilter,
     SortParam,
     datetime_range_filter_factory,
@@ -59,6 +62,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetResponse,
     ColumnLineageSource,
     CreateAssetEventsBody,
+    MaterializeAssetBody,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
 )
@@ -175,7 +179,9 @@ def _deduplicate_asset_only_edges(edges: list[AssetLineageEdge]) -> list[AssetLi
         if existing_edge is None:
             deduplicated_edges[key] = edge
             continue
-        existing_edge.column_lineage = _merge_column_lineage(existing_edge.column_lineage, edge.column_lineage)
+        existing_edge.column_lineage = _merge_column_lineage(
+            existing_edge.column_lineage, edge.column_lineage
+        )
     return list(deduplicated_edges.values())
 
 
@@ -466,7 +472,9 @@ def get_assets(
     limit: QueryLimit,
     offset: QueryOffset,
     name_pattern: QueryAssetNamePatternSearch,
+    name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     uri_pattern: QueryUriPatternSearch,
+    uri_prefix_pattern: QueryUriPrefixPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
@@ -510,7 +518,7 @@ def get_assets(
 
     assets_select, total_entries = paginated_select(
         statement=assets_select_statement,
-        filters=[only_active, name_pattern, uri_pattern, dag_ids],
+        filters=[only_active, name_pattern, name_prefix_pattern, uri_pattern, uri_prefix_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -568,6 +576,7 @@ def get_asset_aliases(
     limit: QueryLimit,
     offset: QueryOffset,
     name_pattern: QueryAssetAliasNamePatternSearch,
+    name_prefix_pattern: QueryAssetAliasNamePrefixPatternSearch,
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["id", "name"], AssetAliasModel).dynamic_depends()),
@@ -577,7 +586,7 @@ def get_asset_aliases(
     """Get asset aliases."""
     asset_aliases_select, total_entries = paginated_select(
         statement=select(AssetAliasModel),
-        filters=[name_pattern],
+        filters=[name_pattern, name_prefix_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -645,12 +654,13 @@ def get_asset_events(
         FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
     ],
     name_pattern: QueryAssetNamePatternSearch,
+    name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
     base_statement = select(AssetEvent)
-    if name_pattern.value:
+    if name_pattern.value or name_prefix_pattern.value:
         base_statement = base_statement.join(AssetModel, AssetEvent.asset_id == AssetModel.id)
 
     assets_event_select, total_entries = paginated_select(
@@ -662,6 +672,7 @@ def get_asset_events(
             source_run_id,
             source_map_index,
             name_pattern,
+            name_prefix_pattern,
             timestamp_range,
         ],
         order_by=order_by,
@@ -721,6 +732,7 @@ def materialize_asset(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
+    body: MaterializeAssetBody | None = None,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a DAG run that produces it."""
     dag_id_it = iter(
@@ -759,17 +771,19 @@ def materialize_asset(
             f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
         )
 
+    params = (body or MaterializeAssetBody()).validate_context(dag)
     return dag.create_dagrun(
-        run_id=dag.timetable.generate_run_id(
-            run_type=DagRunType.ASSET_MATERIALIZATION,
-            run_after=(run_after := timezone.coerce_datetime(timezone.utcnow())),
-            data_interval=None,
-        ),
-        run_after=run_after,
+        run_id=params["run_id"],
+        logical_date=params["logical_date"],
+        data_interval=params["data_interval"],
+        run_after=params["run_after"],
+        conf=params["conf"],
         run_type=DagRunType.ASSET_MATERIALIZATION,
         triggered_by=DagRunTriggeredByType.REST_API,
         triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
+        partition_key=params["partition_key"],
+        note=params["note"],
         session=session,
     )
 

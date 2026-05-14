@@ -45,6 +45,8 @@ PACKAGE_DIR = Path(__file__).parents[1]
 _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "9d34dfc2de06",
     "3.2.0": "8c275b6fbaa8",
+    "3.4.0": "a09c3ee8e1d3",
+    "3.5.0": "c6b3c3d093fd",
 }
 
 
@@ -128,7 +130,7 @@ def check_db_manager_config() -> None:
     Should be called whenever the edge3 provider is active so operators are alerted
     early if the required database configuration is missing.
     """
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
     from airflow.providers_manager import ProvidersManager
 
     fqcn = f"{EdgeDBManager.__module__}.{EdgeDBManager.__name__}"

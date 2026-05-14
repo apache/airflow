@@ -56,6 +56,7 @@ if TYPE_CHECKING:
         DagAccessEntity,
         DagDetails,
         PoolDetails,
+        TeamDetails,
         VariableDetails,
     )
     from airflow.api_fastapi.common.types import MenuItem
@@ -125,11 +126,13 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         details: ConnectionDetails | None = None,
     ) -> bool:
         connection_id = details.conn_id if details else None
+        team_name = self._get_team_name(details)
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CONNECTION,
             user=user,
             entity_id=connection_id,
+            team_name=team_name,
         )
 
     def is_authorized_dag(
@@ -141,6 +144,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         details: DagDetails | None = None,
     ) -> bool:
         dag_id = details.id if details else None
+        team_name = self._get_team_name(details)
         context = (
             None
             if access_entity is None
@@ -156,6 +160,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             user=user,
             entity_id=dag_id,
             context=context,
+            team_name=team_name,
         )
 
     def is_authorized_backfill(
@@ -193,22 +198,37 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: PoolDetails | None = None
     ) -> bool:
         pool_name = details.name if details else None
+        team_name = self._get_team_name(details)
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.POOL,
             user=user,
             entity_id=pool_name,
+            team_name=team_name,
         )
 
     def is_authorized_variable(
         self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: VariableDetails | None = None
     ) -> bool:
         variable_key = details.key if details else None
+        team_name = self._get_team_name(details)
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.VARIABLE,
             user=user,
             entity_id=variable_key,
+            team_name=team_name,
+        )
+
+    def is_authorized_team(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: TeamDetails | None = None
+    ) -> bool:
+        team_name = details.name if details else None
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.TEAM,
+            user=user,
+            entity_id=team_name,
         )
 
     def is_authorized_view(
@@ -359,6 +379,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                 "method": method,
                 "entity_type": AvpEntities.CONNECTION,
                 "entity_id": conn_id,
+                "team_name": team_name,
             }
             requests[conn_id][method] = request
             requests_list.append(request)
@@ -390,6 +411,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                 "method": method,
                 "entity_type": AvpEntities.DAG,
                 "entity_id": dag_id,
+                "team_name": team_name,
             }
             requests[dag_id][method] = request
             requests_list.append(request)
@@ -421,6 +443,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                 "method": method,
                 "entity_type": AvpEntities.POOL,
                 "entity_id": pool_name,
+                "team_name": team_name,
             }
             requests[pool_name][method] = request
             requests_list.append(request)
@@ -452,6 +475,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                 "method": method,
                 "entity_type": AvpEntities.VARIABLE,
                 "entity_id": variable_key,
+                "team_name": team_name,
             }
             requests[variable_key][method] = request
             requests_list.append(request)
@@ -492,6 +516,12 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         app.include_router(login_router)
 
         return app
+
+    @staticmethod
+    def _get_team_name(
+        details: ConnectionDetails | DagDetails | PoolDetails | VariableDetails | None,
+    ) -> str | None:
+        return getattr(details, "team_name", None) if details else None
 
     @staticmethod
     def _get_menu_item_request(menu_item_text: str) -> IsAuthorizedRequest:

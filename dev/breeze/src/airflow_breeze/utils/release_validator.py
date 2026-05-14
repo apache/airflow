@@ -52,10 +52,10 @@ class ReleaseValidator(ABC):
     """Base class for release validators with common functionality for PMC verification."""
 
     APACHE_RAT_JAR_DOWNLOAD_URL = (
-        "https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz"
+        "https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz"
     )
     APACHE_RAT_JAR_SHA512_DOWNLOAD_URL = (
-        "https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512"
+        "https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512"
     )
     GPG_KEYS_URL = "https://dist.apache.org/repos/dist/release/airflow/KEYS"
 
@@ -481,15 +481,15 @@ class ReleaseValidator(ABC):
 
         Returns the path to the jar file, or None if download/verification failed.
         """
-        rat_jar = Path("/tmp/apache-rat-0.17/apache-rat-0.17.jar")
+        rat_jar = Path("/tmp/apache-rat-0.18/apache-rat-0.18.jar")
 
         if rat_jar.exists():
             console_print("[green]Apache RAT already present[/green]")
             return rat_jar
 
         console_print("Downloading Apache RAT...")
-        rat_tarball = Path("/tmp/apache-rat-0.17-bin.tar.gz")
-        rat_sha512 = Path("/tmp/apache-rat-0.17-bin.tar.gz.sha512")
+        rat_tarball = Path("/tmp/apache-rat-0.18-bin.tar.gz")
+        rat_sha512 = Path("/tmp/apache-rat-0.18-bin.tar.gz.sha512")
 
         # Download tarball
         wget_result = run_command(

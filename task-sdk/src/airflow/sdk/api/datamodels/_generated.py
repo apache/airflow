@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-04-13"
+API_VERSION: Final[str] = "2026-04-17"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -143,6 +143,7 @@ class DagRunType(str, Enum):
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
+    OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
 
@@ -646,6 +647,7 @@ class DagRun(BaseModel):
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TIRunContext(BaseModel):
@@ -662,3 +664,4 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None

@@ -13,11 +13,11 @@
   },
   "xcom": {
     "add": {
-      "error": "Failed to add XCom",
-      "errorTitle": "Error",
-      "success": "XCom added successfully",
-      "successTitle": "XCom Added",
-      "title": "Add XCom"
+      "error": "Falha ao adicionar XCom",
+      "errorTitle": "Erro",
+      "success": "XCom adicionado com sucesso",
+      "successTitle": "XCom Adicionado",
+      "title": "Adicionar XCom"
     },
     "columns": {
       "dag": "Dag",
@@ -25,22 +25,22 @@
       "value": "Valor"
     },
     "delete": {
-      "error": "Failed to delete XCom",
-      "errorTitle": "Error",
-      "success": "XCom deleted successfully",
-      "successTitle": "XCom Deleted",
-      "title": "Delete XCom",
-      "warning": "Are you sure you want to delete this XCom? This action cannot be undone."
+      "error": "Falha ao excluir XCom",
+      "errorTitle": "Erro",
+      "success": "XCom excluído com sucesso",
+      "successTitle": "XCom Excluído",
+      "title": "Excluir XCom",
+      "warning": "Tem certeza que deseja excluir este XCom? Esta ação não pode ser desfeita."
     },
     "edit": {
-      "error": "Failed to update XCom",
-      "errorTitle": "Error",
-      "success": "XCom updated successfully",
-      "successTitle": "XCom Updated",
-      "title": "Edit XCom"
+      "error": "Falha ao atualizar XCom",
+      "errorTitle": "Erro",
+      "success": "XCom atualizado com sucesso",
+      "successTitle": "XCom Atualizado",
+      "title": "Editar XCom"
     },
-    "key": "Key",
+    "key": "Chave",
     "title": "XCom",
-    "value": "Value"
+    "value": "Valor"
   }
 }

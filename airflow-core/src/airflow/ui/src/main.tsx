@@ -48,6 +48,23 @@ Reflect.set(globalThis, "ReactRouterDOM", ReactRouterDOM);
 Reflect.set(globalThis, "ChakraUI", ChakraUI);
 Reflect.set(globalThis, "EmotionReact", EmotionReact);
 
+// URLs that returned 403 Forbidden. Permissions won't change mid-session,
+// so we block further requests to avoid spamming the server with polling.
+const forbidden403Urls = new Set<string>();
+
+// Block outgoing requests to URLs that previously returned 403.
+// The request is aborted immediately so no network traffic occurs.
+axios.interceptors.request.use((config) => {
+  if (config.url !== undefined && forbidden403Urls.has(config.url)) {
+    const controller = new AbortController();
+
+    controller.abort();
+    config.signal = controller.signal;
+  }
+
+  return config;
+});
+
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
   (response) => response,
@@ -62,6 +79,16 @@ axios.interceptors.response.use(
       const loginPath = getRedirectPath("api/v2/auth/login");
 
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
+    }
+
+    // Track permission-based 403 URLs so future polling requests are blocked at the request interceptor.
+    // Only block "Forbidden" (missing permissions), not other auth-related 403s.
+    if (
+      error.response?.status === 403 &&
+      error.response.data.detail === "Forbidden" &&
+      error.config?.url !== undefined
+    ) {
+      forbidden403Urls.add(error.config.url);
     }
 
     return Promise.reject(error);

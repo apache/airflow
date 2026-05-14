@@ -33,9 +33,116 @@ from airflow_breeze.utils.packages import (
     get_removed_provider_ids,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
+
+
+def check_flit_worktree_compatibility(distribution_format: str) -> None:
+    """Refuse to build provider sdists when VCS detection will silently break.
+
+    Provider sdists are built with ``flit --use-vcs``. flit identifies the VCS
+    via ``flit.vcs.identify_vcs``, which checks ``(p / ".git").is_dir()``.
+    That check fails in two related scenarios, both of which produce a
+    broken sdist with no warning from flit:
+
+    1. **Plain git worktree on the host.** Inside a ``git worktree add ...``
+       directory ``.git`` is a regular file containing a ``gitdir: <path>``
+       pointer, not a directory. ``is_dir()`` returns False, ``identify_vcs``
+       returns ``None``, and flit falls back to a non-VCS sdist that omits
+       tracked files like ``docs/``, ``tests/`` and ``provider.yaml``. The
+       resulting packages fail reproducibility checks against the released
+       sdists on dist.apache.org.
+    2. **Breeze Docker builds with a worktree mounted.** When the build runs
+       inside Breeze's container, only the worktree directory is
+       bind-mounted. The absolute ``gitdir:`` path baked into ``.git``
+       points somewhere on the host (``<main_repo>/.git/worktrees/<name>``)
+       that does not exist inside the container, so even if flit recognised
+       worktrees, ``git ls-files`` would fail or misbehave.
+
+    Wheels are built from ``pyproject.toml`` metadata and are unaffected, so
+    this check is a no-op for ``--distribution-format wheel``. Providers
+    that use ``hatchling`` with an explicit
+    ``[tool.hatch.build.targets.sdist]`` ``include`` list are also
+    unaffected.
+
+    Upstream flit tracking:
+
+    - Issue: https://github.com/pypa/flit/issues/798
+    - Fix PR: https://github.com/pypa/flit/pull/799
+
+    Airflow-side follow-up (remove this workaround when both conditions in
+    the tracking issue are met):
+    https://github.com/apache/airflow/issues/65772
+    """
+    if distribution_format == "wheel":
+        return
+
+    git_marker = AIRFLOW_ROOT_PATH / ".git"
+    if not git_marker.is_file():
+        # Regular .git directory (or missing entirely) — flit's VCS detection
+        # works correctly, nothing to do.
+        return
+
+    # .git is a file — typical in a git worktree (or submodule). Parse the
+    # pointer so we can give a precise error for each failure mode, and so
+    # we detect the Breeze-in-Docker case where the target is unreachable.
+    try:
+        content = git_marker.read_text(encoding="utf-8").strip()
+    except OSError as err:
+        console_print(
+            f"\n[error]Cannot read {git_marker}: {err}.[/]\n"
+            "[info]Run this command from a plain `git checkout`, or pass "
+            "`--distribution-format wheel` (wheels are unaffected).[/]\n"
+        )
+        sys.exit(1)
+
+    if not content.startswith("gitdir:"):
+        console_print(
+            f"\n[error]Unexpected `.git` file format at {git_marker}.[/]\n\n"
+            f"[warning]Expected a `gitdir: <path>` pointer (git worktree or "
+            f"submodule), got:\n  {content!r}[/]\n\n"
+            "[info]Run this command from a plain `git checkout`, or pass "
+            "`--distribution-format wheel` (wheels are unaffected).[/]\n"
+        )
+        sys.exit(1)
+
+    gitdir = Path(content[len("gitdir:") :].strip())
+    if not gitdir.exists():
+        console_print(
+            "\n[error]Cannot build provider sdists: git worktree pointer "
+            "targets a missing gitdir.[/]\n\n"
+            f"[warning]The `.git` file at `{git_marker}` points to "
+            f"`{gitdir}`, but that directory does not exist from here.[/]\n\n"
+            "[info]This typically happens when Breeze runs the build inside "
+            "Docker: only the worktree directory is bind-mounted into the "
+            "container, so the main repo's `.git/worktrees/<name>` folder "
+            "that the pointer references is not reachable. flit then either "
+            "fails outright or silently produces an incomplete sdist that "
+            "omits tracked files.[/]\n\n"
+            "[info]Run this command from a plain `git checkout` (not a "
+            "`git worktree add ...` directory), or pass "
+            "`--distribution-format wheel` — wheels don't need VCS metadata "
+            "and are unaffected.[/]\n"
+        )
+        sys.exit(1)
+
+    # Healthy worktree on the host. flit's `.is_dir()` check still misses it,
+    # so we refuse sdist builds here too.
+    console_print(
+        "\n[error]Cannot build provider sdists from a git worktree.[/]\n\n"
+        "[warning]flit's `--use-vcs` does not recognise git worktrees "
+        "(flit.vcs.identify_vcs uses `.git.is_dir()`, but in a worktree "
+        "`.git` is a file). flit silently falls back to a minimal sdist "
+        "that omits docs/, tests/, provider.yaml and other tracked files, "
+        "so the resulting packages fail reproducibility checks against "
+        "the released sdists on dist.apache.org.[/]\n\n"
+        "[info]Run this command from a plain `git checkout` (not a "
+        "`git worktree add ...` directory). If you only need wheels, pass "
+        "`--distribution-format wheel` — wheels are built from "
+        "`pyproject.toml` metadata and are not affected by this bug.[/]\n"
+    )
+    sys.exit(1)
 
 
 class PrepareReleasePackageTagExistException(Exception):
@@ -89,6 +196,45 @@ def cleanup_build_remnants(target_provider_root_sources_path: Path):
         shutil.rmtree(file, ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "build", ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "dist", ignore_errors=True)
+    # Drop any untracked or .gitignored files that might leak into the
+    # sdist/wheel via the explicit [tool.flit.sdist] include lists (which
+    # scan directories like docs/, tests/ and src/ rather than git). The
+    # only files that need this protection are ones that get *generated
+    # in-tree* under the provider directory — e.g. docs/_api, sphinx
+    # build caches, __pycache__, *.egg-info, leftover scratch files an RM
+    # produced while iterating. Without `-x` those would survive into
+    # `--no-use-vcs` sdists and break reproducibility against the
+    # released artifacts on dist.apache.org.
+    #
+    # The top-level `.venv`, `.idea` and `.vscode` directories at the
+    # repo root are NOT a concern: they live outside the provider
+    # directory and are not in any flit include path, so flit would
+    # never pick them up regardless of git-clean state. We still pass
+    # `-e .venv -e .idea -e .vscode` purely as a safety net for the
+    # rare case where someone has a per-provider venv or IDE config
+    # *inside* the provider directory — those should be preserved.
+    #
+    # `-n` is run first so the RM sees what is about to be removed
+    # before the destructive pass runs.
+    console_print(
+        f"[warning]Running git clean -fdx in {target_provider_root_sources_path} — "
+        f"this will remove ALL untracked AND .gitignored (generated/local) files "
+        f"under that path. .venv, .idea and .vscode are preserved.[/]"
+    )
+    git_clean_cmd = [
+        "git",
+        "clean",
+        "-fdx",
+        "-e",
+        ".venv",
+        "-e",
+        ".idea",
+        "-e",
+        ".vscode",
+        str(target_provider_root_sources_path),
+    ]
+    run_command([*git_clean_cmd[:2], "-ndx", *git_clean_cmd[3:]], cwd=AIRFLOW_ROOT_PATH, check=False)
+    run_command(git_clean_cmd, cwd=AIRFLOW_ROOT_PATH, check=False)
     console_print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
 
 

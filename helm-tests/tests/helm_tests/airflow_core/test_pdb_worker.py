@@ -57,22 +57,35 @@ class TestWorkerPdb:
     @pytest.mark.parametrize(
         "workers_values",
         [
-            {"podDisruptionBudget": {"enabled": True}},
-            {"celery": {"podDisruptionBudget": {"enabled": True}}},
+            {"podDisruptionBudget": {"enabled": True}, "labels": {"test_label": "test_label_value"}},
+            {
+                "celery": {"podDisruptionBudget": {"enabled": True}},
+                "labels": {"test_label": "test_label_value"},
+            },
+            {
+                "celery": {
+                    "podDisruptionBudget": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                }
+            },
+            {
+                "labels": {"key": "value"},
+                "celery": {
+                    "podDisruptionBudget": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
         ],
     )
     def test_should_add_component_specific_labels(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    **workers_values,
-                    "labels": {"test_label": "test_label_value"},
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
         )
 
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_label"] == "test_label_value"
+        assert "key" not in labels
 
     @pytest.mark.parametrize(
         "workers_values",

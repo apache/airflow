@@ -3,7 +3,7 @@
     "description": "Descrição",
     "key": "Chave",
     "name": "Nome",
-    "team": "Team",
+    "team": "Equipa",
     "value": "Valor"
   },
   "config": {
@@ -57,10 +57,10 @@
     "test": "Testar Conexão",
     "testDisabled": "A funcionalidade de teste de conexão está desativada. Por favor, contate um administrador para ativá-la.",
     "testError": {
-      "title": "Test Connection Failed"
+      "title": "Teste de Conexão Falhou"
     },
     "testSuccess": {
-      "title": "Test Connection Successful"
+      "title": "Teste de Conexão Bem-Sucedido"
     },
     "typeMeta": {
       "error": "Falha ao recuperar Meta do Tipo de Conexão",
@@ -89,16 +89,16 @@
   },
   "jobs": {
     "columns": {
-      "executorClass": "Executor Class",
+      "executorClass": "Classe do Executor",
       "hostname": "Hostname",
       "id": "ID",
-      "jobType": "Job Type",
-      "latestHeartbeat": "Latest Heartbeat",
-      "unixname": "Unix Name"
+      "jobType": "Tipo de Tarefa",
+      "latestHeartbeat": "Último Heartbeat",
+      "unixname": "Nome Unix"
     },
     "filters": {
-      "allStates": "All States",
-      "allTypes": "All Types",
+      "allStates": "Todos os Estados",
+      "allTypes": "Todos os Tipos",
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
@@ -128,8 +128,7 @@
       "includeDeferred": "Incluir Deferidos",
       "nameMaxLength": "Nome pode conter um máximo de 256 caracteres",
       "nameRequired": "Nome é obrigatório",
-      "slots": "Slots",
-      "slotsHelperText": "Use -1 for unlimited slots."
+      "slots": "Slots"
     },
     "noPoolsFound": "Nenhum pool encontrado",
     "pool_many": "Pools",

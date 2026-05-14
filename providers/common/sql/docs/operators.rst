@@ -288,7 +288,7 @@ Parameters
 ----------
 * ``datasource_configs`` (list[DataSourceConfig], required): List of datasource configurations
 * ``queries`` (list[str], required): List of SQL queries to run on the data
-* ``max_rows_check`` (int, optional): Maximum number of rows to check for each query. Default is 100. If any query returns more than this number of rows, it will be skipped in the results returned by the operator. This is to prevent returning too many rows in the results which can cause xcom rendering issues in Airflow UI.
+* ``max_rows_check`` (int, optional): Maximum number of rows returned for each query. Default is 100. If a query returns more rows, the engine logs a warning and returns only the first ``max_rows_check`` rows. This prevents returning too many rows, which can cause xcom rendering issues in the Airflow UI.
 * ``engine`` (DataFusionEngine, optional): Query engine to use. Default is "datafusion". Currently, only "datafusion" is supported.
 * ``result_output_format`` (str, optional): Output format for the results. Default is ``tabulate``. Supported formats are ``tabulate``, ``json``.
 

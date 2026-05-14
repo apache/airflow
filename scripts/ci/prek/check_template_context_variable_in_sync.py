@@ -75,26 +75,37 @@ def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
                 raise ValueError("Key in dictionary is not a string literal")
             yield key.value
 
-    # Extract keys from the main `context` dictionary assignment
-    context_assignment: ast.AnnAssign = next(
+    # Extract keys from the `if self._cached_template_context is None: self._cached_template_context = {...}` block
+    guard_stmt: ast.If = next(
         stmt
         for stmt in fn_get_template_context.body
-        if isinstance(stmt, ast.AnnAssign)
-        and isinstance(stmt.target, ast.Attribute)
-        and isinstance(stmt.target.value, ast.Name)
-        and stmt.target.value.id == "self"
-        and stmt.target.attr == "_cached_template_context"
+        if isinstance(stmt, ast.If)
+        and isinstance(stmt.test, ast.Compare)
+        and isinstance(stmt.test.left, ast.Attribute)
+        and isinstance(stmt.test.left.value, ast.Name)
+        and stmt.test.left.value.id == "self"
+        and stmt.test.left.attr == "_cached_template_context"
+        and len(stmt.test.ops) == 1
+        and isinstance(stmt.test.ops[0], ast.Is)
+        and len(stmt.test.comparators) == 1
+        and isinstance(stmt.test.comparators[0], ast.Constant)
+        and stmt.test.comparators[0].value is None
     )
-
-    if not isinstance(context_assignment.value, ast.BoolOp):
-        raise TypeError("Expected a BoolOp like 'self._cached_template_context or {...}'.")
-
-    context_assignment_op = context_assignment.value
-    _, context_assignment_value = context_assignment_op.values
-
-    if not isinstance(context_assignment_value, ast.Dict):
-        raise ValueError("'context' is not assigned a dictionary literal")
-    yield from extract_keys_from_dict(context_assignment_value)
+    context_assignment: ast.Assign = next(
+        s
+        for s in guard_stmt.body
+        if isinstance(s, ast.Assign)
+        and any(
+            isinstance(t, ast.Attribute)
+            and isinstance(t.value, ast.Name)
+            and t.value.id == "self"
+            and t.attr == "_cached_template_context"
+            for t in s.targets
+        )
+    )
+    if not isinstance(context_assignment.value, ast.Dict):
+        raise ValueError("'_cached_template_context' is not assigned a dictionary literal")
+    yield from extract_keys_from_dict(context_assignment.value)
 
     # Handle keys added conditionally in `if from_server`
     for stmt in fn_get_template_context.body:

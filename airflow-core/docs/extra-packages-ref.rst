@@ -235,6 +235,8 @@ These are extras that add dependencies needed for integration with external serv
 +=====================+=====================================================+=====================================================+
 | airbyte             | ``pip install 'apache-airflow[airbyte]'``           | Airbyte hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| akeyless            | ``pip install 'apache-airflow[akeyless]'``          | Akeyless Vault secrets and hooks                    |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | alibaba             | ``pip install 'apache-airflow[alibaba]'``           | Alibaba Cloud                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | apprise             | ``pip install 'apache-airflow[apprise]'``           | Apprise Notification                                |
@@ -298,6 +300,8 @@ These are extras that add dependencies needed for integration with external serv
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| vespa               | ``pip install 'apache-airflow[vespa]'``             | Vespa hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | weaviate            | ``pip install 'apache-airflow[weaviate]'``          | Weaviate hook and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import textwrap
 from datetime import timedelta
 from unittest import mock
 from uuid import UUID
@@ -36,13 +35,15 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads.base import BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, execute_callback_workload
+from airflow.executors.workloads.callback import CallbackDTO
 from airflow.models.callback import CallbackFetchMethod
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
+from airflow.sdk.execution_time.callback_supervisor import execute_callback
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import CallbackState, State, TaskInstanceState
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
@@ -97,6 +98,36 @@ def test_get_event_buffer():
     assert len(executor.get_event_buffer(("my_dag1",))) == 1
     assert len(executor.get_event_buffer()) == 2
     assert len(executor.event_buffer) == 0
+
+
+def test_log_task_event_branches_on_key_type():
+    executor = BaseExecutor()
+    ti_key = TaskInstanceKey("my_dag", "my_task", timezone.utcnow(), 1)
+
+    executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
+    assert len(executor._task_event_logs) == 1
+
+    callback_key = str(UUID("00000000-0000-0000-0000-000000000001"))
+    executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
+    assert len(executor._task_event_logs) == 1
+
+
+@pytest.mark.parametrize(
+    ("method_name", "expected_state"),
+    [
+        ("fail", CallbackState.FAILED),
+        ("success", CallbackState.SUCCESS),
+        ("queued", CallbackState.QUEUED),
+        ("running_state", CallbackState.RUNNING),
+    ],
+)
+def test_state_methods_pick_callback_state_for_callback_key(method_name, expected_state):
+    executor = BaseExecutor()
+    callback_key = str(UUID("00000000-0000-0000-0000-000000000002"))
+
+    getattr(executor, method_name)(callback_key)
+
+    assert executor.event_buffer[callback_key] == (expected_state, None)
 
 
 def test_fail_and_success():
@@ -413,170 +444,128 @@ class TestExecutorConf:
 
     def test_executor_conf_get(self):
         """Test ExecutorConf.get() passes team_name to underlying conf.get()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            result_backend = DEFAULT_VALUE
+        with conf_vars(
+            {
+                ("celery", "result_backend"): "DEFAULT_VALUE",
+                ("test_team=celery", "result_backend"): "TEAM_VALUE",
+            }
+        ):
+            # Test without team_name
+            executor_conf = ExecutorConf(team_name=None)
+            assert executor_conf.get("celery", "result_backend") == "DEFAULT_VALUE"
 
-            [test_team=celery]
-            result_backend = TEAM_VALUE
-            """
-        )
-        conf.read_string(test_config)
-
-        # Test without team_name
-        executor_conf = ExecutorConf(team_name=None)
-        assert executor_conf.get("celery", "result_backend") == "DEFAULT_VALUE"
-
-        # Test with team_name
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        assert team_executor_conf.get("celery", "result_backend") == "TEAM_VALUE"
+            # Test with team_name
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            assert team_executor_conf.get("celery", "result_backend") == "TEAM_VALUE"
 
     def test_executor_conf_getboolean(self):
         """Test ExecutorConf.getboolean() passes team_name to underlying conf.getboolean()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            ssl_active = true
+        with conf_vars(
+            {
+                ("celery", "ssl_active"): "true",
+                ("test_team=celery", "ssl_active"): "false",
+            }
+        ):
+            executor_conf = ExecutorConf(team_name=None)
+            assert executor_conf.getboolean("celery", "ssl_active") is True
 
-            [test_team=celery]
-            ssl_active = false
-            """
-        )
-        conf.read_string(test_config)
-
-        executor_conf = ExecutorConf(team_name=None)
-        assert executor_conf.getboolean("celery", "ssl_active") is True
-
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        assert team_executor_conf.getboolean("celery", "ssl_active") is False
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            assert team_executor_conf.getboolean("celery", "ssl_active") is False
 
     def test_executor_conf_getint(self):
         """Test ExecutorConf.getint() passes team_name to underlying conf.getint()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            worker_concurrency = 16
+        with conf_vars(
+            {
+                ("celery", "worker_concurrency"): "16",
+                ("test_team=celery", "worker_concurrency"): "32",
+            }
+        ):
+            executor_conf = ExecutorConf(team_name=None)
+            assert executor_conf.getint("celery", "worker_concurrency") == 16
 
-            [test_team=celery]
-            worker_concurrency = 32
-            """
-        )
-        conf.read_string(test_config)
-
-        executor_conf = ExecutorConf(team_name=None)
-        assert executor_conf.getint("celery", "worker_concurrency") == 16
-
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        assert team_executor_conf.getint("celery", "worker_concurrency") == 32
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            assert team_executor_conf.getint("celery", "worker_concurrency") == 32
 
     def test_executor_conf_getjson(self):
         """Test ExecutorConf.getjson() passes team_name to underlying conf.getjson()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            broker_transport_options = {"visibility_timeout": 3600}
+        with conf_vars(
+            {
+                ("celery", "broker_transport_options"): '{"visibility_timeout": 3600}',
+                ("test_team=celery", "broker_transport_options"): '{"visibility_timeout": 7200}',
+            }
+        ):
+            executor_conf = ExecutorConf(team_name=None)
+            assert executor_conf.getjson("celery", "broker_transport_options") == {"visibility_timeout": 3600}
 
-            [test_team=celery]
-            broker_transport_options = {"visibility_timeout": 7200}
-            """
-        )
-        conf.read_string(test_config)
-
-        executor_conf = ExecutorConf(team_name=None)
-        assert executor_conf.getjson("celery", "broker_transport_options") == {"visibility_timeout": 3600}
-
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        assert team_executor_conf.getjson("celery", "broker_transport_options") == {
-            "visibility_timeout": 7200
-        }
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            assert team_executor_conf.getjson("celery", "broker_transport_options") == {
+                "visibility_timeout": 7200
+            }
 
     def test_executor_conf_getsection(self):
         """Test ExecutorConf.getsection() passes team_name to underlying conf.getsection()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            worker_concurrency = 16
-            result_backend = DEFAULT_BACKEND
+        with conf_vars(
+            {
+                ("celery", "worker_concurrency"): "16",
+                ("celery", "result_backend"): "DEFAULT_BACKEND",
+                ("test_team=celery", "worker_concurrency"): "32",
+                ("test_team=celery", "result_backend"): "TEAM_BACKEND",
+            }
+        ):
+            executor_conf = ExecutorConf(team_name=None)
+            section = executor_conf.getsection("celery")
+            assert section["worker_concurrency"] == 16
+            assert section["result_backend"] == "DEFAULT_BACKEND"
 
-            [test_team=celery]
-            worker_concurrency = 32
-            result_backend = TEAM_BACKEND
-            """
-        )
-        conf.read_string(test_config)
-
-        executor_conf = ExecutorConf(team_name=None)
-        section = executor_conf.getsection("celery")
-        assert section["worker_concurrency"] == 16
-        assert section["result_backend"] == "DEFAULT_BACKEND"
-
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        team_section = team_executor_conf.getsection("celery")
-        assert team_section["worker_concurrency"] == 32
-        assert team_section["result_backend"] == "TEAM_BACKEND"
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            team_section = team_executor_conf.getsection("celery")
+            assert team_section["worker_concurrency"] == 32
+            assert team_section["result_backend"] == "TEAM_BACKEND"
 
     def test_executor_conf_has_option(self):
         """Test ExecutorConf.has_option() passes team_name to underlying conf.has_option()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            result_backend = DEFAULT
+        with conf_vars(
+            {
+                ("celery", "result_backend"): "DEFAULT",
+                ("test_team=celery", "result_backend"): "TEAM",
+                ("test_team=celery", "team_specific_option"): "VALUE",
+            }
+        ):
+            executor_conf = ExecutorConf(team_name=None)
+            assert executor_conf.has_option("celery", "result_backend") is True
+            assert executor_conf.has_option("celery", "team_specific_option") is False
 
-            [test_team=celery]
-            result_backend = TEAM
-            team_specific_option = VALUE
-            """
-        )
-        conf.read_string(test_config)
-
-        executor_conf = ExecutorConf(team_name=None)
-        assert executor_conf.has_option("celery", "result_backend") is True
-        assert executor_conf.has_option("celery", "team_specific_option") is False
-
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        assert team_executor_conf.has_option("celery", "result_backend") is True
-        assert team_executor_conf.has_option("celery", "team_specific_option") is True
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            assert team_executor_conf.has_option("celery", "result_backend") is True
+            assert team_executor_conf.has_option("celery", "team_specific_option") is True
 
     def test_executor_conf_get_mandatory_value(self):
         """Test ExecutorConf.get_mandatory_value() passes team_name to underlying conf.get_mandatory_value()."""
-        from airflow.configuration import conf
         from airflow.executors.base_executor import ExecutorConf
 
-        test_config = textwrap.dedent(
-            """
-            [celery]
-            broker_url = redis://localhost
+        with conf_vars(
+            {
+                ("celery", "broker_url"): "redis://localhost",
+                ("test_team=celery", "broker_url"): "redis://team-redis",
+            }
+        ):
+            executor_conf = ExecutorConf(team_name=None)
+            assert executor_conf.get_mandatory_value("celery", "broker_url") == "redis://localhost"
 
-            [test_team=celery]
-            broker_url = redis://team-redis
-            """
-        )
-        conf.read_string(test_config)
-
-        executor_conf = ExecutorConf(team_name=None)
-        assert executor_conf.get_mandatory_value("celery", "broker_url") == "redis://localhost"
-
-        team_executor_conf = ExecutorConf(team_name="test_team")
-        assert team_executor_conf.get_mandatory_value("celery", "broker_url") == "redis://team-redis"
+            team_executor_conf = ExecutorConf(team_name="test_team")
+            assert team_executor_conf.get_mandatory_value("celery", "broker_url") == "redis://team-redis"
 
 
 class TestCallbackSupport:
@@ -661,64 +650,21 @@ class TestCallbackSupport:
 
 
 class TestExecuteCallbackWorkload:
-    def test_execute_function_callback_success(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.dict",
-                "kwargs": {"a": 1, "b": 2, "c": 3},
-            },
-        )
+    @pytest.mark.parametrize(
+        ("path", "kwargs", "expect_success", "error_contains"),
+        [
+            pytest.param("builtins.dict", {"a": 1, "b": 2, "c": 3}, True, None, id="function_success"),
+            pytest.param("", {}, False, "Callback path not found", id="missing_path"),
+            pytest.param("nonexistent.module.function", {}, False, "ModuleNotFoundError", id="import_error"),
+            pytest.param("builtins.len", {}, False, "TypeError", id="execution_error"),
+        ],
+    )
+    def test_execute_callback(self, path, kwargs, expect_success, error_contains):
         log = structlog.get_logger()
+        success, error = execute_callback(path, kwargs, log)
 
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is True
-        assert error is None
-
-    def test_execute_callback_missing_path(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={"kwargs": {}},  # Missing 'path'
-        )
-        log = structlog.get_logger()
-
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is False
-        assert "Callback path not found" in error
-
-    def test_execute_callback_import_error(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "nonexistent.module.function",
-                "kwargs": {},
-            },
-        )
-        log = structlog.get_logger()
-
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is False
-        assert "ModuleNotFoundError" in error
-
-    def test_execute_callback_execution_error(self):
-        # Use a function that will raise an error; len() requires an argument
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.len",
-                "kwargs": {},
-            },
-        )
-        log = structlog.get_logger()
-
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is False
-        assert "TypeError" in error
+        assert success is expect_success
+        if error_contains:
+            assert error_contains in error
+        else:
+            assert error is None

@@ -876,9 +876,7 @@ class TestPgbouncerNetworkPolicy:
         "executor",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "LocalExecutor,CeleryExecutor,KubernetesExecutor",
-            "LocalExecutor,CeleryKubernetesExecutor,KubernetesExecutor",
         ],
     )
     def test_should_create_pgbouncer_network_policy(self, executor):
@@ -898,9 +896,7 @@ class TestPgbouncerNetworkPolicy:
         "executor",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "LocalExecutor,CeleryExecutor,KubernetesExecutor",
-            "LocalExecutor,CeleryKubernetesExecutor,KubernetesExecutor",
         ],
     )
     @pytest.mark.parametrize(
@@ -933,9 +929,7 @@ class TestPgbouncerNetworkPolicy:
         "executor",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "LocalExecutor,CeleryExecutor,KubernetesExecutor",
-            "LocalExecutor,CeleryKubernetesExecutor,KubernetesExecutor",
         ],
     )
     @pytest.mark.parametrize(

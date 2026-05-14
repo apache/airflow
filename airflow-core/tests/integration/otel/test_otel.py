@@ -173,7 +173,7 @@ class TestOtelIntegration:
     - start breeze with '--integration otel'
     - run on the shell 'export use_otel=true'
     - run the test
-    - check 'http://localhost:36686/'
+    - check 'http://localhost:26686/'
 
     To get a db dump on the stdout, run 'export log_level=debug'.
     """
@@ -508,9 +508,10 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == {
-            "sub_span1": "task_run.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
             "dag_run.otel_test_dag": None,
+            "sub_span1": "worker.task1",
+            "task_run.task1": "dag_run.otel_test_dag",
+            "worker.task1": "task_run.task1",
         }
 
     def start_scheduler(self, capture_output: bool = False):

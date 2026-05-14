@@ -22,6 +22,7 @@ import type { SelectValueChangeDetails } from "@chakra-ui/react";
 import { Select } from "src/components/ui";
 
 type Props = {
+  readonly dataTestId?: string;
   readonly displayPrefix: string | undefined;
   readonly handleSelect: (values: Array<CollectionItem>) => void;
   readonly placeholderText: string;
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export const AttrSelectFilterMulti = ({
+  dataTestId,
   displayPrefix,
   handleSelect,
   placeholderText,
@@ -58,7 +60,7 @@ export const AttrSelectFilterMulti = ({
       onValueChange={handleValueChange}
       value={selectedValues}
     >
-      <Select.Trigger colorPalette="brand" minW="max-content">
+      <Select.Trigger colorPalette="brand" dataTestId={dataTestId} minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
           {() => displayValue}
         </Select.ValueText>

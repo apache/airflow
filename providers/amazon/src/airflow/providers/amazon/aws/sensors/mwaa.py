@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger, MwaaTaskCompletedTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -143,7 +144,10 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         return state in self.success_states
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        return None
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in MWAA DAG run: {validated_event}")
 
     def execute(self, context: Context):
         if self.deferrable:
@@ -281,7 +285,10 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         return state in self.success_states
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        return None
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in MWAA task: {validated_event}")
 
     def execute(self, context: Context):
         if self.external_dag_run_id is None:

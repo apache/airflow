@@ -142,6 +142,16 @@ Common options:
 
 This framework uses the **Page Object Model (POM)** pattern. Each page's elements and interactions are encapsulated in a page class.
 
+### When to write an E2E test
+
+E2E tests are slow and expensive to run. Before adding a new E2E test, consider whether the behavior can be covered by a faster alternative:
+
+- **Prefer a Vitest unit test** for component logic, conditional rendering, state transitions, and anything that can be tested with mocked data. See `src/components/**/*.test.tsx` for examples.
+- **Prefer a Vitest integration test** (using React Testing Library) for multi-component interactions, form submissions, and API-driven rendering that doesn't require a real browser.
+- **Write an E2E test only when** the behavior requires a real browser and a running Airflow backend — for example, full authentication flows, cross-page navigation state, or interactions that depend on live scheduler/API behavior.
+
+When submitting a PR that adds new E2E coverage, briefly explain in the PR description why the behavior cannot be covered at the unit or integration test level.
+
 ### Steps to Add a New Test
 
 1. **Create a page object** (if needed) in `pages/`

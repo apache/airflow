@@ -18,60 +18,19 @@ from __future__ import annotations
 
 PR_COMMANDS: dict[str, str | list[str]] = {
     "name": "PR commands",
-    "commands": ["auto-triage"],
+    "commands": ["stats"],
 }
 
 PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
-    "breeze pr auto-triage": [
+    "breeze pr stats": [
         {
-            "name": "GitHub parameters",
-            "options": ["--github-token", "--github-repository"],
-        },
-        {
-            "name": "Target selection",
-            "options": ["--pr"],
-        },
-        {
-            "name": "Select people",
+            "name": "Options",
             "options": [
-                "--author",
-                "--include-collaborators",
-                "--reviews-for-me",
-                "--reviews-for",
+                "--batch-size",
+                "--clear-cache",
+                "--github-token",
+                "--github-repository",
             ],
-        },
-        {
-            "name": "Filter options",
-            "options": [
-                "--label",
-                "--exclude-label",
-                "--created-after",
-                "--created-before",
-                "--updated-after",
-                "--updated-before",
-                "--include-drafts",
-                "--pending-approval-only",
-                "--mode",
-                "--checks-state",
-                "--min-commits-behind",
-            ],
-        },
-        {
-            "name": "Pagination and sorting",
-            "options": ["--batch-size", "--max-num", "--sort"],
-        },
-        {
-            "name": "Assessment options",
-            "options": [
-                "--check-mode",
-                "--llm-model",
-                "--llm-concurrency",
-                "--clear-llm-cache",
-            ],
-        },
-        {
-            "name": "Action options",
-            "options": ["--answer-triage"],
         },
     ],
 }

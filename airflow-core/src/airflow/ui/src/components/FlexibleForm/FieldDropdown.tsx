@@ -89,6 +89,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       id={`element_${name}`}
       isClearable
       isDisabled={disabled}
+      menuPosition="fixed"
       name={`element_${name}`}
       onChange={handleChange}
       options={options}

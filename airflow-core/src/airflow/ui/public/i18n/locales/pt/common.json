@@ -28,7 +28,7 @@
   "backfill_zero": "Nenhum backfill",
   "browse": {
     "auditLog": "Log de Auditoria",
-    "jobs": "Jobs",
+    "jobs": "Tarefas",
     "requiredActions": "Ações Necessárias",
     "xcoms": "XComs"
   },
@@ -71,8 +71,8 @@
     "dataIntervalEnd": "Fim do Intervalo de Dados",
     "dataIntervalStart": "Início do Intervalo de Dados",
     "lastSchedulingDecision": "Última Decisão de Agendamento",
-    "mappedPartitionKey": "Mapped Partition key",
-    "partitionKey": "Partition key",
+    "mappedPartitionKey": "Chave de partição mapeada",
+    "partitionKey": "Chave de partição",
     "queuedAt": "Enfileirado Em",
     "runAfter": "Executar Depois",
     "runType": "Tipo de Execução",
@@ -88,11 +88,11 @@
   "dagWarnings": "Avisos/Erros do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
-  "delete": "Delete",
+  "delete": "Excluir",
   "diff": "Diff",
-  "diffCompareWith": "Compare with",
-  "diffExit": "Exit Diff",
-  "diffSelectVersionToCompare": "Select version to compare",
+  "diffCompareWith": "Comparar com",
+  "diffExit": "Sair do Diff",
+  "diffSelectVersionToCompare": "Selecionar versão para comparar",
   "direction": "Direção",
   "docs": {
     "documentation": "Documentação",
@@ -105,13 +105,13 @@
     "tooltip": "Pressione {{hotkey}} para baixar os logs"
   },
   "duration": "Duração",
-  "edit": "Edit",
+  "edit": "Editar",
   "endDate": "Data Final",
   "error": {
     "back": "Voltar",
     "defaultMessage": "Ocorreu um erro inesperado",
     "home": "Início",
-    "invalidUrl": "Page Not Found. Please check the URL and try again.",
+    "invalidUrl": "Página não encontrada. Verifique o URL e tente novamente.",
     "notFound": "Página Não Encontrada",
     "title": "Erro"
   },
@@ -132,28 +132,27 @@
   "filters": {
     "durationFrom": "Duração De",
     "durationTo": "Duração Até",
-    "endTime": "End Time",
+    "endTime": "Hora de Fim",
     "logicalDateFrom": "Data Lógica De",
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",
     "runAfterTo": "Executar Depois Para",
-    "selectDateRange": "Select Date Range",
-    "startTime": "Start Time"
+    "selectDateRange": "Selecionar intervalo de datas",
+    "startTime": "Hora de Início"
   },
-  "generateToken": "Generate Token",
   "logicalDate": "Data Lógica",
   "logout": "Sair",
   "logoutConfirmation": "Você está prestes a sair do aplicativo.",
   "mapIndex": "Índice do Mapa",
   "modal": {
-    "add": "Add",
+    "add": "Adicionar",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "delete": {
       "button": "Excluir",
       "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode ser desfeita."
     },
-    "save": "Save"
+    "save": "Guardar"
   },
   "nav": {
     "admin": "Administração",
@@ -174,32 +173,20 @@
     "placeholder": "Adicionar uma nota...",
     "taskInstance": "Nota da Instância de Tarefa"
   },
-  "partitionedDagRun_many": "Partitioned Dag Runs",
-  "partitionedDagRun_one": "Partitioned Dag Runs",
-  "partitionedDagRun_other": "Partitioned Dag Runs",
-  "partitionedDagRun_zero": "Partitioned Dag Runs",
+  "partitionedDagRun_many": "Execuções de Dag Particionadas",
+  "partitionedDagRun_one": "Execução de Dag Particionada",
+  "partitionedDagRun_other": "Execuções de Dag Particionadas",
+  "partitionedDagRun_zero": "Nenhuma execução de dag particionada",
   "partitionedDagRunDetail": {
-    "receivedAssetEvents": "Received Asset Events"
+    "receivedAssetEvents": "Eventos de Asset recebidos"
   },
-  "pendingDagRun_many": "{{count}} Pending Dag Runs",
-  "pendingDagRun_one": "{{count}} Pending Dag Runs",
-  "pendingDagRun_other": "{{count}} Pending Dag Runs",
-  "pendingDagRun_zero": "{{count}} Pending Dag Runs",
-  "pools": {
-    "deferred": "Deferido",
-    "open": "Aberto",
-    "pools_many": "pools",
-    "pools_one": "pool",
-    "pools_other": "pools",
-    "pools_zero": "nenhum pool",
-    "queued": "Enfileirado",
-    "running": "Executando",
-    "scheduled": "Agendado"
-  },
+  "pendingDagRun_many": "{{count}} Execuções de Dag Pendentes",
+  "pendingDagRun_one": "{{count}} Execução de Dag Pendente",
+  "pendingDagRun_other": "{{count}} Execuções de Dag Pendentes",
+  "pendingDagRun_zero": "Nenhuma execução de dag pendente",
   "reset": "Resetar",
   "runId": "ID da Execução",
   "runTypes": {
-    "asset_materialization": "Asset Materialization",
     "asset_triggered": "Asset Acionado",
     "backfill": "Backfill",
     "manual": "Manual",
@@ -221,7 +208,7 @@
   },
   "selectLanguage": "Selecionar Idioma",
   "showDetailsPanel": "Mostrar Painel de Detalhes",
-  "signedInAs": "Signed in as",
+  "signedInAs": "Sessão iniciada como",
   "source": {
     "hide": "Ocultar",
     "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
@@ -238,7 +225,7 @@
     "failed": "Falha",
     "no_status": "Sem Status",
     "none": "Sem Status",
-    "open": "Open",
+    "open": "Aberto",
     "planned": "Planejado",
     "queued": "Enfileirado",
     "removed": "Removido",
@@ -349,10 +336,6 @@
         "title": "Exclusão de {{resourceName}} Submetida"
       }
     },
-    "forbidden": {
-      "description": "You do not have permission to perform this action.",
-      "title": "Access Denied"
-    },
     "import": {
       "error": "Importação de {{resourceName}} Falhou",
       "success": {
@@ -367,18 +350,6 @@
         "title": "Atualização de {{resourceName}} Submetida"
       }
     }
-  },
-  "tokenGeneration": {
-    "apiToken": "API Token",
-    "cliToken": "CLI Token",
-    "errorDescription": "An error occurred while generating the token. Please try again.",
-    "errorTitle": "Token Generation Failed",
-    "generate": "Generate",
-    "selectType": "Select the type of token to generate.",
-    "title": "Generate Token",
-    "tokenExpiresIn": "This token expires in {{duration}}.",
-    "tokenGenerated": "Your token has been generated.",
-    "tokenShownOnce": "This token will only be shown once. Copy it now."
   },
   "total": "Total {{state}}",
   "triggered": "Acionado",

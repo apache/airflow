@@ -321,7 +321,7 @@ For example, this following command:
 
 .. code-block:: bash
 
-     prek mypy-airflow
+     prek mypy-airflow-core
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 .. _breeze-dev:running-prek-in-breeze:
@@ -349,7 +349,7 @@ re-run latest prek hooks on your changes, but it can take a long time (few minut
 
 .. code-block:: bash
 
-     prek mypy-airflow --all-files
+     prek mypy-airflow-core --all-files
 
 The above will run mypy check for all files.
 
@@ -358,7 +358,7 @@ specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     prek mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+     prek mypy-airflow-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
 The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
@@ -370,7 +370,7 @@ of commits you choose.
 
 .. code-block:: bash
 
-     prek mypy-airflow --last-commit
+     prek mypy-airflow-core --last-commit
 
 The above will run mypy check for all files in the last commit in your branch.
 
@@ -383,9 +383,17 @@ in ``--from-ref`` and ``--to-ref`` flags.
 
 .. note::
 
-    When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
-    so that it can speed up static checks execution significantly. However, sometimes, the cache might
-    get broken, in which case you should run ``breeze down`` to clean up the cache.
+    When you run static checks, some of the artifacts (mypy_cache) is stored to speed up static
+    checks execution significantly:
+
+    - The providers ``mypy-providers`` hook runs via Breeze and stores its cache in the
+      ``mypy-cache-volume`` docker-compose volume.
+    - Each non-provider ``mypy-*`` hook uses its own dedicated virtualenv and mypy cache under
+      ``.build/mypy-venvs/<hook>/`` and ``.build/mypy-caches/<hook>/``; mypy itself is installed
+      from the workspace ``uv.lock`` via the ``mypy`` dependency group (``uv sync --group mypy``).
+
+    If the cache gets broken, run ``breeze down --cleanup-mypy-cache`` which wipes the docker
+    volume and every per-hook ``.build/mypy-venvs/`` and ``.build/mypy-caches/`` directory.
 
 .. note::
 

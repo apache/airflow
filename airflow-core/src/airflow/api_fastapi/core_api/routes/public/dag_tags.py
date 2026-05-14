@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.db.common import (
 )
 from airflow.api_fastapi.common.parameters import (
     QueryDagTagPatternSearch,
+    QueryDagTagPrefixPatternSearch,
     QueryLimit,
     QueryOffset,
     SortParam,
@@ -55,6 +56,7 @@ def get_dag_tags(
         ),
     ],
     tag_name_pattern: QueryDagTagPatternSearch,
+    tag_name_prefix_pattern: QueryDagTagPrefixPatternSearch,
     readable_tags_filter: ReadableTagsFilterDep,
     session: SessionDep,
 ) -> DAGTagCollectionResponse:
@@ -62,7 +64,7 @@ def get_dag_tags(
     query = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
         statement=query,
-        filters=[tag_name_pattern, readable_tags_filter],
+        filters=[tag_name_pattern, tag_name_prefix_pattern, readable_tags_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,

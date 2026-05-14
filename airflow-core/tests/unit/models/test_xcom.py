@@ -126,6 +126,26 @@ def task_instances(session, task_instance):
     return task_instance, ti2  # ti2 will be cleaned up automatically with the DAG run.
 
 
+class TestXComModelRelationships:
+    def test_xcom_task_raises_without_joinedload(self, task_instance, session):
+        """Accessing XComModel.task without joinedload should raise."""
+        from sqlalchemy.exc import InvalidRequestError
+
+        XComModel.set(
+            key="test_key",
+            value="test_value",
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        )
+
+        xcom = session.scalar(select(XComModel).where(XComModel.task_id == task_instance.task_id))
+
+        with pytest.raises(InvalidRequestError):
+            xcom.task
+
+
 class TestXCom:
     @conf_vars({("core", "xcom_backend"): "unit.models.test_xcom.CustomXCom"})
     def test_resolve_xcom_class(self):

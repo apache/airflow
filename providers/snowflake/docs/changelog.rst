@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+6.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''SnowflakeHook'' transaction support: multi-statement SQL and 'AUTOCOMMIT' (#65040)``
+* ``Mark Snowflake connection form 'Proxy Port' field optional (#65444)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+6.12.1
+......
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+Doc-only
+~~~~~~~~
+
+* ``enhance SnowflakeSqlApi docstring (statement_count) (#64727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add PAT authentication support to SnowflakeSqlApiHook (#62162)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Adds documentation for previously added support (#63487)``
+* ``Remove 3.12 warning (#63325)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 6.11.0
 ......
 

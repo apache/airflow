@@ -85,6 +85,23 @@ def regular_call(self, callable, callable_name, use_fork):
     callable()
 
 
+def direct_submit_call(self, callable, *args, **kwargs):
+    """Synchronous stand-in for ``OpenLineageListener.submit_callable``.
+
+    Bypasses the ``ProcessPoolExecutor`` so tests can assert against mocked
+    adapter methods without hitting pickling of ``unittest.mock.Mock``.
+    When the submitted callable is ``_emit_manual_state_change_event``, skip
+    its ``Stats.gauge`` side effect (which would try to ``Serde.to_json`` a
+    ``MagicMock`` return value) and invoke the adapter method directly.
+    """
+    from airflow.providers.openlineage.plugins.listener import _emit_manual_state_change_event
+
+    if callable is _emit_manual_state_change_event:
+        adapter_method, _stats_key, *_ = args
+        return adapter_method(**kwargs)
+    return callable(*args, **kwargs)
+
+
 class MockExecutor:
     def __init__(self, *args, **kwargs):
         self.submitted = False
@@ -1457,13 +1474,15 @@ class TestOpenLineageListenerAirflow3:
         assert listener.adapter.fail_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.fail_task.call_args.kwargs["job_description_type"] == "text/plain"
 
+    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_proper_arguments_for_db_task_instance_model(
         self,
@@ -1472,6 +1491,7 @@ class TestOpenLineageListenerAirflow3:
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
+        mock_fork_execute,
         time_machine,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
@@ -1482,6 +1502,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         mock_get_airflow_run_facet.return_value = {"airflow": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1513,6 +1534,8 @@ class TestOpenLineageListenerAirflow3:
             error=err,
         )
         listener.adapter.fail_task.assert_called_once_with(**expected_args)
+        # Regression guard: manual state-change emission must not go through _fork_execute.
+        mock_fork_execute.assert_not_called()
 
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
@@ -1644,15 +1667,23 @@ class TestOpenLineageListenerAirflow3:
         assert listener.adapter.complete_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.complete_task.call_args.kwargs["job_description_type"] == "text/plain"
 
+    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments_for_db_task_instance_model(
-        self, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit, time_machine
+        self,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        mock_emit,
+        mock_fork_execute,
+        time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -1662,6 +1693,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1691,6 +1723,8 @@ class TestOpenLineageListenerAirflow3:
             },
         )
         assert calls[0][1] == expected_args
+        # Regression guard: manual state-change emission must not go through _fork_execute.
+        mock_fork_execute.assert_not_called()
 
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
@@ -1851,15 +1885,23 @@ class TestOpenLineageListenerAirflow3:
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.complete_task.assert_not_called()
 
+    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments_for_db_task_instance_model_on_skip(
-        self, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit, time_machine
+        self,
+        mock_get_task_parent_run_facet,
+        mock_debug_facet,
+        mock_debug_mode,
+        mock_emit,
+        mock_fork_execute,
+        time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -1869,6 +1911,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = MagicMock()  # satisfy `if not self.executor` guard
         delattr(task_instance, "task")  # Test api server path, where task is not available
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1898,6 +1941,8 @@ class TestOpenLineageListenerAirflow3:
             },
         )
         assert calls[0][1] == expected_args
+        # Regression guard: manual state-change emission must not go through _fork_execute.
+        mock_fork_execute.assert_not_called()
 
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()

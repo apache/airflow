@@ -76,10 +76,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv in the image"
         required: true
         type: string
-      uv-version:
-        description: 'uv version to use'
-        default: "0.10.12"  # Keep this comment to allow automatic replacement of uv version
-        type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
@@ -150,9 +146,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-        env:
-          UV_VERSION: ${{ inputs.uv-version }}
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Run shared ${{ matrix.shared-distribution }} tests"
         run: uv run --group dev pytest --color=yes -n auto
         working-directory: shared/${{ matrix.shared-distribution }}
@@ -168,9 +171,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-        env:
-          UV_VERSION: ${{ inputs.uv-version }}
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Run scripts tests"
         run: uv run --project . pytest --color=yes -n auto
         working-directory: ./scripts/
@@ -189,18 +199,18 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e  # v6.0.3
         with:
           version: 9
           run_install: false
       - name: "Setup node"
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: 24
           cache: 'pnpm'
           cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           # yamllint disable-line rule:line-length
@@ -228,7 +238,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
@@ -236,7 +246,7 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
       - name: "Restore eslint cache (simple auth manager UI)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -248,7 +258,7 @@ jobs:
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
@@ -325,89 +335,6 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-  upgrade-check:
-    timeout-minutes: 45
-    name: "Upgrade checks"
-    runs-on: ${{ fromJSON(inputs.runners) }}
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-    if: inputs.canary-run == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        id: breeze
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ steps.breeze.outputs.host-python-version }}
-          platform: ${{ inputs.platform }}
-          save-cache: false
-      - name: "Autoupdate all prek hooks"
-        run: prek autoupdate --cooldown-days 4 --freeze
-      - name: "Check if there are any changes in prek hooks"
-        run: |
-          if ! git diff --exit-code; then
-            echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
-            echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
-            exit 1
-          fi
-      - name: "Run automated upgrade for chart dependencies"
-        run: >
-          prek
-          --all-files --show-diff-on-failure --color always --verbose
-          --stage manual
-          update-chart-dependencies
-        if: always()
-      # For UV we are not failing the upgrade installers check if it is updated because
-      # it is upgraded very frequently, so we want to manually upgrade it rather than
-      # get notified about it - until it stabilizes in 1.* version
-      - name: "Run automated upgrade for uv,  prek (not failing - just informational)"
-        run: >
-          prek
-          --all-files --show-diff-on-failure --color always --verbose
-          --stage manual upgrade-important-versions || true
-        if: always()
-        env:
-          UPGRADE_FLIT: "false"
-          UPGRADE_GITPYTHON: "false"
-          UPGRADE_GOLANG: "false"
-          UPGRADE_HATCH: "false"
-          UPGRADE_HATCHLING: "false"
-          UPGRADE_MYPY: "false"
-          UPGRADE_NODE_LTS: "false"
-          UPGRADE_PIP: "false"
-          UPGRADE_PYTHON: "false"
-          UPGRADE_PYYAML: "false"
-          UPGRADE_RICH: "false"
-          UPGRADE_RUFF: "false"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Run automated upgrade for important versions minus uv (failing if needed)"
-        run: |
-          if ! prek \
-            --all-files --show-diff-on-failure --color always --verbose \
-            --stage manual upgrade-important-versions; then
-              echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
-              echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
-              exit 1
-          fi
-        if: always()
-        env:
-          UPGRADE_UV: "false"
-          UPGRADE_PREK: "false"
-          UPGRADE_MPROCS: "false"
-          UPGRADE_PROTOC: "false"
-          UPGRADE_OPENAPI_GENERATOR: "false"
-          UPGRADE_COOLDOWN_DAYS: "4"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   test-airflow-release-commands:
     timeout-minutes: 80
     name: "Test Airflow release commands"
@@ -438,19 +365,19 @@ jobs:
       - name: Install twine
         run: pip install twine
       - name: "Check Airflow create minor branch command"
-        run: breeze release-management create-minor-branch --version-branch 3-1 --answer yes --dry-run
+        run: breeze release-management create-minor-branch --version-branch 3-2 --answer yes --dry-run
       - name: "Check Airflow RC process command"
         run: >
-          breeze release-management start-rc-process --version 3.1.0rc1 --previous-version 3.0.0
-          --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
+          breeze release-management start-rc-process --version 3.2.0rc1 --previous-version 3.1.0
+          --task-sdk-version 1.1.0rc1 --sync-branch v3-2-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
-          breeze release-management start-release --version 3.1.7
+          breeze release-management start-release --version 3.2.7
           --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
-          git remote add apache https://github.com/apache/airflow.git
-          git fetch apache --tags
+          git remote add upstream https://github.com/apache/airflow.git
+          git fetch upstream --tags
           breeze release-management generate-providers-metadata --refresh-constraints-and-airflow-releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -475,9 +402,16 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        run: pip install "uv==${UV_VERSION}"
-        env:
-          UV_VERSION: ${{ inputs.uv-version }}
+        # Extract uv version from uv.lock. The format is stable: the line
+        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
+        run: |
+          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
+          if [[ -z "${UV_VERSION}" ]]; then
+            echo "Failed to extract uv version from uv.lock" >&2
+            exit 1
+          fi
+          echo "Installing uv==${UV_VERSION}"
+          pip install "uv==${UV_VERSION}"
       - name: "Set up Airflow home directory"
         run: |
           echo "Setting AIRFLOW_HOME to $AIRFLOW_HOME"

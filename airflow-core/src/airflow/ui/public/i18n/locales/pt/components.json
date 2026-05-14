@@ -12,7 +12,7 @@
     "maxRuns": "Máximo de Execuções Ativas",
     "missingAndErroredRuns": "Execuções Faltando e com Erro",
     "missingRuns": "Execuções Faltando",
-    "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
+    "permissionDenied": "Execução de teste falhou: o utilizador não tem permissão para criar backfills.",
     "reprocessBehavior": "Comportamento de Reprocessamento",
     "run": "Executar Backfill",
     "selectDescription": "Executar este Dag para um intervalo de datas",
@@ -24,7 +24,6 @@
         "title": "Backfill gerado"
       }
     },
-    "tooltip": "Backfill requer um agendamento",
     "unpause": "Despausar {{dag_display_name}} ao acionar",
     "validation": {
       "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
@@ -59,9 +58,9 @@
   },
   "dateRangeFilter": {
     "validation": {
-      "invalidDateFormat": "Invalid date format.",
-      "invalidTimeFormat": "Invalid time format.",
-      "startBeforeEnd": "Start date/time must be before end date/time"
+      "invalidDateFormat": "Formato de data inválido.",
+      "invalidTimeFormat": "Formato de hora inválido.",
+      "startBeforeEnd": "A data/hora de início deve ser anterior à data/hora de fim"
     }
   },
   "durationChart": {
@@ -131,40 +130,40 @@
   "sortedDescending": "Ordenado em ordem decrescente",
   "sortedUnsorted": "Não ordenado",
   "taskTries": "Tentativas de Tarefa",
-  "taskTryPlaceholder": "Task Try",
+  "taskTryPlaceholder": "Tentativa de Tarefa",
   "team": {
     "selector": {
-      "helperText": "Optional. Restrict usage to a specific team.",
-      "label": "Team",
-      "placeHolder": "Select a team"
+      "helperText": "Opcional. Restringir uso a uma equipa específica.",
+      "label": "Equipa",
+      "placeHolder": "Selecionar uma equipa"
     }
   },
   "toggleCardView": "Mostrar visualização de cartão",
   "toggleTableView": "Mostrar visualização de tabela",
   "triggerDag": {
     "button": "Acionar",
-    "dataInterval": "Data Interval",
-    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
-    "dataIntervalManual": "Specify Manually",
-    "intervalEnd": "End",
-    "intervalStart": "Start",
+    "dataInterval": "Intervalo de Dados",
+    "dataIntervalAuto": "Inferido da Data Lógica e do Timetable",
+    "dataIntervalManual": "Especificar Manualmente",
+    "intervalEnd": "Fim",
+    "intervalStart": "Início",
     "loading": "Carregando informações do Dag...",
     "loadingFailed": "Falha ao carregar informações do Dag. Por favor, tente novamente.",
-    "manualRunDenied": "Manual runs are not allowed for this Dag",
+    "manualRunDenied": "Execuções manuais não são permitidas para este Dag",
     "runIdHelp": "Opcional - será gerado se não for fornecido",
     "selectDescription": "Acionar uma única execução deste Dag",
     "selectLabel": "Execução Única",
     "title": "Acionar Dag",
     "toaster": {
       "error": {
-        "title": "Failed to Trigger Dag"
+        "title": "Falha ao Acionar o Dag"
       },
       "success": {
         "description": "A execução do Dag foi acionada com sucesso.",
         "title": "Execução do Dag acionada"
       }
     },
-    "triggerAgainWithConfig": "Trigger again with this config",
+    "triggerAgainWithConfig": "Acionar novamente com esta configuração",
     "unpause": "Despausar {{dagDisplayName}} ao acionar"
   },
   "trimText": {
@@ -180,7 +179,7 @@
     "versionId": "ID da Versão"
   },
   "versionSelect": {
-    "allVersions": "All Versions",
+    "allVersions": "Todas as Versões",
     "dagVersion": "Versão do Dag",
     "versionCode": "v{{versionCode}}"
   }

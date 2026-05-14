@@ -100,6 +100,10 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
         "default": f"{DEFAULT_FORMAT_PREFIX}dag_email",
         "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL",
     },
+    "AIRFLOW_CONTEXT_TEAM_NAME": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}team_name",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TEAM_NAME",
+    },
 }
 
 
@@ -868,6 +872,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (dag_run, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
         (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
         (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
+        (dag_run, "team_name", "AIRFLOW_CONTEXT_TEAM_NAME"),
     ]
 
     context_params = settings.get_airflow_context_vars(context)

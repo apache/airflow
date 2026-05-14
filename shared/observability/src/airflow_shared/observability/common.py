@@ -48,13 +48,25 @@ def get_otel_data_exporter(
 
     # If the protocol env var isn't set, then it will be None,
     # and it will default to an http/protobuf exporter.
+    # The grpc and http variants are incompatible types to mypy but functionally interchangeable here.
+    OTLPMetricExporter: type
+    OTLPSpanExporter: type
     if env_endpoint and env_exporter_protocol == "grpc":
-        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+            OTLPMetricExporter,  # type: ignore[no-redef]
+        )
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter,  # type: ignore[no-redef]
+        )
     else:
-        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+            OTLPMetricExporter,  # type: ignore[no-redef]
+        )
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter,  # type: ignore[no-redef]
+        )
 
+    exporter: SpanExporter | MetricExporter
     if env_endpoint:
         if host is not None and port is not None:
             log.warning(

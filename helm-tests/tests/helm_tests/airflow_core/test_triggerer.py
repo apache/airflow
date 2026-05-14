@@ -25,11 +25,9 @@ from chart_utils.log_groomer import LogGroomerTestBase
 class TestTriggerer:
     """Tests triggerer."""
 
-    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
-    def test_only_exists(self, airflow_version):
+    def test_only_exists(self):
         """Check that Triggerer was added."""
         docs = render_chart(
-            values={"airflowVersion": airflow_version},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert len(docs) == 1
@@ -481,13 +479,8 @@ class TestTriggerer:
             "wow such test",
         ]
 
-    @pytest.mark.parametrize(
-        "airflow_version",
-        ["2.11.0", "3.0.0"],
-    )
-    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version):
+    def test_livenessprobe_command_depends_on_airflow_version(self):
         docs = render_chart(
-            values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert (
@@ -576,7 +569,6 @@ class TestTriggerer:
     def test_update_strategy(self, persistence, update_strategy, expected_update_strategy):
         docs = render_chart(
             values={
-                "airflowVersion": "2.11.0",
                 "executor": "CeleryExecutor",
                 "triggerer": {
                     "persistence": {"enabled": persistence},
@@ -822,9 +814,7 @@ class TestTriggererKedaAutoScaler:
 
         assert "replicas" not in jmespath.search("spec", docs[0])
 
-    @pytest.mark.parametrize(
-        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
-    )
+    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
     def test_include_event_source_container_name_in_scaled_object_for_triggerer(self, executor):
         docs = render_chart(
             values={

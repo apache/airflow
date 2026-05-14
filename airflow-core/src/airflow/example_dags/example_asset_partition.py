@@ -27,9 +27,9 @@ from airflow.sdk import (
     IdentityMapper,
     PartitionedAssetTimetable,
     ProductMapper,
-    ToDailyMapper,
-    ToHourlyMapper,
-    ToYearlyMapper,
+    StartOfDayMapper,
+    StartOfHourMapper,
+    StartOfYearMapper,
     asset,
     task,
 )
@@ -83,7 +83,7 @@ with DAG(
     dag_id="clean_and_combine_player_stats",
     schedule=PartitionedAssetTimetable(
         assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
-        default_partition_mapper=ToHourlyMapper(),
+        default_partition_mapper=StartOfHourMapper(),
     ),
     catchup=False,
     tags=["player-stats", "cleanup"],
@@ -91,7 +91,7 @@ with DAG(
     """
     Combine hourly partitions from Team A, B and C into a single curated dataset.
 
-    This Dag demonstrates multi-asset partition alignment using ToHourlyMapper.
+    This Dag demonstrates multi-asset partition alignment using StartOfHourMapper.
     """
 
     @task(
@@ -115,7 +115,7 @@ computed_player_odds = Asset(
 with DAG(
     dag_id="compute_player_odds",
     # Fallback to IdentityMapper if no partition_mapper is specified.
-    # If we want to other temporal mapper (e.g., ToHourlyMapper) here,
+    # If we want to other temporal mapper (e.g., StartOfHourMapper) here,
     # make sure the input_format is changed since the partition_key is now in "%Y-%m-%dT%H" format
     # instead of a valid timestamp
     schedule=PartitionedAssetTimetable(assets=combined_player_stats),
@@ -139,9 +139,9 @@ with DAG(
     schedule=PartitionedAssetTimetable(
         assets=(combined_player_stats & team_a_player_stats & team_b_player_stats_ref),
         partition_mapper_config={
-            combined_player_stats: ToYearlyMapper(),  # incompatible on purpose
-            team_a_player_stats: ToHourlyMapper(),
-            team_b_player_stats_ref: ToHourlyMapper(),
+            combined_player_stats: StartOfYearMapper(),  # incompatible on purpose
+            team_a_player_stats: StartOfHourMapper(),
+            Asset.ref(name="team_b_player_stats"): StartOfHourMapper(),
         },
     ),
     catchup=False,
@@ -182,7 +182,7 @@ with DAG(
     dag_id="aggregate_regional_sales",
     schedule=PartitionedAssetTimetable(
         assets=regional_sales,
-        default_partition_mapper=ProductMapper(IdentityMapper(), ToDailyMapper()),
+        default_partition_mapper=ProductMapper(IdentityMapper(), StartOfDayMapper()),
     ),
     catchup=False,
     tags=["sales", "aggregation"],
@@ -191,7 +191,7 @@ with DAG(
     Aggregate regional sales using ProductMapper.
 
     The ProductMapper splits the composite key "region|timestamp" and applies
-    IdentityMapper to the region segment and ToDailyMapper to the timestamp segment,
+    IdentityMapper to the region segment and StartOfDayMapper to the timestamp segment,
     aligning hourly partitions to daily granularity per region.
     """
 

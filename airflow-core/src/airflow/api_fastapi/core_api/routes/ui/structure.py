@@ -26,7 +26,7 @@ from airflow.api_fastapi.common.parameters import QueryIncludeDownstream, QueryI
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.structure import (
     bind_output_assets_to_tasks,
     get_upstream_assets,
@@ -52,6 +52,7 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 def structure_data(
     session: SessionDep,
     dag_id: str,
+    readable_dags_filter: ReadableDagsFilterDep,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -105,10 +106,21 @@ def structure_data(
         start_edges: list[dict] = []
         end_edges: list[dict] = []
 
+        readable_dag_ids = readable_dags_filter.value
         for dependency_dag_id, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
+            if readable_dag_ids is not None and dependency_dag_id not in readable_dag_ids:
+                continue
             for dependency in dependencies:
                 # Dependencies not related to `dag_id` are ignored
                 if dependency_dag_id != dag_id and dependency.target != dag_id:
+                    continue
+                # When target is a real DAG ID (not a type label), hide it
+                # if the caller cannot read that DAG.
+                if (
+                    readable_dag_ids is not None
+                    and dependency.target != dependency.dependency_type
+                    and dependency.target not in readable_dag_ids
+                ):
                     continue
 
                 # upstream assets are handled by the `get_upstream_assets` function.

@@ -19,11 +19,18 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from pydantic import AliasPath, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
+from pydantic import AliasPath, AwareDatetime, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
 
 from airflow._shared.secrets_masker import redact
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
+from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class DagScheduleAssetReference(StrictBaseModel):
@@ -187,7 +194,25 @@ class CreateAssetEventsBody(StrictBaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class AssetLineageNode(BaseModel):
+class MaterializeAssetBody(TriggerDAGRunPostBody):
+    """Materialize asset request."""
+
+    logical_date: AwareDatetime | None = None
+
+    def validate_context(self, dag: SerializedDAG) -> dict:
+        params = super().validate_context(dag)
+        if self.dag_run_id is None:
+            params["run_id"] = dag.timetable.generate_run_id(
+                run_type=DagRunType.ASSET_MATERIALIZATION,
+                run_after=timezone.coerce_datetime(params["run_after"]),
+                data_interval=params["data_interval"],
+            )
+        return params
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AssetLineageNode(StrictBaseModel):
     """A node in the asset lineage graph (asset, task, or DAG)."""
 
     id: str
@@ -197,7 +222,7 @@ class AssetLineageNode(BaseModel):
     group: str | None = None
 
 
-class AssetLineageEdge(BaseModel):
+class AssetLineageEdge(StrictBaseModel):
     """A directed edge in the asset lineage graph."""
 
     source_id: str
@@ -212,7 +237,7 @@ class ColumnLineageSource(BaseModel):
     source_column: str
 
 
-class AssetLineageGraphResponse(BaseModel):
+class AssetLineageGraphResponse(StrictBaseModel):
     """Full lineage graph containing nodes and edges."""
 
     nodes: list[AssetLineageNode]

@@ -40,6 +40,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.zendesk.hooks.zendesk.ZendeskHook",
+                "hook-name": "Zendesk",
                 "connection-type": "zendesk",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "extra"],

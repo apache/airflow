@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.core_api.routes.public.import_error import REDACTED_STACKTRACE
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
@@ -276,7 +277,13 @@ class TestGetImportError:
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_error__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
-        """Test import error is returned when no DAG exists in DagModel."""
+        """Import error is returned with a redacted stacktrace when no DAG
+        exists in ``DagModel`` for the file.
+
+        When the file-to-DAG set resolves empty the endpoint cannot tell
+        which DAGs the caller is allowed to see, so the stacktrace is
+        redacted rather than returned verbatim.
+        """
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
 
@@ -287,7 +294,7 @@ class TestGetImportError:
             "import_error_id": import_error_id,
             "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
             "filename": FILENAME1,
-            "stack_trace": STACKTRACE1,
+            "stack_trace": REDACTED_STACKTRACE,
             "bundle_name": BUNDLE_NAME,
         }
 
@@ -525,3 +532,203 @@ class TestGetImportErrors:
         assert FILENAME1 in filenames
         assert FILENAME2 in filenames
         assert FILENAME3 in filenames
+
+
+class TestImportErrorFileAuthorization:
+    """Tests that the import error endpoints apply per-file authorization
+    using ``relative_fileloc + bundle_name`` and redact stacktraces when the
+    resolved DAG set is empty or contains co-located DAGs outside the
+    caller's scope."""
+
+    LONELY_FILE_RELATIVE = "lonely_file.py"
+    LONELY_FILE_ABSOLUTE = "/opt/airflow/dags/lonely_file.py"
+    MIXED_FILE_RELATIVE = "mixed_file.py"
+    MIXED_FILE_ABSOLUTE = "/opt/airflow/dags/mixed_file.py"
+    LONELY_STACKTRACE = "stack trace for the lonely file"
+    MIXED_STACKTRACE = "stack trace for the mixed file"
+
+    @pytest.fixture
+    @provide_session
+    def absolute_vs_relative_fileloc_dag(
+        self,
+        testing_dag_bundle,
+        session: Session = NEW_SESSION,
+    ) -> DagModel:
+        """DagModel whose ``fileloc`` is absolute and ``relative_fileloc`` is
+        the relative path that matches ``ParseImportError.filename``.
+
+        The two columns deliberately hold different string values so that a
+        ``fileloc == filename`` match (the pre-fix behaviour) comes back
+        empty and a ``relative_fileloc == filename`` match (the fix) finds
+        the row.
+        """
+        dag_model = DagModel(
+            fileloc=self.LONELY_FILE_ABSOLUTE,
+            relative_fileloc=self.LONELY_FILE_RELATIVE,
+            dag_id="lonely_dag",
+            is_paused=False,
+            bundle_name=BUNDLE_NAME,
+        )
+        session.add(dag_model)
+        session.commit()
+        return dag_model
+
+    @pytest.fixture
+    @provide_session
+    def mixed_file_dags(
+        self,
+        testing_dag_bundle,
+        session: Session = NEW_SESSION,
+    ) -> tuple[DagModel, DagModel]:
+        """Two DagModels pointing at the same ``(relative_fileloc,
+        bundle_name)`` pair so the per-file authorization check in the list
+        endpoint has a co-located DAG to redact against."""
+        readable = DagModel(
+            fileloc=self.MIXED_FILE_ABSOLUTE,
+            relative_fileloc=self.MIXED_FILE_RELATIVE,
+            dag_id="readable_mixed_dag",
+            is_paused=False,
+            bundle_name=BUNDLE_NAME,
+        )
+        colocated = DagModel(
+            fileloc=self.MIXED_FILE_ABSOLUTE,
+            relative_fileloc=self.MIXED_FILE_RELATIVE,
+            dag_id="colocated_mixed_dag",
+            is_paused=False,
+            bundle_name=BUNDLE_NAME,
+        )
+        session.add_all([readable, colocated])
+        session.commit()
+        return readable, colocated
+
+    @pytest.fixture
+    @provide_session
+    def lonely_file_import_error(
+        self,
+        session: Session = NEW_SESSION,
+    ) -> ParseImportError:
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=self.LONELY_FILE_RELATIVE,
+            stacktrace=self.LONELY_STACKTRACE,
+            timestamp=TIMESTAMP1,
+        )
+        session.add(error)
+        session.commit()
+        return error
+
+    @pytest.fixture
+    @provide_session
+    def mixed_file_import_error(
+        self,
+        session: Session = NEW_SESSION,
+    ) -> ParseImportError:
+        error = ParseImportError(
+            bundle_name=BUNDLE_NAME,
+            filename=self.MIXED_FILE_RELATIVE,
+            stacktrace=self.MIXED_STACKTRACE,
+            timestamp=TIMESTAMP2,
+        )
+        session.add(error)
+        session.commit()
+        return error
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_single_endpoint_matches_file_via_relative_fileloc_not_fileloc(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        absolute_vs_relative_fileloc_dag,
+        lonely_file_import_error,
+    ):
+        """Single endpoint resolves ``ParseImportError.filename`` against
+        ``DagModel.relative_fileloc`` (and ``bundle_name``), not
+        ``DagModel.fileloc``.
+
+        The DagModel's ``fileloc`` is absolute while the ParseImportError's
+        ``filename`` is relative, so a ``fileloc == filename`` match comes
+        back empty in this fixture. The endpoint must still resolve the DAG
+        set via ``relative_fileloc`` and enforce the normal authorization
+        check. Here the caller has no DAG permissions at all, so the
+        response must be 403 -- not a 200 that returns the stack trace
+        verbatim via the empty-set fall-through.
+        """
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        response = test_client.get(f"/importErrors/{lonely_file_import_error.id}")
+        assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_single_endpoint_redacts_when_file_has_no_known_dags(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+    ):
+        """Single endpoint must redact the stacktrace when the
+        ``ParseImportError`` refers to a file with no matching ``DagModel``
+        rows at all -- for example a file that failed to parse before any
+        DAG was defined. The response must be 200 with
+        ``REDACTED_STACKTRACE``, not a 200 with the raw error body.
+        """
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        response = test_client.get(f"/importErrors/{import_errors[0].id}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["filename"] == FILENAME1
+        assert body["stack_trace"] == REDACTED_STACKTRACE
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_list_endpoint_redacts_mixed_file_with_colocated_dag_outside_callers_scope(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        mixed_file_dags,
+        mixed_file_import_error,
+    ):
+        """List endpoint must redact the stacktrace for a file that
+        contains a DAG outside the caller's scope, even when the caller can
+        read another DAG in the same file.
+
+        The ``side_effect`` below allows the call only when the request set
+        is a subset of the caller's readable set. Under the fixed code the
+        per-file authorization check receives the full DAG set for the
+        file (both ``readable_mixed_dag`` and ``colocated_mixed_dag``), so
+        the call is denied and the stacktrace is redacted. Under the
+        pre-fix code the check would only see the readable subset, the
+        call would be permitted, and the raw stacktrace would be returned.
+        """
+        readable, _ = mixed_file_dags
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {readable.dag_id})
+
+        def permit_only_readable(requests, user):
+            request_dag_ids = {req["details"].id for req in requests}
+            return request_dag_ids.issubset({readable.dag_id})
+
+        mock_get_auth_manager.return_value.batch_is_authorized_dag.side_effect = permit_only_readable
+
+        response = test_client.get("/importErrors")
+        assert response.status_code == 200
+        body = response.json()
+        mixed_entries = [err for err in body["import_errors"] if err["filename"] == self.MIXED_FILE_RELATIVE]
+        assert len(mixed_entries) == 1
+        assert mixed_entries[0]["stack_trace"] == REDACTED_STACKTRACE
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_list_endpoint_redacts_when_file_has_no_known_dags(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        import_errors,
+    ):
+        """List endpoint must redact the stacktrace for import errors
+        whose file has no matching ``DagModel`` rows -- closing the
+        ``if not dag_ids: import_errors.append(import_error)`` fall-through
+        that previously returned the raw error.
+        """
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        response = test_client.get("/importErrors")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        for entry in body["import_errors"]:
+            assert entry["stack_trace"] == REDACTED_STACKTRACE

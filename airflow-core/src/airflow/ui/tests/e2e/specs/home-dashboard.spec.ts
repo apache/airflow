@@ -16,23 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { HomePage } from "tests/e2e/pages/HomePage";
+import { expect } from "tests/e2e/fixtures";
+import { test } from "tests/e2e/fixtures/dashboard-data";
 
 test.describe("Dashboard Metrics Display", () => {
-  let homePage: HomePage;
-
-  test.beforeEach(({ page }) => {
-    homePage = new HomePage(page);
-  });
-
-  test("should display dashboard stats section with DAG metrics", async () => {
+  test("should display dashboard stats section with DAG metrics", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    // Use Playwright assertions directly for clearer error messages
     await expect(homePage.statsSection).toBeVisible();
 
     await expect(homePage.activeDagsCard).toBeVisible();
@@ -51,18 +43,17 @@ test.describe("Dashboard Metrics Display", () => {
     expect(failedDagsCount).toBeGreaterThanOrEqual(0);
   });
 
-  test("should display health status badges", async () => {
+  test("should display health status badges", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    // Use Playwright assertions directly for clearer error messages
     await expect(homePage.healthSection).toBeVisible();
     await expect(homePage.metaDatabaseHealth).toBeVisible();
     await expect(homePage.schedulerHealth).toBeVisible();
     await expect(homePage.triggererHealth).toBeVisible();
   });
 
-  test("should navigate to filtered DAGs list when clicking stats cards", async () => {
+  test("should navigate to filtered DAGs list when clicking stats cards", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
@@ -76,60 +67,48 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.page).toHaveURL(/last_dag_run_state=running/);
   });
 
-  test("should display welcome heading on dashboard", async () => {
+  test("should display welcome heading on dashboard", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
     await expect(homePage.welcomeHeading).toBeVisible();
   });
 
-  test("should update metrics when DAG is triggered", async () => {
-    // Increase timeout for this test since DAG triggering takes time
-    test.setTimeout(7 * 60 * 1000);
+  test("should update metrics when DAG is triggered", async ({ dagRunCleanup, dagsPage, homePage }) => {
+    test.slow();
 
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    const initialRunningCount = await homePage.getRunningDagsCount();
+    const dagRunId = await dagsPage.triggerDag(testConfig.testDag.id);
 
-    // Trigger a DAG to update metrics
-    const dagsPage = new DagsPage(homePage.page);
+    if (dagRunId !== null) {
+      dagRunCleanup.track(dagRunId);
+    }
 
-    await dagsPage.triggerDag(testConfig.testDag.id);
-
-    // Navigate back to home and verify metrics updated
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    // Verify stats section is still visible after DAG trigger
     await expect(homePage.statsSection).toBeVisible();
-
-    // Get updated counts - running count should reflect the triggered DAG
-    const updatedRunningCount = await homePage.getRunningDagsCount();
-
-    // Either running count increased or stayed same (if DAG completed quickly)
-    expect(updatedRunningCount).toBeGreaterThanOrEqual(0);
-    expect(initialRunningCount).toBeGreaterThanOrEqual(0);
+    await expect(homePage.activeDagsCard).toBeVisible();
+    await expect(homePage.runningDagsCard).toBeVisible();
   });
 
-  test("should display historical metrics section with recent runs", async () => {
+  test("should display historical metrics section with recent runs", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    // Use Playwright assertions directly for clearer error messages
     await expect(homePage.historicalMetricsSection).toBeVisible();
     await expect(homePage.dagRunMetrics).toBeVisible();
     await expect(homePage.taskInstanceMetrics).toBeVisible();
   });
 
-  test("should handle DAG import errors display when errors exist", async () => {
+  test("should handle DAG import errors display when errors exist", async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    // DAG Import Errors button only appears when there are actual import errors
     const isDagImportErrorsVisible = await homePage.isDagImportErrorsVisible();
 
-    // Skip test with clear message if no import errors exist in the test environment
     test.skip(!isDagImportErrorsVisible, "No DAG import errors present in test environment");
 
     await expect(homePage.dagImportErrorsCard).toBeVisible();

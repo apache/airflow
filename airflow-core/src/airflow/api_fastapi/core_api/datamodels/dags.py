@@ -89,6 +89,7 @@ class DAGResponse(BaseModel):
     timetable_summary: str | None
     timetable_description: str | None
     timetable_partitioned: bool
+    timetable_periodic: bool
     tags: list[DagTagResponse]
     max_active_tasks: int
     max_active_runs: int | None
@@ -127,6 +128,17 @@ class DAGResponse(BaseModel):
         if tts is None or tts == "None":
             return None
         return str(tts)
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_backfillable(self) -> bool:
+        """Whether this DAG's schedule supports backfilling."""
+        if not self.timetable_periodic:
+            return False
+        if self.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in self.allowed_run_types:
+            return False
+        return True
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[prop-decorator]

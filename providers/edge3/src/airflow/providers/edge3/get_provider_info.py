@@ -67,6 +67,20 @@ def get_provider_info():
                         "example": "10",
                         "default": "30",
                     },
+                    "drain_timeout_sec": {
+                        "description": "Maximum seconds the worker waits for running jobs to finish after entering drain\n(shutdown requested via SIGINT / SIGTERM / SHUTDOWN_REQUEST / version mismatch).\nOnce this timeout elapses the worker sends SIGTERM to each running job, then SIGKILL\nafter ``drain_kill_grace_sec``, and exits regardless of remaining jobs.\nSet to 0 (the default) to wait indefinitely and preserve legacy behavior.\n",
+                        "version_added": "3.6.0",
+                        "type": "integer",
+                        "example": "3600",
+                        "default": "0",
+                    },
+                    "drain_kill_grace_sec": {
+                        "description": "Grace period in seconds after SIGTERM before the worker escalates to SIGKILL and exits.\nOnly used when ``drain_timeout_sec`` is greater than 0.\n",
+                        "version_added": "3.6.0",
+                        "type": "integer",
+                        "example": "30",
+                        "default": "30",
+                    },
                     "worker_concurrency": {
                         "description": "The concurrency defines the default max parallel running task instances and can also be set during\nstart of worker with the ``airflow edge worker`` command parameter. The size of the workers\nand the resources must support the nature of your tasks. The parameter\nworks together with the concurrency_slots parameter of a task.\n",
                         "version_added": None,
@@ -108,6 +122,13 @@ def get_provider_info():
                         "type": "string",
                         "default": None,
                         "example": None,
+                    },
+                    "extended_system_info_function": {
+                        "description": "The function to call to get extended system information for the worker.\n\nThe function must be async and return a ``dict[str, str | int | float | datetime]``.\nThe information will be sent to the central site with each heartbeat and can be used for monitoring\nand debugging purposes. All int and float values will also be published to metric collection systems\nlike statsd or otel.\n\nFunction must be provided as a string with the full path to the function. See\nhttps://github.com/apache/airflow/blob/main/providers/edge3/src/airflow/providers/edge3/cli/example_extended_sysinfo.py\nfor an example implementation.\n",
+                        "version_added": "3.5.0",
+                        "type": "string",
+                        "default": None,
+                        "example": "airflow.providers.edge3.cli.example_extended_sysinfo.get_example_extended_sysinfo",
                     },
                 },
             }

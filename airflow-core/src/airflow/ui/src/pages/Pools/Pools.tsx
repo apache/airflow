@@ -65,7 +65,7 @@ export const Pools = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    poolNamePattern: poolNamePattern ?? undefined,
+    poolNamePrefixPattern: poolNamePattern ?? undefined,
   });
 
   const handleSearchChange = (value: string) => {

@@ -42,6 +42,8 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
+    from starlette.middleware import _MiddlewareFactory
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -319,6 +321,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         # Delegate to parent class for the actual authorization check
         return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """Register the all-admins middleware when ``[core] simple_auth_manager_all_admins`` is set."""
+        if not conf.getboolean("core", "simple_auth_manager_all_admins"):
+            return []
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        return [(SimpleAllAdminMiddleware, {})]
+
     def get_fastapi_app(self) -> FastAPI | None:
         """
         Specify a sub FastAPI application specific to the auth manager.
@@ -354,8 +364,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
         def webapp(request: Request, rest_of_path: str):
             return templates.TemplateResponse(
+                request,
                 "/index.html",
-                {"request": request, "backend_server_base_url": request.base_url.path},
+                {"backend_server_base_url": request.base_url.path},
                 media_type="text/html",
             )
 

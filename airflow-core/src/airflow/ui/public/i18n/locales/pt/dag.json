@@ -45,8 +45,7 @@
     "buttons": {
       "resetToLatest": "Redefinir para a Última",
       "toggleGroup": "Alternar Grupo"
-    },
-    "runTypeLegend": "Run Type Legend"
+    }
   },
   "header": {
     "buttons": {
@@ -75,10 +74,10 @@
     "toggleGroup": "Alternar grupo: Espaço"
   },
   "notFound": {
-    "back": "Go Back",
-    "backToDags": "Back to Dags",
-    "message": "The Dag \"{{dagId}}\" does not exist.",
-    "title": "Dag Not Found"
+    "back": "Voltar",
+    "backToDags": "Voltar aos Dags",
+    "message": "O Dag \"{{dagId}}\" não existe.",
+    "title": "Dag Não Encontrado"
   },
   "overview": {
     "buttons": {
@@ -131,33 +130,33 @@
       "label": "Direção do Gráfico"
     },
     "showVersionIndicator": {
-      "label": "Show Version Indicator",
+      "label": "Mostrar Indicador de Versão",
       "options": {
-        "hideAll": "Hide All",
-        "showAll": "Show All",
-        "showBundleVersion": "Show Bundle Version",
-        "showDagVersion": "Show Dag Version"
+        "hideAll": "Ocultar Tudo",
+        "showAll": "Mostrar Tudo",
+        "showBundleVersion": "Mostrar Versão do Bundle",
+        "showDagVersion": "Mostrar Versão do Dag"
       }
     },
     "taskStreamFilter": {
-      "activeFilter": "Active filter",
-      "clearFilter": "Clear Filter",
-      "clickTask": "Click a task to select it as the filter root",
-      "depth": "Depth",
-      "direction": "Direction",
-      "label": "Filter",
-      "mode": "Mode",
-      "modeTooltip": "Static mode keeps the current view when navigating to different tasks, while Traverse mode automatically updates the active filter to the clicked task for easier Dag traversal.",
+      "activeFilter": "Filtro ativo",
+      "clearFilter": "Limpar Filtro",
+      "clickTask": "Clique numa tarefa para a selecionar como raiz do filtro",
+      "depth": "Profundidade",
+      "direction": "Direção",
+      "label": "Filtro",
+      "mode": "Modo",
+      "modeTooltip": "O modo estático mantém a vista atual ao navegar entre tarefas; o modo percorrer atualiza automaticamente o filtro ativo para a tarefa clicada para facilitar a travessia do DAG.",
       "modes": {
-        "static": "Static",
-        "traverse": "Traverse"
+        "static": "Estático",
+        "traverse": "Percorrer"
       },
       "options": {
-        "both": "Both upstream & downstream",
+        "both": "Upstream e downstream",
         "downstream": "Downstream",
         "upstream": "Upstream"
       },
-      "selectedTask": "Selected task"
+      "selectedTask": "Tarefa selecionada"
     }
   },
   "paramsFailed": "Falha ao carregar parâmetros",

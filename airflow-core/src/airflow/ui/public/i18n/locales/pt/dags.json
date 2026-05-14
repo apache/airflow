@@ -35,8 +35,8 @@
       "title": "Limpar {{type}}"
     },
     "confirmationDialog": {
-      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
-      "title": "Cannot Clear Task Instance"
+      "description": "A tarefa está atualmente em estado {{state}} iniciado pelo utilizador {{user}} às {{time}}. O utilizador não pode limpar esta tarefa até que termine de executar ou até que um utilizador desmarque a opção \"Impedir nova execução se a tarefa estiver em execução\" no diálogo de limpeza.",
+      "title": "Não é Possível Limpar a Instância de Tarefa"
     },
     "delete": {
       "button": "Excluir {{type}}",
@@ -65,7 +65,7 @@
       "future": "Futuro",
       "onlyFailed": "Limpar somente tarefas falhadas",
       "past": "Passado",
-      "preventRunningTasks": "Prevent rerun if task is running",
+      "preventRunningTasks": "Impedir nova execução se a tarefa estiver em execução",
       "queueNew": "Enfileirar novas tarefas",
       "runOnLatestVersion": "Executar com a versão mais recente do pacote",
       "upstream": "Upstream"

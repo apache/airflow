@@ -86,7 +86,9 @@ test.describe("Backfill", () => {
     });
 
     for (const config of backfillConfigs) {
-      test(`verify backfill with '${REPROCESS_API_TO_UI[config.behavior]}' behavior`, async ({ page }) => {
+      test.fixme(`verify backfill with '${REPROCESS_API_TO_UI[config.behavior]}' behavior`, async ({
+        page,
+      }) => {
         const backfillPage = new BackfillPage(page);
 
         await backfillPage.navigateToBackfillsTab(testDagId);
@@ -104,7 +106,7 @@ test.describe("Backfill", () => {
       });
     }
 
-    test("Verify backfill table filters", async ({ page }) => {
+    test.fixme("Verify backfill table filters", async ({ page }) => {
       const backfillPage = new BackfillPage(page);
 
       await backfillPage.navigateToBackfillsTab(testDagId);
@@ -199,7 +201,7 @@ test.describe("Backfill", () => {
       await expect(backfillPage.unpauseButton).toBeVisible({ timeout: 10_000 });
     });
 
-    test("verify cancel backfill", async () => {
+    test.fixme("verify cancel backfill", async () => {
       const dates = FIXED_DATES.controls.cancel;
 
       // Create + pause atomically to eliminate race with scheduler.

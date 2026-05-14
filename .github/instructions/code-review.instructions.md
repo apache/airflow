@@ -11,7 +11,7 @@ Use these rules when reviewing pull requests to the Apache Airflow repository.
 
 - **Scheduler must never run user code.** It only processes serialized Dags. Flag any scheduler-path code that deserializes or executes Dag/task code.
 - **Flag any task execution code that accesses the metadata DB directly** instead of through the Execution API (`/execution` endpoints).
-- **Flag any code in Dag Processor or Triggerer that breaks process isolation** — these components run user code in isolated processes.
+- **Flag any code in Dag Processor or Triggerer that breaks process isolation** — these components run user code in separate processes from the Scheduler and API Server, but note that they potentially have direct metadata database access and potentially bypass JWT authentication via in-process Execution API transport. This is an intentional design choice documented in the security model, not a security vulnerability.
 - **Flag any provider importing core internals** like `SUPERVISOR_COMMS` or task-runner plumbing. Providers interact through the public SDK and execution API only.
 
 ## Database and Query Correctness

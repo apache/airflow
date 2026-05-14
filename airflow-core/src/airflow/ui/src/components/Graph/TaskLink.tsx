@@ -33,6 +33,12 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isM
 
   // Extract dagId and taskId from composite ID
   const parseCompositeId = (compositeId: string) => {
+    const lineageMatch = /^task:(?<dagId>[^:]+):(?<taskId>.+)$/u.exec(compositeId);
+
+    if (lineageMatch) {
+      return { dagId: lineageMatch[1], taskId: lineageMatch[2] };
+    }
+
     const match = new RegExp(`^task:(?<dagId>.*?)${taskNodeSeparator}(?<taskId>.+)$`, "u").exec(compositeId);
 
     if (match) {

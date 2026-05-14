@@ -95,6 +95,8 @@ def create_app(apps: str = "all") -> FastAPI:
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
         version="2",
+        docs_url="/docs" if conf.getboolean("api", "enable_swagger_ui") else None,
+        redoc_url="/redoc" if conf.getboolean("api", "enable_swagger_ui") else None,
     )
 
     dag_bag = create_dag_bag()

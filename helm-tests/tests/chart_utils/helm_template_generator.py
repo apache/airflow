@@ -30,9 +30,6 @@ from urllib.request import urlopen
 import jmespath
 import jsonschema
 import yaml
-from kubernetes.client.api_client import ApiClient
-
-api_client = ApiClient()
 
 AIRFLOW_ROOT = Path(__file__).resolve().parents[3]
 CHART_DIR = AIRFLOW_ROOT / "chart"
@@ -185,10 +182,3 @@ def prepare_k8s_lookup_dict(k8s_objects) -> dict[tuple[str, str], dict[str, Any]
         (k8s_object["kind"], k8s_object["metadata"]["name"]): k8s_object for k8s_object in k8s_objects
     }
     return k8s_obj_by_key
-
-
-def render_k8s_object(obj, type_to_render):
-    """
-    Function that renders dictionaries into k8s objects. For helm chart testing only.
-    """
-    return api_client._ApiClient__deserialize_model(obj, type_to_render)

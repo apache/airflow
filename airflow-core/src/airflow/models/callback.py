@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
-from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -29,6 +27,8 @@ import uuid6
 from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+# Re-exporting as _accepts_context for backward compatibility
+from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.executors.workloads import BaseWorkload
@@ -51,16 +51,6 @@ log = structlog.get_logger(__name__)
 
 ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
-
-
-def _accepts_context(callback: Callable) -> bool:
-    """Check if callback accepts a 'context' parameter or **kwargs."""
-    try:
-        sig = inspect.signature(callback)
-    except (ValueError, TypeError):
-        return True
-    params = sig.parameters
-    return "context" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 class CallbackType(str, Enum):

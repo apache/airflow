@@ -24,10 +24,10 @@ import {
   useDagRunServiceGetDagRunsKey,
   useDagRunServicePatchDagRun,
   useTaskInstanceServiceGetTaskInstancesKey,
-  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
 export const usePatchDagRun = ({
@@ -42,14 +42,15 @@ export const usePatchDagRun = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.update.error", {
-        resourceName: translate("dagRun_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("dagRun_one") },
+        titleKey: "toaster.update.error",
+      },
+      translate,
+    );
   };
 
   const onSuccessFn = async () => {
@@ -58,10 +59,12 @@ export const usePatchDagRun = ({
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useClearDagRunDryRunKey, dagId],
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     if (onSuccess) {
       onSuccess();

@@ -111,6 +111,106 @@ tasks can consume it.
     :end-before: [END howto_agent_chain]
 
 
+Durable Execution
+-----------------
+
+Agent tasks can involve multiple LLM calls and tool invocations. If a task
+fails mid-run (network error, timeout, transient API failure), a plain retry
+re-executes every LLM call and tool call from scratch -- repeating work that
+already succeeded and incurring additional cost.
+
+Setting ``durable=True`` caches each LLM response and tool result to
+ObjectStorage as it completes. On retry, completed steps are replayed from the
+cache and only the remaining steps run against the live model and tools. The
+cache is deleted after successful completion.
+
+Durable execution only helps when the task has retries configured. Without
+retries there is nothing to replay.
+
+**Configuration**
+
+Set the cache location in ``airflow.cfg``. The task raises ``ValueError`` at
+runtime if ``durable=True`` and the option is missing.
+
+.. code-block:: ini
+
+    [common.ai]
+    # Local filesystem -- suitable for development
+    durable_cache_path = file:///tmp/airflow_durable_cache
+
+The value is an ObjectStorage URI, so any supported backend works. For
+production, use a shared store so retries on a different worker can read the
+cache:
+
+.. code-block:: ini
+
+    [common.ai]
+    durable_cache_path = s3://my-bucket/airflow/durable-cache
+
+**Operator example**
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_operator_agent_durable]
+    :end-before: [END howto_operator_agent_durable]
+
+**Decorator example**
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_decorator_agent_durable]
+    :end-before: [END howto_decorator_agent_durable]
+
+**How it works**
+
+1. On first execution, each LLM response and tool result is saved to a JSON
+   file as the agent progresses.
+2. If the task fails and Airflow retries it, completed steps are loaded from
+   the cache and returned without calling the model or tool. Steps not yet in
+   the cache proceed normally.
+3. After successful completion, the cache file is deleted.
+
+After the run, a single INFO summary line reports how many steps were
+replayed vs executed fresh. Per-step detail is available at DEBUG level.
+
+The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
+``_{map_index}`` appended for mapped tasks) and stored under the configured
+``durable_cache_path``. To force a completely fresh run, delete the cache file
+for that task.
+
+.. note::
+
+    Runs that fail permanently (exhaust all retries) leave their cache file
+    behind. These orphaned files do not affect future DAG runs (each run gets
+    its own file) but will consume storage. Clean them up periodically or add
+    a lifecycle policy to the storage backend.
+
+**Side effects and idempotency**
+
+Durable execution caches **return values**, not side effects. When a step is
+replayed, the tool's code does not run -- only the stored return value is
+returned. Two things follow from this:
+
+- If a tool completed successfully and its result was cached, the tool will
+  **not** run again on retry. Any side effect it produced (writing a file,
+  sending a message) already happened during the original run and is not
+  repeated.
+- If a tool fails *before* its result is cached, it **will** run again on
+  retry. A tool that partially completed (e.g. sent an email then raised an
+  exception) may produce the side effect a second time.
+
+All built-in toolsets (``SQLToolset`` with ``allow_writes=False``,
+``HookToolset`` in read-only mode) are read-only and replay safely. For custom
+tools with non-idempotent side effects, design the tool to be idempotent. For
+example, check whether the operation already completed before acting, or
+use database constraints to prevent duplicate writes.
+
+Tool results must be JSON-serializable to be cached. If a tool returns a
+non-serializable value (e.g. ``BinaryContent`` from MCP tools), that step is
+skipped with a warning and will re-execute on retry instead of replaying from
+cache. The task itself still succeeds.
+
+
 Parameters
 ----------
 
@@ -130,6 +230,10 @@ Parameters
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``durable``: When ``True``, enables step-level caching of model responses and
+  tool results via ObjectStorage. On retry, cached steps are replayed instead of
+  re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
+  config option to be set. Default ``False``.
 
 
 Logging

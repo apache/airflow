@@ -512,6 +512,19 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            ({"name_prefix_pattern": "s3"}, {"s3://folder/key"}),
+            ({"name_prefix_pattern": "gcp"}, {"gcp://bucket/key"}),
+            ({"name_prefix_pattern": "some"}, {"somescheme://asset/key"}),
+            ({"name_prefix_pattern": "wasb"}, {"wasb://some_asset_bucket_/key"}),
+            (
+                {"name_prefix_pattern": "~"},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
         ],
     )
     @provide_session
@@ -541,6 +554,19 @@ class TestGetAssets(TestAssets):
             ),
             (
                 {"uri_pattern": ""},
+                {
+                    "gcp://bucket/key",
+                    "s3://folder/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
+                },
+            ),
+            ({"uri_prefix_pattern": "s3://"}, {"s3://folder/key"}),
+            ({"uri_prefix_pattern": "gcp://"}, {"gcp://bucket/key"}),
+            ({"uri_prefix_pattern": "somescheme"}, {"somescheme://asset/key"}),
+            ({"uri_prefix_pattern": "wasb://"}, {"wasb://some_asset_bucket_/key"}),
+            (
+                {"uri_prefix_pattern": "~"},
                 {
                     "gcp://bucket/key",
                     "s3://folder/key",
@@ -730,6 +756,9 @@ class TestGetAssetAliases(TestAssetAliases):
             ({"name_pattern": "foo"}, {"foo1"}),
             ({"name_pattern": "1"}, {"foo1", "bar12"}),
             ({"uri_pattern": ""}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
+            ({"name_prefix_pattern": "foo"}, {"foo1"}),
+            ({"name_prefix_pattern": "bar"}, {"bar12", "bar2", "bar3"}),
+            ({"name_prefix_pattern": "~"}, {"foo1", "bar12", "bar2", "bar3", "rex23"}),
         ],
     )
     @provide_session
@@ -876,6 +905,9 @@ class TestGetAssetEvents(TestAssets):
             ({"name_pattern": "simple1"}, 1),
             ({"name_pattern": "simple%"}, 2),
             ({"name_pattern": "nonexistent"}, 0),
+            ({"name_prefix_pattern": "simple1"}, 1),
+            ({"name_prefix_pattern": "simple"}, 2),
+            ({"name_prefix_pattern": "nonexistent"}, 0),
         ],
     )
     @provide_session
@@ -1409,6 +1441,59 @@ class TestPostAssetMaterialize(TestAssets):
             "note": None,
         }
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_partition_key(self, test_client):
+        partition_key = "2026-03-23"
+        response = test_client.post("/assets/1/materialize", json={"partition_key": partition_key})
+        assert response.status_code == 200
+        assert response.json()["partition_key"] == partition_key
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_trigger_fields(self, test_client):
+        payload = {
+            "conf": {"foo": "bar"},
+            "dag_run_id": "asset_materialization_run_1",
+            "data_interval_end": "2026-03-24T00:00:00Z",
+            "data_interval_start": "2026-03-23T00:00:00Z",
+            "logical_date": "2026-03-23T00:00:00Z",
+            "note": "created from asset page",
+            "partition_key": "2026-03-23",
+        }
+        response = test_client.post("/assets/1/materialize", json=payload)
+
+        assert response.status_code == 200
+        assert response.json()["conf"] == {"foo": "bar"}
+        assert response.json()["dag_run_id"] == "asset_materialization_run_1"
+        assert response.json()["data_interval_start"] == "2026-03-23T00:00:00Z"
+        assert response.json()["data_interval_end"] == "2026-03-24T00:00:00Z"
+        assert response.json()["logical_date"] == "2026-03-23T00:00:00Z"
+        assert response.json()["note"] == "created from asset page"
+        assert response.json()["partition_key"] == "2026-03-23"
+        assert response.json()["run_type"] == "asset_materialization"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_with_trigger_fields_without_dag_run_id(self, test_client):
+        payload = {
+            "conf": {"foo": "bar"},
+            # "dag_run_id": "asset_materialization_run_1",
+            "data_interval_end": "2026-03-24T00:00:00Z",
+            "data_interval_start": "2026-03-23T00:00:00Z",
+            "logical_date": "2026-03-23T00:00:00Z",
+            "note": "created from asset page",
+            "partition_key": "2026-03-23",
+        }
+        response = test_client.post("/assets/1/materialize", json=payload)
+
+        assert response.status_code == 200
+        assert response.json()["conf"] == {"foo": "bar"}
+        assert response.json()["dag_run_id"].startswith("asset_materialization__")
+        assert response.json()["data_interval_start"] == "2026-03-23T00:00:00Z"
+        assert response.json()["data_interval_end"] == "2026-03-24T00:00:00Z"
+        assert response.json()["logical_date"] == "2026-03-23T00:00:00Z"
+        assert response.json()["note"] == "created from asset page"
+        assert response.json()["partition_key"] == "2026-03-23"
+        assert response.json()["run_type"] == "asset_materialization"
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/assets/2/materialize")
         assert response.status_code == 401
@@ -1584,6 +1669,7 @@ class TestGetAssetLineage(TestAssets):
         session.add(asset1)
         session.flush()
 
+
         session.add(DagModel(dag_id="upstream_dag", bundle_name="testing"))
         session.add(DagModel(dag_id="downstream_dag", bundle_name="testing"))
         session.add(TaskOutletAssetReference(dag_id="upstream_dag", task_id="producer_task", asset=asset1))
@@ -1604,6 +1690,11 @@ class TestGetAssetLineage(TestAssets):
         assert "task:upstream_dag:producer_task" in nodes
         assert "task:downstream_dag:consumer_task" in nodes
 
+        edges = data["edges"]
+        # Convert list of dicts to list of tuples for easier checking
+        edges_tuples = [(e["source_id"], e["target_id"]) for e in edges]
+        assert ("task:upstream_dag:producer_task", f"asset:{asset1.id}") in edges_tuples
+        assert (f"asset:{asset1.id}", "task:downstream_dag:consumer_task") in edges_tuples
         # DAG nodes should also be present
         assert "dag:upstream_dag" in nodes
         assert "dag:downstream_dag" in nodes

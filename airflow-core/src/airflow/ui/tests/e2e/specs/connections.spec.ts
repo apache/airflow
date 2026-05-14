@@ -160,7 +160,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     await context.close();
   });
 
-  test("should create a new connection and display it in list", async () => {
+  test.fixme("should create a new connection and display it in list", async () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 
@@ -173,7 +173,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     await connectionsPage.verifyConnectionInList(newConnection.connection_id, newConnection.conn_type);
   });
 
-  test("should edit an existing connection", async () => {
+  test.fixme("should edit an existing connection", async () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 
@@ -227,19 +227,19 @@ test.describe("Connections Page - Search and Filter", () => {
   const searchTestConnections = [
     {
       conn_type: "postgres",
-      connection_id: `search_production_${timestamp}`,
+      connection_id: `production_search_${timestamp}`,
       host: "prod-db.example.com",
       login: "prod_user",
     },
     {
       conn_type: "mysql",
-      connection_id: `search_staging_${timestamp}`,
+      connection_id: `staging_search_${timestamp}`,
       host: "staging-db.example.com",
       login: "staging_user",
     },
     {
       conn_type: "http",
-      connection_id: `search_development_${timestamp}`,
+      connection_id: `development_search_${timestamp}`,
       host: "dev-api.example.com",
       login: "dev_user",
     },

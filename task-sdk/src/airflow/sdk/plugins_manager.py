@@ -27,7 +27,7 @@ from airflow import settings
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk._shared.plugins_manager import (
-    AirflowPlugin,
+    AirflowPlugin as AirflowPlugin,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     integrate_listener_plugins as _integrate_listener_plugins,

@@ -24,6 +24,41 @@ export type GridTask = {
   isOpen?: boolean;
 } & GridNodeResponse;
 
+/** Minimum width for the task-name column (matches prior `minWidth="200px"`). */
+const TASK_NAME_COLUMN_MIN_WIDTH_PX = 200;
+
+/**
+ * Chakra `rem` is typically 16px. Must match TaskNames `indent(depth)`:
+ * `(depth * 0.75 + 0.5)rem`.
+ */
+const ROOT_FONT_SIZE_PX = 16;
+
+const indentRem = (depth: number) => depth * 0.75 + 0.5;
+
+/**
+ * Approximate rendered width for the task-name column when the Gantt is shown.
+ * Task rows use absolute positioning, so the parent needs an explicit width.
+ */
+export const estimateTaskNameColumnWidthPx = (nodes: Array<GridTask>): number => {
+  let max = TASK_NAME_COLUMN_MIN_WIDTH_PX;
+
+  for (const node of nodes) {
+    const indentPx = indentRem(node.depth) * ROOT_FONT_SIZE_PX;
+    // TaskNames uses fontSize="sm" (~14px); average glyph width ~8px for mixed labels.
+    const labelChars =
+      node.label.length +
+      (Boolean(node.is_mapped) ? 6 : 0) +
+      (node.setup_teardown_type === "setup" || node.setup_teardown_type === "teardown" ? 4 : 0);
+    const textPx = labelChars * 8;
+    const groupChevronPx = node.isGroup ? 28 : 0;
+    const paddingPx = 16;
+
+    max = Math.max(max, Math.ceil(indentPx + textPx + groupChevronPx + paddingPx));
+  }
+
+  return max;
+};
+
 export const flattenNodes = (
   nodes: Array<GridNodeResponse> | undefined,
   openGroupIds: Array<string>,

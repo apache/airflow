@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "重設為最新",
       "toggleGroup": "切換群組狀態"
-    }
+    },
+    "runTypeLegend": "執行類型圖例"
   },
   "header": {
     "buttons": {

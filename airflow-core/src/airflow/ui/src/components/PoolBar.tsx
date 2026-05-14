@@ -106,7 +106,7 @@ export const PoolBar = ({
           return slot.color !== "success" && "name" in pool ? (
             <Link asChild flex={flexValue} key={slot.key}>
               <RouterLink
-                to={`/task_instances?${SearchParamsKeys.STATE}=${slot.color}&${SearchParamsKeys.POOL}=${pool.name}`}
+                to={`/task_instances?${SearchParamsKeys.TASK_STATE}=${slot.slotType}&${SearchParamsKeys.POOL_NAME_PATTERN}=${pool.name}`}
               >
                 {poolContent}
               </RouterLink>

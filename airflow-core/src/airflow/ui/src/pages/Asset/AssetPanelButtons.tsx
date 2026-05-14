@@ -31,7 +31,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
   const { t: translate } = useTranslation(["assets"]);
 
   return (
-    <Box borderRadius="md" position="absolute" px={2} py={1} right={2} top={1} zIndex={1}>
+    <Box borderRadius="md" position="absolute" px={2} py={1} right={2} top={1} zIndex={6}>
       <HStack gap={2}>
         <Tooltip
           content={translate(
@@ -41,6 +41,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
                 "This view is read-only. To add assets, define inlets and outlets in your DAG scripts inside files/dags/, then restart Airflow.",
             },
           )}
+          portalled
           showArrow
         >
           <Badge colorPalette="gray" cursor="default" size="sm" variant="subtle">
@@ -72,6 +73,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
                   "Shows how assets flow between tasks. Tasks declare inlets (assets they consume) and outlets (assets they produce) in the DAG script.",
               },
             )}
+            portalled
             showArrow
           >
             <Button

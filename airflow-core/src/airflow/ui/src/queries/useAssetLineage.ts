@@ -56,7 +56,7 @@ const mockLineageData: Record<LineageMode, AssetLineageGraphResponse> = {
       },
     ],
     nodes: [
-      { group: "demo", id: "asset:3", name: "team_b_player_stats_raw", node_type: "asset", uri: "file://incoming/player-stats/team_b_raw.csv" },
+      { group: "demo", id: "asset:3", name: "raw_player_data", node_type: "asset", uri: "file://incoming/player-stats/team_b_raw.csv" },
       { group: "demo", id: "asset:1", name: "team_b_player_stats", node_type: "asset", uri: "file://incoming/player-stats/team_b.csv" },
       { group: "demo", id: "asset:2", name: "compute_player_odds", node_type: "asset", uri: "file://incoming/player-stats/odds.csv" },
     ],

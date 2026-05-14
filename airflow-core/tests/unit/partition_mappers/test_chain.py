@@ -22,7 +22,7 @@ import pytest
 from airflow.partition_mappers.base import PartitionMapper
 from airflow.partition_mappers.chain import ChainMapper
 from airflow.partition_mappers.identity import IdentityMapper
-from airflow.partition_mappers.temporal import ToDailyMapper, ToHourlyMapper
+from airflow.partition_mappers.temporal import StartOfDayMapper, StartOfHourMapper
 
 
 class _InvalidReturnMapper(PartitionMapper):
@@ -37,7 +37,7 @@ class _InvalidIterableMapper(PartitionMapper):
 
 class TestChainMapper:
     def test_to_downstream(self):
-        sm = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+        sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
         assert sm.to_downstream("2024-01-15T10:30:00") == "2024-01-15"
 
     def test_to_downstream_invalid_non_iterable_return(self):
@@ -53,17 +53,17 @@ class TestChainMapper:
     def test_serialize(self):
         from airflow.serialization.encoders import encode_partition_mapper
 
-        sm = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+        sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
         result = sm.serialize()
         assert result == {
             "mappers": [
-                encode_partition_mapper(ToHourlyMapper()),
-                encode_partition_mapper(ToDailyMapper(input_format="%Y-%m-%dT%H")),
+                encode_partition_mapper(StartOfHourMapper()),
+                encode_partition_mapper(StartOfDayMapper(input_format="%Y-%m-%dT%H")),
             ],
         }
 
     def test_deserialize(self):
-        sm = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+        sm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
         serialized = sm.serialize()
         restored = ChainMapper.deserialize(serialized)
         assert isinstance(restored, ChainMapper)

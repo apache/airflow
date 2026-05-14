@@ -46,7 +46,17 @@ export class AssetDetailPage extends BasePage {
   }
 
   public async clickOnAsset(name: string): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (res) => /\/api\/v2\/assets\/\d+(\?|$)/.test(res.url()) && res.ok(),
+      { timeout: 15_000 },
+    );
+
     await this.page.getByRole("link", { exact: true, name }).click();
+    await responsePromise;
+  }
+
+  public getHeading(name: string): Locator {
+    return this.page.getByRole("heading", { name });
   }
 
   public async getViewportTransform(): Promise<string> {
@@ -63,7 +73,7 @@ export class AssetDetailPage extends BasePage {
 
   public graphNode(name: string): Locator {
     return this.page.locator(".react-flow__node").filter({
-      has: this.page.getByRole("link", { exact: true, name }),
+      hasText: name,
     });
   }
 
@@ -78,7 +88,6 @@ export class AssetDetailPage extends BasePage {
   public async verifyAssetDetails(name: string): Promise<void> {
     await expect(this.page.getByRole("heading", { name })).toBeVisible();
   }
-
   public async verifyProducingTasks(): Promise<void> {
     await this.verifyStatSection("Producing Tasks");
   }
@@ -102,6 +111,7 @@ export class AssetDetailPage extends BasePage {
     const button = statContainer.getByRole("button").first();
 
     await expect(button).toBeVisible();
+    await expect(button).toBeEnabled();
     await expect(button).toHaveText(/^[1-9]/);
 
     const text = await button.textContent();

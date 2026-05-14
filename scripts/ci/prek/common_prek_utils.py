@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import difflib
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -29,6 +30,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import Any
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -90,9 +92,9 @@ def run_command(*args, **kwargs) -> None:
         print("#" * min(len(text), 200), file=sys.stderr)
         print(text, file=sys.stderr)
         print("#" * min(len(text), 200), file=sys.stderr)
-    time_start = time.time()
+    time_start = time.monotonic()
     subprocess.check_call(*args, **kwargs)
-    time_end = time.time()
+    time_end = time.monotonic()
     if console:
         console.print(f"[green]After {text}[/]")
         console.print(f"[green]Command finished in {time_end - time_start:.2f} seconds[/]")
@@ -118,19 +120,35 @@ GLOBAL_CONSTANTS_PATH = (
 )
 
 
+def _read_global_constants_assignment(name: str) -> Any:
+    """Read a top-level assignment from global_constants.py."""
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == name:
+                    return ast.literal_eval(node.value)
+    raise RuntimeError(f"{name} not found in global_constants.py")
+
+
 def read_allowed_kubernetes_versions() -> list[str]:
     """Parse ALLOWED_KUBERNETES_VERSIONS from global_constants.py (single source of truth).
 
     Returns versions without the ``v`` prefix, e.g. ``["1.30.13", "1.31.12", ...]``.
     """
-    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
-                    versions: list[str] = ast.literal_eval(node.value)
-                    return [v.lstrip("v") for v in versions]
-    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+    versions: list[str] = _read_global_constants_assignment("ALLOWED_KUBERNETES_VERSIONS")
+    return [v.lstrip("v") for v in versions]
+
+
+def read_default_python_major_minor_version_for_images() -> str:
+    """Parse DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES from global_constants.py."""
+    value = _read_global_constants_assignment("DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES")
+    if not isinstance(value, str):
+        raise RuntimeError(
+            "DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES in global_constants.py "
+            f"must be a string, got {type(value).__name__}"
+        )
+    return value
 
 
 def pre_process_mypy_files(files: list[str]) -> list[str]:
@@ -185,6 +203,95 @@ def insert_documentation(
     return False
 
 
+_UV_REQUIRED_VERSION_RE = re.compile(
+    r"""^\s*required-version\s*=\s*["']\s*>=\s*(?P<ver>\d+(?:\.\d+){0,2})\s*["']""",
+    re.MULTILINE,
+)
+
+
+def _parse_version(ver: str) -> tuple[int, ...]:
+    """Turn "0.9.17" into (0, 9, 17). Extra pre-release/build suffixes are ignored."""
+    match = re.match(r"^(\d+(?:\.\d+)*)", ver.strip())
+    if not match:
+        raise ValueError(f"Cannot parse version: {ver!r}")
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def read_uv_required_min_version() -> tuple[str, tuple[int, ...]]:
+    """Read the minimum uv version from the root ``pyproject.toml``.
+
+    Parses ``[tool.uv] required-version = ">=X.Y.Z"`` and returns ``(raw, tuple)``.
+    We parse by regex to avoid pulling a TOML dep into every prek script.
+    """
+    pyproject = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text()
+    # Narrow to the [tool.uv] section so we don't match a different required-version.
+    match = re.search(r"^\[tool\.uv\]\s*$(?P<body>.*?)(?=^\[|\Z)", pyproject, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise RuntimeError("`[tool.uv]` section not found in root pyproject.toml")
+    ver_match = _UV_REQUIRED_VERSION_RE.search(match.group("body"))
+    if not ver_match:
+        raise RuntimeError('`required-version = ">=X.Y.Z"` not found under `[tool.uv]` in pyproject.toml')
+    raw = ver_match.group("ver")
+    return raw, _parse_version(raw)
+
+
+def check_uv_version(uv_bin: str = "uv") -> None:
+    """Fail the hook if ``uv_bin`` is older than ``[tool.uv] required-version``.
+
+    Called manually by prek hooks that invoke ``uv`` (directly or via breeze) so a
+    contributor with an outdated uv sees a clear error before the hook spends time
+    running and emits a confusing downstream failure.
+    """
+    try:
+        raw_min, min_tuple = read_uv_required_min_version()
+    except Exception as exc:
+        # Don't block hooks on parse bugs — warn and continue.
+        message = f"Could not determine required uv version from pyproject.toml: {exc}"
+        if console:
+            console.print(f"[yellow]WARNING: {message}")
+        else:
+            print(f"WARNING: {message}")
+        return
+
+    try:
+        output = subprocess.check_output([uv_bin, "--version"], text=True).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        message = (
+            f"Could not run `{uv_bin} --version` to verify uv version (required: >= {raw_min}). Error: {exc}"
+        )
+        if console:
+            console.print(f"[red]{message}")
+        else:
+            print(message)
+        sys.exit(1)
+
+    match = re.search(r"\b(\d+\.\d+(?:\.\d+)?)", output)
+    if not match:
+        message = f"Unexpected `uv --version` output: {output!r}"
+        if console:
+            console.print(f"[yellow]WARNING: {message}")
+        else:
+            print(f"WARNING: {message}")
+        return
+    actual_raw = match.group(1)
+    actual_tuple = _parse_version(actual_raw)
+    if actual_tuple < min_tuple:
+        message = (
+            f"uv {actual_raw} at `{uv_bin}` is older than the project-required "
+            f">= {raw_min} (see `[tool.uv] required-version` in pyproject.toml). "
+            "Upgrade uv before running this hook, e.g.:\n"
+            "  uv self update\n"
+            "or, to refresh the project-pinned uv in the main venv (included in the "
+            "`dev` dependency group via the `all` extras):\n"
+            "  uv sync\n"
+        )
+        if console:
+            console.print(f"[red]{message}")
+        else:
+            print(message)
+        sys.exit(1)
+
+
 def initialize_breeze_prek(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
         raise SystemExit(
@@ -195,14 +302,16 @@ def initialize_breeze_prek(name: str, file: str):
     if os.environ.get("SKIP_BREEZE_PREK_HOOKS"):
         console.print("[yellow]Skipping breeze prek hooks as SKIP_BREEZE_PREK_HOOKS is set")
         sys.exit(0)
+    # Breeze itself runs under uv, so enforce the project's minimum uv version up front.
+    check_uv_version()
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"
-            "[yellow]Please install breeze.\n"
-            "You can use uv with `uv tool install -e ./dev/breeze or "
-            "`pipx install -e ./dev/breeze`.\n"
-            "It will install breeze from Airflow sources "
-            "(make sure you run `pipx ensurepath` if you use pipx)[/]\n\n"
+            "[yellow]Please install breeze. Recommended: run `./scripts/tools/setup_breeze` "
+            "from the repo root — it installs a shim at `~/.local/bin/breeze` that runs breeze "
+            "via `uvx` from the current git worktree (see ADR 0017).\n"
+            "Legacy global install (`uv tool install -e ./dev/breeze` or "
+            "`pipx install -e ./dev/breeze`) still works but is no longer recommended.[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PREK_HOOKS env variable to non-empty "
             "value to skip all breeze tests."
         )
@@ -502,3 +611,31 @@ def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str
         )
         sys.exit(1)
     return token
+
+
+def parse_operations(
+    operations_file: Path, exclude_operation_classes: set, exclude_methods: set
+) -> dict[str, list[str]]:
+    """Parse airflowctl operations file and return a mapping of CLI group names to subcommands."""
+    commands: dict[str, list[str]] = {}
+
+    with open(operations_file) as f:
+        tree = ast.parse(f.read(), filename=str(operations_file))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Operations"):
+            if node.name in exclude_operation_classes:
+                continue
+
+            group_name = node.name.replace("Operations", "").lower()
+            commands[group_name] = []
+
+            for child in node.body:
+                if isinstance(child, ast.FunctionDef):
+                    method_name = child.name
+                    if method_name in exclude_methods or method_name.startswith("_"):
+                        continue
+                    subcommand = method_name.replace("_", "-")
+                    commands[group_name].append(subcommand)
+
+    return commands

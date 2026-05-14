@@ -33,7 +33,9 @@ export const nodeTypes = {
   "asset-uri-ref": DefaultNode,
   dag: DagNode,
   join: JoinNode,
+  sensor: DefaultNode,
   task: TaskNode,
+  trigger: DefaultNode,
 };
 
 export const edgeTypes = { custom: Edge };

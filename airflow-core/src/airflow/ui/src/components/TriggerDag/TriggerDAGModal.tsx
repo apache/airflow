@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { useTrigger } from "src/queries/useTrigger";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";
@@ -71,8 +72,10 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     },
   );
 
+  const isBackfillable = dag?.is_backfillable ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
@@ -118,10 +121,14 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                       label={translate("triggerDag.selectLabel")}
                       value={RunMode.SINGLE}
                     />
-                    <Tooltip content={translate("backfill.tooltip")} disabled={hasSchedule}>
+                    <Tooltip
+                      content={translate("backfill.scheduleNotBackfillable")}
+                      disabled={isBackfillable}
+                      portalled
+                    >
                       <RadioCardItem
                         description={translate("backfill.selectDescription")}
-                        disabled={!hasSchedule}
+                        disabled={!isBackfillable}
                         label={translate("backfill.selectLabel")}
                         value={RunMode.BACKFILL}
                       />
@@ -134,15 +141,17 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 <TriggerDAGForm
                   dagDisplayName={dagDisplayName}
                   dagId={dagId}
+                  error={error}
                   hasSchedule={hasSchedule}
                   isPartitioned={isPartitioned}
                   isPaused={isPaused}
-                  onClose={onClose}
+                  isPending={isPending}
+                  onSubmitTrigger={triggerDagRun}
                   open={open}
                   prefillConfig={prefillConfig}
                 />
               ) : (
-                hasSchedule && dag && <RunBackfillForm dag={dag} onClose={onClose} />
+                isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}
             </>
           )}

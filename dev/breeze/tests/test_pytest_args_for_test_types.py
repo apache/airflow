@@ -70,6 +70,7 @@ def _find_all_integration_folders() -> list[str]:
                 "providers/microsoft/mssql/tests/integration",
                 "providers/mongo/tests/integration",
                 "providers/openlineage/tests/integration",
+                "providers/opensearch/tests/integration",
                 "providers/qdrant/tests/integration",
                 "providers/redis/tests/integration",
                 "providers/trino/tests/integration",
@@ -156,7 +157,6 @@ def _find_all_integration_folders() -> list[str]:
             [
                 "airflow-core/tests/unit/assets",
                 "airflow-core/tests/unit/callbacks",
-                "airflow-core/tests/unit/charts",
                 "airflow-core/tests/unit/cluster_policies",
                 "airflow-core/tests/unit/config_templates",
                 "airflow-core/tests/unit/dag_processing",

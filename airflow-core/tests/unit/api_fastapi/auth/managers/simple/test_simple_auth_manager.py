@@ -367,3 +367,13 @@ class TestSimpleAuthManager:
     def test_get_teams(self, auth_manager):
         teams = auth_manager._get_teams()
         assert teams == {"test", "marketing"}
+
+    @conf_vars({("core", "simple_auth_manager_all_admins"): "false"})
+    def test_get_fastapi_middlewares_disabled(self, auth_manager):
+        assert auth_manager.get_fastapi_middlewares() == []
+
+    @conf_vars({("core", "simple_auth_manager_all_admins"): "true"})
+    def test_get_fastapi_middlewares_enabled(self, auth_manager):
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        assert auth_manager.get_fastapi_middlewares() == [(SimpleAllAdminMiddleware, {})]
