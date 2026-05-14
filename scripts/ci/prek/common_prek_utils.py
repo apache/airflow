@@ -625,9 +625,14 @@ def report_import_violations(
     *,
     check_func: Callable[[Path], list[tuple[int, str]]],
     violation_label: str,
+    nocheck_code: str | None = None,
     only_python_files: bool = False,
 ) -> None:
-    """Run ``check_func`` on each file, print violations, and exit(1) if any are found."""
+    """Run ``check_func`` on each file, print violations, and exit(1) if any are found.
+
+    When ``nocheck_code`` is given, a hint pointing at the ``# noqa: <code>``
+    escape hatch is printed alongside the failure summary.
+    """
     file_paths = [Path(f) for f in files if not only_python_files or f.endswith(".py")]
     total_violations = 0
 
@@ -642,6 +647,13 @@ def report_import_violations(
     if total_violations:
         console.print()
         console.print(f"[red]Found {total_violations} {violation_label}[/red]")
+        if nocheck_code:
+            console.print(
+                f"[yellow]Hint:[/yellow] if an import above is intentional, append "
+                f"`# noqa: {nocheck_code}` to the import line (single-line imports) "
+                f"or to the opening/closing paren line (multi-line imports) to "
+                f"suppress this check for that statement."
+            )
         sys.exit(1)
 
 

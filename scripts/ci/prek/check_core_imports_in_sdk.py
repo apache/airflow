@@ -57,6 +57,7 @@ def main():
         args.files,
         check_func=check_file_for_core_imports,
         violation_label="core import(s) in task-sdk files",
+        nocheck_code=NOCHECK_CODE,
     )
 
 

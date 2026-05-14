@@ -54,6 +54,7 @@ def main():
         args.files,
         check_func=check_file_for_sdk_imports,
         violation_label="SDK import(s) in core files",
+        nocheck_code=NOCHECK_CODE,
         only_python_files=True,
     )
 
