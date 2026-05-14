@@ -193,6 +193,12 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Übereinstimmung an beliebiger Stelle im Wert (Teilstring-Suche). Bei großen Installationen langsamer, da der standardmäßige Datenbank-Index nicht genutzt werden kann. Details hierzu finden Sie im Dokumentationsabschnitt zu benutzerdefinierten Metadaten-Indizes (Performance tuning (API and UI)).",
+      "title": "Übereinstimmung an beliebiger Stelle"
+    }
+  },
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
@@ -353,6 +359,10 @@
   "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
+  "validation": {
+    "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
+    "mustBeValidNumber": "Muss eine gültige Zahl sein."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",
