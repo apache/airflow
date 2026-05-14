@@ -472,7 +472,7 @@ def ti_update_state(
                 map_index=map_index if map_index is not None else -1,
             )
             try:
-                get_state_backend().clear(scope, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+                get_state_backend().clear(scope, session=session)
                 log.info(
                     "Cleared task state on success",
                     dag_id=dag_id,

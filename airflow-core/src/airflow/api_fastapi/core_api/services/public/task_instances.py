@@ -72,7 +72,7 @@ def _clear_task_state_on_success(tis: Sequence[TI], session: Session) -> None:
             map_index=ti.map_index if ti.map_index is not None else -1,
         )
         try:
-            backend.clear(scope=scope, session=session)  # type: ignore[call-arg]  # @provide_session adds session kwarg at runtime; BaseStateBackend signature omits it so mypy can't see it
+            backend.clear(scope=scope, session=session)
             log.info(
                 "Cleared task state on success",
                 dag_id=ti.dag_id,
