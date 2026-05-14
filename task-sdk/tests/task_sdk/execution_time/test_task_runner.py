@@ -4912,7 +4912,7 @@ class TestTaskInstanceStateOperations:
     def test_task_can_set_state_with_retention_days(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_state"].set("job_id", "spark_app_001", retention_days=7)
+                context["task_state"].set("job_id", "spark_app_001", retention=7)
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
@@ -4920,7 +4920,7 @@ class TestTaskInstanceStateOperations:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskState(ti_id=runtime_ti.id, key="job_id", value="spark_app_001", retention_days=7)
+            SetTaskState(ti_id=runtime_ti.id, key="job_id", value="spark_app_001", retention=7)
         )
 
     def test_task_can_delete_state(self, create_runtime_ti, mock_supervisor_comms):
