@@ -359,14 +359,16 @@ class TestDatetimeRangeFilterFactory:
         rf = _make_datetime_filter("end_date")
         assert isinstance(rf, NullableDatetimeRangeFilter)
 
-    def test_aliased_filter_name_returns_nullable_filter(self):
-        """Callers using an aliased filter_name with attribute_name='start_date' get NullableDatetimeRangeFilter."""
+    def test_aliased_filter_name_returns_plain_filter(self):
+        """dag_run_start_date uses attribute_name='start_date' via outer join; NULL means 'no run',
+        not 'currently running', so it must return a plain RangeFilter to avoid inflating counts."""
         rf = _make_datetime_filter("dag_run_start_date", model=DagRun, attribute_name="start_date")
-        assert isinstance(rf, NullableDatetimeRangeFilter)
+        assert type(rf) is RangeFilter
 
-    def test_aliased_end_date_returns_nullable_filter(self):
+    def test_aliased_end_date_returns_plain_filter(self):
+        """dag_run_end_date uses attribute_name='end_date' via outer join; must return plain RangeFilter."""
         rf = _make_datetime_filter("dag_run_end_date", model=DagRun, attribute_name="end_date")
-        assert isinstance(rf, NullableDatetimeRangeFilter)
+        assert type(rf) is RangeFilter
 
     def test_other_column_returns_plain_filter(self):
         rf = _make_datetime_filter("queued_dttm")
