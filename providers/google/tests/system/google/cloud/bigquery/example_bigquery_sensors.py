@@ -177,7 +177,8 @@ with DAG(
             project_id=PROJECT_ID,
             dataset_id=DATASET_NAME,
             table_id=TABLE_NAME,
-            rows=[{"json": {"value": 100, "ds": ds}}],
+            rows=[{"value": 100, "ds": ds}],
+            fail_on_error=True,
         )
 
     streaming_insert_task = streaming_insert()
