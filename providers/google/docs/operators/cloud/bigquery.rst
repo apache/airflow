@@ -289,6 +289,14 @@ You can also use this operator to delete a materialized view.
     :start-after: [START howto_operator_bigquery_delete_materialized_view]
     :end-before: [END howto_operator_bigquery_delete_materialized_view]
 
+Manage routines
+^^^^^^^^^^^^^^^
+
+Airflow exposes the BigQuery routines API (user-defined functions, stored
+procedures, and table-valued functions) through a small set of dedicated
+operators and a sensor. See :doc:`bigquery_routines` for the full guide with
+examples for each routine type.
+
 .. _howto/operator:BigQueryInsertJobOperator:
 
 Execute BigQuery jobs
@@ -517,6 +525,28 @@ Also you can use deferrable mode in this operator if you would like to free up t
     :dedent: 4
     :start-after: [START howto_sensor_bigquery_table_partition_async]
     :end-before: [END howto_sensor_bigquery_table_partition_async]
+
+Check that the BigQuery Table Streaming Buffer is empty
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+To check that the BigQuery streaming buffer of a table is empty you can use
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor`.
+This sensor is useful in ETL pipelines to ensure that recent streamed data has been fully
+processed before continuing downstream tasks.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bigquery_streaming_buffer_empty]
+    :end-before: [END howto_sensor_bigquery_streaming_buffer_empty]
+
+Also you can use deferrable mode in this operator if you would like to free up the worker slots while the sensor is running.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bigquery_streaming_buffer_empty_deferred]
+    :end-before: [END howto_sensor_bigquery_streaming_buffer_empty_deferred]
 
 Reference
 ^^^^^^^^^

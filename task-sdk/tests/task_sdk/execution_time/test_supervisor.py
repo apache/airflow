@@ -113,6 +113,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -147,6 +148,7 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     UpdateHITLDetail,
     ValidateInletsAndOutlets,
+    VariableKeysResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -1567,6 +1569,20 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=GetVariableKeys(prefix="test_"),
+        test_id="get_variable_keys",
+        client_mock=ClientMock(
+            method_path="variables.keys",
+            kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
+            response=VariableKeysResult(keys=["test_key"], total_entries=1),
+        ),
+        expected_body={
+            "keys": ["test_key"],
+            "total_entries": 1,
+            "type": "VariableKeysResult",
+        },
     ),
     RequestTestCase(
         message=DeferTask(next_method="execute_callback", classpath="my-classpath"),

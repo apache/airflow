@@ -129,6 +129,11 @@ class DagFileInfo:
             raise ValueError("bundle_path not set")
         return self.bundle_path / self.rel_path
 
+    @property
+    def presence_key(self) -> tuple[str, Path]:
+        """Return the stable file identity used for presence checks."""
+        return self.bundle_name, self.rel_path
+
 
 def _config_int_factory(section: str, key: str):
     return functools.partial(conf.getint, section, key)
@@ -1036,20 +1041,22 @@ class DagFileProcessorManager(LoggingMixin):
 
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
-        self._file_queue = deque(x for x in self._file_queue if x in present)
+        present_keys = {file.presence_key for file in present}
+        self._file_queue = deque(x for x in self._file_queue if x.presence_key in present_keys)
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
-        # todo: store stats by bundle also?
-        stats_to_remove = set(self._file_stats).difference(present)
+        present_keys = {file.presence_key for file in present}
+        stats_to_remove = {file for file in self._file_stats if file.presence_key not in present_keys}
         for file in stats_to_remove:
             del self._file_stats[file]
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
+        present_keys = {file.presence_key for file in present}
         for file in list(self._processors.keys()):
-            if file not in present:
+            if file.presence_key not in present_keys:
                 processor = self._processors.pop(file, None)
                 if not processor:
                     continue
@@ -1283,11 +1290,14 @@ class DagFileProcessorManager(LoggingMixin):
         A "new" file is a file that has not been processed yet and is not currently being processed.
         """
         new_files = []
+        tracked_presence_keys = {file.presence_key for file in self._file_queue}
+        tracked_presence_keys.update(file.presence_key for file in self._file_stats)
+        tracked_presence_keys.update(file.presence_key for file in self._processors)
         for files in known_files.values():
             for file in files:
-                # todo: store stats by bundle also?
-                if file not in self._file_stats and file not in self._processors:
+                if file.presence_key not in tracked_presence_keys:
                     new_files.append(file)
+                    tracked_presence_keys.add(file.presence_key)
 
         if new_files:
             self.log.info("Adding %d new files to the front of the queue", len(new_files))
@@ -1312,6 +1322,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_queue = deque(callback_files + sorted_regular_files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
+        file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
         files_with_mtime: dict[DagFileInfo, float] = {}
         changed_recently = set()
         for file in files:
@@ -1319,20 +1330,35 @@ class DagFileProcessorManager(LoggingMixin):
                 modified_timestamp = os.path.getmtime(file.absolute_path)
                 modified_datetime = datetime.fromtimestamp(modified_timestamp, tz=timezone.utc)
                 files_with_mtime[file] = modified_timestamp
-                last_time = self._file_stats[file].last_finish_time
+                stat = file_stats_by_presence_key.get(file.presence_key)
+                last_time = stat.last_finish_time if stat else None
                 if not last_time:
                     continue
                 if modified_datetime > last_time:
                     changed_recently.add(file)
             except FileNotFoundError:
                 self.log.warning("Skipping processing of missing file: %s", file)
-                self._file_stats.pop(file, None)
+                stats_to_remove = [
+                    tracked_file
+                    for tracked_file in self._file_stats
+                    if tracked_file.presence_key == file.presence_key
+                ]
+                for tracked_file in stats_to_remove:
+                    self._file_stats.pop(tracked_file, None)
                 continue
         file_infos = [info for info, ts in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)]
         return file_infos, changed_recently
 
     def processed_recently(self, now, file):
-        last_time = self._file_stats[file].last_finish_time
+        stat = next(
+            (
+                stat
+                for tracked_file, stat in self._file_stats.items()
+                if tracked_file.presence_key == file.presence_key
+            ),
+            None,
+        )
+        last_time = stat.last_finish_time if stat else None
         if not last_time:
             return False
         elapsed_ss = (now - last_time).total_seconds()
@@ -1357,7 +1383,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
-        in_progress = set(self._processors)
+        in_progress_keys = {file.presence_key for file in self._processors}
+        file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
@@ -1367,7 +1394,9 @@ class DagFileProcessorManager(LoggingMixin):
         for bundle_files in known_files.values():
             for file in bundle_files:
                 files.append(file)
-                if self.processed_recently(now, file):
+                stat = file_stats_by_presence_key.get(file.presence_key)
+                last_time = stat.last_finish_time if stat else None
+                if last_time and (now - last_time).total_seconds() < self._file_process_interval:
                     recently_processed.add(file)
 
         changed_recently: set[DagFileInfo] = set()
@@ -1380,15 +1409,19 @@ class DagFileProcessorManager(LoggingMixin):
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(files)
 
-        at_run_limit = [info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs]
-        to_exclude = in_progress.union(at_run_limit)
+        at_run_limit_keys = {
+            presence_key
+            for presence_key, stat in file_stats_by_presence_key.items()
+            if stat.run_count == self.max_runs
+        }
+        to_exclude = in_progress_keys.union(at_run_limit_keys)
 
         # exclude recently processed unless changed recently
-        to_exclude |= recently_processed - changed_recently
+        to_exclude |= {file.presence_key for file in recently_processed - changed_recently}
 
         # Do not convert the following list to set as set does not preserve the order
         # and we need to maintain the order of files for `[dag_processor] file_parsing_sort_mode`
-        to_queue = [x for x in files if x not in to_exclude]
+        to_queue = [x for x in files if x.presence_key not in to_exclude]
 
         if self.log.isEnabledFor(logging.DEBUG):
             for path, processor in self._processors.items():

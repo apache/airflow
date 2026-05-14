@@ -25,6 +25,7 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateTableOperator,
@@ -32,14 +33,16 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
+    BigQueryStreamingBufferEmptySensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
 
 try:
-    from airflow.sdk import TriggerRule
+    from airflow.sdk import TriggerRule, task
 except ImportError:
     # Compatibility for Airflow < 3.1
+    from airflow.decorators import task  # type: ignore[no-redef,attr-defined]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -53,6 +56,11 @@ INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 PARTITION_NAME = "{{ ds_nodash }}"
 
 INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES (42, '{{{{ ds }}}}')"
+
+# DML on rows still in the streaming buffer is rejected by BigQuery, hence the
+# sensor in the streaming-insert -> sensor -> DML chain below.
+STREAMING_UPDATE_QUERY = f"UPDATE {DATASET_NAME}.{TABLE_NAME} SET value = 200 WHERE value = 100"
+STREAMING_DELETE_QUERY = f"DELETE FROM {DATASET_NAME}.{TABLE_NAME} WHERE value = 200"
 
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},
@@ -152,6 +160,60 @@ with DAG(
     )
     # [END howto_sensor_bigquery_table_partition_async]
 
+    # [START howto_sensor_bigquery_streaming_buffer_empty]
+    check_streaming_buffer_empty = BigQueryStreamingBufferEmptySensor(
+        task_id="check_streaming_buffer_empty",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        poke_interval=30,
+        timeout=5400,  # BigQuery flushes the streaming buffer within ~90 minutes
+    )
+    # [END howto_sensor_bigquery_streaming_buffer_empty]
+
+    @task(task_id="streaming_insert")
+    def streaming_insert(ds: str | None = None) -> None:
+        BigQueryHook().insert_all(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_NAME,
+            table_id=TABLE_NAME,
+            rows=[{"json": {"value": 100, "ds": ds}}],
+        )
+
+    streaming_insert_task = streaming_insert()
+
+    stream_update = BigQueryInsertJobOperator(
+        task_id="stream_update",
+        configuration={
+            "query": {
+                "query": STREAMING_UPDATE_QUERY,
+                "useLegacySql": False,
+            }
+        },
+    )
+
+    stream_delete = BigQueryInsertJobOperator(
+        task_id="stream_delete",
+        configuration={
+            "query": {
+                "query": STREAMING_DELETE_QUERY,
+                "useLegacySql": False,
+            }
+        },
+    )
+
+    # [START howto_sensor_bigquery_streaming_buffer_empty_deferred]
+    check_streaming_buffer_empty_def = BigQueryStreamingBufferEmptySensor(
+        task_id="check_streaming_buffer_empty_def",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        deferrable=True,
+        poke_interval=30,
+        timeout=5400,  # BigQuery flushes the streaming buffer within ~90 minutes
+    )
+    # [END howto_sensor_bigquery_streaming_buffer_empty_deferred]
+
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
@@ -169,6 +231,11 @@ with DAG(
             check_table_partition_exists_async,
             check_table_partition_exists_def,
         ]
+        >> streaming_insert_task
+        >> check_streaming_buffer_empty
+        >> stream_update
+        >> check_streaming_buffer_empty_def
+        >> stream_delete
         >> delete_dataset
     )
 

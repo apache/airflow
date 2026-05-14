@@ -18,6 +18,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 
 @dataclass(frozen=True)
@@ -62,10 +67,16 @@ class BaseStateBackend(ABC):
                 ...  # asset-specific storage
 
     Custom backends are configured via ``[state_store] backend`` in ``airflow.cfg``.
+
+    **The ``session`` parameter on ``get``, ``set``, ``delete``, and ``clear``:**
+
+    The default ``MetastoreStateBackend`` passes a SQLAlchemy ``Session`` through
+    these methods. Custom backends that do not use SQLAlchemy should accept ``session`` as a
+    keyword argument and ignore it.
     """
 
     @abstractmethod
-    def get(self, scope: StateScope, key: str) -> str | None:
+    def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
         """
         Return the stored value, or None if the key does not exist.
 
@@ -73,7 +84,15 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def set(self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None) -> None:
+    def set(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        retention_days: int | None = None,
+        session: Session | None = None,
+    ) -> None:
         """
         Write or overwrite the value for the given key.
 
@@ -87,7 +106,7 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def delete(self, scope: StateScope, key: str) -> None:
+    def delete(self, scope: StateScope, key: str, *, session: Session | None = None) -> None:
         """
         Delete a single key. No-op if the key does not exist.
 
@@ -95,7 +114,9 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def clear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
+    def clear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: Session | None = None
+    ) -> None:
         """
         Delete all keys under the given scope.
 
@@ -108,27 +129,53 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    async def aget(self, scope: StateScope, key: str) -> str | None:
-        """Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``."""
+    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+        """
+        Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
     async def aset(
-        self, scope: StateScope, key: str, value: str, *, retention_days: int | None = None
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        retention_days: int | None = None,
+        session: AsyncSession | None = None,
     ) -> None:
-        """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
+        """
+        Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
-    async def adelete(self, scope: StateScope, key: str) -> None:
-        """Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``."""
+    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+        """
+        Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
-    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
+    async def aclear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+    ) -> None:
         """
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
         mapped instance of the task. For ``AssetScope`` the flag has no effect.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
         """
 
     def cleanup(self) -> None:
@@ -138,6 +185,4 @@ class BaseStateBackend(ABC):
         This is a no-op by default. Custom backends override this to implement their own
         retention policy. The backend is responsible for reading any relevant config (e.g.
         ``[state_store] default_retention_days``) and deciding what to delete.
-        Airflow does not call this from any standard job — the scheduler triggers it via
-        ``call_regular_interval`` for the default backend.
         """

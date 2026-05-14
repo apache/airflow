@@ -22,6 +22,7 @@ from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessCreateWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
     MwaaServerlessStopWorkflowRunOperator,
+    MwaaServerlessUpdateWorkflowOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -117,6 +118,16 @@ with DAG(
     )
     # [END howto_sensor_mwaa_serverless_workflow_run]
 
+    # [START howto_operator_mwaa_serverless_update_workflow]
+    update_workflow = MwaaServerlessUpdateWorkflowOperator(
+        task_id="update_workflow",
+        workflow_arn=workflow_arn,
+        definition_s3_location={"Bucket": bucket_name, "ObjectKey": "workflow.yaml"},
+        role_arn=role_arn,
+        description="Updated system test workflow",
+    )
+    # [END howto_operator_mwaa_serverless_update_workflow]
+
     # Start a second run to test stopping
     start_workflow_2 = MwaaServerlessStartWorkflowRunOperator(
         task_id="start_workflow_2",
@@ -145,6 +156,7 @@ with DAG(
         workflow_arn,
         start_workflow,
         wait_for_run,
+        update_workflow,
         start_workflow_2,
         stop_workflow_run,
         delete_workflow(workflow_arn=workflow_arn),
