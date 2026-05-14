@@ -302,7 +302,7 @@ class TestKubernetesPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Waiting until 120s to get the POD scheduled..." in caplog.text
+        assert "Waiting up to 120s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

@@ -25,7 +25,7 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.execution_time.comms import PutVariable, VariableResult
+from airflow.sdk.execution_time.comms import GetVariableKeys, PutVariable, VariableKeysResult, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -88,6 +88,109 @@ class TestVariables:
                 key=key, value=expected_value, description=description, serialize_json=serialize_json
             ),
         )
+
+
+class TestVariableKeys:
+    @pytest.mark.parametrize(
+        ("prefix", "keys"),
+        [
+            pytest.param(
+                None,
+                ["prod_db", "prod_api", "dev_debug"],
+                id="all",
+            ),
+            pytest.param(
+                "prod_",
+                ["prod_db", "prod_api"],
+                id="with-prefix",
+            ),
+            pytest.param(
+                "nonexistent_",
+                [],
+                id="empty-result",
+            ),
+        ],
+    )
+    def test_keys(self, prefix, keys, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = VariableKeysResult(keys=keys, total_entries=len(keys))
+
+        results = Variable.keys(prefix=prefix)
+
+        # keys() is lazy — no API call until the proxy is accessed
+        mock_supervisor_comms.send.assert_not_called()
+
+        materialized = list(results)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetVariableKeys(prefix=prefix, limit=1000, offset=0)
+        )
+        assert materialized == keys
+
+    def test_keys_cached_after_first_access(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = VariableKeysResult(keys=["a", "b"], total_entries=2)
+
+        results = Variable.keys(prefix="x_")
+
+        # Multiple accesses should only trigger the API call once
+        list(results)
+        list(results)
+        len(results)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetVariableKeys(prefix="x_", limit=1000, offset=0)
+        )
+
+    def test_keys_paginates_when_results_exceed_page_size(self, mock_supervisor_comms):
+        # Simulate two full pages followed by a short page (signals end).
+        from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
+
+        page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
+        page2 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE, _VARIABLE_KEYS_PAGE_SIZE * 2)]
+        page3 = ["last_key"]
+        total = _VARIABLE_KEYS_PAGE_SIZE * 2 + 1
+        mock_supervisor_comms.send.side_effect = [
+            VariableKeysResult(keys=page1, total_entries=total),
+            VariableKeysResult(keys=page2, total_entries=total),
+            VariableKeysResult(keys=page3, total_entries=total),
+        ]
+
+        materialized = list(Variable.keys(prefix=None))
+
+        assert materialized == page1 + page2 + page3
+        assert mock_supervisor_comms.send.call_count == 3
+        mock_supervisor_comms.send.assert_any_call(
+            msg=GetVariableKeys(prefix=None, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=0)
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            msg=GetVariableKeys(prefix=None, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=_VARIABLE_KEYS_PAGE_SIZE)
+        )
+        mock_supervisor_comms.send.assert_any_call(
+            msg=GetVariableKeys(
+                prefix=None, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=_VARIABLE_KEYS_PAGE_SIZE * 2
+            )
+        )
+
+    def test_keys_raises_on_error_response(self, mock_supervisor_comms):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
+        )
+
+        results = Variable.keys(prefix="x_")
+
+        with pytest.raises(AirflowRuntimeError):
+            list(results)
+
+    def test_keys_raises_on_unexpected_response_type(self, mock_supervisor_comms):
+        # Mimic a transport / version-mismatch response that isn't VariableKeysResult.
+        mock_supervisor_comms.send.return_value = VariableResult(key="x", value="y")
+
+        results = Variable.keys(prefix="x_")
+
+        with pytest.raises(TypeError, match="Unexpected response type"):
+            list(results)
 
 
 class TestVariableFromSecrets:

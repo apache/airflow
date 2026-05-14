@@ -966,9 +966,30 @@ class KubernetesPodOperator(BaseOperator):
         pod_name = event["name"]
         pod_namespace = event["namespace"]
 
-        self.pod = self.hook.get_pod(pod_name, pod_namespace)
+        try:
+            self.pod = self.hook.get_pod(pod_name, pod_namespace)
+        except ApiException as e:
+            if e.status != 404:
+                raise
+            # Pod was GC'd between trigger firing and re-entry. This is common
+            # when the cluster reclaims completed pods aggressively or a
+            # higher-priority workload (e.g. daemonset) preempts the node.
+            self.log.warning(
+                "Pod %s/%s not found after resuming from deferral — already GC'd.",
+                pod_namespace,
+                pod_name,
+            )
+            if event["status"] == "success":
+                # Trigger already observed the pod completed successfully;
+                # logs/XCom are unrecoverable but the task itself succeeded.
+                return
+            raise PodNotFoundException(
+                f"Pod {pod_namespace}/{pod_name} not found after resuming from deferral"
+            ) from e
 
         if not self.pod:
+            # Defensive: get_pod is documented to raise on missing pods, but
+            # keep this for any subclass override that returns None instead.
             raise PodNotFoundException("Could not find pod after resuming from deferral")
 
         follow = self.logging_interval is None
