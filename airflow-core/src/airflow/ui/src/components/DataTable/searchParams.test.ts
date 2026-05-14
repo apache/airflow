@@ -34,6 +34,21 @@ describe("searchParams", () => {
 
       expect(stateToSearchParams(state).toString()).toEqual("limit=20&offset=1&sort=name");
     });
+
+    it("preserves multiple sort entries", () => {
+      const state: TableState = {
+        pagination: {
+          pageIndex: 0,
+          pageSize: 20,
+        },
+        sorting: [
+          { desc: false, id: "name" },
+          { desc: true, id: "age" },
+        ],
+      };
+
+      expect(stateToSearchParams(state).toString()).toEqual("limit=20&sort=name&sort=-age");
+    });
   });
 
   describe("searchParamsToState", () => {

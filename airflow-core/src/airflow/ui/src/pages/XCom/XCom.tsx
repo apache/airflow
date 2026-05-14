@@ -38,6 +38,7 @@ import DeleteXComButton from "./DeleteXComButton";
 import EditXComButton from "./EditXComButton";
 import { XComEntry } from "./XComEntry";
 import { XComFilters } from "./XComFilters";
+import { sortingToOrderBy } from "./orderBy";
 
 const {
   DAG_DISPLAY_NAME_PATTERN: DAG_DISPLAY_NAME_PATTERN_PARAM,
@@ -147,10 +148,7 @@ export const XCom = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [sort] = sorting;
-  const orderBy = sort
-    ? [`${sort.desc ? "-" : ""}${sort.id === "task_display_name" ? "task_id" : sort.id}`]
-    : undefined;
+  const orderBy = sortingToOrderBy(sorting);
   const [searchParams] = useSearchParams();
   const { onClose, onOpen, open } = useDisclosure();
 

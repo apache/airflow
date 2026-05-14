@@ -50,17 +50,12 @@ export const stateToSearchParams = (state: TableState, defaultTableState?: Table
     queryParams.delete(CURSOR_PARAM);
   }
 
-  if (state.sorting.length) {
-    state.sorting.forEach(({ desc, id }) => {
-      if (defaultTableState?.sorting.find((sort) => sort.id === id && sort.desc === desc)) {
-        queryParams.delete(SORT_PARAM, `${desc ? "-" : ""}${id}`);
-      } else {
-        queryParams.set(SORT_PARAM, `${desc ? "-" : ""}${id}`);
-      }
-    });
-  } else {
-    queryParams.delete(SORT_PARAM);
-  }
+  queryParams.delete(SORT_PARAM);
+  state.sorting.forEach(({ desc, id }) => {
+    if (!defaultTableState?.sorting.find((sort) => sort.id === id && sort.desc === desc)) {
+      queryParams.append(SORT_PARAM, `${desc ? "-" : ""}${id}`);
+    }
+  });
 
   return queryParams;
 };
