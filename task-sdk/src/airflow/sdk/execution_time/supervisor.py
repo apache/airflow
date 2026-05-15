@@ -62,8 +62,6 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
-    AllAssetStateResult,
-    AllTaskStateResult,
     AssetEventsResult,
     AssetResult,
     AssetStateResult,
@@ -82,9 +80,6 @@ from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
-    GetAllAssetStateByName,
-    GetAllAssetStateByUri,
-    GetAllTaskState,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -1663,27 +1658,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 task_state
                 if isinstance(task_state, ErrorResponse)
                 else TaskStateResult.from_task_state_response(task_state)
-            )
-        elif isinstance(msg, GetAllTaskState):
-            result = self.client.task_state.list(msg.ti_id)
-            resp = (
-                result
-                if isinstance(result, ErrorResponse)
-                else AllTaskStateResult.from_api_response(result.items)
-            )
-        elif isinstance(msg, GetAllAssetStateByName):
-            result = self.client.asset_state.list(name=msg.name)
-            resp = (
-                result
-                if isinstance(result, ErrorResponse)
-                else AllAssetStateResult.from_api_response(result.items)
-            )
-        elif isinstance(msg, GetAllAssetStateByUri):
-            result = self.client.asset_state.list(uri=msg.uri)
-            resp = (
-                result
-                if isinstance(result, ErrorResponse)
-                else AllAssetStateResult.from_api_response(result.items)
             )
         elif isinstance(msg, SetTaskState):
             self.client.task_state.set(msg.ti_id, msg.key, msg.value)

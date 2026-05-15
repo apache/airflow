@@ -46,7 +46,6 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
-    AssetStateListResponse,
     AssetStatePutBody,
     AssetStateResponse,
     ConnectionResponse,
@@ -61,7 +60,6 @@ from airflow.sdk.api.datamodels._generated import (
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
-    TaskStateListResponse,
     TaskStatePutBody,
     TaskStateResponse,
     TaskStatesResponse,
@@ -705,18 +703,6 @@ class TaskStateOperations:
         self.client.delete(f"state/ti/{ti_id}/{key}")
         return OKResponse(ok=True)
 
-    def list(self, ti_id: uuid.UUID) -> TaskStateListResponse | ErrorResponse:
-        """Return all key/stored-value pairs for a task instance."""
-        try:
-            resp = self.client.get(f"state/ti/{ti_id}")
-        except ServerResponseError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug("Task states cannot be retrieved for task instance", ti_id=ti_id)
-                return ErrorResponse(error=ErrorType.TASK_STATES_NOT_FOUND, detail={"ti_id": ti_id})
-            raise
-
-        return TaskStateListResponse.model_validate_json(resp.read())
-
     def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
         """Clear all task state keys for a task instance via the API server."""
         params = {"all_map_indices": "true"} if all_map_indices else {}
@@ -770,23 +756,6 @@ class AssetStateOperations:
         endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
         self.client.delete(endpoint, params=params)
         return OKResponse(ok=True)
-
-    def list(
-        self, *, name: str | None = None, uri: str | None = None
-    ) -> AssetStateListResponse | ErrorResponse:
-        """Return all key/stored-value pairs for an asset via the API server."""
-        endpoint, params = self._resolve_endpoint("all", name=name, uri=uri)
-        try:
-            resp = self.client.get(endpoint, params=params)
-        except ServerResponseError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug("Asset state cannot be retrieved for asset", name=name, uri=uri)
-                return ErrorResponse(
-                    error=ErrorType.ASSET_STATES_NOT_FOUND, detail={"name": name, "uri": uri}
-                )
-            raise
-
-        return AssetStateListResponse.model_validate_json(resp.read())
 
     def clear(self, *, name: str | None = None, uri: str | None = None) -> OKResponse:
         """Clear all state keys for an asset via the API server."""

@@ -21,19 +21,15 @@ from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Path, Query, Security, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.state import TaskScope
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.task_state import (
-    TaskStateItem,
-    TaskStateListResponse,
     TaskStatePutBody,
     TaskStateResponse,
 )
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
-from airflow.models.task_state import TaskStateModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state import get_state_backend
 
@@ -130,21 +126,3 @@ def clear_task_state(
     """
     scope = _get_task_scope_for_ti(task_instance_id, session)
     get_state_backend().clear(scope, all_map_indices=all_map_indices, session=session)
-
-
-@router.get("/{task_instance_id}")
-def list_task_state(
-    task_instance_id: UUID,
-    session: SessionDep,
-) -> TaskStateListResponse:
-    """List all key/value pairs for a task instance."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
-    rows = session.scalars(
-        select(TaskStateModel).where(
-            TaskStateModel.dag_id == scope.dag_id,
-            TaskStateModel.run_id == scope.run_id,
-            TaskStateModel.task_id == scope.task_id,
-            TaskStateModel.map_index == scope.map_index,
-        )
-    ).all()
-    return TaskStateListResponse(items=[TaskStateItem(key=r.key, value=r.value) for r in rows])

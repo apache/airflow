@@ -37,14 +37,11 @@ from sqlalchemy import select
 from airflow._shared.state import AssetScope
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.asset_state import (
-    AssetStateItem,
-    AssetStateListResponse,
     AssetStatePutBody,
     AssetStateResponse,
 )
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute
 from airflow.models.asset import AssetModel
-from airflow.models.asset_state import AssetStateModel
 from airflow.state import get_state_backend
 
 # TODO(AIP-103): enforce that the requesting task is registered with the asset
@@ -180,25 +177,3 @@ def clear_asset_state_by_uri(
     """Delete all state keys for an asset by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
     get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)
-
-
-@router.get("/by-name/all")
-def list_asset_state_by_name(
-    name: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
-) -> AssetStateListResponse:
-    """List all key/value pairs for an asset identified by name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    rows = session.scalars(select(AssetStateModel).where(AssetStateModel.asset_id == asset_id)).all()
-    return AssetStateListResponse(items=[AssetStateItem(key=r.key, value=r.value) for r in rows])
-
-
-@router.get("/by-uri/all")
-def list_asset_state_by_uri(
-    uri: Annotated[str, Query(min_length=1)],
-    session: SessionDep,
-) -> AssetStateListResponse:
-    """List all key/value pairs for an asset identified by URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    rows = session.scalars(select(AssetStateModel).where(AssetStateModel.asset_id == asset_id)).all()
-    return AssetStateListResponse(items=[AssetStateItem(key=r.key, value=r.value) for r in rows])

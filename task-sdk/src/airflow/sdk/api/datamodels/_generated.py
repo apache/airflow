@@ -63,29 +63,6 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
-class AssetStateItem(BaseModel):
-    """
-    Asset state key/value pair returned by the list endpoint.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
-
-
-class AssetStateListResponse(BaseModel):
-    """
-    All asset state entries for an asset.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    items: Annotated[list[AssetStateItem], Field(title="Items")]
-
-
 class AssetStatePutBody(BaseModel):
     """
     Request body for setting an asset state value.
@@ -388,29 +365,6 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
-
-
-class TaskStateItem(BaseModel):
-    """
-    Task state key/value pair returned by the list endpoint.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    key: Annotated[str, Field(title="Key")]
-    value: Annotated[str, Field(title="Value")]
-
-
-class TaskStateListResponse(BaseModel):
-    """
-    All task state entries for a task instance.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    items: Annotated[list[TaskStateItem], Field(title="Items")]
 
 
 class TaskStatePutBody(BaseModel):

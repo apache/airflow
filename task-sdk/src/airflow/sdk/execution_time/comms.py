@@ -69,8 +69,6 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
-    AssetStateItem,
-    AssetStateListResponse,
     AssetStateResponse,
     BundleInfo,
     ConnectionResponse,
@@ -84,8 +82,6 @@ from airflow.sdk.api.datamodels._generated import (
     TaskBreadcrumbsResponse,
     TaskInstance,
     TaskInstanceState,
-    TaskStateItem,
-    TaskStateListResponse,
     TaskStateResponse,
     TaskStatesResponse,
     TIDeferredStatePayload,
@@ -772,26 +768,6 @@ class DagResult(DagResponse):
         return cls(**dag_response.model_dump(exclude_defaults=True), type="DagResult")
 
 
-class AllTaskStateResult(TaskStateListResponse):
-    """Response to GetAllTaskState: all key/value pairs for a task instance."""
-
-    type: Literal["AllTaskStateResult"] = "AllTaskStateResult"
-
-    @classmethod
-    def from_api_response(cls, items: list[TaskStateItem]) -> AllTaskStateResult:
-        return cls(items=items, type="AllTaskStateResult")
-
-
-class AllAssetStateResult(AssetStateListResponse):
-    """Response to GetAllAssetStateByName/Uri: all key/value pairs for an asset."""
-
-    type: Literal["AllAssetStateResult"] = "AllAssetStateResult"
-
-    @classmethod
-    def from_api_response(cls, items: list[AssetStateItem]) -> AllAssetStateResult:
-        return cls(items=items, type="AllAssetStateResult")
-
-
 ToTask = Annotated[
     AssetResult
     | AssetsByAliasResult
@@ -808,8 +784,6 @@ ToTask = Annotated[
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
-    | AllAssetStateResult
-    | AllTaskStateResult
     | TaskStateResult
     | TICount
     | TaskBreadcrumbsResult
@@ -965,13 +939,6 @@ class ClearTaskState(BaseModel):
     type: Literal["ClearTaskState"] = "ClearTaskState"
 
 
-class GetAllTaskState(BaseModel):
-    """Fetch all key/stored-value pairs for a task instance."""
-
-    ti_id: UUID
-    type: Literal["GetAllTaskState"] = "GetAllTaskState"
-
-
 class GetAssetStateByName(BaseModel):
     name: str
     key: str
@@ -996,20 +963,6 @@ class SetAssetStateByUri(BaseModel):
     key: str
     value: str
     type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
-
-
-class GetAllAssetStateByName(BaseModel):
-    """Fetch all key/value pairs for an asset identified by name."""
-
-    name: str
-    type: Literal["GetAllAssetStateByName"] = "GetAllAssetStateByName"
-
-
-class GetAllAssetStateByUri(BaseModel):
-    """Fetch all key/value pairs for an asset identified by URI."""
-
-    uri: str
-    type: Literal["GetAllAssetStateByUri"] = "GetAllAssetStateByUri"
 
 
 class DeleteAssetStateByName(BaseModel):
@@ -1260,9 +1213,6 @@ ToSupervisor = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetTaskRescheduleStartDate
-    | GetAllAssetStateByName
-    | GetAllAssetStateByUri
-    | GetAllTaskState
     | GetTaskState
     | GetTICount
     | GetTaskBreadcrumbs

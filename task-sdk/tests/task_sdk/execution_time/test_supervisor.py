@@ -60,20 +60,16 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
-    AssetStateItem,
     DagRun,
     DagRunState,
     DagRunType,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
-    TaskStateItem,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
-    AllAssetStateResult,
-    AllTaskStateResult,
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
@@ -95,9 +91,6 @@ from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     DRCount,
     ErrorResponse,
-    GetAllAssetStateByName,
-    GetAllAssetStateByUri,
-    GetAllTaskState,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -2729,24 +2722,6 @@ REQUEST_TEST_CASES = [
         expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
     ),
     RequestTestCase(
-        message=GetAllTaskState(ti_id=TI_ID),
-        test_id="get_all_task_state",
-        client_mock=ClientMock(
-            method_path="task_state.list",
-            args=(TI_ID,),
-            response=AllTaskStateResult.from_api_response(
-                [
-                    TaskStateItem(key="job_id", value="app_001"),
-                    TaskStateItem(key="checkpoint", value="step_3"),
-                ]
-            ),
-        ),
-        expected_body={
-            "items": [{"key": "job_id", "value": "app_001"}, {"key": "checkpoint", "value": "step_3"}],
-            "type": "AllTaskStateResult",
-        },
-    ),
-    RequestTestCase(
         message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
         test_id="set_task_state",
         client_mock=ClientMock(
@@ -2809,39 +2784,6 @@ REQUEST_TEST_CASES = [
             response=AssetStateResult(value="2026-04-30T00:00:00Z"),
         ),
         expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
-    ),
-    RequestTestCase(
-        message=GetAllAssetStateByName(name="debug_watcher_asset"),
-        test_id="get_all_asset_state_by_name",
-        client_mock=ClientMock(
-            method_path="asset_state.list",
-            kwargs={"name": "debug_watcher_asset"},
-            response=AllAssetStateResult.from_api_response(
-                [
-                    AssetStateItem(key="watermark", value="2026-05-01"),
-                    AssetStateItem(key="file_count", value="42"),
-                ]
-            ),
-        ),
-        expected_body={
-            "items": [{"key": "watermark", "value": "2026-05-01"}, {"key": "file_count", "value": "42"}],
-            "type": "AllAssetStateResult",
-        },
-    ),
-    RequestTestCase(
-        message=GetAllAssetStateByUri(uri="s3://bucket/key"),
-        test_id="get_all_asset_state_by_uri",
-        client_mock=ClientMock(
-            method_path="asset_state.list",
-            kwargs={"uri": "s3://bucket/key"},
-            response=AllAssetStateResult.from_api_response(
-                [AssetStateItem(key="watermark", value="2026-05-01")]
-            ),
-        ),
-        expected_body={
-            "items": [{"key": "watermark", "value": "2026-05-01"}],
-            "type": "AllAssetStateResult",
-        },
     ),
     RequestTestCase(
         message=SetAssetStateByName(

@@ -30,16 +30,3 @@ class TaskStatePutBody(StrictBaseModel):
     """Request body for setting a task state value."""
 
     value: str
-
-
-class TaskStateItem(StrictBaseModel):
-    """Task state key/value pair returned by the list endpoint."""
-
-    key: str
-    value: str
-
-
-class TaskStateListResponse(StrictBaseModel):
-    """All task state entries for a task instance."""
-
-    items: list[TaskStateItem]

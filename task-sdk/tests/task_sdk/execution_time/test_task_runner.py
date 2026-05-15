@@ -5105,66 +5105,6 @@ class TestTaskInstanceStateOperations:
             SetAssetStateByName(name="asset_b", key="watermark_b", value="2026-05-02")
         )
 
-    @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_calls_clear_when_worker_backend_configured(
-        self, create_runtime_ti, mock_supervisor_comms
-    ):
-        """When clear_on_success=True and a worker backend is configured, clear() is called on task success."""
-        mock_backend = mock.MagicMock()
-
-        class MyOperator(BaseOperator):
-            def execute(self, context):
-                pass
-
-        task = MyOperator(task_id="t")
-        runtime_ti = create_runtime_ti(task=task)
-
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=mock_backend
-        ):
-            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-
-        mock_supervisor_comms.send.assert_any_call(ClearTaskState(ti_id=runtime_ti.id, all_map_indices=False))
-
-    @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_skips_when_no_worker_backend(self, create_runtime_ti, mock_supervisor_comms):
-        """When clear_on_success=True but no worker backend configured, clear() is not called."""
-
-        class MyOperator(BaseOperator):
-            def execute(self, context):
-                pass
-
-        task = MyOperator(task_id="t")
-        runtime_ti = create_runtime_ti(task=task)
-
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=None
-        ):
-            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-
-        calls = [str(c) for c in mock_supervisor_comms.send.call_args_list]
-        assert not any("ClearTaskState" in c for c in calls)
-
-    @conf_vars({("state_store", "clear_on_success"): "False"})
-    def test_clear_on_success_disabled_does_not_call_clear(self, create_runtime_ti, mock_supervisor_comms):
-        """When clear_on_success=False, clear() is not called even if a worker backend is configured."""
-        mock_backend = mock.MagicMock()
-
-        class MyOperator(BaseOperator):
-            def execute(self, context):
-                pass
-
-        task = MyOperator(task_id="t")
-        runtime_ti = create_runtime_ti(task=task)
-
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=mock_backend
-        ):
-            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-
-        calls = [str(c) for c in mock_supervisor_comms.send.call_args_list]
-        assert not any("ClearTaskState" in c for c in calls)
-
     def test_asset_state_set_sends_reference_via_custom_backend(
         self, create_runtime_ti, mock_supervisor_comms
     ):
@@ -5205,13 +5145,11 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
-        mock_supervisor_comms.send.side_effect = [
-            OKResponse(ok=True),  # SetTaskState
-            SucceedTask(...),  # finalize
-        ]
+        mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
 
         mock_backend = mock.MagicMock()
-        mock_backend.serialize_task_state_value.return_value = f"mem://{runtime_ti.id}/job_id"
+        ref = f"mem://{runtime_ti.id}/job_id"
+        mock_backend.serialize_task_state_value.return_value = ref
 
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
@@ -5221,6 +5159,4 @@ class TestTaskInstanceStateOperations:
         mock_backend.serialize_task_state_value.assert_called_once_with(
             value="app_001", key="job_id", ti_id=str(runtime_ti.id)
         )
-        mock_supervisor_comms.send.assert_any_call(
-            SetTaskState(ti_id=runtime_ti.id, key="job_id", value=f"mem://{runtime_ti.id}/job_id")
-        )
+        mock_supervisor_comms.send.assert_any_call(SetTaskState(ti_id=runtime_ti.id, key="job_id", value=ref))

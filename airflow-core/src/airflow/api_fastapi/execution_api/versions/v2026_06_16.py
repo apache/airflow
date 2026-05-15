@@ -65,17 +65,14 @@ class AddStateEndpoints(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (
-        endpoint("/state/ti/{task_instance_id}", ["GET"]).didnt_exist,
         endpoint("/state/ti/{task_instance_id}/{key}", ["GET"]).didnt_exist,
         endpoint("/state/ti/{task_instance_id}/{key}", ["PUT"]).didnt_exist,
         endpoint("/state/ti/{task_instance_id}/{key}", ["DELETE"]).didnt_exist,
         endpoint("/state/ti/{task_instance_id}", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/by-name/all", ["GET"]).didnt_exist,
         endpoint("/state/asset/by-name/value", ["GET"]).didnt_exist,
         endpoint("/state/asset/by-name/value", ["PUT"]).didnt_exist,
         endpoint("/state/asset/by-name/value", ["DELETE"]).didnt_exist,
         endpoint("/state/asset/by-name/clear", ["DELETE"]).didnt_exist,
-        endpoint("/state/asset/by-uri/all", ["GET"]).didnt_exist,
         endpoint("/state/asset/by-uri/value", ["GET"]).didnt_exist,
         endpoint("/state/asset/by-uri/value", ["PUT"]).didnt_exist,
         endpoint("/state/asset/by-uri/value", ["DELETE"]).didnt_exist,
