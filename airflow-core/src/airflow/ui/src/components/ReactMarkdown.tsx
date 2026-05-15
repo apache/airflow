@@ -140,7 +140,7 @@ const UlComponent = ({ children }: PropsWithChildren) => (
   </List.Root>
 );
 
-type CodeElementProps = {
+type MarkdownCodeElementProps = {
   readonly children?: ReactNode;
   readonly className?: string;
 };
@@ -158,18 +158,14 @@ type MarkdownRendererProps = {
 const hasDisplayMath = (children: Options["children"]): boolean =>
   typeof children === "string" && children.includes("$$");
 
-const extractTextContent = (children: CodeElementProps["children"]): string => {
-  if (typeof children === "number" || typeof children === "string") {
-    return String(children);
-  }
+const extractText = (child: ReactNode): string => (typeof child === "string" ? child : "");
 
+const extractTextContent = (children: MarkdownCodeElementProps["children"]): string => {
   if (Array.isArray(children)) {
-    return children
-      .map((child) => (typeof child === "number" || typeof child === "string" ? String(child) : ""))
-      .join("");
+    return children.map(extractText).join("");
   }
 
-  return "";
+  return extractText(children);
 };
 
 const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
@@ -180,7 +176,7 @@ const createPreComponent =
   ({ children }: { readonly children?: ReactNode }) => {
     const [codeElement] = Children.toArray(children);
 
-    if (!isValidElement<CodeElementProps>(codeElement)) {
+    if (!isValidElement<MarkdownCodeElementProps>(codeElement)) {
       return <Box my={3}>{children}</Box>;
     }
 
@@ -201,7 +197,7 @@ const createMarkdownComponents = ({ mermaidTheme, style }: MarkdownRendererProps
   // eslint-disable-next-line id-length
   a: LinkComponent,
   blockquote: BlockquoteComponent,
-  code: CodeComponent,
+  code: InlineCodeComponent,
   del: DelComponent,
   em: EmComponent,
   h1: makeHeading("h1"),

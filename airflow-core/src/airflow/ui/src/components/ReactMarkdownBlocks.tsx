@@ -143,7 +143,6 @@ export const MarkdownMermaid = ({
   const diagramId = useId().replaceAll(":", "");
   const [error, setError] = useState(false);
   const [svg, setSvg] = useState<string>();
-  const mermaidLabel = "mermaid";
 
   useEffect(() => {
     let cancelled = false;
