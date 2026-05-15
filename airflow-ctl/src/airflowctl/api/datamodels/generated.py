@@ -287,6 +287,13 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest DAG version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -636,6 +643,15 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
+class NewTaskResponse(BaseModel):
+    """
+    Lightweight response for new tasks that don't have TaskInstances yet.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
 class PluginImportErrorResponse(BaseModel):
@@ -1930,6 +1946,15 @@ class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
         Field(description="A list of entity id/key or entity objects to be deleted.", title="Entities"),
     ]
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
+
+
+class ClearTaskInstanceCollectionResponse(BaseModel):
+    """
+    Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.
+    """
+
+    task_instances: Annotated[list[TaskInstanceResponse | NewTaskResponse], Field(title="Task Instances")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class DAGCollectionResponse(BaseModel):
