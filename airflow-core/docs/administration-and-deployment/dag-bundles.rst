@@ -56,6 +56,9 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
 **airflow.providers.google.cloud.bundles.gcs.GCSDagBundle**
     These bundles reference a GCS bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
 
+**airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle**
+    These bundles reference an Azure Blob Storage container containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
+
 Configuring Dag bundles
 -----------------------
 
