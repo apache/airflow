@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-16"
+API_VERSION: Final[str] = "2026-06-30"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -440,6 +440,18 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
     input: Annotated[Any | None, Field(title="Input")] = None
     ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
+
+
+class VariableKeysResponse(BaseModel):
+    """
+    Variable keys schema for list responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    keys: Annotated[list[str], Field(title="Keys")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class VariablePostBody(BaseModel):

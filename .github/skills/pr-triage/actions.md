@@ -112,6 +112,8 @@ recover from.
 
 ---
 
+<a id="mark-ready"></a>
+
 ## `mark-ready` — add `ready for maintainer review` label
 
 **Mandatory pre-mutation check.** Before adding the label, the
@@ -159,6 +161,8 @@ error; this is the only action of the skill whose sole purpose
 *is* the label, so there's no graceful degradation.
 
 ---
+
+<a id="mark-ready-with-ping"></a>
 
 ## `mark-ready-with-ping` — promote a likely-addressed PR + ping reviewers
 

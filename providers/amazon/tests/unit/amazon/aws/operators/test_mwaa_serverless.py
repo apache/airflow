@@ -18,9 +18,16 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+from botocore.exceptions import ClientError
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
+    MwaaServerlessCreateWorkflowOperator,
+    MwaaServerlessDeleteWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
+    MwaaServerlessStopWorkflowRunOperator,
+    MwaaServerlessUpdateWorkflowOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -73,6 +80,237 @@ class TestMwaaServerlessStartWorkflowRunOperator:
             WorkflowVersion="2",
         )
         assert result == RUN_ID
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+WORKFLOW_NAME = "test-workflow"
+WORKFLOW_ARN = "arn:aws:mwaa-serverless:us-east-1:123456789012:workflow/test-workflow"
+S3_LOCATION = {"Bucket": "test-bucket", "ObjectKey": "workflow.yaml"}
+ROLE_ARN = "arn:aws:iam::123456789012:role/test-role"
+
+
+class TestMwaaServerlessCreateWorkflowOperator:
+    def setup_method(self):
+        self.operator = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.create_workflow.assert_called_once_with(
+            Name=WORKFLOW_NAME,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateWorkflow",
+        )
+        mock_client.get_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_fail_on_conflict(self, mock_conn):
+        op = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            if_exists="fail",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.side_effect = ClientError(
+            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            "CreateWorkflow",
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestMwaaServerlessUpdateWorkflowOperator:
+    def setup_method(self):
+        self.operator = MwaaServerlessUpdateWorkflowOperator(
+            task_id="update_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "abc123",
+            "ModifiedAt": "2026-05-12T00:00:00Z",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.update_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_description(self, mock_conn):
+        op = MwaaServerlessUpdateWorkflowOperator(
+            task_id="update_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            description="Updated workflow",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "def456",
+            "ModifiedAt": "2026-05-12T00:00:00Z",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.update_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            Description="Updated workflow",
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_not_found(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}}, "UpdateWorkflow"
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestMwaaServerlessDeleteWorkflowOperator:
+    def setup_method(self):
+        self.operator = MwaaServerlessDeleteWorkflowOperator(
+            task_id="delete_workflow",
+            workflow_arn=WORKFLOW_ARN,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.delete_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.delete_workflow.assert_called_once_with(WorkflowArn=WORKFLOW_ARN)
+        assert result is None
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_version(self, mock_conn):
+        op = MwaaServerlessDeleteWorkflowOperator(
+            task_id="delete_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            workflow_version="abc123def456abc123def456abc123de",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.delete_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "abc123def456abc123def456abc123de",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.delete_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            WorkflowVersion="abc123def456abc123def456abc123de",
+        )
+        assert result is None
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_not_found(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.delete_workflow.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}}, "DeleteWorkflow"
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError, match="ResourceNotFoundException"):
+            self.operator.execute({})
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestMwaaServerlessStopWorkflowRunOperator:
+    def setup_method(self):
+        self.operator = MwaaServerlessStopWorkflowRunOperator(
+            task_id="stop_run",
+            workflow_arn=WORKFLOW_ARN,
+            run_id=RUN_ID,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.stop_workflow_run.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "RunId": RUN_ID,
+            "Status": "STOPPING",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        mock_client.stop_workflow_run.assert_called_once_with(WorkflowArn=WORKFLOW_ARN, RunId=RUN_ID)
+        assert result == "STOPPING"
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_not_found(self, mock_conn):
+        from botocore.exceptions import ClientError
+
+        mock_client = mock.MagicMock()
+        mock_client.stop_workflow_run.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "not found"}}, "StopWorkflowRun"
+        )
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

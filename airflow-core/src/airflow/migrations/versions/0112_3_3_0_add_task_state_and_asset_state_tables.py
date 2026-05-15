@@ -57,6 +57,7 @@ def upgrade():
     )
     op.create_table(
         "task_state",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("dag_run_id", sa.Integer(), nullable=False),
         sa.Column("task_id", StringID(), nullable=False),
         sa.Column("map_index", sa.Integer(), server_default="-1", nullable=False),
@@ -65,20 +66,24 @@ def upgrade():
         sa.Column("run_id", StringID(), nullable=False),
         sa.Column("value", sa.Text().with_variant(mysql.MEDIUMTEXT(), "mysql"), nullable=False),
         sa.Column("updated_at", UtcDateTime(), nullable=False),
+        sa.Column("expires_at", UtcDateTime(), nullable=True),
         sa.ForeignKeyConstraint(
             ["dag_run_id"], ["dag_run.id"], name="task_state_dag_run_fkey", ondelete="CASCADE"
         ),
-        sa.PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_pkey"),
+        sa.PrimaryKeyConstraint("id", name="task_state_pkey"),
+        sa.UniqueConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_uq"),
     )
     with op.batch_alter_table("task_state", schema=None) as batch_op:
         batch_op.create_index(
             "idx_task_state_lookup", ["dag_id", "run_id", "task_id", "map_index"], unique=False
         )
+        batch_op.create_index("idx_task_state_expires_at", ["expires_at"], unique=False)
 
 
 def downgrade():
     """Unapply add task_state and asset_state tables."""
     with op.batch_alter_table("task_state", schema=None) as batch_op:
+        batch_op.drop_index("idx_task_state_expires_at")
         batch_op.drop_index("idx_task_state_lookup")
 
     op.drop_table("task_state")

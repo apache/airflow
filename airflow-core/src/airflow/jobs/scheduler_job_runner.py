@@ -33,7 +33,20 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import CTE, and_, case, delete, exists, func, inspect, or_, select, text, tuple_, update
+from sqlalchemy import (
+    CTE,
+    and_,
+    case,
+    delete,
+    exists,
+    func,
+    inspect,
+    or_,
+    select,
+    text,
+    tuple_,
+    update,
+)
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -70,6 +83,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.asset_state import AssetStateModel
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
@@ -1408,8 +1422,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # fall back to dag_model/dag_run for legacy tasks migrated from
                     # Airflow 2 where dag_version may be None (AIP-66).
                     _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
@@ -1661,7 +1679,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # either a no-op, or they will check-in on currently running tasks and send out new
                 # events to be processed below.
                 for executor in self.executors:
-                    executor.heartbeat()
+                    with stats.timer(
+                        "scheduler.executor_heartbeat_duration",
+                        tags={"executor": type(executor).__name__},
+                    ):
+                        executor.heartbeat()
 
                 with create_session() as session:
                     num_finished_events = 0
@@ -2601,8 +2623,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _stuck_bundle_name = (
                         ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
                     )
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _stuck_bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
@@ -2959,8 +2985,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Safely extract bundle info with fallback for legacy tasks
             # (dag_version may be None after Airflow 2 → 3 migration).
             _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+            # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+            # leave the callback unpinned so it runs against the same code as the task.
             _hb_bundle_version = (
-                ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                ti.dag_version.bundle_version
+                if ti.dag_version and ti.dag_run.bundle_version is not None
+                else ti.dag_run.bundle_version
             )
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
@@ -3038,9 +3068,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(Trigger)
             .where(
-                Trigger.id.not_in(select(AssetWatcherModel.trigger_id)),
-                Trigger.id.not_in(select(Callback.trigger_id)),
-                Trigger.id.not_in(select(TaskInstance.trigger_id)),
+                ~exists(
+                    select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
+                ),
+                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
+                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
             )
             .execution_options(synchronize_session="fetch")
         )
@@ -3078,6 +3110,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
+        self._cleanup_orphaned_asset_state(session=session)
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
@@ -3185,6 +3218,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
+
+    @staticmethod
+    def _cleanup_orphaned_asset_state(*, session: Session) -> None:
+        """
+        Delete asset_state rows for assets no longer active in any Dag.
+
+        When _orphan_unreferenced_assets removes an asset from asset_active, its
+        asset_state rows become unreachable — no task can write to them anymore.
+        This runs in the same pass as asset orphanage to keep the table clean.
+        """
+        active_asset_ids = select(AssetModel.id).join(
+            AssetActive,
+            (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri),
+        )
+        session.execute(delete(AssetStateModel).where(AssetStateModel.asset_id.not_in(active_asset_ids)))
 
     def _executor_to_workloads(
         self,

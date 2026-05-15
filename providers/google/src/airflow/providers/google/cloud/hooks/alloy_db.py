@@ -51,6 +51,7 @@ class AlloyDbHook(GoogleBaseHook):
             self._client = alloydb_v1.AlloyDBAdminClient(
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
         return self._client
 

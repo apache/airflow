@@ -2001,6 +2001,13 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
+ * DAG Run statistics serializer for responses.
+ */
+export type DagRunStatsResponse = {
+    duration: DurationStats | null;
+};
+
+/**
  * Dashboard DAG Stats serializer for responses.
  */
 export type DashboardDagStatsResponse = {
@@ -2052,6 +2059,18 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+};
+
+/**
+ * Duration statistics for a DAG across historical runs.
+ */
+export type DurationStats = {
+    mean: number;
+    mode: number | null;
+    p50: number;
+    p90: number;
+    p95: number;
+    p99: number;
 };
 
 /**
@@ -2807,6 +2826,13 @@ export type GetListDagRunsBatchData = {
 };
 
 export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
+
+export type GetDagRunStatsData = {
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetDagRunStatsResponse = DagRunStatsResponse;
 
 export type GetDagSourceData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
@@ -5172,6 +5198,25 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats': {
+        get: {
+            req: GetDagRunStatsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagRunStatsResponse;
                 /**
                  * Not Found
                  */

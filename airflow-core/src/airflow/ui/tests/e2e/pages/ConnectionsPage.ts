@@ -146,15 +146,12 @@ export class ConnectionsPage extends BasePage {
 
     await expect(deleteButton).toBeVisible();
     await expect(deleteButton).toBeEnabled({ timeout: 5000 });
-
-    // Extended timeout: on resource-constrained CI runners, WebKit can take
-    // longer than the default 10s to release the previous dialog's backdrop
-    // pointer-events after close.
-    await deleteButton.click({ timeout: 30_000 });
+    await deleteButton.click();
 
     await expect(this.confirmDeleteButton).toBeVisible();
     await expect(this.confirmDeleteButton).toBeEnabled({ timeout: 5000 });
     await this.confirmDeleteButton.click();
+    await this.waitForAllDialogsClosed();
 
     await expect(this.emptyState).toBeVisible({ timeout: 5000 });
   }
@@ -170,6 +167,7 @@ export class ConnectionsPage extends BasePage {
     await expect(this.connectionIdInput).toBeVisible();
     await this.fillConnectionForm(updates);
     await this.saveConnection();
+    await this.waitForConnectionsListLoad();
   }
 
   public async fillConnectionForm(details: Partial<ConnectionDetails>): Promise<void> {
@@ -224,35 +222,33 @@ export class ConnectionsPage extends BasePage {
 
     if (details.extra !== undefined && details.extra !== "") {
       const extraAccordion = this.page.getByRole("button", { name: /extra fields json/i });
-      const accordionVisible = await extraAccordion.isVisible({ timeout: 5000 }).catch(() => false);
 
-      if (accordionVisible) {
-        await extraAccordion.click();
-        const monacoEditor = this.page.locator(".monaco-editor").first();
+      await expect(extraAccordion).toBeVisible({ timeout: 5000 });
+      await extraAccordion.click();
+      const monacoEditor = this.page.locator(".monaco-editor").first();
 
-        await monacoEditor.waitFor({ state: "visible", timeout: 30_000 });
+      await expect(monacoEditor).toBeVisible({ timeout: 30_000 });
 
-        // Set value via Monaco API to avoid auto-closing bracket/quote issues with keyboard input
-        await monacoEditor.evaluate((container, value) => {
-          const monacoApi = (globalThis as Record<string, unknown>).monaco as
-            | {
-                editor: {
-                  getEditors: () => Array<{ getDomNode: () => Node; setValue: (v: string) => void }>;
-                };
-              }
-            | undefined;
-
-          if (monacoApi !== undefined) {
-            const editor = monacoApi.editor.getEditors().find((e) => container.contains(e.getDomNode()));
-
-            if (editor !== undefined) {
-              editor.setValue(value);
+      // Set value via Monaco API to avoid auto-closing bracket/quote issues with keyboard input
+      await monacoEditor.evaluate((container, value) => {
+        const monacoApi = (globalThis as Record<string, unknown>).monaco as
+          | {
+              editor: {
+                getEditors: () => Array<{ getDomNode: () => Node; setValue: (v: string) => void }>;
+              };
             }
-          }
-        }, details.extra);
+          | undefined;
 
-        await this.connectionIdInput.click();
-      }
+        if (monacoApi !== undefined) {
+          const editor = monacoApi.editor.getEditors().find((e) => container.contains(e.getDomNode()));
+
+          if (editor !== undefined) {
+            editor.setValue(value);
+          }
+        }
+      }, details.extra);
+
+      await this.connectionIdInput.click();
     }
   }
 
@@ -317,6 +313,7 @@ export class ConnectionsPage extends BasePage {
 
     await this.saveButton.click();
     await responsePromise;
+    await this.waitForAllDialogsClosed();
   }
 
   public async searchConnections(searchTerm: string): Promise<void> {

@@ -38,6 +38,7 @@ try:
         AirflowRescheduleException as AirflowRescheduleException,
         AirflowTimetableInvalid as AirflowTimetableInvalid,
         NodeNotFound as NodeNotFound,
+        ParamValidationError as ParamValidationError,
         TaskNotFound as TaskNotFound,
     )
 except ModuleNotFoundError:
@@ -78,6 +79,9 @@ except ModuleNotFoundError:
 
     class AirflowOptionalProviderFeatureException(AirflowException):  # type: ignore[no-redef]
         """Raise by providers when imports are missing for optional provider features."""
+
+    class ParamValidationError(AirflowException, ValueError):  # type: ignore[no-redef]
+        """Raise when DAG params fail validation."""
 
 
 class AirflowBadRequest(AirflowException):
