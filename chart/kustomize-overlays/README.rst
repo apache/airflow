@@ -40,7 +40,7 @@ Available overlays
 +==============+======================+==============================================+
 | ``keda``     | not-tested (PoC)     | Autoscaling for Celery workers via KEDA.     |
 +--------------+----------------------+----------------------------------------------+
-| ``kerberos`` | not-tested (PoC)     | In-cluster test KDC + keytab Secret bootstrap|
+| ``kerberos`` | tested               | In-cluster test KDC + keytab Secret bootstrap|
 |              |                      | consumable by the chart's kerberos sidecar.  |
 +--------------+----------------------+----------------------------------------------+
 

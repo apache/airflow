@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Initial PoC overlay. The verify: block below is the smoke-test
-# contract consumed by `breeze k8s smoke-test-overlay kerberos`. Run
-# that command locally with --promote-status (and let CI re-run it on
-# every PR) to advance status to `tested` with chart-version +
-# last-verified filled in automatically.
+# The verify: block below is the smoke-test contract consumed by
+# `breeze k8s smoke-test-overlay kerberos`. Run that command locally
+# with --promote-status to refresh chart-version + last-verified
+# automatically after a successful run; CI re-runs the smoke test on
+# every PR but never mutates this file (CI=true refuses
+# --promote-status).
 ---
 status: tested
 chart-version: 1.22.0
