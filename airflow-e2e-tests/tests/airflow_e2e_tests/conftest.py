@@ -35,6 +35,17 @@ from airflow_e2e_tests.constants import (
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
     ELASTICSEARCH_PATH,
+    GO_CONTAINER_EXECUTABLE_BUNDLES_PATH,
+    GO_CONTAINER_PURE_BUNDLE_PATH,
+    GO_CONTAINER_STUB_DAG_BUNDLE_PATH,
+    GO_EXECUTABLE_BUNDLES_NAME,
+    GO_PURE_BUNDLE_NAME,
+    GO_PURE_DAG_ID,
+    GO_SDK_COMPOSE_PATH,
+    GO_SDK_DAGS_FOLDER,
+    GO_SDK_PATH,
+    GO_STUB_DAG_BUNDLE_NAME,
+    GO_STUB_DAG_ID,
     KAFKA_DIR_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
@@ -234,6 +245,62 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
+def _setup_go_sdk_integration(dot_env_file, tmp_dir):
+    """Copy Go SDK fixtures and configure the executor SDK coordinator test environment."""
+    copyfile(GO_SDK_COMPOSE_PATH, tmp_dir / "go-sdk-coordinator.yml")
+    copytree(GO_SDK_PATH, tmp_dir / "go-sdk", dirs_exist_ok=True)
+    copytree(GO_SDK_DAGS_FOLDER, tmp_dir / "go-sdk-dags", dirs_exist_ok=True)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL=5\n"
+        "AIRFLOW__DAG_PROCESSOR__STANDALONE_DAG_PROCESSOR=true\n"
+        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST="
+        + json.dumps(
+            [
+                {
+                    "name": GO_PURE_BUNDLE_NAME,
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {"path": GO_CONTAINER_PURE_BUNDLE_PATH, "refresh_interval": 5},
+                },
+                {
+                    "name": GO_STUB_DAG_BUNDLE_NAME,
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {"path": GO_CONTAINER_STUB_DAG_BUNDLE_PATH, "refresh_interval": 5},
+                },
+            ]
+        )
+        + "\n"
+        'AIRFLOW__SDK__QUEUE_TO_SDK={"go": "executable"}\n'
+        f"AIRFLOW__EXECUTABLE__BUNDLES_FOLDER={GO_CONTAINER_EXECUTABLE_BUNDLES_PATH}\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _build_go_sdk_fixture_bundles(compose_instance: DockerCompose):
+    """Build Go executable bundles inside the Go SDK builder container."""
+    compose_instance.exec_in_container(
+        command=[
+            "bash",
+            "-c",
+            (
+                "set -euo pipefail; "
+                "mkdir -p "
+                f"{GO_CONTAINER_EXECUTABLE_BUNDLES_PATH} {GO_CONTAINER_PURE_BUNDLE_PATH} "
+                f"{GO_CONTAINER_STUB_DAG_BUNDLE_PATH}; "
+                f"cp -r /go-sdk-dags/. {GO_CONTAINER_STUB_DAG_BUNDLE_PATH}/; "
+                "go run ./cmd/airflow-go-pack ./example/bundle --output "
+                f"{GO_CONTAINER_PURE_BUNDLE_PATH}/{GO_PURE_DAG_ID} -- "
+                f"-ldflags '-X main.dagId={GO_PURE_DAG_ID} -X main.bundleName={GO_PURE_BUNDLE_NAME}'; "
+                "go run ./cmd/airflow-go-pack ./example/bundle --output "
+                f"{GO_CONTAINER_EXECUTABLE_BUNDLES_PATH}/{GO_STUB_DAG_ID} -- "
+                f"-ldflags '-X main.dagId={GO_STUB_DAG_ID} -X main.bundleName={GO_EXECUTABLE_BUNDLES_NAME}'"
+            ),
+        ],
+        service_name="go-sdk-builder",
+    )
+
+
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
 
@@ -275,6 +342,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "event_driven":
         compose_file_names.extend(["kafka.yml", "providers-mount.yml"])
         _setup_event_driven_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "go_sdk":
+        compose_file_names.append("go-sdk-coordinator.yml")
+        _setup_go_sdk_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -293,8 +363,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         )
 
         _E2ETestState.compose_instance.start()
-
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
+        if E2E_TEST_MODE == "go_sdk":
+            _build_go_sdk_fixture_bundles(_E2ETestState.compose_instance)
         _E2ETestState.compose_instance.exec_in_container(
             command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
         )

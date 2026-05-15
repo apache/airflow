@@ -45,6 +45,21 @@ OPENSEARCH_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "opensear
 E2E_TEST_MODE = os.environ.get("E2E_TEST_MODE", "basic")
 AWS_INIT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "scripts" / "init-aws.sh"
 
+# Go SDK e2e test paths and IDs.
+GO_SDK_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
+GO_SDK_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go-sdk-coordinator.yml"
+GO_SDK_DAGS_FOLDER = (
+    AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e2e_tests" / "go_sdk_tests" / "dags"
+)
+GO_PURE_DAG_ID = "go_sdk_pure_go_example"
+GO_STUB_DAG_ID = "go_sdk_stub_example"
+GO_PURE_BUNDLE_NAME = "go-sdk-pure-go"
+GO_STUB_DAG_BUNDLE_NAME = "go-sdk-stub-dag"
+GO_EXECUTABLE_BUNDLES_NAME = "go-sdk-executable-bundles"
+GO_CONTAINER_PURE_BUNDLE_PATH = f"/files/{GO_PURE_BUNDLE_NAME}"
+GO_CONTAINER_STUB_DAG_BUNDLE_PATH = f"/files/{GO_STUB_DAG_BUNDLE_NAME}/dags"
+GO_CONTAINER_EXECUTABLE_BUNDLES_PATH = f"/files/{GO_EXECUTABLE_BUNDLES_NAME}"
+
 # s3 bucket name for XComObjectStorageBackend tests. This bucket will be created in the `init-aws.sh` script that is run as part of the LocalStack container initialization.
 XCOM_BUCKET = "test-xcom-objectstorage-backend"
 
