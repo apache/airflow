@@ -2756,6 +2756,21 @@ def _apply_or_delete_overlay(
     return result.returncode
 
 
+class _SequenceIndentingDumper(yaml.SafeDumper):
+    """yaml.SafeDumper variant that indents sequence items under their key.
+
+    PyYAML's default safe_dump output emits ``resources:\\n- kind: …`` which
+    yamllint (with ``indent-sequences: true``, the repo's default) rejects
+    with "expected 4 but found 2". Overriding ``increase_indent`` to pass
+    ``indentless=False`` produces ``resources:\\n  - kind: …`` instead, which
+    matches the rest of the YAML in the repo and keeps the yamllint hook
+    green on the auto-promoted STATUS.yaml.
+    """
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
+        return super().increase_indent(flow, False)
+
+
 def _promote_overlay_status(overlay_dir: Path) -> int:
     """Rewrite STATUS.yaml in-place to ``status: tested``.
 
@@ -2795,7 +2810,12 @@ def _promote_overlay_status(overlay_dir: Path) -> int:
     verify = doc.get("verify")
     if verify:
         promoted["verify"] = verify
-    rendered = yaml.safe_dump(promoted, sort_keys=False, default_flow_style=False)
+    rendered = yaml.dump(
+        promoted,
+        Dumper=_SequenceIndentingDumper,
+        sort_keys=False,
+        default_flow_style=False,
+    )
     status_path.write_text(header + rendered)
     console_print(
         f"[success]Promoted {status_path.relative_to(AIRFLOW_ROOT_PATH)}: "
