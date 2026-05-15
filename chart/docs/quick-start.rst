@@ -29,11 +29,11 @@ Install kind and create a cluster
 
 .. jinja:: global_ctx
 
-   We recommend testing with Kubernetes v{{ min_k8s_version }}+, example:
+   We recommend testing with Kubernetes {{ min_k8s_version }}+, example:
 
    .. code-block:: bash
 
-      kind create cluster --image kindest/node:v{{ min_k8s_version }}.0
+      kind create cluster --image kindest/node:{{ min_k8s_version }}
 
 Confirm it's up:
 

@@ -65,7 +65,7 @@ Requirements
 .. jinja:: global_ctx
 
    -  Kubernetes {{ min_k8s_version }}+ cluster
-   -  Helm 3.19+
+   -  Helm {{ helm_version }}+
    -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features
@@ -191,7 +191,7 @@ If you use the ``CeleryExecutor`` with the built-in Redis, it is recommended tha
 
 .. note::
 
-   Due to security concerts, it is not advised to set sensitive values like passwords within the ``values.yaml``.
+   Due to security concerns, it is not advised to set sensitive values like passwords within the ``values.yaml``.
 
 .. note::
 
