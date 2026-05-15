@@ -66,20 +66,26 @@ To output task logs to ElasticSearch, the following config could be used: (set `
 
 .. _elasticsearch-airflow-3-0-to-3-1-local-settings:
 
-Enabling the Elasticsearch task handler on Airflow 3.0.0 – 3.1.x
+Enabling the Elasticsearch task handler on Airflow 3.0.0 – 3.1.7
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 This section is **only about reading task logs back into the Airflow UI**. Tasks running
 on workers will write logs as usual (to local files, stdout, or — with appropriate log
 shipping — to Elasticsearch) regardless of the override below. Without the override on
-Airflow 3.0.0 – 3.1.x, logs reach Elasticsearch fine but the **UI cannot render them**
+Airflow 3.0.0 – 3.1.7, logs reach Elasticsearch fine but the **UI cannot render them**
 because no handler is registered to fetch them back.
 
 The wiring that registers ``ElasticsearchTaskHandler`` inside the stock
-``airflow_local_settings.py`` (the file that builds ``DEFAULT_LOGGING_CONFIG``) only landed
-in Airflow **3.2.0**. On Airflow **3.0.0 – 3.1.x** installing the provider is not enough:
-to make the UI's log viewer fetch logs from Elasticsearch you must ship a custom logging
-config that swaps the ``task`` handler **and** sets ``REMOTE_TASK_LOG`` at module scope.
+``airflow_local_settings.py`` (the file that builds ``DEFAULT_LOGGING_CONFIG``) landed in
+Airflow **3.2.0** (`apache/airflow#62121
+<https://github.com/apache/airflow/pull/62121>`_) and was backported to Airflow **3.1.8**
+(`apache/airflow#62940 <https://github.com/apache/airflow/pull/62940>`_). On Airflow
+**3.0.0 – 3.1.7** installing the provider is not enough: to make the UI's log viewer
+fetch logs from Elasticsearch you must ship a custom logging config that swaps the
+``task`` handler **and** sets ``REMOTE_TASK_LOG`` at module scope. The override requires
+``apache-airflow-providers-elasticsearch`` **6.5.0+** (`apache/airflow#53821
+<https://github.com/apache/airflow/pull/53821>`_), which is where
+``ElasticsearchRemoteLogIO`` was introduced.
 
 Create a module on the Python path — for example ``config/airflow_local_settings.py`` —
 and point Airflow at it via ``[logging] logging_config_class``:
@@ -147,9 +153,9 @@ Then, in ``airflow.cfg``:
    module scope as shown above. See :ref:`write-logs-advanced` for the full
    ``logging_config_class`` contract.
 
-On Airflow **3.2.0+** this override is unnecessary — the stock ``airflow_local_settings.py``
-already contains an ``elif ELASTICSEARCH_HOST:`` branch, so configuring the ``[elasticsearch]``
-section in ``airflow.cfg`` is sufficient.
+On Airflow **3.1.8+** or **3.2.0+** this override is unnecessary — the stock
+``airflow_local_settings.py`` already contains an ``elif ELASTICSEARCH_HOST:`` branch, so
+configuring the ``[elasticsearch]`` section in ``airflow.cfg`` is sufficient.
 
 .. _write-logs-elasticsearch-tls:
 
