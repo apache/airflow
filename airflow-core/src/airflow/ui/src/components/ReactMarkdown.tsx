@@ -172,7 +172,7 @@ const extractTextContent = (children: CodeElementProps["children"]): string => {
   return "";
 };
 
-const CodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
+const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="inline">{children}</Code>;
 
 // Factory function for the pre component that needs style
 const createPreComponent =
