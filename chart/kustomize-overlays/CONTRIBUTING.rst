@@ -127,6 +127,82 @@ In short:
   cluster locally and in CI, is the gate for advancing ``STATUS`` to
   ``tested``.
 
+What ``smoke-test-overlay`` does for every overlay
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The runner is overlay-agnostic - everything below applies to any overlay
+under ``chart/kustomize-overlays/`` with a ``verify:`` block:
+
+1. **Render and substitute.** ``kubectl kustomize <overlay-dir>`` is run
+   and the ``RELEASE-NAME`` / ``NAMESPACE`` placeholders are replaced in
+   the rendered manifest.
+2. **Auto-preload images into kind.** Every ``image:`` reference in the
+   rendered manifest (across containers, initContainers, and any
+   pod-spec-bearing kind: Deployment, StatefulSet, DaemonSet, Job,
+   CronJob, Pod) is pulled to the host with the same retry-on-429 logic
+   the regular K8s test suite uses, and then loaded into every kind node
+   with ``kind load docker-image``. With the overlay's pods set to
+   ``imagePullPolicy: IfNotPresent`` (the convention), kubelet then
+   never reaches a registry during the test - so the smoke test does
+   not flake on Docker Hub rate limits, registry outages, or images
+   that turn private mid-flight. Image discovery is driven entirely by
+   what the overlay declares; no per-overlay images list is needed.
+3. **Apply.** The substituted manifest is fed to ``kubectl apply -f -``.
+4. **Walk the ``verify:`` block with fail-fast pod checks.** For each
+   declared resource the runner polls the success condition (rollout
+   complete / Job complete / resource created) on a tight cycle. In the
+   same cycle it inspects backing pods (if any) for terminal waiting
+   reasons - ``ImagePullBackOff``, ``ErrImagePull``, ``InvalidImageName``,
+   ``ImageInspectError``, ``CrashLoopBackOff``,
+   ``CreateContainerConfigError``, ``CreateContainerError``. The moment
+   any of those appears the runner aborts with the offending reason and
+   a ``kubectl describe`` dump, rather than waiting out the full
+   ``timeout_seconds``.
+5. **Run the optional per-overlay pytest module.** If
+   ``kubernetes-tests/tests/kubernetes_tests/overlays/test_<name>.py``
+   exists and ``--no-pytest`` was not passed, it is executed with
+   ``OVERLAY_UNDER_TEST``, ``OVERLAY_NAMESPACE``, and
+   ``OVERLAY_RELEASE_NAME`` in the environment. Tests that need to spin
+   up an ad-hoc client pod (for example to exercise the overlay's data
+   plane) should prefer reusing an image already declared by the
+   overlay so they inherit the auto-preload for free.
+6. **Clean up.** The same substituted manifest is fed to
+   ``kubectl delete -f -`` (with ``--ignore-not-found``) unless
+   ``--skip-cleanup`` was passed.
+
+Rules for images and per-overlay tests
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The image-handling rules below keep the lifecycle simple for every
+overlay - there is no second list to maintain, and per-overlay tests do
+not need their own preload step.
+
+* **Overlay images are auto-discovered.** Any new ``image:`` reference
+  added to an overlay (containers, initContainers, sidecars, under any
+  pod-spec-bearing kind) is automatically pulled and ``kind load``\ ed
+  by ``smoke-test-overlay`` on the next run. There is no per-overlay
+  images list. Do not add overlay images to
+  ``K8S_TEST_IMAGES_TO_PRELOAD`` in
+  ``dev/breeze/src/airflow_breeze/commands/kubernetes_commands.py`` -
+  that list is only for images consumed by the regular K8s system tests.
+* **Set ``imagePullPolicy: IfNotPresent`` on every overlay container.**
+  This is what makes the preload effective: kubelet uses the
+  already-loaded image and never reaches a registry at run time. Without
+  it, ``:latest`` tags default to ``Always`` and pull anyway.
+* **Per-overlay test pods should reuse an overlay-declared image.** When
+  the optional pytest module needs to spawn a throwaway client pod (for
+  example to exercise the overlay's data plane), prefer reusing the
+  exact image the overlay's own containers use. That way the test
+  inherits the auto-preload for free and you do not introduce a third
+  image dependency. The kerberos test does this: its client pod runs the
+  same ``gcavalcante8808/krb5-server`` image the KDC Deployment uses.
+* **Do not assume bash or coreutils in third-party images.** Many CI-
+  friendly upstream images are Alpine-based and ship only busybox sh.
+  In a test pod's ``command:``, default to ``["/bin/sh", "-c", "..."]``
+  and only use ``/bin/bash`` if the chosen image is documented to ship
+  it. If a test fails with ``stat /bin/bash: no such file or directory``
+  this is the cause.
+
 Lifecycle steps:
 
 * A new overlay is proposed via a PR and lands with ``status: not-tested``.
@@ -150,12 +226,21 @@ Running the smoke test locally
 
 You can advance an overlay's ``STATUS`` to ``tested`` yourself, in the
 same PR that introduces the overlay, by running the smoke test against
-a local kind cluster:
+a local kind cluster. The full sequence mirrors what
+``breeze k8s run-complete-tests`` does in CI:
 
 .. code-block:: bash
 
     breeze k8s setup-env
     breeze k8s create-cluster
+    breeze k8s configure-cluster
+    # Build the prod image locally and load it into the kind nodes. The
+    # chart's default image lives on ghcr.io behind CI auth, so without
+    # the build + upload pair, `deploy-airflow` will hang with
+    # ImagePullBackOff (HTTP 403). Drop --rebuild-base-image on
+    # subsequent iterations to speed up rebuilds.
+    breeze k8s build-k8s-image --rebuild-base-image
+    breeze k8s upload-k8s-image
     breeze k8s deploy-airflow
     breeze k8s smoke-test-overlay <name>
 

@@ -21,42 +21,29 @@ Run via:
 
     breeze k8s smoke-test-overlay kerberos
 
-The runner sets ``OVERLAY_UNDER_TEST=kerberos``, ``OVERLAY_NAMESPACE``,
-and ``OVERLAY_RELEASE_NAME`` in the environment. The declarative checks
-in the overlay's STATUS.yaml ``verify:`` block already cover "every
-resource came up"; this module adds the behavioural assertion that the
-keytab the bootstrap Job materialised actually works against the
-in-cluster KDC.
+The declarative ``verify:`` block in the overlay's STATUS.yaml already
+covers "every resource came up". This module adds the behavioural
+assertion that the keytab the bootstrap Job materialised actually
+authenticates against the in-cluster KDC. It is also a reference for
+how a per-overlay test is structured: see ``conftest.py`` next to this
+file for the reusable fixtures and helpers.
 """
 
 from __future__ import annotations
 
 import base64
-import json
-import os
-import subprocess
-import uuid
 
 import pytest
 
-NAMESPACE = os.environ.get("OVERLAY_NAMESPACE", "airflow")
-RELEASE_NAME = os.environ.get("OVERLAY_RELEASE_NAME", "airflow")
-SECRET_NAME = f"{RELEASE_NAME}-kerberos-keytab"
-PRINCIPAL = f"airflow/airflow.{NAMESPACE}.svc.cluster.local@EXAMPLE.COM"
-KDC_HOST = f"{RELEASE_NAME}-kerberos-kdc.{NAMESPACE}.svc.cluster.local"
+from kubernetes_tests.overlays.conftest import get_secret_data
 
 
-def _kubectl(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["kubectl", *args], check=False, capture_output=True, text=True)
-
-
-def test_keytab_secret_is_non_empty():
-    """The bootstrap Job must have populated the keytab Secret."""
-    result = _kubectl("get", "secret", SECRET_NAME, "-n", NAMESPACE, "-o", "json")
-    assert result.returncode == 0, f"Secret {SECRET_NAME} missing: {result.stderr}"
-    secret = json.loads(result.stdout)
-    keytab_b64 = secret.get("data", {}).get("airflow.keytab")
-    assert keytab_b64, "Secret has no airflow.keytab key"
+def test_keytab_secret_is_non_empty(overlay_namespace, overlay_release_name):
+    """The bootstrap Job must have populated the keytab Secret with real bytes."""
+    secret_name = f"{overlay_release_name}-kerberos-keytab"
+    data = get_secret_data(secret_name, overlay_namespace)
+    keytab_b64 = data.get("airflow.keytab")
+    assert keytab_b64, f"Secret {secret_name} has no airflow.keytab key"
     keytab_bytes = base64.b64decode(keytab_b64)
     assert len(keytab_bytes) > 0, "Keytab is empty"
     # MIT keytab files start with the keytab version word 0x0502 or 0x0501.
@@ -66,62 +53,40 @@ def test_keytab_secret_is_non_empty():
 
 
 @pytest.mark.timeout(180)
-def test_kinit_against_in_cluster_kdc():
-    """A throwaway client pod must be able to kinit using the keytab."""
-    pod_name = f"kerberos-client-{uuid.uuid4().hex[:8]}"
-    # Use the official Debian image and install krb5-user at runtime — keeps
-    # the test self-contained without baking a custom client image.
-    overrides = {
-        "spec": {
-            "restartPolicy": "Never",
-            "containers": [
-                {
-                    "name": "client",
-                    "image": "debian:bookworm-slim",
-                    "command": ["/bin/bash", "-ceu"],
-                    "args": [
-                        "apt-get update -qq >/dev/null && "
-                        "DEBIAN_FRONTEND=noninteractive apt-get install -yqq krb5-user >/dev/null && "
-                        f"kinit -kt /keytab/airflow.keytab {PRINCIPAL} && "
-                        "klist"
-                    ],
-                    "volumeMounts": [
-                        {"name": "krb5-conf", "mountPath": "/etc/krb5.conf", "subPath": "krb5.conf"},
-                        {"name": "keytab", "mountPath": "/keytab", "readOnly": True},
-                    ],
-                }
-            ],
-            "volumes": [
-                {"name": "krb5-conf", "configMap": {"name": f"{RELEASE_NAME}-krb5-conf"}},
-                {"name": "keytab", "secret": {"secretName": SECRET_NAME}},
-            ],
-        }
-    }
-    run_result = _kubectl(
-        "run",
-        pod_name,
-        "-n",
-        NAMESPACE,
-        "--image=debian:bookworm-slim",
-        "--restart=Never",
-        "--attach=false",
-        f"--overrides={json.dumps(overrides)}",
+def test_kinit_against_in_cluster_kdc(overlay_namespace, overlay_release_name, run_throwaway_pod):
+    """A throwaway client pod must be able to kinit using the keytab.
+
+    Reuses the same krb5-server image as the KDC pod so the smoke test
+    runner's generic image-preload step already loaded it into the kind
+    cluster - the test does not introduce a third image dependency. The
+    image is Alpine-based and ships busybox sh (not bash) - hence
+    ``/bin/sh -c`` rather than ``/bin/bash``.
+    """
+    secret_name = f"{overlay_release_name}-kerberos-keytab"
+    configmap_name = f"{overlay_release_name}-krb5-conf"
+    principal = f"airflow/airflow.{overlay_namespace}.svc.cluster.local@EXAMPLE.COM"
+    rc, output = run_throwaway_pod(
+        image="gcavalcante8808/krb5-server:latest",
+        namespace=overlay_namespace,
+        command=["/bin/sh", "-c"],
+        args=[f"kinit -kt /keytab/airflow.keytab {principal} && klist"],
+        overrides={
+            "spec": {
+                "containers": [
+                    {
+                        "volumeMounts": [
+                            {"name": "krb5-conf", "mountPath": "/etc/krb5.conf", "subPath": "krb5.conf"},
+                            {"name": "keytab", "mountPath": "/keytab", "readOnly": True},
+                        ],
+                    }
+                ],
+                "volumes": [
+                    {"name": "krb5-conf", "configMap": {"name": configmap_name}},
+                    {"name": "keytab", "secret": {"secretName": secret_name}},
+                ],
+            }
+        },
     )
-    assert run_result.returncode == 0, f"kubectl run failed: {run_result.stderr}"
-    try:
-        wait_result = _kubectl(
-            "wait",
-            "--for=jsonpath={.status.phase}=Succeeded",
-            f"pod/{pod_name}",
-            "-n",
-            NAMESPACE,
-            "--timeout=150s",
-        )
-        logs = _kubectl("logs", pod_name, "-n", NAMESPACE).stdout
-        assert wait_result.returncode == 0, (
-            f"Client pod did not Succeed within timeout: {wait_result.stderr}\n--- logs ---\n{logs}"
-        )
-        assert "Default principal:" in logs, f"klist output missing principal line:\n{logs}"
-        assert PRINCIPAL in logs, f"Expected principal {PRINCIPAL!r} not in klist output:\n{logs}"
-    finally:
-        _kubectl("delete", "pod", pod_name, "-n", NAMESPACE, "--ignore-not-found=true", "--wait=false")
+    assert rc == 0, output
+    assert "Default principal:" in output, f"klist output missing principal line:\n{output}"
+    assert principal in output, f"Expected principal {principal!r} not in klist output:\n{output}"

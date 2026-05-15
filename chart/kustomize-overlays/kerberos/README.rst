@@ -153,10 +153,13 @@ How to switch
 Status
 ------
 
-This overlay carries ``status: not-tested`` in its initial PR. The
-``verify:`` block in ``STATUS.yaml`` is the smoke-test contract; flip
-``STATUS`` to ``tested`` once the smoke test runs green locally and in
-CI.
+This overlay ships with ``status: not-tested``. The ``verify:`` block
+in ``STATUS.yaml`` is the smoke-test contract and the
+``test_kerberos.py`` module under
+``kubernetes-tests/tests/kubernetes_tests/overlays/`` adds the
+behavioural assertion (a throwaway client pod ``kinit``\ ing against
+the in-cluster KDC). Run the smoke test with ``--promote-status`` to
+auto-flip ``STATUS.yaml`` to ``tested`` on a green run.
 
 To run the smoke test locally:
 
@@ -164,8 +167,30 @@ To run the smoke test locally:
 
     breeze k8s setup-env
     breeze k8s create-cluster
+    breeze k8s configure-cluster
+    breeze k8s build-k8s-image --rebuild-base-image  # first time only
+    breeze k8s upload-k8s-image                      # load into kind nodes
     breeze k8s deploy-airflow
-    breeze k8s smoke-test-overlay kerberos
+    breeze k8s smoke-test-overlay kerberos --promote-status
+
+The ``--promote-status`` flag rewrites this overlay's ``STATUS.yaml``
+in place on a green run (chart-version from ``chart/Chart.yaml`` plus
+today's date). Without it the smoke test still runs and verifies, it
+just leaves ``STATUS.yaml`` untouched.
+
+The ``build-k8s-image`` + ``upload-k8s-image`` pair is required locally
+because the chart's default image lives on ghcr.io behind CI auth;
+without those steps ``deploy-airflow`` will fail with ImagePullBackOff
+(HTTP 403). CI itself runs ``breeze k8s run-complete-tests`` which
+chains all of the above.
+
+The smoke test runner takes care of this overlay's own images itself:
+``gcavalcante8808/krb5-server`` (KDC pod) and ``alpine/k8s`` (bootstrap
+Job) are auto-discovered from the rendered manifest and pre-loaded into
+every kind node before apply, so the test does not depend on a live
+Docker Hub pull at run time. See ``chart/kustomize-overlays/CONTRIBUTING.rst``
+"What ``smoke-test-overlay`` does for every overlay" for the generic
+machinery.
 
 See ``CONTRIBUTING.rst`` in this directory's parent for the lifecycle
 and the difference between the structural ``build_kustomize_overlays``
