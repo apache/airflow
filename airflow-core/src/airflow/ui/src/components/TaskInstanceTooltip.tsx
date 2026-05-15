@@ -29,11 +29,12 @@ import { Tooltip, type TooltipProps } from "src/components/ui";
 import { getDuration, renderDuration, sortStateEntries } from "src/utils";
 
 type Props = {
+  readonly runId?: string | null;
   readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
-const TaskInstanceTooltip = ({ children, positioning, taskInstance, tooltip, ...rest }: Props) => {
+const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
   const { t: translate } = useTranslation("common");
 
   const hasTooltip = tooltip !== undefined && tooltip !== null;
@@ -62,9 +63,9 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, tooltip, ...
                   ? translate(`common:states.${taskInstance.state}`)
                   : translate("common:states.no_status")}
               </Text>
-              {"dag_run_id" in taskInstance ? (
+              {"dag_run_id" in taskInstance || (runId !== undefined && runId !== null && runId !== "") ? (
                 <Text>
-                  {translate("runId")}: {taskInstance.dag_run_id}
+                  {translate("runId")}: {"dag_run_id" in taskInstance ? taskInstance.dag_run_id : runId}
                 </Text>
               ) : undefined}
               {"start_date" in taskInstance ? (
