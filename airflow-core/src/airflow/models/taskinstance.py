@@ -1493,6 +1493,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         )
 
         payloads_by_asset: dict[SerializedAssetUniqueKey, list[OutletEventPayload]] = defaultdict(list)
+        runtime_pks: set[str] = set()
         for outlet_event in outlet_events:
             # Alias-emitted events are handled separately further down via
             # register_asset_change_for_alias, which uses the DagRun-level
@@ -1502,23 +1503,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             if "source_alias_name" in outlet_event:
                 continue
             asset_key = SerializedAssetUniqueKey(**outlet_event["dest_asset_key"])
+            partition_key = outlet_event.get("partition_key")
             payloads_by_asset[asset_key].append(
-                OutletEventPayload(
-                    extra=outlet_event["extra"], partition_key=outlet_event.get("partition_key")
-                )
+                OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
             )
+            if partition_key is not None:
+                runtime_pks.add(partition_key)
 
         # Back-fill DagRun.partition_key from the task emission when the task
         # emitted exactly one distinct partition_key across all outlet events
         # and the DagRun did not already have one set. This lets a task that
         # discovers the partition at runtime (rather than via params) act as
         # the source of truth for the DagRun-level key.
-        runtime_pks: set[str] = {
-            payload.partition_key
-            for payloads in payloads_by_asset.values()
-            for payload in payloads
-            if payload.partition_key is not None
-        }
         if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
             ti.dag_run.partition_key = next(iter(runtime_pks))
         dag_run_partition_key = ti.dag_run.partition_key
@@ -1565,9 +1561,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
-                    partition_key=payload.partition_key
-                    if payload.partition_key is not None
-                    else dag_run_partition_key,
+                    partition_key=payload.partition_key,
                     session=session,
                 )
 
