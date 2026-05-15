@@ -628,6 +628,7 @@ extend-select = [
     "PLW2101", # Threading lock directly created in with statement has no effect
     "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
     "PLW3301", # Nested {func} calls can be flattened
+    "PLE1205", # Logging format string has too many arguments (extra args are silently dropped)
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
