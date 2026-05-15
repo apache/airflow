@@ -38,6 +38,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
     :param retry_delay: The number of seconds to wait between retries.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param run_page_url: The run page url.
+    :param repair_run: Repair the databricks run in case of failure.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     def __init__(
@@ -134,6 +136,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
     :param retry_limit: The number of times to retry the connection in case of service outages.
     :param retry_delay: The number of seconds to wait between retries.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     def __init__(
