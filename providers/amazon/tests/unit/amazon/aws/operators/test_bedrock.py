@@ -180,7 +180,7 @@ class TestBedrockCustomizeModelOperator:
         response = self.operator.execute({})
 
         assert response == self.CUSTOMIZE_JOB_ARN
-        mock_conn.create_model_customization_job.call_count == expected_call_count
+        assert mock_conn.create_model_customization_job.call_count == expected_call_count
         bedrock_hook.get_waiter.assert_not_called()
         self.operator.defer.assert_not_called()
 

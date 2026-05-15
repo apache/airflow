@@ -3743,7 +3743,7 @@ class TestSchedulerJob:
 
         dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
         # check that next_dagrun is dr.logical_date
-        dag_maker.dag_model.next_dagrun == dr.logical_date
+        assert dag_maker.dag_model.next_dagrun == dr.logical_date
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
@@ -4600,7 +4600,7 @@ class TestSchedulerJob:
         dr = drs[0]
 
         self.job_runner._schedule_dag_run(dag_run=dr, session=session)
-        len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 1
+        assert len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 1
         dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dr.dag_versions[-1].id == dag_version_1.id
 
@@ -5799,7 +5799,7 @@ class TestSchedulerJob:
         dag_models = query.all()
         self.job_runner._create_dag_runs(dag_models, session)
         dr = session.scalars(select(DagRun)).one()
-        dr.state == DagRunState.QUEUED
+        assert dr.state == DagRunState.QUEUED
         assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         assert dag_maker.dag_model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=2)
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)

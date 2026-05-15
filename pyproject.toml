@@ -601,6 +601,7 @@ extend-select = [
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
+    "B015", # Useless comparison: bare `a == b` is a no-op; prepend `assert` or remove
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
