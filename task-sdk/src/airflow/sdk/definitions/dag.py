@@ -1388,6 +1388,24 @@ class DAG:
                 executor = ExecutorLoader.get_default_executor()
                 executor.start()
 
+            def is_marked_success(ti):
+                return (
+                    re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                    if mark_success_pattern is not None
+                    else False
+                )
+
+            # If a mapped TI is marked successful, pre-expand it to a single mapped index
+            # without waiting for the upstream XCom value.
+            # If the upstream dependencies later run and produce an XCom during this Dag run,
+            # _revise_map_indexes_if_mapped() will update the mapped TI count to match the
+            # upstream XCom length.
+            for ti in dr.get_task_instances(session=session):
+                task = self.task_dict[ti.task_id]
+                if task.is_mapped and is_marked_success(ti):
+                    ti.map_index = 0
+            session.commit()
+
             while dr.state == DagRunState.RUNNING:
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
@@ -1407,12 +1425,6 @@ class DAG:
 
                 for ti in scheduled_tis:
                     task = self.task_dict[ti.task_id]
-
-                    mark_success = (
-                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
-                        if mark_success_pattern is not None
-                        else False
-                    )
 
                     if use_executor:
                         if executor.has_task(ti):
@@ -1440,7 +1452,7 @@ class DAG:
                     else:
                         # Run the task locally
                         try:
-                            if mark_success:
+                            if is_marked_success(ti):
                                 ti.set_state(TaskInstanceState.SUCCESS)
                                 log.info("[DAG TEST] Marking success for %s on %s", task, ti.logical_date)
                             else:
