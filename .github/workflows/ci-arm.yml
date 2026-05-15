@@ -462,6 +462,23 @@ jobs:
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
+  tests-kustomize-overlays:
+    name: "Kustomize overlays smoke tests"
+    uses: ./.github/workflows/kustomize-overlays-tests.yml
+    needs: [build-info, build-prod-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    if: >
+      needs.build-info.outputs.run-helm-tests == 'true' &&
+      needs.build-info.outputs.default-branch == 'main' &&
+      needs.build-info.outputs.latest-versions-only != 'true'
+
 
   tests-postgres-core:
     name: "Postgres tests: core"

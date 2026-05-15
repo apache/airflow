@@ -35,11 +35,14 @@ The motivation, criteria, and lifecycle for these overlays are defined in
 Available overlays
 ------------------
 
-+----------+----------------------+----------------------------------------------+
-| Overlay  | STATUS               | Purpose                                      |
-+==========+======================+==============================================+
-| ``keda`` | not-tested (PoC)     | Autoscaling for Celery workers via KEDA.     |
-+----------+----------------------+----------------------------------------------+
++--------------+----------------------+----------------------------------------------+
+| Overlay      | STATUS               | Purpose                                      |
++==============+======================+==============================================+
+| ``keda``     | not-tested (PoC)     | Autoscaling for Celery workers via KEDA.     |
++--------------+----------------------+----------------------------------------------+
+| ``kerberos`` | not-tested (PoC)     | In-cluster test KDC + keytab Secret bootstrap|
+|              |                      | consumable by the chart's kerberos sidecar.  |
++--------------+----------------------+----------------------------------------------+
 
 Each overlay directory contains its own ``README.rst`` with usage details and
 a migration guide from the equivalent chart-side configuration.
@@ -68,4 +71,12 @@ Each overlay carries a ``STATUS.yaml`` file that declares its verification level
 * ``deprecated`` - the overlay is scheduled for removal. The ``STATUS.yaml`` file
   carries a ``message`` field pointing to the replacement.
 
-See `CONTRIBUTING.rst <CONTRIBUTING.rst>`_ for the full status grammar and lifecycle.
+The ``STATUS.yaml`` may also carry a ``verify:`` block listing the
+resources the overlay produces and how to check them. This block is the
+contract consumed by ``breeze k8s smoke-test-overlay <name>`` (the
+functional smoke test) - the structural prek hook only validates its
+schema.
+
+See `CONTRIBUTING.rst <CONTRIBUTING.rst>`_ for the full status grammar,
+lifecycle, and the exact local commands for advancing an overlay's
+``STATUS`` to ``tested``.

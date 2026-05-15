@@ -650,6 +650,32 @@ output during test execution.
 
     breeze k8s tests -- test_kubernetes_executor.py -s
 
+Smoke-testing a kustomize overlay
+.................................
+
+You can run ``breeze k8s smoke-test-overlay <name>`` to apply one of the
+overlays in ``chart/kustomize-overlays/`` to the current KinD cluster,
+wait for every resource declared in that overlay's ``STATUS.yaml``
+``verify:`` block, and run the optional per-overlay pytest module under
+``kubernetes-tests/tests/kubernetes_tests/overlays/``. It is the
+functional counterpart of the structural ``build_kustomize_overlays``
+prek hook; an overlay's ``STATUS`` may only advance to ``tested`` once
+this command exits 0.
+
+.. code-block:: bash
+
+    breeze k8s setup-env
+    breeze k8s create-cluster
+    breeze k8s deploy-airflow
+    breeze k8s smoke-test-overlay kerberos
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_smoke-test-overlay.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_smoke-test-overlay.svg
+  :width: 100%
+  :alt: Breeze k8s smoke-test-overlay
+
 Running k8s complete tests
 ..........................
 
