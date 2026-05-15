@@ -245,6 +245,8 @@ class BaseExecutor(LoggingMixin):
 
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
+        # TODO(airflow 4.0): flatten to dict[WorkloadKey, QueueableWorkload] once the deprecated
+        # queued_tasks / queued_callbacks compat properties are removed.
         self.executor_queues: dict[str, dict[WorkloadKey, QueueableWorkload]] = defaultdict(dict)
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
