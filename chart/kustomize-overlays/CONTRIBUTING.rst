@@ -162,7 +162,7 @@ place - there is no central registry to also update.
 | after apply              | ``chart/kustomize-overlays/<name>/STATUS.yaml`` (see "STATUS    |
 |                          | file format" above). The smoke-test runner walks this list.     |
 +--------------------------+-----------------------------------------------------------------+
-| Behavioural assertions   | ``kubernetes-tests/tests/kubernetes_tests/overlays/test_<name>``|
+| Behavioural assertions   | ``chart/tests/overlay_tests/test_<name>``|
 | beyond "resource exists" | ``.py``. Auto-discovered by the smoke-test runner if present.   |
 |                          | Use the fixtures in the sibling ``conftest.py``                 |
 |                          | (``overlay_namespace``, ``overlay_release_name``, ``kubectl``,  |
@@ -202,7 +202,7 @@ A functional integration test is the separate, stronger check. The
 against a running kind cluster (with the chart already installed), walks
 the ``verify:`` resources from the overlay's ``STATUS.yaml``, and runs the
 optional per-overlay pytest module at
-``kubernetes-tests/tests/kubernetes_tests/overlays/test_<name>.py`` for
+``chart/tests/overlay_tests/test_<name>.py`` for
 behavioural assertions. Until ``breeze k8s smoke-test-overlay <name>``
 exits 0, the overlay's ``STATUS`` must stay at ``not-tested``.
 
@@ -245,7 +245,7 @@ under ``chart/kustomize-overlays/`` with a ``verify:`` block:
    a ``kubectl describe`` dump, rather than waiting out the full
    ``timeout_seconds``.
 5. **Run the optional per-overlay pytest module.** If
-   ``kubernetes-tests/tests/kubernetes_tests/overlays/test_<name>.py``
+   ``chart/tests/overlay_tests/test_<name>.py``
    exists and ``--no-pytest`` was not passed, it is executed with
    ``OVERLAY_UNDER_TEST``, ``OVERLAY_NAMESPACE``, and
    ``OVERLAY_RELEASE_NAME`` in the environment. Tests that need to spin
@@ -298,7 +298,7 @@ Lifecycle steps:
   hook.
 * The same PR (or a follow-up) adds a ``verify:`` block to
   ``STATUS.yaml`` and, optionally, a per-overlay pytest module under
-  ``kubernetes-tests/tests/kubernetes_tests/overlays/``. Once
+  ``chart/tests/overlay_tests/``. Once
   ``breeze k8s smoke-test-overlay <name>`` runs green locally **and** in
   CI, ``STATUS`` is flipped to ``tested`` with ``chart-version`` and
   ``last-verified`` filled in.

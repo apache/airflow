@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import base64
 
-from kubernetes_tests.overlays.conftest import get_secret_data
+from overlay_tests._helpers import get_secret_data
 
 
 def test_keytab_secret_is_non_empty(overlay_namespace, overlay_release_name):

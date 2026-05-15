@@ -2479,7 +2479,13 @@ def deploy_cluster(
 # ---------------------------------------------------------------------------
 
 KUSTOMIZE_OVERLAYS_PATH = CHART_PATH / "kustomize-overlays"
-OVERLAY_TESTS_SUBPATH = Path("tests") / "kubernetes_tests" / "overlays"
+# Behavioural overlay tests live under chart/tests/overlay_tests/ (NOT
+# kubernetes-tests/) so they sit next to the overlay manifests and the
+# rest of chart-adjacent pytest content. They are NOT discovered by
+# `breeze testing helm-tests --test-type all` because `overlay_tests` is
+# in chart/pyproject.toml's norecursedirs — only this command (which
+# invokes pytest by explicit path) sees them.
+OVERLAY_TESTS_DIR = CHART_PATH / "tests" / "overlay_tests"
 
 
 def _substitute_overlay_placeholders(rendered: str, release_name: str, namespace: str) -> str:
@@ -2850,7 +2856,7 @@ def _run_overlay_pytest(
     kubernetes_version: str,
     executor: str,
 ) -> int:
-    test_file = KUBERNETES_TEST_PATH / OVERLAY_TESTS_SUBPATH / f"test_{overlay_name}.py"
+    test_file = OVERLAY_TESTS_DIR / f"test_{overlay_name}.py"
     if not test_file.exists():
         console_print(
             f"[info]No behavioural test module at {test_file.relative_to(AIRFLOW_ROOT_PATH)} — "
@@ -2861,9 +2867,9 @@ def _run_overlay_pytest(
     env["OVERLAY_UNDER_TEST"] = overlay_name
     env["OVERLAY_NAMESPACE"] = namespace
     env["OVERLAY_RELEASE_NAME"] = release_name
-    pytest_cmd = ["uv", "run", "pytest", str(test_file.relative_to(KUBERNETES_TEST_PATH)), "-xvs"]
+    pytest_cmd = ["uv", "run", "pytest", str(test_file.relative_to(CHART_PATH)), "-xvs"]
     console_print(f"[info]Running behavioural tests: {' '.join(pytest_cmd)}")
-    result = run_command(pytest_cmd, env=env, check=False, cwd=KUBERNETES_TEST_PATH.as_posix())
+    result = run_command(pytest_cmd, env=env, check=False, cwd=CHART_PATH.as_posix())
     return result.returncode
 
 
@@ -3009,13 +3015,45 @@ def smoke_test_overlay(
             f"(expected a kustomization.yaml there)."
         )
         sys.exit(1)
-    if not get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version).exists():
+    # Two-step pre-flight. The kubeconfig file persists across docker
+    # restarts even though the kind cluster is gone, so checking only
+    # the file leads to the next step (`kind load docker-image`) hanging
+    # silently while it tries to reach a cluster that no longer exists.
+    # `kind get clusters` returns the current list of live clusters and
+    # is the actual source of truth.
+    kubeconfig = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    bootstrap_hint = (
+        f"[error]Run first:\n"
+        f"  breeze k8s setup-env\n"
+        f"  breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}\n"
+        f"  breeze k8s configure-cluster\n"
+        f"  breeze k8s build-k8s-image --rebuild-base-image  # first time only\n"
+        f"  breeze k8s upload-k8s-image\n"
+        f"  breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}"
+    )
+    if not kubeconfig.exists():
         console_print(
-            f"[error]No kind cluster for python={python}, kubernetes={kubernetes_version}. Run:\n"
-            f"  breeze k8s setup-env\n"
-            f"  breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}\n"
-            f"  breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}"
+            f"[error]No kubeconfig at {kubeconfig} for python={python}, "
+            f"kubernetes={kubernetes_version} — cluster was never created.\n"
         )
+        console_print(bootstrap_hint)
+        sys.exit(1)
+    kind_list = run_command(
+        ["kind", "get", "clusters"],
+        env=get_k8s_env(python=python, kubernetes_version=kubernetes_version),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    live_clusters = (kind_list.stdout or "").splitlines() if kind_list.returncode == 0 else []
+    if cluster_name not in (c.strip() for c in live_clusters):
+        console_print(
+            f"[error]Kind cluster {cluster_name!r} not running (kubeconfig at {kubeconfig} "
+            "is left over from a previous run — docker restart, manual cluster delete, "
+            "or kind binary upgrade typically causes this).\n"
+        )
+        console_print(bootstrap_hint)
         sys.exit(1)
     verify = _load_overlay_verify_block(overlay_dir)
     status_doc = yaml.safe_load((overlay_dir / "STATUS.yaml").read_text()) or {}
