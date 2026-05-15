@@ -27,13 +27,13 @@ last-verified: '2026-05-15'
 verify:
   timeout_seconds: 300
   resources:
-  - kind: Deployment
-    name: RELEASE-NAME-kerberos-kdc
-    ready: true
-  - kind: Service
-    name: RELEASE-NAME-kerberos-kdc
-  - kind: Job
-    name: RELEASE-NAME-keytab-bootstrap
-    complete: true
-  - kind: Secret
-    name: RELEASE-NAME-kerberos-keytab
+    - kind: Deployment
+      name: kerberos-kdc
+      ready: true
+    - kind: Service
+      name: kerberos-kdc
+    - kind: Job
+      name: keytab-bootstrap
+      complete: true
+    - kind: Secret
+      name: kerberos-keytab
