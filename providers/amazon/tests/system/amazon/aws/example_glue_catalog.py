@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.glue_catalog import (
+    GlueCatalogBatchDeletePartitionOperator,
     GlueCatalogCreateDatabaseOperator,
     GlueCatalogCreatePartitionOperator,
     GlueCatalogCreateTableOperator,
@@ -106,6 +107,16 @@ with DAG(
     )
     # [END howto_operator_glue_catalog_create_partition]
 
+    # [START howto_operator_glue_catalog_batch_delete_partition]
+    batch_delete_partition = GlueCatalogBatchDeletePartitionOperator(
+        task_id="batch_delete_partition",
+        database_name=db_name,
+        table_name=table_name,
+        partitions_to_delete=[{"Values": ["2024-01-01"]}],
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_glue_catalog_batch_delete_partition]
+
     # [START howto_operator_glue_catalog_delete_table]
     delete_table = GlueCatalogDeleteTableOperator(
         task_id="delete_table",
@@ -120,6 +131,7 @@ with DAG(
         create_database,
         create_table,
         create_partition,
+        batch_delete_partition,
         delete_table,
         delete_database,
     )
