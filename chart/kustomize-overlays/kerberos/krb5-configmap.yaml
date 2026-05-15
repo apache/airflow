@@ -17,9 +17,9 @@
 
 # krb5.conf for the in-cluster test KDC.
 #
-# The realm name (EXAMPLE.COM) is intentionally fixed for the PoC. If you
-# need a different realm, edit both occurrences below and the matching
-# KRB5_REALM env var in kdc-deployment.yaml.
+# The realm name (EXAMPLE.COM) is intentionally fixed for this test
+# KDC. If you need a different realm, edit both occurrences below and
+# the matching KRB5_REALM env var in kdc-deployment.yaml.
 ---
 apiVersion: v1
 kind: ConfigMap
