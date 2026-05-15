@@ -22,6 +22,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 from copy import deepcopy
 from itertools import chain
 from pathlib import Path
@@ -715,6 +716,19 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 # CI runs from Docker Hub anonymous-pull rate limits, which intermittently
 # turn the scheduled K8s test job red. Auto-bumped by
 # scripts/ci/prek/upgrade_important_versions.py.
+#
+# Scope: ONLY images referenced by the regular K8s system tests under
+# kubernetes-tests/tests/kubernetes_tests/ (the suite `breeze k8s tests`
+# runs against the deployed chart). Images that appear in a kustomize
+# overlay under chart/kustomize-overlays/<name>/ must NOT be added here:
+# `breeze k8s smoke-test-overlay` auto-discovers them from the rendered
+# manifest via _discover_overlay_images() and preloads them with the same
+# pull-and-kind-load pattern, so adding a new overlay image is literally
+# "edit the overlay manifest, done" — no second list to maintain. If a
+# per-overlay pytest module needs to spawn an ad-hoc client pod, prefer
+# reusing an image already declared by the overlay (so it inherits the
+# auto-preload for free); add to this list only as a last resort and only
+# if the image is also useful to the non-overlay K8s tests.
 K8S_TEST_IMAGES_TO_PRELOAD: tuple[str, ...] = (
     "alpine:3.23.4",  # xcom_sidecar default in providers/cncf/kubernetes
     "bitnamilegacy/postgresql:16.1.0-debian-11-r15",  # chart/values.yaml postgresql subchart
@@ -730,8 +744,6 @@ def _docker_pull_with_429_retry(image: str, output: Output | None, max_attempts:
     fast — only the rate-limit pattern is retried, since for everything else
     retrying would just amplify a real error.
     """
-    import time
-
     delay = 5
     for attempt in range(1, max_attempts + 1):
         result = run_command(
@@ -2490,39 +2502,163 @@ def _load_overlay_verify_block(overlay_dir: Path) -> dict[str, Any]:
     return verify
 
 
+# Container `state.waiting.reason` values that indicate the pod is not going
+# to recover without operator intervention (image is missing, image name is
+# malformed, container is in a tight crash loop). Treated as immediate
+# verify-block failure rather than waited out to the configured timeout.
+_TERMINAL_POD_WAITING_REASONS: frozenset[str] = frozenset(
+    {
+        "ImagePullBackOff",
+        "ErrImagePull",
+        "InvalidImageName",
+        "ImageInspectError",
+        "CrashLoopBackOff",
+        "CreateContainerConfigError",
+        "CreateContainerError",
+    }
+)
+
+
+def _has_terminal_pod_failure(
+    kind: str,
+    name: str,
+    namespace: str,
+    env: dict[str, str],
+    kubectl: str,
+) -> tuple[bool, str]:
+    """Return (failed, reason) for pods backing this verify resource.
+
+    Inspects waiting reasons on every regular and init container of every
+    pod selected by the resource's controller. The selector lookup mirrors
+    what the controller itself uses: ``spec.selector.matchLabels`` for
+    Deployment / StatefulSet / DaemonSet, the auto-applied
+    ``job-name=<name>`` label for Job. Resources without backing pods
+    (Service, Secret, ConfigMap, CRDs, …) are always treated as not-failed
+    here; their progress is observed via the success condition alone.
+    """
+    if kind not in ("Deployment", "StatefulSet", "DaemonSet", "Job"):
+        return False, ""
+    if kind == "Job":
+        selector = f"job-name={name}"
+    else:
+        sel = run_command(
+            [
+                kubectl,
+                "get",
+                kind.lower(),
+                name,
+                "-n",
+                namespace,
+                "-o",
+                "go-template={{range $k,$v := .spec.selector.matchLabels}}{{$k}}={{$v}},{{end}}",
+            ],
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if sel.returncode != 0 or not sel.stdout.strip():
+            return False, ""
+        selector = sel.stdout.strip().rstrip(",")
+    pods = run_command(
+        [
+            kubectl,
+            "get",
+            "pods",
+            "-n",
+            namespace,
+            "-l",
+            selector,
+            "-o",
+            (
+                "jsonpath={range .items[*]}"
+                "{range .status.containerStatuses[*]}{.state.waiting.reason}|{end}"
+                "{range .status.initContainerStatuses[*]}{.state.waiting.reason}|{end}"
+                "{end}"
+            ),
+        ],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if pods.returncode != 0:
+        return False, ""
+    for reason in (r for r in pods.stdout.split("|") if r):
+        if reason in _TERMINAL_POD_WAITING_REASONS:
+            return True, reason
+    return False, ""
+
+
 def _wait_for_verify_resource(
     resource: dict[str, Any],
     namespace: str,
     timeout_seconds: int,
     env: dict[str, str],
 ) -> int:
+    """Poll a verify-block resource to success or terminal failure.
+
+    Each iteration runs a one-second kubectl check for the success
+    condition and, in the same cycle, inspects backing pods (if any) for
+    terminal waiting reasons (ImagePullBackOff/CrashLoopBackOff/…). The
+    moment a terminal reason appears the loop aborts with a non-zero
+    return; otherwise it sleeps and retries up to the configured deadline.
+
+    Branch matrix:
+      * ``ready: true`` -> rollout status (Deployment/StatefulSet/DaemonSet)
+      * ``complete: true`` -> wait for condition=complete (Job)
+      * neither -> wait for the resource to be created (handles Secrets /
+        ConfigMaps / CRD children that an overlay's own Job or controller
+        materialises asynchronously; returns immediately for synchronously
+        applied resources)
+    """
     kind = resource["kind"]
     name = resource["name"]
     kubectl = str(KUBECTL_BIN_PATH)
     ns_args = ["-n", namespace]
-    timeout_arg = f"--timeout={timeout_seconds}s"
+    target = f"{kind.lower()}/{name}"
     if resource.get("ready") and kind in ("Deployment", "StatefulSet", "DaemonSet"):
-        cmd = [kubectl, "rollout", "status", f"{kind.lower()}/{name}", *ns_args, timeout_arg]
+        check_cmd = [kubectl, "rollout", "status", target, *ns_args, "--timeout=1s"]
+        readiness = "ready"
     elif resource.get("complete") and kind == "Job":
-        cmd = [kubectl, "wait", "--for=condition=complete", f"job/{name}", *ns_args, timeout_arg]
+        check_cmd = [kubectl, "wait", "--for=condition=complete", target, *ns_args, "--timeout=1s"]
+        readiness = "complete"
     else:
-        # Existence-only check (Service, Secret, ConfigMap, ...).
-        cmd = [kubectl, "get", f"{kind.lower()}/{name}", *ns_args]
-    console_print(f"[info]verify: {kind}/{name} -> {' '.join(cmd[1:])}")
-    result = run_command(cmd, env=env, check=False)
-    if result.returncode != 0:
-        console_print(f"[error]verify failed for {kind}/{name}; dumping describe output:")
-        run_command([kubectl, "describe", kind.lower(), name, *ns_args], env=env, check=False)
-    return result.returncode
+        check_cmd = [kubectl, "wait", "--for=create", target, *ns_args, "--timeout=1s"]
+        readiness = "created"
+    console_print(f"[info]verify: waiting for {kind}/{name} to be {readiness} (timeout={timeout_seconds}s)")
+    deadline = time.monotonic() + timeout_seconds
+    poll_interval = 5
+    last_err = ""
+    while time.monotonic() < deadline:
+        success = run_command(check_cmd, env=env, check=False, capture_output=True, text=True)
+        if success.returncode == 0:
+            console_print(f"[success]verify: {kind}/{name} is {readiness}")
+            return 0
+        last_err = (success.stderr or "").strip()
+        failed, reason = _has_terminal_pod_failure(kind, name, namespace, env, kubectl)
+        if failed:
+            console_print(
+                f"[error]verify failed early for {kind}/{name}: backing pod in {reason}; "
+                "not waiting out the full timeout."
+            )
+            run_command([kubectl, "describe", kind.lower(), name, *ns_args], env=env, check=False)
+            run_command([kubectl, "get", "pods", *ns_args, "-o", "wide"], env=env, check=False)
+            return 1
+        time.sleep(poll_interval)
+    console_print(
+        f"[error]verify timed out for {kind}/{name} after {timeout_seconds}s. Last error: {last_err}"
+    )
+    run_command([kubectl, "describe", kind.lower(), name, *ns_args], env=env, check=False)
+    return 1
 
 
-def _apply_or_delete_overlay(
-    action: Literal["apply", "delete"],
+def _render_overlay(
     overlay_dir: Path,
     release_name: str,
     namespace: str,
     env: dict[str, str],
-) -> int:
+) -> str | None:
     kubectl = str(KUBECTL_BIN_PATH)
     render = run_command(
         [kubectl, "kustomize", str(overlay_dir)],
@@ -2533,16 +2669,141 @@ def _apply_or_delete_overlay(
     )
     if render.returncode != 0:
         console_print(f"[error]kubectl kustomize failed:\n{render.stderr}")
-        return render.returncode
-    manifest = _substitute_overlay_placeholders(render.stdout, release_name, namespace)
+        return None
+    return _substitute_overlay_placeholders(render.stdout, release_name, namespace)
+
+
+def _discover_overlay_images(manifest: str) -> list[str]:
+    """Extract every container image referenced by the rendered manifest.
+
+    Walks every loaded YAML doc and collects every ``image:`` string value,
+    regardless of nesting depth, so it picks up containers, initContainers,
+    sidecars under any pod-spec-bearing kind (Deployment, StatefulSet,
+    DaemonSet, Job, CronJob, Pod) without needing per-kind logic.
+    """
+    images: set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "image" and isinstance(v, str):
+                    images.add(v)
+                else:
+                    _walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    for doc in yaml.safe_load_all(manifest):
+        if doc:
+            _walk(doc)
+    return sorted(images)
+
+
+def _preload_overlay_images(
+    manifest: str,
+    python: str,
+    kubernetes_version: str,
+) -> int:
+    """Pre-pull every image the overlay references and ``kind load`` it.
+
+    Same pattern as ``_preload_test_images_to_kind`` but driven by what the
+    overlay actually declares, so it stays in sync as overlays evolve and
+    works for any overlay without a per-overlay images list. With
+    imagePullPolicy=IfNotPresent set on the overlay's pods (the convention),
+    kubelet never reaches out to a registry once these are loaded — so the
+    smoke test does not flake on Docker Hub rate limits or registry outages.
+    """
+    images = _discover_overlay_images(manifest)
+    if not images:
+        return 0
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    console_print(
+        f"[info]Preloading {len(images)} overlay image(s) into kind cluster {cluster_name}: {images}"
+    )
+    for image in images:
+        pull_rc = _docker_pull_with_429_retry(image, output=None)
+        if pull_rc != 0:
+            console_print(f"[error]docker pull {image} failed")
+            return pull_rc
+        kind_load = run_command_with_k8s_env(
+            ["kind", "load", "docker-image", "--name", cluster_name, image],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            check=False,
+        )
+        if kind_load.returncode != 0:
+            console_print(f"[error]kind load docker-image {image} into {cluster_name} failed")
+            return kind_load.returncode
+    return 0
+
+
+def _apply_or_delete_overlay(
+    action: Literal["apply", "delete"],
+    manifest: str,
+    namespace: str,
+    env: dict[str, str],
+) -> int:
+    kubectl = str(KUBECTL_BIN_PATH)
     extra: list[str] = ["--ignore-not-found=true"] if action == "delete" else []
     result = run_command(
         [kubectl, action, "-n", namespace, *extra, "-f", "-"],
         env=env,
         check=False,
         input=manifest,
+        text=True,
     )
     return result.returncode
+
+
+def _promote_overlay_status(overlay_dir: Path) -> int:
+    """Rewrite STATUS.yaml in-place to ``status: tested``.
+
+    Preserves everything above the YAML document separator ``---``
+    verbatim (license header + any explanatory comments). Re-emits the
+    document body with status fields refreshed and the existing
+    ``verify:`` block carried over.
+
+    Idempotent: if the overlay is already ``tested``, ``chart-version``
+    and ``last-verified`` are refreshed to current values. ``deprecated``
+    overlays are refused.
+    """
+    import datetime
+
+    status_path = overlay_dir / "STATUS.yaml"
+    original = status_path.read_text()
+    sep_idx = original.find("\n---")
+    if sep_idx >= 0:
+        header = original[:sep_idx] + "\n---\n"
+        body = original[sep_idx + len("\n---") :]
+    else:
+        header = ""
+        body = original
+    doc = yaml.safe_load(body) or {}
+    if doc.get("status") == "deprecated":
+        console_print(
+            f"[error]Refusing to promote {status_path.relative_to(AIRFLOW_ROOT_PATH)}: "
+            "status is `deprecated`. Remove the deprecation first."
+        )
+        return 1
+    chart_meta = yaml.safe_load((CHART_PATH / "Chart.yaml").read_text())
+    promoted: dict[str, Any] = {
+        "status": "tested",
+        "chart-version": str(chart_meta["version"]),
+        "last-verified": datetime.date.today().isoformat(),
+    }
+    verify = doc.get("verify")
+    if verify:
+        promoted["verify"] = verify
+    rendered = yaml.safe_dump(promoted, sort_keys=False, default_flow_style=False)
+    status_path.write_text(header + rendered)
+    console_print(
+        f"[success]Promoted {status_path.relative_to(AIRFLOW_ROOT_PATH)}: "
+        f"status=tested chart-version={promoted['chart-version']} "
+        f"last-verified={promoted['last-verified']}"
+    )
+    console_print(f"[info]Review with `git diff {status_path.relative_to(AIRFLOW_ROOT_PATH)}` and commit.")
+    return 0
 
 
 def _run_overlay_pytest(
@@ -2601,6 +2862,16 @@ def _run_overlay_pytest(
     is_flag=True,
     help="Skip the per-overlay pytest module even if it exists.",
 )
+@click.option(
+    "--promote-status",
+    is_flag=True,
+    help=(
+        "If the run is green (verify block + per-overlay pytest both pass), rewrite the "
+        "overlay's STATUS.yaml in place to `status: tested` with chart-version from "
+        "chart/Chart.yaml and today's date as last-verified. Opt-in because it modifies "
+        "a checked-in file; review with `git diff` and commit."
+    ),
+)
 @option_verbose
 @option_dry_run
 def smoke_test_overlay(
@@ -2612,6 +2883,7 @@ def smoke_test_overlay(
     namespace: str,
     skip_cleanup: bool,
     no_pytest: bool,
+    promote_status: bool,
 ):
     make_sure_kubernetes_tools_are_installed()
     overlay_dir = KUSTOMIZE_OVERLAYS_PATH / overlay_name
@@ -2632,8 +2904,18 @@ def smoke_test_overlay(
     verify = _load_overlay_verify_block(overlay_dir)
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
 
+    console_print(f"\n[info]Rendering overlay {overlay_name}...")
+    manifest = _render_overlay(overlay_dir, release_name, namespace, env)
+    if manifest is None:
+        sys.exit(1)
+
+    console_print("\n[info]Preloading overlay images into kind cluster...")
+    if _preload_overlay_images(manifest, python, kubernetes_version) != 0:
+        console_print("[error]Image preload failed.")
+        sys.exit(1)
+
     console_print(f"\n[info]Applying overlay {overlay_name} to namespace {namespace}...")
-    if _apply_or_delete_overlay("apply", overlay_dir, release_name, namespace, env) != 0:
+    if _apply_or_delete_overlay("apply", manifest, namespace, env) != 0:
         console_print("[error]Overlay apply failed.")
         sys.exit(1)
 
@@ -2668,10 +2950,16 @@ def smoke_test_overlay(
             console_print("[warning]--skip-cleanup set; overlay left in place.")
         else:
             console_print(f"\n[info]Cleaning up overlay {overlay_name}...")
-            _apply_or_delete_overlay("delete", overlay_dir, release_name, namespace, env)
+            _apply_or_delete_overlay("delete", manifest, namespace, env)
 
-    console_print(
-        f"\n[success]Smoke test for overlay {overlay_name} passed. "
-        f"You can flip {overlay_dir.relative_to(AIRFLOW_ROOT_PATH)}/STATUS.yaml to `status: tested` "
-        f"(chart-version + last-verified)."
-    )
+    console_print(f"\n[success]Smoke test for overlay {overlay_name} passed.")
+    if promote_status:
+        rc = _promote_overlay_status(overlay_dir)
+        if rc != 0:
+            sys.exit(rc)
+    else:
+        console_print(
+            f"[info]To flip {overlay_dir.relative_to(AIRFLOW_ROOT_PATH)}/STATUS.yaml to "
+            "`status: tested` automatically on a green run, re-run with --promote-status "
+            "(opt-in because it edits a checked-in file)."
+        )

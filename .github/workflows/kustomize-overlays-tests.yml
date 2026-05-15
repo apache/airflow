@@ -77,10 +77,39 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      # The chain below mirrors what `breeze k8s run-complete-tests` does
+      # for the regular K8s system tests. We can't reuse run-complete-tests
+      # directly because it also runs the full kubernetes-tests suite and
+      # tears the cluster down afterwards. The order matters:
+      #   1. setup-env  -> downloads kubectl/kind/helm into .venv/bin
+      #   2. create-cluster
+      #   3. configure-cluster  -> creates the test PV/PVC + node-port Svc
+      #                            the chart consumes; deploy-airflow won't
+      #                            come up without these.
+      #   4. upload-k8s-image  -> loads the PROD image that
+      #                           prepare_breeze_and_image just restored on
+      #                           the host into every kind node, so kubelet
+      #                           can resolve the chart's image reference
+      #                           without hitting ghcr (which is private).
+      #   5. deploy-airflow
+      #   6. smoke-test-overlay  -> renders the overlay, auto-preloads the
+      #                             overlay's own images into the kind
+      #                             nodes (no per-overlay images list
+      #                             needed - discovery walks the rendered
+      #                             manifest), applies, walks the
+      #                             STATUS.yaml verify: block with
+      #                             fail-fast on ImagePullBackOff /
+      #                             CrashLoopBackOff, runs the optional
+      #                             per-overlay pytest module, cleans up.
+      #   7. delete-cluster  -> always(), even on failure.
       - name: "Setup k8s/helm environment"
         run: breeze k8s setup-env
       - name: "Create kind cluster"
         run: breeze k8s create-cluster
+      - name: "Configure kind cluster (test PV/PVC + node-port svc)"
+        run: breeze k8s configure-cluster
+      - name: "Upload PROD image to kind nodes"
+        run: breeze k8s upload-k8s-image
       - name: "Deploy Airflow chart"
         run: breeze k8s deploy-airflow --executor CeleryExecutor
       - name: "Smoke-test overlay: ${{ matrix.overlay }}"

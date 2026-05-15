@@ -42,7 +42,8 @@ spec:
       serviceAccountName: RELEASE-NAME-kerberos-bootstrap
       containers:
         - name: bootstrap
-          image: bitnami/kubectl:1.31
+          # alpine/k8s ships kubectl + bash (the bootstrap script below needs
+          image: alpine/k8s:1.31.0
           imagePullPolicy: IfNotPresent
           env:
             - name: NAMESPACE

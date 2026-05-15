@@ -15,12 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Initial PoC overlay. The verify: block below is consumed by
-# `breeze k8s smoke-test-overlay kerberos` to assert that every resource
-# the overlay produces reaches its declared state in a real cluster.
-#
-# Flip `status` to `tested` (with chart-version and last-verified) once
-# the smoke test runs green locally and in CI.
+# Initial PoC overlay. The verify: block below is the smoke-test
+# contract consumed by `breeze k8s smoke-test-overlay kerberos`. Run
+# that command locally with --promote-status (and let CI re-run it on
+# every PR) to advance status to `tested` with chart-version +
+# last-verified filled in automatically.
 ---
 status: not-tested
 reason: >-
@@ -28,7 +27,8 @@ reason: >-
   creates the airflow service principal, and writes the keytab to a
   Secret consumable by the chart's existing kerberos sidecar. The
   `verify:` block is the smoke-test contract; run
-  `breeze k8s smoke-test-overlay kerberos` locally to evaluate it.
+  `breeze k8s smoke-test-overlay kerberos --promote-status` locally to
+  evaluate it and auto-flip status to `tested`.
 verify:
   timeout_seconds: 300
   resources:

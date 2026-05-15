@@ -662,12 +662,41 @@ functional counterpart of the structural ``build_kustomize_overlays``
 prek hook; an overlay's ``STATUS`` may only advance to ``tested`` once
 this command exits 0.
 
+The runner is overlay-agnostic. For every overlay it:
+
+* renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
+* **auto-preloads every ``image:`` referenced by the rendered manifest**
+  into the kind nodes via ``docker pull`` (with retry on Docker Hub
+  rate limits) + ``kind load docker-image``, so the test does not flake
+  on registry availability,
+* applies the overlay,
+* polls each ``verify:`` resource for its declared success state while
+  **failing fast on terminal pod waiting reasons**
+  (``ImagePullBackOff``, ``ErrImagePull``, ``CrashLoopBackOff``,
+  ``CreateContainerConfigError``, …) rather than waiting out the full
+  ``timeout_seconds``,
+* runs the optional per-overlay pytest module,
+* deletes the overlay (skip with ``--skip-cleanup``).
+
+See ``chart/kustomize-overlays/CONTRIBUTING.rst`` for the full
+lifecycle and how an overlay's ``STATUS`` advances from ``not-tested``
+to ``tested``.
+
 .. code-block:: bash
 
     breeze k8s setup-env
     breeze k8s create-cluster
+    breeze k8s configure-cluster
+    breeze k8s build-k8s-image --rebuild-base-image   # first time only
+    breeze k8s upload-k8s-image
     breeze k8s deploy-airflow
     breeze k8s smoke-test-overlay kerberos
+
+The ``build-k8s-image`` + ``upload-k8s-image`` pair is required locally
+because the chart's default image is the CI-private
+``ghcr.io/apache/airflow/main/prod/python<X>-kubernetes:latest``;
+without those steps ``deploy-airflow`` will fail with ImagePullBackOff
+(HTTP 403).
 
 All parameters of the command are here:
 
