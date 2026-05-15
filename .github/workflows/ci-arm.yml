@@ -92,6 +92,7 @@ jobs:
         ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
       kubernetes-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
+      kustomize-overlay-names: ${{ steps.selective-checks.outputs.kustomize-overlay-names }}
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
@@ -474,10 +475,12 @@ jobs:
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      overlays: ${{ needs.build-info.outputs.kustomize-overlay-names }}
     if: >
       needs.build-info.outputs.run-helm-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
+      needs.build-info.outputs.latest-versions-only != 'true' &&
+      needs.build-info.outputs.kustomize-overlay-names != '[]'
 
 
   tests-postgres-core:

@@ -2851,6 +2851,80 @@ def _run_overlay_pytest(
     return result.returncode
 
 
+def _is_ci() -> bool:
+    """Detect GitHub Actions / generic CI via the conventional CI=true env var.
+
+    Matches the existing pattern used elsewhere in breeze (e.g.
+    ``sync_virtualenv`` in kubernetes_utils.py), so the behaviour is
+    consistent: anything keyed off "are we in CI" reads the same signal.
+    """
+    return os.environ.get("CI", "").lower() == "true"
+
+
+def _smoke_test_overlay_impl(
+    overlay_name: str,
+    overlay_dir: Path,
+    verify: dict[str, Any],
+    python: str,
+    kubernetes_version: str,
+    executor: str,
+    release_name: str,
+    namespace: str,
+    skip_cleanup: bool,
+    no_pytest: bool,
+) -> int:
+    """Run the smoke test and return a single exit code.
+
+    Kept return-based (not ``sys.exit``-based) so the click wrapper can
+    decide whether to swallow the failure (CI + not-tested) or surface
+    it as a non-zero process exit.
+    """
+    env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
+    console_print(f"\n[info]Rendering overlay {overlay_name}...")
+    manifest = _render_overlay(overlay_dir, release_name, namespace, env)
+    if manifest is None:
+        return 1
+    console_print("\n[info]Preloading overlay images into kind cluster...")
+    if _preload_overlay_images(manifest, python, kubernetes_version) != 0:
+        console_print("[error]Image preload failed.")
+        return 1
+    console_print(f"\n[info]Applying overlay {overlay_name} to namespace {namespace}...")
+    if _apply_or_delete_overlay("apply", manifest, namespace, env) != 0:
+        console_print("[error]Overlay apply failed.")
+        return 1
+    try:
+        console_print("\n[info]Walking STATUS.yaml verify block...")
+        timeout = int(verify.get("timeout_seconds", 300))
+        for resource in verify["resources"]:
+            substituted = {
+                **resource,
+                "name": _substitute_overlay_placeholders(resource["name"], release_name, namespace),
+            }
+            if _wait_for_verify_resource(substituted, namespace, timeout, env) != 0:
+                console_print("[error]verify block failed.")
+                return 1
+        console_print("\n[success]verify block passed.")
+        if not no_pytest:
+            rc = _run_overlay_pytest(
+                overlay_name=overlay_name,
+                namespace=namespace,
+                release_name=release_name,
+                python=python,
+                kubernetes_version=kubernetes_version,
+                executor=executor,
+            )
+            if rc != 0:
+                console_print("[error]Per-overlay pytest module failed.")
+                return rc
+    finally:
+        if skip_cleanup:
+            console_print("[warning]--skip-cleanup set; overlay left in place.")
+        else:
+            console_print(f"\n[info]Cleaning up overlay {overlay_name}...")
+            _apply_or_delete_overlay("delete", manifest, namespace, env)
+    return 0
+
+
 @kubernetes_group.command(
     name="smoke-test-overlay",
     help="Apply a kustomize overlay to the current KinD cluster, wait for its STATUS.yaml "
@@ -2889,7 +2963,7 @@ def _run_overlay_pytest(
         "If the run is green (verify block + per-overlay pytest both pass), rewrite the "
         "overlay's STATUS.yaml in place to `status: tested` with chart-version from "
         "chart/Chart.yaml and today's date as last-verified. Opt-in because it modifies "
-        "a checked-in file; review with `git diff` and commit."
+        "a checked-in file; review with `git diff` and commit. Refused when CI=true."
     ),
 )
 @option_verbose
@@ -2905,6 +2979,15 @@ def smoke_test_overlay(
     no_pytest: bool,
     promote_status: bool,
 ):
+    in_ci = _is_ci()
+    if promote_status and in_ci:
+        console_print(
+            "[error]Refusing --promote-status when CI=true is set. "
+            "STATUS.yaml is a checked-in file: it must be flipped locally by a developer "
+            "(the deliberate human claim 'I verified this against my cluster') and committed. "
+            "CI re-runs the smoke test to verify the existing STATUS, not to mutate it."
+        )
+        sys.exit(1)
     make_sure_kubernetes_tools_are_installed()
     overlay_dir = KUSTOMIZE_OVERLAYS_PATH / overlay_name
     if not (overlay_dir / "kustomization.yaml").is_file():
@@ -2922,64 +3005,49 @@ def smoke_test_overlay(
         )
         sys.exit(1)
     verify = _load_overlay_verify_block(overlay_dir)
-    env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
-
-    console_print(f"\n[info]Rendering overlay {overlay_name}...")
-    manifest = _render_overlay(overlay_dir, release_name, namespace, env)
-    if manifest is None:
-        sys.exit(1)
-
-    console_print("\n[info]Preloading overlay images into kind cluster...")
-    if _preload_overlay_images(manifest, python, kubernetes_version) != 0:
-        console_print("[error]Image preload failed.")
-        sys.exit(1)
-
-    console_print(f"\n[info]Applying overlay {overlay_name} to namespace {namespace}...")
-    if _apply_or_delete_overlay("apply", manifest, namespace, env) != 0:
-        console_print("[error]Overlay apply failed.")
-        sys.exit(1)
-
-    try:
-        console_print("\n[info]Walking STATUS.yaml verify block...")
-        timeout = int(verify.get("timeout_seconds", 300))
-        for resource in verify["resources"]:
-            substituted = {
-                **resource,
-                "name": _substitute_overlay_placeholders(resource["name"], release_name, namespace),
-            }
-            rc = _wait_for_verify_resource(substituted, namespace, timeout, env)
-            if rc != 0:
-                console_print("[error]verify block failed.")
-                sys.exit(1)
-        console_print("\n[success]verify block passed.")
-
-        if not no_pytest:
-            rc = _run_overlay_pytest(
-                overlay_name=overlay_name,
-                namespace=namespace,
-                release_name=release_name,
-                python=python,
-                kubernetes_version=kubernetes_version,
-                executor=executor,
-            )
-            if rc != 0:
-                console_print("[error]Per-overlay pytest module failed.")
-                sys.exit(rc)
-    finally:
-        if skip_cleanup:
-            console_print("[warning]--skip-cleanup set; overlay left in place.")
-        else:
-            console_print(f"\n[info]Cleaning up overlay {overlay_name}...")
-            _apply_or_delete_overlay("delete", manifest, namespace, env)
-
-    console_print(f"\n[success]Smoke test for overlay {overlay_name} passed.")
-    if promote_status:
-        rc = _promote_overlay_status(overlay_dir)
-        if rc != 0:
-            sys.exit(rc)
-    else:
+    status_doc = yaml.safe_load((overlay_dir / "STATUS.yaml").read_text()) or {}
+    overlay_status = status_doc.get("status", "not-tested")
+    soft_fail_in_ci = in_ci and overlay_status == "not-tested"
+    if soft_fail_in_ci:
         console_print(
-            f"[info]To flip {overlay_dir.relative_to(AIRFLOW_ROOT_PATH)}/STATUS.yaml to "
-            "`status: tested` automatically on a green run, re-run with --promote-status "
-            "(opt-in because it edits a checked-in file)."
+            f"[info]CI mode + status={overlay_status}: any smoke-test failure will be reported "
+            "but exit 0 (PoC overlays do not gate CI). Flip STATUS to `tested` to make failures "
+            "gate CI."
         )
+
+    exit_code = _smoke_test_overlay_impl(
+        overlay_name=overlay_name,
+        overlay_dir=overlay_dir,
+        verify=verify,
+        python=python,
+        kubernetes_version=kubernetes_version,
+        executor=executor,
+        release_name=release_name,
+        namespace=namespace,
+        skip_cleanup=skip_cleanup,
+        no_pytest=no_pytest,
+    )
+
+    if exit_code == 0:
+        console_print(f"\n[success]Smoke test for overlay {overlay_name} passed.")
+        if promote_status:
+            promote_rc = _promote_overlay_status(overlay_dir)
+            if promote_rc != 0:
+                sys.exit(promote_rc)
+        else:
+            console_print(
+                f"[info]To flip {overlay_dir.relative_to(AIRFLOW_ROOT_PATH)}/STATUS.yaml to "
+                "`status: tested` automatically on a green run, re-run with --promote-status "
+                "(opt-in because it edits a checked-in file; refused when CI=true is set)."
+            )
+        sys.exit(0)
+
+    if soft_fail_in_ci:
+        console_print(
+            f"[warning]Smoke test for overlay {overlay_name} failed (exit={exit_code}), "
+            f"but status is `{overlay_status}` and CI=true is set, so the CI job will not "
+            "be gated by this failure. Read the warnings above and either fix the overlay or "
+            "leave it as `not-tested` until the next iteration."
+        )
+        sys.exit(0)
+    sys.exit(exit_code)

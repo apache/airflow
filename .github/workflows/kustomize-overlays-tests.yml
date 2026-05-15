@@ -38,11 +38,15 @@ on:  # yamllint disable-line rule:truthy
         type: string
       overlays:
         description: >-
-          Stringified JSON array of kustomize-overlay names to smoke-test
-          (each must have a `verify:` block in its STATUS.yaml).
-        required: false
+          Stringified JSON array of kustomize-overlay names to smoke-test.
+          Computed by SelectiveChecks.kustomize_overlay_names from the
+          filesystem: any chart/kustomize-overlays/<name>/STATUS.yaml with
+          a `verify:` block is included. Adding a new overlay therefore
+          requires no edit to this workflow. The callers in
+          .github/workflows/ci-amd.yml and ci-arm.yml gate this whole
+          workflow on the list being non-empty.
+        required: true
         type: string
-        default: '["kerberos"]'
 permissions:
   contents: read
 jobs:

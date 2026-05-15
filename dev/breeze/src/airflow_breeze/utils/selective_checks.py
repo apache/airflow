@@ -1579,6 +1579,29 @@ class SelectiveChecks:
         return json.dumps(all_helm_test_packages())
 
     @cached_property
+    def kustomize_overlay_names(self) -> str:
+        """JSON array of overlay names under chart/kustomize-overlays/ to smoke-test.
+
+        Auto-discovered from the filesystem: any directory under
+        ``chart/kustomize-overlays/`` with a ``STATUS.yaml`` that carries a
+        ``verify:`` block is included. Adding a new overlay therefore just
+        works in CI — no second list to maintain anywhere.
+        """
+        import yaml
+
+        overlays_dir = AIRFLOW_ROOT_PATH / "chart" / "kustomize-overlays"
+        names: list[str] = []
+        if overlays_dir.is_dir():
+            for status_path in sorted(overlays_dir.glob("*/STATUS.yaml")):
+                try:
+                    doc = yaml.safe_load(status_path.read_text()) or {}
+                except yaml.YAMLError:
+                    continue
+                if doc.get("verify"):
+                    names.append(status_path.parent.name)
+        return json.dumps(names)
+
+    @cached_property
     def helm_test_kubernetes_versions(self) -> str:
         default = CURRENT_KUBERNETES_VERSIONS[0]
         if self.all_versions:

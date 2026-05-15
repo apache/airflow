@@ -95,6 +95,50 @@ For an overlay scheduled for removal:
     status: deprecated
     message: "Replaced by <overlay-name>. Will be removed in chart 3.0.0."
 
+Where things live (quick reference)
+-----------------------------------
+
+A declarative map of the moving parts in an overlay and its smoke test,
+so authors can answer "where does X go?" without grepping. Everything
+in this table is auto-wired by the framework once it sits in the right
+place - there is no central registry to also update.
+
++--------------------------+-----------------------------------------------------------------+
+| Thing                    | Where it lives                                                  |
++==========================+=================================================================+
+| Kubernetes resources the | ``chart/kustomize-overlays/<name>/*.yaml`` referenced from      |
+| overlay produces         | the overlay's ``kustomization.yaml``.                           |
++--------------------------+-----------------------------------------------------------------+
+| Container images the     | Inline ``image:`` fields on containers / initContainers /       |
+| overlay uses             | sidecars in the overlay YAMLs above. **No second list.**        |
+|                          | ``breeze k8s smoke-test-overlay`` discovers them by walking     |
+|                          | the rendered manifest and ``docker pull`` + ``kind load``\ s    |
+|                          | each one before applying. Always pair with                      |
+|                          | ``imagePullPolicy: IfNotPresent``.                              |
++--------------------------+-----------------------------------------------------------------+
+| Resources to wait for    | ``verify:`` block in                                            |
+| after apply              | ``chart/kustomize-overlays/<name>/STATUS.yaml`` (see "STATUS    |
+|                          | file format" above). The smoke-test runner walks this list.     |
++--------------------------+-----------------------------------------------------------------+
+| Behavioural assertions   | ``kubernetes-tests/tests/kubernetes_tests/overlays/test_<name>``|
+| beyond "resource exists" | ``.py``. Auto-discovered by the smoke-test runner if present.   |
+|                          | Use the fixtures in the sibling ``conftest.py``                 |
+|                          | (``overlay_namespace``, ``overlay_release_name``, ``kubectl``,  |
+|                          | ``get_secret_data``, ``run_throwaway_pod``) - no copy-paste     |
+|                          | boilerplate.                                                    |
++--------------------------+-----------------------------------------------------------------+
+| Images for a per-overlay | Reuse an ``image:`` already declared by the overlay so the      |
+| test pod                 | auto-preload covers it. Do **not** add to                       |
+|                          | ``K8S_TEST_IMAGES_TO_PRELOAD`` - that list is only for the      |
+|                          | regular K8s system tests under ``kubernetes-tests/``.           |
++--------------------------+-----------------------------------------------------------------+
+| Which overlays CI runs   | Auto-discovered from the filesystem by                          |
+| the smoke test against   | ``SelectiveChecks.kustomize_overlay_names`` and piped to the    |
+|                          | matrix via ``.github/workflows/ci-amd.yml`` /                   |
+|                          | ``ci-arm.yml``. Adding a new overlay with a ``verify:`` block   |
+|                          | is enough - no workflow edit required.                          |
++--------------------------+-----------------------------------------------------------------+
+
 Lifecycle
 ---------
 
