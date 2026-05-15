@@ -3582,10 +3582,10 @@ def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session)
     assert dr.partition_key is None
 
 
-def test_runtime_partition_key_falls_back_to_dag_run_when_event_has_no_key(dag_maker, session):
-    """An outlet event without partition_key falls back to dag_run.partition_key (backward compat)."""
+def test_runtime_partition_key_is_none_when_event_has_no_key(dag_maker, session):
+    """An outlet event without partition_key produces an AssetEvent with partition_key=None."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_fallback", schedule=None) as dag:
+    with dag_maker(dag_id="rt_pk_none", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3599,11 +3599,11 @@ def test_runtime_partition_key_falls_back_to_dag_run_when_event_has_no_key(dag_m
         session=session,
     )
     event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
-    assert event.partition_key == "from-run"
+    assert event.partition_key is None
 
 
 def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
-    """One event with partition_key + one without produce two AssetEvents (with/without override)."""
+    """One event with partition_key + one without produce two AssetEvents (key + None)."""
     asset = Asset(name="hello")
     with dag_maker(dag_id="rt_pk_mixed", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
@@ -3620,7 +3620,7 @@ def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
         session=session,
     )
     events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
-    assert {e.partition_key for e in events} == {"us", "from-run"}
+    assert {e.partition_key for e in events} == {"us", None}
     session.refresh(dr)
     assert dr.partition_key == "from-run"
 
