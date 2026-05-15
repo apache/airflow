@@ -36,6 +36,7 @@ from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchRemoteLogIO,
     OpensearchTaskHandler,
     _build_log_fields,
+    _create_opensearch_client,
     _format_error_detail,
     _render_log_id,
     _strip_userinfo,
@@ -532,6 +533,55 @@ class TestOpensearchTaskHandler:
         assert result == "callable_index_pattern"
 
 
+class TestCreateOpensearchClient:
+    @pytest.mark.parametrize(
+        ("host", "username", "password", "expected_auth"),
+        [
+            # Explicit credentials are used as-is
+            ("http://opensearch.example.com:9200", "admin", "secret", ("admin", "secret")),
+            # Credentials embedded in host URL are extracted when explicit credentials are empty
+            ("https://user:pass@opensearch.example.com:9200", "", "", ("user", "pass")),
+            # Explicit credentials take priority over URL-embedded ones
+            (
+                "https://url_user:url_pass@opensearch.example.com:9200",
+                "explicit",
+                "creds",
+                ("explicit", "creds"),
+            ),
+            # No credentials anywhere — empty strings passed through
+            ("http://opensearch.example.com:9200", "", "", ("", "")),
+        ],
+    )
+    def test_credentials(self, host, username, password, expected_auth):
+        with patch("airflow.providers.opensearch.log.os_task_handler.OpenSearch") as mock_os:
+            _create_opensearch_client(host, None, username, password, {})
+        assert mock_os.call_args.kwargs["http_auth"] == expected_auth
+
+    @pytest.mark.parametrize(
+        ("host", "explicit_port", "expected_port"),
+        [
+            # Port from URL when explicit port is None
+            ("https://user:pass@opensearch.example.com:443", None, 443),
+            # Explicit port overrides URL port
+            ("https://user:pass@opensearch.example.com:443", 9200, 9200),
+            # Default fallback when neither explicit nor URL port
+            ("https://opensearch.example.com", None, 9200),
+        ],
+    )
+    def test_port(self, host, explicit_port, expected_port):
+        with patch("airflow.providers.opensearch.log.os_task_handler.OpenSearch") as mock_os:
+            _create_opensearch_client(host, explicit_port, "", "", {})
+        hosts = mock_os.call_args.kwargs["hosts"]
+        assert hosts[0]["port"] == expected_port
+
+    def test_url_credentials_do_not_appear_in_host_list(self):
+        """Userinfo must be stripped from the host entry passed to the OpenSearch client."""
+        with patch("airflow.providers.opensearch.log.os_task_handler.OpenSearch") as mock_os:
+            _create_opensearch_client("https://user:pass@opensearch.example.com:9200", None, "", "", {})
+        hosts = mock_os.call_args.kwargs["hosts"]
+        assert hosts == [{"host": "opensearch.example.com", "port": 9200, "scheme": "https"}]
+
+
 class TestTaskHandlerHelpers:
     def test_safe_attrgetter(self):
         class A: ...
@@ -703,6 +753,26 @@ class TestOpensearchRemoteLogIO:
         log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Opensearch" in log_messages[0]
+
+    def test_port_extracted_from_url_when_not_explicit(self, tmp_path):
+        io = OpensearchRemoteLogIO(
+            host="https://user:pass@opensearch.example.com:443",
+            port=None,
+            username="",
+            password="",
+            base_log_folder=tmp_path,
+        )
+        assert io.port == 443
+
+    def test_explicit_port_overrides_url_port(self, tmp_path):
+        io = OpensearchRemoteLogIO(
+            host="https://user:pass@opensearch.example.com:443",
+            port=9200,
+            username="",
+            password="",
+            base_log_folder=tmp_path,
+        )
+        assert io.port == 9200
 
     def test_get_index_patterns_with_callable(self):
         with patch("airflow.providers.opensearch.log.os_task_handler.import_string") as mock_import_string:

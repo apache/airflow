@@ -190,9 +190,13 @@ def _create_opensearch_client(
 ) -> OpenSearch:
     parsed_url = urlparse(_format_url(host))
     resolved_port = port if port is not None else (parsed_url.port or 9200)
+    # Fall back to credentials embedded in the host URL (e.g. https://user:pass@host:port)
+    # when explicit username/password are not provided.
+    effective_username = username or parsed_url.username or ""
+    effective_password = password or parsed_url.password or ""
     return OpenSearch(
         hosts=[{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}],
-        http_auth=(username, password),
+        http_auth=(effective_username, effective_password),
         **os_kwargs,
     )
 
@@ -797,7 +801,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     write_to_opensearch: bool = False
     delete_local_copy: bool = False
     host: str = "localhost"
-    port: int | None = 9200
+    port: int | None = None
     username: str = ""
     password: str = ""
     host_field: str = "host"

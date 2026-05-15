@@ -343,7 +343,8 @@ if REMOTE_LOGGING:
     elif OPENSEARCH_HOST:
         from airflow.providers.opensearch.log.os_task_handler import OpensearchRemoteLogIO
 
-        OPENSEARCH_PORT = conf.getint("opensearch", "PORT", fallback=9200)
+        _opensearch_port_str = conf.get("opensearch", "PORT", fallback="")
+        OPENSEARCH_PORT: int | None = int(_opensearch_port_str) if _opensearch_port_str.strip() else None
         OPENSEARCH_USERNAME: str = conf.get_mandatory_value("opensearch", "USERNAME")
         OPENSEARCH_PASSWORD: str = conf.get_mandatory_value("opensearch", "PASSWORD")
         OPENSEARCH_WRITE_STDOUT: bool = conf.getboolean("opensearch", "WRITE_STDOUT")

@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+The OpenSearch log handler now fully supports a single-URL deployment style where
+``AIRFLOW__OPENSEARCH__HOST`` (e.g. ``https://user:password@opensearch.example.com:443``) is the
+only variable that needs to be set. Two bugs prevented this from working:
+
+* **Credentials silently discarded** — when ``AIRFLOW__OPENSEARCH__USERNAME`` /
+  ``AIRFLOW__OPENSEARCH__PASSWORD`` were absent, the userinfo embedded in the host URL
+  (``user:password@``) was stripped before building the OpenSearch client but never passed as
+  ``http_auth``, causing 401 errors. Credentials are now extracted from the URL and used for
+  authentication when the dedicated config keys are empty.
+
+* **Port ignored** — ``AIRFLOW__OPENSEARCH__PORT`` defaulted to ``9200`` in the logging-config
+  template, so a port embedded in the host URL (e.g. ``:443``) was silently overridden. The
+  default is now ``None``; when no explicit port is configured, the port is taken from the host
+  URL, falling back to ``9200`` only when the URL carries no port either.
+
 When the ``[opensearch] host`` config embeds credentials
 (``https://user:password@opensearch.example.com:9200``), the log-source
 label shown in task logs is now the host URL with the ``user:password@``
