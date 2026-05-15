@@ -121,11 +121,12 @@ class ModuleAnalyzer:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        self.classes: dict[str, ast.ClassDef] = {}
         tree = ast.parse(path.read_text("utf-8"), str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                self.classes[node.name] = node
+        self.classes: dict[str, ast.ClassDef] = {
+            node.name: node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef)
+        }
 
     def _in_file_base(self, cls: ast.ClassDef) -> ast.ClassDef | None:
         for name in _base_simple_names(cls):
