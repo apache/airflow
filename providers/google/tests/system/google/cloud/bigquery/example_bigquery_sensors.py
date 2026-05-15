@@ -22,6 +22,7 @@ Example Airflow DAG for Google BigQuery Sensors.
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -173,12 +174,27 @@ with DAG(
 
     @task(task_id="streaming_insert")
     def streaming_insert(ds: str | None = None) -> None:
-        BigQueryHook().insert_all(
+        hook = BigQueryHook()
+        hook.insert_all(
             project_id=PROJECT_ID,
             dataset_id=DATASET_NAME,
             table_id=TABLE_NAME,
-            rows=[{"json": {"value": 100, "ds": ds}}],
+            rows=[{"value": 100, "ds": ds}],
+            fail_on_error=True,
         )
+        # BigQuery's streamingBuffer table metadata is eventually consistent: for
+        # a few seconds after a streaming insert the row is in the buffer but
+        # table.streaming_buffer is still None. Wait for the metadata to catch up
+        # so check_streaming_buffer_empty does not falsely report "empty" before
+        # the buffer is reported at all. Remove once the sensor handles this
+        # itself; tracked at https://github.com/apache/airflow/issues/66963
+        client = hook.get_client(project_id=PROJECT_ID)
+        table_uri = f"{PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}"
+        for _ in range(30):
+            if client.get_table(table_uri).streaming_buffer is not None:
+                return
+            time.sleep(2)
+        raise RuntimeError("BigQuery streaming buffer metadata did not appear within 60s")
 
     streaming_insert_task = streaming_insert()
 
