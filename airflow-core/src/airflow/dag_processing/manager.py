@@ -406,8 +406,8 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
-        active_bundles = set(
-            session.scalars(select(DagBundleModel.name).where(DagBundleModel.active.is_(True))).all()
+        inactive_bundles = set(
+            session.scalars(select(DagBundleModel.name).where(DagBundleModel.active.is_(False))).all()
         )
         query = select(
             DagModel.dag_id,
@@ -419,11 +419,11 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
-            # DAGs whose bundle has been removed from config (bundle no longer active) are stale —
+            # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
-            if dag.bundle_name not in active_bundles:
+            if dag.bundle_name in inactive_bundles:
                 self.log.info(
-                    "Deactivating DAG %s. Its bundle %s is no longer active.",
+                    "Deactivating Dag %s. Its bundle %s is no longer active.",
                     dag.dag_id,
                     dag.bundle_name,
                 )
