@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+``ElasticsearchTaskHandler`` no longer silently registers itself as the remote
+task-log reader during ``dictConfig``. The implicit registration still happens
+for one more release but now emits an ``AirflowProviderDeprecationWarning`` and
+will be removed in a future provider release. If you ship a custom
+``[logging] logging_config_class`` module that swaps in
+``ElasticsearchTaskHandler``, set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)``
+at module scope in that module.
 
 6.5.3
 .....

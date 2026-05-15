@@ -25,6 +25,7 @@ import os
 import shutil
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from operator import attrgetter
@@ -41,6 +42,7 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
@@ -317,8 +319,28 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    warnings.warn(
+                        "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
+                        "during dictConfig is deprecated and will be removed in a future "
+                        "provider release. Set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)`` "
+                        "at module scope in your ``[logging] logging_config_class`` module. "
+                        "See the Elasticsearch provider logging documentation for the "
+                        "updated override example.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                warnings.warn(
+                    "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
+                    "during dictConfig is deprecated and will be removed in a future "
+                    "provider release. Set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)`` "
+                    "at module scope in your ``[logging] logging_config_class`` module. "
+                    "See the Elasticsearch provider logging documentation for the "
+                    "updated override example.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     @staticmethod

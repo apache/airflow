@@ -106,10 +106,9 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 Custom logging configs and remote logging
 -----------------------------------------
 
-When ``[logging] remote_logging = True``, Airflow does **not** read the remote-log
-handler out of the dict you point ``logging_config_class`` at. After importing
-the dict it re-imports the *enclosing module* and looks up two optional
-module-level attributes via ``getattr``:
+When ``[logging] remote_logging = True`` and you point ``logging_config_class``
+at your own module, define two module-level attributes alongside your
+``LOGGING_CONFIG`` dict:
 
 * ``REMOTE_TASK_LOG`` — an instance of
   :class:`~airflow.logging.remote.RemoteLogIO` (or
@@ -118,10 +117,8 @@ module-level attributes via ``getattr``:
 * ``DEFAULT_REMOTE_CONN_ID`` — default Airflow connection id used when
   ``[logging] remote_log_conn_id`` is unset.
 
-If your module does not expose ``REMOTE_TASK_LOG``, remote-log read-back is
-silently disabled and Airflow emits one ``WARNING`` at startup.
-
-Define both attributes alongside your ``LOGGING_CONFIG``:
+If ``REMOTE_TASK_LOG`` is missing, Airflow emits one ``WARNING`` at startup
+and the UI cannot read task logs back from the remote backend.
 
     .. code-block:: python
 
@@ -152,7 +149,7 @@ Define both attributes alongside your ``LOGGING_CONFIG``:
 
    ``airflow.config_templates.airflow_local_settings`` (and its
    ``DEFAULT_LOGGING_CONFIG``) is planned for deprecation. Build
-   ``LOGGING_CONFIG`` directly rather than deep-copying from it, and implement
+   ``LOGGING_CONFIG`` directly rather than deep-copying from it, and define
    ``REMOTE_TASK_LOG`` yourself rather than re-exporting from that module.
 
 
