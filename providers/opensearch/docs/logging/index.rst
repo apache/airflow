@@ -132,6 +132,10 @@ Then, in ``airflow.cfg``:
     remote_logging = True
     logging_config_class = config.airflow_local_settings.DEFAULT_LOGGING_CONFIG
 
+See :ref:`write-logs-advanced` for the general ``logging_config_class`` contract,
+including the ``REMOTE_TASK_LOG`` / ``DEFAULT_REMOTE_CONN_ID`` attributes a
+hand-written module needs when the bundled handler does not self-register.
+
 On Airflow **3.2.1+** this override is unnecessary — the stock ``airflow_local_settings.py``
 already contains an ``elif OPENSEARCH_HOST:`` branch, so configuring the ``[opensearch]``
 section in ``airflow.cfg`` is sufficient.

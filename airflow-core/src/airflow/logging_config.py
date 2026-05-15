@@ -60,7 +60,14 @@ def get_default_remote_conn_id() -> str | None:
 
 
 def load_logging_config() -> tuple[dict[str, Any], str]:
-    """Configure & Validate Airflow Logging."""
+    """
+    Resolve ``[logging] logging_config_class`` and the remote-log side channel.
+
+    The option is a dotted path to a ``logging.config.dictConfig`` dict. After
+    importing the dict, the enclosing module is probed for optional
+    ``REMOTE_TASK_LOG`` and ``DEFAULT_REMOTE_CONN_ID`` attributes via
+    :func:`airflow._shared.logging.remote.discover_remote_log_handler`.
+    """
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
 
@@ -86,9 +93,14 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
             f"to: {type(err).__name__}:{err}"
         )
     else:
-        # Load remote logging configuration using shared discovery logic
+        # Load remote logging configuration using shared discovery logic.
+        # Passing remote_logging_enabled lets the helper warn when a user-defined
+        # module forgot to expose REMOTE_TASK_LOG while remote logging is on.
         remote_task_log, default_remote_conn_id = discover_remote_log_handler(
-            logging_class_path, fallback, import_string
+            logging_class_path,
+            fallback,
+            import_string,
+            remote_logging_enabled=conf.getboolean("logging", "remote_logging", fallback=False),
         )
         _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 

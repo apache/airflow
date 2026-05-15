@@ -172,7 +172,12 @@ def init_log_file(local_relative_path: str) -> Path:
 
 
 def _load_logging_config() -> None:
-    """Load and cache the remote logging configuration from SDK config."""
+    """
+    Load and cache the remote logging configuration from SDK config.
+
+    SDK mirror of :func:`airflow.logging_config.load_logging_config` — see that
+    function for the ``logging_config_class`` / ``REMOTE_TASK_LOG`` contract.
+    """
     from airflow.sdk._shared.logging.remote import discover_remote_log_handler
     from airflow.sdk._shared.module_loading import import_string
     from airflow.sdk.configuration import conf
@@ -180,9 +185,14 @@ def _load_logging_config() -> None:
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
 
-    # Load remote logging configuration using shared discovery logic
+    # Load remote logging configuration using shared discovery logic.
+    # Passing remote_logging_enabled lets the helper warn when a user-defined
+    # module forgot to expose REMOTE_TASK_LOG while remote logging is on.
     remote_task_log, default_remote_conn_id = discover_remote_log_handler(
-        logging_class_path, fallback, import_string
+        logging_class_path,
+        fallback,
+        import_string,
+        remote_logging_enabled=conf.getboolean("logging", "remote_logging", fallback=False),
     )
     _ActiveLoggingConfig.set(remote_task_log, default_remote_conn_id)
 

@@ -134,6 +134,84 @@ class TestDiscoverRemoteLogHandler:
         assert result_handler is None
         assert result_conn is None
 
+    def test_warns_when_user_module_missing_remote_task_log_with_remote_logging(self):
+        config = {"version": 1}
+        mock_module = mock.MagicMock(spec=[])  # no REMOTE_TASK_LOG, no DEFAULT_REMOTE_CONN_ID
+
+        with (
+            mock.patch("airflow_shared.logging.remote.import_module", return_value=mock_module),
+            mock.patch("airflow_shared.logging.remote.log") as mock_log,
+        ):
+            result_handler, result_conn = discover_remote_log_handler(
+                "my_pkg.custom_settings.LOGGING_CONFIG",
+                "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG",
+                lambda path: config,
+                remote_logging_enabled=True,
+            )
+
+        assert result_handler is None
+        assert result_conn is None
+        mock_log.warning.assert_called_once()
+        warning_args = mock_log.warning.call_args
+        # The module path (parent of the dotted path) should appear in the formatted message.
+        assert "my_pkg.custom_settings" in warning_args.args
+
+    def test_no_warning_when_using_fallback_path(self):
+        config = {"version": 1}
+        mock_module = mock.MagicMock(spec=[])  # no REMOTE_TASK_LOG
+
+        fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+        with (
+            mock.patch("airflow_shared.logging.remote.import_module", return_value=mock_module),
+            mock.patch("airflow_shared.logging.remote.log") as mock_log,
+        ):
+            discover_remote_log_handler(
+                fallback,
+                fallback,
+                lambda path: config,
+                remote_logging_enabled=True,
+            )
+
+        mock_log.warning.assert_not_called()
+
+    def test_no_warning_when_remote_logging_disabled(self):
+        config = {"version": 1}
+        mock_module = mock.MagicMock(spec=[])  # no REMOTE_TASK_LOG
+
+        with (
+            mock.patch("airflow_shared.logging.remote.import_module", return_value=mock_module),
+            mock.patch("airflow_shared.logging.remote.log") as mock_log,
+        ):
+            discover_remote_log_handler(
+                "my_pkg.custom_settings.LOGGING_CONFIG",
+                "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG",
+                lambda path: config,
+                remote_logging_enabled=False,
+            )
+
+        mock_log.warning.assert_not_called()
+
+    def test_no_warning_when_remote_task_log_present(self):
+        handler = DummyRemoteLogIO()
+        config = {"version": 1}
+        mock_module = mock.MagicMock()
+        mock_module.REMOTE_TASK_LOG = handler
+        mock_module.DEFAULT_REMOTE_CONN_ID = None
+
+        with (
+            mock.patch("airflow_shared.logging.remote.import_module", return_value=mock_module),
+            mock.patch("airflow_shared.logging.remote.log") as mock_log,
+        ):
+            result_handler, _ = discover_remote_log_handler(
+                "my_pkg.custom_settings.LOGGING_CONFIG",
+                "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG",
+                lambda path: config,
+                remote_logging_enabled=True,
+            )
+
+        assert result_handler is handler
+        mock_log.warning.assert_not_called()
+
 
 class TestRemoteLogIOProtocol:
     def test_dummy_implements_protocol(self):

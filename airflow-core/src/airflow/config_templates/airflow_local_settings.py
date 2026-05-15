@@ -49,7 +49,9 @@ DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value("logging", "DAG_PROCESS
 
 BASE_LOG_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("logging", "BASE_LOG_FOLDER"))
 
-# This isn't used anymore, but kept for compat of people who might have imported it
+# Default value for the ``[logging] logging_config_class`` option. Plain
+# ``logging.config.dictConfig`` dict; the ``_class`` suffix on the config option
+# is historical.
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -121,6 +123,11 @@ if EXTRA_LOGGER_NAMES:
 ##################
 
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
+
+# Side-channel attributes read by ``discover_remote_log_handler`` from whichever
+# module ``[logging] logging_config_class`` resolves through. Custom modules that
+# override that option should define both at module scope to enable remote
+# task-log read-back.
 REMOTE_TASK_LOG: RemoteLogIO | RemoteLogStreamIO | None = None
 DEFAULT_REMOTE_CONN_ID: str | None = None
 
