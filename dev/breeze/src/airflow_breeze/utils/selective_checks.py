@@ -255,7 +255,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         # care about every chart-template edit, only their own files.
         FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES: [
             r"^chart/kustomize-overlays/",
-            r"^kubernetes-tests/tests/kubernetes_tests/overlays/",
+            r"^chart/tests/overlay_tests/",
             r"^scripts/ci/prek/build_kustomize_overlays\.py$",
             r"^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$",
             r"^\.github/workflows/kustomize-overlays-tests\.yml$",

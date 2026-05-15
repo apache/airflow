@@ -157,7 +157,7 @@ This overlay is ``tested``: the ``verify:`` block in ``STATUS.yaml``
 is the smoke-test contract (KDC Deployment Ready, Service exists,
 bootstrap Job Complete, keytab Secret exists), and the
 ``test_kerberos.py`` module under
-``kubernetes-tests/tests/kubernetes_tests/overlays/`` adds the
+``chart/tests/overlay_tests/`` adds the
 behavioural assertion: a throwaway client pod ``kinit``\ ing against
 the in-cluster KDC and confirming the principal in ``klist`` output.
 ``last-verified`` in ``STATUS.yaml`` records the most recent green

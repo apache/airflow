@@ -71,6 +71,14 @@ addopts = [
 ]
 norecursedirs = [
     ".eggs",
+    # Overlay smoke-test modules live under chart/tests/overlay_tests/ but
+    # are only meaningful when the overlay-under-test has been applied
+    # to a kind cluster. `breeze k8s smoke-test-overlay <name>` invokes
+    # them directly by path (which bypasses norecursedirs), so the
+    # smoke test still works; `breeze testing helm-tests --test-type all`
+    # would otherwise recurse into them and fail with `Secret not found`
+    # because no cluster / overlay is set up at that point.
+    "overlay_tests",
 ]
 log_level = "INFO"
 filterwarnings = [

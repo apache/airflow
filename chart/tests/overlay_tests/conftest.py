@@ -40,12 +40,13 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import uuid
 from collections.abc import Iterator
 from typing import Any
 
 import pytest
+
+from overlay_tests._helpers import kubectl
 
 
 @pytest.fixture(scope="session")
@@ -65,29 +66,6 @@ def overlay_release_name() -> str:
     Set by ``breeze k8s smoke-test-overlay``; defaults to ``airflow``.
     """
     return os.environ.get("OVERLAY_RELEASE_NAME", "airflow")
-
-
-def kubectl(*args: str) -> subprocess.CompletedProcess[str]:
-    """One-shot kubectl invocation capturing text stdout/stderr.
-
-    No retry: tests should express waits via kubectl itself
-    (``kubectl wait``, ``kubectl rollout status``) instead of polling
-    from the call site. Use ``check=False`` semantics — callers inspect
-    ``returncode`` so they can produce a clear failure message
-    including the captured output.
-    """
-    return subprocess.run(["kubectl", *args], check=False, capture_output=True, text=True)
-
-
-def get_secret_data(name: str, namespace: str) -> dict[str, str]:
-    """Return the ``data`` map of a Secret (base64-encoded values).
-
-    Fails the calling test if the Secret does not exist or the kubectl
-    invocation errored.
-    """
-    result = kubectl("get", "secret", name, "-n", namespace, "-o", "json")
-    assert result.returncode == 0, f"Secret {name} not found in {namespace}: {result.stderr}"
-    return json.loads(result.stdout).get("data", {}) or {}
 
 
 @pytest.fixture

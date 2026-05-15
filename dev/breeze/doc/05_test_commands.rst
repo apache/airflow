@@ -657,7 +657,7 @@ You can run ``breeze k8s smoke-test-overlay <name>`` to apply one of the
 overlays in ``chart/kustomize-overlays/`` to the current KinD cluster,
 wait for every resource declared in that overlay's ``STATUS.yaml``
 ``verify:`` block, and run the optional per-overlay pytest module under
-``kubernetes-tests/tests/kubernetes_tests/overlays/``. It is the
+``chart/tests/overlay_tests/``. It is the
 functional counterpart of the structural ``build_kustomize_overlays``
 prek hook; an overlay's ``STATUS`` may only advance to ``tested`` once
 this command exits 0.
