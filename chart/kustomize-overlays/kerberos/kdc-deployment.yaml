@@ -60,15 +60,20 @@ spec:
             - name: kadmin
               containerPort: 749
               protocol: TCP
+          # TCP probe on port 88 — the principal-file check we used to
+          # do here only said "the KDC database was initialised", not
+          # "krb5kdc is actually accepting connections". That left a
+          # multi-second window where the pod was Ready but kinit
+          # immediately after would hit a closed port, producing
+          # `Resource temporarily unavailable`. A tcpSocket probe only
+          # goes green when krb5kdc has bound and listen()ed.
           readinessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - test -s /var/lib/krb5kdc/principal
+            tcpSocket:
+              port: kdc-tcp
             initialDelaySeconds: 5
-            periodSeconds: 5
+            periodSeconds: 3
             timeoutSeconds: 3
+            failureThreshold: 20
           resources:
             requests:
               cpu: "50m"
