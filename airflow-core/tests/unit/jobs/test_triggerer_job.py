@@ -1809,9 +1809,6 @@ class TestTriggererMessageTypes:
             "DeleteAssetStateByUri",
             "ClearAssetStateByName",
             "ClearAssetStateByUri",
-            "GetAllAssetStateByName",
-            "GetAllAssetStateByUri",
-            "GetAllTaskState",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1836,8 +1833,6 @@ class TestTriggererMessageTypes:
             # AIP-103 task/asset state results — worker-only responses to the above messages.
             "TaskStateResult",
             "AssetStateResult",
-            "AllAssetStateResult",
-            "AllTaskStateResult",
         }
 
         supervisor_diff = (

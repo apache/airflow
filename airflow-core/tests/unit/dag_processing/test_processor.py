@@ -1985,9 +1985,6 @@ class TestDagProcessingMessageTypes:
             "DeleteAssetStateByUri",
             "ClearAssetStateByName",
             "ClearAssetStateByUri",
-            "GetAllAssetStateByName",
-            "GetAllAssetStateByUri",
-            "GetAllTaskState",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
@@ -2010,8 +2007,6 @@ class TestDagProcessingMessageTypes:
             # AIP-103 task/asset state results — worker-only responses to the above messages.
             "TaskStateResult",
             "AssetStateResult",
-            "AllAssetStateResult",
-            "AllTaskStateResult",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager
