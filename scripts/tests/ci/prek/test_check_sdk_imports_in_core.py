@@ -20,7 +20,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from check_sdk_imports import check_file_for_sdk_imports
+from check_sdk_imports_in_core import check_file_for_sdk_imports
 
 
 class TestCheckFileForSdkImports:
