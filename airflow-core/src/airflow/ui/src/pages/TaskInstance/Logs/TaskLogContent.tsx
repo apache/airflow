@@ -61,6 +61,7 @@ export const TaskLogContent = ({
 
   const {
     expandedGroups,
+    lineNumberToVisibleIndex,
     originalToVisibleIndex,
     toggleGroup,
     visibleCurrentMatchIndex,
@@ -114,14 +115,14 @@ export const TaskLogContent = ({
 
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
-      const hashVisibleIndex = originalToVisibleIndex.get(Number(hash) - 1);
+      const hashVisibleIndex = lineNumberToVisibleIndex.get(Number(hash));
 
       if (hashVisibleIndex !== undefined) {
         rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
       }
     }
     // React Compiler auto-memoizes; safe to include in deps
-  }, [isLoading, rowVirtualizer, hash, visibleItems, originalToVisibleIndex]);
+  }, [isLoading, rowVirtualizer, hash, visibleItems, lineNumberToVisibleIndex]);
 
   useLayoutEffect(() => {
     if (visibleCurrentMatchIndex !== undefined && !isLoading) {

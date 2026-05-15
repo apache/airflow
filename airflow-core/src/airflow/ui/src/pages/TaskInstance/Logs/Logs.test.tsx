@@ -401,7 +401,7 @@ describe("Task log search", () => {
     await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
   }, 10_000);
 
-  it("skips group markers when assigning line numbers", async () => {
+  it("uses raw log-file positions as line numbers, preserving gaps where group markers appear", async () => {
     render(
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
     );
@@ -428,8 +428,8 @@ describe("Task log search", () => {
 
     fireEvent.click(summaryDependency);
 
-    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 1);
-    await expectRenderedLineNumber(/dep_context=requeueable/iu, 2);
-    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 3);
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 5);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 6);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 8);
   }, 10_000);
 });

@@ -37,6 +37,7 @@ import { parseStreamingLogContent } from "src/utils/logs";
 export type ParsedLogEntry = {
   element: JSX.Element | string | undefined;
   group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
+  lineNumber?: number;
 };
 
 type Props = {
@@ -73,27 +74,17 @@ const parseLogs = ({
   tryNumber,
 }: ParseLogsProps) => {
   let warning;
-  let parsedLines;
   const sources: Array<string> = [];
 
   const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
+  let entries: Array<{ element: JSX.Element | string; lineNumber: number | undefined }> = [];
+
   try {
-    let lineNumber = 0;
-    const lineNumbers = data.map((datum) => {
-      const text = typeof datum === "string" ? datum : datum.event;
-
-      if (text.includes("::group::") || text.includes("::endgroup::")) {
-        return undefined;
-      }
-      const current = lineNumber;
-
-      lineNumber += 1;
-
-      return current;
-    });
-
-    parsedLines = data
+    // Build { element, lineNumber } pairs in one pass, using the raw data index as the
+    // line number. Group markers don't get a line number (undefined) but still consume
+    // their raw position, so lines after them preserve their true file-level position.
+    entries = data
       .map((datum, index) => {
         if (typeof datum !== "string" && "logger" in datum) {
           const source = datum.logger as string;
@@ -103,19 +94,26 @@ const parseLogs = ({
           }
         }
 
-        return renderStructuredLog({
-          index: lineNumbers[index] ?? index,
-          logLevelFilters,
-          logLink,
-          logMessage: datum,
-          renderingMode: "jsx",
-          showSource,
-          showTimestamp,
-          sourceFilters,
-          translate,
-        });
+        const text = typeof datum === "string" ? datum : datum.event;
+        const lineNumber =
+          text.includes("::group::") || text.includes("::endgroup::") ? undefined : index;
+
+        return {
+          element: renderStructuredLog({
+            index,
+            logLevelFilters,
+            logLink,
+            logMessage: datum,
+            renderingMode: "jsx",
+            showSource,
+            showTimestamp,
+            sourceFilters,
+            translate,
+          }),
+          lineNumber,
+        };
       })
-      .filter((parsedLine) => parsedLine !== "");
+      .filter(({ element }) => element !== "");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -132,7 +130,7 @@ const parseLogs = ({
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
 
-    parsedLines.forEach((line) => {
+    entries.forEach(({ element: line, lineNumber }) => {
       const text = innerText(line);
 
       if (text.includes("::group::")) {
@@ -164,9 +162,10 @@ const parseLogs = ({
         result.push({
           element: line,
           group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
+          lineNumber,
         });
       } else {
-        result.push({ element: line });
+        result.push({ element: line, lineNumber });
       }
     });
 
