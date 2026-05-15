@@ -45,9 +45,16 @@ class TaskScope:
 
 @dataclass(frozen=True)
 class AssetScope:
-    """Identifies the state namespace for an asset."""
+    """
+    Identifies the state namespace for an asset.
 
-    asset_id: int
+    We need to store ``name`` or ``uri`` since workers do not have access to the integer ``asset_id``.
+    (Access method is through AssetStateAccessor).
+    """
+
+    asset_id: int | None = None
+    name: str | None = None
+    uri: str | None = None
 
 
 StateScope = TaskScope | AssetScope
@@ -204,21 +211,3 @@ class BaseStateBackend(ABC):
         the Execution API. Default: return ``stored`` unchanged.
         """
         return stored
-
-    def purge_task_state(self, stored: str) -> None:
-        """
-        Clean up the task state storage object on the custom backend identified by ``stored``.
-
-        Called by ``TaskStateAccessor.delete()`` and ``TaskStateAccessor.clear()`` before
-        the DB reference is removed. ``stored`` is whatever ``serialize_task_state_value``
-        returned. Default: no-op.
-        """
-
-    def purge_asset_state(self, stored: str) -> None:
-        """
-        Clean up the asset state storage object on the custom backend identified by ``stored``.
-
-        Called by ``AssetStateAccessor.delete()`` and ``AssetStateAccessor.clear()`` before
-        the DB reference is removed. ``stored`` is whatever ``serialize_asset_state_value``
-        returned. Default: no-op.
-        """

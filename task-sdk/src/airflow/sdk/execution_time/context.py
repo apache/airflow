@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk import Variable
+    from airflow.sdk._shared.state import TaskScope
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
@@ -450,8 +451,9 @@ def _get_worker_state_backend():
 class TaskStateAccessor:
     """Accessor for task state scoped to the current task instance. Available as ``context['task_state']`` at task execution time."""
 
-    def __init__(self, ti_id: UUID) -> None:
+    def __init__(self, ti_id: UUID, scope: TaskScope) -> None:
         self._ti_id = ti_id
+        self._scope = scope
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TaskStateAccessor):
@@ -501,21 +503,12 @@ class TaskStateAccessor:
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
-        from airflow.sdk.execution_time.comms import (
-            DeleteTaskState,
-            GetTaskState,
-            TaskStateResult,
-        )
+        from airflow.sdk.execution_time.comms import DeleteTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         backend = _get_worker_state_backend()
-        # if custom backend is configured, fetch the reference of the stored value from DB,
-        # and delete the actual value from custom backend using the reference, then delete the reference from DB
-        # as well
         if backend is not None:
-            resp = SUPERVISOR_COMMS.send(GetTaskState(ti_id=self._ti_id, key=key))
-            if isinstance(resp, TaskStateResult):
-                backend.purge_task_state(resp.value)
+            backend.delete(self._scope, key)
         SUPERVISOR_COMMS.send(DeleteTaskState(ti_id=self._ti_id, key=key))
 
     def clear(self, all_map_indices: bool = False) -> None:
@@ -526,18 +519,12 @@ class TaskStateAccessor:
         instance of the task (fleet-wide reset). Defaults to clearing only
         this task instance's own state.
         """
-        from airflow.sdk.execution_time.comms import AllTaskStateResult, ClearTaskState, GetAllTaskState
+        from airflow.sdk.execution_time.comms import ClearTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # if custom backend is configured, fetch the references of all stored values for this task instance
-        # from DB, and delete the actual values from custom backend using the references, then delete
-        # the references from DB as well.
         backend = _get_worker_state_backend()
         if backend is not None:
-            resp = SUPERVISOR_COMMS.send(GetAllTaskState(ti_id=self._ti_id))
-            if isinstance(resp, AllTaskStateResult):
-                for item in resp.items:
-                    backend.purge_task_state(item.value)
+            backend.clear(self._scope, all_map_indices=all_map_indices)
         SUPERVISOR_COMMS.send(ClearTaskState(ti_id=self._ti_id, all_map_indices=all_map_indices))
 
 
@@ -619,29 +606,19 @@ class AssetStateAccessor:
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
+        from airflow.sdk._shared.state import AssetScope
         from airflow.sdk.execution_time.comms import (
-            AssetStateResult,
             DeleteAssetStateByName,
             DeleteAssetStateByUri,
-            GetAssetStateByName,
-            GetAssetStateByUri,
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         backend = _get_worker_state_backend()
-        # if custom backend is configured, fetch the reference of the stored value from DB,
-        # and delete the actual value from custom backend using the reference, then delete the reference from DB
-        # as well
+        # session=None signals worker-side: backend cleans up external storage only.
+        # DB reference is removed separately via comms below.
         if backend is not None:
-            get_msg: ToSupervisor
-            if self._name:
-                get_msg = GetAssetStateByName(name=self._name, key=key)
-            elif self._uri:
-                get_msg = GetAssetStateByUri(uri=self._uri, key=key)
-            resp = SUPERVISOR_COMMS.send(get_msg)
-            if isinstance(resp, AssetStateResult):
-                backend.purge_asset_state(resp.value)
+            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
 
         msg: ToSupervisor
         if self._name:
@@ -652,30 +629,19 @@ class AssetStateAccessor:
 
     def clear(self) -> None:
         """Delete all state keys for this asset."""
+        from airflow.sdk._shared.state import AssetScope
         from airflow.sdk.execution_time.comms import (
-            AllAssetStateResult,
             ClearAssetStateByName,
             ClearAssetStateByUri,
-            GetAllAssetStateByName,
-            GetAllAssetStateByUri,
             ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # if custom backend is configured, fetch the references of all stored values for this asset
-        # from DB, and delete the actual values from custom backend using the references, then delete
-        # the references from DB as well.
         backend = _get_worker_state_backend()
+        # session=None signals worker-side: backend cleans up external storage only.
+        # DB references are cleared separately via comms below.
         if backend is not None:
-            list_msg: ToSupervisor
-            if self._name:
-                list_msg = GetAllAssetStateByName(name=self._name)
-            elif self._uri:
-                list_msg = GetAllAssetStateByUri(uri=self._uri)
-            resp = SUPERVISOR_COMMS.send(list_msg)
-            if isinstance(resp, AllAssetStateResult):
-                for item in resp.items:
-                    backend.purge_asset_state(item.value)
+            backend.clear(AssetScope(name=self._name, uri=self._uri))
 
         msg: ToSupervisor
         if self._name:
