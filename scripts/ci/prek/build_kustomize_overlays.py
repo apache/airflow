@@ -82,6 +82,13 @@ class _VerifyResource(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: str
+    # `name` is the SUFFIX only - the smoke-test runner auto-prepends
+    # `<release-name>-` before doing kubectl wait / rollout status, so
+    # the same overlay works under any release. Write `foo`, not
+    # `RELEASE-NAME-foo` (the legacy literal-prefix form is tolerated
+    # by the runner for backwards-compat). Validation here only checks
+    # the schema shape; the prefix logic lives in
+    # dev/breeze/.../kubernetes_commands.py::_resolve_verify_resource_name.
     name: str
     ready: bool | None = None
     complete: bool | None = None

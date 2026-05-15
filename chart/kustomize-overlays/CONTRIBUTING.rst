@@ -95,6 +95,48 @@ For an overlay scheduled for removal:
     status: deprecated
     message: "Replaced by <overlay-name>. Will be removed in chart 3.0.0."
 
+The optional ``verify:`` block is the smoke-test contract and is also
+**the discovery key for CI**:
+
+.. code-block:: yaml
+
+    verify:
+      timeout_seconds: 300        # optional; default 300, max 3600
+      # `name` is the SUFFIX only - the runner auto-prepends
+      # `<release-name>-` so the same overlay works under any release.
+      # Write `foo`, not `RELEASE-NAME-foo`. The legacy `RELEASE-NAME-foo`
+      # form is still tolerated for older overlays but the short form
+      # is the new convention.
+      resources:
+        - kind: Deployment
+          name: foo               # -> matches <release-name>-foo
+          ready: true             # waits for rollout to complete
+        - kind: Job
+          name: bootstrap
+          complete: true          # waits for condition=complete
+        - kind: Secret
+          name: foo               # neither flag = waits for create
+
+How discovery works:
+
+* ``SelectiveChecks.kustomize_overlay_names`` scans
+  ``chart/kustomize-overlays/*/STATUS.yaml`` at CI time and emits the
+  list of overlay directory names whose ``STATUS.yaml`` contains a
+  ``verify:`` block. An overlay **without** a ``verify:`` block is
+  invisible to CI - the smoke-test workflow's matrix never sees it,
+  and the workflow is skipped entirely when the list is empty.
+* The same workflow is gated by
+  ``SelectiveChecks.run_kustomize_overlays_tests``, which only trips
+  on changes under ``chart/kustomize-overlays/`` and the narrow set
+  of files that drive the runner (the prek hook, the breeze command,
+  the workflow file). Unrelated chart edits do not pull in a
+  30-40 minute kind cluster spin-up.
+
+Practical rule: as soon as an overlay has a ``verify:`` block, CI
+starts running its smoke test on every relevant change. Until then,
+the prek hook's structural check is the only automation that touches
+it.
+
 Where things live (quick reference)
 -----------------------------------
 

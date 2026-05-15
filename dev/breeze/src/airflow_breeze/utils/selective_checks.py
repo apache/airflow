@@ -107,6 +107,7 @@ class FileGroupForCi(Enum):
     STANDARD_PROVIDER_FILES = auto()
     API_CODEGEN_FILES = auto()
     HELM_FILES = auto()
+    KUSTOMIZE_OVERLAYS_FILES = auto()
     DEPENDENCY_FILES = auto()
     DOC_FILES = auto()
     TEXT_NON_DOC_FILES = auto()
@@ -245,6 +246,19 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
+        ],
+        # Narrow trigger for the `breeze k8s smoke-test-overlay` CI job. Kept
+        # focused: only the overlay manifests, the per-overlay pytest dir,
+        # the prek hook that builds them, the breeze command that runs the
+        # smoke test, and the workflow file itself. `^chart/` (under
+        # HELM_FILES) is intentionally NOT reused — the overlays don't
+        # care about every chart-template edit, only their own files.
+        FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES: [
+            r"^chart/kustomize-overlays/",
+            r"^kubernetes-tests/tests/kubernetes_tests/overlays/",
+            r"^scripts/ci/prek/build_kustomize_overlays\.py$",
+            r"^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$",
+            r"^\.github/workflows/kustomize-overlays-tests\.yml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -1036,6 +1050,19 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
 
     @cached_property
+    def run_kustomize_overlays_tests(self) -> bool:
+        """Gate for the kustomize-overlays smoke test CI job.
+
+        Distinct from ``run_helm_tests`` so an unrelated chart change
+        (e.g. a values.yaml tweak) does not pull in a 30-40 minute kind
+        cluster spin-up just to verify overlays it does not touch.
+        Trips on changes inside ``chart/kustomize-overlays/`` and the
+        narrow set of files that drive the runner; see
+        ``KUSTOMIZE_OVERLAYS_FILES`` in ``CI_FILE_GROUP_MATCHES``.
+        """
+        return self._should_be_run(FileGroupForCi.KUSTOMIZE_OVERLAYS_FILES) and self._default_branch == "main"
+
+    @cached_property
     def run_unit_tests(self) -> bool:
         def _only_new_ui_files() -> bool:
             all_source_files = set(
@@ -1092,6 +1119,7 @@ class SelectiveChecks:
         return (
             self.run_kubernetes_tests
             or self.run_helm_tests
+            or self.run_kustomize_overlays_tests
             or self.run_task_sdk_integration_tests
             or self.run_airflow_ctl_integration_tests
             or self.run_remote_logging_s3_e2e_tests

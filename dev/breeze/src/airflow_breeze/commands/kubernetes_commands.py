@@ -2486,6 +2486,22 @@ def _substitute_overlay_placeholders(rendered: str, release_name: str, namespace
     return rendered.replace("RELEASE-NAME", release_name).replace("NAMESPACE", namespace)
 
 
+def _resolve_verify_resource_name(name: str, release_name: str) -> str:
+    """Auto-prepend ``<release_name>-`` to a verify-block resource name.
+
+    STATUS.yaml's ``verify:`` entries name resources by their **suffix
+    only** (e.g. ``kerberos-kdc``) - the runner prepends the release name
+    so the same overlay can be installed under any release. A legacy
+    ``RELEASE-NAME-foo`` form is still tolerated so older overlays keep
+    working after the schema change: the literal ``RELEASE-NAME-`` prefix
+    is stripped before the auto-prepend, leaving the suffix to be
+    re-prefixed with the actual release name.
+    """
+    if name.startswith("RELEASE-NAME-"):
+        name = name[len("RELEASE-NAME-") :]
+    return f"{release_name}-{name}"
+
+
 def _load_overlay_verify_block(overlay_dir: Path) -> dict[str, Any]:
     status_path = overlay_dir / "STATUS.yaml"
     if not status_path.exists():
@@ -2896,10 +2912,7 @@ def _smoke_test_overlay_impl(
         console_print("\n[info]Walking STATUS.yaml verify block...")
         timeout = int(verify.get("timeout_seconds", 300))
         for resource in verify["resources"]:
-            substituted = {
-                **resource,
-                "name": _substitute_overlay_placeholders(resource["name"], release_name, namespace),
-            }
+            substituted = {**resource, "name": _resolve_verify_resource_name(resource["name"], release_name)}
             if _wait_for_verify_resource(substituted, namespace, timeout, env) != 0:
                 console_print("[error]verify block failed.")
                 return 1

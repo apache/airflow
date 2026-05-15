@@ -35,6 +35,13 @@ data:
         renew_lifetime = 7d
         forwardable = true
         rdns = false
+        # Force TCP for ASREQ. MIT Kerberos defaults to UDP first and
+        # falls back to TCP on timeout, but kube-proxy's UDP NAT can
+        # drop the first packet before the conntrack entry is warm,
+        # producing transient `Resource temporarily unavailable`
+        # errors from kinit. Setting udp_preference_limit=1 forces
+        # the TCP path, which is reliable behind a K8s Service.
+        udp_preference_limit = 1
 
     [realms]
         EXAMPLE.COM = {

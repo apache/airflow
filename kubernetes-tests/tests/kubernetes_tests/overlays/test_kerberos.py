@@ -65,11 +65,21 @@ def test_kinit_against_in_cluster_kdc(overlay_namespace, overlay_release_name, r
     secret_name = f"{overlay_release_name}-kerberos-keytab"
     configmap_name = f"{overlay_release_name}-krb5-conf"
     principal = f"airflow/airflow.{overlay_namespace}.svc.cluster.local@EXAMPLE.COM"
+    # The KDC readiness probe covers krb5kdc TCP bind, and krb5.conf
+    # forces TCP via udp_preference_limit=1 - but a short retry around
+    # kinit is still defensive against cold-start ticket-cache races
+    # the first time a fresh KDC sees an AS-REQ.
+    kinit_with_retry = (
+        f"for i in 1 2 3 4 5; do "
+        f"kinit -kt /keytab/airflow.keytab {principal} && break; "
+        f"echo 'kinit attempt '$i' failed, sleeping 2s' >&2; sleep 2; "
+        f"done && klist"
+    )
     rc, output = run_throwaway_pod(
         image="gcavalcante8808/krb5-server:latest",
         namespace=overlay_namespace,
         command=["/bin/sh", "-c"],
-        args=[f"kinit -kt /keytab/airflow.keytab {principal} && klist"],
+        args=[kinit_with_retry],
         overrides={
             "spec": {
                 "containers": [

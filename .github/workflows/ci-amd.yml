@@ -103,6 +103,7 @@ jobs:
       kubernetes-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
       kustomize-overlay-names: ${{ steps.selective-checks.outputs.kustomize-overlay-names }}
+      run-kustomize-overlays-tests: ${{ steps.selective-checks.outputs.run-kustomize-overlays-tests }}
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
@@ -486,8 +487,12 @@ jobs:
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       overlays: ${{ needs.build-info.outputs.kustomize-overlay-names }}
+    # Gated by run-kustomize-overlays-tests (computed by SelectiveChecks
+    # from changes under chart/kustomize-overlays/ and the narrow set of
+    # runner files), NOT by run-helm-tests — a values.yaml tweak should
+    # not pull in a 30-40 min kind cluster spin-up for unrelated overlays.
     if: >
-      needs.build-info.outputs.run-helm-tests == 'true' &&
+      needs.build-info.outputs.run-kustomize-overlays-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true' &&
       needs.build-info.outputs.kustomize-overlay-names != '[]'
