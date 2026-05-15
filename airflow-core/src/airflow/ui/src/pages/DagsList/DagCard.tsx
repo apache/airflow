@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Link, SimpleGrid, Spinner } from "@chakra-ui/react";
+import { Box, Flex, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Link as ReactRouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
@@ -50,11 +49,9 @@ export const DagCard = ({ dag }: Props) => {
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={1}>
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
-            <Link asChild color="fg.info" fontWeight="bold">
-              <ReactRouterLink data-testid="dag-id" to={`/dags/${dag.dag_id}`}>
-                {dag.dag_display_name}
-              </ReactRouterLink>
-            </Link>
+            <RouterLink color="fg.info" data-testid="dag-id" fontWeight="bold" to={`/dags/${dag.dag_id}`}>
+              {dag.dag_display_name}
+            </RouterLink>
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
