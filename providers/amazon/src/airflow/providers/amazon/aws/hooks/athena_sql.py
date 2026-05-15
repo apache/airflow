@@ -181,8 +181,9 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
         """Return Amazon Athena specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-        region_name = connection.extra_dejson.get("region_name") or self.region_name
-        authority = f"athena.{region_name}.amazonaws.com" if region_name else "athena.amazonaws.com"
+        region_name = self.region_name or connection.extra_dejson.get("region_name")
+        aws_domain = connection.extra_dejson.get("aws_domain", "amazonaws.com")
+        authority = f"athena.{region_name}.{aws_domain}" if region_name else f"athena.{aws_domain}"
 
         return DatabaseInfo(
             scheme="awsathena",

@@ -204,14 +204,22 @@ class TestAthenaSQLHookOpenLineage:
     @pytest.mark.parametrize(
         ("extras", "hook_region", "expected_authority"),
         [
-            # region from connection extras
+            # region from connection extras when hook-constructor region not set
             ({"region_name": "us-east-1"}, None, "athena.us-east-1.amazonaws.com"),
-            # extras region wins over hook-constructor region
-            ({"region_name": "eu-west-1"}, "us-east-2", "athena.eu-west-1.amazonaws.com"),
-            # falls back to hook-constructor region when extras have none
+            # hook-constructor region (explicit user override) wins over extras region
+            ({"region_name": "eu-west-1"}, "us-east-2", "athena.us-east-2.amazonaws.com"),
+            # hook-constructor region used when extras have none
             ({}, "ap-south-1", "athena.ap-south-1.amazonaws.com"),
             # graceful fallback when neither is set
             ({}, None, "athena.amazonaws.com"),
+            # aws_domain extra changes the domain (AWS GovCloud / China / ISO partitions)
+            (
+                {"region_name": "cn-north-1", "aws_domain": "amazonaws.com.cn"},
+                None,
+                "athena.cn-north-1.amazonaws.com.cn",
+            ),
+            # aws_domain still applied when region falls back
+            ({"aws_domain": "amazonaws.com.cn"}, None, "athena.amazonaws.com.cn"),
         ],
     )
     def test_get_openlineage_database_info_region_extraction(self, extras, hook_region, expected_authority):
