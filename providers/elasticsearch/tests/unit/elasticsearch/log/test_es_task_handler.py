@@ -172,10 +172,13 @@ class TestElasticsearchTaskHandler:
         # Mirror the recommended user pattern (REMOTE_TASK_LOG defined at module
         # scope in the logging_config_class module) so ElasticsearchTaskHandler.__init__
         # does not emit the deprecated implicit-registration warning during tests.
+        # ``remote_task_log`` is annotation-only on _ActiveLoggingConfig (no default
+        # at class scope), so raising=False is required for isolated runs where the
+        # attribute has not yet been initialized by load_logging_config().
         from airflow.logging_config import _ActiveLoggingConfig
 
-        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", True)
-        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", object())
+        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", True, raising=False)
+        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", object(), raising=False)
 
         self.local_log_location = str(tmp_path / "logs")
         self.end_of_log_mark = "end_of_log\n"
