@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessCreateWorkflowOperator,
+    MwaaServerlessDeleteWorkflowOperator,
     MwaaServerlessStartWorkflowRunOperator,
     MwaaServerlessStopWorkflowRunOperator,
     MwaaServerlessUpdateWorkflowOperator,
@@ -36,9 +37,8 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import TriggerRule, task
+    from airflow.sdk import TriggerRule
 else:
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_mwaa_serverless"
@@ -60,14 +60,6 @@ systest_mwaa_serverless:
 """
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_workflow(workflow_arn: str):
-    """Delete the MWAA Serverless workflow."""
-    import boto3
-
-    boto3.client("mwaa-serverless").delete_workflow(WorkflowArn=workflow_arn)
 
 
 with DAG(
@@ -142,6 +134,14 @@ with DAG(
     )
     # [END howto_operator_mwaa_serverless_stop_workflow_run]
 
+    # [START howto_operator_mwaa_serverless_delete_workflow]
+    delete_workflow = MwaaServerlessDeleteWorkflowOperator(
+        task_id="delete_workflow",
+        workflow_arn=workflow_arn,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_mwaa_serverless_delete_workflow]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=bucket_name,
@@ -150,16 +150,19 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
         test_context,
         create_bucket,
         upload_workflow_yaml,
         workflow_arn,
+        # TEST BODY
         start_workflow,
         wait_for_run,
         update_workflow,
         start_workflow_2,
         stop_workflow_run,
-        delete_workflow(workflow_arn=workflow_arn),
+        # TEST TEARDOWN
+        delete_workflow,
         delete_bucket,
     )
 

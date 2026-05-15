@@ -600,7 +600,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_insert_all_succeed(self, mock_client):
-        rows = [{"json": {"a_key": "a_value_0"}}]
+        rows = [{"a_key": "a_value_0"}]
 
         self.hook.insert_all(
             project_id=PROJECT_ID,
@@ -620,7 +620,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_insert_all_fail(self, mock_client):
-        rows = [{"json": {"a_key": "a_value_0"}}]
+        rows = [{"a_key": "a_value_0"}]
 
         mock_client.return_value.insert_rows.return_value = ["some", "errors"]
         with pytest.raises(AirflowException, match="insert error"):
@@ -2204,7 +2204,7 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
-            rows=[{"json": {"a_key": "a_value"}}],
+            rows=[{"a_key": "a_value"}],
         )
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 0

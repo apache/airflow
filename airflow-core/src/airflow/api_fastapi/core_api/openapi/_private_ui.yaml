@@ -100,6 +100,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats:
+    get:
+      tags:
+      - DagRun
+      summary: Get Dag Run Stats
+      description: Get duration statistics for a DAG based on its historical completed
+        runs.
+      operationId: get_dag_run_stats
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagRunStatsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/partitioned_dag_runs:
     get:
       tags:
@@ -2319,6 +2362,17 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
+    DagRunStatsResponse:
+      properties:
+        duration:
+          anyOf:
+          - $ref: '#/components/schemas/DurationStats'
+          - type: 'null'
+      type: object
+      required:
+      - duration
+      title: DagRunStatsResponse
+      description: DAG Run statistics serializer for responses.
     DagRunType:
       type: string
       enum:
@@ -2522,6 +2576,38 @@ components:
       - dag_run_id
       title: DeadlineResponse
       description: Deadline serializer for responses.
+    DurationStats:
+      properties:
+        mean:
+          type: number
+          title: Mean
+        mode:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mode
+        p50:
+          type: number
+          title: P50
+        p90:
+          type: number
+          title: P90
+        p95:
+          type: number
+          title: P95
+        p99:
+          type: number
+          title: P99
+      type: object
+      required:
+      - mean
+      - mode
+      - p50
+      - p90
+      - p95
+      - p99
+      title: DurationStats
+      description: Duration statistics for a DAG across historical runs.
     EdgeResponse:
       properties:
         source_id:

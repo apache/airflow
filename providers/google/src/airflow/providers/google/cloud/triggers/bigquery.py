@@ -873,3 +873,107 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
         if records:
             records = [row[0] for row in records]
             return self.partition_id in records
+
+
+class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
+    """
+    Poll a BigQuery table until its streaming buffer is empty.
+
+    Used by :class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryStreamingBufferEmptySensor`
+    in deferrable mode.
+
+    :param project_id: Google Cloud project ID.
+    :param dataset_id: Dataset of the table to monitor.
+    :param table_id: Table to monitor.
+    :param gcp_conn_id: Airflow connection ID for GCP.
+    :param poll_interval: Seconds between polls.
+    :param impersonation_chain: Optional service account to impersonate, or a
+        chained list of accounts.
+    """
+
+    def __init__(
+        self,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str,
+        poll_interval: float = 30.0,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.bigquery.BigQueryStreamingBufferEmptyTrigger",
+            {
+                "project_id": self.project_id,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
+            },
+        )
+
+    def _get_async_hook(self) -> BigQueryTableAsyncHook:
+        return BigQueryTableAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        try:
+            hook = self._get_async_hook()
+            async with ClientSession() as session:
+                while True:
+                    self.log.info("Checking streaming buffer for table %s", table_uri)
+                    is_empty = await self._is_streaming_buffer_empty(
+                        hook=hook,
+                        session=session,
+                        project_id=self.project_id,
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                    )
+                    if is_empty:
+                        message = f"Streaming buffer is empty for table: {table_uri}"
+                        self.log.info(message)
+                        yield TriggerEvent({"status": "success", "message": message})
+                        return
+                    self.log.info("Streaming buffer not empty, sleeping %ss", self.poll_interval)
+                    await asyncio.sleep(self.poll_interval)
+        except Exception as e:
+            self.log.exception("Error while checking streaming buffer for table %s", table_uri)
+            yield TriggerEvent({"status": "error", "message": str(e)})
+
+    async def _is_streaming_buffer_empty(
+        self,
+        hook: BigQueryTableAsyncHook,
+        session: ClientSession,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+    ) -> bool:
+        try:
+            client = await hook.get_table_client(
+                dataset=dataset_id,
+                table_id=table_id,
+                project_id=project_id,
+                session=session,
+            )
+            response = await client.get()
+        except ClientResponseError as err:
+            if err.status == 404:
+                raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} not found") from err
+            raise
+
+        if not response:
+            raise ValueError(f"Table {project_id}.{dataset_id}.{table_id} does not exist")
+
+        return response.get("streamingBuffer") is None

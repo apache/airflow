@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -41,12 +42,14 @@ from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.task_state import TaskStateModel
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
+from airflow.state.metastore import MetastoreStateBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -5159,6 +5162,77 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 409
         assert "Task id print_the_context is already in success state" in response.text
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_patch_task_instance_to_success_clears_task_state(self, test_client, session):
+        """When clear_on_success=True, task_state rows are deleted after manual mark-as-success."""
+        self.create_task_instances(session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).one()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+
+        test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+
+        session.expire_all()
+        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_patch_task_instance_to_failed_does_not_clear_task_state(self, test_client, session):
+        """Task state rows are preserved when manually marking a TI as FAILED."""
+        self.create_task_instances(session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).one()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        test_client.patch(self.ENDPOINT_URL, json={"new_state": "failed"})
+
+        session.expire_all()
+        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+
+    @pytest.mark.db_test
+    @conf_vars({("state_store", "clear_on_success"): "False"})
+    def test_patch_task_instance_to_success_skips_clear_when_config_disabled(self, test_client, session):
+        """Task state rows are preserved on manual mark-as-success when clear_on_success=False."""
+        self.create_task_instances(session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).one()
+
+        backend = MetastoreStateBackend()
+        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        backend.set(scope, "job_id", "app_1234", session=session)
+        session.commit()
+
+        test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
+
+        session.expire_all()
+        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
 
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
