@@ -145,16 +145,6 @@ type MarkdownCodeElementProps = {
   readonly className?: string;
 };
 
-type MermaidDiagramProps = {
-  readonly chart: string;
-  readonly theme: "dark" | "default";
-};
-
-type MarkdownRendererProps = {
-  readonly mermaidTheme: MermaidDiagramProps["theme"];
-  readonly style: SyntaxTheme;
-};
-
 const hasDisplayMath = (children: Options["children"]): boolean =>
   typeof children === "string" && children.includes("$$");
 
@@ -172,7 +162,7 @@ const InlineCodeComponent = ({ children }: PropsWithChildren) => <Code display="
 
 // Factory function for the pre component that needs style
 const createPreComponent =
-  (style: SyntaxTheme, mermaidTheme: MermaidDiagramProps["theme"]) =>
+  (style: SyntaxTheme) =>
   ({ children }: { readonly children?: ReactNode }) => {
     const [codeElement] = Children.toArray(children);
 
@@ -187,13 +177,13 @@ const createPreComponent =
     const childString = extractTextContent(codeChildren).replace(/\n$/u, "");
 
     if (language === "mermaid") {
-      return <MarkdownMermaid chart={childString} fallbackStyle={style} theme={mermaidTheme} />;
+      return <MarkdownMermaid chart={childString} fallbackStyle={style} />;
     }
 
     return <MarkdownCodeBlock language={language} style={style} value={childString} />;
   };
 
-const createMarkdownComponents = ({ mermaidTheme, style }: MarkdownRendererProps): Components => ({
+const createMarkdownComponents = (style: SyntaxTheme): Components => ({
   // eslint-disable-next-line id-length
   a: LinkComponent,
   blockquote: BlockquoteComponent,
@@ -212,7 +202,7 @@ const createMarkdownComponents = ({ mermaidTheme, style }: MarkdownRendererProps
   ol: OlComponent,
   // eslint-disable-next-line id-length
   p: PComponent,
-  pre: createPreComponent(style, mermaidTheme),
+  pre: createPreComponent(style),
   table: TableComponent,
   tbody: Table.Body,
   td: Table.Cell,
@@ -226,8 +216,7 @@ const createMarkdownComponents = ({ mermaidTheme, style }: MarkdownRendererProps
 const ReactMarkdown = ({ children, ...props }: Options) => {
   const { colorMode } = useColorMode();
   const style = colorMode === "dark" ? oneDark : oneLight;
-  const mermaidTheme = colorMode === "dark" ? "dark" : "default";
-  const components = createMarkdownComponents({ mermaidTheme, style });
+  const components = createMarkdownComponents(style);
   const shouldEnableMath = hasDisplayMath(children);
 
   useEffect(() => {

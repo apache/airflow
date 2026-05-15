@@ -21,7 +21,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LazyClipboard } from "src/components/ui";
-import { renderMermaidDiagram } from "src/utils/renderMermaid";
+import { useMermaid } from "src/context/mermaid";
 import { resolveSyntaxLanguage, SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 
 const MarkdownBlockFrame = ({
@@ -133,13 +133,12 @@ export const MarkdownCodeBlock = ({
 export const MarkdownMermaid = ({
   chart,
   fallbackStyle,
-  theme,
 }: {
   readonly chart: string;
   readonly fallbackStyle: SyntaxTheme;
-  readonly theme: "dark" | "default";
 }) => {
   const { t: translate } = useTranslation("components");
+  const { renderDiagram } = useMermaid();
   const diagramId = useId().replaceAll(":", "");
   const [error, setError] = useState(false);
   const [svg, setSvg] = useState<string>();
@@ -147,12 +146,11 @@ export const MarkdownMermaid = ({
   useEffect(() => {
     let cancelled = false;
 
-    const renderDiagram = async () => {
+    const renderMermaid = async () => {
       try {
-        const renderedSvg = await renderMermaidDiagram({
+        const renderedSvg = await renderDiagram({
           chart,
           diagramId: `markdown-mermaid-${diagramId}`,
-          theme,
         });
 
         if (!cancelled) {
@@ -167,12 +165,12 @@ export const MarkdownMermaid = ({
       }
     };
 
-    void renderDiagram();
+    void renderMermaid();
 
     return () => {
       cancelled = true;
     };
-  }, [chart, diagramId, theme]);
+  }, [chart, diagramId, renderDiagram]);
 
   if (error) {
     return <MarkdownCodeBlock language="mermaid" style={fallbackStyle} value={chart} />;
