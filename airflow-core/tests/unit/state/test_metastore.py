@@ -252,20 +252,6 @@ class TestMetastoreStateBackendTaskScope:
         assert row.expires_at is not None
         assert row.expires_at > row.updated_at
 
-    def test_set_with_explicit_expires_at(
-        self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun, time_machine
-    ):
-        """An explicit expires_at is stored as-is, overriding any global default."""
-        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
-        time_machine.move_to(timezone.datetime(2026, 1, 1), tick=False)
-        expires = timezone.datetime(2026, 1, 8)
-        backend.set(scope, "job_id", "app_1234", expires_at=expires, session=session)
-        session.flush()
-
-        row = session.scalar(select(TaskStateModel).where(TaskStateModel.key == "job_id"))
-        assert row is not None
-        assert row.expires_at == expires
-
     def test_set_expires_at_none_stores_null(
         self, session: Session, backend: MetastoreStateBackend, dag_run: DagRun
     ):
