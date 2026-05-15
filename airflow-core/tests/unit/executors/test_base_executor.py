@@ -644,7 +644,7 @@ class TestCallbackSupport:
         executor.queue_workload(callback_workload, session)
 
         assert len(executor.queued_callbacks) == 1
-        assert callback_data.id in executor.queued_callbacks
+        assert callback_workload.key in executor.queued_callbacks
 
     @pytest.mark.db_test
     def test_get_workloads_prioritizes_callbacks(self, dag_maker, session):
