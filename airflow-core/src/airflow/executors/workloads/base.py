@@ -55,7 +55,9 @@ _workload_type_priority_order = (
     WorkloadType.TEST_CONNECTION,
 )
 
-WORKLOAD_TYPE_PRIORITY: dict[str, int] = {name: idx for idx, name in enumerate(_workload_type_priority_order)}
+WORKLOAD_TYPE_PRIORITY: dict[WorkloadType, int] = {
+    name: idx for idx, name in enumerate(_workload_type_priority_order)
+}
 
 
 class BaseWorkload:
