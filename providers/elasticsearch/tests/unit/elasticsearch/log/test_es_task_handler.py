@@ -168,18 +168,7 @@ class TestElasticsearchTaskHandler:
             yield
 
     @pytest.fixture(autouse=True)
-    def _setup_handler(self, tmp_path, monkeypatch):
-        # Mirror the recommended user pattern (REMOTE_TASK_LOG defined at module
-        # scope in the logging_config_class module) so ElasticsearchTaskHandler.__init__
-        # does not emit the deprecated implicit-registration warning during tests.
-        # ``remote_task_log`` is annotation-only on _ActiveLoggingConfig (no default
-        # at class scope), so raising=False is required for isolated runs where the
-        # attribute has not yet been initialized by load_logging_config().
-        from airflow.logging_config import _ActiveLoggingConfig
-
-        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", True, raising=False)
-        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", object(), raising=False)
-
+    def _setup_handler(self, tmp_path):
         self.local_log_location = str(tmp_path / "logs")
         self.end_of_log_mark = "end_of_log\n"
         self.write_stdout = False

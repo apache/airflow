@@ -319,6 +319,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    # stacklevel=1 keeps the warning attributed to this airflow.providers
+                    # module so module-based deprecation filters still match; dictConfig
+                    # is in stdlib and would otherwise hide the warning at stacklevel=2.
                     warnings.warn(
                         "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
                         "during dictConfig is deprecated and will be removed in a future "
@@ -327,7 +330,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         "See the Elasticsearch provider logging documentation for the "
                         "updated override example.",
                         AirflowProviderDeprecationWarning,
-                        stacklevel=2,
+                        stacklevel=1,
                     )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
@@ -339,7 +342,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "See the Elasticsearch provider logging documentation for the "
                     "updated override example.",
                     AirflowProviderDeprecationWarning,
-                    stacklevel=2,
+                    stacklevel=1,
                 )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 

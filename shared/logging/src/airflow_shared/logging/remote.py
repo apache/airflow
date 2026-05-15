@@ -78,8 +78,6 @@ def discover_remote_log_handler(
     logging_class_path: str,
     fallback_path: str,
     import_string: Callable[[str], Any],
-    *,
-    remote_logging_enabled: bool = False,
 ) -> tuple[RemoteLogIO | None, str | None]:
     """
     Look up the optional remote-log handler alongside a logging dictConfig.
@@ -94,13 +92,13 @@ def discover_remote_log_handler(
     * ``DEFAULT_REMOTE_CONN_ID`` — default Airflow connection id for that
       backend.
 
-    Missing attributes are not fatal; they disable remote-log read-back. When
-    ``remote_logging_enabled=True`` and a user-defined module exposes no
-    ``REMOTE_TASK_LOG``, a single warning is emitted so the misconfiguration
-    is visible.
+    Either may be ``None`` immediately after this call; provider task handlers
+    can still populate ``REMOTE_TASK_LOG`` from inside ``__init__`` when
+    ``dictConfig`` instantiates them (deprecated path). Callers that want to
+    warn on missing remote-log configuration should re-check
+    ``_ActiveLoggingConfig.remote_task_log`` *after* ``dictConfig`` has run.
     """
     # Sometimes we end up with `""` as the value!
-    user_defined = bool(logging_class_path) and logging_class_path != fallback_path
     logging_class_path = logging_class_path or fallback_path
 
     try:
@@ -116,15 +114,6 @@ def discover_remote_log_handler(
         # Load remote logging configuration from the custom module
         remote_task_log = getattr(mod, "REMOTE_TASK_LOG", None)
         default_remote_conn_id = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
-
-        if remote_task_log is None and user_defined and remote_logging_enabled:
-            log.warning(
-                "[logging] remote_logging is enabled but the user-defined logging module %r "
-                "does not expose a REMOTE_TASK_LOG attribute, so remote task-log read-back is "
-                "disabled. Define REMOTE_TASK_LOG (a RemoteLogIO instance) at module scope "
-                "to enable it.",
-                modpath,
-            )
 
         return remote_task_log, default_remote_conn_id
 
