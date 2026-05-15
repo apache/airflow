@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from datetime import timedelta
 from unittest import mock
 from uuid import UUID
@@ -761,6 +762,12 @@ class TestCallbackSupport:
 class TestBackwardCompatProperties:
     """Tests for the backward-compat properties (queued_tasks, queued_callbacks, supports_callbacks)."""
 
+    @pytest.fixture(autouse=True)
+    def _reset_legacy_warned(self):
+        BaseExecutor._legacy_warned = set()
+        yield
+        BaseExecutor._legacy_warned = set()
+
     def test_queued_tasks_delegates_to_executor_queues(self):
         executor = BaseExecutor()
         executor.executor_queues[WorkloadType.EXECUTE_TASK]["key1"] = "workload1"
@@ -790,9 +797,29 @@ class TestBackwardCompatProperties:
         executor.supported_workload_types = frozenset(
             {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
         )
-
-        with pytest.warns(DeprecationWarning, match="supports_callbacks is deprecated"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RemovedInAirflow4Warning)
             assert executor.supports_callbacks is True
+
+    def test_warning_emitted_once_per_class(self, recwarn):
+        executor = BaseExecutor()
+        for _ in range(5):
+            _ = executor.queued_tasks
+        legacy = [w for w in recwarn.list if "queued_tasks is deprecated" in str(w.message)]
+        assert len(legacy) == 1
+
+    def test_warning_independent_per_subclass(self, recwarn):
+        class ExecutorA(BaseExecutor):
+            pass
+
+        class ExecutorB(BaseExecutor):
+            pass
+
+        _ = ExecutorA().queued_tasks
+        _ = ExecutorA().queued_tasks
+        _ = ExecutorB().queued_tasks
+        legacy = [w for w in recwarn.list if "queued_tasks is deprecated" in str(w.message)]
+        assert len(legacy) == 2
 
     def test_queued_tasks_dict_operations(self):
         """Verify dict operations through the backward-compat property work correctly."""
@@ -808,6 +835,46 @@ class TestBackwardCompatProperties:
         assert "k1" in qt
         qt.pop("k1")
         assert len(executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
+
+
+class TestLegacySupportsCallbacksShim:
+    """Subclasses declaring legacy ``supports_callbacks = True`` must still receive callbacks."""
+
+    def test_legacy_flag_synthesises_supported_workload_types(self):
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks = True"):
+
+            class LegacyExecutor(BaseExecutor):
+                supports_callbacks = True
+
+        assert LegacyExecutor.supported_workload_types == frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
+
+    def test_explicit_supported_workload_types_wins(self):
+        explicit = frozenset({WorkloadType.EXECUTE_TASK})
+        with pytest.warns(RemovedInAirflow4Warning, match="supports_callbacks = True"):
+
+            class MixedExecutor(BaseExecutor):
+                supports_callbacks = True
+                supported_workload_types = explicit
+
+        assert MixedExecutor.supported_workload_types is explicit
+
+    def test_modern_subclass_emits_no_warning(self, recwarn):
+        class ModernExecutor(BaseExecutor):
+            supported_workload_types = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
+        legacy_warnings = [w for w in recwarn.list if "supports_callbacks = True" in str(w.message)]
+        assert legacy_warnings == []
+        assert WorkloadType.EXECUTE_CALLBACK in ModernExecutor.supported_workload_types
+
+    def test_legacy_false_does_not_synthesise(self, recwarn):
+        class OptedOutExecutor(BaseExecutor):
+            supports_callbacks = False
+
+        legacy_warnings = [w for w in recwarn.list if "supports_callbacks = True" in str(w.message)]
+        assert legacy_warnings == []
+        assert WorkloadType.EXECUTE_CALLBACK not in OptedOutExecutor.supported_workload_types
 
 
 class TestExecuteCallbackWorkload:

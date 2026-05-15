@@ -173,6 +173,8 @@ class BaseExecutor(LoggingMixin):
     supports_multi_team: bool = False
     sentry_integration: str = ""
 
+    _legacy_warned: ClassVar[set[str]] = set()
+
     is_local: bool = False
     is_production: bool = True
 
@@ -205,6 +207,30 @@ class BaseExecutor(LoggingMixin):
         )
 
         return generator
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        cls._legacy_warned = set()
+        legacy_flag = cls.__dict__.get("supports_callbacks")
+        if legacy_flag is True:
+            warnings.warn(
+                f"{cls.__name__}: setting `supports_callbacks = True` as a class attribute is "
+                f"deprecated. Declare `supported_workload_types = frozenset({{"
+                f"WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}})` instead.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            if "supported_workload_types" not in cls.__dict__:
+                cls.supported_workload_types = frozenset(
+                    {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+                )
+
+    def _warn_legacy_property(self, prop_name: str, message: str) -> None:
+        cls = type(self)
+        if prop_name in cls._legacy_warned:
+            return
+        cls._legacy_warned.add(prop_name)
+        warnings.warn(message, RemovedInAirflow4Warning, stacklevel=3)
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
         stats.initialize(
@@ -249,51 +275,46 @@ class BaseExecutor(LoggingMixin):
     @property
     def queued_tasks(self) -> dict:
         """Backward-compat property: delegates to ``executor_queues[WorkloadType.EXECUTE_TASK]``."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "queued_tasks",
             "queued_tasks is deprecated. Use executor_queues[WorkloadType.EXECUTE_TASK] instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         return self.executor_queues[WorkloadType.EXECUTE_TASK]
 
     @queued_tasks.setter
     def queued_tasks(self, value: dict) -> None:
         """Backward-compat setter: writes through to ``executor_queues[WorkloadType.EXECUTE_TASK]``."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "queued_tasks",
             "queued_tasks is deprecated. Use executor_queues[WorkloadType.EXECUTE_TASK] instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         self.executor_queues[WorkloadType.EXECUTE_TASK] = value
 
     @property
     def queued_callbacks(self) -> dict:
         """Backward-compat property: delegates to ``executor_queues[WorkloadType.EXECUTE_CALLBACK]``."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "queued_callbacks",
             "queued_callbacks is deprecated. Use executor_queues[WorkloadType.EXECUTE_CALLBACK] instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         return self.executor_queues[WorkloadType.EXECUTE_CALLBACK]
 
     @queued_callbacks.setter
     def queued_callbacks(self, value: dict) -> None:
         """Backward-compat setter: writes through to ``executor_queues[WorkloadType.EXECUTE_CALLBACK]``."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "queued_callbacks",
             "queued_callbacks is deprecated. Use executor_queues[WorkloadType.EXECUTE_CALLBACK] instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         self.executor_queues[WorkloadType.EXECUTE_CALLBACK] = value
 
     @property
     def supports_callbacks(self) -> bool:
         """Backward-compat property: True if EXECUTE_CALLBACK is in supported_workload_types."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "supports_callbacks",
             "supports_callbacks is deprecated. "
             "Use WorkloadType.EXECUTE_CALLBACK in supported_workload_types instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         return WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
 
@@ -462,19 +483,17 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """Backward-compat shim: forwards to :meth:`trigger_workloads`."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "trigger_tasks",
             "trigger_tasks is deprecated, use trigger_workloads instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         self.trigger_workloads(open_slots)
 
     def order_queued_tasks_by_priority(self) -> list:
         """Backward-compat shim: forwards to :meth:`_get_workloads_to_schedule`."""
-        warnings.warn(
+        self._warn_legacy_property(
+            "order_queued_tasks_by_priority",
             "order_queued_tasks_by_priority is deprecated, use _get_workloads_to_schedule instead.",
-            RemovedInAirflow4Warning,
-            stacklevel=2,
         )
         return self._get_workloads_to_schedule(self.parallelism - len(self.running))
 
