@@ -105,16 +105,27 @@ The ``build_kustomize_overlays`` prek hook
 (``scripts/ci/prek/build_kustomize_overlays.py``) runs on every commit and
 applies a generic structural check to every overlay: the build succeeds, the
 output parses as valid YAML, every resource has ``apiVersion``, ``kind`` and
-``metadata.name``, and there are no duplicate resource keys. This is enough
-to catch most authoring mistakes but it does not validate against the CRD
-schemas of the controllers the overlay targets, and nothing is ever applied
-to a live cluster.
+``metadata.name``, there are no duplicate resource keys, and the
+``STATUS.yaml`` schema parses (including the optional ``verify:`` block).
+This is enough to catch most authoring mistakes but it does not validate
+against the CRD schemas of the controllers the overlay targets, and nothing
+is ever applied to a live cluster.
 
-A functional integration test is the separate, stronger check. It applies
-the overlay against a real cluster (typically a kind cluster with the chart
-already installed and the relevant controller running) and asserts the
-runtime behaviour the overlay promises. Until such a test exists for an
-overlay, its ``STATUS`` must stay at ``not-tested``.
+A functional integration test is the separate, stronger check. The
+``breeze k8s smoke-test-overlay <name>`` command applies the overlay
+against a running kind cluster (with the chart already installed), walks
+the ``verify:`` resources from the overlay's ``STATUS.yaml``, and runs the
+optional per-overlay pytest module at
+``kubernetes-tests/tests/kubernetes_tests/overlays/test_<name>.py`` for
+behavioural assertions. Until ``breeze k8s smoke-test-overlay <name>``
+exits 0, the overlay's ``STATUS`` must stay at ``not-tested``.
+
+In short:
+
+* **prek hook** = structural, runs on every commit, cannot promote ``STATUS``.
+* **breeze k8s smoke-test-overlay** = functional, runs against a real
+  cluster locally and in CI, is the gate for advancing ``STATUS`` to
+  ``tested``.
 
 Lifecycle steps:
 
@@ -123,12 +134,49 @@ Lifecycle steps:
   overlay needs invariants beyond that (for example a cross-reference
   between resources), they belong in the integration test, not in the prek
   hook.
-* A follow-up PR adds a functional integration test for the overlay. Once
-  that test passes, ``STATUS`` is flipped to ``tested``.
+* The same PR (or a follow-up) adds a ``verify:`` block to
+  ``STATUS.yaml`` and, optionally, a per-overlay pytest module under
+  ``kubernetes-tests/tests/kubernetes_tests/overlays/``. Once
+  ``breeze k8s smoke-test-overlay <name>`` runs green locally **and** in
+  CI, ``STATUS`` is flipped to ``tested`` with ``chart-version`` and
+  ``last-verified`` filled in.
 * An overlay is deprecated by setting ``status: deprecated`` together with a
   ``message`` field pointing to the replacement.
 * Deprecated overlays remain for one chart major version before they are
   removed, so users always have a window to migrate.
+
+Running the smoke test locally
+------------------------------
+
+You can advance an overlay's ``STATUS`` to ``tested`` yourself, in the
+same PR that introduces the overlay, by running the smoke test against
+a local kind cluster:
+
+.. code-block:: bash
+
+    breeze k8s setup-env
+    breeze k8s create-cluster
+    breeze k8s deploy-airflow
+    breeze k8s smoke-test-overlay <name>
+
+If that exits 0, edit ``chart/kustomize-overlays/<name>/STATUS.yaml`` to:
+
+.. code-block:: yaml
+
+    status: tested
+    chart-version: "<the version in chart/Chart.yaml>"
+    last-verified: "<today's date, YYYY-MM-DD>"
+    verify:
+      ...
+
+Commit the change, push, and CI re-runs the same command via the
+``kustomize-overlays-tests`` workflow.
+
+For iterative development, ``breeze k8s smoke-test-overlay`` accepts
+``--skip-cleanup`` to leave the overlay applied (so you can poke at
+resources with ``kubectl`` / ``k9s`` between runs) and ``--no-pytest`` to
+skip the per-overlay pytest module while you are still iterating on the
+``verify:`` block.
 
 Adding a new overlay
 --------------------
