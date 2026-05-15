@@ -1,1 +1,0 @@
-Add Athena Spark operator and sensor support to the Amazon provider.
