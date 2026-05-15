@@ -159,6 +159,26 @@ class TestOpensearchTaskHandler:
             yield
 
     @pytest.fixture(autouse=True)
+    def _no_implicit_remote_task_log_warning(self, monkeypatch):
+        """
+        Suppress the deprecated implicit-registration warning during direct handler construction.
+
+        Mirrors the recommended user pattern of defining ``REMOTE_TASK_LOG`` at module
+        scope in the ``[logging] logging_config_class`` module, so
+        ``OpensearchTaskHandler.__init__`` does not emit
+        ``AirflowProviderDeprecationWarning`` (which the forbidden-warnings plugin
+        treats as a test failure).
+
+        ``raising=False`` is required because ``_ActiveLoggingConfig.remote_task_log``
+        is annotation-only at class scope and may not be initialized in isolated test
+        runs.
+        """
+        from airflow.logging_config import _ActiveLoggingConfig
+
+        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", True, raising=False)
+        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", object(), raising=False)
+
+    @pytest.fixture(autouse=True)
     def _setup_handler(self, tmp_path):
         self.local_log_location = str(tmp_path / "logs")
         self.end_of_log_mark = "end_of_log\n"
