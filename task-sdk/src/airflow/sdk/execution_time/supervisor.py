@@ -64,12 +64,19 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
+    ClearTaskState,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
+    DeleteTaskState,
     DeleteVariable,
     DeleteXCom,
     ErrorResponse,
@@ -77,6 +84,9 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -87,9 +97,11 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
+    GetTaskState,
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -97,20 +109,25 @@ from airflow.sdk.execution_time.comms import (
     HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskState,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskState,
+    TaskStateResult,
     TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
@@ -124,6 +141,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
+    handle_get_variable_keys,
     handle_mask_secret,
 )
 
@@ -166,13 +184,15 @@ SERVER_TERMINATED = "SERVER_TERMINATED"
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
-STATES_SENT_DIRECTLY = [
-    TaskInstanceState.DEFERRED,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
-    TaskInstanceState.UP_FOR_RETRY,
-    TaskInstanceState.SUCCESS,
-    SERVER_TERMINATED,
-]
+STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
+    {
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.SUCCESS,
+        SERVER_TERMINATED,
+    }
+)
 
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
@@ -1437,6 +1457,8 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
@@ -1509,6 +1531,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = asset_resp
+        elif isinstance(msg, GetAssetsByAlias):
+            resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(
                 uri=msg.uri,
@@ -1628,6 +1652,54 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_id=msg.dag_id,
             )
             resp = DagResult.from_api_response(dag)
+        elif isinstance(msg, GetTaskState):
+            task_state = self.client.task_state.get(msg.ti_id, msg.key)
+            resp = (
+                task_state
+                if isinstance(task_state, ErrorResponse)
+                else TaskStateResult.from_task_state_response(task_state)
+            )
+        elif isinstance(msg, SetTaskState):
+            self.client.task_state.set(msg.ti_id, msg.key, msg.value)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteTaskState):
+            self.client.task_state.delete(msg.ti_id, msg.key)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearTaskState):
+            self.client.task_state.clear(msg.ti_id, all_map_indices=msg.all_map_indices)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, GetAssetStateByName):
+            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+        elif isinstance(msg, GetAssetStateByUri):
+            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+        elif isinstance(msg, SetAssetStateByName):
+            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, SetAssetStateByUri):
+            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByName):
+            self.client.asset_state.delete(msg.key, name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, DeleteAssetStateByUri):
+            self.client.asset_state.delete(msg.key, uri=msg.uri)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByName):
+            self.client.asset_state.clear(name=msg.name)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, ClearAssetStateByUri):
+            self.client.asset_state.clear(uri=msg.uri)
+            resp = OKResponse(ok=True)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

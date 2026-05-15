@@ -85,19 +85,18 @@ class TestKafkaAdminClientHook:
     @patch(
         "airflow.providers.apache.kafka.hooks.base.AdminClient",
     )
-    def test_create_topic_warning(self, admin_client, caplog):
+    def test_create_topic_already_exists_no_exception_but_warning(self, admin_client):
         mock_f = MagicMock()
         kafka_exception = KafkaException()
         mock_arg = MagicMock()
-        mock_arg.name = "TOPIC_ALREADY_EXISTS"
+        mock_arg.name.return_value = "TOPIC_ALREADY_EXISTS"
         kafka_exception.args = [mock_arg]
         mock_f.result.side_effect = [kafka_exception]
         admin_client.return_value.create_topics.return_value = {"topic_name": mock_f}
-        with caplog.at_level(
-            logging.WARNING, logger="airflow.providers.apache.kafka.hooks.client.KafkaAdminClientHook"
-        ):
+
+        with patch.object(self.hook.log, "warning") as mock_warning:
             self.hook.create_topic(topics=[("topic_name", 0, 1)])
-            assert "The topic topic_name already exists" in caplog.text
+            mock_warning.assert_called_once_with("The topic %s already exists.", "topic_name")
 
     @patch(
         "airflow.providers.apache.kafka.hooks.base.AdminClient",

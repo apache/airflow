@@ -58,6 +58,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -778,16 +779,7 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    # Resolve GitHub token: prefer --github-token / GITHUB_TOKEN env var, fall back to gh CLI
-    if not github_token:
-        gh_token_result = run_command(
-            ["gh", "auth", "token"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
-            github_token = gh_token_result.stdout.strip()
+    github_token = retrieve_github_token(github_token)
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
@@ -797,7 +789,7 @@ def upgrade(
         console_print("[success]GitHub token set in environment.[/]")
     else:
         console_print(
-            "[warning]Could not retrieve GitHub token from --github-token or gh CLI. "
+            "[warning]Could not retrieve GitHub token from --github-token, gh CLI, or token env. "
             "Commands may fail if they require authentication.[/]"
         )
 

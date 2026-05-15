@@ -270,3 +270,69 @@ class GlueCatalogDeleteTableOperator(AwsBaseOperator[AwsBaseHook]):
         )
         self.hook.conn.delete_table(**kwargs)
         self.log.info("Deleted table %s", self.table_name)
+
+
+class GlueCatalogCreatePartitionOperator(AwsBaseOperator[AwsBaseHook]):
+    """
+    Create a partition in an AWS Glue Data Catalog table.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueCatalogCreatePartitionOperator`
+
+    :param database_name: The name of the database. (templated)
+    :param table_name: The name of the table. (templated)
+    :param partition_input: The ``PartitionInput`` dict defining the partition. (templated)
+    :param catalog_id: The ID of the Data Catalog. Defaults to the account ID. (templated)
+    :param if_exists: Behavior when the partition already exists.
+        ``"fail"`` raises an error, ``"skip"`` logs and returns.
+    """
+
+    aws_hook_class = AwsBaseHook
+    template_fields: tuple[str, ...] = (
+        *AwsBaseOperator.template_fields,
+        "database_name",
+        "table_name",
+        "catalog_id",
+    )
+    template_fields_renderers = {"partition_input": "json"}
+
+    def __init__(
+        self,
+        *,
+        database_name: str,
+        table_name: str,
+        partition_input: dict[str, Any],
+        catalog_id: str | None = None,
+        if_exists: Literal["fail", "skip"] = "skip",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.database_name = database_name
+        self.table_name = table_name
+        self.partition_input = partition_input
+        self.catalog_id = catalog_id
+        self.if_exists = if_exists
+
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "client_type": "glue"}
+
+    def execute(self, context: Context) -> None:
+        self.log.info("Creating partition in table %s.%s", self.database_name, self.table_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "DatabaseName": self.database_name,
+                "TableName": self.table_name,
+                "PartitionInput": self.partition_input,
+                "CatalogId": self.catalog_id,
+            }
+        )
+        try:
+            self.hook.conn.create_partition(**kwargs)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "AlreadyExistsException" and self.if_exists == "skip":
+                self.log.info("Partition already exists, skipping.")
+            else:
+                raise
+        self.log.info("Partition created.")

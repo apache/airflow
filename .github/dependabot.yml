@@ -65,7 +65,7 @@ updates:
       - /dev/breeze
       - /docker-tests
       - /kubernetes-tests
-      - /helm-tests
+      - /chart
       - /task-sdk
       - /
     schedule:
@@ -211,7 +211,7 @@ updates:
       - /dev/breeze
       - /docker-tests
       - /kubernetes-tests
-      - /helm-tests
+      - /chart
       - /task-sdk
       - /
     schedule:

@@ -19,7 +19,9 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import subprocess
 import sys
+import tempfile
 import time
 import traceback
 from asyncio import Task, create_task, gather, get_running_loop, sleep
@@ -28,9 +30,9 @@ from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from http import HTTPStatus
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 import anyio
 from aiofiles import open as aio_open
@@ -59,13 +61,14 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
     from airflow.executors.workloads import ExecuteTask
+    from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,12 @@ if sys.platform == "darwin":
     setproctitle = lambda title: logger.debug("Mac OS detected, skipping setproctitle")
 else:
     from setproctitle import setproctitle
+
+
+def _make_task_temp_file(prefix: str) -> tuple[IO[bytes], Path]:
+    """Create a named temporary file for task output capture and return the open file and its path."""
+    f = tempfile.NamedTemporaryFile(prefix=prefix, suffix=".log", delete=False)
+    return f, Path(f.name)
 
 
 def _edge_hostname() -> str:
@@ -413,50 +422,125 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
-    def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
+    def _run_job_via_supervisor(self, workload: ExecuteTask, error_file_path: Path) -> int:
+        """Run a task by calling the supervisor directly (executes inside a forked child process)."""
         _reset_parent_signal_state()
-
-        from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
         os.setpgrp()
 
         logger.info("Worker starting up pid=%d", os.getpid())
-        ti = workload.ti
-        setproctitle(
-            "airflow edge supervisor: "
-            f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
-            f"try_number={ti.try_number}"
-        )
 
         try:
-            supervise(
-                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                # Same like in airflow/executors/local_executor.py:_execute_workload()
-                ti=ti,  # type: ignore[arg-type]
-                dag_rel_path=workload.dag_rel_path,
-                bundle_info=workload.bundle_info,
-                token=workload.token,
-                server=self._execution_api_server_url,
-                log_path=workload.log_path,
-            )
-            results_queue.put("OK")
+            if AIRFLOW_V_3_3_PLUS:
+                from airflow.executors.base_executor import BaseExecutor
+
+                BaseExecutor.run_workload(
+                    workload=workload,
+                    server=self._execution_api_server_url,
+                )
+            else:
+                from airflow.sdk.execution_time.supervisor import supervise
+
+                ti = workload.ti
+                setproctitle(
+                    "airflow edge supervisor: "
+                    f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
+                    f"try_number={ti.try_number}"
+                )
+                supervise(
+                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                    # Same like in airflow/executors/local_executor.py:_execute_workload()
+                    ti=ti,  # type: ignore[arg-type]
+                    dag_rel_path=workload.dag_rel_path,
+                    bundle_info=workload.bundle_info,
+                    token=workload.token,
+                    server=self._execution_api_server_url,
+                    log_path=workload.log_path,
+                )
             return 0
-        except Exception as e:
+        except Exception:
             logger.exception("Task execution failed")
-            results_queue.put(e)
+            with suppress(Exception):
+                error_file_path.write_text(traceback.format_exc())
             return 1
 
-    def _launch_job(self, workload: ExecuteTask) -> tuple[Process, Queue[Exception]]:
+    def _launch_job_subprocess(self, workload: ExecuteTask) -> tuple[subprocess.Popen, Path]:
+        """Launch workload via a fresh Python interpreter (subprocess.Popen)."""
+        env = os.environ.copy()
+        if self._execution_api_server_url:
+            env["AIRFLOW__CORE__EXECUTION_API_SERVER_URL"] = self._execution_api_server_url
+
+        # Keep stderr off a PIPE: the worker only inspects stderr after the task finishes,
+        # so a verbose child could otherwise fill the pipe buffer and block forever. Also keep
+        # it task-scoped instead of inheriting the worker's stderr/stdout; supervisor startup
+        # failures should be pushed to the task log, not only the worker/container log.
+        stderr_file, stderr_file_path = _make_task_temp_file("airflow-edge-task-stderr-")
+        try:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    workload.model_dump_json(),
+                ],
+                env=env,
+                start_new_session=True,
+                stderr=stderr_file,
+            )
+        except Exception:
+            stderr_file_path.unlink(missing_ok=True)
+            raise
+        finally:
+            # Close the parent's copy of the fd. Popen already dup2()'d it into the child,
+            # so the child's stderr remains open and writable. The parent reads the output
+            # later via stderr_file_path (the Path) once the child has exited.
+            stderr_file.close()
+        logger.info(
+            "Launched task subprocess pid=%d for %s",
+            process.pid,
+            workload.ti.id,
+        )
+        return process, stderr_file_path
+
+    def _launch_job_fork(self, workload: ExecuteTask) -> tuple[Process, Path]:
+        """Launch workload by forking the current process (multiprocessing.Process)."""
         # Improvement: Use frozen GC to prevent child process from copying unnecessary memory
         # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
-        results_queue: Queue[Exception] = Queue()
+        error_file, error_file_path = _make_task_temp_file("airflow-edge-task-error-")
+        error_file.close()  # child writes to the file by path; parent only reads it after exit
         process = Process(
             target=self._run_job_via_supervisor,
-            kwargs={"workload": workload, "results_queue": results_queue},
+            kwargs={"workload": workload, "error_file_path": error_file_path},
         )
         process.start()
-        return process, results_queue
+        logger.info("Launched task fork pid=%d for %s", process.pid, workload.ti.id)
+        return process, error_file_path
+
+    def _launch_job(self, edge_job: EdgeJobFetched, workload: ExecuteTask, logfile: Path) -> Job:
+        """
+        Launch a task process.
+
+        Uses ``subprocess.Popen`` (fresh interpreter) when
+        ``core.execute_tasks_new_python_interpreter`` is ``True`` or when
+        ``os.fork`` is unavailable (e.g. Windows).  Falls back to
+        ``multiprocessing.Process`` (fork) otherwise — preserving the
+        original behaviour for existing deployments.
+        """
+        use_new_interpreter = not hasattr(os, "fork") or self.conf.getboolean(
+            "core",
+            "execute_tasks_new_python_interpreter",
+            fallback=False,
+        )
+        if use_new_interpreter:
+            # Fresh subprocess path: spawn a new Python interpreter; no shared memory with parent
+            # Technically safer and more robust, but with more overhead
+            subprocess_process, stderr_file_path = self._launch_job_subprocess(workload)
+            return Job(edge_job, subprocess_process, logfile, stderr_file_path=stderr_file_path)
+        # Fork path: clone the current process; child inherits parent memory
+        fork_process, error_file_path = self._launch_job_fork(workload)
+        return Job(edge_job, fork_process, logfile, stderr_file_path=error_file_path)
 
     async def _push_logs_in_chunks(self, job: Job):
         aio_logfile = anyio.Path(job.logfile)
@@ -581,11 +665,10 @@ class EdgeWorker:
         logger.info("Received job: %s", edge_job.identifier)
 
         workload: ExecuteTask = edge_job.command
-        process, results_queue = self._launch_job(workload)
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
         logfile = Path(self.base_log_folder, workload.log_path)
-        job = Job(edge_job, process, logfile)
+        job = self._launch_job(edge_job, workload, logfile)
         self.jobs.append(job)
         await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
 
@@ -595,39 +678,31 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
-        while job.is_running and results_queue.empty():
+        while job.is_running:
             await self._push_logs_in_chunks(job)
             for _ in range(0, self.job_poll_interval * 10):
                 await sleep(0.1)
                 if not job.is_running:
                     break
         await self._push_logs_in_chunks(job)
-        supervisor_msg = (
-            "(Unknown error, no exception details available)"
-            if results_queue.empty()
-            else results_queue.get()
-        )
-        # Ensure that supervisor really ended after we grabbed results from queue
-        while True:
-            if not job.is_running:
-                break
-            await sleep(0.1)
 
         self.jobs.remove(job)
         if job.is_success:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
         else:
-            if isinstance(supervisor_msg, Exception):
-                supervisor_msg = "\n".join(traceback.format_exception(supervisor_msg))
-            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, supervisor_msg)
+            ex_txt = job.failure_details()
+            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
+
             # Push it upwards to logs for better diagnostic as well
             await logs_push(
                 task=job.edge_job.key,
                 log_chunk_time=timezone.utcnow(),
-                log_chunk_data=f"Error executing job:\n{supervisor_msg}",
+                log_chunk_data=f"Error executing job:\n{ex_txt}",
             )
             await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
+        # Cleanup temp files used for the job
+        job.cleanup()
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""

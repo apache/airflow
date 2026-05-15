@@ -152,8 +152,8 @@ def test_uri_with_password() -> None:
         "An Asset URI should not contain a password. User info has been automatically dropped."
     )
     EmptyOperator(task_id="task1", outlets=[asset])
-    assert asset.uri == "ftp://localhost/foo.txt"
-    assert os.fspath(asset) == "ftp://localhost/foo.txt"
+    assert asset.uri == "ftp://localhost:21/foo.txt"
+    assert os.fspath(asset) == "ftp://localhost:21/foo.txt"
 
 
 def test_uri_without_password() -> None:

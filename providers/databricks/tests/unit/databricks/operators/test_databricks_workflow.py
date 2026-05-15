@@ -21,6 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
 
@@ -274,6 +276,32 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         python_params=[],
         spark_submit_params=[],
     )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Uses Airflow 3 task SDK TaskGroupContext layout")
+def test_task_group_context_cleaned_up_on_internal_exception():
+    """
+    Regression test for GH-42164.
+
+    When DatabricksWorkflowTaskGroup.__exit__ raises (e.g. an added task does not
+    support conversion), super().__exit__ must still run so TaskGroupContext does
+    not leak the workflow group onto the global stack and break later DAGs with
+    "Cannot mix TaskGroups from different DAGs".
+    """
+    from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
+
+    TaskGroupContext._context.clear()
+
+    with pytest.raises(AirflowException, match="does not support conversion"):  # noqa: PT012 raise happens on context exit
+        with DAG(dag_id="example_databricks_workflow_dag_err", schedule=None, start_date=DEFAULT_DATE):
+            with DatabricksWorkflowTaskGroup(
+                group_id="test_databricks_workflow_err", databricks_conn_id="databricks_conn"
+            ):
+                # EmptyOperator does not implement _convert_to_databricks_workflow_task,
+                # which makes DatabricksWorkflowTaskGroup.__exit__ raise mid-way.
+                EmptyOperator(task_id="not_convertible")
+
+    assert not TaskGroupContext._context, "TaskGroupContext leaked the workflow task group"
 
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):

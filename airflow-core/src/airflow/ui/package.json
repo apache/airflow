@@ -85,14 +85,14 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
-    "@typescript-eslint/utils": "^8.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "@typescript-eslint/utils": "^8.59.2",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitejs/plugin-react-swc": "^4.2.3",
     "@vitest/coverage-v8": "^4.1.4",
     "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^10.2.1",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-i18next": "^6.1.4",
     "eslint-plugin-jsonc": "^3.1.2",
@@ -110,8 +110,8 @@
     "openapi-merge-cli": "^1.3.2",
     "prettier": "^3.8.1",
     "ts-morph": "^27.0.2",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
     "vite": "^8.0.8",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^4.1.4",
@@ -143,7 +143,8 @@
       "yaml@>=2.0.0 <2.8.3": ">=2.8.3",
       "lodash@>=4.0.0 <=4.17.23": ">=4.18.0",
       "lodash@<=4.17.23": ">=4.18.0",
-      "defu@<=6.1.4": ">=6.1.5"
+      "defu@<=6.1.4": ">=6.1.5",
+      "postcss@<8.5.10": ">=8.5.10"
     }
   }
 }

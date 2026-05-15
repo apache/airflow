@@ -72,6 +72,11 @@ from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    AssetsByAliasResult,
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
+    ClearTaskState,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -79,6 +84,9 @@ from airflow.sdk.execution_time.comms import (
     DagRunResult,
     DagRunStateResult,
     DeferTask,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
+    DeleteTaskState,
     DeleteVariable,
     DeleteXCom,
     DRCount,
@@ -87,6 +95,9 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
+    GetAssetsByAlias,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDag,
     GetDagRun,
@@ -98,9 +109,11 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
+    GetTaskState,
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -117,20 +130,25 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskState,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
+    TaskStateResult,
     TaskStatesResult,
     TICount,
     ToSupervisor,
     TriggerDagRun,
     UpdateHITLDetail,
     ValidateInletsAndOutlets,
+    VariableKeysResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -1553,6 +1571,20 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
+        message=GetVariableKeys(prefix="test_"),
+        test_id="get_variable_keys",
+        client_mock=ClientMock(
+            method_path="variables.keys",
+            kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
+            response=VariableKeysResult(keys=["test_key"], total_entries=1),
+        ),
+        expected_body={
+            "keys": ["test_key"],
+            "total_entries": 1,
+            "type": "VariableKeysResult",
+        },
+    ),
+    RequestTestCase(
         message=DeferTask(next_method="execute_callback", classpath="my-classpath"),
         test_id="patch_task_instance_to_deferred",
         client_mock=ClientMock(
@@ -1806,6 +1838,29 @@ REQUEST_TEST_CASES = [
             response=AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
         ),
         test_id="get_asset_by_uri",
+    ),
+    RequestTestCase(
+        message=GetAssetsByAlias(alias_name="my_alias"),
+        expected_body={
+            "assets": [
+                {
+                    "name": "asset_a",
+                    "uri": "s3://bucket/a",
+                    "group": "asset",
+                    "extra": None,
+                    "type": "AssetResult",
+                }
+            ],
+            "type": "AssetsByAliasResult",
+        },
+        client_mock=ClientMock(
+            method_path="assets.get_by_alias",
+            kwargs={"alias_name": "my_alias"},
+            response=AssetsByAliasResult(
+                assets=[AssetResult(name="asset_a", uri="s3://bucket/a", group="asset", extra=None)]
+            ),
+        ),
+        test_id="get_assets_by_alias",
     ),
     RequestTestCase(
         message=GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
@@ -2572,7 +2627,7 @@ REQUEST_TEST_CASES = [
     ),
     RequestTestCase(
         message=GetXComCount(key="test_key", dag_id="test_dag", run_id="test_run", task_id="test_task"),
-        expected_body={"len": 5, "type": "XComLengthResponse"},
+        expected_body={"len": 5, "type": "XComCountResponse"},
         client_mock=ClientMock(
             method_path="xcoms.head",
             args=("test_dag", "test_run", "test_task", "test_key"),
@@ -2655,6 +2710,148 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_dag",
+    ),
+    RequestTestCase(
+        message=GetTaskState(ti_id=TI_ID, key="job_id"),
+        test_id="get_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.get",
+            args=(TI_ID, "job_id"),
+            response=TaskStateResult(value="spark_app_001"),
+        ),
+        expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
+    ),
+    RequestTestCase(
+        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
+        test_id="set_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.set",
+            args=(TI_ID, "job_id", "spark_app_001"),
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteTaskState(ti_id=TI_ID, key="job_id"),
+        test_id="delete_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.delete",
+            args=(TI_ID, "job_id"),
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearTaskState(ti_id=TI_ID),
+        test_id="clear_task_state",
+        client_mock=ClientMock(
+            method_path="task_state.clear",
+            args=(TI_ID,),
+            kwargs={"all_map_indices": False},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearTaskState(ti_id=TI_ID, all_map_indices=True),
+        test_id="clear_task_state_all_map_indices",
+        client_mock=ClientMock(
+            method_path="task_state.clear",
+            args=(TI_ID,),
+            kwargs={"all_map_indices": True},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=GetAssetStateByName(name="debug_watcher_asset", key="watermark"),
+        test_id="get_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.get",
+            args=("watermark",),
+            kwargs={"name": "debug_watcher_asset"},
+            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+        ),
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+    ),
+    RequestTestCase(
+        message=GetAssetStateByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="get_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.get",
+            args=("watermark",),
+            kwargs={"uri": "s3://bucket/key"},
+            response=AssetStateResult(value="2026-04-30T00:00:00Z"),
+        ),
+        expected_body={"value": "2026-04-30T00:00:00Z", "type": "AssetStateResult"},
+    ),
+    RequestTestCase(
+        message=SetAssetStateByName(
+            name="debug_watcher_asset", key="watermark", value="2026-04-30T00:00:00Z"
+        ),
+        test_id="set_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.set",
+            args=("watermark", "2026-04-30T00:00:00Z"),
+            kwargs={"name": "debug_watcher_asset"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=SetAssetStateByUri(uri="s3://bucket/key", key="watermark", value="2026-04-30T00:00:00Z"),
+        test_id="set_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.set",
+            args=("watermark", "2026-04-30T00:00:00Z"),
+            kwargs={"uri": "s3://bucket/key"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteAssetStateByName(name="debug_watcher_asset", key="watermark"),
+        test_id="delete_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.delete",
+            args=("watermark",),
+            kwargs={"name": "debug_watcher_asset"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=DeleteAssetStateByUri(uri="s3://bucket/key", key="watermark"),
+        test_id="delete_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.delete",
+            args=("watermark",),
+            kwargs={"uri": "s3://bucket/key"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearAssetStateByName(name="debug_watcher_asset"),
+        test_id="clear_asset_state_by_name",
+        client_mock=ClientMock(
+            method_path="asset_state.clear",
+            args=(),
+            kwargs={"name": "debug_watcher_asset"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=ClearAssetStateByUri(uri="s3://bucket/key"),
+        test_id="clear_asset_state_by_uri",
+        client_mock=ClientMock(
+            method_path="asset_state.clear",
+            args=(),
+            kwargs={"uri": "s3://bucket/key"},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
     ),
 ]
 

@@ -69,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetEventsResponse,
     AssetResponse,
+    AssetStateResponse,
     BundleInfo,
     ConnectionResponse,
     DagResponse,
@@ -81,6 +82,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskBreadcrumbsResponse,
     TaskInstance,
     TaskInstanceState,
+    TaskStateResponse,
     TaskStatesResponse,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
@@ -507,7 +509,7 @@ class XComResult(XComResponse):
 
 class XComCountResponse(BaseModel):
     len: int
-    type: Literal["XComLengthResponse"] = "XComLengthResponse"
+    type: Literal["XComCountResponse"] = "XComCountResponse"
 
 
 class XComSequenceIndexResult(BaseModel):
@@ -559,6 +561,46 @@ class VariableResult(VariableResponse):
         for communication between the Supervisor and the task process.
         """
         return cls(**variable_response.model_dump(exclude_defaults=True), type="VariableResult")
+
+
+class TaskStateResult(TaskStateResponse):
+    """Response to GetTaskState; wraps the generated API response for supervisor to worker comms."""
+
+    type: Literal["TaskStateResult"] = "TaskStateResult"
+
+    @classmethod
+    def from_task_state_response(cls, resp: TaskStateResponse) -> TaskStateResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="TaskStateResult")
+
+
+class AssetStateResult(AssetStateResponse):
+    """Response to GetAssetState; wraps the generated API response for supervisor to worker comms."""
+
+    type: Literal["AssetStateResult"] = "AssetStateResult"
+
+    @classmethod
+    def from_asset_state_response(cls, resp: AssetStateResponse) -> AssetStateResult:
+        return cls(**resp.model_dump(exclude_defaults=True), type="AssetStateResult")
+
+
+class AssetsByAliasResult(BaseModel):
+    """Response to GetAssetsByAlias; list of concrete assets resolved from an alias."""
+
+    assets: list[AssetResult]
+    type: Literal["AssetsByAliasResult"] = "AssetsByAliasResult"
+
+    @classmethod
+    def from_asset_responses(cls, asset_responses: list[AssetResponse]) -> AssetsByAliasResult:
+        return cls(
+            assets=[AssetResult.from_asset_response(a) for a in asset_responses],
+            type="AssetsByAliasResult",
+        )
+
+
+class VariableKeysResult(BaseModel):
+    keys: list[str]
+    total_entries: int
+    type: Literal["VariableKeysResult"] = "VariableKeysResult"
 
 
 class DagRunResult(DagRun):
@@ -728,7 +770,9 @@ class DagResult(DagResponse):
 
 ToTask = Annotated[
     AssetResult
+    | AssetsByAliasResult
     | AssetEventsResult
+    | AssetStateResult
     | ConnectionResult
     | DagRunResult
     | DagRunStateResult
@@ -740,10 +784,12 @@ ToTask = Annotated[
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
+    | TaskStateResult
     | TICount
     | TaskBreadcrumbsResult
     | TaskStatesResult
     | VariableResult
+    | VariableKeysResult
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
@@ -823,7 +869,7 @@ class GetXComCount(BaseModel):
     dag_id: str
     run_id: str
     task_id: str
-    type: Literal["GetNumberXComs"] = "GetNumberXComs"
+    type: Literal["GetXComCount"] = "GetXComCount"
 
 
 class GetXComSequenceItem(BaseModel):
@@ -868,6 +914,79 @@ class DeleteXCom(BaseModel):
     type: Literal["DeleteXCom"] = "DeleteXCom"
 
 
+class GetTaskState(BaseModel):
+    ti_id: UUID
+    key: str
+    type: Literal["GetTaskState"] = "GetTaskState"
+
+
+class SetTaskState(BaseModel):
+    ti_id: UUID
+    key: str
+    value: str
+    type: Literal["SetTaskState"] = "SetTaskState"
+
+
+class DeleteTaskState(BaseModel):
+    ti_id: UUID
+    key: str
+    type: Literal["DeleteTaskState"] = "DeleteTaskState"
+
+
+class ClearTaskState(BaseModel):
+    ti_id: UUID
+    all_map_indices: bool = False
+    type: Literal["ClearTaskState"] = "ClearTaskState"
+
+
+class GetAssetStateByName(BaseModel):
+    name: str
+    key: str
+    type: Literal["GetAssetStateByName"] = "GetAssetStateByName"
+
+
+class GetAssetStateByUri(BaseModel):
+    uri: str
+    key: str
+    type: Literal["GetAssetStateByUri"] = "GetAssetStateByUri"
+
+
+class SetAssetStateByName(BaseModel):
+    name: str
+    key: str
+    value: str
+    type: Literal["SetAssetStateByName"] = "SetAssetStateByName"
+
+
+class SetAssetStateByUri(BaseModel):
+    uri: str
+    key: str
+    value: str
+    type: Literal["SetAssetStateByUri"] = "SetAssetStateByUri"
+
+
+class DeleteAssetStateByName(BaseModel):
+    name: str
+    key: str
+    type: Literal["DeleteAssetStateByName"] = "DeleteAssetStateByName"
+
+
+class DeleteAssetStateByUri(BaseModel):
+    uri: str
+    key: str
+    type: Literal["DeleteAssetStateByUri"] = "DeleteAssetStateByUri"
+
+
+class ClearAssetStateByName(BaseModel):
+    name: str
+    type: Literal["ClearAssetStateByName"] = "ClearAssetStateByName"
+
+
+class ClearAssetStateByUri(BaseModel):
+    uri: str
+    type: Literal["ClearAssetStateByUri"] = "ClearAssetStateByUri"
+
+
 class GetConnection(BaseModel):
     conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
@@ -876,6 +995,13 @@ class GetConnection(BaseModel):
 class GetVariable(BaseModel):
     key: str
     type: Literal["GetVariable"] = "GetVariable"
+
+
+class GetVariableKeys(BaseModel):
+    prefix: str | None = None
+    limit: int = 1000
+    offset: int = 0
+    type: Literal["GetVariableKeys"] = "GetVariableKeys"
 
 
 class PutVariable(BaseModel):
@@ -955,6 +1081,11 @@ class GetAssetByName(BaseModel):
 class GetAssetByUri(BaseModel):
     uri: str
     type: Literal["GetAssetByUri"] = "GetAssetByUri"
+
+
+class GetAssetsByAlias(BaseModel):
+    alias_name: str
+    type: Literal["GetAssetsByAlias"] = "GetAssetsByAlias"
 
 
 class GetAssetEventByAsset(BaseModel):
@@ -1058,12 +1189,21 @@ class GetDag(BaseModel):
 
 
 ToSupervisor = Annotated[
-    DeferTask
+    ClearAssetStateByName
+    | ClearAssetStateByUri
+    | ClearTaskState
+    | DeferTask
+    | DeleteAssetStateByName
+    | DeleteAssetStateByUri
+    | DeleteTaskState
     | DeleteXCom
     | GetAssetByName
     | GetAssetByUri
+    | GetAssetsByAlias
     | GetAssetEventByAsset
     | GetAssetEventByAssetAlias
+    | GetAssetStateByName
+    | GetAssetStateByUri
     | GetConnection
     | GetDagRun
     | GetDagRunState
@@ -1073,10 +1213,12 @@ ToSupervisor = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetTaskRescheduleStartDate
+    | GetTaskState
     | GetTICount
     | GetTaskBreadcrumbs
     | GetTaskStates
     | GetVariable
+    | GetVariableKeys
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem
@@ -1084,8 +1226,11 @@ ToSupervisor = Annotated[
     | PutVariable
     | RescheduleTask
     | RetryTask
+    | SetAssetStateByName
+    | SetAssetStateByUri
     | SetRenderedFields
     | SetRenderedMapIndex
+    | SetTaskState
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask

@@ -183,12 +183,12 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.HELM,
             "All",
-            ["helm-tests"],
+            ["chart/tests"],
         ),
         (
             GroupOfTests.HELM,
             "airflow_aux",
-            ["helm-tests/tests/helm_tests/airflow_aux"],
+            ["chart/tests/helm_tests/airflow_aux"],
         ),
     ],
 )
@@ -304,7 +304,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.HELM,
             "All",
             [
-                "helm-tests",
+                "chart/tests",
             ],
         ),
         (

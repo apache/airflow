@@ -167,6 +167,10 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
     :param aws_conn_id: Reference to AWS connection id
     :param waiter_delay: polling period in seconds to check for the status
     :param waiter_max_attempts: The maximum number of attempts to be made. Defaults to an infinite wait.
+    :param cancel_on_kill: If True (default), cancel the EMR container job when the user
+        marks the deferred task failed, clears it, or mark-succeeds it. Requires
+        ``apache-airflow`` with ``BaseTrigger.on_kill()`` support; on older versions the
+        hook is silently inert.
     """
 
     def __init__(
@@ -176,9 +180,14 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 30,
         waiter_max_attempts: int = sys.maxsize,
+        cancel_on_kill: bool = True,
     ):
         super().__init__(
-            serialized_fields={"virtual_cluster_id": virtual_cluster_id, "job_id": job_id},
+            serialized_fields={
+                "virtual_cluster_id": virtual_cluster_id,
+                "job_id": job_id,
+                "cancel_on_kill": cancel_on_kill,
+            },
             waiter_name="container_job_complete",
             waiter_args={"id": job_id, "virtualClusterId": virtual_cluster_id},
             failure_message="Job failed",
@@ -190,9 +199,31 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
         )
+        self.virtual_cluster_id = virtual_cluster_id
+        self.job_id = job_id
+        self.cancel_on_kill = cancel_on_kill
 
     def hook(self) -> AwsGenericHook:
-        return EmrContainerHook(aws_conn_id=self.aws_conn_id)
+        return EmrContainerHook(aws_conn_id=self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
+
+    async def on_kill(self) -> None:
+        """Cancel the EMR container job when the user acts on the deferred task."""
+        if not self.cancel_on_kill or not self.job_id:
+            return
+        self.log.info(
+            "Cancelling EMR container job. Virtual Cluster ID: %s, Job ID: %s",
+            self.virtual_cluster_id,
+            self.job_id,
+        )
+        hook: EmrContainerHook = self.hook()  # type: ignore[assignment]
+        try:
+            await sync_to_async(hook.stop_query)(self.job_id)
+            self.log.info("EMR container job %s cancelled.", self.job_id)
+        except Exception:
+            self.log.exception(
+                "Failed to cancel EMR container job %s. The job may still be running.",
+                self.job_id,
+            )
 
 
 class EmrStepSensorTrigger(AwsBaseWaiterTrigger):

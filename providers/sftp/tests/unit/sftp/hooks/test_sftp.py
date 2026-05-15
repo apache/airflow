@@ -21,8 +21,9 @@ import datetime
 import json
 import os
 import shutil
+import stat
 from io import BytesIO, StringIO
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
 import paramiko
 import pytest
@@ -199,13 +200,41 @@ class TestSFTPHook:
 
     def test_list_directory(self):
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output is not None
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
-    def test_list_directory_with_attr(self):
-        output = self.hook.list_directory_with_attr(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
-        file_names = [f.filename for f in output]
-        assert all(isinstance(f, paramiko.SFTPAttributes) for f in output)
-        assert sorted(file_names) == [SUB_DIR, FIFO_FOR_TESTS]
+    def test_list_directory_non_recursive_default(self):
+        """Assert that default list_directory returns one-level entry names only."""
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS), recursive=False
+        )
+        assert output is not None
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
+    def test_list_directory_recursive_returns_relative_file_entries(self):
+        """Assert that recursive list_directory returns file-only relative paths."""
+        # The temp directory structure is:
+        # - TMP_DIR_FOR_TESTS/
+        #   - SUB_DIR/
+        #     - TMP_FILE_FOR_TESTS (file)
+        #   - FIFO_FOR_TESTS (fifo)
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS), recursive=True)
+        assert output is not None
+        # Should only return files, not directories or fifos, with relative paths
+        expected_files = [os.path.join(SUB_DIR, TMP_FILE_FOR_TESTS)]
+        assert sorted(output) == sorted(expected_files)
+
+    def test_list_directory_path_does_not_exist(self):
+        """Assert that list_directory returns None when path does not exist."""
+        non_existent_path = os.path.join(self.temp_dir, "non_existent_dir")
+        output = self.hook.list_directory(path=non_existent_path)
+        assert output is None
+
+    def test_list_directory_recursive_path_does_not_exist(self):
+        """Assert that recursive list_directory returns None when path does not exist."""
+        non_existent_path = os.path.join(self.temp_dir, "non_existent_dir")
+        output = self.hook.list_directory(path=non_existent_path, recursive=True)
+        assert output is None
 
     def test_mkdir(self):
         new_dir_name = "mk_dir"
@@ -632,7 +661,7 @@ class TestSFTPHook:
             host_proxy_cmd=host_proxy_cmd,
         )
 
-        with hook.get_managed_conn():
+        with hook.get_managed_conn() as _:
             mock_proxy_command.assert_called_once_with(host_proxy_cmd)
             mock_ssh_client.return_value.connect.assert_called_once_with(
                 hostname="example.com",
@@ -947,86 +976,387 @@ class TestSFTPHookAsync:
             ),
         ]
 
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
-    async def test_list_directory_path_does_not_exist(self, mock_hook_get_conn):
+    async def test_list_directory_path_does_not_exist(self, sftp_hook_mocked):
         """
-        Assert that AirflowException is raised when path does not exist on SFTP server
+        Assert that None is returned when path does not exist on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+        hook, sftp_cm_mock = sftp_hook_mocked
 
-        hook = SFTPHookAsync()
-
-        expected_files = None
         files = await hook.list_directory(path="/path/does_not/exist/")
-        assert files == expected_files
-        mock_hook_get_conn.return_value.__aexit__.assert_called()
+        assert not files
+        sftp_cm_mock.__aexit__.assert_awaited()
 
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
-    async def test_read_directory_path_does_not_exist(self, mock_hook_get_conn):
+    async def test_list_directory_recursive_path_does_not_exist(self, sftp_hook_mocked):
+        """Assert that recursive list_directory returns None when path does not exist."""
+        hook, sftp_cm_mock = sftp_hook_mocked
+
+        files = await hook.list_directory(path="/path/does_not/exist/", recursive=True)
+        assert not files
+        sftp_cm_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_read_directory_path_does_not_exist(self, sftp_hook_mocked):
         """
         Assert that AirflowException is raised when path does not exist on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
+        hook, sftp_client_mock = sftp_hook_mocked
 
-        expected_files = None
         files = await hook.read_directory(path="/path/does_not/exist/")
-        assert files == expected_files
-        mock_hook_get_conn.return_value.__aexit__.assert_called()
+        assert not files
+        sftp_client_mock.__aexit__.assert_awaited()
 
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
-    async def test_list_directory_path_has_files(self, mock_hook_get_conn):
+    async def test_list_directory_path_has_files(self, sftp_hook_mocked):
         """
         Assert that file list is returned when path exists on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
+        hook, sftp_client_mock = sftp_hook_mocked
 
-        expected_files = ["..", ".", "file"]
+        sftp_client_mock.__aenter__.return_value.readdir.return_value = [
+            Mock(spec=SFTPName, filename="..", attrs=Mock(permissions=0)),
+            Mock(spec=SFTPName, filename=".", attrs=Mock(permissions=0)),
+            Mock(spec=SFTPName, filename="file", attrs=Mock(permissions=0)),
+        ]
+
         files = await hook.list_directory(path="/path/exists/")
-        assert sorted(files) == sorted(expected_files)
-        mock_hook_get_conn.return_value.__aexit__.assert_called()
+        assert files is not None
+        assert sorted(files) == sorted(["..", ".", "file"])
+        sftp_client_mock.__aexit__.assert_awaited()
 
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
-    async def test_get_file_by_pattern_with_match(self, mock_hook_get_conn):
+    async def test_get_file_by_pattern_with_match(self, sftp_hook_mocked):
         """
         Assert that filename is returned when file pattern is matched on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client_mock.__aenter__.return_value.readdir.return_value = [
+            Mock(spec=SFTPName, filename="..", attrs=Mock(permissions=0)),
+            Mock(spec=SFTPName, filename=".", attrs=Mock(permissions=0)),
+            Mock(spec=SFTPName, filename="file", attrs=Mock(permissions=0)),
+        ]
 
         files = await hook.get_files_and_attrs_by_pattern(path="/path/exists/", fnmatch_pattern="file")
 
         assert len(files) == 1
         assert files[0].filename == "file"
-        mock_hook_get_conn.return_value.__aexit__.assert_called()
+        sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
-    async def test_get_mod_time(self, mock_hook_get_conn):
+    async def test_get_mod_time(self, sftp_hook_mocked):
         """
         Assert that file attribute and return the modified time of the file
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        mtime = 1667302566  # This is a valid Unix timestamp
+        expected = datetime.datetime.fromtimestamp(mtime).strftime("%Y%m%d%H%M%S")
+        sftp_client_mock.__aenter__.return_value.stat.return_value = Mock(spec=SFTPAttrs, mtime=mtime)
 
         mod_time = await hook.get_mod_time("/path/exists/file")
-        expected_value = datetime.datetime.fromtimestamp(1667302566).strftime("%Y%m%d%H%M%S")
-        assert mod_time == expected_value
+        assert mod_time == expected
 
     @pytest.mark.asyncio
-    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
-    async def test_get_mod_time_exception(self, mock_hook_get_conn):
+    async def test_get_mod_time_exception(self, sftp_hook_mocked):
         """
         Assert that get_mod_time raise exception when file does not exist
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
-        hook = SFTPHookAsync()
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client_mock.__aenter__.return_value.stat.side_effect = SFTPNoSuchFile(
+            reason="File does not exist"
+        )
 
         with pytest.raises(AirflowException) as exc:
             await hook.get_mod_time("/path/does_not/exist/")
         assert str(exc.value) == "No files matching"
+
+    @pytest.mark.asyncio
+    async def test_mkdir_creates_directory(self, sftp_hook_mocked):
+        """
+        Assert that mkdir calls makedirs on the SFTP client
+        """
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+
+        await hook.mkdir("/remote/newdir")
+        sftp_client.makedirs.assert_awaited_once_with("/remote/newdir")
+        sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    @patch("aiofiles.open")
+    async def test_retrieve_file_to_path(self, mock_aiofiles_open, sftp_hook_mocked):
+        """
+        Assert that retrieve_file writes to a local file using aiofiles
+        """
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        mock_remote_file = AsyncMock()
+        mock_remote_file.read = AsyncMock(side_effect=[b"abc", b"", StopAsyncIteration])
+        sftp_client.open.return_value.__aenter__.return_value = mock_remote_file
+
+        mock_file = AsyncMock()
+        aiofiles_cm = AsyncMock()
+        aiofiles_cm.__aenter__.return_value = mock_file
+        aiofiles_cm.__aexit__.return_value = None
+        mock_aiofiles_open.return_value = aiofiles_cm
+
+        await hook.retrieve_file("/remote/file", "/local/file")
+        sftp_client.open.assert_called_once_with("/remote/file", "rb")
+        mock_file.write.assert_awaited()
+        sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_retrieve_file_to_bytesio(self, sftp_hook_mocked):
+        """
+        Assert that retrieve_file writes to a BytesIO buffer
+        """
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        mock_remote_file = AsyncMock()
+        mock_remote_file.read = AsyncMock(side_effect=[b"abc", b""])
+        sftp_client.open.return_value.__aenter__.return_value = mock_remote_file
+        buf = BytesIO()
+
+        await hook.retrieve_file("/remote/file", buf)
+        assert buf.getvalue() == b"abc"
+        sftp_client.open.assert_called_once_with("/remote/file", "rb")
+        sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_store_file_bytesio_creates_parent_directories(self, sftp_hook_mocked):
+        """Assert that BytesIO uploads create parent dirs before writing file."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+
+        await hook.store_file("/remote/new/dir/file.txt", BytesIO(b"abc"))
+
+        sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir")
+        sftp_client.open.assert_called_once_with("/remote/new/dir/file.txt", "wb")
+
+    @pytest.mark.asyncio
+    async def test_store_file_path_creates_parent_directories(self, sftp_hook_mocked):
+        """Assert that local-path uploads create parent dirs before put()."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+
+        await hook.store_file("/remote/new/dir/file.txt", "/local/file.txt")
+
+        sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir")
+        sftp_client.put.assert_awaited_once_with("/local/file.txt", "/remote/new/dir/file.txt")
+
+    @pytest.mark.asyncio
+    async def test_store_file_rejects_raw_bytes(self, sftp_hook_mocked):
+        """Raw bytes must be wrapped in BytesIO to avoid path/content ambiguity."""
+        hook, _ = sftp_hook_mocked
+
+        with pytest.raises(TypeError, match="Wrap raw bytes in BytesIO"):
+            await hook.store_file("/remote/new/dir/file.txt", b"abc")  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_walktree_recursive(self, sftp_hook_mocked):
+        """Assert that walktree recursively traverses files and directories."""
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class File:
+                    filename = "file1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                class Subdir:
+                    filename = "subdir"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [File(), Subdir()]
+            if path == "/dir/subdir":
+
+                class File:
+                    filename = "file2"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                return [File()]
+            return []
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = lambda path: path
+
+        files: list[str] = []
+        dirs: list[str] = []
+        unknowns: list[str] = []
+
+        await hook.walktree(
+            path="/dir",
+            fcallback=files.append,
+            dcallback=dirs.append,
+            ucallback=unknowns.append,
+        )
+
+        assert sorted(files) == sorted(["/dir/file1", "/dir/subdir/file2"])
+        assert dirs == ["/dir/subdir"]
+        assert unknowns == []
+        sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_walktree_skips_disappearing_subdirectory(self, sftp_hook_mocked):
+        """walktree should continue when a subdirectory disappears during traversal."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class File:
+                    filename = "file1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                class Subdir:
+                    filename = "subdir"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [File(), Subdir()]
+            if path == "/dir/subdir":
+                raise SFTPNoSuchFile("gone")
+            return []
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = lambda path: path
+
+        files: list[str] = []
+        dirs: list[str] = []
+        unknowns: list[str] = []
+
+        await hook.walktree(
+            path="/dir",
+            fcallback=files.append,
+            dcallback=dirs.append,
+            ucallback=unknowns.append,
+        )
+
+        assert files == ["/dir/file1"]
+        assert dirs == ["/dir/subdir"]
+        assert unknowns == []
+
+    @pytest.mark.asyncio
+    async def test_walktree_avoids_cycle_via_canonical_path(self, sftp_hook_mocked):
+        """walktree should avoid infinite recursion when two directory paths resolve to one target."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class Link:
+                    filename = "link"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [Link()]
+            if path == "/dir/link":
+
+                class LinkBack:
+                    filename = "again"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [LinkBack()]
+            return []
+
+        async def realpath_side_effect(path):
+            # Both paths resolve to same canonical target, which should stop recursion.
+            if path in {"/dir/link", "/dir/link/again"}:
+                return "/dir/link"
+            return path
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = realpath_side_effect
+
+        dirs: list[str] = []
+        await hook.walktree(
+            path="/dir",
+            fcallback=lambda _: None,
+            dcallback=dirs.append,
+            ucallback=lambda _: None,
+        )
+
+        assert dirs == ["/dir/link", "/dir/link/again"]
+
+    @pytest.mark.asyncio
+    async def test_list_directory_non_recursive(self, sftp_hook_mocked):
+        """Assert that default list_directory returns one-level entry names only."""
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class File:
+                    filename = "file1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                class Subdir:
+                    filename = "subdir"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [File(), Subdir()]
+            if path == "/dir/subdir":
+
+                class File:
+                    filename = "file2"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                return [File()]
+            return []
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+
+        files = await hook.list_directory("/dir")
+        assert files is not None
+        assert sorted(files) == sorted(["file1", "subdir"])
+        sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_list_directory_recursive_returns_relative_entries(self, sftp_hook_mocked):
+        """Assert that recursive list_directory delegates to walktree and returns relative paths."""
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class File:
+                    filename = "file1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                class Subdir:
+                    filename = "subdir"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                return [File(), Subdir()]
+            if path == "/dir/subdir":
+
+                class File:
+                    filename = "file2"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                return [File()]
+            return []
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = lambda path: path
+
+        files = await hook.list_directory("/dir", recursive=True)
+        assert files is not None
+        assert sorted(files) == sorted(["file1", "subdir/file2"])
+        sftp_client_mock.__aexit__.assert_awaited()

@@ -528,6 +528,8 @@ class CloudSqlProxyRunner(LoggingMixin):
         project_id: str = PROVIDE_PROJECT_ID,
         sql_proxy_version: str | None = None,
         sql_proxy_binary_path: str | None = None,
+        *,
+        sql_proxy_enable_iam_login: bool = False,
     ) -> None:
         super().__init__()
         self.path_prefix = path_prefix
@@ -540,6 +542,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.instance_specification = instance_specification
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        self.sql_proxy_enable_iam_login = sql_proxy_enable_iam_login
         self.command_line_parameters: list[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
         self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
@@ -549,6 +552,8 @@ class CloudSqlProxyRunner(LoggingMixin):
     def _build_command_line_parameters(self) -> None:
         self.command_line_parameters.extend(["-dir", self.cloud_sql_proxy_socket_directory])
         self.command_line_parameters.extend(["-instances", self.instance_specification])
+        if self.sql_proxy_enable_iam_login:
+            self.command_line_parameters.append("-enable_iam_login")
 
     @staticmethod
     def _is_os_64bit() -> bool:
@@ -788,6 +793,9 @@ class CloudSQLDatabaseHook(BaseHook):
       You cannot use proxy and SSL together.
     * **use_iam** - (default False) Whether IAM should be used to connect to Cloud SQL DB.
       With using IAM password field should be empty string.
+    * **sql_proxy_enable_iam_login** - (default False) Whether Cloud SQL Auth Proxy should use
+      IAM database authentication. This requires ``use_proxy`` and is supported with the current
+      Cloud SQL Auth Proxy v1 integration for both Postgres and MySQL.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
@@ -852,15 +860,12 @@ class CloudSQLDatabaseHook(BaseHook):
         self.use_proxy = self._get_bool(self.extras.get("use_proxy", "False"))
         self.use_ssl = self._get_bool(self.extras.get("use_ssl", "False"))
         self.use_iam = self._get_bool(self.extras.get("use_iam", "False"))
+        self.sql_proxy_enable_iam_login = self._get_bool(
+            self.extras.get("sql_proxy_enable_iam_login", "False")
+        )
         self.sql_proxy_use_tcp = self._get_bool(self.extras.get("sql_proxy_use_tcp", "False"))
         self.sql_proxy_version = self.extras.get("sql_proxy_version")
         self.sql_proxy_binary_path = sql_proxy_binary_path
-        if self.use_iam:
-            self.user = self._get_iam_db_login()
-            self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
-        else:
-            self.user = cast("str", self.cloudsql_connection.login)
-            self.password = cast("str", self.cloudsql_connection.password)
         self.public_ip = self.cloudsql_connection.host
         self.public_port = self.cloudsql_connection.port
         self.ssl_cert = ssl_cert
@@ -876,7 +881,18 @@ class CloudSQLDatabaseHook(BaseHook):
         # Generated based on clock + clock sequence. Unique per host (!).
         # This is important as different hosts share the database
         self.db_conn_id = str(uuid.uuid1())
+        # Validate before resolving user/password so invalid configs fail fast,
+        # without spawning the gcloud subprocess used by ``_generate_login_token``.
         self._validate_inputs()
+        if self.use_iam:
+            self.user = self._get_iam_db_login()
+            self.password = self._generate_login_token(service_account=self.cloudsql_connection.login)
+        elif self.sql_proxy_enable_iam_login:
+            self.user = self._get_iam_db_login()
+            self.password = self.cloudsql_connection.password or ""
+        else:
+            self.user = cast("str", self.cloudsql_connection.login)
+            self.password = cast("str", self.cloudsql_connection.password)
 
     @property
     def sslcert(self) -> str | None:
@@ -989,6 +1005,12 @@ class CloudSQLDatabaseHook(BaseHook):
                 " SSL is not needed as Cloud SQL Proxy "
                 "provides encryption on its own"
             )
+        if self.use_iam and self.sql_proxy_enable_iam_login:
+            raise ValueError(
+                "use_iam (direct IAM token) and sql_proxy_enable_iam_login (proxy IAM) are mutually exclusive"
+            )
+        if self.sql_proxy_enable_iam_login and not self.use_proxy:
+            raise ValueError("sql_proxy_enable_iam_login requires use_proxy to be True")
         if any([self.ssl_key, self.ssl_cert, self.ssl_root_cert]) and self.ssl_secret_id:
             raise AirflowException(
                 "Invalid SSL settings. Please use either all of parameters ['ssl_cert', 'ssl_cert', "
@@ -1073,7 +1095,7 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException("The login parameter needs to be set in connection")
         if not self.public_ip:
             raise AirflowException("The host parameter needs to be set in connection")
-        if not self.password:
+        if not self.password and not self.sql_proxy_enable_iam_login:
             raise AirflowException("The password parameter needs to be set in connection")
         if not self.database:
             raise AirflowException("The database parameter needs to be set in connection")
@@ -1136,7 +1158,7 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException("The login parameter needs to be set in connection")
         if not self.public_ip:
             raise AirflowException("The host parameter needs to be set in connection")
-        if not self.password:
+        if not self.password and not self.sql_proxy_enable_iam_login:
             raise AirflowException("The password parameter needs to be set in connection")
         if not self.database:
             raise AirflowException("The database parameter needs to be set in connection")
@@ -1227,6 +1249,7 @@ class CloudSQLDatabaseHook(BaseHook):
             sql_proxy_version=self.sql_proxy_version,
             sql_proxy_binary_path=self.sql_proxy_binary_path,
             gcp_conn_id=self.gcp_conn_id,
+            sql_proxy_enable_iam_login=self.sql_proxy_enable_iam_login,
         )
 
     def get_database_hook(self, connection: Connection) -> DbApiHook:

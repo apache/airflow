@@ -25,6 +25,7 @@ from botocore.exceptions import ClientError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.glue_catalog import (
     GlueCatalogCreateDatabaseOperator,
+    GlueCatalogCreatePartitionOperator,
     GlueCatalogCreateTableOperator,
     GlueCatalogDeleteDatabaseOperator,
     GlueCatalogDeleteTableOperator,
@@ -223,6 +224,43 @@ class TestGlueCatalogDeleteTableOperator:
         self.operator.execute({})
 
         mock_client.delete_table.assert_called_once_with(DatabaseName=DB_NAME, Name=TABLE_NAME)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+PARTITION_INPUT = {"Values": ["2024-01-01"], "StorageDescriptor": {"Location": "s3://bucket/dt=2024-01-01/"}}
+
+
+class TestGlueCatalogCreatePartitionOperator:
+    def setup_method(self):
+        self.operator = GlueCatalogCreatePartitionOperator(
+            task_id="create_partition",
+            database_name=DB_NAME,
+            table_name=TABLE_NAME,
+            partition_input=PARTITION_INPUT,
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.create_partition.assert_called_once_with(
+            DatabaseName=DB_NAME, TableName=TABLE_NAME, PartitionInput=PARTITION_INPUT
+        )
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_skip_existing(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.create_partition.side_effect = ClientError(
+            {"Error": {"Code": "AlreadyExistsException", "Message": "exists"}}, "CreatePartition"
+        )
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})  # Should not raise
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

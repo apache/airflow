@@ -55,4 +55,15 @@ export class BasePage {
   public async navigateTo(path: string): Promise<void> {
     await this.page.goto(path, { waitUntil: "domcontentloaded" });
   }
+
+  // Chakra v3 / Ark UI keeps the backdrop in the DOM until the close animation
+  // ends. On WebKit the animationend/transitionend event is occasionally
+  // dropped under CI load, leaving a `data-state="closed"` backdrop attached
+  // that intercepts pointer events on subsequent actions. Wait for every
+  // dialog backdrop to be detached before continuing.
+  public async waitForAllDialogsClosed(timeout = 15_000): Promise<void> {
+    await expect(this.page.locator('[data-scope="dialog"][data-part="backdrop"]')).toHaveCount(0, {
+      timeout,
+    });
+  }
 }
