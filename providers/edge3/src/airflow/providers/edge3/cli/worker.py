@@ -545,7 +545,11 @@ class EdgeWorker:
     async def _push_logs_in_chunks(self, job: Job):
         aio_logfile = anyio.Path(job.logfile)
         try:
-            if self.push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
+            if (
+                self.push_logs
+                and await aio_logfile.exists()
+                and (await aio_logfile.stat()).st_size > job.logsize
+            ):
                 async with aio_open(job.logfile, mode="rb") as logf:
                     await logf.seek(job.logsize, os.SEEK_SET)
                     read_data = await logf.read()
