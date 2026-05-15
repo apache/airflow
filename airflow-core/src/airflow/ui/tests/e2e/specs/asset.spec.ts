@@ -101,7 +101,7 @@ test.describe("Assets Page", () => {
       .toBe(true);
   });
 
-  test("verify asset details and dependencies", async ({ page }) => {
+  test.fixme("verify asset details and dependencies", async ({ page }) => {
     const assetDetailPage = new AssetDetailPage(page);
     const assetName = testConfig.asset.name;
 

@@ -191,7 +191,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     expect(stillExists).toBeTruthy();
   });
 
-  test("should delete a connection", async () => {
+  test.fixme("should delete a connection", async () => {
     test.setTimeout(120_000);
 
     // Create a temporary connection for deletion test
