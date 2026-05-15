@@ -27,7 +27,14 @@ chart-version: 1.22.0
 last-verified: '2026-05-15'
 verify:
   timeout_seconds: 300
+  # Resource names are the suffix only - the smoke-test runner
+  # prepends the current release name (default `airflow`) so the
+  # same overlay works under any release. Listed in dependency order
+  # so a partial-apply failure trips on the first missing thing
+  # rather than several steps later via a confusing pod-mount error.
   resources:
+    - kind: ConfigMap
+      name: krb5-conf
     - kind: Deployment
       name: kerberos-kdc
       ready: true

@@ -90,13 +90,23 @@ jobs:
       #   3. configure-cluster  -> creates the test PV/PVC + node-port Svc
       #                            the chart consumes; deploy-airflow won't
       #                            come up without these.
-      #   4. upload-k8s-image  -> loads the PROD image that
-      #                           prepare_breeze_and_image just restored on
-      #                           the host into every kind node, so kubelet
+      #   4. build-k8s-image  -> bakes the kubernetes-variant tag
+      #                          (prod/python<X>-kubernetes) on top of the
+      #                          base PROD image that prepare_breeze_and_image
+      #                          just restored. upload-k8s-image and the
+      #                          chart both reference the -kubernetes tag,
+      #                          so this step is required even though
+      #                          prepare_breeze_and_image already loaded the
+      #                          base image into the host docker daemon.
+      #                          --no-copy-local-sources matches the CI
+      #                          convention (sources come from the base
+      #                          image, not the workspace).
+      #   5. upload-k8s-image  -> loads the now-built kubernetes-variant
+      #                           image into every kind node, so kubelet
       #                           can resolve the chart's image reference
       #                           without hitting ghcr (which is private).
-      #   5. deploy-airflow
-      #   6. smoke-test-overlay  -> renders the overlay, auto-preloads the
+      #   6. deploy-airflow
+      #   7. smoke-test-overlay  -> renders the overlay, auto-preloads the
       #                             overlay's own images into the kind
       #                             nodes (no per-overlay images list
       #                             needed - discovery walks the rendered
@@ -105,14 +115,16 @@ jobs:
       #                             fail-fast on ImagePullBackOff /
       #                             CrashLoopBackOff, runs the optional
       #                             per-overlay pytest module, cleans up.
-      #   7. delete-cluster  -> always(), even on failure.
+      #   8. delete-cluster  -> always(), even on failure.
       - name: "Setup k8s/helm environment"
         run: breeze k8s setup-env
       - name: "Create kind cluster"
         run: breeze k8s create-cluster
       - name: "Configure kind cluster (test PV/PVC + node-port svc)"
         run: breeze k8s configure-cluster
-      - name: "Upload PROD image to kind nodes"
+      - name: "Build kubernetes-variant image on top of the restored PROD image"
+        run: breeze k8s build-k8s-image --no-copy-local-sources
+      - name: "Upload kubernetes-variant image to kind nodes"
         run: breeze k8s upload-k8s-image
       - name: "Deploy Airflow chart"
         run: breeze k8s deploy-airflow --executor CeleryExecutor
