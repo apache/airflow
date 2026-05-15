@@ -609,13 +609,13 @@ class SortParam(BaseParam[list[str]]):
         else:
             default_list = list(default)
 
-        def inner(
-            order_by: list[str] = Query(
-                default=default_list,
-                description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
-                f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",  # noqa: B008
-            ),
-        ) -> SortParam:
+        _order_by_query = Query(
+            default=default_list,
+            description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
+            f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
+        )
+
+        def inner(order_by: list[str] = _order_by_query) -> SortParam:
             return self.set_value(order_by)
 
         return inner

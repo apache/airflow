@@ -165,7 +165,7 @@ class S3ToGCSOperator(S3ListOperator):
         replace=False,
         gzip=False,
         google_impersonation_chain: str | Sequence[str] | None = None,
-        deferrable=None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
         return_gcs_uris: bool = False,
         **kwargs,
@@ -178,11 +178,7 @@ class S3ToGCSOperator(S3ListOperator):
         self.verify = verify
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
-        self.deferrable = (
-            deferrable
-            if deferrable is not None
-            else conf.getboolean("operators", "default_deferrable", fallback=False)
-        )
+        self.deferrable = deferrable
         if poll_interval <= 0:
             raise ValueError("Invalid value for poll_interval. Expected value greater than 0")
         self.poll_interval = poll_interval
