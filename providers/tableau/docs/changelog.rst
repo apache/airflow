@@ -30,11 +30,6 @@ Changelog
 5.4.0
 .....
 
-Bug Fixes
-~~~~~~~~~
-
-* ``Fix TableauOperator failing with AttributeError when triggering tasks (closes #42248)``
-
 Features
 ~~~~~~~~
 
