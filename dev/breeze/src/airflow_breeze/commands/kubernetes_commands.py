@@ -26,7 +26,7 @@ from copy import deepcopy
 from itertools import chain
 from pathlib import Path
 from shlex import quote
-from typing import Any
+from typing import Any, Literal
 
 import click
 import yaml
@@ -66,6 +66,7 @@ from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
+    KUBECTL_BIN_PATH,
     KUBERNETES_TEST_PATH,
     SCRIPTS_CI_KUBERNETES_PATH,
     KubernetesPythonVersion,
@@ -2450,3 +2451,227 @@ def deploy_cluster(
     )
     if return_code != 0:
         sys.exit(return_code)
+
+
+# ---------------------------------------------------------------------------
+# `breeze k8s smoke-test-overlay` — functional smoke test for a single
+# kustomize overlay under chart/kustomize-overlays/.
+#
+# Counterpart to the structural `build_kustomize_overlays` prek hook:
+# the prek hook validates that an overlay builds and that its STATUS.yaml
+# parses, while this command applies the overlay to a running kind
+# cluster, waits for every resource declared in the STATUS.yaml `verify:`
+# block, and optionally runs a per-overlay pytest module for behavioural
+# checks. An overlay's STATUS may only advance to `tested` once this
+# command exits 0.
+# ---------------------------------------------------------------------------
+
+KUSTOMIZE_OVERLAYS_PATH = CHART_PATH / "kustomize-overlays"
+OVERLAY_TESTS_SUBPATH = Path("tests") / "kubernetes_tests" / "overlays"
+
+
+def _substitute_overlay_placeholders(rendered: str, release_name: str, namespace: str) -> str:
+    return rendered.replace("RELEASE-NAME", release_name).replace("NAMESPACE", namespace)
+
+
+def _load_overlay_verify_block(overlay_dir: Path) -> dict[str, Any]:
+    status_path = overlay_dir / "STATUS.yaml"
+    if not status_path.exists():
+        console_print(f"[error]Overlay {overlay_dir.name} is missing STATUS.yaml")
+        sys.exit(1)
+    status_doc = yaml.safe_load(status_path.read_text()) or {}
+    verify = status_doc.get("verify")
+    if not verify:
+        console_print(
+            f"[error]Overlay {overlay_dir.name} has no `verify:` block in STATUS.yaml; "
+            "add one before running the smoke test (see chart/kustomize-overlays/CONTRIBUTING.rst)."
+        )
+        sys.exit(1)
+    return verify
+
+
+def _wait_for_verify_resource(
+    resource: dict[str, Any],
+    namespace: str,
+    timeout_seconds: int,
+    env: dict[str, str],
+) -> int:
+    kind = resource["kind"]
+    name = resource["name"]
+    kubectl = str(KUBECTL_BIN_PATH)
+    ns_args = ["-n", namespace]
+    timeout_arg = f"--timeout={timeout_seconds}s"
+    if resource.get("ready") and kind in ("Deployment", "StatefulSet", "DaemonSet"):
+        cmd = [kubectl, "rollout", "status", f"{kind.lower()}/{name}", *ns_args, timeout_arg]
+    elif resource.get("complete") and kind == "Job":
+        cmd = [kubectl, "wait", "--for=condition=complete", f"job/{name}", *ns_args, timeout_arg]
+    else:
+        # Existence-only check (Service, Secret, ConfigMap, ...).
+        cmd = [kubectl, "get", f"{kind.lower()}/{name}", *ns_args]
+    console_print(f"[info]verify: {kind}/{name} -> {' '.join(cmd[1:])}")
+    result = run_command(cmd, env=env, check=False)
+    if result.returncode != 0:
+        console_print(f"[error]verify failed for {kind}/{name}; dumping describe output:")
+        run_command([kubectl, "describe", kind.lower(), name, *ns_args], env=env, check=False)
+    return result.returncode
+
+
+def _apply_or_delete_overlay(
+    action: Literal["apply", "delete"],
+    overlay_dir: Path,
+    release_name: str,
+    namespace: str,
+    env: dict[str, str],
+) -> int:
+    kubectl = str(KUBECTL_BIN_PATH)
+    render = run_command(
+        [kubectl, "kustomize", str(overlay_dir)],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if render.returncode != 0:
+        console_print(f"[error]kubectl kustomize failed:\n{render.stderr}")
+        return render.returncode
+    manifest = _substitute_overlay_placeholders(render.stdout, release_name, namespace)
+    extra: list[str] = ["--ignore-not-found=true"] if action == "delete" else []
+    result = run_command(
+        [kubectl, action, "-n", namespace, *extra, "-f", "-"],
+        env=env,
+        check=False,
+        input=manifest,
+    )
+    return result.returncode
+
+
+def _run_overlay_pytest(
+    overlay_name: str,
+    namespace: str,
+    release_name: str,
+    python: str,
+    kubernetes_version: str,
+    executor: str,
+) -> int:
+    test_file = KUBERNETES_TEST_PATH / OVERLAY_TESTS_SUBPATH / f"test_{overlay_name}.py"
+    if not test_file.exists():
+        console_print(
+            f"[info]No behavioural test module at {test_file.relative_to(AIRFLOW_ROOT_PATH)} — "
+            "verify-block checks are the only assertions for this overlay."
+        )
+        return 0
+    env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
+    env["OVERLAY_UNDER_TEST"] = overlay_name
+    env["OVERLAY_NAMESPACE"] = namespace
+    env["OVERLAY_RELEASE_NAME"] = release_name
+    pytest_cmd = ["uv", "run", "pytest", str(test_file.relative_to(KUBERNETES_TEST_PATH)), "-xvs"]
+    console_print(f"[info]Running behavioural tests: {' '.join(pytest_cmd)}")
+    result = run_command(pytest_cmd, env=env, check=False, cwd=KUBERNETES_TEST_PATH.as_posix())
+    return result.returncode
+
+
+@kubernetes_group.command(
+    name="smoke-test-overlay",
+    help="Apply a kustomize overlay to the current KinD cluster, wait for its STATUS.yaml "
+    "`verify:` resources, and run the optional per-overlay pytest module.",
+)
+@click.argument("overlay_name", type=str)
+@option_python
+@option_kubernetes_version
+@option_executor
+@click.option(
+    "--release-name",
+    default="airflow",
+    show_default=True,
+    help="Substitute for the RELEASE-NAME placeholder in the overlay.",
+)
+@click.option(
+    "--namespace",
+    default="airflow",
+    show_default=True,
+    help="Namespace to apply into and substitute for the NAMESPACE placeholder.",
+)
+@click.option(
+    "--skip-cleanup",
+    is_flag=True,
+    help="Leave the overlay applied after the run (useful for debugging).",
+)
+@click.option(
+    "--no-pytest",
+    is_flag=True,
+    help="Skip the per-overlay pytest module even if it exists.",
+)
+@option_verbose
+@option_dry_run
+def smoke_test_overlay(
+    overlay_name: str,
+    python: str,
+    kubernetes_version: str,
+    executor: str,
+    release_name: str,
+    namespace: str,
+    skip_cleanup: bool,
+    no_pytest: bool,
+):
+    make_sure_kubernetes_tools_are_installed()
+    overlay_dir = KUSTOMIZE_OVERLAYS_PATH / overlay_name
+    if not (overlay_dir / "kustomization.yaml").is_file():
+        console_print(
+            f"[error]No overlay at {overlay_dir.relative_to(AIRFLOW_ROOT_PATH)} "
+            f"(expected a kustomization.yaml there)."
+        )
+        sys.exit(1)
+    if not get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version).exists():
+        console_print(
+            f"[error]No kind cluster for python={python}, kubernetes={kubernetes_version}. Run:\n"
+            f"  breeze k8s setup-env\n"
+            f"  breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}\n"
+            f"  breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}"
+        )
+        sys.exit(1)
+    verify = _load_overlay_verify_block(overlay_dir)
+    env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
+
+    console_print(f"\n[info]Applying overlay {overlay_name} to namespace {namespace}...")
+    if _apply_or_delete_overlay("apply", overlay_dir, release_name, namespace, env) != 0:
+        console_print("[error]Overlay apply failed.")
+        sys.exit(1)
+
+    try:
+        console_print("\n[info]Walking STATUS.yaml verify block...")
+        timeout = int(verify.get("timeout_seconds", 300))
+        for resource in verify["resources"]:
+            substituted = {
+                **resource,
+                "name": _substitute_overlay_placeholders(resource["name"], release_name, namespace),
+            }
+            rc = _wait_for_verify_resource(substituted, namespace, timeout, env)
+            if rc != 0:
+                console_print("[error]verify block failed.")
+                sys.exit(1)
+        console_print("\n[success]verify block passed.")
+
+        if not no_pytest:
+            rc = _run_overlay_pytest(
+                overlay_name=overlay_name,
+                namespace=namespace,
+                release_name=release_name,
+                python=python,
+                kubernetes_version=kubernetes_version,
+                executor=executor,
+            )
+            if rc != 0:
+                console_print("[error]Per-overlay pytest module failed.")
+                sys.exit(rc)
+    finally:
+        if skip_cleanup:
+            console_print("[warning]--skip-cleanup set; overlay left in place.")
+        else:
+            console_print(f"\n[info]Cleaning up overlay {overlay_name}...")
+            _apply_or_delete_overlay("delete", overlay_dir, release_name, namespace, env)
+
+    console_print(
+        f"\n[success]Smoke test for overlay {overlay_name} passed. "
+        f"You can flip {overlay_dir.relative_to(AIRFLOW_ROOT_PATH)}/STATUS.yaml to `status: tested` "
+        f"(chart-version + last-verified)."
+    )
