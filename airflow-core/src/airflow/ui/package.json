@@ -71,7 +71,7 @@
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.2",
-    "@eslint/compat": "^2.0.5",
+    "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@rolldown/plugin-babel": "^0.2.2",
