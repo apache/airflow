@@ -27,6 +27,16 @@ analyzing data to find meaningful insights using familiar SQL.
 Airflow provides operators to manage datasets and tables, run queries and validate
 data.
 
+.. note::
+
+    GoogleSQL is the recommended dialect for BigQuery. BigQuery legacy SQL availability is restricted
+    after June 1, 2026, based on legacy SQL usage during Google's evaluation period. In Airflow, the
+    implicit default for older BigQuery operators that expose ``use_legacy_sql`` is deprecated and will
+    change from ``True`` to ``False`` in a future provider release. Set ``use_legacy_sql=True``
+    explicitly if you still need legacy SQL, or set ``use_legacy_sql=False`` to use GoogleSQL.
+    For more information, see
+    `Legacy SQL feature availability <https://docs.cloud.google.com/bigquery/docs/legacy-sql-feature-availability>`__.
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

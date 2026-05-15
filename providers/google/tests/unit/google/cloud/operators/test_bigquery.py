@@ -2397,6 +2397,16 @@ class TestBigQueryIntervalCheckOperator:
 
 
 class TestBigQueryCheckOperator:
+    def test_implicit_legacy_sql_default_warns(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The default value of `use_legacy_sql` is deprecated",
+        ):
+            BigQueryCheckOperator(
+                task_id="check_query",
+                sql="SELECT COUNT(*) FROM Any",
+            )
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator._validate_records")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.defer")

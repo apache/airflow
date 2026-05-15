@@ -64,6 +64,15 @@ from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+
+    def is_arg_set(value):  # type: ignore[misc,no-redef]
+        return value is not NOTSET
+
+
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
@@ -72,8 +81,25 @@ if TYPE_CHECKING:
 
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
+BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
+    "The default value of `use_legacy_sql` is deprecated and will change from `True` to `False` "
+    "in a future provider release. Set `use_legacy_sql=True` explicitly if you need legacy SQL, "
+    "or set `use_legacy_sql=False` to use GoogleSQL."
+)
 
 LABEL_REGEX = re.compile(r"^[\w-]{0,63}$")
+
+
+def _resolve_use_legacy_sql(use_legacy_sql: bool | ArgNotSet) -> bool:
+    if is_arg_set(use_legacy_sql):
+        return use_legacy_sql
+
+    warnings.warn(
+        BIGQUERY_LEGACY_SQL_DEFAULT_WARNING,
+        AirflowProviderDeprecationWarning,
+        stacklevel=3,
+    )
+    return True
 
 
 class BigQueryUIColors(enum.Enum):
@@ -229,7 +255,7 @@ class BigQueryCheckOperator(
         sql: str,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -241,7 +267,7 @@ class BigQueryCheckOperator(
     ) -> None:
         super().__init__(sql=sql, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -387,7 +413,7 @@ class BigQueryValueCheckOperator(
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -398,7 +424,7 @@ class BigQueryValueCheckOperator(
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -549,7 +575,7 @@ class BigQueryIntervalCheckOperator(
         date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
         gcp_conn_id: str = "google_cloud_default",
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -568,7 +594,7 @@ class BigQueryIntervalCheckOperator(
         )
 
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
@@ -701,7 +727,7 @@ class BigQueryColumnCheckOperator(
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -722,7 +748,7 @@ class BigQueryColumnCheckOperator(
         self.accept_none = accept_none
         self.gcp_conn_id = gcp_conn_id
         self.encryption_configuration = encryption_configuration
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -842,7 +868,7 @@ class BigQueryTableCheckOperator(
         partition_clause: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -851,7 +877,7 @@ class BigQueryTableCheckOperator(
     ) -> None:
         super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -1037,7 +1063,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         as_dict: bool = False,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1057,7 +1083,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
 
     def _submit_job(
         self,
