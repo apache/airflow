@@ -69,7 +69,29 @@ initialize_breeze_prek(__name__, __file__)
 
 # ---------------------------------------------------------------------------
 # STATUS.yaml contract — Pydantic discriminated union, one variant per status.
+#
+# The optional `verify:` block on tested/not-tested overlays is the contract
+# the runtime smoke test runner (`breeze k8s smoke-test-overlay`) consumes.
+# This hook only validates its *shape* — it never applies an overlay to a
+# cluster or evaluates the contract. An overlay's STATUS may only advance to
+# `tested` once the smoke test has run green against a real cluster.
 # ---------------------------------------------------------------------------
+
+
+class _VerifyResource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str
+    name: str
+    ready: bool | None = None
+    complete: bool | None = None
+
+
+class _VerifyBlock(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    timeout_seconds: int = Field(default=300, ge=1, le=3600)
+    resources: list[_VerifyResource] = Field(min_length=1)
 
 
 class _TestedStatus(BaseModel):
@@ -78,6 +100,7 @@ class _TestedStatus(BaseModel):
     status: Literal["tested"]
     chart_version: str = Field(alias="chart-version")
     last_verified: str = Field(alias="last-verified", pattern=r"^\d{4}-\d{2}-\d{2}$")
+    verify: _VerifyBlock | None = None
 
 
 class _NotTestedStatus(BaseModel):
@@ -85,6 +108,7 @@ class _NotTestedStatus(BaseModel):
 
     status: Literal["not-tested"]
     reason: str | None = None
+    verify: _VerifyBlock | None = None
 
 
 class _DeprecatedStatus(BaseModel):
