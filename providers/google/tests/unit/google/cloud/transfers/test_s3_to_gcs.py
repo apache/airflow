@@ -32,6 +32,8 @@ from airflow.providers.google.cloud.transfers.s3_to_gcs import (
 )
 from airflow.utils.timezone import utcnow
 
+from tests_common.test_utils.config import conf_vars
+
 PROJECT_ID = "test-project-id"
 TASK_ID = "test-s3-gcs-operator"
 S3_BUCKET = "test-bucket"
@@ -102,6 +104,45 @@ class TestS3ToGoogleCloudStorageOperator:
         assert operator.deferrable == DEFERRABLE
         assert operator.poll_interval == POLL_INTERVAL
         assert operator.return_gcs_uris is True
+
+    def test_deferrable_default_read_from_conf_at_instantiation(self):
+        """When ``deferrable`` is omitted, the operator should read
+        ``operators.default_deferrable`` at instantiation time (not at module import).
+        """
+        with conf_vars({("operators", "default_deferrable"): "True"}):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                dest_gcs=GCS_PATH_PREFIX,
+                return_gcs_uris=True,
+            )
+            assert operator.deferrable is True
+
+        with conf_vars({("operators", "default_deferrable"): "False"}):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID + "_2",
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                dest_gcs=GCS_PATH_PREFIX,
+                return_gcs_uris=True,
+            )
+            assert operator.deferrable is False
+
+    def test_deferrable_explicit_false_overrides_truthy_conf(self):
+        """An explicit ``deferrable=False`` must override a truthy
+        ``operators.default_deferrable`` config — only ``None`` falls back to config.
+        """
+        with conf_vars({("operators", "default_deferrable"): "True"}):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                dest_gcs=GCS_PATH_PREFIX,
+                deferrable=False,
+                return_gcs_uris=True,
+            )
+            assert operator.deferrable is False
 
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")

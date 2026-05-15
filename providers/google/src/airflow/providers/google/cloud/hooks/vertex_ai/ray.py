@@ -115,7 +115,7 @@ class RayHook(GoogleBaseHook):
         """
         aiplatform.init(project=project_id, location=location, credentials=self.get_credentials())
         cluster_path = vertex_ray.create_ray_cluster(
-            head_node_type=head_node_type or resources.Resources(),
+            head_node_type=head_node_type if head_node_type is not None else resources.Resources(),
             python_version=python_version,
             ray_version=ray_version,
             network=network,
