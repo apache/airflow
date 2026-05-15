@@ -97,13 +97,19 @@ class TestPutTaskState:
             assert row is not None
             assert row.value == "spark_001"
 
-    def test_put__with_retention_days_creates_row(
+    def test_put_with_expires_at_creates_row(
         self, client: TestClient, create_task_instance: CreateTaskInstance, time_machine
     ):
 
         ti = create_task_instance()
         time_machine.move_to(datetime(2026, 5, 5, 12, 0, 0), tick=False)
-        response = client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001", "retention_days": 10})
+        response = client.put(
+            _api_url(ti.id, "job_id"),
+            json={
+                "value": "spark_001",
+                "expires_at": datetime(2026, 5, 15, 12, 0, 0, tzinfo=pendulum.UTC).isoformat(),
+            },
+        )
 
         assert response.status_code == 204
         with create_session() as session:
