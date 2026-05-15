@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import sys
+import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
@@ -592,6 +593,17 @@ def configure_logging(
         elif output is not None:
             text_output = cast("TextIO", output)
         logger_factory = LoggerFactory(NamedWriteLogger, io=text_output)
+
+    # Replace structlog's WRITE_LOCKS dict with a WeakKeyDictionary so entries
+    # for closed file descriptors are garbage-collected instead of leaking.
+    # TODO: drop once structlog ships the upstream fix (tracked for 26.1.0).
+    try:
+        from structlog import _output as _structlog_output
+
+        if isinstance(_structlog_output.WRITE_LOCKS, dict):
+            _structlog_output.WRITE_LOCKS = weakref.WeakKeyDictionary()  # type: ignore[assignment]
+    except Exception:
+        pass
 
     structlog.configure(
         processors=shared_pre_chain + [for_structlog],

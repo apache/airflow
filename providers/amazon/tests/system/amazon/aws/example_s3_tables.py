@@ -24,6 +24,7 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesCreateTableOperator,
     S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
+    S3TablesDeleteTableBucketPolicyOperator,
     S3TablesDeleteTableOperator,
     S3TablesPutTableBucketPolicyOperator,
     S3TablesRenameTableOperator,
@@ -42,7 +43,9 @@ from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_s3_tables"
 
-sys_test_context_task = SystemTestContextBuilder().build()
+ACCOUNT_ID_KEY = "ACCOUNT_ID"
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ACCOUNT_ID_KEY).build()
 
 SCHEMA = {
     "iceberg": {
@@ -63,6 +66,7 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
+    account_id = test_context[ACCOUNT_ID_KEY]
 
     bucket_name = f"{env_id}-s3tables"
     namespace = f"{env_id}_ns"
@@ -87,9 +91,17 @@ with DAG(
     put_policy = S3TablesPutTableBucketPolicyOperator(
         task_id="put_table_bucket_policy",
         table_bucket_arn=create_table_bucket.output,
-        resource_policy='{"Version":"2012-10-17","Statement":[]}',
+        resource_policy=f'{{"Version":"2012-10-17","Statement":[{{"Sid":"TestPolicy","Effect":"Allow","Principal":{{"AWS":"arn:aws:iam::{account_id}:root"}},"Action":"s3tables:GetTable","Resource":"*"}}]}}',
     )
     # [END howto_operator_s3tables_put_table_bucket_policy]
+
+    # [START howto_operator_s3tables_delete_table_bucket_policy]
+    delete_policy = S3TablesDeleteTableBucketPolicyOperator(
+        task_id="delete_table_bucket_policy",
+        table_bucket_arn=create_table_bucket.output,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_s3tables_delete_table_bucket_policy]
 
     # [START howto_operator_s3tables_create_namespace]
     setup_namespace = S3TablesCreateNamespaceOperator(
@@ -151,6 +163,7 @@ with DAG(
         test_context,
         create_table_bucket,
         put_policy,
+        delete_policy,
         setup_namespace,
         # TEST BODY
         create_table,

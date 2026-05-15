@@ -61,6 +61,11 @@
     "dagVersions": "Versió/ns del Dag",
     "dataIntervalEnd": "Fi de l'interval de dades",
     "dataIntervalStart": "Inici de l'interval de dades",
+    "durationStats": {
+      "mean": "Mitjana",
+      "mode": "Moda"
+    },
+    "expectedDuration": "Durada esperada",
     "lastSchedulingDecision": "Última decisió de programació",
     "mappedPartitionKey": "Clau de partició mapejada",
     "partitionKey": "Clau de partició",
