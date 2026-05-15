@@ -935,7 +935,7 @@ class TestStringifiedDAGs:
         if isinstance(task, MappedOperator):
             # MappedOperator.operator_class now stores only minimal type information
             # for memory efficiency (task_type and _operator_name).
-            assert serialized_task.operator_class["task_type"] == type(task).__name__
+            assert serialized_task.operator_class["task_type"] == task.operator_class.__name__
             if isinstance(serialized_task.operator_class, DecoratedOperator):
                 assert serialized_task.operator_class["_operator_name"] == task._operator_name
 
