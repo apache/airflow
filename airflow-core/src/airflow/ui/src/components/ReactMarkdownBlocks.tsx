@@ -189,7 +189,7 @@ export const MarkdownMermaid = ({
           title={translate("clipboard.copy")}
         />
       }
-      label={mermaidLabel}
+      label="mermaid"
     >
       <Box maxWidth="100%" minHeight="8rem" minWidth={0} overflow="hidden" p={3} width="100%">
         {svg === undefined ? (
