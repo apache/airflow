@@ -1,0 +1,1 @@
+Minimum Helm version was updated to ``3.19.0``
