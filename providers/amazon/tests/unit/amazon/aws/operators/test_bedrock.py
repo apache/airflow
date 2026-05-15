@@ -174,8 +174,15 @@ class TestBedrockCustomizeModelOperator:
     @mock.patch.object(BedrockHook, "get_waiter")
     def test_ensure_unique_job_name(self, _, side_effect, ensure_unique_name, mock_conn, bedrock_hook):
         mock_conn.create_model_customization_job.side_effect = side_effect
-        expected_call_count = len(side_effect) if ensure_unique_name else 1
+        self.operator.ensure_unique_job_name = ensure_unique_name
         self.operator.wait_for_completion = False
+        expected_call_count = len(side_effect) if ensure_unique_name else 1
+
+        if not ensure_unique_name and any(isinstance(e, ClientError) for e in side_effect):
+            with pytest.raises(ClientError):
+                self.operator.execute({})
+            assert mock_conn.create_model_customization_job.call_count == expected_call_count
+            return
 
         response = self.operator.execute({})
 
