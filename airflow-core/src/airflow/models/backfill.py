@@ -288,6 +288,7 @@ def _do_dry_run(
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
+    dag_run_conf: dict | None = None,
 ) -> Iterable[DagRunInfo]:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -296,7 +297,7 @@ def _do_dry_run(
     if not serdag:
         raise DagNotFound(f"Could not find Dag {dag_id}")
     dag = serdag.dag
-    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
+    _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior, dag_run_conf)
 
     no_schedule = session.scalar(
         select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
