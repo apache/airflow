@@ -89,7 +89,7 @@ BY_DESIGN_EXCLUSIONS: set[str] = {
 _EXCLUDED = KNOWN_VIOLATIONS | BY_DESIGN_EXCLUSIONS
 
 
-def _init_param_names(func: ast.FunctionDef) -> set[str]:
+def _get_init_param_names(func: ast.FunctionDef) -> set[str]:
     """Return the names of reconstructable __init__ parameters (``*args``/``**kwargs`` excluded)."""
     args = func.args
     names = {a.arg for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)}
@@ -98,7 +98,7 @@ def _init_param_names(func: ast.FunctionDef) -> set[str]:
     return names
 
 
-def _base_simple_names(cls: ast.ClassDef) -> list[str]:
+def _get_base_simple_names(cls: ast.ClassDef) -> list[str]:
     """Return the simple (last-component) names of a class's bases."""
     out: list[str] = []
     for base in cls.bases:
@@ -109,7 +109,7 @@ def _base_simple_names(cls: ast.ClassDef) -> list[str]:
     return out
 
 
-def _method(cls: ast.ClassDef, name: str) -> ast.FunctionDef | None:
+def _get_method(cls: ast.ClassDef, name: str) -> ast.FunctionDef | None:
     for node in cls.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
             return node if isinstance(node, ast.FunctionDef) else None
@@ -123,13 +123,11 @@ class ModuleAnalyzer:
         self.path = path
         tree = ast.parse(path.read_text("utf-8"), str(path))
         self.classes: dict[str, ast.ClassDef] = {
-            node.name: node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ClassDef)
+            node.name: node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
         }
 
     def _in_file_base(self, cls: ast.ClassDef) -> ast.ClassDef | None:
-        for name in _base_simple_names(cls):
+        for name in _get_base_simple_names(cls):
             if name in self.classes:
                 return self.classes[name]
         return None
@@ -141,7 +139,7 @@ class ModuleAnalyzer:
         if cls.name in _seen:
             return False
         _seen.add(cls.name)
-        for name in _base_simple_names(cls):
+        for name in _get_base_simple_names(cls):
             if "Trigger" in name:
                 return True
             base = self.classes.get(name)
@@ -155,13 +153,13 @@ class ModuleAnalyzer:
         seen: set[str] = set()
         while current is not None and current.name not in seen:
             seen.add(current.name)
-            method = _method(current, name)
+            method = _get_method(current, name)
             if method is not None:
                 return method, current
             current = self._in_file_base(current)
         return None
 
-    def _serialize_keys(self, cls: ast.ClassDef, _seen: set[str] | None = None) -> set[str] | None:
+    def _get_serialize_keys(self, cls: ast.ClassDef, _seen: set[str] | None = None) -> set[str] | None:
         """
         Statically resolve the keys of the dict returned by *cls*'s effective ``serialize()``.
 
@@ -192,7 +190,7 @@ class ModuleAnalyzer:
         for key, value in zip(payload.keys, payload.values):
             if key is None:
                 # ``**spread`` entry -- only resolvable when it spreads super().serialize().
-                spread = self._super_serialize_keys(value, defining_cls, _seen)
+                spread = self._get_super_serialize_keys(value, defining_cls, _seen)
                 if spread is None:
                     return None
                 keys |= spread
@@ -202,7 +200,7 @@ class ModuleAnalyzer:
             keys.add(key.value)
         return keys
 
-    def _super_serialize_keys(
+    def _get_super_serialize_keys(
         self, value: ast.expr, defining_cls: ast.ClassDef, _seen: set[str]
     ) -> set[str] | None:
         """Resolve keys for a ``**super().serialize()[1]`` / ``**super().serialize()`` spread."""
@@ -221,9 +219,9 @@ class ModuleAnalyzer:
         base = self._in_file_base(defining_cls)
         if base is None:
             return None
-        return self._serialize_keys(base, _seen)
+        return self._get_serialize_keys(base, _seen)
 
-    def violations(self) -> list[tuple[str, list[str]]]:
+    def get_violations(self) -> list[tuple[str, list[str]]]:
         """Return ``(class_name, [missing params])`` for every resolvable trigger that violates."""
         results: list[tuple[str, list[str]]] = []
         rel = self.path.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix()
@@ -235,8 +233,8 @@ class ModuleAnalyzer:
             init_resolved = self._resolve_method(cls, "__init__")
             if init_resolved is None:
                 continue  # __init__ inherited from an out-of-file base -- cannot resolve.
-            params = _init_param_names(init_resolved[0])
-            serialize_keys = self._serialize_keys(cls)
+            params = _get_init_param_names(init_resolved[0])
+            serialize_keys = self._get_serialize_keys(cls)
             if serialize_keys is None:
                 continue  # serialize() dynamic or inherited from an out-of-file base.
             missing = sorted(params - serialize_keys)
@@ -265,7 +263,7 @@ def main(argv: list[str]) -> int:
             error_count += 1
             continue
         rel = path.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix()
-        for class_name, missing in analyzer.violations():
+        for class_name, missing in analyzer.get_violations():
             error_count += 1
             console.print(
                 f"[red]{rel}::{class_name}[/] -- __init__ parameter(s) "
