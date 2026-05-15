@@ -18,21 +18,21 @@
 Bundles
 #######
 
-A DAG bundle is a way to load DAGs into Airflow from an external source. For a general overview of
-DAG bundles, see :doc:`apache-airflow:administration-and-deployment/dag-bundles`.
+A Dag bundle is a way to load Dags into Airflow from an external source. For a general overview of
+Dag bundles, see :doc:`apache-airflow:administration-and-deployment/dag-bundles`.
 
 S3DagBundle
 ===========
 
-Use the :class:`~airflow.providers.amazon.aws.bundles.s3.S3DagBundle` to load DAGs directly from
-an Amazon S3 bucket. Airflow will periodically sync DAG files from the specified S3 bucket and prefix
+Use the :class:`~airflow.providers.amazon.aws.bundles.s3.S3DagBundle` to load Dags directly from
+an Amazon S3 bucket. Airflow will periodically sync Dag files from the specified S3 bucket and prefix
 to a local directory and load them from there.
 
 Prerequisites
 -------------
 
 - An AWS connection configured in Airflow (see :doc:`/connections/aws`).
-- An S3 bucket containing your DAG Python files.
+- An S3 bucket containing your Dag Python files.
 
 Configuration
 -------------
@@ -75,6 +75,6 @@ Parameters
 ----------
 
 - ``aws_conn_id`` – Airflow connection ID for AWS. Defaults to ``aws_default``.
-- ``bucket_name`` – Name of the S3 bucket containing the DAG files.
-- ``prefix`` – Optional subdirectory prefix within the bucket. If omitted, DAGs are loaded from the root of the bucket.
-- ``refresh_interval`` – How often (in seconds) to sync DAGs from S3.
+- ``bucket_name`` – Name of the S3 bucket containing the Dag files.
+- ``prefix`` – Optional subdirectory prefix within the bucket. If omitted, Dags are loaded from the root of the bucket.
+- ``refresh_interval`` – How often (in seconds) to sync Dags from S3.

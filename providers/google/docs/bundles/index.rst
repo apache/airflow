@@ -18,21 +18,21 @@
 Bundles
 #######
 
-A DAG bundle is a way to load DAGs into Airflow from an external source. For a general overview of
-DAG bundles, see :doc:`apache-airflow:administration-and-deployment/dag-bundles`.
+A Dag bundle is a way to load Dags into Airflow from an external source. For a general overview of
+Dag bundles, see :doc:`apache-airflow:administration-and-deployment/dag-bundles`.
 
 GCSDagBundle
 ============
 
-Use the :class:`~airflow.providers.google.cloud.bundles.gcs.GCSDagBundle` to load DAGs directly from
-a Google Cloud Storage bucket. Airflow will periodically sync DAG files from the specified GCS bucket
-and prefix to a local directory and load them from there.
+Use the :class:`~airflow.providers.google.cloud.bundles.gcs.GCSDagBundle` to load Dags directly from
+a Google Cloud Storage bucket. Airflow will periodically sync Dag files from the specified GCS bucket
+and prefix to a local directory and load them from there. This bundle does not support versioning.
 
 Prerequisites
 -------------
 
 - A Google Cloud connection configured in Airflow (see :doc:`/connections/gcp`).
-- A GCS bucket containing your DAG Python files.
+- A GCS bucket containing your Dag Python files.
 
 Configuration
 -------------
@@ -75,6 +75,6 @@ Parameters
 ----------
 
 - ``gcp_conn_id`` – Airflow connection ID for Google Cloud. Defaults to ``google_cloud_default``.
-- ``bucket_name`` – Name of the GCS bucket containing the DAG files.
-- ``prefix`` – Optional subdirectory prefix within the bucket. If omitted, DAGs are loaded from the root of the bucket.
-- ``refresh_interval`` – How often (in seconds) to sync DAGs from GCS.
+- ``bucket_name`` – Name of the GCS bucket containing the Dag files.
+- ``prefix`` – Optional subdirectory prefix within the bucket. If omitted, Dags are loaded from the root of the bucket.
+- ``refresh_interval`` – How often (in seconds) to sync Dags from GCS.
