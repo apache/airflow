@@ -18,4 +18,8 @@
 
 from __future__ import annotations
 
-from airflow.sdk._shared.state import BaseStateBackend as BaseStateBackend
+from airflow.sdk._shared.state import (
+    AssetScope as AssetScope,
+    BaseStateBackend as BaseStateBackend,
+    TaskScope as TaskScope,
+)
