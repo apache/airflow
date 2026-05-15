@@ -33,8 +33,6 @@ from __future__ import annotations
 
 import base64
 
-import pytest
-
 from kubernetes_tests.overlays.conftest import get_secret_data
 
 
@@ -52,7 +50,6 @@ def test_keytab_secret_is_non_empty(overlay_namespace, overlay_release_name):
     )
 
 
-@pytest.mark.timeout(180)
 def test_kinit_against_in_cluster_kdc(overlay_namespace, overlay_release_name, run_throwaway_pod):
     """A throwaway client pod must be able to kinit using the keytab.
 
