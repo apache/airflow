@@ -283,6 +283,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.azure.hooks.powerbi"],
             },
         ],
+        "bundles": [
+            {
+                "integration-name": "Microsoft Azure Blob Storage",
+                "python-modules": ["airflow.providers.microsoft.azure.bundles.wasb"],
+            }
+        ],
         "triggers": [
             {
                 "integration-name": "Microsoft Azure Compute",
