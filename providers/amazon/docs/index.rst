@@ -33,6 +33,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Bundles <bundles/index>
     Connection types <connections/index>
     Notifications <notifications/index>
     Operators <operators/index>
