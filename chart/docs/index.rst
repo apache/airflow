@@ -62,9 +62,11 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.30+ cluster
--  Helm 3.10+
--  PV provisioner support in the underlying infrastructure (optionally)
+.. jinja:: global_ctx
+
+   -  Kubernetes {{ min_k8s_version }}+ cluster
+   -  Helm {{ helm_version }}+
+   -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features
 --------
@@ -72,16 +74,13 @@ Features
 * Supported executors (all Airflow versions): ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``
 * Supported hybrid static executors (Airflow version ``2.11.X``): ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported multiple Executors (``2.11+``)
-* Supported AWS executors with AWS provider version ``8.21.0+``:
+* Supported AWS executors with AWS provider version ``9.18.0+``:
 
    * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
    * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
-
-* Supported AWS executors with AWS provider version ``9.9.0+``:
-
    * ``airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor``
 
-* Supported Edge executor with edge3 provider version ``1.0.0+``:
+* Supported Edge executor with edge3 provider version ``1.6.0+``:
 
    * ``airflow.providers.edge3.executors.EdgeExecutor``
 
@@ -193,6 +192,10 @@ If you use the ``CeleryExecutor`` or ``CeleryKubernetesExecutor`` with the built
 
 .. note::
 
+   Due to security concerns, it is not advised to set sensitive values like passwords within the ``values.yaml``.
+
+.. note::
+
    By default, Helm hooks are also enabled for ``extraSecrets`` or ``extraConfigMaps``. When using the above CI/CD tools, you might encounter issues due to these default hooks.
 
 To avoid potential problems, it is recommended to disable these hooks by setting ``useHelmHooks=false`` as shown in the following examples:
@@ -224,6 +227,10 @@ It is not enabled by default as this may cause unexpected behaviours on existing
    useStandardNaming: true
 
 For existing installations, all your resources will be recreated with a new name and helm will delete previous resources.
+
+.. note::
+
+   In current ``useStandardNaming`` implementation, the standard name is not affecting Kubernetes Service Accounts created by Airflow Helm Chart.
 
 This won't delete existing PVCs for logs used by StatefulSets/Deployments, but it will recreate them with brand new PVCs.
 If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after
