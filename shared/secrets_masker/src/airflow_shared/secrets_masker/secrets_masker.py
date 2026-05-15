@@ -54,8 +54,11 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "access_token",
         "api_key",
         "apikey",
+        "auth_header",
         "authorization",
+        "bearer",
         "connection_string",
+        "dsn",
         "passphrase",
         "passwd",
         "password",
@@ -64,9 +67,11 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "proxy_password",
         "proxies",
         "secret",
+        "service_account",
+        "service_key",
         "token",
         "keyfile_dict",
-        "service_account",
+        "webhook_url",
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
