@@ -32,6 +32,7 @@ type Props = {
 const stateColorMap = {
   failed: "failed.solid",
   planned: "stone.solid",
+  queued: "queued.solid",
   running: "running.solid",
   success: "success.solid",
 };
