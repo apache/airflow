@@ -484,6 +484,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                 "days_back": self.days_back,
                 "ratio_formula": self.ratio_formula,
                 "ignore_zero": self.ignore_zero,
+                "dataset_id": self.dataset_id,
+                "table_id": self.table_id,
+                "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
             },
         )

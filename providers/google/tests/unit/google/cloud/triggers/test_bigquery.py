@@ -618,7 +618,17 @@ class TestBigQueryIntervalCheckTrigger:
             "days_back": TEST_DAYS_BACK,
             "ratio_formula": TEST_RATIO_FORMULA,
             "ignore_zero": TEST_IGNORE_ZERO,
+            "dataset_id": TEST_DATASET_ID,
+            "table_id": TEST_TABLE_ID,
+            "poll_interval": POLLING_PERIOD_SECONDS,
         }
+
+    def test_interval_check_trigger_serialize_round_trip(self, interval_check_trigger):
+        _, kwargs = interval_check_trigger.serialize()
+        restored = BigQueryIntervalCheckTrigger(**kwargs)
+        assert restored.dataset_id == TEST_DATASET_ID
+        assert restored.table_id == TEST_TABLE_ID
+        assert restored.poll_interval == POLLING_PERIOD_SECONDS
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
