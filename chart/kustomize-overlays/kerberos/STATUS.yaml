@@ -21,24 +21,19 @@
 # every PR) to advance status to `tested` with chart-version +
 # last-verified filled in automatically.
 ---
-status: not-tested
-reason: >-
-  PoC overlay that stands up a throwaway in-cluster MIT Kerberos KDC,
-  creates the airflow service principal, and writes the keytab to a
-  Secret consumable by the chart's existing kerberos sidecar. The
-  `verify:` block is the smoke-test contract; run
-  `breeze k8s smoke-test-overlay kerberos --promote-status` locally to
-  evaluate it and auto-flip status to `tested`.
+status: tested
+chart-version: 1.22.0
+last-verified: '2026-05-15'
 verify:
   timeout_seconds: 300
   resources:
-    - kind: Deployment
-      name: RELEASE-NAME-kerberos-kdc
-      ready: true
-    - kind: Service
-      name: RELEASE-NAME-kerberos-kdc
-    - kind: Job
-      name: RELEASE-NAME-keytab-bootstrap
-      complete: true
-    - kind: Secret
-      name: RELEASE-NAME-kerberos-keytab
+  - kind: Deployment
+    name: RELEASE-NAME-kerberos-kdc
+    ready: true
+  - kind: Service
+    name: RELEASE-NAME-kerberos-kdc
+  - kind: Job
+    name: RELEASE-NAME-keytab-bootstrap
+    complete: true
+  - kind: Secret
+    name: RELEASE-NAME-kerberos-keytab
