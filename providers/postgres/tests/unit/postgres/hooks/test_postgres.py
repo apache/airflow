@@ -911,6 +911,35 @@ class _BasePostgresHookRuntimeTests:
         )
         self.cur.executemany.assert_any_call(sql, rows)
 
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.insert_rows")
+    def test_upsert_rows(self, mock_insert_rows):
+
+        rows = [(1, "hello")]
+        table = "table"
+
+        self.db_hook.upsert_rows(
+            table=table,
+            rows=rows,
+            target_fields=["id", "value"],
+            conflict_fields=["id"],
+            update_fields=["value"],
+            commit_every=123,
+            fast_executemany=True,
+            autocommit=True,
+        )
+
+        mock_insert_rows.assert_called_once_with(
+            table=table,
+            rows=rows,
+            target_fields=["id", "value"],
+            replace_index=["id"],
+            replace_target=["value"],
+            commit_every=123,
+            replace=True,
+            fast_executemany=True,
+            autocommit=True,
+        )
+
     def test_dialect_name(self):
         assert self.db_hook.dialect_name == "postgresql"
 
