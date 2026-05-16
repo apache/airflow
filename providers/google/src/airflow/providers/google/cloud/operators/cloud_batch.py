@@ -77,9 +77,11 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.region = region
         self.job_name = job_name
+        self.job = job
         # Normalize Job protobuf to dict so Airflow's template renderer can descend
         # into nested fields (e.g. runnable.container.commands). See #37217.
-        self.job = Job.to_dict(job) if isinstance(job, Job) else job
+        if isinstance(job, Job):
+            self.job = Job.to_dict(job)
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.gcp_conn_id = gcp_conn_id
