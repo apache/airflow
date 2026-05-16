@@ -28,8 +28,7 @@ from typing import Any
 
 import paramiko
 
-from airflow.providers.common.compat.sdk import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.sftp.constants import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
