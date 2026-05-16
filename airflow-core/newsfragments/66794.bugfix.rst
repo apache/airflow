@@ -1,0 +1,1 @@
+Avoid row locks when processing queued executor events in the scheduler.
