@@ -24,7 +24,7 @@ import { SqlParserProvider } from "src/components/SqlParserProvider";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import { detectLanguage } from "src/utils/detectLanguage";
-import { oneDark, oneLight, resolveSyntaxLanguage, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
+import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 const RenderedTemplatesContent = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
@@ -64,7 +64,7 @@ const RenderedTemplatesContent = () => {
                     >
                       <Box borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
                         <SyntaxHighlighter
-                          language={resolveSyntaxLanguage(language)}
+                          language={language}
                           PreTag="pre"
                           showLineNumbers
                           style={style}

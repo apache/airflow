@@ -24,32 +24,14 @@ import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
 import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
 
-export { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-
-export const supportedSyntaxLanguages = ["bash", "json", "python", "sql", "yaml"] as const;
-
-type SupportedSyntaxLanguage = (typeof supportedSyntaxLanguages)[number];
-
-const supportedSyntaxLanguageSet = new Set<string>(supportedSyntaxLanguages);
-
+// Register all supported languages once
 SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("json", json);
 SyntaxHighlighter.registerLanguage("yaml", yaml);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("bash", bash);
 
-export const resolveSyntaxLanguage = (language?: string): SupportedSyntaxLanguage | undefined => {
-  if (language === undefined) {
-    return undefined;
-  }
-
-  const normalizedLanguage = language.trim().toLowerCase();
-
-  return supportedSyntaxLanguageSet.has(normalizedLanguage)
-    ? (normalizedLanguage as SupportedSyntaxLanguage)
-    : undefined;
-};
-
 export type SyntaxTheme = Record<string, CSSProperties>;
 
+export { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 export { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";

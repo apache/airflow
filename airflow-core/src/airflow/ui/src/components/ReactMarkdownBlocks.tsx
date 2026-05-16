@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import { LazyClipboard } from "src/components/ui";
 import { useMermaid } from "src/context/mermaid";
-import { resolveSyntaxLanguage, SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
+import { SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 
 const MarkdownBlockFrame = ({
   action,
@@ -75,8 +75,6 @@ export const MarkdownCodeBlock = ({
 }) => {
   const { t: translate } = useTranslation("components");
   const codeBlockStyle = style['pre[class*="language-"]'];
-  const languageLabel = language ?? "text";
-  const syntaxLanguage = resolveSyntaxLanguage(language);
 
   return (
     <MarkdownBlockFrame
@@ -88,7 +86,7 @@ export const MarkdownCodeBlock = ({
           title={translate("clipboard.copy")}
         />
       }
-      label={languageLabel}
+      label={language ?? "text"}
     >
       <Box
         css={{ ...codeBlockStyle, borderRadius: 0, margin: 0 }}
@@ -116,7 +114,7 @@ export const MarkdownCodeBlock = ({
               padding: 0,
               width: "max-content",
             }}
-            language={syntaxLanguage}
+            language={language}
             lineNumberStyle={{ minWidth: "2.5em", opacity: 0.6, paddingRight: "1em" }}
             PreTag="div"
             showLineNumbers
