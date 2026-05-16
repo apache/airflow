@@ -31,7 +31,7 @@ export const FieldMultilineText = ({ name, namespace = "default", onUpdate }: Fl
       paramsDict[name].value = value === "" ? null : value;
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
     onUpdate(value);
   };
 

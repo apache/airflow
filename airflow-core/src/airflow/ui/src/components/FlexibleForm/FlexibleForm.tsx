@@ -68,19 +68,26 @@ export const FlexibleForm = ({
   setError,
   subHeader,
 }: FlexibleFormProps) => {
-  const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
+  const {
+    initializeParamsDict,
+    initialParamDict,
+    paramsDict: params,
+    setDisabled,
+    setInitialParamDict,
+    setParamsDict,
+  } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
-    if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
+    if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(initialParamDict).length === 0) {
       const paramsCopy = structuredClone(initialParamsDict.paramsDict);
 
-      setParamsDict(paramsCopy);
+      initializeParamsDict(paramsCopy);
       setInitialParamDict(initialParamsDict.paramsDict);
     }
-  }, [initialParamsDict, params, setParamsDict, setInitialParamDict]);
+  }, [initialParamsDict, initialParamDict, initializeParamsDict, setInitialParamDict]);
 
   useEffect(
     () => () => {
