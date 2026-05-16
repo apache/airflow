@@ -193,6 +193,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        overwrite: bool = True,
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -211,6 +212,8 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
+        :param overwrite: If True (default), overwrite the file if it already exists.
+            If False, rename the file by appending a numeric suffix if it already exists.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, max_mails, mail_folder, mail_filter
@@ -219,7 +222,7 @@ class ImapHook(BaseHook):
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
-        self._create_files(mail_attachments, local_output_directory)
+        self._create_files(mail_attachments, local_output_directory, overwrite=overwrite)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode not in ("raise", "warn", "ignore"):
@@ -287,14 +290,16 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
+    def _create_files(
+        self, mail_attachments: list, local_output_directory: str, overwrite: bool = True
+    ) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
             else:
-                self._create_file(name, payload, local_output_directory)
+                self._create_file(name, payload, local_output_directory, overwrite=overwrite)
 
     def _is_symlink(self, name: str) -> bool:
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
@@ -311,11 +316,33 @@ class ImapHook(BaseHook):
             else local_output_directory + os.sep + name
         )
 
-    def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
+    def _create_file(
+        self, name: str, payload: Any, local_output_directory: str, overwrite: bool = True
+    ) -> None:
         file_path = self._correct_path(name, local_output_directory)
+
+        if not overwrite:
+            file_path = self._resolve_non_conflicting_path(file_path)
 
         with open(file_path, "wb") as file:
             file.write(payload)
+
+    def _resolve_non_conflicting_path(self, file_path: str) -> str:
+        if not os.path.exists(file_path):
+            return file_path
+
+        base_path, extension = os.path.splitext(file_path)
+        counter = 1
+        while os.path.exists(f"{base_path} ({counter}){extension}"):
+            counter += 1
+            if counter > 10000:
+                raise AirflowException(
+                    f"Could not find a unique filename for {file_path} after 10000 attempts."
+                )
+
+        resolved_path = f"{base_path} ({counter}){extension}"
+        self.log.info("File %s already exists, saving to %s instead.", file_path, resolved_path)
+        return resolved_path
 
 
 class Mail(LoggingMixin):

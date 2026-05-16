@@ -26,6 +26,8 @@
 Changelog
 ---------
 
+* ``IMAP: Add 'overwrite' option to ImapHook.download_mail_attachments (#65870)``
+
 3.11.2
 ......
 

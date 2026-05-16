@@ -509,3 +509,96 @@ class TestImapHook:
 
         assert result is True
         assert 1 <= mock_conn.fetch.call_count <= 2
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_true(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        local_output_directory = tmp_path / "test_directory"
+        local_output_directory.mkdir()
+        file_path = local_output_directory / "test1.csv"
+        file_path.write_bytes(b"OLD_CONTENT")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(local_output_directory), overwrite=True)
+
+        assert file_path.read_bytes() == b"SWQsTmFtZQoxLEZlbGl4"
+        assert len(list(local_output_directory.iterdir())) == 1
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_overwrite_false(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        local_output_directory = tmp_path / "test_directory"
+        local_output_directory.mkdir()
+        file_path = local_output_directory / "test1.csv"
+        file_path.write_bytes(b"OLD_CONTENT")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(local_output_directory), overwrite=False)
+
+        assert file_path.read_bytes() == b"OLD_CONTENT"
+        new_file_path = local_output_directory / "test1 (1).csv"
+        assert new_file_path.read_bytes() == b"SWQsTmFtZQoxLEZlbGl4"
+        assert len(list(local_output_directory.iterdir())) == 2
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_multiple_collisions(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        local_output_directory = tmp_path / "test_directory"
+        local_output_directory.mkdir()
+        (local_output_directory / "test1.csv").write_bytes(b"CONTENT_0")
+        (local_output_directory / "test1 (1).csv").write_bytes(b"CONTENT_1")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(local_output_directory), overwrite=False)
+
+        assert (local_output_directory / "test1.csv").read_bytes() == b"CONTENT_0"
+        assert (local_output_directory / "test1 (1).csv").read_bytes() == b"CONTENT_1"
+        assert (local_output_directory / "test1 (2).csv").read_bytes() == b"SWQsTmFtZQoxLEZlbGl4"
+        assert len(list(local_output_directory.iterdir())) == 3
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_directory_collision(self, mock_imaplib, tmp_path):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        local_output_directory = tmp_path / "test_directory"
+        local_output_directory.mkdir()
+        (local_output_directory / "test1.csv").mkdir()
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(local_output_directory), overwrite=False)
+
+        assert (local_output_directory / "test1.csv").is_dir()
+        assert (local_output_directory / "test1 (1).csv").read_bytes() == b"SWQsTmFtZQoxLEZlbGl4"
+
+    def test_resolve_non_conflicting_path_exhaustion(self):
+        hook = ImapHook()
+        with patch("os.path.exists", return_value=True):
+            with pytest.raises(AirflowException, match="Could not find a unique filename"):
+                hook._resolve_non_conflicting_path("test.csv")
+
+    @patch(imaplib_string)
+    def test_download_mail_attachments_multiple_attachments_same_name(self, mock_imaplib, tmp_path):
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True)
+        # Create a mail with two attachments with the same name
+        mail_string = (
+            "Content-Type: multipart/mixed; boundary=123\r\n"
+            "--123\r\n"
+            'Content-Disposition: attachment; filename="test1.csv";\r\n'
+            "Content-Transfer-Encoding: base64\r\n"
+            "SWQsTmFtZQoxLEZlbGl4\r\n"  # Payload 1
+            "--123\r\n"
+            'Content-Disposition: attachment; filename="test1.csv";\r\n'
+            "Content-Transfer-Encoding: base64\r\n"
+            "SWQsTmFtZQoyLEJhcm5leQ==\r\n"  # Payload 2
+            "--123--"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+
+        local_output_directory = tmp_path / "test_directory"
+        local_output_directory.mkdir()
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", str(local_output_directory), overwrite=False)
+
+        assert (local_output_directory / "test1.csv").read_bytes() == b"Id,Name\n1,Felix"
+        assert (local_output_directory / "test1 (1).csv").read_bytes() == b"Id,Name\n2,Barney"
+        assert len(list(local_output_directory.iterdir())) == 2
