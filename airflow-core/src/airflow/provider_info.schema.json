@@ -331,6 +331,25 @@
                 "type": "string"
             }
         },
+        "remote-logging": {
+            "type": "array",
+            "description": "Remote logging IO handlers contributed by the provider. Each entry registers a RemoteLogIO implementation that ProvidersManager dispatches by URL scheme.",
+            "items": {
+                "type": "object",
+                "required": ["classpath", "scheme"],
+                "additionalProperties": false,
+                "properties": {
+                    "classpath": {
+                        "type": "string",
+                        "description": "Fully-qualified class name of the RemoteLogIO implementation."
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "description": "URL scheme (without ://) of [logging] remote_base_log_folder that this handler claims."
+                    }
+                }
+            }
+        },
         "auth-backends": {
             "type": "array",
             "description": "API Auth Backend module names",
