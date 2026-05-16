@@ -1639,7 +1639,7 @@ class TestKubernetesExecutor:
         assert not executor.has_task(task_instance=ti)
         executor.kube_scheduler.patch_pod_revoked.assert_called_once()
         executor.kube_scheduler.delete_pod.assert_called_once()
-        mock_kube_client.patch_namespaced_pod.calls[0] == []
+        mock_kube_client.patch_namespaced_pod.assert_not_called()
         assert executor.running == set()
 
     @pytest.mark.parametrize(

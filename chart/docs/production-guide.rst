@@ -280,14 +280,19 @@ This setting can be configured in the Airflow chart at different levels:
    :caption: values.yaml
 
    workers:
-     safeToEvict: true
+     celery:
+       safeToEvict: true
+     kubernetes:
+       safeToEvict: true
    scheduler:
      safeToEvict: true
    apiServer:
      safeToEvict: true
 
-``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
-``workers.safeToEvict`` shouldn't be set to ``true`` as the workers may be removed before finishing.
+.. note::
+
+   ``workers.kubernetes.safeToEvict`` defaults to ``false`` as it shouldn't be set to ``true``,
+   because the tasks may be removed before finishing.
 
 Extending and customizing Airflow Image
 ---------------------------------------

@@ -397,7 +397,7 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
 
         # Add more tasks to pending_jobs. This simulates tasks being scheduled by Airflow
@@ -417,7 +417,7 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 3
 
         airflow_commands.append(airflow_cmd1)

@@ -594,6 +594,44 @@ class TestEdgeWorker:
         assert "ModuleNotFoundError: No module named 'common'" in log_chunk_data
         assert not stderr_file_path.exists()
 
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state", side_effect=RuntimeError("set state failed"))
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_cleans_up_when_mark_running_fails(
+        self,
+        mock_jobs_fetch,
+        _mock_jobs_set_state,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        edge_job = EdgeJobFetched(
+            dag_id="test",
+            task_id="test",
+            run_id="test",
+            map_index=-1,
+            try_number=1,
+            concurrency_slots=1,
+            command=MOCK_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.return_value = edge_job
+        stderr_file_path = tmp_path / "cleanup-marker.log"
+        stderr_file_path.write_text("cleanup me")
+        launched_job = Job(
+            edge_job,
+            _MockProcess(returncode=None),
+            tmp_path / "mock.log",
+            stderr_file_path=stderr_file_path,
+        )
+
+        with (
+            patch.object(worker_with_job, "_launch_job", return_value=launched_job),
+            pytest.raises(RuntimeError, match="set state failed"),
+        ):
+            await worker_with_job.fetch_and_run_job()
+
+        assert launched_job not in worker_with_job.jobs
+        assert not stderr_file_path.exists()
+
     @time_machine.travel(datetime.now(), tick=False)
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @pytest.mark.asyncio
@@ -650,6 +688,25 @@ class TestEdgeWorker:
         assert calls[3] == call(
             task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log3"
         )
+
+    @patch("airflow.providers.edge3.cli.worker.logger")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch("airflow.providers.edge3.cli.worker.aio_open", side_effect=FileNotFoundError)
+    @pytest.mark.asyncio
+    async def test_push_logs_in_chunks_swallow_file_not_found_during_read(
+        self,
+        _mock_aio_open,
+        mock_logs_push,
+        mock_logger,
+        worker_with_job: EdgeWorker,
+    ):
+        job = EdgeWorker.jobs[0]
+        await anyio.Path(job.logfile).write_text("some log content")
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
+            await worker_with_job._push_logs_in_chunks(job)
+
+        mock_logs_push.assert_not_called()
+        mock_logger.exception.assert_called_once()
 
     @pytest.mark.parametrize(
         ("drain", "maintenance_mode", "jobs", "expected_state"),
