@@ -44,6 +44,7 @@ export const paramPlaceholder: ParamSpec = {
 type FormStore = {
   conf: string;
   disabled: boolean;
+  initializeParamsDict: (newParamsDict: ParamsSpec) => void;
   initialParamDict: ParamsSpec;
   paramsDict: ParamsSpec;
   setConf: (confString: string) => void;
@@ -52,10 +53,46 @@ type FormStore = {
   setParamsDict: (newParamsDict: ParamsSpec) => void;
 };
 
+export const paramsDictWithConfValues = (newParamsDict: ParamsSpec, confString: string): ParamsSpec => {
+  const parsedConf = JSON.parse(confString) as Record<string, unknown>;
+  const paramsWithValues: Array<[string, ParamSpec]> = [];
+  const inParamsDict = new Set<string>(Object.keys(newParamsDict));
+
+  for (const [key, param] of Object.entries(newParamsDict)) {
+    paramsWithValues.push([
+      key,
+      {
+        description: param.description ?? null,
+        schema: param.schema,
+        value: Object.hasOwn(parsedConf, key) ? parsedConf[key] : param.value,
+      },
+    ]);
+  }
+
+  for (const [key, value] of Object.entries(parsedConf)) {
+    if (!inParamsDict.has(key)) {
+      paramsWithValues.push([
+        key,
+        {
+          description: null,
+          schema: paramPlaceholder.schema,
+          value,
+        },
+      ]);
+    }
+  }
+
+  return Object.fromEntries(paramsWithValues);
+};
+
 const createParamStore = () =>
   create<FormStore>((set) => ({
     conf: "{}",
     disabled: false,
+    initializeParamsDict: (newParamsDict: ParamsSpec) =>
+      set((state) => ({
+        paramsDict: paramsDictWithConfValues(newParamsDict, state.conf),
+      })),
     initialParamDict: {},
     paramsDict: {},
 
