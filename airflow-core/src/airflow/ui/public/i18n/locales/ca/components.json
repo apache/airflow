@@ -10,6 +10,7 @@
     "maxRuns": "Màxim d'execucions actives",
     "missingAndErroredRuns": "Execucions absents i amb errors",
     "missingRuns": "Execucions absents",
+    "overrideExistingParams": "Substituir paràmetres en les execucions existents",
     "permissionDenied": "Execució de prova fallida: l'usuari no té permís per crear reompliments.",
     "reprocessBehavior": "Comportament de reprocessament",
     "run": "Executar reompliment",
@@ -92,7 +93,8 @@
     "otherDagRuns": "+Altres execucions de Dag",
     "taskCount_one": "{{count}} Tasca",
     "taskCount_other": "{{count}} Tasques",
-    "taskGroup": "Grup de tasques"
+    "taskGroup": "Grup de tasques",
+    "zoomToTask": "Zoom a la tasca seleccionada"
   },
   "limitedList": "+{{count}} més",
   "limitedList.allItems": "Tots els {{count}} elements:",
