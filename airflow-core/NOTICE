@@ -6,17 +6,37 @@ Foundation (http://www.apache.org/).
 
 =======================================================================
 
-hue:
------
+hue
+---
+
 This product contains a modified portion of 'Hue' developed by Cloudera, Inc.
 (https://github.com/cloudera/hue/).
 
 * Copyright 2009-2017 Cloudera Inc.
 
 
-Chakra UI:
------
+Chakra UI
+---------
+
 This product contains a modified portion of 'Chakra UI' developed by Segun Adebayo.
 (https://github.com/chakra-ui/chakra-ui).
 
 * Copyright 2019, Segun Adebayo
+
+
+pylockfile
+----------
+
+This product contains a modified portion of 'pylockfile' developed by Skip Montanaro.
+(https://opendev.org/openstack/pylockfile).
+
+* Copyright 2007 Skip Montanaro
+
+
+python-daemon
+-------------
+
+This product contains a modified portion of 'python-daemon' developed by Ben Finney.
+(https://pagure.io/python-daemon).
+
+* Copyright 2008–2025 Ben Finney and others

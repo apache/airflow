@@ -20,11 +20,10 @@ import signal
 from argparse import Namespace
 from collections.abc import Callable
 
-from daemon import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
 from airflow import settings
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.daemon import DaemonContext
+from airflow.utils.pidfile import TimeoutPIDLockFile
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 
 
@@ -65,7 +64,7 @@ def run_command_with_daemon_option(
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            ctx = DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=files_preserve,
                 stdout=stdout_handle,

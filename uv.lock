@@ -1825,7 +1825,6 @@ dependencies = [
     { name = "lazy-object-proxy" },
     { name = "libcst" },
     { name = "linkify-it-py" },
-    { name = "lockfile" },
     { name = "methodtools" },
     { name = "msgspec" },
     { name = "natsort" },
@@ -1841,7 +1840,6 @@ dependencies = [
     { name = "pygments" },
     { name = "pygtrie" },
     { name = "pyjwt" },
-    { name = "python-daemon" },
     { name = "python-dateutil" },
     { name = "python-slugify" },
     { name = "pyyaml" },
@@ -1963,7 +1961,6 @@ requires-dist = [
     { name = "libcst", marker = "python_full_version < '3.14'", specifier = ">=1.8.2" },
     { name = "libcst", marker = "python_full_version >= '3.14'", specifier = ">=1.8.6" },
     { name = "linkify-it-py", specifier = ">=2.0.0" },
-    { name = "lockfile", specifier = ">=0.12.2" },
     { name = "memray", marker = "extra == 'memray'", specifier = ">=1.19.0" },
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "msgspec", specifier = ">=0.19.0" },
@@ -1982,7 +1979,6 @@ requires-dist = [
     { name = "pygtrie", specifier = ">=2.5.0" },
     { name = "pyjwt", specifier = ">=2.11.0" },
     { name = "pykerberos", marker = "extra == 'kerberos'", specifier = ">=1.1.13" },
-    { name = "python-daemon", specifier = ">=3.0.0" },
     { name = "python-dateutil", specifier = ">=2.7.0" },
     { name = "python-slugify", specifier = ">=5.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
@@ -14735,15 +14731,6 @@ wheels = [
 ]
 
 [[package]]
-name = "lockfile"
-version = "0.12.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/17/47/72cb04a58a35ec495f96984dddb48232b551aafb95bde614605b754fe6f7/lockfile-0.12.2.tar.gz", hash = "sha256:6aed02de03cba24efabcd600b30540140634fc06cfa603822d508d5361e9f799", size = 20874, upload-time = "2015-11-25T18:29:58.279Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/22/9460e311f340cb62d26a38c419b1381b8593b0bb6b5d1f056938b086d362/lockfile-0.12.2-py2.py3-none-any.whl", hash = "sha256:6c3cb24f344923d30b2785d5ad75182c8ea7ac1b6171b08657258ec7429d50fa", size = 13564, upload-time = "2015-11-25T18:29:51.462Z" },
-]
-
-[[package]]
 name = "logfire-api"
 version = "4.32.1"
 source = { registry = "https://pypi.org/simple" }
@@ -18918,18 +18905,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/35/1c/d579992e3a8189d004fbd7516bdaa9e879fba8152365cc184c6d1c3774ec/python_arango-8.3.2.tar.gz", hash = "sha256:312ca279b5cf2e291f1928a6a6c9bc7e36ff55e732c1912461079526162d3290", size = 154847, upload-time = "2026-04-13T10:28:14.178Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/95/ddc25f7f3d8b6c9bfa615807e9cd2241148bcd18b53c6de465ed0e29426e/python_arango-8.3.2-py3-none-any.whl", hash = "sha256:0c42913b79928cf9a1941815c8c9169c74959cd1dac60395dde589b21e38cddf", size = 116291, upload-time = "2026-04-13T10:28:12.874Z" },
-]
-
-[[package]]
-name = "python-daemon"
-version = "3.1.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lockfile" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/37/4f10e37bdabc058a32989da2daf29e57dc59dbc5395497f3d36d5f5e2694/python_daemon-3.1.2.tar.gz", hash = "sha256:f7b04335adc473de877f5117e26d5f1142f4c9f7cd765408f0877757be5afbf4", size = 71576, upload-time = "2024-12-03T08:41:07.843Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/3c/b88167e2d6785c0e781ee5d498b07472aeb9b6765da3b19e7cc9e0813841/python_daemon-3.1.2-py3-none-any.whl", hash = "sha256:b906833cef63502994ad48e2eab213259ed9bb18d54fa8774dcba2ff7864cec6", size = 30872, upload-time = "2024-12-03T08:41:03.322Z" },
 ]
 
 [[package]]

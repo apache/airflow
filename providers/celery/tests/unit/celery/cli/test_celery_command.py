@@ -430,7 +430,9 @@ class TestFlowerCommand:
             ]
         )
 
-    def _test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
+    def _test_run_command_daemon(
+        self, mock_celery_app, mock_daemon_context, mock_setup_locations, mock_pid_file
+    ):
         mock_setup_locations.return_value = (
             mock.MagicMock(name="pidfile"),
             mock.MagicMock(name="stdout"),
@@ -480,16 +482,16 @@ class TestFlowerCommand:
                 "--conf=flower_config",
             ]
         )
-        assert mock_daemon.mock_calls[:3] == [
-            mock.call.DaemonContext(
+        assert mock_daemon_context.mock_calls[:3] == [
+            mock.call(
                 pidfile=mock_pid_file.return_value,
                 files_preserve=None,
                 stdout=mock_open.return_value,
                 stderr=mock_open.return_value,
                 umask=0o077,
             ),
-            mock.call.DaemonContext().__enter__(),
-            mock.call.DaemonContext().__exit__(None, None, None),
+            mock.call().__enter__(),
+            mock.call().__exit__(None, None, None),
         ]
 
         assert mock_setup_locations.mock_calls == [
@@ -531,22 +533,26 @@ class TestFlowerCommand:
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0-")
     @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.DaemonContext")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon_v_3_below(
-        self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file
+        self, mock_celery_app, mock_daemon_context, mock_setup_locations, mock_pid_file
     ):
-        self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
+        self._test_run_command_daemon(
+            mock_celery_app, mock_daemon_context, mock_setup_locations, mock_pid_file
+        )
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
     @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.DaemonContext")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon_v3_above(
-        self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file
+        self, mock_celery_app, mock_daemon_context, mock_setup_locations, mock_pid_file
     ):
-        self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
+        self._test_run_command_daemon(
+            mock_celery_app, mock_daemon_context, mock_setup_locations, mock_pid_file
+        )
 
 
 class TestRemoteCeleryControlCommands:

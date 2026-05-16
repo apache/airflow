@@ -37,7 +37,6 @@ from typing import IO, TYPE_CHECKING
 import anyio
 from aiofiles import open as aio_open
 from aiohttp import ClientResponseError
-from lockfile.pidlockfile import remove_existing_pidfile
 
 from airflow import __version__ as airflow_version
 from airflow.providers.common.compat.sdk import conf, timezone
@@ -64,6 +63,14 @@ from airflow.providers.edge3.models.edge_worker import (
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
+
+if AIRFLOW_V_3_3_PLUS:
+    # Airflow 3.3.0 has dropped dependency to lockfile and vendored-in the package
+    from airflow.utils.pidfile import remove_existing_pidfile
+else:
+    # For Airflow versions < 3.3.0, we need to import from lockfile package
+    from lockfile.pidlockfile import remove_existing_pidfile  # type: ignore
+
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser

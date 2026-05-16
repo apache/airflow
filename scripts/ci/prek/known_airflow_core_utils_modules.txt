@@ -2,6 +2,7 @@ cli
 cli_action_loggers
 code_utils
 context
+daemon
 dag_cycle_tester
 dag_edges
 dag_version_inflation_checker
@@ -24,6 +25,7 @@ memray_utils
 net
 operator_helpers
 orm_event_handlers
+pidfile
 platform
 process_utils
 providers_configuration_loader
