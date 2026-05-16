@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Bundles <bundles/index>
     Connection types <connections/index>
     Message queues <message-queues/index>
     Operators <operators/index>
