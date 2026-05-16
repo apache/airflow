@@ -98,7 +98,7 @@ def _build_remote_task_log_from_provider(
     remote_base_log_folder: str | None,
     providers_manager: ProvidersManager | ProvidersManagerTaskRuntime,
     import_string: Callable[[str], Any],
-) -> tuple[RemoteLogIO | None, str | None]:
+) -> RemoteLogIO | None:
     """
     Resolve a remote logging IO handler from its URL scheme.
 
@@ -106,34 +106,29 @@ def _build_remote_task_log_from_provider(
     ``from_config`` classmethod imports ``conf`` itself and reads its own
     backend-specific keys.
 
+    Provider dispatch does not produce a default conn id. Users who need one
+    set ``[logging] remote_log_conn_id`` explicitly; providers that want a
+    backend-specific default can read from their own hook inside ``from_config``.
+
     :param remote_base_log_folder: Value of ``[logging] remote_base_log_folder``.
         Its URL scheme is the dispatch key.
     :param providers_manager: The ``ProvidersManager`` (core) or
         ``ProvidersManagerTaskRuntime`` (Task SDK) whose
         ``remote_logging_handler_by_scheme`` method resolves the scheme.
     :param import_string: ``import_string`` callable from the caller's runtime.
-    :returns: ``(handler, default_remote_conn_id)``. Both elements are ``None``
-        when no provider claims the scheme.
+    :returns: The instantiated handler, or ``None`` when no provider claims the
+        scheme.
     """
     if not remote_base_log_folder:
-        return None, None
+        return None
 
-    scheme = urlsplit(remote_base_log_folder).scheme
-    if not scheme:
-        return None, None
+    if not (scheme := urlsplit(remote_base_log_folder).scheme):
+        return None
 
-    info = providers_manager.remote_logging_handler_by_scheme(scheme)
-    if info is None:
-        return None, None
+    if (info := providers_manager.remote_logging_handler_by_scheme(scheme)) is None:
+        return None
 
-    handler = _instantiate_handler(info, import_string=import_string)
-    if handler is None:
-        return None, None
-
-    # Provider dispatch does not produce a default conn id. Users who need one
-    # set ``[logging] remote_log_conn_id`` explicitly; providers that want a
-    # backend-specific default can read from their own hook inside ``from_config``.
-    return handler, None
+    return _instantiate_handler(info, import_string=import_string)
 
 
 def resolve_remote_task_log(
@@ -175,12 +170,12 @@ def resolve_remote_task_log(
         if remote_task_log is not None or default_remote_conn_id is not None:
             return remote_task_log, default_remote_conn_id
 
-    remote_task_log, default_remote_conn_id = _build_remote_task_log_from_provider(
+    remote_task_log = _build_remote_task_log_from_provider(
         remote_base_log_folder=conf.get("logging", "remote_base_log_folder", fallback=None),
         providers_manager=providers_manager,
         import_string=import_string,
     )
     if remote_task_log is not None:
-        return remote_task_log, default_remote_conn_id
+        return remote_task_log, conf.get("logging", "remote_log_conn_id", fallback=None)
 
     return discover_remote_log_handler(logging_class_path, DEFAULT_LOGGING_CONFIG_PATH, import_string)

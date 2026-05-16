@@ -98,57 +98,50 @@ def _reset_fake():
 
 def test_provider_dispatch_resolves_by_scheme():
     info = _info(scheme="fake")
-    handler, conn_id = _build_remote_task_log_from_provider(
+    handler = _build_remote_task_log_from_provider(
         remote_base_log_folder="fake://bucket/path",
         providers_manager=FakeProvidersManager({"fake": info}),
         import_string=_fake_import_string,
     )
     assert isinstance(handler, FakeRemoteLogIO)
     assert FakeRemoteLogIO.last_called is True
-    # Provider dispatch no longer derives a default conn id; users explicitly
-    # set [logging] remote_log_conn_id when they need one.
-    assert conn_id is None
 
 
 def test_provider_dispatch_returns_none_when_scheme_unknown():
-    handler, conn_id = _build_remote_task_log_from_provider(
+    handler = _build_remote_task_log_from_provider(
         remote_base_log_folder="unknown://x",
         providers_manager=FakeProvidersManager(),
         import_string=_fake_import_string,
     )
     assert handler is None
-    assert conn_id is None
 
 
 def test_provider_dispatch_returns_none_when_remote_base_unset():
-    handler, conn_id = _build_remote_task_log_from_provider(
+    handler = _build_remote_task_log_from_provider(
         remote_base_log_folder=None,
         providers_manager=ExplodingProvidersManager(),
         import_string=_fake_import_string,
     )
     assert handler is None
-    assert conn_id is None
 
 
 def test_provider_dispatch_returns_none_when_no_scheme_in_url():
-    handler, conn_id = _build_remote_task_log_from_provider(
+    handler = _build_remote_task_log_from_provider(
         remote_base_log_folder="/local/path/no/scheme",
         providers_manager=ExplodingProvidersManager(),
         import_string=_fake_import_string,
     )
     assert handler is None
-    assert conn_id is None
 
 
 def test_provider_dispatch_skips_handler_without_factory():
     info = _info(classpath="fakeremotelogionofactory")
-    handler, conn_id = _build_remote_task_log_from_provider(
+    handler = _build_remote_task_log_from_provider(
         remote_base_log_folder="fake://b",
         providers_manager=FakeProvidersManager({"fake": info}),
         import_string=_fake_import_string,
     )
     assert handler is None
-    assert conn_id is None
 
 
 # ---------------------------------------------------------------------------
