@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+**New config flags for KubernetesPodOperator zombie-pod cleanup.**
+Two new ``[kubernetes_executor]`` options control periodic force-deletion of
+zombie KPO pods — pods that keep Running in Kubernetes after their
+TaskInstance has reached a terminal state (e.g. because a sidecar container
+ignores SIGTERM):
+
+- ``clean_zombie_kpo_pods`` (boolean, default ``True``) — enable/disable the
+  cleanup scan. Set to ``False`` if you prefer to manage pod lifecycle yourself.
+- ``zombie_kpo_pod_cleanup_interval`` (integer seconds, default ``300``) — how
+  often to scan and force-delete zombie pods.
+
+Zombie pods are force-deleted with ``grace_period_seconds=0`` so that stuck
+sidecar containers cannot delay pod termination.
+
 **Default xcom-sidecar image is now pinned to** ``alpine:3.23``.
 The default container image for the xcom sidecar (used by ``KubernetesPodOperator``
 when ``do_xcom_push=True``) has changed from the unpinned ``alpine`` (which resolves
