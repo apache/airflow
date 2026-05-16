@@ -30,23 +30,20 @@ from pathlib import Path
 
 from common_prek_utils import find_import_violations, report_import_violations
 
-NOCHECK_CODE = "SDK002"
+NOCHECK_CODE = "SDK001"
 
 
-def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
-    """Check file for airflow-core imports (anything except airflow.sdk). Returns list of (line_num, import_statement)."""
+def check_file_for_sdk_imports(file_path: Path) -> list[tuple[int, str]]:
+    """Check file for airflow.sdk imports. Returns list of (line_num, import_statement)."""
     return find_import_violations(
         file_path,
-        is_violating_module=lambda module: (
-            module.startswith("airflow.") and not module.startswith("airflow.sdk")
-        ),
+        is_violating_module=lambda module: "airflow.sdk" in module,
         nocheck_code=NOCHECK_CODE,
-        check_plain_imports=True,
     )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Check for core imports in task-sdk files")
+    parser = argparse.ArgumentParser(description="Check for SDK imports in airflow-core files")
     parser.add_argument("files", nargs="*", help="Files to check")
     args = parser.parse_args()
 
@@ -55,9 +52,10 @@ def main():
 
     report_import_violations(
         args.files,
-        check_func=check_file_for_core_imports,
-        violation_label="core import(s) in task-sdk files",
+        check_func=check_file_for_sdk_imports,
+        violation_label="SDK import(s) in core files",
         nocheck_code=NOCHECK_CODE,
+        only_python_files=True,
     )
 
 

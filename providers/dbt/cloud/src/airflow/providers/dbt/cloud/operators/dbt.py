@@ -23,7 +23,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom, conf
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -250,16 +250,16 @@ class DbtCloudRunJobOperator(BaseOperator):
             # execution_timeout is a hard task-level limit (cancels the job),
             # while timeout only limits how long we wait for the job to finish.
             # If both are set, the earliest deadline wins.
-            end_time = time.time() + self.timeout
+            end_time = time.monotonic() + self.timeout
             execution_deadline = None
-            if self.execution_timeout:
-                execution_deadline = time.time() + self.execution_timeout.total_seconds()
+            if self.execution_timeout is not None:
+                execution_deadline = time.monotonic() + self.execution_timeout.total_seconds()
 
             job_run_info = JobRunInfo(account_id=self.account_id, run_id=self.run_id)
             job_run_status = self.hook.get_job_run_status(**job_run_info)
             if not DbtCloudJobRunStatus.is_terminal(job_run_status):
                 self.defer(
-                    timeout=None,
+                    timeout=self.execution_timeout,
                     trigger=DbtCloudRunJobTrigger(
                         conn_id=self.dbt_cloud_conn_id,
                         run_id=self.run_id,
@@ -293,8 +293,22 @@ class DbtCloudRunJobOperator(BaseOperator):
 
         # Enforce execution_timeout semantics in deferrable mode by cancelling the job.
         if event["status"] == "timeout":
-            self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
-            raise AirflowException(f"Job run {self.run_id} has timed out.")
+            if self.run_id is not None:
+                self.log.info("Cancelling DBT job run %s due to execution timeout", self.run_id)
+
+                # Attempt best-effort job run cancellation.
+                try:
+                    self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
+                except Exception:
+                    self.log.warning(
+                        "Failed to cancel DBT job run %s after timeout",
+                        self.run_id,
+                        exc_info=True,
+                    )
+            else:
+                self.log.warning("No run_id found; skipping cancellation")
+
+            raise DbtCloudJobRunException(f"Job run {self.run_id} has timed out.")
 
         self.log.info(event["message"])
         return int(event["run_id"])
@@ -303,7 +317,15 @@ class DbtCloudRunJobOperator(BaseOperator):
         if not self.run_id:
             return
 
-        self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
+        # Attempt best-effort job run cancellation.
+        try:
+            self.hook.cancel_job_run(account_id=self.account_id, run_id=self.run_id)
+        except Exception:
+            self.log.warning(
+                "Failed to cancel DBT job run %s during on_kill",
+                self.run_id,
+                exc_info=True,
+            )
 
         # Attempt best-effort confirmation of cancellation.
         try:

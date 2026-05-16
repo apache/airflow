@@ -16,23 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Link as ChakraLink, type LinkProps as ChakraLinkProps } from "@chakra-ui/react";
+import { Link as ReactRouterLink, type To } from "react-router-dom";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./Switch";
-export * from "./Tooltip";
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Toaster";
-export * from "./Breadcrumb";
-export * from "./Clipboard";
-export * from "./Popover";
-export * from "./Checkbox";
-export * from "./ResetButton";
-export * from "./InputWithAddon";
-export * from "./ButtonGroupToggle";
-export * from "./LazyClipboard";
-export * from "./RouterLink";
+type RouterLinkProps = {
+  readonly to: To;
+} & Omit<ChakraLinkProps, "as" | "asChild" | "href">;
+
+export const RouterLink = ({ children, to, ...rest }: RouterLinkProps) => (
+  <ChakraLink asChild color="fg.info" {...rest}>
+    <ReactRouterLink to={to}>{children}</ReactRouterLink>
+  </ChakraLink>
+);
