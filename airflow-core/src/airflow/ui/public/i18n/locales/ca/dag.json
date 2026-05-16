@@ -45,7 +45,7 @@
     "count_one": "{{count}} termini",
     "count_other": "{{count}} terminis",
     "referenceType": {
-      "AverageRuntimeDeadline": "durada promig d'execució",
+      "AverageRuntimeDeadline": "durada mitjana d'execució",
       "DagRunLogicalDateDeadline": "data lògica",
       "DagRunQueuedAtDeadline": "estona en cua"
     }
