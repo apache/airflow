@@ -22,7 +22,6 @@ import pytest
 
 import airflow.version
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -99,9 +98,9 @@ class TestWasbDagBundle:
 
         bundle.version = "test_version"
 
-        with pytest.raises(AirflowException, match="Refreshing a specific version is not supported"):
+        with pytest.raises(ValueError, match="Refreshing a specific version is not supported"):
             bundle.refresh()
-        with pytest.raises(AirflowException, match="WASB url with version is not supported"):
+        with pytest.raises(ValueError, match="WASB url with version is not supported"):
             bundle.view_url("test_version")
 
     def test_local_dags_path_is_not_a_directory(self, bundle_temp_dir):
@@ -115,7 +114,7 @@ class TestWasbDagBundle:
             prefix="project1_dags",
             container_name="airflow_dags",
         )
-        with pytest.raises(AirflowException, match=f"Local Dags path: {file_path} is not a directory."):
+        with pytest.raises(NotADirectoryError, match=f"Local Dags path: {file_path} is not a directory."):
             bundle.initialize()
 
     def test_correct_bundle_path_used(self):
@@ -141,7 +140,7 @@ class TestWasbDagBundle:
             prefix="project1_dags",
             container_name="non-existing-container",
         )
-        with pytest.raises(AirflowException, match="WASB container 'non-existing-container' does not exist."):
+        with pytest.raises(ValueError, match="WASB container 'non-existing-container' does not exist."):
             bundle.initialize()
         mock_hook.check_for_container.assert_called_once_with(container_name="non-existing-container")
 
@@ -154,7 +153,7 @@ class TestWasbDagBundle:
             container_name=CONTAINER_NAME,
         )
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match=f"WASB prefix 'wasb://{CONTAINER_NAME}/non-existing-prefix' does not exist.",
         ):
             bundle.initialize()
