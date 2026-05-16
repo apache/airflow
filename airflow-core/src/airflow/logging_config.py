@@ -54,6 +54,11 @@ def get_remote_task_log() -> RemoteLogIO | None:
 
 
 def get_default_remote_conn_id() -> str | None:
+    from airflow.configuration import conf
+
+    if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
+        return conn_id
+
     if not _ActiveLoggingConfig.logging_config_loaded:
         load_logging_config()
     return _ActiveLoggingConfig.default_remote_conn_id
