@@ -55,6 +55,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow.sdk._shared.state import TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -1781,7 +1782,9 @@ class TestRuntimeTaskInstance:
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
-            "task_state": TaskStateAccessor(ti_id=ti_id),
+            "task_state": TaskStateAccessor(
+                ti_id=ti_id, scope=TaskScope(dag_id=dag_id, run_id="test_run", task_id="hello")
+            ),
             "ti": runtime_ti,
         }
 
@@ -1827,7 +1830,10 @@ class TestRuntimeTaskInstance:
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
-            "task_state": TaskStateAccessor(ti_id=runtime_ti.id),
+            "task_state": TaskStateAccessor(
+                ti_id=runtime_ti.id,
+                scope=TaskScope(dag_id=runtime_ti.dag_id, run_id="test_run", task_id="hello"),
+            ),
             "ti": runtime_ti,
             "dag_run": dr,
             "data_interval_end": timezone.datetime(2024, 12, 1, 1, 0, 0),
