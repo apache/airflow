@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-15T16:27:35.602755
+# This constraints file was automatically generated on 2026-05-16T00:25:35.083878
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -450,7 +450,7 @@ linkify-it-py==2.1.0
 litellm==1.82.6
 lockfile==0.12.2
 logfire-api==4.32.1
-looker_sdk==26.6.1
+looker_sdk==26.8.0
 lxml==6.0.2
 lz4==4.4.5
 markdown-it-py==4.2.0
@@ -606,7 +606,7 @@ requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
-requests==2.33.1
+requests==2.34.0
 requests_ntlm==1.3.0
 retryhttp==1.4.0
 rich-argparse==1.8.0

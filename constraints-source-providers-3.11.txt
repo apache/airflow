@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-15T16:23:00.032381
+# This constraints file was automatically generated on 2026-05-16T00:21:20.394804
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -205,7 +205,7 @@ fastcore==1.12.47
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.0
-flask-appbuilder==5.2.0
+flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flit==3.12.0
 flit_core==3.12.0
