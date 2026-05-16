@@ -544,25 +544,34 @@ class EdgeWorker:
 
     async def _push_logs_in_chunks(self, job: Job):
         aio_logfile = anyio.Path(job.logfile)
-        if self.push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
-            async with aio_open(job.logfile, mode="rb") as logf:
-                await logf.seek(job.logsize, os.SEEK_SET)
-                read_data = await logf.read()
-                job.logsize += len(read_data)
-                # backslashreplace to keep not decoded characters and not raising exception
-                # replace null with question mark to fix issue during DB push
-                log_data = read_data.decode(errors="backslashreplace").replace("\x00", "\ufffd")
-                while True:
-                    chunk_data = log_data[: self.push_log_chunk_size]
-                    log_data = log_data[self.push_log_chunk_size :]
-                    if not chunk_data:
-                        break
+        try:
+            if (
+                self.push_logs
+                and await aio_logfile.exists()
+                and (await aio_logfile.stat()).st_size > job.logsize
+            ):
+                async with aio_open(job.logfile, mode="rb") as logf:
+                    await logf.seek(job.logsize, os.SEEK_SET)
+                    read_data = await logf.read()
+                    job.logsize += len(read_data)
+                    # backslashreplace to keep not decoded characters and not raising exception
+                    # replace null with question mark to fix issue during DB push
+                    log_data = read_data.decode(errors="backslashreplace").replace("\x00", "\ufffd")
+                    while True:
+                        chunk_data = log_data[: self.push_log_chunk_size]
+                        log_data = log_data[self.push_log_chunk_size :]
+                        if not chunk_data:
+                            break
 
-                    await logs_push(
-                        task=job.edge_job.key,
-                        log_chunk_time=timezone.utcnow(),
-                        log_chunk_data=chunk_data,
-                    )
+                        await logs_push(
+                            task=job.edge_job.key,
+                            log_chunk_time=timezone.utcnow(),
+                            log_chunk_data=chunk_data,
+                        )
+        except (FileNotFoundError, OSError):
+            logger.exception("Log file %s vanished while reading, ignoring.", job.logfile)
+            # Swallow the exception; the file may have been removed by log rotation or cleanup while we were reading it.
+            # We'll catch up on the next heartbeat/log push or file was uploaded by log integration in parallel.
 
     async def start(self):
         """Start the execution in a loop until terminated."""
@@ -670,39 +679,41 @@ class EdgeWorker:
         logfile = Path(self.base_log_folder, workload.log_path)
         job = self._launch_job(edge_job, workload, logfile)
         self.jobs.append(job)
-        await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
+        try:
+            await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
 
-        # As we got one job, directly fetch another one if possible
-        if self.free_concurrency > 0:
-            task = create_task(self.fetch_and_run_job())
-            self.background_tasks.add(task)
-            task.add_done_callback(self.background_tasks.discard)
+            # As we got one job, directly fetch another one if possible
+            if self.free_concurrency > 0:
+                task = create_task(self.fetch_and_run_job())
+                self.background_tasks.add(task)
+                task.add_done_callback(self.background_tasks.discard)
 
-        while job.is_running:
+            while job.is_running:
+                await self._push_logs_in_chunks(job)
+                for _ in range(0, self.job_poll_interval * 10):
+                    await sleep(0.1)
+                    if not job.is_running:
+                        break
             await self._push_logs_in_chunks(job)
-            for _ in range(0, self.job_poll_interval * 10):
-                await sleep(0.1)
-                if not job.is_running:
-                    break
-        await self._push_logs_in_chunks(job)
 
-        self.jobs.remove(job)
-        if job.is_success:
-            logger.info("Job completed: %s", job.edge_job.identifier)
-            await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
-        else:
-            ex_txt = job.failure_details()
-            logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
+            if job.is_success:
+                logger.info("Job completed: %s", job.edge_job.identifier)
+                await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
+            else:
+                ex_txt = job.failure_details()
+                logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
 
-            # Push it upwards to logs for better diagnostic as well
-            await logs_push(
-                task=job.edge_job.key,
-                log_chunk_time=timezone.utcnow(),
-                log_chunk_data=f"Error executing job:\n{ex_txt}",
-            )
-            await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
-        # Cleanup temp files used for the job
-        job.cleanup()
+                # Push it upwards to logs for better diagnostic as well
+                await logs_push(
+                    task=job.edge_job.key,
+                    log_chunk_time=timezone.utcnow(),
+                    log_chunk_data=f"Error executing job:\n{ex_txt}",
+                )
+                await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
+        finally:
+            self.jobs.remove(job)
+            # Cleanup temp files used for the job
+            job.cleanup()
 
     async def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
