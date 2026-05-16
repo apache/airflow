@@ -45,8 +45,8 @@ import remarkMath from "remark-math";
 import { useColorMode } from "src/context/colorMode";
 import { oneDark, oneLight, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 
+import { katexStyleLoader } from "./KatexStyleLoader";
 import { MarkdownCodeBlock, MarkdownMermaid } from "./ReactMarkdownBlocks";
-import { katexStyleLoader } from "./katexStyleLoader";
 
 const fontSizeMapping = {
   h1: "1.5em",

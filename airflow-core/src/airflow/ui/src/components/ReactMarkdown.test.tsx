@@ -23,8 +23,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
+import { katexStyleLoader } from "./KatexStyleLoader";
 import ReactMarkdown from "./ReactMarkdown";
-import { katexStyleLoader } from "./katexStyleLoader";
 
 const { renderDiagramMock } = vi.hoisted(() => ({
   renderDiagramMock: vi.fn().mockResolvedValue('<svg data-testid="mermaid-svg"></svg>'),

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-const createKatexStylesLoader = () => {
+const createKatexStyleLoader = () => {
   let katexStylesPromise: Promise<void> | undefined;
 
   return () => {
@@ -27,5 +27,5 @@ const createKatexStylesLoader = () => {
 };
 
 export const katexStyleLoader = {
-  load: createKatexStylesLoader(),
+  load: createKatexStyleLoader(),
 };
