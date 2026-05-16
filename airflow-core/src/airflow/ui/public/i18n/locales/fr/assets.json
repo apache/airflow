@@ -1,4 +1,7 @@
 {
+  "additional_data": "Données supplémentaires",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "Dags consomatteurs",
   "consumingTasks": "Tâches consommatrices",
   "createEvent": {
@@ -22,11 +25,13 @@
     },
     "title": "Créer un événement d'Asset pour {{name}}"
   },
-  "extra": "Extra",
-  "group": "Group",
+  "extra": "Supplémentaire",
+  "group": "Groupe",
   "lastAssetEvent": "Dernier événement d'Asset",
   "name": "Nom",
   "producingTasks": "Tasks productrices",
   "scheduledDags": "Dags planifiés",
-  "searchPlaceholder": "Rechercher des Assets"
+  "scheduling": "Planification",
+  "searchPlaceholder": "Rechercher des Assets",
+  "taskDependencies": "Dépendances des tâches"
 }
