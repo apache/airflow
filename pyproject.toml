@@ -655,6 +655,7 @@ extend-select = [
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
+    "B008", # Do not perform function call in argument defaults (use extend-immutable-calls for FastAPI DI)
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
@@ -702,6 +703,18 @@ unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
     # In addition, it can't do anything with invalid typing annotations, protected by mypy.
     "PT022",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection uses function calls in argument defaults intentionally.
+# SHA256 is a stateless algorithm descriptor (cryptography library).
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Security",
+    "cryptography.hazmat.primitives.hashes.SHA256",
 ]
 
 [tool.ruff.format]

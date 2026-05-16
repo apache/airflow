@@ -197,7 +197,7 @@ class OpenLineageTestOperator(BaseOperator):
         self,
         event_templates: dict[str, dict] | None = None,
         file_path: str | None = None,
-        env: Environment = setup_jinja(),
+        env: Environment | None = None,
         allow_duplicate_events_regex: str | None = None,
         clear_variables: bool = True,
         **kwargs,
@@ -205,7 +205,7 @@ class OpenLineageTestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.event_templates = event_templates
         self.file_path = file_path
-        self.env = env
+        self.env = env or setup_jinja()
         self.allow_duplicate_events_regex = allow_duplicate_events_regex
         self.clear_variables = clear_variables
         if self.event_templates and self.file_path:
