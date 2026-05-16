@@ -283,13 +283,18 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
             mysql_stmt = mysql_insert(RenderedTaskInstanceFields).values(**values)
             stmt = mysql_stmt.on_duplicate_key_update(**update_on_conflict)
-        else:
+        elif dialect_name == "sqlite":
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             sqlite_stmt = sqlite_insert(RenderedTaskInstanceFields).values(**values)
             stmt = sqlite_stmt.on_conflict_do_update(
                 index_elements=["dag_id", "task_id", "run_id", "map_index"],
                 set_=update_on_conflict,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported database dialect '{dialect_name}' for RTIF upsert. "
+                "Supported dialects are: postgresql, mysql, sqlite."
             )
 
         session.execute(stmt)

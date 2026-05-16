@@ -27,7 +27,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from airflow import settings
 from airflow._shared.template_rendering import truncate_rendered_value
@@ -374,32 +374,61 @@ class TestRenderedTaskInstanceFields:
 
     def test_write_upsert_existing_record(self, dag_maker, session):
         """
-        Test that writing RTIF for the same task instance twice updates the existing
-        record rather than raising an IntegrityError.  This is the scenario that occurs
-        when the SDK retries an RTIF PUT after a client-side timeout.
+        Test that write() handles a pre-existing row without raising IntegrityError.
+
+        The first row is seeded via a direct INSERT (bypassing write()), simulating
+        a row already committed by the first SDK request. The second call goes through
+        write() with different values, which must succeed and update the record.
+
+        A plain INSERT statement would raise IntegrityError here; write() must use a
+        database-level upsert to handle the conflict atomically. This is the scenario
+        that occurs when the SDK retries an RTIF PUT after a client-side timeout causes
+        two concurrent transactions to target the same primary key.
         """
-        with dag_maker("test_write_upsert"):
+        with dag_maker("test_write_upsert", session=session):
             task = BashOperator(task_id="test", bash_command="echo original")
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
 
-        rtif = RTIF(ti=ti, render_templates=False, rendered_fields={"bash_command": "echo original"})
-        rtif.write(session=session)
+        # Seed the row via a direct INSERT to simulate a row already committed by
+        # the first request. Using write() here would mask whether write() itself
+        # correctly handles conflicts, since merge() also handles existing rows.
+        session.execute(
+            insert(RTIF).values(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                rendered_fields={"bash_command": "echo original"},
+                k8s_pod_yaml=None,
+            )
+        )
         session.flush()
 
         result = session.scalar(
-            select(RTIF).where(RTIF.dag_id == ti.dag_id, RTIF.task_id == ti.task_id, RTIF.run_id == ti.run_id)
+            select(RTIF).where(
+                RTIF.dag_id == ti.dag_id,
+                RTIF.task_id == ti.task_id,
+                RTIF.run_id == ti.run_id,
+                RTIF.map_index == ti.map_index,
+            )
         )
         assert result.rendered_fields == {"bash_command": "echo original"}
 
-        rtif2 = RTIF(ti=ti, render_templates=False, rendered_fields={"bash_command": "echo updated"})
-        rtif2.write(session=session)
+        # write() must not raise IntegrityError even though the row already exists.
+        rtif = RTIF(ti=ti, render_templates=False, rendered_fields={"bash_command": "echo updated"})
+        rtif.write(session=session)
         session.flush()
         session.expire_all()
 
         result = session.scalar(
-            select(RTIF).where(RTIF.dag_id == ti.dag_id, RTIF.task_id == ti.task_id, RTIF.run_id == ti.run_id)
+            select(RTIF).where(
+                RTIF.dag_id == ti.dag_id,
+                RTIF.task_id == ti.task_id,
+                RTIF.run_id == ti.run_id,
+                RTIF.map_index == ti.map_index,
+            )
         )
         assert result.rendered_fields == {"bash_command": "echo updated"}
 
