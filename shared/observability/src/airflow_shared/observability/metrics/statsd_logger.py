@@ -74,13 +74,9 @@ class SafeStatsdLogger:
         statsd_influxdb_enabled: bool = False,
     ) -> None:
         self.statsd = statsd_client
-        self.metrics_validator = (
-            metrics_validator if metrics_validator is not None else PatternAllowListValidator()
-        )
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.influxdb_tags_enabled = influxdb_tags_enabled
-        self.metric_tags_validator = (
-            metric_tags_validator if metric_tags_validator is not None else PatternAllowListValidator()
-        )
+        self.metric_tags_validator = metric_tags_validator or PatternAllowListValidator()
         self.stat_name_handler = stat_name_handler
         self.statsd_influxdb_enabled = statsd_influxdb_enabled
 

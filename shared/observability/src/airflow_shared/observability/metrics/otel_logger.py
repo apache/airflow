@@ -181,9 +181,7 @@ class SafeOtelLogger:
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
-        self.metrics_validator = (
-            metrics_validator if metrics_validator is not None else PatternAllowListValidator()
-        )
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
         self.stat_name_handler = stat_name_handler
