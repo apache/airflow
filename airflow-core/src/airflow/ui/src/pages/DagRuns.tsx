@@ -17,12 +17,15 @@
  * under the License.
  */
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
+import { DagService } from "openapi/requests/services.gen";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -48,6 +51,7 @@ const {
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
   CONSUMING_ASSET_PATTERN: CONSUMING_ASSET_PATTERN_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_TAG,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
@@ -114,6 +118,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: () => translate("state"),
   },
+
   {
     accessorKey: "run_type",
     cell: ({ row: { original } }) => (
@@ -227,9 +232,65 @@ export const DagRuns = () => {
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
+  const dagTag = searchParams.get(DAG_TAG);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
 
   const refetchInterval = useAutoRefresh({});
+  const { data: dagsData } = useQuery({
+    enabled: dagTag !== null && dagTag !== "",
+    queryFn: () =>
+      DagService.getDags({
+        excludeStale: true,
+        lastDagRunState: "success",
+        limit: 50,
+        tags: dagTag !== null && dagTag !== "" ? [dagTag] : undefined,
+        tagsMatchMode: "any",
+      }),
+    queryKey: ["dags", dagTag],
+  });
+
+  // ... (Keep your existing search param extractions here)
+  const filteredDagIds = React.useMemo(() => {
+    if (!dagsData?.dags) {
+      return [];
+    }
+
+    return dagsData.dags.map((dag: { dag_id: string }) => dag.dag_id);
+  }, [dagsData]);
+
+  // 2. Logic to calculate targetDagId
+  const targetDagId = React.useMemo(() => {
+    if (dagId !== "") {
+      return dagId; // Specific DAG page
+    }
+
+    if (dagTag !== null && dagTag !== "" && filteredDagIds.length === 0) {
+      return "~"; // No matches found
+    }
+
+    // If multiple IDs, use global wildcard "~"
+    if (filteredDagIds.length > 1) {
+      return "~";
+    }
+
+    // If exactly one, use it directly
+    if (filteredDagIds.length === 1) {
+      return filteredDagIds[0];
+    }
+
+    // No tag filter active
+    return "~";
+  }, [dagId, dagTag, filteredDagIds]);
+
+  // Create the regex pattern
+  const multiDagPattern = React.useMemo(() => {
+    // Only use pattern if we have multiple IDs and no explicit dagId
+    if (dagId === "" && filteredDagIds.length > 1) {
+      return filteredDagIds.join("|");
+    }
+
+    return filteredDagIdPattern ?? undefined;
+  }, [filteredDagIds, dagId, filteredDagIdPattern]);
 
   const dagIdPatternArg = useAdvancedSearchArg({
     patternApiKey: "dagIdPattern",
@@ -261,6 +322,8 @@ export const DagRuns = () => {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
+      dagId: targetDagId ?? "~",
+      dagIdPattern: multiDagPattern,
       cursor: cursor ?? "",
       dagId: dagId ?? "~",
       ...dagIdPatternArg,
@@ -286,6 +349,7 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      enabled: true,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,

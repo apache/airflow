@@ -79,6 +79,7 @@
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
+  "dagTag": "Dag Tag",
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
