@@ -49,7 +49,7 @@ class GitHook(BaseHook):
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
-    * ``github_client_id`` — GitHub Client ID (or App ID) used for GitHub App authentication. Requires the GitHub App
+    * ``github_client_id`` — GitHub Client ID used for GitHub App authentication. Requires the GitHub App
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
@@ -111,28 +111,8 @@ class GitHook(BaseHook):
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
         # GitHub App Auth Options
-        raw_github_client_id = extra.get("github_client_id")
-        if raw_github_client_id is not None:
-            try:
-                self.github_client_id: int | None = int(raw_github_client_id)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"Invalid 'github_client_id' value {raw_github_client_id!r}. It must be an integer."
-                ) from exc
-        else:
-            self.github_client_id = None
-
-        raw_github_installation_id = extra.get("github_installation_id")
-        if raw_github_installation_id is not None:
-            try:
-                self.github_installation_id: int | None = int(raw_github_installation_id)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"Invalid 'github_installation_id' value {raw_github_installation_id!r}. It must be an integer."
-                ) from exc
-        else:
-            self.github_installation_id = None
-        self.env: dict[str, str] = {}
+        self.github_client_id = extra.get("github_client_id")
+        self.github_installation_id = extra.get("github_installation_id")
 
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
