@@ -44,18 +44,77 @@ export const paramPlaceholder: ParamSpec = {
 type FormStore = {
   conf: string;
   disabled: boolean;
+  initializeParamsDict: (newParamsDict: ParamsSpec) => void;
   initialParamDict: ParamsSpec;
   paramsDict: ParamsSpec;
   setConf: (confString: string) => void;
   setDisabled: (disabled: boolean) => void;
   setInitialParamDict: (newParamsDict: ParamsSpec) => void;
-  setParamsDict: (newParamsDict: ParamsSpec) => void;
+  setParamsDict: (newParamsDict: ParamsSpec, touchedKey?: string) => void;
+  touchedKeys: ReadonlySet<string>;
+};
+
+const getParsedConf = (confString: string): Record<string, unknown> =>
+  JSON.parse(confString) as Record<string, unknown>;
+
+export const buildParamsDictWithConfValues = (newParamsDict: ParamsSpec, confString: string): ParamsSpec => {
+  const parsedConf = getParsedConf(confString);
+  const paramsWithValues: Array<[string, ParamSpec]> = [];
+  const inParamsDict = new Set<string>(Object.keys(newParamsDict));
+
+  for (const [key, param] of Object.entries(newParamsDict)) {
+    paramsWithValues.push([
+      key,
+      {
+        description: param.description ?? null,
+        schema: param.schema,
+        value: Object.hasOwn(parsedConf, key) ? parsedConf[key] : param.value,
+      },
+    ]);
+  }
+
+  for (const [key, value] of Object.entries(parsedConf)) {
+    if (!inParamsDict.has(key)) {
+      paramsWithValues.push([
+        key,
+        {
+          description: null,
+          schema: paramPlaceholder.schema,
+          value,
+        },
+      ]);
+    }
+  }
+
+  return Object.fromEntries(paramsWithValues);
+};
+
+export const buildConfFromTouchedParams = (
+  paramsDict: ParamsSpec,
+  confString: string,
+  touchedKeys: ReadonlySet<string>,
+) => {
+  const nextConf = { ...getParsedConf(confString) };
+
+  for (const key of touchedKeys) {
+    const param = paramsDict[key];
+
+    if (param !== undefined) {
+      nextConf[key] = param.value;
+    }
+  }
+
+  return JSON.stringify(nextConf, undefined, 2);
 };
 
 const createParamStore = () =>
   create<FormStore>((set) => ({
     conf: "{}",
     disabled: false,
+    initializeParamsDict: (newParamsDict: ParamsSpec) =>
+      set((state) => ({
+        paramsDict: buildParamsDictWithConfValues(newParamsDict, state.conf),
+      })),
     initialParamDict: {},
     paramsDict: {},
 
@@ -112,20 +171,31 @@ const createParamStore = () =>
 
     setInitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 
-    setParamsDict: (newParamsDict: ParamsSpec) =>
+    setParamsDict: (newParamsDict: ParamsSpec, touchedKey?: string) =>
       set((state) => {
-        const newConf = JSON.stringify(
-          Object.fromEntries(Object.entries(newParamsDict).map(([key, { value }]) => [key, value])),
-          undefined,
-          2,
-        );
+        if (Object.keys(newParamsDict).length === 0) {
+          return { conf: "{}", paramsDict: {}, touchedKeys: new Set<string>() };
+        }
 
-        if (state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)) {
+        const touchedKeys = new Set(state.touchedKeys);
+
+        if (touchedKey !== undefined) {
+          touchedKeys.add(touchedKey);
+        }
+
+        const newConf = buildConfFromTouchedParams(newParamsDict, state.conf, touchedKeys);
+
+        if (
+          state.conf === newConf &&
+          JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict) &&
+          touchedKeys.size === state.touchedKeys.size
+        ) {
           return {};
         }
 
-        return { conf: newConf, paramsDict: newParamsDict };
+        return { conf: newConf, paramsDict: newParamsDict, touchedKeys };
       }),
+    touchedKeys: new Set<string>(),
   }));
 
 const stores = new Map<string, ReturnType<typeof createParamStore>>();

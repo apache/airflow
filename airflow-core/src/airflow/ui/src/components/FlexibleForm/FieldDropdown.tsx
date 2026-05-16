@@ -78,7 +78,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       }
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
     onUpdate(selected?.value ?? "");
   };
 

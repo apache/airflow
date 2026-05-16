@@ -37,7 +37,7 @@ export const FieldDateTime = ({
       paramsDict[name].value = value === "" ? null : value;
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
     onUpdate(value);
   };
 

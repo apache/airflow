@@ -34,7 +34,7 @@ export const FieldObject = ({ name, namespace = "default", onUpdate }: FlexibleF
         paramsDict[name].value = parsedValue;
       }
 
-      setParamsDict(paramsDict);
+      setParamsDict(paramsDict, name);
       onUpdate(value);
     } catch (_error) {
       onUpdate("", _error);

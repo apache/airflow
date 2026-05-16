@@ -38,7 +38,7 @@ export const FieldNumber = ({ name, namespace = "default", onUpdate }: FlexibleF
       }
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
     onUpdate(value);
   };
 

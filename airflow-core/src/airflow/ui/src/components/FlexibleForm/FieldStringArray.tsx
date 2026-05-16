@@ -35,7 +35,7 @@ export const FieldStringArray = ({ name, namespace = "default", onUpdate }: Flex
       paramsDict[name].value = newValueArray;
     }
 
-    setParamsDict(paramsDict);
+    setParamsDict(paramsDict, name);
     onUpdate(newValue);
   };
 
@@ -48,7 +48,7 @@ export const FieldStringArray = ({ name, namespace = "default", onUpdate }: Flex
         paramsDict[name].value = null;
       }
 
-      setParamsDict(paramsDict);
+      setParamsDict(paramsDict, name);
     }
   };
 
