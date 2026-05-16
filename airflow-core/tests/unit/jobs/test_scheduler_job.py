@@ -914,6 +914,69 @@ class TestSchedulerJob:
         mock_task_callback.assert_not_called()
         mock_stats.incr.assert_not_called()
 
+    def test_process_executor_events_queued_updates_without_row_lock(self, dag_maker, session):
+        dag_id = "test_process_executor_events_queued_updates_without_row_lock"
+        executor_id = "queued_executor_id"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task = EmptyOperator(task_id="dummy_task")
+        ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        executor.event_buffer[ti.key] = State.QUEUED, executor_id
+
+        with mock.patch(
+            "airflow.jobs.scheduler_job_runner.with_row_locks", wraps=with_row_locks
+        ) as row_locks:
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
+        ti.refresh_from_db(session=session)
+        assert ti.external_executor_id == executor_id
+        assert ti.key not in executor.event_buffer
+        row_locks.assert_not_called()
+
+    def test_process_executor_events_mixed_queued_and_failed_locks_only_failed(self, dag_maker, session):
+        dag_id = "test_process_executor_events_mixed_queued_and_failed_locks_only_failed"
+        queued_executor_id = "queued_executor_id"
+
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            queued_task = EmptyOperator(task_id="queued_task")
+            failed_task = EmptyOperator(task_id="failed_task")
+        dr = dag_maker.create_dagrun()
+        queued_ti = dr.get_task_instance(queued_task.task_id)
+        failed_ti = dr.get_task_instance(failed_task.task_id)
+        queued_ti.state = State.QUEUED
+        failed_ti.state = State.QUEUED
+        session.merge(queued_ti)
+        session.merge(failed_ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        executor.event_buffer[queued_ti.key] = State.QUEUED, queued_executor_id
+        executor.event_buffer[failed_ti.key] = State.FAILED, None
+
+        with mock.patch(
+            "airflow.jobs.scheduler_job_runner.with_row_locks", wraps=with_row_locks
+        ) as row_locks:
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
+        queued_ti.refresh_from_db(session=session)
+        failed_ti.refresh_from_db(session=session)
+        assert queued_ti.external_executor_id == queued_executor_id
+        assert failed_ti.state == State.FAILED
+        assert queued_ti.key not in executor.event_buffer
+        assert failed_ti.key not in executor.event_buffer
+        row_locks.assert_called_once()
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_process_executor_events_with_asset_events(self, session, dag_maker):
         """

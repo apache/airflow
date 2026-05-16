@@ -1232,6 +1232,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
+        queued_tis: list[TaskInstanceKey] = []
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[str] = []
 
@@ -1250,10 +1251,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                 ti_primary_key_to_try_number_map[key.primary] = key.try_number
                 cls.logger().info("Received executor event with state %s for task instance %s", state, key)
-                if state in (
+                if state == TaskInstanceState.QUEUED:
+                    queued_tis.append(key)
+                elif state in (
                     TaskInstanceState.FAILED,
                     TaskInstanceState.SUCCESS,
-                    TaskInstanceState.QUEUED,
                     TaskInstanceState.RUNNING,
                     TaskInstanceState.RESTARTING,
                 ):
@@ -1288,7 +1290,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
             session.add(callback)
 
-        # Return if no finished tasks
+        for key in queued_tis:
+            try_number = ti_primary_key_to_try_number_map[key.primary]
+            if key.try_number != try_number:
+                continue
+            _, info = event_buffer[key]
+            result = session.execute(
+                update(TI)
+                .where(
+                    TI.dag_id == key.dag_id,
+                    TI.task_id == key.task_id,
+                    TI.run_id == key.run_id,
+                    TI.map_index == key.map_index,
+                    TI.try_number == try_number,
+                )
+                .values(external_executor_id=info)
+            )
+            if result.rowcount:
+                event_buffer.pop(key)
+                cls.logger().info("Setting external_executor_id for task instance %s to %s", key, info)
+
         if not tis_with_right_state:
             return len(event_buffer)
 
@@ -1326,7 +1347,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             state, info = event_buffer.pop(buffer_key)
 
-            if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
+            if state == TaskInstanceState.RUNNING:
                 ti.external_executor_id = info
                 cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
                 continue
