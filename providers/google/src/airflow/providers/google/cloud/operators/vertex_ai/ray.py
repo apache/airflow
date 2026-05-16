@@ -155,7 +155,7 @@ class CreateRayClusterOperator(RayBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.head_node_type = head_node_type if head_node_type is not None else resources.Resources()
+        self.head_node_type = head_node_type or resources.Resources()
         self.python_version = python_version
         self.ray_version = ray_version
         self.network = network
