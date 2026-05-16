@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
@@ -69,6 +69,22 @@ TEST_GET_TASK_INSTANCES_RESULT = lambda state, date_key, task_id: {
     "task_instances": TEST_TASK_INSTANCES_RESULT(state, date_key, task_id),
     "total_entries": 1,
 }
+
+
+def build_dag_runs_result(composer_airflow_version: int, dag_runs: list[tuple[str, str]]) -> dict:
+    date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+    return {
+        "dag_runs": [
+            {
+                "dag_id": "test_dag_id",
+                "dag_run_id": f"scheduled__{index}",
+                "state": state,
+                date_key: logical_date,
+            }
+            for index, (state, logical_date) in enumerate(dag_runs)
+        ],
+        "total_entries": len(dag_runs),
+    }
 
 
 class TestCloudComposerDAGRunSensor:
@@ -146,6 +162,111 @@ class TestCloudComposerDAGRunSensor:
         task._composer_airflow_version = composer_airflow_version
 
         assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_returns_false_when_all_runs_outside_window(
+        self, mock_hook, composer_airflow_version, use_rest_api
+    ):
+        mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
+            composer_airflow_version,
+            [("success", "2024-05-24T11:10:00+00:00")],
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_returns_true_when_at_least_one_in_window_and_allowed(
+        self, mock_hook, composer_airflow_version, use_rest_api
+    ):
+        mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
+            composer_airflow_version,
+            [
+                ("failed", "2024-05-24T11:10:00+00:00"),
+                ("success", "2024-05-22T11:10:00+00:00"),
+            ],
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_returns_false_when_in_window_run_not_allowed(
+        self, mock_hook, composer_airflow_version, use_rest_api
+    ):
+        mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
+            composer_airflow_version,
+            [
+                ("success", "2024-05-24T11:10:00+00:00"),
+                ("failed", "2024-05-22T11:10:00+00:00"),
+            ],
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_returns_false_when_only_boundary_runs(
+        self, mock_hook, composer_airflow_version, use_rest_api
+    ):
+        mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
+            composer_airflow_version,
+            [
+                ("success", "2024-05-22T00:00:00+00:00"),
+                ("success", "2024-05-23T00:00:00+00:00"),
+            ],
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
 
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
