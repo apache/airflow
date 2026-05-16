@@ -231,7 +231,6 @@ providers/google/src/airflow/providers/google/cloud/hooks/gdm.py::1
 providers/google/src/airflow/providers/google/cloud/hooks/kubernetes_engine.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/looker.py::8
 providers/google/src/airflow/providers/google/cloud/hooks/managed_kafka.py::1
-providers/google/src/airflow/providers/google/cloud/hooks/mlengine.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/spanner.py::5
 providers/google/src/airflow/providers/google/cloud/hooks/stackdriver.py::2
 providers/google/src/airflow/providers/google/cloud/hooks/tasks.py::3
@@ -381,7 +380,7 @@ providers/presto/src/airflow/providers/presto/hooks/presto.py::1
 providers/samba/src/airflow/providers/samba/transfers/gcs_to_samba.py::1
 providers/segment/src/airflow/providers/segment/hooks/segment.py::2
 providers/sftp/src/airflow/providers/sftp/hooks/sftp.py::6
-providers/sftp/src/airflow/providers/sftp/operators/sftp.py::2
+providers/sftp/src/airflow/providers/sftp/operators/sftp.py::3
 providers/sftp/src/airflow/providers/sftp/sensors/sftp.py::4
 providers/singularity/src/airflow/providers/singularity/operators/singularity.py::2
 providers/slack/src/airflow/providers/slack/hooks/slack.py::1

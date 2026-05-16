@@ -28,7 +28,7 @@ from typing import Any
 
 import paramiko
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.constants import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHook
