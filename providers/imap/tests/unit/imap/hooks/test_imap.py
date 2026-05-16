@@ -623,3 +623,28 @@ class TestImapHook:
                     imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
 
         mock_open_method.assert_called_once_with("test_directory/report_1.csv", "xb")
+
+    @patch(imaplib_string)
+    def test_download_attachments_overwrite_false_file_exists_error_retries(self, mock_imaplib):
+        """Retry with the next generated name when exclusive create raises FileExistsError."""
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        duplicates = [("report.csv", b"data1")]
+        successful_open = mock_open()
+
+        def open_side_effect(path, mode, *args, **kwargs):
+            if path == "test_directory/report.csv" and mode == "xb":
+                raise FileExistsError(path)
+            return successful_open(path, mode)
+
+        mock_open_wrapper = Mock(side_effect=open_side_effect)
+
+        with ImapHook() as imap_hook:
+            with patch.object(imap_hook, "_retrieve_mails_attachments_by_name", return_value=duplicates):
+                with patch(open_string, mock_open_wrapper):
+                    imap_hook.download_mail_attachments("report.csv", "test_directory", overwrite=False)
+
+        assert mock_open_wrapper.call_count == 2
+        mock_open_wrapper.assert_any_call("test_directory/report.csv", "xb")
+        mock_open_wrapper.assert_any_call("test_directory/report_1.csv", "xb")
+        successful_open.assert_called_once_with("test_directory/report_1.csv", "xb")
