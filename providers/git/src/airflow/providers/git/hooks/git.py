@@ -114,6 +114,8 @@ class GitHook(BaseHook):
         self.github_client_id = extra.get("github_client_id")
         self.github_installation_id = extra.get("github_installation_id")
 
+        self.env: dict[str, str] = {}
+
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
         if (self.github_client_id is not None and self.github_installation_id is None) or (
