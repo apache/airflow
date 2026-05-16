@@ -52,9 +52,7 @@ class SafeDogStatsdLogger:
         statsd_influxdb_enabled: bool = False,
     ) -> None:
         self.dogstatsd = dogstatsd_client
-        self.metrics_validator = (
-            metrics_validator if metrics_validator is not None else PatternAllowListValidator()
-        )
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.metrics_tags = metrics_tags
         self.metric_tags_validator = (
             metric_tags_validator if metric_tags_validator is not None else PatternAllowListValidator()
