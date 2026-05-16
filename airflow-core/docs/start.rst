@@ -26,7 +26,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
    Successful installation requires a Python 3 environment. Starting with Airflow 3.2.0, Airflow supports Python 3.10, 3.11, 3.12, 3.13, 3.14.
 
-   Officially supported installation methods is with ``pip`` or ``uv``.
+   Officially supported installation methods are ``pip`` or ``uv``.
 
    Run ``pip install apache-airflow[EXTRAS]==AIRFLOW_VERSION --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-AIRFLOW_VERSION/constraints-PYTHON_VERSION.txt"``, for example ``pip install "apache-airflow[celery]==3.0.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.10.txt"`` to install Airflow in a reproducible way. You can also use - much faster - ``uv`` - by adding ``uv`` before the command.
 
@@ -57,7 +57,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
       export AIRFLOW_HOME=~/airflow
 
-2.  Install Airflow in a virtual environment using ``uv`` since it is faster alternative that creates the ``venv`` automatically implicitly for you. It is efficient alternative to using ``pip`` and ``venv``.
+2. Install Airflow in a virtual environment using ``uv`` since it is a faster alternative that creates the ``venv`` automatically for you. It is an efficient alternative to using ``pip`` and ``venv``.
 
     .. rst-class:: centered
 
@@ -67,7 +67,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
     For creating virtual environment with ``uv``, refer to the documentation here:
     `Creating and Maintaining Local virtual environment with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv-recommended>`_
 
-For installation using ``pip`` and ``venv``, carry out following steps.
+For installation using ``pip`` and ``venv``, carry out the following steps.
 On Debian/Ubuntu systems, Python may enforce
 externally managed environments (PEP 668), so use a virtual environment
 before running ``pip install`` commands:
@@ -78,12 +78,12 @@ before running ``pip install`` commands:
    sudo apt update
    sudo apt install python3-pip python3-venv
 
-   bash # Go to Linux home directory (not Windows mount)
+   # Go to Linux home directory (not Windows mount)
    cd ~
 
    # Create airflow directory
    mkdir -p ~/airflow
-   cd ~airflow
+   cd ~/airflow
 
    # Create virtual environment
    python3 -m venv airflow_venv
@@ -125,9 +125,25 @@ before running ``pip install`` commands:
 
       airflow standalone
 
+   .. note::
+
+      In Airflow 3.x, the admin password may not always be displayed in the terminal output when running ``airflow standalone``.
+
+      The password is automatically generated and stored in:
+
+      ``$AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``
+
+      To retrieve it, run:
+
+      .. code-block:: bash
+
+         cat ~/airflow/simple_auth_manager_passwords.json.generated
+
+      Use this password to log in to the web interface instead of default credentials.
+
 5. Access the Airflow UI:
 
-   Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` Dag in the home page.
+   Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` DAG on the home page.
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.

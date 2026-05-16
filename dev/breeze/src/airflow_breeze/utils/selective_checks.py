@@ -88,7 +88,6 @@ LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
-ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
@@ -96,9 +95,6 @@ ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
-
-# Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
-FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
@@ -113,6 +109,7 @@ class FileGroupForCi(Enum):
     HELM_FILES = auto()
     DEPENDENCY_FILES = auto()
     DOC_FILES = auto()
+    TEXT_NON_DOC_FILES = auto()
     UI_FILES = auto()
     SYSTEM_TEST_FILES = auto()
     KUBERNETES_FILES = auto()
@@ -125,6 +122,8 @@ class FileGroupForCi(Enum):
     REMOTE_LOGGING_E2E_SHARED_FILES = auto()
     REMOTE_LOGGING_E2E_S3_FILES = auto()
     REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES = auto()
+    REMOTE_LOGGING_E2E_OPENSEARCH_FILES = auto()
+    EVENT_DRIVEN_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -134,12 +133,16 @@ class FileGroupForCi(Enum):
     ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = auto()
     ALL_DEV_PYTHON_FILES = auto()
     ALL_DEVEL_COMMON_PYTHON_FILES = auto()
+    ALL_SCRIPTS_PYTHON_FILES = auto()
+    ALL_HELM_TESTS_PYTHON_FILES = auto()
+    ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES = auto()
+    ALL_DOCKER_TESTS_PYTHON_FILES = auto()
+    ALL_KUBERNETES_TESTS_PYTHON_FILES = auto()
     ALL_PROVIDER_YAML_FILES = auto()
     TESTS_UTILS_FILES = auto()
     ASSET_FILES = auto()
     UNIT_TEST_FILES = auto()
     DEVEL_TOML_FILES = auto()
-    UI_ENGLISH_TRANSLATION_FILES = auto()
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
 
@@ -169,6 +172,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
+            r"^scripts/ci/prek",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
@@ -196,6 +200,18 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_elasticsearch_tests/.*",
             r"^providers/elasticsearch/.*",
+        ],
+        FileGroupForCi.REMOTE_LOGGING_E2E_OPENSEARCH_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_opensearch_tests/.*",
+            r"^providers/opensearch/.*",
+        ],
+        FileGroupForCi.EVENT_DRIVEN_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/event_driven_tests/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/dags/example_event_driven\.py$",
+            r"^airflow-e2e-tests/docker/kafka/.*",
+            r"^airflow-e2e-tests/docker/kafka\.yml$",
+            r"^providers/apache/kafka/.*",
+            r"^providers/common/messaging/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow-core/src/airflow/.*\.py",
@@ -229,7 +245,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
-            r"^helm-tests",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -256,6 +271,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
             r"^RELEASE_NOTES\.rst",
+        ],
+        FileGroupForCi.TEXT_NON_DOC_FILES: [
+            r"^.*\.txt",
+            r"^.*\.md",
         ],
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
@@ -288,6 +307,21 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES: [
             r"^devel-common/.*\.py$",
         ],
+        FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES: [
+            r"^scripts/.*\.py$",
+        ],
+        FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES: [
+            r"^chart/tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES: [
+            r"^airflow-e2e-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES: [
+            r"^docker-tests/.*\.py$",
+        ],
+        FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES: [
+            r"^kubernetes-tests/.*\.py$",
+        ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
             r"^airflow-core/src/.*",
@@ -297,14 +331,14 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart/templates/.*",
             r"^providers/.*/src/.*",
             r"^providers/.*/tests/.*",
+            r"^shared/.*\.py$",
             r"^task-sdk/src/.*",
             r"^task-sdk/tests/.*",
             r"^devel-common/src/.*",
             r"^devel-common/tests/.*",
-            r"^helm-tests/tests/.*",
+            r"^chart/tests/.*",
             r"^kubernetes-tests/tests/.*",
             r"^docker-tests/tests/.*",
-            r"^dev/.*",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
             r"^airflow-core/tests/system/",
@@ -354,9 +388,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
-        ],
-        FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES: [
-            r"^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$",
         ],
         FileGroupForCi.SCRIPTS_FILES: [
             r"^scripts/ci/.*\.py$",
@@ -589,6 +620,11 @@ class SelectiveChecks:
 
     def _should_run_all_tests_and_versions(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+            if self.only_text_non_doc_files_changed and self._github_event == GithubEvents.PUSH:
+                console_print(
+                    f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
+                )
+                return False
             console_print(f"[warning]Running everything because event is {self._github_event}[/]")
             return True
         if not self._commit_ref:
@@ -861,58 +897,21 @@ class SelectiveChecks:
         return False
 
     @cached_property
-    def mypy_checks(self) -> list[str]:
-        checks_to_run: list[str] = []
-        if (
-            self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
-            and self._default_branch == "main"
-        ):
-            return [
-                "mypy-airflow-core",
-                "mypy-providers",
-                "mypy-dev",
-                "mypy-task-sdk",
-                "mypy-devel-common",
-                "mypy-airflow-ctl",
-            ]
-        if (
-            self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
-            or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-airflow-core")
-        if (
+    def run_mypy_providers(self) -> bool:
+        # Non-provider mypy checks run as part of regular static checks (prek hooks).
+        # Only provider mypy needs a separate CI job (requires the CI Docker image with breeze).
+        return (
             self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
             )
             or self._are_all_providers_affected()
-        ) and self._default_branch == "main":
-            checks_to_run.append("mypy-providers")
-        if (
-            self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+            or (
+                self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
+                and self._default_branch == "main"
+            )
             or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-dev")
-        if (
-            self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES)
-            or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-task-sdk")
-        if (
-            self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
-            or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-devel-common")
-        if (
-            self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
-            or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-airflow-ctl")
-        return checks_to_run
-
-    @cached_property
-    def run_mypy(self) -> bool:
-        return self.mypy_checks != []
+        ) and self._default_branch == "main"
 
     @cached_property
     def run_python_scans(self) -> bool:
@@ -944,7 +943,26 @@ class SelectiveChecks:
 
     @cached_property
     def run_ui_e2e_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.UI_FILES)
+        # E2E tests should not be triggered by derived full_tests_needed (push events,
+        # env file changes, large PRs, etc.) - only by explicit label or actual file changes.
+        if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
+            console_print(
+                f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because "
+                f"'{FULL_TESTS_NEEDED_LABEL}' label is set[/]"
+            )
+            return True
+        matched_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
+        if matched_files:
+            console_print(
+                f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because "
+                f"it matched {len(matched_files)} changed files[/]"
+            )
+            return True
+        console_print(
+            f"[warning]{FileGroupForCi.UI_FILES} e2e disabled because "
+            f"it did not match any changed files and no explicit label[/]"
+        )
+        return False
 
     @cached_property
     def run_remote_logging_s3_e2e_tests(self) -> bool:
@@ -957,6 +975,16 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
             FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES
         )
+
+    @cached_property
+    def run_remote_logging_opensearch_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
+            FileGroupForCi.REMOTE_LOGGING_E2E_OPENSEARCH_FILES
+        )
+
+    @cached_property
+    def run_event_driven_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.EVENT_DRIVEN_E2E_FILES)
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -1038,6 +1066,13 @@ class SelectiveChecks:
         return all(Path(file).name == "pyproject.toml" for file in self._files)
 
     @cached_property
+    def only_text_non_doc_files_changed(self) -> bool:
+        text_non_doc_files = set(
+            self._matching_files(FileGroupForCi.TEXT_NON_DOC_FILES, CI_FILE_GROUP_MATCHES)
+        )
+        return len(self._files) > 0 and set(self._files) <= text_non_doc_files
+
+    @cached_property
     def ci_image_build(self) -> bool:
         # in case pyproject.toml changed, CI image should be built - even if no build dependencies
         # changes because some of our tests - those that need CI image might need to be run depending on
@@ -1046,12 +1081,10 @@ class SelectiveChecks:
             self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
-            or self.run_task_sdk_integration_tests
-            or self.run_airflow_ctl_integration_tests
-            or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
+            or self.prod_image_build
         )
 
     @cached_property
@@ -1063,6 +1096,8 @@ class SelectiveChecks:
             or self.run_airflow_ctl_integration_tests
             or self.run_remote_logging_s3_e2e_tests
             or self.run_remote_logging_elasticsearch_e2e_tests
+            or self.run_remote_logging_opensearch_e2e_tests
+            or self.run_event_driven_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1108,11 +1143,13 @@ class SelectiveChecks:
         test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
         test_ui_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
 
+        text_non_doc_files = self._matching_files(FileGroupForCi.TEXT_NON_DOC_FILES, CI_FILE_GROUP_MATCHES)
         remaining_files = (
             set(all_source_files)
             - set(all_providers_source_files)
             - set(all_providers_distribution_config_files)
             - set(matched_files)
+            - set(text_non_doc_files)
             - set(kubernetes_files)
             - set(system_test_files)
             - set(test_always_files)
@@ -1464,6 +1501,53 @@ class SelectiveChecks:
             # only skip provider validation if none of the provider.yaml and provider
             # python files changed because validation also walks through all the provider python files
             prek_hooks_to_skip.add("check-provider-yaml-valid")
+        # Non-provider mypy checks run as prek hooks in static checks.
+        # Skip them when their relevant files haven't changed, unless devel-common
+        # pyproject.toml changes on main (which affects all mypy checks).
+        if not (
+            self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
+            and self._default_branch == "main"
+        ):
+            if not self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-airflow-core")
+            if not self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-dev")
+            if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-scripts")
+            if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-task-sdk")
+            if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-devel-common")
+            if not self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-airflow-ctl")
+            if not self._matching_files(
+                FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-ctl-tests")
+            if not self._matching_files(FileGroupForCi.ALL_HELM_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-helm-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_AIRFLOW_E2E_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-airflow-e2e-tests")
+            if not self._matching_files(
+                FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-task-sdk-integration-tests")
+            if not self._matching_files(FileGroupForCi.ALL_DOCKER_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+                prek_hooks_to_skip.add("mypy-docker-tests")
+            if not self._matching_files(
+                FileGroupForCi.ALL_KUBERNETES_TESTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
+            ):
+                prek_hooks_to_skip.add("mypy-kubernetes-tests")
+            # One mypy-shared-<dist> hook per shared/<dist> workspace member; each is only
+            # kept when that distribution's own files changed.
+            for dist in sorted(
+                p.name for p in (AIRFLOW_ROOT_PATH / "shared").iterdir() if (p / "pyproject.toml").exists()
+            ):
+                pattern = re.compile(rf"^shared/{re.escape(dist)}/.*\.py$")
+                if not any(pattern.match(f) for f in self._files):
+                    prek_hooks_to_skip.add(f"mypy-shared-{dist}")
         return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property
@@ -1523,6 +1607,12 @@ class SelectiveChecks:
     def get_job_label(self, event_type: str, branch: str):
         import requests  # type: ignore[import-untyped]
 
+        # The main CI is now split into ci-arm.yml and ci-amd.yml; the old
+        # ci-amd-arm.yml file no longer exists. This lookup is dormant for the
+        # main pipeline (which hardcodes runner-type per wrapper) and only
+        # remains here for the `is_disabled_integration` code path that still
+        # reads `runner_type`. The API call against a missing workflow returns
+        # nothing and the caller falls back to PUBLIC_AMD_RUNNERS.
         job_name = "Basic tests"
         workflow_name = "ci-amd-arm.yml"
         headers = {"Accept": "application/vnd.github.v3+json"}
@@ -1718,6 +1808,7 @@ class SelectiveChecks:
         return (
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
+            and not self.only_text_non_doc_files_changed
         ) or CANARY_LABEL in self._pr_labels
 
     @cached_property
@@ -1729,36 +1820,13 @@ class SelectiveChecks:
         return json.dumps([file.name for file in (AIRFLOW_ROOT_PATH / "shared").iterdir() if file.is_dir()])
 
     @cached_property
-    def ui_english_translation_changed(self) -> bool:
-        _translation_changed = bool(
-            self._matching_files(
-                FileGroupForCi.UI_ENGLISH_TRANSLATION_FILES,
-                CI_FILE_GROUP_MATCHES,
-            )
-        )
-        if FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED and _translation_changed and not self._is_canary_run():
-            if ALLOW_TRANSACTION_CHANGE_LABEL in self._pr_labels:
-                console_print(
-                    "[warning]The 'allow translation change' label is set and English "
-                    "translation files changed. Bypassing the freeze period."
-                )
-                return True
-            console_print(
-                "[error]English translation changed but we are in a period of translation"
-                "freeze and label to allow it ('allow translation change') is not set"
-            )
-            console_print()
-            console_print(
-                "[warning]To allow translation change, please set the label "
-                "'allow translation change' on the PR, but this has to be communicated "
-                "and agreed to at the #i18n channel in slack"
-            )
-            sys.exit(1)
-        return _translation_changed
-
-    @cached_property
     def provider_dependency_bump(self) -> bool:
         """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picks routinely bump provider dependency lower bounds, and the
+        # override label is meant for that flow on main.
+        if self._default_branch != "main":
+            return False
         pyproject_files = self._matching_files(
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
@@ -1985,6 +2053,11 @@ class SelectiveChecks:
         comment for their common-compat dependency.
         """
         if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
+        # cherry-picked common.compat changes don't follow the '# use next version'
+        # convention, and the override label is meant for that flow on main.
+        if self._default_branch != "main":
             return False
 
         if not self._has_common_compat_changed():

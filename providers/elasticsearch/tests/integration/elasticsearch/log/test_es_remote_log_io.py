@@ -136,7 +136,7 @@ class TestElasticsearchRemoteLogIOIntegration:
             "offset": 1,
             "error_detail": error_detail,
         }
-        self.elasticsearch_io.client.index(index=self.target_index, body=body)
+        self.elasticsearch_io.client.index(index=self.target_index, document=body)
         self.elasticsearch_io.client.indices.refresh(index=self.target_index)
 
         log_source_info, log_messages = self.elasticsearch_io.read("", ti)

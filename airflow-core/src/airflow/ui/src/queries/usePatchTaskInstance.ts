@@ -21,13 +21,14 @@ import { useTranslation } from "react-i18next";
 
 import {
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
+  useTaskInstanceServiceGetMappedTaskInstanceKey,
   UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePatchTaskInstance,
-  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
@@ -40,34 +41,60 @@ export const usePatchTaskInstance = ({
 }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex?: number;
   onSuccess?: () => void;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.update.error", {
-        resourceName: translate("taskInstance_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("taskInstance_one") },
+        titleKey: "toaster.update.error",
+      },
+      translate,
+    );
   };
 
   const onSuccessFn = async () => {
     const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
-      UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    if (mapIndex !== undefined) {
+      queryKeys.push(UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }));
+    }
+
+    await Promise.all([
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      // Wildcard match when patching every mapped TI (mapIndex undefined):
+      // invalidate the mapped-TI cache for every map_index of this task.
+      // The mapped-TI key embeds its params as a single object, so prefix
+      // matching on a partial key doesn't catch them — match via predicate.
+      ...(mapIndex === undefined
+        ? [
+            queryClient.invalidateQueries({
+              predicate: ({ queryKey }) => {
+                if (queryKey[0] !== useTaskInstanceServiceGetMappedTaskInstanceKey) {
+                  return false;
+                }
+                const params = queryKey[1] as
+                  | { dagId?: string; dagRunId?: string; taskId?: string }
+                  | undefined;
+
+                return params?.dagId === dagId && params.dagRunId === dagRunId && params.taskId === taskId;
+              },
+            }),
+          ]
+        : []),
+    ]);
 
     if (onSuccess) {
       onSuccess();

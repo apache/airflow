@@ -23,7 +23,7 @@ Memory Profiling with Memray
 Airflow integrates `Memray <https://bloomberg.github.io/memray/>`__, a memory profiler for Python,
 to help you diagnose memory usage patterns and identify potential memory leaks in Airflow components.
 This guide will walk you through how to profile memory usage in key Airflow components such as the
-scheduler, API server, and DAG processor.
+scheduler, API server, DAG processor and triggerer.
 
 .. note::
 
@@ -68,21 +68,47 @@ Add the following to your ``airflow.cfg`` file:
 
     [profiling]
     # Comma-separated list of Airflow components to profile with memray
-    # Valid components: scheduler, api, dag_processor
+    # Valid components: scheduler, api, dag_processor, triggerer
     # Invalid component names will be ignored
-    memray_trace_components = scheduler,dag_processor,api
+    memray_trace_components = scheduler,dag_processor,api, triggerer
 
 Or set it via environment variable:
 
 .. code-block:: bash
 
-    export AIRFLOW__PROFILING__MEMRAY_TRACE_COMPONENTS="scheduler,dag_processor,api"
+    export AIRFLOW__PROFILING__MEMRAY_TRACE_COMPONENTS="scheduler,dag_processor,api,triggerer"
 
 .. note::
 
     To disable memory profiling after you've completed your analysis, simply set
     ``memray_trace_components`` to an empty string (or unset the environment variable)
     and restart the affected components.
+
+Capturing More Detailed Traces
+""""""""""""""""""""""""""""""
+
+If the default trace does not give you enough information to identify the source of
+a memory issue, enabling ``memray_detailed_tracing`` provides deeper insight.
+
+By default, Memray only records allocations that reach the system allocator. To also
+capture C/C++ stack frames and small ``pymalloc`` allocations, set
+``memray_detailed_tracing`` to ``True``:
+
+.. code-block:: ini
+
+    [profiling]
+    memray_trace_components = scheduler
+    memray_detailed_tracing = True
+
+This enables Memray's ``native_traces`` (C/C++ frames from compiled extensions such as
+numpy or pandas; most accurate on Linux, less precise on macOS) and
+``trace_python_allocators`` (small short-lived Python objects served from existing
+``pymalloc`` arenas).
+
+.. warning::
+
+    Detailed tracing substantially increases overhead and can produce profile files
+    several gigabytes in size. Enable it for short, focused sessions only.
 
 Step-by-Step Profiling Guide
 -----------------------------
@@ -146,6 +172,7 @@ The filename follows the pattern ``<component>_memory.bin``:
     $AIRFLOW_HOME/scheduler_memory.bin
     $AIRFLOW_HOME/api_memory.bin
     $AIRFLOW_HOME/dag_processor_memory.bin
+    $AIRFLOW_HOME/triggerer_memory.bin
 
 If running in a containerized environment, you may need to copy the file from the container:
 

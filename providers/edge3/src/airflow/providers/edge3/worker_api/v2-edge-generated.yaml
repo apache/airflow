@@ -1316,6 +1316,13 @@ components:
           title: Queues
           description: List of queues the worker is pulling jobs from. If not provided,
             worker pulls from all queues.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: Team name for multi-team setups. If not provided, worker operates
+            without team isolation.
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1329,6 +1336,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1337,6 +1347,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string
@@ -1419,6 +1430,13 @@ components:
           title: Queues
           description: List of queues the worker is pulling jobs from. If not provided,
             worker pulls from all queues.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: Team name for multi-team setups. If not provided, worker operates
+            without team isolation.
         free_concurrency:
           type: integer
           title: Free Concurrency
@@ -1435,6 +1453,14 @@ components:
           format: date-time
           title: Last Update
           description: Time of the last update of the worker.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - last_update
@@ -1467,6 +1493,14 @@ components:
           title: Concurrency
           description: Desired concurrency for the worker set by an administrator.
             None means no remote override; the worker uses its startup value.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - state
@@ -1484,6 +1518,13 @@ components:
           title: Queues
           description: List of queues the worker is pulling jobs from. If not provided,
             worker pulls from all queues.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: Team name for multi-team setups. If not provided, worker operates
+            without team isolation.
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1497,6 +1538,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1505,6 +1549,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string

@@ -22,6 +22,7 @@ import itertools
 import json
 import logging
 import math
+import warnings
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
@@ -32,6 +33,7 @@ from uuid import UUID
 import attrs
 import dill
 import uuid6
+from opentelemetry import trace
 from sqlalchemy import (
     JSON,
     Float,
@@ -65,11 +67,12 @@ from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relat
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 
 from airflow import settings
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors.workloads import BaseWorkload
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
@@ -85,7 +88,9 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
+from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -102,7 +107,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 TR = TaskReschedule
 
 log = logging.getLogger(__name__)
-
+tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -119,7 +124,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-
+    from airflow.triggers.base import StartTriggerArgs
 
 PAST_DEPENDS_MET = "past_depends_met"
 
@@ -257,7 +262,14 @@ def _get_new_task_ids(
     if not latest_dag:
         raise ValueError(f"Latest DAG version for '{dag_id}' not found")
 
-    current_dag = scheduler_dagbag.get_dag_for_run(dag_run=dag_run, session=session)
+    # Use created_dag_version_id directly to get the DAG version the run was
+    # originally created with. We cannot use get_dag_for_run here because it
+    # falls back to the latest version when bundle_version is not set (e.g.
+    # LocalDagBundle), which would make current_dag == latest_dag and the diff
+    # always empty.
+    current_dag = None
+    if dag_run.created_dag_version_id:
+        current_dag = scheduler_dagbag.get_dag(version_id=dag_run.created_dag_version_id, session=session)
     new_task_ids = set(latest_dag.task_ids) - set(current_dag.task_ids) if current_dag else set()
 
     return list(new_task_ids)
@@ -373,6 +385,11 @@ def clear_task_instances(
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
+            # Match DagVersion to latest serialized DAG when run_on_latest_version.
+            if run_on_latest_version:
+                latest_dag_version = DagVersion.get_latest_version(ti.dag_id, session=session)
+                if latest_dag_version is not None:
+                    ti.dag_version_id = latest_dag_version.id
             session.merge(ti)
 
     if dag_run_state is not False and tis:
@@ -382,7 +399,7 @@ def clear_task_instances(
         for instance in tis:
             run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
-        drs = session.scalars(
+        drs: Iterable[DagRun] = session.scalars(
             select(DagRun).where(
                 or_(
                     *(
@@ -397,6 +414,7 @@ def clear_task_instances(
             # Always update clear_number and queued_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
+            dr.context_carrier = new_dagrun_trace_carrier()
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
@@ -412,8 +430,7 @@ def clear_task_instances(
                         dr.created_dag_version_id = dag_version.id
                         dr.dag = dr_dag
                         dr.verify_integrity(session=session, dag_version_id=dag_version.id)
-                        for ti in dr.task_instances:
-                            ti.dag_version_id = dag_version.id
+                        # Only cleared TIs get latest dag_version_id above; do not rewrite others.
                 else:
                     dr_dag = scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session)
                 if not dr_dag:
@@ -425,6 +442,22 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
+            elif run_on_latest_version:
+                # Queued/running DagRun: update DR to latest version/bundle for workloads that use it.
+                dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+                if dag_version and dr.created_dag_version_id != dag_version.id:
+                    dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
+                    if not dr_dag:
+                        log.warning("No serialized dag found for dag '%s'", dr.dag_id)
+                    else:
+                        dr.created_dag_version_id = dag_version.id
+                        dr.dag = dr_dag
+                        if not dr_dag.disable_bundle_versioning:
+                            bundle_version = dr.dag_model.bundle_version
+                            if bundle_version is not None:
+                                dr.bundle_version = bundle_version
+    for ti in tis:
+        ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
 
 
@@ -573,6 +606,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
+    # Retry policy overrides: set by the task worker when a RetryPolicy is configured.
+    # Cleared on task start (ti_run).  Read by next_retry_datetime().
+    retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
         Index("ti_dag_run", dag_id, run_id),
@@ -609,8 +647,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
-    rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
-    hitl_detail = relationship("HITLDetail", lazy="noload", uselist=False)
+    rendered_task_instance_fields = relationship(
+        "RenderedTaskInstanceFields", lazy="raise", uselist=False, passive_deletes=True
+    )
+    hitl_detail = relationship("HITLDetail", lazy="raise", uselist=False, passive_deletes=True)
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
@@ -679,16 +719,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUID | None
+        run_id: str, task: Operator, map_index: int, *, dag_version_id: UUID | None, dag_run: DagRun
     ) -> dict[str, Any]:
         """
         Insert mapping.
 
         :meta private:
         """
-        priority_weight = task.weight_rule.get_weight(
+        weight_rule = task.weight_rule
+        if not hasattr(weight_rule, "get_weight"):
+            weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        priority_weight = weight_rule.get_weight(
             TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
+        context_carrier = new_task_run_carrier(dag_run.context_carrier)
 
         return {
             "dag_id": task.dag_id,
@@ -710,6 +754,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
+            "context_carrier": context_carrier,
         }
 
     @reconstructor
@@ -781,6 +826,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             select(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
+                dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
@@ -865,7 +911,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
-        self.priority_weight = self.task.weight_rule.get_weight(self)
+        weight_rule = self.task.weight_rule
+        if not hasattr(weight_rule, "get_weight"):
+            weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        self.priority_weight = weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
@@ -1080,14 +1129,24 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         prefix = f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} "
         if self.map_index != -1:
             prefix += f"map_index={self.map_index} "
-        return prefix + f"[{self.state}]>"
+        return prefix + f"[{self.state}] ti_id={self.id}>"
 
     def next_retry_datetime(self):
         """
         Get datetime of the next retry if the task instance fails.
 
+        When a :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy` has
+        overridden the delay, ``retry_delay_override`` is stored on the task
+        instance row and takes precedence over the static ``retry_delay`` /
+        exponential-backoff calculation.
+
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
+        # Check for a policy-driven delay override.
+        if self.retry_delay_override is not None:
+            base = self.end_date if self.end_date is not None else timezone.utcnow()
+            return base + timedelta(seconds=self.retry_delay_override)
+
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
         delay = self.task.retry_delay
@@ -1226,7 +1285,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and ti.state == TaskInstanceState.SUCCESS:
-            Stats.incr("previously_succeeded", tags=ti.stats_tags)
+            stats.incr("previously_succeeded", tags=ti.stats_tags)
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -1389,11 +1448,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
-        DualStatsManager.timing(
+        stats.timing(
             f"task.{metric_name}",
             timing,
-            tags={},
-            extra_tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
         )
 
     def clear_next_method_args(self) -> None:
@@ -1411,7 +1469,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        print(task_outlets, outlet_events)
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
@@ -1583,6 +1640,74 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
+    @property
+    def start_trigger_args(self) -> StartTriggerArgs | None:
+        if self.task and self.task.start_from_trigger is True:
+            return self.task.start_trigger_args
+        return None
+
+    # TODO: We have some code duplication here and in the _create_ti_state_update_query_and_update_state
+    #       method of the task_instances module in the execution api when a TIDeferredStatePayload is being
+    #       processed. This is because of a TaskInstance being updated differently using SQLAlchemy.
+    #       If we use the approach from the execution api as common code in the DagRun schedule_tis method,
+    #       the side effect is the changes done to the task instance aren't picked up by the scheduler and
+    #       thus the task instance isn't processed until the scheduler is restarted.
+    @provide_session
+    def defer_task(self, session: Session = NEW_SESSION) -> bool:
+        """
+        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+
+        :meta: private
+        """
+        from airflow.models.trigger import Trigger
+
+        if TYPE_CHECKING:
+            assert self.start_date
+            assert isinstance(self.task, Operator)
+
+        if start_trigger_args := self.start_trigger_args:
+            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+            timeout = start_trigger_args.timeout
+
+            # Calculate timeout too if it was passed
+            if timeout is not None:
+                self.trigger_timeout = timezone.utcnow() + timeout
+            else:
+                self.trigger_timeout = None
+
+            trigger_row = Trigger(
+                classpath=start_trigger_args.trigger_cls,
+                kwargs=trigger_kwargs,
+            )
+
+            # First, make the trigger entry
+            session.add(trigger_row)
+            session.flush()
+
+            # Then, update ourselves so it matches the deferral request
+            # Keep an eye on the logic in `check_and_change_state_before_execution()`
+            # depending on self.next_method semantics
+            pre_deferral_state = self.state
+            self.state = TaskInstanceState.DEFERRED
+            self.trigger_id = trigger_row.id
+            self.next_method = start_trigger_args.next_method
+            self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
+            self.start_date = timezone.utcnow()
+
+            # If an execution_timeout is set, set the timeout to the minimum of
+            # it and the trigger timeout
+            if execution_timeout := self.task.execution_timeout:
+                if self.trigger_timeout:
+                    self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+                else:
+                    self.trigger_timeout = self.start_date + execution_timeout
+            if pre_deferral_state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                self.try_number += 1
+            if self.test_mode:
+                _add_log(event=self.state, task_instance=self, session=session)
+            return True
+        return False
+
     @classmethod
     def fetch_handle_failure_context(
         cls,
@@ -1610,12 +1735,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
-        DualStatsManager.incr(
+        stats.incr(
             "operator_failures",
-            tags=ti.stats_tags,
-            extra_tags={"operator_name": ti.operator},
+            tags={**ti.stats_tags, "operator_name": ti.operator},
         )
-        Stats.incr("ti_failures", tags=ti.stats_tags)
+        stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
@@ -1832,22 +1956,52 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @provide_session
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
-        """Return Number of running TIs from the DB."""
-        # .count() is inefficient
-        num_running_task_instances_query = (
+        """Count running TIs from the DB."""
+        warnings.warn(
+            "This function is deprecated and will be removed in Airflow.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return self._get_num_task_instances_of_state(
+            [TaskInstanceState.RUNNING],
+            same_dagrun=same_dagrun,
+            session=session,
+        )
+
+    def get_num_active_task_instances(self, *, same_dagrun: bool = False, session: Session) -> int:
+        """
+        Count active (running or deferred) TIs for this task from the DB.
+
+        Deferred TIs are included because they are still logically in-flight
+        and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
+
+        :meta private:
+        """
+        return self._get_num_task_instances_of_state(
+            [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED],
+            same_dagrun=same_dagrun,
+            session=session,
+        )
+
+    def _get_num_task_instances_of_state(
+        self,
+        states: Collection[TaskInstanceState],
+        *,
+        same_dagrun: bool = False,
+        session: Session,
+    ) -> int:
+        stmt = (
             select(func.count())
             .select_from(TaskInstance)
-            .where(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.state == TaskInstanceState.RUNNING,
-            )
+            .where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id == self.task_id)
         )
+        if states:
+            stmt = stmt.where(or_(*(TaskInstance.state == s for s in states)))
+        else:
+            return 0
         if same_dagrun:
-            num_running_task_instances_query = num_running_task_instances_query.where(
-                TaskInstance.run_id == self.run_id
-            )
-        return session.scalar(num_running_task_instances_query) or 0
+            stmt = stmt.where(TaskInstance.run_id == self.run_id)
+        return session.scalar(stmt) or 0
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:

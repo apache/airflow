@@ -54,7 +54,7 @@ In Airflow 3, direct metadata database access from task code is now restricted. 
 
 - **No Direct Database Access**: Task code can no longer directly import and use Airflow database sessions or models.
 - **API-Based Resource Access**: All runtime interactions (state transitions, heartbeats, XComs, and resource fetching) are handled through a dedicated Task Execution API.
-- **Enhanced Security**: This ensures isolation and security by preventing malicious task code from accessing or modifying the Airflow metadata database.
+- **Enhanced Security**: This improves isolation and security by preventing worker task code from directly accessing or modifying the Airflow metadata database. Note that Dag author code potentially still executes with direct database access in the Dag File Processor and Triggerer — see :doc:`/security/security_model` for details.
 - **Stable Interface**: The Task SDK provides a stable, forward-compatible interface for accessing Airflow resources without direct database dependencies.
 
 Step 1: Take care of prerequisites
@@ -317,6 +317,7 @@ and FastAPI middlewares (``fastapi_root_middlewares``).
 
 If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
 All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+For the full chart-specific upgrade checklist (``values.yaml`` changes, the standalone Dag processor, JWT secret, FAB defaults, minimum Kubernetes version, and renamed keys across chart ``1.16.0``..``1.18.0``), see :doc:`helm-chart:upgrading-to-airflow-3`.
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
@@ -372,10 +373,36 @@ These include:
   - ``next_ds``
   - ``execution_date``
 - The ``catchup_by_default`` Dag parameter is now ``False`` by default.
-- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
+- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``.
+
+  This only affects Dags that pass a **bare cron string** to ``schedule=`` (e.g.
+  ``schedule="0 0 * * *"``); Dags that pass an explicit timetable instance are
+  unaffected. Decide whether you rely on ``data_interval_start`` /
+  ``data_interval_end`` (and on the related templated values like ``ds`` /
+  ``ts`` in your tasks, which are derived from ``logical_date`` and shift
+  between the two timetables). If you do, set
+  ``create_cron_data_intervals=True`` explicitly to keep ``CronDataIntervalTimetable``.
+  If you don't, the new ``False`` default is fine.
+
+  Set this **before** the upgrade. If you instead change the flag after some
+  Airflow 3 dagruns already exist (going
+  ``CronTriggerTimetable`` -> ``CronDataIntervalTimetable``), one scheduled run
+  is skipped to avoid colliding with the previous run's ``logical_date``.
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini
 
       airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 - **AUTH API** api routes defined in the auth manager are prefixed with the ``/auth`` route. Urls consumed outside of the application such as oauth redirect urls will have to updated accordingly. For example an oauth redirect url that was ``https://<your-airflow-url.com>/oauth-authorized/google`` in Airflow 2.x will be ``https://<your-airflow-url.com>/auth/oauth-authorized/google`` in Airflow 3.x
+- **XCom Pull Default Behavior**: Calling ``xcom_pull()`` without a ``task_ids`` argument now pulls only from the current task. In Airflow 2, omitting ``task_ids`` would search all tasks in the Dag run and return the most recently pushed value for the given key. You must now explicitly pass ``task_ids`` to pull XComs from other tasks:
+
+  .. code-block:: python
+
+      # Airflow 2 - pulls most recent value from any task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - same call only checks the current task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - specify task_ids to pull from other tasks
+      value = ti.xcom_pull(task_ids="upstream_task", key="shared_state")

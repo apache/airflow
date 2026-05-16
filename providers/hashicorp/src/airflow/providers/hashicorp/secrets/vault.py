@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -52,6 +53,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         (default: 'variables'). If set to None (null), requests for variables will not be sent to Vault.
     :param config_path: Specifies the path of the secret to read Airflow Configurations
         (default: 'config'). If set to None (null), requests for configurations will not be sent to Vault.
+    :param use_team_secrets_path: Flag to enable team scoped secret retrieval from {base_path}/{team_name}/{key}
+        in multi team deployments. (default: true)
+    :param global_secrets_path: Path prefix to add to global scoped connections and variables in multi team deployments.
+        (default: No prefix)
     :param url: Base URL for the Vault instance being addressed.
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
         ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
@@ -99,6 +104,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         connections_path: str | None = "connections",
         variables_path: str | None = "variables",
         config_path: str | None = "config",
+        use_team_secrets_path: bool = True,
+        global_secrets_path: str | None = None,
         url: str | None = None,
         auth_type: str = "token",
         auth_mount_point: str | None = None,
@@ -132,6 +139,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self.connections_path = connections_path.rstrip("/") if connections_path is not None else None
         self.variables_path = variables_path.rstrip("/") if variables_path is not None else None
         self.config_path = config_path.rstrip("/") if config_path is not None else None
+        self.use_team_secrets_path = use_team_secrets_path
+        self.global_secrets_path = (
+            global_secrets_path.rstrip("/") if global_secrets_path is not None else None
+        )
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
         self.vault_client = _VaultClient(
@@ -189,13 +200,29 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
 
-    def get_response(self, conn_id: str) -> dict | None:
+    def _get_team_or_global_secret(self, base_path: str | None, team_name: str | None, key: str):
         """
-        Get data from Vault.
+        Get a secret from a team specific path or the global path.
 
-        :return: The data from the Vault path if exists
+        If multi team is enabled, check {base_path}/{team_name}/{key}, then fallback to {base_path}/{global_path}/{key} or {base_path}/{key}.
         """
-        return self._get_secret_with_base(self.connections_path, conn_id)
+        if base_path is None:
+            return None
+        if (
+            conf.getboolean("core", "multi_team", fallback=False)
+            and self.use_team_secrets_path
+            and team_name is not None
+        ):
+            response = self._get_secret_with_base(self.build_path(base_path, team_name), key)
+            if response is not None:
+                return response
+        # Fallback to global secret
+        if conf.getboolean("core", "multi_team", fallback=False) and self.global_secrets_path is not None:
+            path = self.build_path(base_path, self.global_secrets_path)
+        else:
+            path = base_path
+
+        return self._get_secret_with_base(path, key)
 
     # Make sure connection is imported this way for type checking, otherwise when importing
     # the backend it will get a circular dependency and fail
@@ -214,7 +241,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         # problems when instantiating the backend during configuration
         from airflow.models.connection import Connection
 
-        response = self.get_response(conn_id)
+        response = self._get_team_or_global_secret(self.connections_path, team_name, conn_id)
         if response is None:
             return None
 
@@ -232,7 +259,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value retrieved from the vault
         """
-        response = self._get_secret_with_base(self.variables_path, key)
+        response = self._get_team_or_global_secret(self.variables_path, team_name, key)
 
         if not response:
             return None

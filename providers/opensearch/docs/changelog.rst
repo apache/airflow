@@ -27,6 +27,73 @@
 Changelog
 ---------
 
+
+1.9.1
+.....
+
+.. note::
+  When the ``[opensearch] host`` config embeds credentials
+  (``https://user:password@opensearch.example.com:9200``), the log-source
+  label shown in task logs is now the host URL with the ``user:password@``
+  portion stripped. Previously the full URL (including credentials) could
+  appear as a dictionary key in the task-log output when log-hits did not
+  carry a ``host`` field. The OpenSearch client is still connected using
+  the full URL, so authentication is unaffected.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Strip userinfo from OpenSearch host URL before using it as task-log label (#65509)``
+* ``Fix opensearch provider to use SDK imports for Airflow 3.2+ (#65076)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document OpenSearch logging override needed on Airflow 3.0.0 – 3.2.0 (#65209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'write_to_os' writing task logs to opensearch (#64364)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.8.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Elasticsearch / OpenSearch logging exception details are missing in task log tab (#63739)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 1.8.4
 .....
 

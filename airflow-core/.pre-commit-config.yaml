@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -221,23 +221,15 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
-        ## ADD MOST PREK HOOK ABOVE THAT LINE
-        # The below prek hooks are those requiring CI image to be built
       - id: mypy-airflow-core
-        stages: ['pre-push']
         name: Run mypy for airflow-core
         language: python
-        entry: ../scripts/ci/prek/mypy.py
-        files: ^.*\.py$
-        require_serial: true
-      - id: mypy-airflow-core
-        stages: ['manual']
-        name: Run mypy for airflow-core (manual)
-        language: python
-        entry: ../scripts/ci/prek/mypy_folder.py airflow-core
+        entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py airflow-core
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
+      ## ADD MOST PREK HOOK ABOVE THAT LINE
+      # The below prek hooks are those requiring CI image to be built
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
@@ -264,6 +256,14 @@ repos:
           (?x)
           ^src/airflow/migrations/versions/.*\.py$|
           ^docs/migrations-ref\.rst$
+      - id: migration-round-trip
+        name: Migration round-trip SQLite FK enforcement
+        language: python
+        entry: ../scripts/ci/prek/migration_round_trip.py
+        pass_filenames: false
+        require_serial: true
+        stages: [manual]
+        files: ^src/airflow/migrations/versions/.*\.py$
       - id: check-default-configuration
         name: Check the default configuration
         entry: ../scripts/ci/prek/check_default_configuration.py
@@ -271,6 +271,16 @@ repos:
         require_serial: true
         pass_filenames: false
         files: ^src/airflow/config_templates/config\.yml$
+      - id: check-security-doc-constants
+        name: Check security docs match config.yml constants
+        entry: ../scripts/ci/prek/check_security_doc_constants.py
+        language: python
+        pass_filenames: false
+        files: >
+          (?x)
+          ^src/airflow/config_templates/config\.yml$|
+          ^docs/security/jwt_token_authentication\.rst$|
+          ^docs/security/security_model\.rst$
       - id: check-airflow-version-checks-in-core
         language: pygrep
         name: No AIRFLOW_V_* imports in airflow-core
@@ -289,7 +299,7 @@ repos:
           ^tests/unit/models/test_variable\.py$
       - id: check-sdk-imports
         name: Check for SDK imports in core files
-        entry: ../scripts/ci/prek/check_sdk_imports.py
+        entry: ../scripts/ci/prek/check_sdk_imports_in_core.py
         language: python
         types: [python]
         files: ^src/airflow/
@@ -313,6 +323,7 @@ repos:
           ^src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
           ^src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
           ^src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
+          ^src/airflow/api_fastapi/execution_api/versions/v2026_04_06\.py$|
           ^src/airflow/api_fastapi/logging/decorators\.py$|
           ^src/airflow/assets/evaluation\.py$|
           ^src/airflow/assets/manager\.py$|
@@ -327,7 +338,7 @@ repos:
           ^src/airflow/dag_processing/processor\.py$|
           ^src/airflow/datasets/metadata\.py$|
           ^src/airflow/exceptions\.py$|
-          ^src/airflow/executors/local_executor\.py$|
+          ^src/airflow/executors/base_executor\.py$|
           ^src/airflow/jobs/triggerer_job_runner\.py$|
           ^src/airflow/lineage/hook\.py$|
           ^src/airflow/listeners/spec/asset\.py$|
@@ -376,6 +387,7 @@ repos:
           ^src/airflow/timetables/assets\.py$|
           ^src/airflow/timetables/base\.py$|
           ^src/airflow/timetables/simple\.py$|
+          ^src/airflow/triggers/base\.py$|
           ^src/airflow/utils/cli\.py$|
           ^src/airflow/utils/context\.py$|
           ^src/airflow/utils/dag_cycle_tester\.py$|

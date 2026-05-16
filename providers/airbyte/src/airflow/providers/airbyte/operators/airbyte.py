@@ -94,7 +94,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Running in non-deferrable mode...")
             hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         else:
-            self.log.debug("Running in defferable mode in job state %s...", state)
+            self.log.debug("Running in deferrable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
                     timeout=self.execution_timeout,
@@ -127,7 +127,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         """
         if event["status"] == "error":
             self.log.debug("Error occurred with context: %s", context)
-            raise AirflowException(event["message"])
+            raise RuntimeError(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)
         return None

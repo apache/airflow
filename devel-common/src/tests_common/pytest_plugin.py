@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import DagRunProtocol, Operator
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo, DataInterval
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -160,7 +161,7 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
 # Breeze here as we want to do it quickly
-ALL_PYPROJECT_TOML_FILES = []
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
@@ -224,6 +225,15 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+# PyJWT 2.12.0 (2026-03-12) added strict type validation that rejects iss=None.
+# Current main's airflow-core deletes iss from the claims when the configured
+# `[api_auth] jwt_issuer` is falsy (commit a440d1db93, 2026-01-31), but the
+# `Compat 3.0.x` matrix tests install older airflow-core releases (e.g. 3.0.6,
+# 2025-08-25) that predate that fix. Setting a default test issuer here keeps
+# every JWT-generating test path safe across all supported airflow-core versions
+# without leaking the upper bound to user-facing dependencies. Tests that need
+# to override this still can via `conf_vars(...)`.
+os.environ.setdefault("AIRFLOW__API_AUTH__JWT_ISSUER", "test-airflow-issuer")
 
 
 @pytest.fixture
@@ -380,6 +390,12 @@ def pytest_addoption(parser: pytest.Parser):
         help="Disable internal capture warnings.",
     )
     group.addoption(
+        "--load-config",
+        action="store",
+        dest="load_config",
+        help="[DANGER] Load an airflow config file instead of test environment defaults [DANGER]",
+    )
+    group.addoption(
         "--warning-output-path",
         action="store",
         dest="warning_output_path",
@@ -408,6 +424,19 @@ def initialize_airflow_tests(request):
     airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
+
+    if request.config.option.load_config:
+        from airflow.configuration import AIRFLOW_CONFIG, conf, load_standard_airflow_configuration
+
+        saved_af_conf = AIRFLOW_CONFIG
+        AIRFLOW_CONFIG = request.config.option.load_config
+        try:
+            load_standard_airflow_configuration(conf)
+        except:
+            raise
+        finally:
+            AIRFLOW_CONFIG = saved_af_conf
+        conf.validate()
 
     if not skip_db_tests and not request.config.option.no_db_init:
         _initialize_airflow_db(request.config.option.db_init, airflow_home)
@@ -1564,6 +1593,9 @@ def create_task_instance(
         hostname=None,
         pid=None,
         last_heartbeat_at=None,
+        task: Operator | None = None,
+        start_from_trigger: bool = False,
+        start_trigger_args: StartTriggerArgs | None = None,
         **kwargs,
     ) -> TaskInstance:
         timezone = _import_timezone()
@@ -1572,26 +1604,33 @@ def create_task_instance(
         if logical_date is NOTSET:
             # For now: default to having a logical date if None is not explicitly passed.
             logical_date = timezone.utcnow()
-        with dag_maker(dag_id, **kwargs):
+        with dag_maker(dag_id, **kwargs) as dag:
             op_kwargs = {}
             op_kwargs["task_display_name"] = task_display_name
-            task = EmptyOperator(
-                task_id=task_id,
-                max_active_tis_per_dag=max_active_tis_per_dag,
-                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
-                executor_config=executor_config or {},
-                on_success_callback=on_success_callback,
-                on_execute_callback=on_execute_callback,
-                on_failure_callback=on_failure_callback,
-                on_retry_callback=on_retry_callback,
-                on_skipped_callback=on_skipped_callback,
-                inlets=inlets,
-                outlets=outlets,
-                email=email,
-                pool=pool,
-                trigger_rule=trigger_rule,
-                **op_kwargs,
-            )
+            if not task:
+                task = EmptyOperator(
+                    task_id=task_id,
+                    max_active_tis_per_dag=max_active_tis_per_dag,
+                    max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+                    executor_config=executor_config or {},
+                    on_success_callback=on_success_callback,
+                    on_execute_callback=on_execute_callback,
+                    on_failure_callback=on_failure_callback,
+                    on_retry_callback=on_retry_callback,
+                    on_skipped_callback=on_skipped_callback,
+                    inlets=inlets,
+                    outlets=outlets,
+                    email=email,
+                    pool=pool,
+                    trigger_rule=trigger_rule,
+                    **op_kwargs,
+                )
+            else:
+                task_id = task.task_id
+                task.dag = dag
+            task.start_from_trigger = start_from_trigger
+            task.start_trigger_args = start_trigger_args
+
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
                 "logical_date": logical_date,
@@ -1848,7 +1887,7 @@ def clear_lru_cache():
         return
 
     try:
-        from airflow._shared.module_loading import _get_grouped_entry_points
+        from airflow_shared.module_loading import _get_grouped_entry_points
     except ImportError:
         # compat for airflow < 3.2
         from airflow.utils.entry_points import _get_grouped_entry_points

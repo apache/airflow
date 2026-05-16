@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
 from contextlib import nullcontext
 from unittest import mock
 
 import pytest
+from sqlalchemy import Column, Integer, MetaData, Table
 
 from airflow.models import Base
 from airflow.utils.db_manager import BaseDBManager, RunDBManager
@@ -46,6 +49,17 @@ class CustomDBManager(BaseDBManager):
 
         config = self.get_alembic_config()
         alembic_command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+
+legacy_metadata = MetaData()
+Table("external_legacy_table", legacy_metadata, Column("id", Integer, primary_key=True))
+
+
+class LegacyTablesDBManager(BaseDBManager):
+    metadata = legacy_metadata
+    version_table_name = "legacy_alembic_version"
+    migration_dir = "legacy_migration_dir"
+    alembic_file = "legacy_alembic.ini"
 
 
 class LegacySignatureExternalManager:
@@ -97,6 +111,28 @@ def _create_run_db_manager(*managers):
 
 
 class TestBaseDBManager:
+    def test_importing_db_manager_does_not_eagerly_import_alembic(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys\n"
+                    "import airflow.utils.db_manager as module\n"
+                    "assert hasattr(module, 'RunDBManager')\n"
+                    "alembic_modules = sorted(\n"
+                    "    name for name in sys.modules if name == 'alembic' or name.startswith('alembic.')\n"
+                    ")\n"
+                    "assert not alembic_modules, alembic_modules\n"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr or result.stdout
+
     @mock.patch.object(BaseDBManager, "get_alembic_config")
     @mock.patch.object(BaseDBManager, "get_current_revision")
     @mock.patch.object(BaseDBManager, "create_db_from_orm")
@@ -130,14 +166,50 @@ class TestBaseDBManager:
         assert "Upgrading the MockDBManager database" in caplog.text
 
     @mock.patch.object(BaseDBManager, "create_db_from_orm")
+    @mock.patch.object(BaseDBManager, "_has_existing_manager_tables", return_value=False)
     @mock.patch.object(BaseDBManager, "get_current_revision")
     def test_upgrade_empty_db_without_migration_files_uses_create_db_from_orm(
-        self, mock_current_revision, mock_create_db_from_orm, session
+        self, mock_current_revision, mock_has_existing_manager_tables, mock_create_db_from_orm, session
     ):
         mock_current_revision.return_value = None
         manager = MockDBManager(session)
         manager.upgradedb()
+        mock_has_existing_manager_tables.assert_called_once()
         mock_create_db_from_orm.assert_called_once()
+
+    @mock.patch.object(BaseDBManager, "get_current_revision", return_value=None)
+    @mock.patch.object(BaseDBManager, "create_db_from_orm")
+    @mock.patch.object(BaseDBManager, "get_alembic_config")
+    @mock.patch.object(BaseDBManager, "get_script_object")
+    @mock.patch("airflow.utils.db_manager.inspect")
+    @mock.patch("alembic.command.stamp")
+    @mock.patch("alembic.command.upgrade")
+    def test_upgrade_with_existing_manager_tables_without_version_stamps_base_then_runs_migrations(
+        self,
+        mock_upgrade,
+        mock_stamp,
+        mock_inspect,
+        mock_get_script_object,
+        mock_get_alembic_config,
+        mock_create_db_from_orm,
+        mock_get_current_revision,
+        session,
+    ):
+        config = object()
+        mock_get_alembic_config.return_value = config
+        base_revision = mock.Mock(revision="base-revision", down_revision=None)
+        mock_get_script_object.return_value.walk_revisions.return_value = [
+            mock.Mock(revision="head-revision", down_revision="base-revision"),
+            base_revision,
+        ]
+        mock_inspect.return_value.get_table_names.return_value = ["external_legacy_table"]
+
+        manager = LegacyTablesDBManager(session)
+        manager.upgradedb()
+
+        mock_create_db_from_orm.assert_not_called()
+        mock_stamp.assert_called_once_with(config, "base-revision")
+        mock_upgrade.assert_called_once_with(config, revision="heads", sql=False)
 
     @mock.patch.object(BaseDBManager, "get_script_object")
     @mock.patch.object(BaseDBManager, "get_current_revision")
@@ -230,10 +302,76 @@ class TestRunDBManager:
     def test_initdb_and_upgradedb_pass_use_migration_files_to_var_kwarg_manager(self, session):
         VarKwargExternalManager.initdb_kwargs = []
         VarKwargExternalManager.upgradedb_kwargs = []
-
         run_db_manager = _create_run_db_manager(VarKwargExternalManager)
         run_db_manager.initdb(session=session, use_migration_files=True)
         run_db_manager.upgradedb(session=session, use_migration_files=False)
 
         assert VarKwargExternalManager.initdb_kwargs == [{"use_migration_files": True}]
         assert VarKwargExternalManager.upgradedb_kwargs == [{"use_migration_files": False}]
+
+    @mock.patch("airflow.utils.db_manager.import_string")
+    def test_run_db_manager_uses_providers_manager_when_auth_manager_fails(self, mock_import):
+        """
+        When create_auth_manager() raises in a migration-only context (e.g. the Helm
+        migrateDatabaseJob), RunDBManager must still load managers discovered via
+        ProvidersManager — the exception must not silently drop all DB managers.
+        """
+        sentinel = object()
+        mock_import.return_value = sentinel
+
+        with (
+            mock.patch(
+                "airflow.providers_manager.ProvidersManager",
+            ) as mock_pm,
+            mock.patch(
+                "airflow.api_fastapi.app.create_auth_manager",
+                side_effect=RuntimeError("No app context"),
+            ),
+        ):
+            mock_pm.return_value.db_managers = ["airflow.providers.fab.auth_manager.models.db.FABDBManager"]
+            with mock.patch("airflow.utils.db_manager.conf") as mock_conf:
+                mock_conf.get.return_value = None
+                rdm = RunDBManager.__new__(RunDBManager)
+                # Manually call __init__ so we control all side-effects
+                RunDBManager.__init__(rdm)
+
+        # The sentinel class returned by import_string must be in _managers
+        assert sentinel in rdm._managers
+
+    @mock.patch("airflow.utils.db_manager.import_string")
+    def test_run_db_manager_includes_auth_manager_db_manager_when_available(self, mock_import):
+        """
+        When create_auth_manager() succeeds and returns a DB manager class name not
+        already in the ProvidersManager list, it must be appended to _managers.
+        """
+        sentinel_pm = object()
+        sentinel_am = object()
+        call_order = []
+
+        def _import(path):
+            if "fab" in path:
+                call_order.append("fab")
+                return sentinel_pm
+            call_order.append("auth_manager_extra")
+            return sentinel_am
+
+        mock_import.side_effect = _import
+
+        mock_am = mock.MagicMock()
+        mock_am.get_db_manager.return_value = "some.extra.AuthManagerDBManager"
+
+        with (
+            mock.patch("airflow.providers_manager.ProvidersManager") as mock_pm,
+            mock.patch(
+                "airflow.api_fastapi.app.create_auth_manager",
+                return_value=mock_am,
+            ),
+        ):
+            mock_pm.return_value.db_managers = ["airflow.providers.fab.auth_manager.models.db.FABDBManager"]
+            with mock.patch("airflow.utils.db_manager.conf") as mock_conf:
+                mock_conf.get.return_value = None
+                rdm = RunDBManager.__new__(RunDBManager)
+                RunDBManager.__init__(rdm)
+
+        assert sentinel_pm in rdm._managers
+        assert sentinel_am in rdm._managers

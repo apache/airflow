@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.slack.operators.slack import (
+    SlackAPIConversationsHistoryOperator,
     SlackAPIFileOperator,
     SlackAPIOperator,
     SlackAPIPostOperator,
@@ -418,3 +419,100 @@ class TestSlackAPIFileOperator:
         assert result == [expected]
         assert result[0]["ts"] == "1234567890.123456"
         assert result[0]["file"]["id"] == "F1234567890"
+
+
+class TestSlackAPIConversationsHistoryOperator:
+    def test_init_with_valid_params(self):
+        op = SlackAPIConversationsHistoryOperator(
+            task_id="test_history",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel="C1234567890",
+        )
+        assert op.method == "conversations.history"
+        assert op.channel == "C1234567890"
+        assert op.oldest is None
+        assert op.latest is None
+        assert op.inclusive is True
+        assert op.limit == 100
+        assert op.cursor is None
+        assert op.include_all_metadata is False
+
+        op_full = SlackAPIConversationsHistoryOperator(
+            task_id="test_history",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel="C1234567890",
+            oldest="1234567890.000000",
+            latest="1234567891.000490",
+            inclusive=False,
+            limit=50,
+            cursor="dXNlcjpVMDYxTkZUVDI=",
+            include_all_metadata=True,
+        )
+        assert op_full.channel == "C1234567890"
+        assert op_full.oldest == "1234567890.000000"
+        assert op_full.latest == "1234567891.000490"
+        assert op_full.inclusive is False
+        assert op_full.limit == 50
+        assert op_full.cursor == "dXNlcjpVMDYxTkZUVDI="
+        assert op_full.include_all_metadata is True
+
+    @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
+    def test_execute_with_defaults(self, mock_hook):
+        mock_response = mock.MagicMock()
+        mock_response.data = {
+            "ok": True,
+            "messages": [{"type": "message", "ts": "1234567890.000216", "text": "hello"}],
+            "has_more": False,
+        }
+        mock_hook.return_value.call.return_value = mock_response
+
+        op = SlackAPIConversationsHistoryOperator(
+            task_id="test_history",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel="C1234567890",
+        )
+        result = op.execute({})
+
+        mock_hook.return_value.call.assert_called_once_with(
+            "conversations.history",
+            json={
+                "channel": "C1234567890",
+                "inclusive": True,
+                "limit": 100,
+                "include_all_metadata": False,
+            },
+        )
+        assert result == mock_response.data
+
+    @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
+    def test_execute_with_all_params(self, mock_hook):
+        mock_response = mock.MagicMock()
+        mock_response.data = {"ok": True, "messages": [], "has_more": False}
+        mock_hook.return_value.call.return_value = mock_response
+
+        op = SlackAPIConversationsHistoryOperator(
+            task_id="test_history",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel="C1234567890",
+            oldest="1234567890.000000",
+            latest="1234567891.000490",
+            inclusive=False,
+            limit=50,
+            cursor="dXNlcjpVMDYxTkZUVDI=",
+            include_all_metadata=True,
+        )
+        result = op.execute({})
+
+        mock_hook.return_value.call.assert_called_once_with(
+            "conversations.history",
+            json={
+                "channel": "C1234567890",
+                "oldest": "1234567890.000000",
+                "latest": "1234567891.000490",
+                "inclusive": False,
+                "limit": 50,
+                "cursor": "dXNlcjpVMDYxTkZUVDI=",
+                "include_all_metadata": True,
+            },
+        )
+        assert result == mock_response.data

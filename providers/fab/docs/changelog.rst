@@ -20,6 +20,124 @@
 Changelog
 ---------
 
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix NPM security vulnerabilities in fab provider (#66031)``
+* ``Fix FAB password hashing to respect FAB_PASSWORD_HASH_METHOD config (#65735)``
+* ``Fix fab mysql migration error caused by pre defiend fk name in orm create (#65831)``
+* ``Fix '/auth/token' 500 when FAB auth manager is recreated (#65710)``
+* ``Honor AUTH_ROLE_PUBLIC in FastAPI API server (#65685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66068)``
+   * ``Bump stylelint (#66224)``
+   * ``Bump moment-timezone from 0.6.1 to 0.6.2 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#66166)``
+   * ``Bump terser-webpack-plugin (#66033)``
+   * ``Bump stylelint (#65979)``
+   * ``Dispose flask_sqlalchemy + airflow ORM engines in fab test fixtures (#65941)``
+   * ``[main] CI: Upgrade important CI environment (#65933)``
+   * ``Revert "Remove global variables in airflow.settings (#61917)" (#65718)``
+   * ``Remove global variables in airflow.settings (#61917)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLite migration 02ca36b0235b to use naming_convention for batch_alter_table (#65540)``
+* ``Invalidate cached user permissions after LDAP role sync to prevent intermittent 403 errors (#64539)``
+* ``Lazily initialize flask_app in FastAPI routes (#64908)``
+* ``Fix duplicate Date headers in Flask WSGI responses (#64726)``
+
+Misc
+~~~~
+
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#65567)``
+* ``Bump stylelint (#65380)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#65234)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#65145)``
+* ``Bump eslint (#65681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#65521)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add authlib as optional oauth extra in fab provider (#64457)``
+* ``Prevent AppBuilder re-initialization race in FastAPI login (#64151) (#64418)``
+
+Misc
+~~~~
+
+* ``Remove dependabot alarms in fab provider npm dependencies (#64789)``
+* ``Add 4-day cooldown for pnpm dependency resolution (#64337)``
+* ``Fix dependabot alarms in FAB provider (#64369)``
+* ``Fix NPM security issues in FAB provider (#64308)``
+* ``chore(deps-dev): bump eslint (#64171)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64451)``
+   * ``Compat sdk conf follow-up: Celery, Common AI, FAB, Edge3 (#64292)``
+   * ``[main] Upgrade important CI environment (#64239)``
+   * ``Add 4-day cooldown for uv dependency resolution (#64249)``
+
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add order_by parameter to GET /permissions for pagination consistency (#63418)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 403 from roles endpoint despite admin rights (#64097)``
+* ``Fix dependabot alarms for Flatted in Fab (#63956)``
+* ``Fix race condition in FabAuthManager when workers concurrently create permissions, roles, and resources (#63842)``
+* ``Pass role name string to delete_role instead of Role object (#63337)``
+* ``Recover from first idle MySQL disconnect in token auth (#62919)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Remove various upper version bounds in the FAB provider (#63868)``
+* ``Bump webpack-cli (#63892)``
+* ``Add marshmallow to fab provider dependencies (#63896)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#63743)``
+* ``Re-introducing '--use-migration-files' and fix inconsistences between ORM/migration files (#62234)``
+* ``Fix dependabot warning regarding flatten lib - providers (#63586)``
+* ``Bump eslint (#63361)``
+* ``Bump babel-loader (#63283)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#64111)``
+* ``UpdateConfImports (#64165)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate ERD diagrams at doc build time instead of committing them (#63402)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 3.5.0
 .....
 

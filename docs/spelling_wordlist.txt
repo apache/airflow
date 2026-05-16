@@ -37,11 +37,14 @@ airflowctl
 AirflowException
 airflowignore
 ajax
+Akeyless
+akeyless
 aks
 AlertApi
 alertPolicies
 Alibaba
 alibaba
+alibabacloud
 allAuthenticatedUsers
 allowlist
 allUsers
@@ -103,6 +106,7 @@ astroid
 Async
 async
 asyncio
+asyncssh
 athena
 Atlassian
 atlassian
@@ -111,6 +115,7 @@ attr
 attrs
 au
 auditability
+auditable
 Auth
 auth
 authenticator
@@ -157,6 +162,7 @@ balancers
 Bas
 BaseClient
 BaseHook
+basename
 BaseOperator
 baseOperator
 BaseOperatorLink
@@ -204,6 +210,7 @@ camelCase
 Cancelled
 cancelled
 Cancelling
+cancelling
 cas
 Cassandra
 cassandra
@@ -256,6 +263,7 @@ cncf
 cnf
 cnt
 codebase
+codec
 codecov
 codepoints
 Colour
@@ -509,8 +517,10 @@ dttm
 dtypes
 du
 duckdb
+dumpable
 dunder
 dup
+durable
 durations
 dylib
 Dynamodb
@@ -649,6 +659,7 @@ formatter
 formatters
 forwardability
 forwardable
+fpr
 fqdn
 frontend
 fs
@@ -773,6 +784,7 @@ hyperparameters
 IaC
 iam
 ibmcloudant
+IdC
 ideation
 idempotence
 idempotency
@@ -814,6 +826,7 @@ InstanceGroupConfig
 InstanceSelection
 instanceTemplates
 InstanceType
+instanceType
 instantiation
 integrations
 ints
@@ -914,6 +927,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
@@ -1130,6 +1144,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
@@ -1155,6 +1170,7 @@ passwd
 pathlib
 pathType
 Paxos
+PDFs
 PEM
 Pem
 pem
@@ -1190,6 +1206,7 @@ pooler
 Popen
 positionally
 POSIX
+posix
 postfix
 Postgres
 postgres
@@ -1214,6 +1231,7 @@ prefetches
 preflight
 prek
 Preload
+preload
 prepend
 prepended
 preprocess
@@ -1275,6 +1293,7 @@ pytest
 pythonic
 PythonOperator
 pythonpath
+pyvespa
 pywinrm
 Qdrant
 qdrant
@@ -1286,6 +1305,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
@@ -1344,6 +1364,7 @@ responder
 reStructuredText
 resultset
 resumable
+retryable
 Reusability
 rfc
 rmse
@@ -1371,6 +1392,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runTimeoutInMinutes
 runtimes
 SaaS
 sade
@@ -1380,6 +1402,7 @@ salesforce
 samesite
 saml
 sandboxed
+sandboxing
 sanitization
 sas
 Sasl
@@ -1499,8 +1522,7 @@ srv
 ssc
 ssd
 SSHClient
-sshtunnel
-SSHTunnelForwarder
+SSHTunnel
 ssl
 sslcert
 sslkey
@@ -1615,6 +1637,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1724,6 +1747,8 @@ unpause
 unpaused
 unpausing
 unpredicted
+unsanitized
+unscoped
 untestable
 untransformed
 untrusted
@@ -1771,6 +1796,8 @@ venv
 venvs
 Vertica
 vertica
+Vespa
+vespa
 videointelligence
 views
 virtualenv
@@ -1828,6 +1855,7 @@ Xiaodong
 xlarge
 xml
 xpath
+XSS
 xyz
 yaml
 Yandex

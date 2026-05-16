@@ -32,6 +32,26 @@ from pathlib import Path
 from common_prek_utils import console
 
 
+def _is_type_checking_guard(node: ast.If) -> bool:
+    """Check if an If node is a ``TYPE_CHECKING`` guard."""
+    test = node.test
+    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
+        return True
+    if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
+        return True
+    return False
+
+
+def _collect_type_checking_node_ids(tree: ast.AST) -> set[int]:
+    """Return the ``id()`` of every AST node nested inside an ``if TYPE_CHECKING`` block."""
+    guarded: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and _is_type_checking_guard(node):
+            for child in ast.walk(node):
+                guarded.add(id(child))
+    return guarded
+
+
 def check_file_for_prohibited_imports(file_path: Path) -> list[tuple[int, str]]:
     try:
         source = file_path.read_text(encoding="utf-8")
@@ -39,9 +59,12 @@ def check_file_for_prohibited_imports(file_path: Path) -> list[tuple[int, str]]:
     except (OSError, UnicodeDecodeError, SyntaxError):
         return []
 
+    type_checking_ids = _collect_type_checking_node_ids(tree)
     violations = []
 
     for node in ast.walk(tree):
+        if id(node) in type_checking_ids:
+            continue
         # Check `from airflow.x import y` statements
         if isinstance(node, ast.ImportFrom):
             if node.module and node.module.startswith("airflow."):

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating PydanticAIHook usage."""
+"""Example DAGs demonstrating PydanticAIHook and direct pydantic-ai Agent usage."""
 
 from __future__ import annotations
 
@@ -65,3 +65,38 @@ def example_pydantic_ai_structured_output():
 # [END howto_hook_pydantic_ai_structured_output]
 
 example_pydantic_ai_structured_output()
+
+
+# [START howto_task_with_toolsets]
+@dag(schedule=None)
+def example_task_with_toolsets():
+    """Use toolsets directly in a @task function without AgentOperator."""
+
+    @task
+    def analyze_revenue() -> str:
+        from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default")
+        agent = hook.create_agent(
+            output_type=str,
+            instructions=(
+                "You are a sales analytics assistant. "
+                "Use the SQL tools to explore the database schema and answer questions."
+            ),
+            toolsets=[
+                SQLToolset(
+                    db_conn_id="my_database",
+                    allowed_tables=["customers", "orders"],
+                    max_rows=20,
+                ),
+            ],
+        )
+        result = agent.run_sync("Which customers have spent the most? Show the top 5.")
+        return result.output
+
+    analyze_revenue()
+
+
+# [END howto_task_with_toolsets]
+
+example_task_with_toolsets()

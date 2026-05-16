@@ -300,3 +300,85 @@ class SlackAPIFileOperator(SlackAPIOperator):
             thread_ts=self.thread_ts,
         )
         return [r.data for r in responses]
+
+
+class SlackAPIConversationsHistoryOperator(SlackAPIOperator):
+    """
+    Retrieve message history from a Slack conversation.
+
+    Wraps the ``conversations.history`` Slack API method to fetch messages
+    from a channel. The full API response is returned and pushed to XCom
+    for downstream tasks.
+
+    .. seealso::
+        - https://api.slack.com/methods/conversations.history
+
+    .. code-block:: python
+
+        history = SlackAPIConversationsHistoryOperator(
+            task_id="get_history",
+            channel="C1234567890",
+            oldest="1234567890.000000",
+            limit=20,
+        )
+
+    :param channel: Conversation ID to fetch history for. (templated)
+    :param oldest: Only messages after this Unix timestamp will be included.
+        Defaults to ``0``. (templated)
+    :param latest: Only messages before this Unix timestamp will be included.
+        Defaults to the current time. (templated)
+    :param inclusive: Include messages with ``oldest`` or ``latest`` timestamps
+        in results. Defaults to ``True``.
+    :param limit: Maximum number of messages to return. Default ``100``,
+        maximum ``999``.
+    :param cursor: Pagination cursor returned by a previous request's
+        ``response_metadata.next_cursor``. (templated)
+    :param include_all_metadata: Return all metadata associated with messages.
+        Defaults to ``False``.
+
+    :return: The Slack API response data (``messages``, ``has_more``,
+        ``response_metadata``, etc.). Returned value is pushed to XCom
+        for downstream tasks.
+    """
+
+    template_fields: Sequence[str] = (
+        "channel",
+        "oldest",
+        "latest",
+        "cursor",
+    )
+    ui_color = "#5BC4E6"
+
+    def __init__(
+        self,
+        channel: str,
+        oldest: str | None = None,
+        latest: str | None = None,
+        inclusive: bool = True,
+        limit: int = 100,
+        cursor: str | None = None,
+        include_all_metadata: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(method="conversations.history", **kwargs)
+        self.channel = channel
+        self.oldest = oldest
+        self.latest = latest
+        self.inclusive = inclusive
+        self.limit = limit
+        self.cursor = cursor
+        self.include_all_metadata = include_all_metadata
+
+    def construct_api_call_params(self) -> None:
+        self.api_params = {
+            "channel": self.channel,
+            "inclusive": self.inclusive,
+            "limit": self.limit,
+            "include_all_metadata": self.include_all_metadata,
+        }
+        if self.oldest is not None:
+            self.api_params["oldest"] = self.oldest
+        if self.latest is not None:
+            self.api_params["latest"] = self.latest
+        if self.cursor is not None:
+            self.api_params["cursor"] = self.cursor

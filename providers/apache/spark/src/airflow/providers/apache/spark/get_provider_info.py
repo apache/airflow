@@ -63,6 +63,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook",
+                "hook-name": "Spark Connect",
                 "connection-type": "spark_connect",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema"],
@@ -74,10 +75,12 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook",
+                "hook-name": "Spark JDBC",
                 "connection-type": "spark_jdbc",
             },
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook",
+                "hook-name": "Spark SQL",
                 "connection-type": "spark_sql",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "login", "password", "extra"],
@@ -93,6 +96,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook",
+                "hook-name": "Spark",
                 "connection-type": "spark",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "login", "password", "extra"],

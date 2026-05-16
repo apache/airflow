@@ -139,6 +139,22 @@ Tasks & Operators
 
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
+Retry Policies
+--------------
+Retry policies let you configure per-exception retry behaviour as a parameter on any
+task or operator without modifying task code. See the Retry Policies section of the
+Tasks page in the core docs for usage and design rationale.
+
+.. autoapiclass:: airflow.sdk.RetryPolicy
+
+.. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
+
+.. autoapiclass:: airflow.sdk.RetryRule
+
+.. autoapiclass:: airflow.sdk.RetryDecision
+
+.. autoclass:: airflow.sdk.RetryAction
+
 State Enums
 -----------
 .. autoclass:: airflow.sdk.TaskInstanceState
@@ -201,19 +217,21 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.PartitionMapper
 
+.. autoapiclass:: airflow.sdk.ChainMapper
+
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
-.. autoapiclass:: airflow.sdk.ToHourlyMapper
+.. autoapiclass:: airflow.sdk.StartOfHourMapper
 
-.. autoapiclass:: airflow.sdk.ToDailyMapper
+.. autoapiclass:: airflow.sdk.StartOfDayMapper
 
-.. autoapiclass:: airflow.sdk.ToWeeklyMapper
+.. autoapiclass:: airflow.sdk.StartOfWeekMapper
 
-.. autoapiclass:: airflow.sdk.ToMonthlyMapper
+.. autoapiclass:: airflow.sdk.StartOfMonthMapper
 
-.. autoapiclass:: airflow.sdk.ToQuarterlyMapper
+.. autoapiclass:: airflow.sdk.StartOfQuarterMapper
 
-.. autoapiclass:: airflow.sdk.ToYearlyMapper
+.. autoapiclass:: airflow.sdk.StartOfYearMapper
 
 .. autoapiclass:: airflow.sdk.ProductMapper
 
@@ -222,6 +240,13 @@ Partition Mapper
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
+
+Lineage
+-------
+The ``lineage`` module is available as part of the Task SDK. It provides the public hook lineage
+collector interfaces used to capture and retrieve asset lineage metadata during task execution.
+
+.. autoapimodule:: airflow.sdk.lineage
 
 Execution Time Components
 -------------------------

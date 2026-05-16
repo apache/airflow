@@ -18,17 +18,32 @@
  */
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { getSafeExternalUrl } from "src/utils/links";
 
 type ExtraLinksProps = {
   readonly refetchInterval: number | false;
 };
 
+const getTarget = (url: string) => {
+  try {
+    return new URL(url, globalThis.location.origin).origin === globalThis.location.origin
+      ? "_self"
+      : "_blank";
+  } catch {
+    return "_blank";
+  }
+};
+
 export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const tryNumber = tryNumberParam === null ? undefined : parseInt(tryNumberParam, 10);
 
   const { data } = useTaskInstanceServiceGetExtraLinks(
     {
@@ -36,6 +51,7 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
       dagRunId: runId,
       mapIndex: parseInt(mapIndex, 10),
       taskId,
+      tryNumber,
     },
     undefined,
     {
@@ -47,15 +63,27 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
     <Box py={1}>
       <Heading size="sm">{translate("extraLinks")}</Heading>
       <HStack gap={2} py={2}>
-        {Object.entries(data.extra_links).map(([key, value], _) =>
-          value === null ? undefined : (
+        {Object.entries(data.extra_links).map(([key, url]) => {
+          if (url === null) {
+            return undefined;
+          }
+
+          const safeUrl = getSafeExternalUrl(url);
+
+          if (safeUrl === undefined) {
+            return undefined;
+          }
+
+          const target = getTarget(safeUrl);
+
+          return (
             <Button asChild colorPalette="brand" key={key} variant="surface">
-              <a href={value} rel="noopener noreferrer" target="_blank">
+              <a href={safeUrl} rel="noopener noreferrer" target={target}>
                 {key}
               </a>
             </Button>
-          ),
-        )}
+          );
+        })}
       </HStack>
     </Box>
   ) : undefined;

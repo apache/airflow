@@ -27,6 +27,82 @@
 Changelog
 ---------
 
+13.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode support to AzureSynapseRunPipelineOperator (#63614)``
+* ``Add multi-team lookup to Azure Key Vault backend (#65692)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Add test coverage for AzureBatchHook.wait_for_all_node_state (#63765)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+13.1.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Azure provider hooks ignoring cloud_environment connection extra (#65320)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+13.1.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return empty list when AzureContainerInstanceHook.get_logs receives Logs(content=None) instead of returning [None]. (#63394)``
+* ``Ensure presence of conn.login in microsoft azure hook before usage (#64241)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Compat sdk conf follow-up for multiple providers (#64161)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+13.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add async hook for Azure Synapse pipelines (#62966)``
+* ``Add Azure Virtual Machines operators, sensor, and trigger (#62391)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace the scan of container groups in a resource group with a direct in AzureContainerInstanceHook (#63567)``
+* ``Fix MSGraphSensor does not respect timeout parameter in defer mode (#62241)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 13.0.1
 ......
 
@@ -724,7 +800,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environment…" (#40300)``
    * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
 
 10.1.1

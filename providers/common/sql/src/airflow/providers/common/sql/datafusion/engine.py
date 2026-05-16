@@ -101,11 +101,22 @@ class DataFusionEngine(LoggingMixin):
             datasource_config.table_name,
         )
 
-    def execute_query(self, query: str) -> dict[str, list[Any]]:
+    def execute_query(self, query: str, max_rows: int | None = None) -> dict[str, list[Any]]:
         """Execute a query and return the result as a dictionary."""
         try:
             self.log.info("Executing query: %s", query)
             df = self.session_context.sql(query)
+
+            if max_rows is not None:
+                result = df.limit(max_rows + 1).to_pydict()
+                if result and len(next(iter(result.values()))) > max_rows:
+                    self.log.warning(
+                        "Query returned more than %s rows. Returning first %s rows.",
+                        max_rows,
+                        max_rows,
+                    )
+                    return {column: values[:max_rows] for column, values in result.items()}
+                return result
             return df.to_pydict()
         except Exception as e:
             raise QueryExecutionException(f"Error while executing query: {e}")

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.models import Connection
@@ -66,6 +67,52 @@ class TestAirbyteTriggerSyncOp:
         mock_wait_for_job.assert_called_once_with(
             job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
         )
+
+    @pytest.mark.parametrize("status", ["success", "cancelled"])
+    def test_execute_complete_non_error_states(self, status, create_connection_without_db):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+            deferrable=True,
+        )
+
+        event = {
+            "status": status,
+            "message": "succeeded/cancelled",
+            "job_id": self.job_id,
+        }
+
+        result = op.execute_complete(context={}, event=event)
+
+        assert result is None
+
+    def test_execute_complete_error(self, create_connection_without_db):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+            deferrable=True,
+        )
+
+        error_event = {
+            "status": "error",
+            "message": "Job failed",
+            "job_id": self.job_id,
+        }
+
+        with pytest.raises(RuntimeError, match="Job failed"):
+            op.execute_complete(context={}, event=error_event)
 
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")

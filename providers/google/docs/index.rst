@@ -89,7 +89,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 21.0.0
+Release: 21.3.0
 
 Provider package
 ----------------
@@ -128,7 +128,7 @@ PIP package                                 Version required
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.145.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
@@ -145,7 +145,7 @@ PIP package                                 Version required
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
 ``google-cloud-dataplex``                   ``>=2.6.0``
-``google-cloud-dataproc``                   ``>=5.25.0``
+``google-cloud-dataproc``                   ``>=5.27.0``
 ``google-cloud-dataproc-metastore``         ``>=1.12.0``
 ``google-cloud-dlp``                        ``>=3.12.0``
 ``google-cloud-kms``                        ``>=2.15.0``
@@ -234,5 +234,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 21.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 21.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 21.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 21.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-21.3.0-py3-none-any.whl.sha512>`__)

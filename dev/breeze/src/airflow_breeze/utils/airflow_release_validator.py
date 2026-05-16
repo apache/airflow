@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import filecmp
 import shutil
 import tarfile
@@ -468,15 +469,11 @@ class AirflowReleaseValidator(ReleaseValidator):
 
         for line in result.stdout.split("\n"):
             if "Unapproved:" in line:
-                try:
+                with contextlib.suppress(IndexError, ValueError):
                     unapproved = int(line.split("Unapproved:")[1].split()[0])
-                except (IndexError, ValueError):
-                    pass
             if "Unknown:" in line:
-                try:
+                with contextlib.suppress(IndexError, ValueError):
                     unknown = int(line.split("Unknown:")[1].split()[0])
-                except (IndexError, ValueError):
-                    pass
 
         details = []
         if error_lines:

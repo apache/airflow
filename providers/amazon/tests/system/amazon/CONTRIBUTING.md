@@ -30,7 +30,7 @@ will always be given.  For example, I stole that line from @potiuk!
 # Scope
 
 This guide is meant to be used in addition to the [community system test design
-guide](/tests/system/README.md) and only applies to system tests within the Amazon
+guide](/contributing-docs/testing/system_tests.rst) and only applies to system tests within the Amazon
 provider package, though other providers are welcome to adopt them as well.  In any
 cases of conflicting information or confusion, this document should take precedence
 within the Amazon provider package.

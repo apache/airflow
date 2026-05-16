@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import joinedload
 
 from airflow.models.log import Log
@@ -29,6 +30,27 @@ pytestmark = pytest.mark.db_test
 
 
 class TestLogTaskInstanceReproduction:
+    def test_log_task_instance_raises_without_joinedload(self, dag_maker, session):
+        """Accessing Log.task_instance without joinedload should raise."""
+        with dag_maker("dag_raise_test", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_1")
+        session.merge(ti)
+        session.commit()
+
+        log = Log(event="test_event", task_instance=ti)
+        session.add(log)
+        session.commit()
+
+        session.expire_all()
+        stmt = select(Log).where(Log.id == log.id)
+        loaded_log = session.scalar(stmt)
+
+        with pytest.raises(InvalidRequestError):
+            loaded_log.task_instance
+
     def test_log_task_instance_join_correctness(self, dag_maker, session):
         # Create dag_1 with a task
         with dag_maker("dag_1", session=session):

@@ -26,6 +26,184 @@
 Changelog
 ---------
 
+9.28.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3TablesDeleteNamespaceOperator' (#66375)``
+* ``Add 'GlueCatalogDeleteTableOperator' (#66380)``
+* ``Add AWS SageMakerUnifiedStudioNotebookOperator (#62240)``
+* ``Add 'GlueCatalogCreateTableOperator' (#66362)``
+* ``Add 'S3VectorsDeleteIndexOperator' (#66361)``
+* ``Add 'MwaaServerlessCreateWorkflowOperator' (#66363)``
+* ``Add 'BedrockCreateGuardrailVersionOperator' (#66372)``
+* ``Add 'S3TablesCreateNamespaceOperator' (#66360)``
+* ``Add 'S3TablesDeleteTableBucketOperator' (#66120)``
+* ``Add 'S3VectorsCreateIndexOperator' (#66121)``
+* ``Add MwaaServerlessStartWorkflowRunOperator (#66046)``
+* ``Add 'BedrockDeleteGuardrailOperator' (#66140)``
+* ``Add 'S3TablesCreateTableBucketOperator' (#66119)``
+* ``Add ExecuteCallback support to AwsLambdaExecutor (#63035)``
+* ``Add 'BedrockCreateGuardrailOperator' (#66035)``
+* ``Add 'S3TablesDeleteTableOperator' (#66019)``
+* ``Add 'GlueCatalogDeleteDatabaseOperator' (#66021)``
+* ``Add 'S3VectorsDeleteVectorBucketOperator' (#66048)``
+* ``Add 'S3VectorsCreateVectorBucketOperator' for Amazon S3 Vectors (#65968)``
+* ``Add 'GlueCatalogCreateDatabaseOperator' (#65977)``
+* ``Migrate EmrServerlessStartJobTrigger from CancelledError to on_kill() (#65740)``
+* ``Add 'S3TablesCreateTableOperator' (#65816)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS auth manager batch team context (#66203)``
+* ``Fix ASYNC110 violation in RedshiftDataTrigger (#66157)``
+* ``Fix double cancellation for airflow 3.3+ for EmrServerlessStartJobTrigger (#65997)``
+
+Misc
+~~~~
+
+* ``Word changed from DAG to Dag in providers/amazon/ (#66152)``
+* ``Added logging for skipped lookups in SM and SSM backends (#66059)``
+* ``Configure S3Hook transfer_config_args via service_config (#65963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``Apply AIR201-style replacements (#65197)``
+   * ``fix: Align DAG_ID with module name in S3 Tables and S3 Vectors system tests (#66134)``
+   * ``Providers wave 2026-04-26 (#65902)``
+   * ``Providers wave 2026-04-26``
+
+9.27.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3ReadObjectOperator' (#65789)``
+* ``Add multi-team dimensions to boto3 user agent string (#65821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent unauthorized access to team-scoped secrets in SM and SSM (#65703)``
+
+Misc
+~~~~
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+9.26.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support AWS China region endpoints in RedshiftSQLHook OpenLineage identifier parsing (#65483)``
+* ``Update SecretsManagerBackend to support multi-team (#65395)``
+* ``Update SystemsManagerParameterStoreBackend to support multi-team (#65396)``
+* ``Correct AWS China SQS regex to use amazonaws.com.cn (#65299)``
+* ``Extend SQS QUEUE_REGEXP to match AWS China endpoints (#65173)``
+* ``Update 'AwsAuthManager' to support multi-team #65371 (#65393)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix RedshiftSQLHook._get_conn_params connection mutation with IAM (#64991)``
+* ``Fix SQS CreateQueue type error by casting attributes to string (#65649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky Stackdriver test timeout caused by leaked watchtower handler (#65488)``
+   * ``[AWS System Tests] Use dynamic inference profiles in Bedrock system tests (#65185)``
+
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix: Correct grammatical error in AWS IAM Identity Center documentation (#65603)``
+
+9.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage parent and transport info injection to 'EmrServerlessStartJobOperator' (#64807)``
+* ``Add 'EksPodTrigger' (#64187)``
+* ``Add SageMakerConditionOperator and SageMakerFailOperator (#64545)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AwsBaseWaiterTrigger losing error details on deferred task failure (#64085)``
+* ``Fix assume_role_with_web_identity not using botocore config for STS calls (#64216)``
+* ``Fix GlueJobOperator verbose logs not showing in deferrable mode (#64342)``
+
+Misc
+~~~~
+
+* ``Improve debuggability of SQS, Lambda, EC2, and RDS hooks (#64661)``
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Bump the min aibotocore version to 3.0.0 (#64631)``
+* ``Remove the lxml workaround (#64554)``
+* ``Add debug logging and fix exception handling in DynamoDB hook (#64629)``
+* ``Add OpenLineage parent info injection to GlueJobOperator (#64513)``
+* ``Remove obsolete boto3 extra from aiobotocore dependency (#64330)``
+* ``Replace AWS keys with placeholder text in documentation and code examples (#63577)``
+* ``Fix stale system test documentation links (#65071)``
+* ``add more debugging logs when emr_eks system tests fail (#64817)``
+* ``Compat sdk conf follow-up for multiple providers (#64161)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "fix(glue): Fix GlueJobOperator verbose logs not showing in deferrable mode (#63086)" (#64340)``
+   * ``fix(glue): Fix GlueJobOperator verbose logs not showing in deferrable mode (#63086)``
+   * ``Prepare providers release 2026-04-07 (#64864)``
+
+9.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add bucket_namespace support to 'S3Hook.create_bucket' and 'S3CreateBucketOperator' (#63622)``
+* ``Adds match_glob to template_fields in GCS operators (#61819)``
+* ``Add skip_on_exit_code support to EcsRunTaskOperator (#63274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMakerNotebookOperator domain_id/project_id/domain_region params (#62962)``
+* ``Handle multi-node job log streams in BatchClientHook (#63476)``
+* ``Fix 'resume_glue_job_on_retry' with 'xcom_push' in 'GlueJobOperator' (#62560)``
+* ``Add bounded retry cleanup for Redshift cluster deletion after post-creation failure. (#63074)``
+
+Misc
+~~~~
+
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Add Python 3.14 Support (#64096)``
+* ``Remove 'sqlean.py' dependency from Amazon provider (#63623)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Amazon's provider.yaml with some missing modules (#64009)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Fix AIR004* in multiple example DAGs (#62529)``
+   * ``Avoid global tenacity sleep patch in tests to prevent cross-test timing issues (#63369)``
+   * ``Add Python 3.14 Support (#63520)``
+
 9.23.0
 ......
 
@@ -161,7 +339,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Remove the compatibility shim for log_task_event AwsEcsExecutor and AwsBatchExecutor (#60301)``
-* ``Fixed timestamp comparision bug in s3hook _sync_to_local_dir_if_changed method (#60299)``
+* ``Fixed timestamp comparison bug in s3hook _sync_to_local_dir_if_changed method (#60299)``
 
 Misc
 ~~~~
@@ -1193,7 +1371,7 @@ Bug Fixes
 * ``validate aws service exceptions in waiters (#41941)``
 * ``Fix treatment of "#" in S3Hook.parse_s3_url() (#41796)``
 * ``fix: remove part of openlineage extraction from S3ToRedshiftOperator (#41631)``
-* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``filename template arg in providers file task handlers backward compatibility support (#41633)``
 * ``fix: select_query should have precedence over default query in RedshiftToS3Operator (#41634)``
 
 Misc
@@ -2248,7 +2426,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add D400 pydocstyle check (#31742)``
    * ``Add D400 pydocstyle check - Amazon provider only (#31423)``
-   * ``AWS system test example_dynamodb_to_s3: add retry when fecthing the export time (#31388)``
+   * ``AWS system test example_dynamodb_to_s3: add retry when fetching the export time (#31388)``
    * ``Amazon provider docstring improvements (#31729)``
    * ``Replace spelling directive with spelling:word-list (#31752)``
    * ``Remove aws unused code (#31610)``
@@ -2458,7 +2636,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+* ``Improvements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
 * ``Standardize AWS lambda naming (#29749)``
 * ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
 * ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``

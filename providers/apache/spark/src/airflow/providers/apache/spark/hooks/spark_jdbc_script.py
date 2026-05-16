@@ -26,7 +26,12 @@ if TYPE_CHECKING:
 try:
     from pyspark.sql import SparkSession
 except ImportError:
-    pass
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(
+        "pyspark is required to run spark_jdbc_script. "
+        "Install it with: pip install 'apache-airflow-providers-apache-spark[pyspark]'"
+    )
 
 SPARK_WRITE_TO_JDBC: str = "spark_to_jdbc"
 SPARK_READ_FROM_JDBC: str = "jdbc_to_spark"

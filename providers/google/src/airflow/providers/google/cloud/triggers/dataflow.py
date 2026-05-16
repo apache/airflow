@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import ServiceUnavailable
 from google.cloud.dataflow_v1beta3 import JobState
 from google.cloud.dataflow_v1beta3.types import (
     AutoscalingEvent,
@@ -110,11 +111,17 @@ class TemplateJobStartTrigger(BaseTrigger):
         hook = self._get_async_hook()
         try:
             while True:
-                status = await hook.get_job_status(
-                    project_id=self.project_id,
-                    job_id=self.job_id,
-                    location=self.location,
-                )
+                try:
+                    status = await hook.get_job_status(
+                        project_id=self.project_id,
+                        job_id=self.job_id,
+                        location=self.location,
+                    )
+                except ServiceUnavailable as e:
+                    self.log.warning("Dataflow API is temporarily unavailable. Retrying... (%s)", e)
+                    await asyncio.sleep(self.poll_sleep)
+                    continue
+
                 if status == JobState.JOB_STATE_DONE:
                     yield TriggerEvent(
                         {

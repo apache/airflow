@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -46,6 +44,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
@@ -56,6 +55,7 @@ import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
+import { useTagFilter } from "./useTagFilter";
 
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
@@ -101,7 +101,7 @@ const createColumns = (
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      Boolean(original.next_dagrun_run_after) ? (
+      !original.is_paused && Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={original.next_dagrun_logical_date}
           runAfter={original.next_dagrun_run_after as string}
@@ -185,8 +185,6 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
-  TAGS,
-  TAGS_MATCH_MODE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
@@ -209,8 +207,7 @@ export const DagsList = () => {
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
-  const selectedTags = searchParams.getAll(TAGS);
-  const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) as "all" | "any";
+  const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
 
@@ -218,6 +215,7 @@ export const DagsList = () => {
 
   const { pagination, sorting } = tableURLState;
   const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
+  const advancedSearch = useAdvancedSearch("dags");
 
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
@@ -263,6 +261,7 @@ export const DagsList = () => {
   }
 
   const { data, error, isLoading } = useDags({
+    advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
@@ -293,6 +292,7 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
           placeholder={translate("dags:search.dags")}

@@ -32,9 +32,12 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -94,6 +97,7 @@ def trigger_dag_run(
     run_id: str,
     payload: TriggerDAGRunPayload,
     session: SessionDep,
+    token: TIToken = CurrentTIToken,
 ) -> None:
     """Trigger a Dag run."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
@@ -112,24 +116,30 @@ def trigger_dag_run(
             },
         )
 
-    # TODO: TriggerDagRunOperator also calls this route but creates MANUAL runs.
-    #  Consider a dedicated run type for operator-triggered runs.
-    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
+    if dm.allowed_run_types is not None and DagRunType.OPERATOR_TRIGGERED not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail={
                 "reason": "denied_run_type",
-                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
+                "message": f"Dag with dag_id '{dag_id}' does not allow operator-triggered runs",
             },
         )
+
+    # Inherit triggering_user_name from the calling task's DagRun so chains of
+    # TriggerDagRunOperator preserve the original human user across child runs.
+    parent_ti = session.get(TaskInstance, token.id)
+    triggering_user_name = parent_ti.dag_run.triggering_user_name if parent_ti else None
 
     try:
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
+            run_type=DagRunType.OPERATOR_TRIGGERED,
             conf=payload.conf,
             logical_date=payload.logical_date,
+            run_after=payload.run_after,
             triggered_by=DagRunTriggeredByType.OPERATOR,
+            triggering_user_name=triggering_user_name,
             replace_microseconds=False,
             partition_key=payload.partition_key,
             note=payload.note,

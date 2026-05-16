@@ -24,9 +24,11 @@ import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING
 
-from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
+from sqlalchemy import TIMESTAMP, PickleType, String, event, nullsfirst
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
 from airflow._shared.timezones.timezone import make_naive, utc
@@ -54,6 +56,33 @@ def get_dialect_name(session: Session) -> str | None:
     if (bind := session.get_bind()) is None:
         raise ValueError("No bind/engine is associated with the provided Session")
     return getattr(bind.dialect, "name", None)
+
+
+class random_db_uuid(FunctionElement):
+    """
+    Cross-dialect random UUID generation for use in SQL expressions.
+
+    Compiles to ``gen_random_uuid()`` on PostgreSQL, ``UUID()`` on MySQL,
+    and ``uuid4()`` on SQLite (registered via :func:`setup_event_handlers`).
+    """
+
+    type = String()
+    inherit_cache = True
+
+
+@compiles(random_db_uuid, "postgresql")
+def _random_db_uuid_pg(element, compiler, **kw):
+    return "gen_random_uuid()"
+
+
+@compiles(random_db_uuid, "mysql")
+def _random_db_uuid_mysql(element, compiler, **kw):
+    return "UUID()"
+
+
+@compiles(random_db_uuid, "sqlite")
+def _random_db_uuid_sqlite(element, compiler, **kw):
+    return "uuid4()"
 
 
 class UtcDateTime(TypeDecorator):

@@ -160,6 +160,34 @@ def test_secret_key_with_configured_kid():
         assert header["kid"] == "my-custom-kid"
 
 
+def test_generate_with_custom_valid_for():
+    """generate() accepts a valid_for override."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+    token = generator.generate(extras={"sub": "user"}, valid_for=3600)
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["exp"] - claims["iat"] == 3600
+
+
+def test_generate_workload_scope_via_extras():
+    """generate() with scope='workload' in extras produces a workload-scoped token."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+
+    token = generator.generate(extras={"sub": "ti-123", "scope": "workload"}, valid_for=86400)
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["sub"] == "ti-123"
+    assert claims["scope"] == "workload"
+    assert claims["exp"] - claims["iat"] == 86400
+
+
+def test_regular_token_has_no_scope():
+    """Regular tokens without scope in extras have no scope claim."""
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+
+    regular = generator.generate(extras={"sub": "user"})
+    regular_claims = jwt.decode(regular, "test-secret", algorithms=["HS512"], audience="test")
+    assert "scope" not in regular_claims
+
+
 @pytest.fixture
 def jwt_generator(ed25519_private_key: Ed25519PrivateKey):
     key = ed25519_private_key
@@ -323,7 +351,12 @@ class TestRevokeToken:
         }
         token = jwt.encode(payload, "secret", algorithm="HS256")
 
-        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        # Pass issuer=None explicitly so the validator does not pick up the
+        # process-wide test-env default `[api_auth] jwt_issuer` and demand an
+        # `iss` claim that the synthetic tokens below intentionally omit.
+        validator = JWTValidator(
+            secret_key="secret", audience="test", algorithm=["HS256"], leeway=0, issuer=None
+        )
         validator.revoke_token(token)
 
         assert RevokedToken.is_revoked("revoke-test-jti") is True
@@ -338,7 +371,12 @@ class TestRevokeToken:
         payload = {"sub": "user", "exp": now + 3600, "iat": now, "nbf": now, "aud": "test"}
         token = jwt.encode(payload, "secret", algorithm="HS256")
 
-        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        # Pass issuer=None explicitly so the validator does not pick up the
+        # process-wide test-env default `[api_auth] jwt_issuer` and demand an
+        # `iss` claim that the synthetic tokens below intentionally omit.
+        validator = JWTValidator(
+            secret_key="secret", audience="test", algorithm=["HS256"], leeway=0, issuer=None
+        )
         validator.revoke_token(token)
 
         assert RevokedToken.is_revoked("any-jti") is False
@@ -347,7 +385,12 @@ class TestRevokeToken:
         """Test that revoke_token logs a warning instead of raising for an invalid token."""
         from airflow.models.revoked_token import RevokedToken
 
-        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        # Pass issuer=None explicitly so the validator does not pick up the
+        # process-wide test-env default `[api_auth] jwt_issuer` and demand an
+        # `iss` claim that the synthetic tokens below intentionally omit.
+        validator = JWTValidator(
+            secret_key="secret", audience="test", algorithm=["HS256"], leeway=0, issuer=None
+        )
         validator.revoke_token("invalid-token")
 
         assert RevokedToken.is_revoked("any-jti") is False
@@ -370,7 +413,12 @@ class TestRevokeToken:
         }
         token = jwt.encode(payload, "secret", algorithm="HS256")
 
-        validator = JWTValidator(secret_key="secret", audience="test", algorithm=["HS256"], leeway=0)
+        # Pass issuer=None explicitly so the validator does not pick up the
+        # process-wide test-env default `[api_auth] jwt_issuer` and demand an
+        # `iss` claim that the synthetic tokens below intentionally omit.
+        validator = JWTValidator(
+            secret_key="secret", audience="test", algorithm=["HS256"], leeway=0, issuer=None
+        )
         with patch(
             "airflow.models.revoked_token.RevokedToken.revoke", side_effect=SQLAlchemyError("db down")
         ):

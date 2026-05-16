@@ -27,6 +27,55 @@
 Changelog
 ---------
 
+5.7.5
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP: add async retrieve_file / store_file / mkdir to SFTPHookAsync and introduce SFTPClientPool``
+
+5.7.4
+.....
+
+Misc
+~~~~
+
+* ``Bump paramiko lower bound to >=3.5.1 due to adding Vespa provider (#63988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+5.7.3
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an import in providers/sftp to be Airflow 2 compatible (#63822)``
+* ``Return a warning instead of an error when file is already absent (#62639)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 5.7.1
 .....
 

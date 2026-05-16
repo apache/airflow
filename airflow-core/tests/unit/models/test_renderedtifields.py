@@ -116,11 +116,11 @@ class TestRenderedTaskInstanceFields:
             pytest.param([], [], id="list"),
             pytest.param({}, {}, id="empty_dict"),
             pytest.param((), [], id="empty_tuple"),
-            pytest.param(set(), "set()", id="empty_set"),
+            pytest.param(set(), [], id="empty_set"),
             pytest.param("test-string", "test-string", id="string"),
             pytest.param({"foo": "bar"}, {"foo": "bar"}, id="dict"),
             pytest.param(("foo", "bar"), ["foo", "bar"], id="tuple"),
-            pytest.param({"foo"}, "{'foo'}", id="set"),
+            pytest.param({"foo"}, ["foo"], id="set"),
             (date(2018, 12, 6), "2018-12-06"),
             pytest.param(datetime(2018, 12, 6, 10, 55), "2018-12-06 10:55:00+00:00", id="datetime"),
             pytest.param(

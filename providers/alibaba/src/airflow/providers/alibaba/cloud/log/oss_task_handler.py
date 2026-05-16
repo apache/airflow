@@ -49,15 +49,15 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
         path = Path(path)
         if path.is_absolute():
             local_loc = path
-            remote_loc = os.path.join(self.remote_base, path.relative_to(self.base_log_folder))
+            relative_path = str(path.relative_to(self.base_log_folder))
         else:
             local_loc = self.base_log_folder.joinpath(path)
-            remote_loc = os.path.join(self.remote_base, path)
+            relative_path = str(path)
 
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
             log = local_loc.read_text()
-            has_uploaded = self.oss_write(log, remote_loc)
+            has_uploaded = self.oss_write(log, relative_path)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 
@@ -245,11 +245,11 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         log_relative_path = self._render_filename(ti, try_number)
         remote_loc = log_relative_path
 
-        if not self.oss_log_exists(remote_loc):
+        if not self.io.oss_log_exists(remote_loc):
             return super()._read(ti, try_number, metadata)
         # If OSS remote file exists, we do not fetch logs from task instance
         # local machine even if there are errors reading remote logs, as
         # returned remote_log will contain error messages.
-        remote_log = self.oss_read(remote_loc, return_error=True)
+        remote_log = self.io.oss_read(remote_loc, return_error=True)
         log = f"*** Reading remote log from {remote_loc}.\n{remote_log}\n"
         return log, {"end_of_log": True}

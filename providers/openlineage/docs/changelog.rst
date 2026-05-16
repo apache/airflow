@@ -26,6 +26,94 @@
 Changelog
 ---------
 
+2.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+* ``Add public emit_dataset_lineage and emit_query_lineage API for OpenLineage provider (#65788)``
+* ``Add dynamically emitted asset events to OpenLineage (#65727)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent stats from breaking executor initializer (#66351)``
+* ``Manual state change should not use fork-execute model on scheduler (#65677)``
+
+Misc
+~~~~
+
+* ``Cleanup integration names for consistency (#66287)``
+* ``Bump Ol client dependency to 1.46 (#66145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+2.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add rendered map_index template to OpenLineage events (#65529)``
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix DetachedInstanceError in OpenLineage listener by using safe_getattr (#65579)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage parent and transport info injection to 'EmrServerlessStartJobOperator' (#64807)``
+* ``Add OpenLineage parent info injection to GlueJobOperator (#64513)``
+* ``Add dagrun partition info to OpenLineage events (#64897)``
+* ``Fix OpenLineage SQL utils emitting duplicate datasets for tables in multiple schemas (#64622)``
+
+Misc
+~~~~
+
+* ``Fix example dags documentation links (#65071)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-04-07 (#64864)``
+
+2.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Deadline Alerts to OL events (#63352)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify HLL in extraction precedence (#63723)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 2.12.0
 ......
 
@@ -598,14 +686,14 @@ Misc
 
 * ``Adding uuid6 as a dependency for openlineage (#46653)``
 * ``Remove AirflowContextDeprecationWarning as all context should be clean for Airflow 3 (#46601)``
-* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provoder (#46600)``
+* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provider (#46600)``
 * ``AIP-72: Move Secrets Masker to task SDK (#46375)``
 * ``Add run_after column to DagRun model (#45732)``
 * ``Remove old lineage stuff (#45260)``
 * ``Start porting mapped task to SDK (#45627)``
 * ``chore: Update docstring for DatabaseInfo in OpenLineage provider (#45638)``
 * ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
-* ``udpated 404 hyperlink to gcstogcsoperator (#45311)``
+* ``updated 404 hyperlink to gcstogcsoperator (#45311)``
 * ``pass error for on_task_instance_failed in task sdk (#46941)``
 
 .. Below changes are excluded from the changelog. Move them to

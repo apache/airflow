@@ -38,10 +38,11 @@ import structlog
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
+from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -110,10 +111,12 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    AssetStateAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
+    TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     context_get_outlet_events,
@@ -134,6 +137,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.retry_policy import RetryDecision
     from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
@@ -148,9 +152,9 @@ def _make_task_span(msg: StartupDetails):
         TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
     )
     ti = msg.ti
-    span_name = f"task_run.{ti.task_id}"
+    span_name = f"worker.{ti.task_id}"
     if ti.map_index is not None and ti.map_index >= 0:
-        span_name += f"_{ti.map_index}"
+        span_name += f"[{ti.map_index}]"
     with tracer.start_as_current_span(span_name, context=parent_context) as span:
         span.set_attributes(
             {
@@ -225,33 +229,42 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._cached_template_context: Context = self._cached_template_context or {
-            # From the Task Execution interface
-            "dag": self.task.dag,
-            "inlets": self.task.inlets,
-            "map_index_template": self.task.map_index_template,
-            "outlets": self.task.outlets,
-            "run_id": self.run_id,
-            "task": self.task,
-            "task_instance": self,
-            "ti": self,
-            "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(self.task.inlets),
-            "macros": MacrosAccessor(),
-            "params": validated_params,
-            # TODO: Make this go through Public API longer term.
-            # "test_mode": task_instance.test_mode,
-            "var": {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            },
-            "conn": ConnectionAccessor(),
-        }
+        if self._cached_template_context is None:
+            self._cached_template_context = {
+                # From the Task Execution interface
+                "dag": self.task.dag,
+                "inlets": self.task.inlets,
+                "map_index_template": self.task.map_index_template,
+                "outlets": self.task.outlets,
+                "run_id": self.run_id,
+                "task": self.task,
+                "task_instance": self,
+                "ti": self,
+                "outlet_events": OutletEventAccessors(),
+                "inlet_events": InletEventsAccessors(self.task.inlets),
+                "macros": MacrosAccessor(),
+                "params": validated_params,
+                # TODO: Make this go through Public API longer term.
+                # "test_mode": task_instance.test_mode,
+                "var": {
+                    "json": VariableAccessor(deserialize_json=True),
+                    "value": VariableAccessor(deserialize_json=False),
+                },
+                "conn": ConnectionAccessor(),
+                "task_state": TaskStateAccessor(ti_id=self.id),
+            }
+            if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for i in self.task.inlets):
+                self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
+                # AssetAlias inlets are resolved to their concrete assets at context build time
+                # via GetAssetsByAlias comms. If an alias maps to no active assets, it doesnt contribute to asset_state.
+        if TYPE_CHECKING:
+            assert self._cached_template_context is not None
         if from_server:
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
+                "partition_key": dag_run.partition_key,
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -703,7 +716,13 @@ class RuntimeTaskInstance(TaskInstance):
         return self.log_url
 
 
-def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
+def _xcom_push(
+    ti: RuntimeTaskInstance,
+    key: str,
+    value: Any,
+    *,
+    mapped_length: int | None = None,
+) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
@@ -715,6 +734,7 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         task_id=ti.task_id,
         run_id=ti.run_id,
         map_index=ti.map_index,
+        dag_result=ti.task.returns_dag_result,
         _mapped_length=mapped_length,
     )
 
@@ -764,14 +784,17 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
+    bundle_prepare_start = time.monotonic()
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
+    bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
+    dag_file_parse_start = time.monotonic()
     bag = BundleDagBag(
         dag_folder=dag_absolute_path,
         safe_mode=False,
@@ -779,6 +802,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
     )
+    dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
         assert what.ti.dag_id
 
@@ -811,6 +835,20 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
 
+    # Surface the post-RUNNING startup breakdown so support engineers and DAG authors can
+    # attribute apparent slow startup to bundle prep (Airflow-side, e.g. git fetch) vs.
+    # DAG file parse (user code). Emitted before return so it lands in the task log.
+    # Under `run_as_user` impersonation, parse() runs once pre-sudo and again post-sudo,
+    # so this event fires twice for those tasks -- the two entries show impersonation overhead.
+    log.info(
+        "Worker startup parse complete",
+        bundle_name=bundle_info.name,
+        bundle_version=bundle_info.version,
+        dag_file=what.dag_rel_path,
+        dag_id=what.ti.dag_id,
+        bundle_prepare_ms=bundle_prepare_ms,
+        dag_file_parse_ms=dag_file_parse_ms,
+    )
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
@@ -914,6 +952,17 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
 
         setproctitle(f"airflow worker -- {msg.ti.id}")
 
+    # Bind TI identifiers so every subsequent log line from this worker process
+    # carries ti_id, enabling single-grep lifecycle reconstruction across components.
+    bind_contextvars(
+        ti_id=str(msg.ti.id),
+        dag_id=msg.ti.dag_id,
+        task_id=msg.ti.task_id,
+        run_id=msg.ti.run_id,
+        try_number=msg.ti.try_number,
+        map_index=msg.ti.map_index,
+    )
+
     try:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
@@ -954,83 +1003,91 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     return ti, ti.get_template_context(), log
 
 
-def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
+def _serialize_template_field(
+    template_field: Any, name: str
+) -> str | dict | list | int | float | bool | None:
     """
     Return a serializable representation of the templated field.
 
-    If ``templated_field`` contains a class or instance that requires recursive
-    templating, store them as strings. Otherwise simply return the field as-is.
+    The walk has two responsibilities:
 
-    Used sdk secrets masker to redact secrets in the serialized output.
+    1. **Make the template_field JSON-encodable** — every container is rebuilt
+       with primitive leaves (str/int/float/bool/None), tuples and sets are
+       flattened to lists, and unsupported objects fall through to ``str()``
+       so ``json.dumps`` never raises on the result.
+    2. **Keep the output deterministic across parses** — callables are replaced
+       with their qualified name (never the default ``<function ... at 0x...>``
+       repr), dicts are key-sorted, and (frozen)sets are sorted by element so
+       the same input always produces the same string.
+
+    Uses the SDK secrets masker to redact secrets in the serialized output.
     """
-    import json
+    import inspect
 
+    from airflow.sdk._shared.module_loading import qualname
     from airflow.sdk._shared.secrets_masker import redact
 
-    def is_jsonable(x):
-        try:
-            json.dumps(x)
-        except (TypeError, OverflowError):
-            return False
-        else:
-            return True
+    def normalize_dict_key(key) -> str:
+        """Normalize a dict key to a serialized string type."""
+        # Serialized template_field keys must all be strings, not a mix of types, so that
+        # downstream json.dumps(..., sort_keys=True) does not raise on mixed-type keys.
+        return str(serialize_object(key))
 
-    def translate_tuples_to_lists(obj: Any):
-        """Recursively convert tuples to lists."""
-        if isinstance(obj, tuple):
-            return [translate_tuples_to_lists(item) for item in obj]
-        if isinstance(obj, list):
-            return [translate_tuples_to_lists(item) for item in obj]
+    def serialize_object(obj):
+        """Recursively rewrite ``obj`` into a JSON-encodable, hash-stable structure."""
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+
         if isinstance(obj, dict):
-            return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
-        return obj
+            # Serialize keys/values first so each key is a string and the output is hash-stable,
+            # then sort by the serialized key to prevent hash inconsistencies when dict ordering varies.
+            serialized_pairs = [(normalize_dict_key(k), serialize_object(v)) for k, v in obj.items()]
+            return dict(sorted(serialized_pairs, key=lambda kv: kv[0]))
 
-    def sort_dict_recursively(obj: Any) -> Any:
-        """Recursively sort dictionaries to ensure consistent ordering."""
-        if isinstance(obj, dict):
-            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
-        if isinstance(obj, list):
-            return [sort_dict_recursively(item) for item in obj]
-        if isinstance(obj, tuple):
-            return tuple(sort_dict_recursively(item) for item in obj)
-        return obj
+        if isinstance(obj, (list, tuple)):
+            return [serialize_object(item) for item in obj]
 
-    def _fallback_serialization(obj):
-        """Serialize objects with to_dict() method (eg: k8s objects) for json.dumps() default parameter."""
-        if hasattr(obj, "to_dict"):
-            return obj.to_dict()
-        raise TypeError(f"cannot serialize {obj}")
+        if isinstance(obj, (set, frozenset)):
+            # JSON has no set type → flatten to a list with deterministic ordering
+            # so hash randomization on element types cannot shift cross-process iteration order.
+            serialized_set = [serialize_object(e) for e in obj]
+            return sorted(serialized_set, key=lambda x: (type(x).__name__, str(x)))
+
+        # Use inspect.getattr_static to bypass any custom __getattr__ / metaclass magic
+        if callable(inspect.getattr_static(obj, "serialize", None)):
+            return serialize_object(obj.serialize())
+
+        # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict().
+        # Scope the branch to the kubernetes namespace so unrelated user classes that happen to
+        # define a to_dict() method fall through to str() instead of being treated as K8s payloads.
+        if getattr(type(obj), "__module__", "").startswith(
+            ("kubernetes.", "kubernetes_asyncio.")
+        ) and callable(inspect.getattr_static(obj, "to_dict", None)):
+            return serialize_object(obj.to_dict())
+
+        if callable(obj):
+            # Use qualified name; default repr embeds memory addresses, which would change the DAG hash on every parse
+            return f"<callable {qualname(obj, True)}>"
+
+        # A custom __str__ or __repr__ is treated as an intentional textual representation
+        # supplied by the author and used as-is.
+        if type(obj).__str__ is not object.__str__ or type(obj).__repr__ is not object.__repr__:
+            return str(obj)
+
+        # Otherwise fall back to a qualname marker. The default object repr is
+        # `<ClassName object at 0x...>`, which embeds a memory address that flips per process
+        # and would break DAG hash stability — use the class qualname instead.
+        return f"<{qualname(type(obj), True)} object>"
 
     max_length = conf.getint("core", "max_templated_field_length")
 
-    if not is_jsonable(template_field):
-        try:
-            serialized = template_field.serialize()
-        except AttributeError:
-            # check if these objects can be converted to JSON serializable types
-            try:
-                serialized = json.dumps(template_field, default=_fallback_serialization)
-            except (TypeError, ValueError):
-                # fall back to string representation if not
-                serialized = str(template_field)
-        if len(serialized) > max_length:
-            rendered = redact(serialized, name)
-            return truncate_rendered_value(str(rendered), max_length)
-        return serialized
-    if not template_field and not isinstance(template_field, tuple):
-        # Avoid unnecessary serialization steps for empty fields unless they are tuples
-        # and need to be converted to lists
-        return template_field
-    template_field = translate_tuples_to_lists(template_field)
-    # Sort dictionaries recursively to ensure consistent string representation
-    # This prevents hash inconsistencies when dict ordering varies
-    if isinstance(template_field, dict):
-        template_field = sort_dict_recursively(template_field)
-    serialized = str(template_field)
-    if len(serialized) > max_length:
-        rendered = redact(serialized, name)
+    serialized = serialize_object(template_field)
+
+    if len(str(serialized)) > max_length:
+        rendered = redact(str(serialized), name)
         return truncate_rendered_value(str(rendered), max_length)
-    return template_field
+
+    return serialized
 
 
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
@@ -1160,8 +1217,6 @@ def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -
 def _defer_task(
     defer: TaskDeferred, ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[ToSupervisor, TaskInstanceState]:
-    # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
-
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None
@@ -1234,9 +1289,7 @@ def run(
     error: BaseException | None = None
 
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
-    Stats.incr(f"ti.start.{ti.dag_id}.{ti.task_id}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("ti.start", tags=stats_tags)
+    stats.incr("ti.start", tags=stats_tags)
 
     try:
         # First, clear the xcom data sent from server
@@ -1261,6 +1314,7 @@ def run(
 
             try:
                 result = _execute_task(context=context, ti=ti, log=log)
+                log.info("::group::Post Execute")
             except Exception:
                 import jinja2
 
@@ -1285,15 +1339,19 @@ def run(
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
+        log.info("::group::Post Execute")
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
         SUPERVISOR_COMMS.send(msg=SkipDownstreamTasks(tasks=tasks_to_skip))
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
+        log.info("::group::Post Execute")
         msg, state = _handle_trigger_dag_run(drte, context, ti, log)
     except TaskDeferred as defer:
+        log.info("::group::Post Execute")
         msg, state = _defer_task(defer, ti, log)
     except AirflowSkipException as e:
+        log.info("::group::Post Execute")
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
         msg = TaskState(
@@ -1303,6 +1361,7 @@ def run(
         )
         state = TaskInstanceState.SKIPPED
     except AirflowRescheduleException as reschedule:
+        log.info("::group::Post Execute")
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
         msg = RescheduleTask(
             reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
@@ -1312,6 +1371,7 @@ def run(
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
+        log.info("::group::Post Execute")
         ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
@@ -1323,13 +1383,15 @@ def run(
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        log.info("::group::Post Execute")
+        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
+        log.info("::group::Post Execute")
         ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
@@ -1341,22 +1403,29 @@ def run(
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.error("Task exited", exit_code=e.code)
-        msg, state = _handle_current_task_failed(ti)
+        log.info("::group::Post Execute")
+        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     except BaseException as e:
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        log.info("::group::Post Execute")
+        msg, state = _apply_retry_policy_or_default(ti, e, log, context)
         error = e
     finally:
-        Stats.incr(
-            f"ti.finish.{ti.dag_id}.{ti.task_id}.{state.value}",
-            tags=stats_tags,
-        )
-        # Same metric with tagging
-        Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
+        stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
-            SUPERVISOR_COMMS.send(msg=msg)
+            # If the supervisor rejects the terminal-state report
+            # (e.g. the server already moved the TI to a terminal state and
+            # returns 409 - for example due to issue fixed by #65594),
+            # we still want to run finalize() so listeners observe the task state.
+            try:
+                SUPERVISOR_COMMS.send(msg=msg)
+            except Exception:
+                log.exception(
+                    "Failed to report terminal task state to supervisor",
+                    state=state.value,
+                )
 
     # Return the message to make unit tests easier too
     ti.state = state
@@ -1374,13 +1443,15 @@ def _handle_current_task_success(
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-    Stats.incr(f"operator_successes_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("operator_successes", tags={**stats_tags, "operator": operator})
-    Stats.incr("ti_successes", tags=stats_tags)
+    stats.incr("operator_successes", tags={**stats_tags, "operator_name": operator})
+    stats.incr("ti_successes", tags=stats_tags)
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
+
+    if conf.getboolean("state_store", "clear_on_success"):
+        log.info("Task state will be cleared by the server because clear_on_success is enabled.")
+
     msg = SucceedTask(
         end_date=end_date,
         task_outlets=task_outlets,
@@ -1390,8 +1461,76 @@ def _handle_current_task_success(
     return msg, TaskInstanceState.SUCCESS
 
 
+def _evaluate_retry_policy(
+    ti: RuntimeTaskInstance,
+    exception: BaseException,
+    log: Logger,
+    context: Context | None = None,
+) -> RetryDecision | None:
+    """
+    Evaluate the task's retry policy if one is configured.
+
+    Returns ``None`` when no policy is configured so the caller falls through
+    to the standard retry logic.
+    """
+    policy = getattr(ti.task, "retry_policy", None)
+    if policy is None:
+        return None
+    try:
+        max_tries = ti._ti_context_from_server.max_tries if ti._ti_context_from_server else 0
+        decision = policy.evaluate(
+            exception=exception,
+            try_number=ti.try_number,
+            max_tries=max_tries,
+            context=context,
+        )
+        if decision.reason:
+            log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
+        return decision
+    except Exception:
+        log.exception("Retry policy evaluation failed, falling back to default behaviour")
+        return None
+
+
+def _apply_retry_policy_or_default(
+    ti: RuntimeTaskInstance,
+    exception: BaseException,
+    log: Logger,
+    context: Context | None = None,
+) -> tuple[RetryTask | TaskState, TaskInstanceState]:
+    """
+    Evaluate the retry policy (if any) and decide the task's next state.
+
+    When the policy returns FAIL the task is marked as failed immediately,
+    bypassing the normal retry-count check.  When it returns RETRY with
+    a custom delay, that delay is forwarded in the ``RetryTask`` message.
+    For DEFAULT (or when no policy is configured), the standard
+    ``_handle_current_task_failed`` logic runs.
+    """
+    from airflow.sdk.definitions.retry_policy import RetryAction
+
+    decision = _evaluate_retry_policy(ti, exception, log, context)
+    if decision is not None and decision.action == RetryAction.FAIL:
+        ti.end_date = datetime.now(tz=timezone.utc)
+        return (
+            TaskState(
+                state=TaskInstanceState.FAILED,
+                end_date=ti.end_date,
+                rendered_map_index=ti.rendered_map_index,
+            ),
+            TaskInstanceState.FAILED,
+        )
+    if decision is not None and decision.action == RetryAction.RETRY:
+        return _handle_current_task_failed(
+            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+        )
+    return _handle_current_task_failed(ti)
+
+
 def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
+    retry_delay_override: timedelta | None = None,
+    retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
@@ -1400,13 +1539,16 @@ def _handle_current_task_failed(
     operator = ti.task.__class__.__name__
     stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-    Stats.incr(f"operator_failures_{operator}", tags=stats_tags)
-    # Same metric with tagging
-    Stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
-    Stats.incr("ti_failures", tags=stats_tags)
+    stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
+    stats.incr("ti_failures", tags=stats_tags)
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
-        return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
+        retry_kwargs: dict[str, Any] = {"end_date": end_date}
+        if retry_delay_override is not None:
+            retry_kwargs["retry_delay_seconds"] = retry_delay_override.total_seconds()
+        if retry_reason is not None:
+            retry_kwargs["retry_reason"] = retry_reason[:500]
+        return RetryTask(**retry_kwargs), TaskInstanceState.UP_FOR_RETRY
     return (
         TaskState(
             state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
@@ -1425,6 +1567,7 @@ def _handle_trigger_dag_run(
             dag_id=drte.trigger_dag_id,
             run_id=drte.dag_run_id,
             logical_date=drte.logical_date,
+            run_after=drte.run_after,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
             note=drte.note,
@@ -1659,6 +1802,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
+    log.info("::endgroup::")
+
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
@@ -1753,8 +1898,7 @@ def finalize(
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
         stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
-        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+        stats.timing("task.duration", duration_ms, tags=stats_tags)
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
@@ -1777,11 +1921,7 @@ def finalize(
             try:
                 SUPERVISOR_COMMS.send(SetRenderedFields(rendered_fields=_serialize_rendered_fields(ti.task)))
             except Exception:
-                log.exception(
-                    "Failed to set rendered fields during finalization",
-                    task_id=ti.task_id,
-                    dag_id=ti.dag_id,
-                )
+                log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
     if state == TaskInstanceState.SUCCESS:
@@ -1826,6 +1966,8 @@ def finalize(
     except Exception:
         log.exception("error calling listener")
 
+    log.info("::endgroup::")
+
 
 @contextmanager
 def flush_spans():
@@ -1847,14 +1989,25 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    stats_factory = stats_utils.get_stats_factory(Stats)
-    Stats.initialize(factory=stats_factory)
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
 
     stack = ExitStack()
     with stack:
         try:
             try:
+                log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
+
+                # On macOS fork+exec path, the structured log channel wasn't
+                # inherited (exec replaces the address space). Request it from
+                # the supervisor using the existing ResendLoggingFD mechanism.
+                # Must happen after get_startup_details() so we don't read the
+                # startup message as a ResendLoggingFD response.
+                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
+                    reinit_supervisor_comms()
                 span = _make_task_span(msg=startup_details)
                 stack.enter_context(span)
                 ti, context, log = startup(msg=startup_details)

@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
@@ -29,20 +27,29 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
+import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
+import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+
+const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -63,17 +70,47 @@ const {
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+type ColumnProps = {
+  readonly dagId?: string;
+  readonly runId?: string;
+  readonly taskId?: string;
+  readonly translate: TFunction;
+};
+
 const taskInstanceColumns = ({
+  allRowsSelected,
   dagId,
+  onRowSelect,
+  onSelectAll,
   runId,
+  selectedRows,
   taskId,
   translate,
-}: {
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
-  translate: TFunction;
-}): Array<ColumnDef<TaskInstanceResponse>> => [
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => [
+  {
+    accessorKey: "select",
+    cell: ({ row }) => (
+      <Checkbox
+        borderWidth={1}
+        checked={selectedRows.get(getRowKey(row.original))}
+        colorPalette="brand"
+        onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
+      />
+    ),
+    enableHiding: false,
+    enableSorting: false,
+    header: () => (
+      <Checkbox
+        borderWidth={1}
+        checked={allRowsSelected}
+        colorPalette="brand"
+        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      />
+    ),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
   ...(Boolean(dagId)
     ? []
     : [
@@ -95,7 +132,6 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
               <Link asChild color="fg.info" fontWeight="bold">
@@ -223,6 +259,7 @@ export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
+
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       dag_version: false,
@@ -233,9 +270,9 @@ export const TaskInstances = () => {
       queue: false,
     },
   });
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-id"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
@@ -257,10 +294,48 @@ export const TaskInstances = () => {
 
   const refetchInterval = useAutoRefresh({});
 
+  const dagIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_ID_PATTERN_PARAM,
+    value: filteredDagIdPattern,
+  });
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: RUN_ID_PATTERN_PARAM,
+    value: filteredRunId,
+  });
+  const taskDisplayNameArg = useAdvancedSearchArg({
+    patternApiKey: "taskDisplayNamePattern",
+    prefixApiKey: "taskDisplayNamePrefixPattern",
+    storageKey: NAME_PATTERN_PARAM,
+    value: taskDisplayNamePattern,
+  });
+  const operatorNameArg = useAdvancedSearchArg({
+    patternApiKey: "operatorNamePattern",
+    prefixApiKey: "operatorNamePrefixPattern",
+    storageKey: OPERATOR_NAME_PATTERN_PARAM,
+    value: operatorNamePattern,
+  });
+  const poolNameArg = useAdvancedSearchArg({
+    patternApiKey: "poolNamePattern",
+    prefixApiKey: "poolNamePrefixPattern",
+    storageKey: POOL_NAME_PATTERN_PARAM,
+    value: poolNamePattern,
+  });
+  const queueNameArg = useAdvancedSearchArg({
+    patternApiKey: "queueNamePattern",
+    prefixApiKey: "queueNamePrefixPattern",
+    storageKey: QUEUE_NAME_PATTERN_PARAM,
+    value: queueNamePattern,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
+      cursor: cursor ?? "",
       dagId: dagId ?? "~",
-      dagIdPattern: filteredDagIdPattern ?? undefined,
+      ...dagIdPatternArg,
       dagRunId: runId ?? "~",
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
@@ -269,15 +344,14 @@ export const TaskInstances = () => {
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
-      offset: pagination.pageIndex * pagination.pageSize,
-      operatorNamePattern: operatorNamePattern ?? undefined,
+      ...operatorNameArg,
       orderBy,
-      poolNamePattern: poolNamePattern ?? undefined,
-      queueNamePattern: queueNamePattern ?? undefined,
-      runIdPattern: filteredRunId ?? undefined,
+      ...poolNameArg,
+      ...queueNameArg,
+      ...runIdPatternArg,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: taskDisplayNamePattern ?? undefined,
+      ...taskDisplayNameArg,
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
@@ -292,9 +366,25 @@ export const TaskInstances = () => {
     },
   );
 
+  const nextCursor = data?.next_cursor ?? undefined;
+  const previousCursor = data?.previous_cursor ?? undefined;
+
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.task_instances,
+      getKey: getRowKey,
+    });
+
+  const selectedTaskInstances = (data?.task_instances ?? []).filter((ti) => selectedRows.has(getRowKey(ti)));
+
   const columns = taskInstanceColumns({
+    allRowsSelected,
     dagId,
+    multiTeam: false,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
     runId,
+    selectedRows,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,
   });
@@ -309,9 +399,31 @@ export const TaskInstances = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
+        nextCursor={nextCursor}
         onStateChange={setTableURLState}
-        total={data?.total_entries}
+        previousCursor={previousCursor}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <BulkClearTaskInstancesButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <BulkMarkTaskInstancesAsButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <BulkDeleteTaskInstancesButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };

@@ -50,9 +50,35 @@ export class DagCalendarTab extends BasePage {
 
     for (let i = 0; i < count; i++) {
       const cell = this.activeCells.nth(i);
-      const bg = await cell.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+      const computedColor = await cell.evaluate((el: Element) => {
+        const getRenderableColor = (element: Element): string => {
+          const color = window.getComputedStyle(element).backgroundColor;
 
-      colors.push(bg);
+          return color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent" ? color : "";
+        };
+
+        const cellColor = getRenderableColor(el);
+
+        if (cellColor) {
+          return cellColor;
+        }
+
+        const children = [...el.querySelectorAll("*")];
+
+        for (const child of children) {
+          const childColor = getRenderableColor(child);
+
+          if (childColor) {
+            return childColor;
+          }
+        }
+
+        return "";
+      });
+
+      if (computedColor) {
+        colors.push(computedColor);
+      }
     }
 
     return colors;
@@ -69,10 +95,15 @@ export class DagCalendarTab extends BasePage {
     for (let i = 0; i < count; i++) {
       const cell = this.activeCells.nth(i);
 
-      await cell.hover();
-      await expect(this.tooltip).toBeVisible({ timeout: 20_000 });
+      // Firefox sometimes fails to trigger tooltips on hover.
+      // Retry the hover + tooltip visibility check to handle this.
+      let text = "";
 
-      const text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      await expect(async () => {
+        await cell.hover({ force: true });
+        await expect(this.tooltip).toBeVisible({ timeout: 3000 });
+        text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      }).toPass({ intervals: [1000], timeout: 20_000 });
 
       if (text.includes("success")) states.push("success");
       if (text.includes("failed")) states.push("failed");
@@ -82,49 +113,40 @@ export class DagCalendarTab extends BasePage {
     return states;
   }
 
-  public async navigateToCalendar(dagId: string) {
+  public async navigateToCalendar(dagId: string): Promise<void> {
     await expect(async () => {
       await this.page.goto(`/dags/${dagId}/calendar`);
-      await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 5000 });
+      await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 5000 });
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCalendarReady();
   }
 
-  public async switchToFailedView() {
+  public async switchToFailedView(): Promise<void> {
     await this.failedToggle.click();
   }
 
-  public async switchToHourly() {
+  public async switchToHourly(): Promise<void> {
     await this.hourlyToggle.click();
 
-    await this.page.getByTestId("calendar-hourly-view").waitFor({ state: "visible", timeout: 30_000 });
-  }
-
-  public async switchToTotalView() {
-    await this.totalToggle.click();
-  }
-
-  public async verifyMonthGridRendered() {
+    await expect(this.page.getByTestId("calendar-hourly-view")).toBeVisible({ timeout: 30_000 });
     await this.waitForCalendarReady();
   }
 
-  private async waitForCalendarReady(): Promise<void> {
-    await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 120_000 });
+  public async switchToTotalView(): Promise<void> {
+    await this.totalToggle.click();
+  }
 
-    await this.page.getByTestId("calendar-current-period").waitFor({ state: "visible", timeout: 120_000 });
+  private async waitForCalendarReady(): Promise<void> {
+    await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 120_000 });
+
+    await expect(this.page.getByTestId("calendar-current-period")).toBeVisible({ timeout: 120_000 });
+    await expect(this.page.getByTestId("calendar-grid")).toBeVisible({ timeout: 120_000 });
 
     const overlay = this.page.getByTestId("calendar-loading-overlay");
 
-    if (await overlay.isVisible().catch(() => false)) {
-      await overlay.waitFor({ state: "hidden", timeout: 120_000 });
-    }
+    await expect(overlay).toBeHidden({ timeout: 120_000 });
+    const cells = this.page.getByTestId("calendar-cell");
 
-    await this.page.getByTestId("calendar-grid").waitFor({ state: "visible", timeout: 120_000 });
-
-    await this.page.waitForFunction(() => {
-      const cells = document.querySelectorAll('[data-testid="calendar-cell"]');
-
-      return cells.length > 0;
-    });
+    await expect(cells.first()).toBeVisible({ timeout: 120_000 });
   }
 }

@@ -32,7 +32,7 @@ Those are the most common arguments that you use when you want to build a custom
 +==========================================+===========================================+=============================================+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`           | Version of Airflow.                         |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PYTHON_VERSION``               | ``3.12.13``                               | Version of Python.                          |
+| ``AIRFLOW_PYTHON_VERSION``               | ``3.13.13``                               | Version of Python.                          |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see below the table)                     | Default extras with which Airflow is        |
 |                                          |                                           | installed.                                  |

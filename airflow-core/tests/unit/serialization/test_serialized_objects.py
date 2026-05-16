@@ -32,6 +32,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
@@ -42,17 +43,15 @@ from airflow.exceptions import (
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
-    ToDailyMapper as CoreToDailyMapper,
-    ToHourlyMapper as CoreToHourlyMapper,
-    ToMonthlyMapper as CoreToMonthlyMapper,
-    ToQuarterlyMapper as CoreToQuarterlyMapper,
-    ToWeeklyMapper as CoreToWeeklyMapper,
-    ToYearlyMapper as CoreToYearlyMapper,
+    StartOfDayMapper as CoreStartOfDayMapper,
+    StartOfHourMapper as CoreStartOfHourMapper,
+    StartOfMonthMapper as CoreStartOfMonthMapper,
+    StartOfQuarterMapper as CoreStartOfQuarterMapper,
+    StartOfWeekMapper as CoreStartOfWeekMapper,
+    StartOfYearMapper as CoreStartOfYearMapper,
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -61,12 +60,12 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import (
     BaseOperator,
     IdentityMapper,
-    ToDailyMapper,
-    ToHourlyMapper,
-    ToMonthlyMapper,
-    ToQuarterlyMapper,
-    ToWeeklyMapper,
-    ToYearlyMapper,
+    StartOfDayMapper,
+    StartOfHourMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
 )
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -86,6 +85,7 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
+from airflow.serialization import serialized_objects
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -103,12 +103,9 @@ from airflow.serialization.serialized_objects import (
     DagSerialization,
     LazyDeserializedDAG,
     _has_kubernetes,
-    create_scheduler_operator,
 )
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.state import DagRunState, State
-from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
 
@@ -224,31 +221,14 @@ def test_serde_validate_schema_valid_json():
     assert t.obj == {"foo": "bar"}
 
 
-TI = TaskInstance(
-    task=create_scheduler_operator(EmptyOperator(task_id="test-task")),
+TASK_CALLBACK_TI = ti_datamodel.TaskInstance(
+    id=uuid7(),
+    task_id="test-task",
+    dag_id="test-dag",
     run_id="fake_run",
-    state=State.RUNNING,
+    try_number=1,
     dag_version_id=uuid7(),
 )
-
-TI_WITH_START_DAY = TaskInstance(
-    task=create_scheduler_operator(EmptyOperator(task_id="test-task")),
-    run_id="fake_run",
-    state=State.RUNNING,
-    dag_version_id=uuid7(),
-)
-TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
-
-DAG_RUN = DagRun(
-    dag_id="test_dag_id",
-    run_id="test_dag_run_id",
-    run_type=DagRunType.MANUAL,
-    logical_date=timezone.utcnow(),
-    start_date=timezone.utcnow(),
-    state=DagRunState.SUCCESS,
-)
-DAG_RUN.id = 1
-
 
 # we add the tasks out of order, to ensure they are deserialized in the correct order
 DAG_WITH_TASKS = DAG(dag_id="test_dag", start_date=datetime.now())
@@ -400,14 +380,9 @@ class MockLazySelectSequence(LazySelectSequence):
             equal_serialized_asset,
         ),
         (
-            Connection(conn_id="TEST_ID", uri="mysql://"),
-            DAT.CONNECTION,
-            lambda a, b: a.get_uri() == b.get_uri(),
-        ),
-        (
             TaskCallbackRequest(
                 filepath="filepath",
-                ti=TI,
+                ti=TASK_CALLBACK_TI,
                 bundle_name="testing",
                 bundle_version=None,
             ),
@@ -503,6 +478,19 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     json.dumps(serialized)  # does not raise
 
 
+@pytest.mark.db_test
+def test_serialize_deserialize_connection():
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    connection = Connection(conn_id="TEST_ID", uri="mysql://")
+    serialized = BaseSerialization.serialize(connection)
+    json.dumps(serialized)
+    assert serialized[Encoding.TYPE] == DAT.CONNECTION
+
+    deserialized = BaseSerialization.deserialize(serialized)
+    assert deserialized.get_uri() == connection.get_uri()
+
+
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
 def test_serialize_deserialize_deadline_alert(reference):
     public_deadline_alert_fields = {
@@ -540,6 +528,7 @@ def test_serialize_deserialize_deadline_alert(reference):
         ),
     ],
 )
+@pytest.mark.db_test
 def test_backcompat_deserialize_connection(conn_uri):
     """Test deserialize connection which serialised by previous serializer implementation."""
     from airflow.serialization.serialized_objects import BaseSerialization
@@ -768,39 +757,39 @@ def test_encode_timezone():
     [
         (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
-            ToHourlyMapper,
+            StartOfHourMapper,
             [],
-            "airflow.partition_mappers.temporal.ToHourlyMapper",
+            "airflow.partition_mappers.temporal.StartOfHourMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
         ),
         (
-            ToDailyMapper,
+            StartOfDayMapper,
             [],
-            "airflow.partition_mappers.temporal.ToDailyMapper",
+            "airflow.partition_mappers.temporal.StartOfDayMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
         ),
         (
-            ToWeeklyMapper,
+            StartOfWeekMapper,
             [],
-            "airflow.partition_mappers.temporal.ToWeeklyMapper",
+            "airflow.partition_mappers.temporal.StartOfWeekMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
         ),
         (
-            ToMonthlyMapper,
+            StartOfMonthMapper,
             [],
-            "airflow.partition_mappers.temporal.ToMonthlyMapper",
+            "airflow.partition_mappers.temporal.StartOfMonthMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
         ),
         (
-            ToQuarterlyMapper,
+            StartOfQuarterMapper,
             [],
-            "airflow.partition_mappers.temporal.ToQuarterlyMapper",
+            "airflow.partition_mappers.temporal.StartOfQuarterMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
         ),
         (
-            ToYearlyMapper,
+            StartOfYearMapper,
             [],
-            "airflow.partition_mappers.temporal.ToYearlyMapper",
+            "airflow.partition_mappers.temporal.StartOfYearMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
         ),
     ],
@@ -819,12 +808,12 @@ def test_encode_partition_mapper(cls, args, encode_type, encode_var):
     ("sdk_cls", "core_cls"),
     [
         (IdentityMapper, CoreIdentityMapper),
-        (ToHourlyMapper, CoreToHourlyMapper),
-        (ToDailyMapper, CoreToDailyMapper),
-        (ToWeeklyMapper, CoreToWeeklyMapper),
-        (ToMonthlyMapper, CoreToMonthlyMapper),
-        (ToQuarterlyMapper, CoreToQuarterlyMapper),
-        (ToYearlyMapper, CoreToYearlyMapper),
+        (StartOfHourMapper, CoreStartOfHourMapper),
+        (StartOfDayMapper, CoreStartOfDayMapper),
+        (StartOfWeekMapper, CoreStartOfWeekMapper),
+        (StartOfMonthMapper, CoreStartOfMonthMapper),
+        (StartOfQuarterMapper, CoreStartOfQuarterMapper),
+        (StartOfYearMapper, CoreStartOfYearMapper),
     ],
 )
 def test_decode_partition_mapper(sdk_cls, core_cls):
@@ -853,10 +842,10 @@ def test_decode_partition_mapper_not_exists():
 
 
 def test_encode_product_mapper():
-    from airflow.sdk import IdentityMapper, ProductMapper, ToHourlyMapper
+    from airflow.sdk import IdentityMapper, ProductMapper, StartOfHourMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper(IdentityMapper(), ToHourlyMapper())
+    partition_mapper = ProductMapper(IdentityMapper(), StartOfHourMapper())
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
         Encoding.VAR: {
@@ -867,7 +856,7 @@ def test_encode_product_mapper():
                     Encoding.VAR: {},
                 },
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToHourlyMapper",
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
@@ -880,11 +869,11 @@ def test_encode_product_mapper():
 
 def test_decode_product_mapper():
     from airflow.partition_mappers.product import ProductMapper as CoreProductMapper
-    from airflow.sdk import ProductMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.sdk import ProductMapper, StartOfDayMapper, StartOfHourMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper(ToHourlyMapper(), ToDailyMapper())
+    partition_mapper = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)
@@ -893,6 +882,50 @@ def test_decode_product_mapper():
     assert len(core_pm.mappers) == 2
     assert core_pm.delimiter == "|"
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
+
+
+def test_encode_chain_mapper():
+    from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.chain.ChainMapper",
+        Encoding.VAR: {
+            "mappers": [
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
+                },
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H",
+                        "output_format": "%Y-%m-%d",
+                    },
+                },
+            ]
+        },
+    }
+
+
+def test_decode_chain_mapper():
+    from airflow.partition_mappers.chain import ChainMapper as CoreChainMapper
+    from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreChainMapper)
+    assert len(core_pm.mappers) == 2
+    assert core_pm.to_downstream("2024-06-15T10:30:00") == "2024-06-15"
 
 
 def test_encode_allowed_key_mapper():
@@ -979,6 +1012,43 @@ class TestSerializedBaseOperator:
         assert result.timestamp() == timestamp
 
 
+class TestRetryPolicySerialization:
+    """Test that retry_policy is serialized as a boolean flag (has_retry_policy)."""
+
+    def test_has_retry_policy_flag_set_when_policy_present(self):
+        """When retry_policy is set, has_retry_policy=True in serialized form."""
+        from airflow.sdk import DAG, BaseOperator
+        from airflow.sdk.definitions.retry_policy import ExceptionRetryPolicy, RetryAction, RetryRule
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        policy = ExceptionRetryPolicy(
+            rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="bad data")],
+        )
+
+        with DAG(dag_id="test_retry_policy_ser", start_date=DEFAULT_DATE) as dag:
+            BaseOperator(task_id="op_with_policy", retries=3, retry_policy=policy)
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+
+        task = deserialized.task_dict["op_with_policy"]
+        assert task.has_retry_policy is True
+
+    def test_has_retry_policy_flag_false_when_no_policy(self):
+        """Without retry_policy, has_retry_policy defaults to False."""
+        from airflow.sdk import DAG, BaseOperator
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        with DAG(dag_id="test_no_retry_policy_ser", start_date=DEFAULT_DATE) as dag:
+            BaseOperator(task_id="op_no_policy", retries=3)
+
+        serialized = DagSerialization.serialize_dag(dag)
+        deserialized = DagSerialization.deserialize_dag(serialized)
+
+        task = deserialized.task_dict["op_no_policy"]
+        assert task.has_retry_policy is False
+
+
 class TestKubernetesImportAvoidance:
     """Test that serialization doesn't import kubernetes unnecessarily."""
 
@@ -1005,3 +1075,76 @@ class TestKubernetesImportAvoidance:
         result = _has_kubernetes()
 
         assert result is True
+
+    def test_serialize_v1pod_attempts_import_before_serializing(self, monkeypatch):
+        """Regression test: V1Pod serialization must call _has_kubernetes(attempt_import=True)."""
+        k8s = pytest.importorskip("kubernetes.client.models")
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+
+        calls = []
+
+        def fake_has_kubernetes(*, attempt_import=False):
+            calls.append(attempt_import)
+            return True
+
+        monkeypatch.setattr(serialized_objects, "_has_kubernetes", fake_has_kubernetes)
+        monkeypatch.setattr(serialized_objects, "k8s", k8s, raising=False)
+        monkeypatch.setattr(serialized_objects, "PodGenerator", PodGenerator, raising=False)
+
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="test-pod"))
+        result = BaseSerialization.serialize(pod)
+
+        assert isinstance(result, dict), "V1Pod should serialize to a dict, not a string"
+        assert result.get(Encoding.TYPE) == DAT.POD, "V1Pod should have type DAT.POD"
+        assert True in calls
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_returns_task(dag_maker):
+    from airflow.serialization.definitions.dag import SerializedDAG
+
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    assert isinstance(ser_dag, SerializedDAG)
+    assert ser_dag["my_task"].task_id == "my_task"
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_missing_raises_node_not_found(dag_maker):
+    from airflow.exceptions import NodeNotFound
+
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    with pytest.raises(NodeNotFound):
+        ser_dag["nonexistent"]
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_missing_is_key_error(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="my_task", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    with pytest.raises(KeyError):
+        ser_dag["nonexistent"]
+
+
+@pytest.mark.db_test
+def test_serialized_dag_getitem_returns_task_group(dag_maker):
+    from airflow.serialization.definitions.dag import SerializedDAG
+
+    with dag_maker() as dag:
+        with TaskGroup(group_id="section") as tg:
+            BashOperator(task_id="t", bash_command="echo 1")
+
+    ser_dict = DagSerialization.to_dict(dag)
+    ser_dag = DagSerialization.from_dict(ser_dict)
+    assert isinstance(ser_dag, SerializedDAG)
+    assert ser_dag["section"].group_id == tg.group_id

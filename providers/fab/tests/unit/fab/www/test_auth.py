@@ -41,7 +41,16 @@ def app():
             ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
         }
     ):
-        yield application.create_app(enable_plugins=False)
+        flask_app = application.create_app(enable_plugins=False)
+        try:
+            yield flask_app
+        finally:
+            # flask_sqlalchemy creates a per-app engine in init_app(); a
+            # function-scoped app fixture without disposal would leak that
+            # engine's connection pool every test.
+            with flask_app.app_context():
+                for fab_engine in flask_app.extensions["sqlalchemy"].engines.values():
+                    fab_engine.dispose()
 
 
 @pytest.mark.parametrize(

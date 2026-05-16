@@ -19,16 +19,18 @@ from __future__ import annotations
 import ast
 import difflib
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import textwrap
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import Any
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -43,7 +45,7 @@ KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "mic
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
-GITHUB_TOKEN: str | None = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
 
 try:
     from rich.console import Console
@@ -90,9 +92,9 @@ def run_command(*args, **kwargs) -> None:
         print("#" * min(len(text), 200), file=sys.stderr)
         print(text, file=sys.stderr)
         print("#" * min(len(text), 200), file=sys.stderr)
-    time_start = time.time()
+    time_start = time.monotonic()
     subprocess.check_call(*args, **kwargs)
-    time_end = time.time()
+    time_end = time.monotonic()
     if console:
         console.print(f"[green]After {text}[/]")
         console.print(f"[green]Command finished in {time_end - time_start:.2f} seconds[/]")
@@ -118,19 +120,35 @@ GLOBAL_CONSTANTS_PATH = (
 )
 
 
+def _read_global_constants_assignment(name: str) -> Any:
+    """Read a top-level assignment from global_constants.py."""
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == name:
+                    return ast.literal_eval(node.value)
+    raise RuntimeError(f"{name} not found in global_constants.py")
+
+
 def read_allowed_kubernetes_versions() -> list[str]:
     """Parse ALLOWED_KUBERNETES_VERSIONS from global_constants.py (single source of truth).
 
     Returns versions without the ``v`` prefix, e.g. ``["1.30.13", "1.31.12", ...]``.
     """
-    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
-                    versions: list[str] = ast.literal_eval(node.value)
-                    return [v.lstrip("v") for v in versions]
-    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+    versions: list[str] = _read_global_constants_assignment("ALLOWED_KUBERNETES_VERSIONS")
+    return [v.lstrip("v") for v in versions]
+
+
+def read_default_python_major_minor_version_for_images() -> str:
+    """Parse DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES from global_constants.py."""
+    value = _read_global_constants_assignment("DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES")
+    if not isinstance(value, str):
+        raise RuntimeError(
+            "DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES in global_constants.py "
+            f"must be a string, got {type(value).__name__}"
+        )
+    return value
 
 
 def pre_process_mypy_files(files: list[str]) -> list[str]:
@@ -185,6 +203,95 @@ def insert_documentation(
     return False
 
 
+_UV_REQUIRED_VERSION_RE = re.compile(
+    r"""^\s*required-version\s*=\s*["']\s*>=\s*(?P<ver>\d+(?:\.\d+){0,2})\s*["']""",
+    re.MULTILINE,
+)
+
+
+def _parse_version(ver: str) -> tuple[int, ...]:
+    """Turn "0.9.17" into (0, 9, 17). Extra pre-release/build suffixes are ignored."""
+    match = re.match(r"^(\d+(?:\.\d+)*)", ver.strip())
+    if not match:
+        raise ValueError(f"Cannot parse version: {ver!r}")
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def read_uv_required_min_version() -> tuple[str, tuple[int, ...]]:
+    """Read the minimum uv version from the root ``pyproject.toml``.
+
+    Parses ``[tool.uv] required-version = ">=X.Y.Z"`` and returns ``(raw, tuple)``.
+    We parse by regex to avoid pulling a TOML dep into every prek script.
+    """
+    pyproject = (AIRFLOW_ROOT_PATH / "pyproject.toml").read_text()
+    # Narrow to the [tool.uv] section so we don't match a different required-version.
+    match = re.search(r"^\[tool\.uv\]\s*$(?P<body>.*?)(?=^\[|\Z)", pyproject, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise RuntimeError("`[tool.uv]` section not found in root pyproject.toml")
+    ver_match = _UV_REQUIRED_VERSION_RE.search(match.group("body"))
+    if not ver_match:
+        raise RuntimeError('`required-version = ">=X.Y.Z"` not found under `[tool.uv]` in pyproject.toml')
+    raw = ver_match.group("ver")
+    return raw, _parse_version(raw)
+
+
+def check_uv_version(uv_bin: str = "uv") -> None:
+    """Fail the hook if ``uv_bin`` is older than ``[tool.uv] required-version``.
+
+    Called manually by prek hooks that invoke ``uv`` (directly or via breeze) so a
+    contributor with an outdated uv sees a clear error before the hook spends time
+    running and emits a confusing downstream failure.
+    """
+    try:
+        raw_min, min_tuple = read_uv_required_min_version()
+    except Exception as exc:
+        # Don't block hooks on parse bugs — warn and continue.
+        message = f"Could not determine required uv version from pyproject.toml: {exc}"
+        if console:
+            console.print(f"[yellow]WARNING: {message}")
+        else:
+            print(f"WARNING: {message}")
+        return
+
+    try:
+        output = subprocess.check_output([uv_bin, "--version"], text=True).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        message = (
+            f"Could not run `{uv_bin} --version` to verify uv version (required: >= {raw_min}). Error: {exc}"
+        )
+        if console:
+            console.print(f"[red]{message}")
+        else:
+            print(message)
+        sys.exit(1)
+
+    match = re.search(r"\b(\d+\.\d+(?:\.\d+)?)", output)
+    if not match:
+        message = f"Unexpected `uv --version` output: {output!r}"
+        if console:
+            console.print(f"[yellow]WARNING: {message}")
+        else:
+            print(f"WARNING: {message}")
+        return
+    actual_raw = match.group(1)
+    actual_tuple = _parse_version(actual_raw)
+    if actual_tuple < min_tuple:
+        message = (
+            f"uv {actual_raw} at `{uv_bin}` is older than the project-required "
+            f">= {raw_min} (see `[tool.uv] required-version` in pyproject.toml). "
+            "Upgrade uv before running this hook, e.g.:\n"
+            "  uv self update\n"
+            "or, to refresh the project-pinned uv in the main venv (included in the "
+            "`dev` dependency group via the `all` extras):\n"
+            "  uv sync\n"
+        )
+        if console:
+            console.print(f"[red]{message}")
+        else:
+            print(message)
+        sys.exit(1)
+
+
 def initialize_breeze_prek(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
         raise SystemExit(
@@ -195,14 +302,16 @@ def initialize_breeze_prek(name: str, file: str):
     if os.environ.get("SKIP_BREEZE_PREK_HOOKS"):
         console.print("[yellow]Skipping breeze prek hooks as SKIP_BREEZE_PREK_HOOKS is set")
         sys.exit(0)
+    # Breeze itself runs under uv, so enforce the project's minimum uv version up front.
+    check_uv_version()
     if shutil.which("breeze") is None:
         console.print(
             "[red]The `breeze` command is not on path.[/]\n\n"
-            "[yellow]Please install breeze.\n"
-            "You can use uv with `uv tool install -e ./dev/breeze or "
-            "`pipx install -e ./dev/breeze`.\n"
-            "It will install breeze from Airflow sources "
-            "(make sure you run `pipx ensurepath` if you use pipx)[/]\n\n"
+            "[yellow]Please install breeze. Recommended: run `./scripts/tools/setup_breeze` "
+            "from the repo root — it installs a shim at `~/.local/bin/breeze` that runs breeze "
+            "via `uvx` from the current git worktree (see ADR 0017).\n"
+            "Legacy global install (`uv tool install -e ./dev/breeze` or "
+            "`pipx install -e ./dev/breeze`) still works but is no longer recommended.[/]\n\n"
             "[bright_blue]You can also set SKIP_BREEZE_PREK_HOOKS env variable to non-empty "
             "value to skip all breeze tests."
         )
@@ -265,19 +374,24 @@ def run_command_via_breeze_shell(
             print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
             print("With environment:")
             print(new_env)
-    result = subprocess.run(
-        subprocess_cmd,
-        check=False,
-        text=True,
-        **other_popen_kwargs,
-        env=new_env,
-    )
-    # Stop remaining containers
-    down_command = ["docker", "compose", "--progress", "quiet"]
-    if project_name:
-        down_command.extend(["--project-name", project_name])
-    down_command.extend(["down", "--remove-orphans"])
-    subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        result = subprocess.run(
+            subprocess_cmd,
+            check=False,
+            text=True,
+            **other_popen_kwargs,
+            env=new_env,
+        )
+    finally:
+        # Always clean up containers, networks, and volumes the breeze shell
+        # invocation created — even if the subprocess raised (KeyboardInterrupt,
+        # OSError, etc.). Without --volumes the next prek run inherits state
+        # from the previous run, which is the bug this finally clause prevents.
+        down_command = ["docker", "compose", "--progress", "quiet"]
+        if project_name:
+            down_command.extend(["--project-name", project_name])
+        down_command.extend(["down", "--remove-orphans", "--volumes"])
+        subprocess.run(down_command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result
 
 
@@ -412,6 +526,137 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
     return providers
 
 
+_NOQA_RE = re.compile(r"#\s*noqa\s*:\s*([^\n]*)", re.IGNORECASE)
+_NOQA_CODE_RE = re.compile(r"[A-Z]+\d+\b")
+
+
+def _parse_noqa_codes(line: str) -> set[str]:
+    """Extract codes from the leading comma-separated list in a ``# noqa: <codes>`` comment.
+
+    Each code must be terminated by a word boundary, so tokens like ``SDK002x``
+    or ``F401foo`` are not treated as the corresponding code.
+
+    Anything after the first non-code token is treated as explanatory text and
+    ignored, so ``# noqa: F401 - see SDK002 docs`` only yields ``{"F401"}``.
+    """
+    match = _NOQA_RE.search(line)
+    if not match:
+        return set()
+    codes: set[str] = set()
+    for raw in match.group(1).split(","):
+        code_match = _NOQA_CODE_RE.match(raw.strip())
+        if not code_match:
+            break
+        codes.add(code_match.group(0))
+    return codes
+
+
+def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom | ast.Import, nocheck_code: str) -> bool:
+    """
+    Check if the import statement has a ``# noqa: <codes>`` comment that lists
+    ``nocheck_code`` on any of its lines. The code may appear anywhere in the
+    comma-separated code list (e.g. ``# noqa: F401, SDK002``).
+    """
+    start = node.lineno
+    end = node.end_lineno or start
+    for lineno in range(start, end + 1):
+        if lineno <= len(source_lines) and nocheck_code in _parse_noqa_codes(source_lines[lineno - 1]):
+            return True
+    return False
+
+
+def find_import_violations(
+    file_path: Path,
+    *,
+    is_violating_module: Callable[[str], bool],
+    nocheck_code: str,
+    check_plain_imports: bool = False,
+) -> list[tuple[int, str]]:
+    """
+    Walk imports in ``file_path`` and return ``(lineno, statement)`` for each
+    that matches ``is_violating_module`` and is not suppressed by a
+    ``# noqa: <nocheck_code>`` comment.
+
+    :param check_plain_imports: also check ``import x`` statements (in addition
+        to ``from x import y``).
+    """
+    try:
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(file_path))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return []
+
+    source_lines = source.splitlines()
+    violations: list[tuple[int, str]] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if not node.module:
+                continue
+            if is_violating_module(node.module):
+                violating_names = [alias.name for alias in node.names]
+            else:
+                # Catch ``from airflow import settings`` style imports where the
+                # offending module is the dotted ``<module>.<name>`` path.
+                violating_names = [
+                    alias.name for alias in node.names if is_violating_module(f"{node.module}.{alias.name}")
+                ]
+            if not violating_names:
+                continue
+            if has_nocheck_marker(source_lines, node, nocheck_code):
+                continue
+            statement = f"from {node.module} import {', '.join(violating_names)}"
+            violations.append((node.lineno, statement))
+        elif check_plain_imports and isinstance(node, ast.Import):
+            for alias in node.names:
+                if is_violating_module(alias.name):
+                    if has_nocheck_marker(source_lines, node, nocheck_code):
+                        continue
+                    statement = f"import {alias.name}"
+                    if alias.asname:
+                        statement += f" as {alias.asname}"
+                    violations.append((node.lineno, statement))
+
+    return violations
+
+
+def report_import_violations(
+    files: list[str],
+    *,
+    check_func: Callable[[Path], list[tuple[int, str]]],
+    violation_label: str,
+    nocheck_code: str | None = None,
+    only_python_files: bool = False,
+) -> None:
+    """Run ``check_func`` on each file, print violations, and exit(1) if any are found.
+
+    When ``nocheck_code`` is given, a hint pointing at the ``# noqa: <code>``
+    escape hatch is printed alongside the failure summary.
+    """
+    file_paths = [Path(f) for f in files if not only_python_files or f.endswith(".py")]
+    total_violations = 0
+
+    for file_path in file_paths:
+        mismatches = check_func(file_path)
+        if mismatches:
+            console.print(f"[red]{file_path}[/red]:")
+            for line_num, statement in mismatches:
+                console.print(f"  [yellow]Line {line_num}[/yellow]: {statement}")
+            total_violations += len(mismatches)
+
+    if total_violations:
+        console.print()
+        console.print(f"[red]Found {total_violations} {violation_label}[/red]")
+        if nocheck_code:
+            console.print(
+                f"[yellow]Hint:[/yellow] if an import above is intentional, append "
+                f"`# noqa: {nocheck_code}` to the import line (single-line imports) "
+                f"or to the opening/closing paren line (multi-line imports) to "
+                f"suppress this check for that statement."
+            )
+        sys.exit(1)
+
+
 def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]:
     """
     Returns list of all imports in file.
@@ -480,13 +725,43 @@ def get_remote_for_main() -> str:
     return apache_remote or origin_remote or "origin"
 
 
-def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
+def env_without_github_tokens(env: dict[str, str] | None = None) -> dict[str, str]:
+    cleaned_env = dict(os.environ if env is None else env)
+    for token_env_var in GITHUB_TOKEN_ENV_VARS:
+        cleaned_env.pop(token_env_var, None)
+    return cleaned_env
+
+
+def get_github_token_from_env(env: dict[str, str] | None = None) -> str | None:
+    source_env = os.environ if env is None else env
+    for token_env_var in GITHUB_TOKEN_ENV_VARS:
+        token = source_env.get(token_env_var)
+        if token:
+            return token
+    return None
+
+
+def resolve_github_token(*, token: str | None = None, env: dict[str, str] | None = None) -> str | None:
+    """Resolve a token while preventing ambient env tokens from shadowing ``gh auth login``."""
     if token:
         return token
-    if GITHUB_TOKEN:
-        return GITHUB_TOKEN
-    output = subprocess.check_output(["gh", "auth", "token"])
-    token = output.decode().strip()
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env_without_github_tokens(env),
+        )
+    except FileNotFoundError:
+        return get_github_token_from_env(env)
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return get_github_token_from_env(env)
+
+
+def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
+    token = resolve_github_token(token=token)
     if not token:
         if not console:
             raise RuntimeError("Please add rich to your script dependencies and run it again")
@@ -502,3 +777,31 @@ def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str
         )
         sys.exit(1)
     return token
+
+
+def parse_operations(
+    operations_file: Path, exclude_operation_classes: set, exclude_methods: set
+) -> dict[str, list[str]]:
+    """Parse airflowctl operations file and return a mapping of CLI group names to subcommands."""
+    commands: dict[str, list[str]] = {}
+
+    with open(operations_file) as f:
+        tree = ast.parse(f.read(), filename=str(operations_file))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Operations"):
+            if node.name in exclude_operation_classes:
+                continue
+
+            group_name = node.name.replace("Operations", "").lower()
+            commands[group_name] = []
+
+            for child in node.body:
+                if isinstance(child, ast.FunctionDef):
+                    method_name = child.name
+                    if method_name in exclude_methods or method_name.startswith("_"):
+                        continue
+                    subcommand = method_name.replace("_", "-")
+                    commands[group_name].append(subcommand)
+
+    return commands

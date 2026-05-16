@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import base64
+import re
 from functools import cached_property
 from pathlib import Path
 
@@ -96,14 +97,16 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
     DEFAULT_CONNECTIONS_LABEL = "airflow.apache.org/connection-id"
     DEFAULT_VARIABLES_LABEL = "airflow.apache.org/variable-key"
     DEFAULT_CONFIG_LABEL = "airflow.apache.org/config-key"
+    DEFAULT_TEAM_LABEL = "airflow.apache.org/team"
     SERVICE_ACCOUNT_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
     def __init__(
         self,
         namespace: str | None = None,
-        connections_label: str = DEFAULT_CONNECTIONS_LABEL,
-        variables_label: str = DEFAULT_VARIABLES_LABEL,
-        config_label: str = DEFAULT_CONFIG_LABEL,
+        connections_label: str | None = DEFAULT_CONNECTIONS_LABEL,
+        variables_label: str | None = DEFAULT_VARIABLES_LABEL,
+        config_label: str | None = DEFAULT_CONFIG_LABEL,
+        team_label: str | None = DEFAULT_TEAM_LABEL,
         connections_data_key: str = "value",
         variables_data_key: str = "value",
         config_data_key: str = "value",
@@ -114,6 +117,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         self.connections_label = connections_label
         self.variables_label = variables_label
         self.config_label = config_label
+        self.team_label = team_label
         self.connections_data_key = connections_data_key
         self.variables_data_key = variables_data_key
         self.config_data_key = config_data_key
@@ -143,26 +147,28 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         Get serialized representation of Connection from a Kubernetes secret.
 
-        Multi-team isolation is not currently supported; ``team_name`` is accepted
-        for API compatibility but ignored.
-
         :param conn_id: connection id
-        :param team_name: Team name (unused — multi-team is not currently supported)
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         """
-        return self._get_secret(self.connections_label, conn_id, self.connections_data_key)
+        if self._is_team_specific_accessed_as_global(conn_id, team_name):
+            return None
+
+        return self._get_secret(
+            self.connections_label, conn_id, self.connections_data_key, team_name=team_name
+        )
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable from a Kubernetes secret.
 
-        Multi-team isolation is not currently supported; ``team_name`` is accepted
-        for API compatibility but ignored.
-
         :param key: Variable Key
-        :param team_name: Team name (unused — multi-team is not currently supported)
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        return self._get_secret(self.variables_label, key, self.variables_data_key)
+        if self._is_team_specific_accessed_as_global(key, team_name):
+            return None
+
+        return self._get_secret(self.variables_label, key, self.variables_data_key, team_name=team_name)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -173,7 +179,13 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         return self._get_secret(self.config_label, key, self.config_data_key)
 
-    def _get_secret(self, label_key: str | None, label_value: str, data_key: str) -> str | None:
+    @staticmethod
+    def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
+        return team_name is None and bool(re.fullmatch(r"_[^_]+___.+", secret_id))
+
+    def _get_secret(
+        self, label_key: str | None, label_value: str, data_key: str, team_name: str | None = None
+    ) -> str | None:
         """
         Get secret value from Kubernetes by label selector.
 
@@ -188,18 +200,43 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         """
         if label_key is None:
             return None
-        label_selector = f"{label_key}={label_value}"
+
+        if team_name and self.team_label:
+            team_secret = self._get_secret_by_selector(
+                label_key, label_value, data_key, f"{self.team_label}={team_name}", warn_if_missing=False
+            )
+            if team_secret is not None:
+                return team_secret
+
+        team_selector = f"!{self.team_label}" if self.team_label else None
+        return self._get_secret_by_selector(label_key, label_value, data_key, team_selector)
+
+    def _get_secret_by_selector(
+        self,
+        label_key: str,
+        label_value: str,
+        data_key: str,
+        extra_selector: str | None,
+        *,
+        warn_if_missing: bool = True,
+    ) -> str | None:
+        """Get secret value from Kubernetes by the given base and optional extra selectors."""
+        selectors = [f"{label_key}={label_value}"]
+        if extra_selector:
+            selectors.append(extra_selector)
+        label_selector = ",".join(selectors)
         secret_list = self.client.list_namespaced_secret(
             self.namespace,
             label_selector=label_selector,
             resource_version="0",
         )
         if not secret_list.items:
-            self.log.warning(
-                "No secret found with label %s in namespace %s.",
-                label_selector,
-                self.namespace,
-            )
+            if warn_if_missing:
+                self.log.warning(
+                    "No secret found with label %s in namespace %s.",
+                    label_selector,
+                    self.namespace,
+                )
             return None
         if len(secret_list.items) > 1:
             self.log.warning(

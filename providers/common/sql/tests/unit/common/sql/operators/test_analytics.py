@@ -53,18 +53,19 @@ class TestAnalyticsOperator:
         result = operator.execute(context={})
 
         mock_engine.register_datasource.assert_called_once()
-        mock_engine.execute_query.assert_called_once_with("SELECT * FROM users_data")
+        mock_engine.execute_query.assert_called_once_with("SELECT * FROM users_data", max_rows=100)
         assert "col1" in result
         assert "col2" in result
 
-    def test_execute_max_rows_exceeded(self, operator, mock_engine):
+    def test_execute_uses_overridden_max_rows_limit(self, operator, mock_engine):
         operator.max_rows_check = 3
-        mock_engine.execute_query.return_value = {"col1": [1, 2, 3, 4]}
+        mock_engine.execute_query.return_value = {"col1": [1, 2, 3]}
 
         result = operator.execute(context={})
 
-        assert "Skipped" in result
-        assert "4 rows exceed max_rows_check (3)" in result
+        mock_engine.execute_query.assert_called_once_with("SELECT * FROM users_data", max_rows=3)
+        assert "Skipped" not in result
+        assert "col1" in result
 
     def test_json_output_format(self, mock_engine):
         datasource_config = DataSourceConfig(

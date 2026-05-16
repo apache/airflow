@@ -19,17 +19,58 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
+import types
 from unittest import mock
 
 import pytest
-
-# TODO: Remove below skip once beam provider changed to ready state
-pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
-
+from google.api_core.exceptions import ServiceUnavailable
 from google.cloud.dataflow_v1beta3 import Job, JobState, JobType
 
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-from airflow.providers.google.cloud.triggers.dataflow import (
+
+# While the apache-beam provider is suspended (#61926),
+# `airflow.providers.google.cloud.hooks.dataflow` cannot be imported because it
+# does `from airflow.providers.apache.beam.hooks.beam import ...` at module
+# scope. Probe-import the real module first (which also triggers Airflow's
+# provider-entry-point discovery while the real `airflow.providers.apache`
+# namespace package is still intact) and only fall back to stubs when the
+# probe fails. The stubs deliberately cover only the missing beam-specific
+# subtree — we never overwrite `airflow.providers.apache` itself, otherwise
+# sibling providers such as `airflow.providers.apache.pig` would be unreachable
+# via the namespace package's `__path__`.
+def _beam_module_stubs() -> dict[str, types.ModuleType]:
+    beam_package = types.ModuleType("airflow.providers.apache.beam")
+    beam_package.__path__ = []
+    hooks_package = types.ModuleType("airflow.providers.apache.beam.hooks")
+    hooks_package.__path__ = []
+
+    class BeamRunnerType:
+        DataflowRunner = "DataflowRunner"
+
+    class BeamModule(types.ModuleType):
+        BeamHook: object
+        BeamRunnerType: object
+        beam_options_to_args: object
+
+    beam_module = BeamModule("airflow.providers.apache.beam.hooks.beam")
+    beam_module.BeamHook = mock.MagicMock()
+    beam_module.BeamRunnerType = BeamRunnerType
+    beam_module.beam_options_to_args = mock.MagicMock(return_value=[])
+
+    return {
+        "airflow.providers.apache.beam": beam_package,
+        "airflow.providers.apache.beam.hooks": hooks_package,
+        "airflow.providers.apache.beam.hooks.beam": beam_module,
+    }
+
+
+try:
+    import airflow.providers.apache.beam.hooks.beam  # noqa: F401
+except ImportError:
+    sys.modules.update(_beam_module_stubs())
+
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus  # noqa: E402
+from airflow.providers.google.cloud.triggers.dataflow import (  # noqa: E402
     DataflowJobAutoScalingEventTrigger,
     DataflowJobMessagesTrigger,
     DataflowJobMetricsTrigger,
@@ -38,7 +79,7 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowStartYamlJobTrigger,
     TemplateJobStartTrigger,
 )
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import TriggerEvent  # noqa: E402
 
 PROJECT_ID = "test-project-id"
 JOB_ID = "test_job_id_2012-12-23-10:00"
@@ -237,6 +278,49 @@ class TestTemplateJobStartTrigger:
         assert f"Sleeping for {POLL_SLEEP} seconds." in caplog.text
         # cancel the task to suppress test warnings
         task.cancel()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_continues_polling_after_retryable_service_unavailable(
+        self, mock_job_status, mock_sleep, template_job_start_trigger
+    ):
+        mock_job_status.side_effect = [
+            ServiceUnavailable(
+                "Visibility check was unavailable. Please retry the request and contact support if the problem persists"
+            ),
+            JobState.JOB_STATE_DONE,
+        ]
+        expected_event = TriggerEvent(
+            {
+                "job_id": JOB_ID,
+                "status": "success",
+                "message": "Job completed",
+            }
+        )
+        actual_event = await template_job_start_trigger.run().asend(None)
+
+        assert actual_event == expected_event
+        assert mock_job_status.await_count == 2
+        mock_sleep.assert_awaited_once_with(POLL_SLEEP)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_returns_error_event_after_unexpected_status_polling_exception(
+        self, mock_job_status, template_job_start_trigger
+    ):
+        mock_job_status.side_effect = Exception("Test exception")
+
+        expected_event = TriggerEvent(
+            {
+                "status": "error",
+                "message": "Test exception",
+            }
+        )
+        actual_event = await template_job_start_trigger.run().asend(None)
+
+        assert actual_event == expected_event
+        mock_job_status.assert_awaited_once_with(project_id=PROJECT_ID, job_id=JOB_ID, location=LOCATION)
 
 
 class TestDataflowJobAutoScalingEventTrigger:

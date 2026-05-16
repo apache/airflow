@@ -16,105 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { EventsPage } from "tests/e2e/pages/EventsPage";
+import { expect } from "tests/e2e/fixtures";
+import { test } from "tests/e2e/fixtures/audit-log-data";
 
-test.describe("DAG Audit Log", () => {
-  let eventsPage: EventsPage;
-
-  const testDagId = testConfig.testDag.id;
-  const triggerCount = 3;
-  const expectedEventCount = triggerCount + 1;
-
+test.describe("Dag Audit Log", () => {
   test.setTimeout(60_000);
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupDagsPage = new DagsPage(page);
-    const setupEventsPage = new EventsPage(page);
-
-    for (let i = 0; i < triggerCount; i++) {
-      await setupDagsPage.triggerDag(testDagId);
-    }
-
-    await setupEventsPage.navigateToAuditLog(testDagId);
-    await page.waitForFunction(
-      (minCount) => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-        const rows = table.querySelectorAll("tbody tr");
-
-        return rows.length >= minCount;
-      },
-      expectedEventCount,
-      { timeout: 60_000 },
-    );
-
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    eventsPage = new EventsPage(page);
-  });
-
-  test("verify audit log table displays", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+  test("verify audit log table displays", async ({ auditLogData, eventsPage }) => {
+    await eventsPage.navigateToAuditLog(auditLogData.dagId);
 
     await expect(eventsPage.eventsTable).toBeVisible();
-
-    const rowCount = await eventsPage.tableRows.count();
-
-    expect(rowCount).toBeGreaterThan(0);
+    await expect(eventsPage.tableRows).not.toHaveCount(0);
   });
 
-  test("verify expected columns are visible", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+  test("verify expected columns are visible", async ({ auditLogData, eventsPage }) => {
+    await eventsPage.navigateToAuditLog(auditLogData.dagId);
 
     await expect(eventsPage.whenColumn).toBeVisible();
     await expect(eventsPage.eventColumn).toBeVisible();
     await expect(eventsPage.ownerColumn).toBeVisible();
     await expect(eventsPage.extraColumn).toBeVisible();
 
-    const dagIdColumn = eventsPage.eventsTable.locator('th:has-text("DAG ID")');
+    const dagIdColumn = eventsPage.eventsTable.getByRole("columnheader").filter({ hasText: "DAG ID" });
 
     await expect(dagIdColumn).not.toBeVisible();
   });
 
-  test("verify audit log entries display valid data", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+  test("verify audit log entries display valid data", async ({ auditLogData, eventsPage }) => {
+    await eventsPage.navigateToAuditLog(auditLogData.dagId);
 
-    const rows = await eventsPage.getEventLogRows();
+    await expect(eventsPage.tableRows).not.toHaveCount(0);
 
-    expect(rows.length).toBeGreaterThan(0);
-
-    const [firstRow] = rows;
-
-    if (!firstRow) {
-      throw new Error("No rows found");
-    }
-
+    const firstRow = eventsPage.tableRows.first();
     const whenCell = await eventsPage.getCellByColumnName(firstRow, "When");
     const eventCell = await eventsPage.getCellByColumnName(firstRow, "Event");
     const userCell = await eventsPage.getCellByColumnName(firstRow, "User");
 
-    const whenText = await whenCell.textContent();
-    const eventText = await eventCell.textContent();
-    const userText = await userCell.textContent();
-
-    expect(whenText).toBeTruthy();
-    expect(whenText?.trim()).not.toBe("");
-
-    expect(eventText).toBeTruthy();
-    expect(eventText?.trim()).not.toBe("");
-
-    expect(userText).toBeTruthy();
-    expect(userText?.trim()).not.toBe("");
+    await expect(whenCell).toHaveText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+    await expect(eventCell).toHaveText(/[a-z][_a-z]*/);
+    await expect(userCell).toHaveText(/\w+/);
   });
 });

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode, FiUser, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -59,6 +59,11 @@ export const Dag = () => {
 
   const refetchInterval = useAutoRefresh({ dagId });
   const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
+  const previousLatestRunIdRef = useRef<string>("");
+
+  useEffect(() => {
+    previousLatestRunIdRef.current = "";
+  }, [dagId]);
 
   const {
     data: dag,
@@ -96,9 +101,19 @@ export const Dag = () => {
     undefined,
     {
       enabled: Boolean(dagId),
-      refetchInterval: (query) => {
-        if (query.state.data && isStatePending(query.state.data.state)) {
-          setHasPendingRuns(true);
+      refetchInterval: ({ state: { data } }) => {
+        if (data) {
+          const { run_id: runId, state } = data;
+          const runIdChanged =
+            previousLatestRunIdRef.current !== "" && previousLatestRunIdRef.current !== runId;
+
+          if (runIdChanged || isStatePending(state)) {
+            setHasPendingRuns(true);
+          }
+
+          previousLatestRunIdRef.current = runId;
+        } else {
+          previousLatestRunIdRef.current = "";
         }
 
         return hasPendingRuns ? refetchInterval : false;

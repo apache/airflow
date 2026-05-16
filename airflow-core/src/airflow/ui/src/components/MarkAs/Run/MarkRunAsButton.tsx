@@ -46,7 +46,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled && dagRun.state !== "failed" },
+    { enabled: isHotkeyEnabled },
   );
 
   useHotkeys(
@@ -55,7 +55,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled && dagRun.state !== "success" },
+    { enabled: isHotkeyEnabled },
   );
 
   return (
@@ -94,20 +94,18 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
               <Tooltip
                 closeDelay={100}
                 content={content}
-                disabled={!isHotkeyEnabled || dagRun.state === menuState}
+                disabled={!isHotkeyEnabled}
                 key={menuState}
                 openDelay={100}
               >
+                {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item
                   asChild
                   data-testid={`mark-run-as-${menuState}`}
-                  disabled={dagRun.state === menuState}
                   key={menuState}
                   onClick={() => {
-                    if (dagRun.state !== menuState) {
-                      setState(menuState);
-                      onOpen();
-                    }
+                    setState(menuState);
+                    onOpen();
                   }}
                   value={menuState}
                 >

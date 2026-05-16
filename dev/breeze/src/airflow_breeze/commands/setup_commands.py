@@ -48,7 +48,7 @@ from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
-from airflow_breeze.utils.console import console_print, get_stderr_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
 from airflow_breeze.utils.path_utils import (
@@ -352,8 +352,6 @@ def get_command_hash_dict() -> dict[str, str]:
     hashes: dict[str, str] = {}
     with Context(main) as ctx:
         the_context_dict = ctx.to_info_dict()
-        if get_verbose():
-            get_stderr_console().print(the_context_dict)
         commands_dict = the_context_dict["command"]["commands"]
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):

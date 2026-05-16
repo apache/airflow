@@ -21,7 +21,7 @@ import fcntl
 import json
 import logging
 import os
-import random
+import secrets
 from collections import namedtuple
 from enum import Enum
 from json import JSONDecodeError
@@ -42,6 +42,8 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
+    from starlette.middleware import _MiddlewareFactory
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -70,7 +72,7 @@ class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), E
     # VIEWER role gives all read-only permissions
     VIEWER = "VIEWER", 0
 
-    # USER role gives viewer role permissions + access to DAGs
+    # USER role gives viewer role permissions + access to Dags
     USER = "USER", 1
 
     # OP role gives user role permissions + access to connections, config, pools, variables
@@ -117,11 +119,68 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         with open(password_file, "r+") as file:
             return SimpleAuthManager._get_passwords(file)
 
+    @staticmethod
+    def _looks_like_production(
+        *,
+        sql_conn: str | None = None,
+        api_host: str | None = None,
+        executor: str | None = None,
+    ) -> bool:
+        """
+        Best-effort heuristic for whether the Airflow deployment looks production-shaped.
+
+        Returns True if any of the following hold:
+
+        - The SQL backend is not sqlite (i.e. Postgres or MySQL is configured).
+        - The API host is bound to a non-local address.
+        - The configured executor is not Local-/Sequential-/Debug-/InProcessExecutor.
+
+        None of these are *definitive* — a developer can pick any combination locally
+        — but the cumulative signal is strong enough to justify a loud warning that
+        SimpleAuthManager (which is dev-only by design) is being used in a setup
+        that resembles production.
+
+        Each axis can be passed in directly (kwargs) so unit tests can probe the
+        decision logic without touching the global ``conf`` state. ``None`` (the
+        default) reads the value from ``conf``.
+        """
+        if sql_conn is None:
+            sql_conn = conf.get("database", "sql_alchemy_conn", fallback="")
+        if api_host is None:
+            api_host = conf.get("api", "host", fallback="localhost")
+        if executor is None:
+            executor = conf.get("core", "executor", fallback="LocalExecutor")
+
+        if sql_conn and not sql_conn.startswith("sqlite:"):
+            return True
+        if api_host.strip() not in {"localhost", "127.0.0.1", "::1", "[::1]"}:
+            return True
+        # Split on '.' to get the class name only (handles fully-qualified executor paths).
+        local_executors = {"LocalExecutor", "SequentialExecutor", "DebugExecutor", "InProcessExecutor"}
+        if executor.split(".")[-1] not in local_executors:
+            return True
+        return False
+
     def init(self) -> None:
         super().init()
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
             return
+
+        # SimpleAuthManager is dev-only by design — it stores passwords in plaintext,
+        # prints generated passwords to stdout/logs on first init, and provides no
+        # rotation mechanism. Emit a loud warning when the deployment shape suggests
+        # production so it shows up in startup logs of misconfigured deployments.
+        if self._looks_like_production():
+            log.warning(
+                "SimpleAuthManager is active but the deployment shape looks like production "
+                "(non-sqlite backend, non-local API host, or a distributed executor). "
+                "SimpleAuthManager stores passwords in plaintext at %s and prints generated "
+                "passwords to stdout/logs on first init. Use a real auth manager "
+                "(e.g. FAB or Keycloak) for production deployments.",
+                self.get_generated_password_file(),
+            )
+
         users = self.get_users()
         password_file = self.get_generated_password_file()
 
@@ -319,6 +378,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         # Delegate to parent class for the actual authorization check
         return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """Register the all-admins middleware when ``[core] simple_auth_manager_all_admins`` is set."""
+        if not conf.getboolean("core", "simple_auth_manager_all_admins"):
+            return []
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        return [(SimpleAllAdminMiddleware, {})]
+
     def get_fastapi_app(self) -> FastAPI | None:
         """
         Specify a sub FastAPI application specific to the auth manager.
@@ -354,8 +421,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
         def webapp(request: Request, rest_of_path: str):
             return templates.TemplateResponse(
+                request,
                 "/index.html",
-                {"request": request, "backend_server_base_url": request.base_url.path},
+                {"backend_server_base_url": request.base_url.path},
                 media_type="text/html",
             )
 
@@ -429,7 +497,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _generate_password() -> str:
-        return "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+        alphabet = "abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789"
+        return "".join(secrets.choice(alphabet) for _ in range(16))
 
     @staticmethod
     def _print_output(output: str):

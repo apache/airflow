@@ -51,6 +51,8 @@ GANTT_TASK_1 = {
     "task_display_name": TASK_DISPLAY_NAME,
     "try_number": 1,
     "state": "success",
+    "scheduled_dttm": "2024-11-30T09:50:00Z",
+    "queued_dttm": "2024-11-30T09:55:00Z",
     "start_date": "2024-11-30T10:00:00Z",
     "end_date": "2024-11-30T10:05:00Z",
     "is_group": False,
@@ -62,6 +64,8 @@ GANTT_TASK_2 = {
     "task_display_name": TASK_DISPLAY_NAME_2,
     "try_number": 1,
     "state": "failed",
+    "scheduled_dttm": "2024-11-30T10:02:00Z",
+    "queued_dttm": "2024-11-30T10:03:00Z",
     "start_date": "2024-11-30T10:05:00Z",
     "end_date": "2024-11-30T10:10:00Z",
     "is_group": False,
@@ -73,6 +77,8 @@ GANTT_TASK_3 = {
     "task_display_name": TASK_DISPLAY_NAME_3,
     "try_number": 1,
     "state": "running",
+    "scheduled_dttm": None,
+    "queued_dttm": None,
     "start_date": "2024-11-30T10:10:00Z",
     "end_date": None,
     "is_group": False,
@@ -116,16 +122,22 @@ def setup(dag_maker, session=None):
         if ti.task_id == TASK_ID:
             ti.state = TaskInstanceState.SUCCESS
             ti.try_number = 1
+            ti.scheduled_dttm = pendulum.DateTime(2024, 11, 30, 9, 50, 0, tzinfo=pendulum.UTC)
+            ti.queued_dttm = pendulum.DateTime(2024, 11, 30, 9, 55, 0, tzinfo=pendulum.UTC)
             ti.start_date = pendulum.DateTime(2024, 11, 30, 10, 0, 0, tzinfo=pendulum.UTC)
             ti.end_date = pendulum.DateTime(2024, 11, 30, 10, 5, 0, tzinfo=pendulum.UTC)
         elif ti.task_id == TASK_ID_2:
             ti.state = TaskInstanceState.FAILED
             ti.try_number = 1
+            ti.scheduled_dttm = pendulum.DateTime(2024, 11, 30, 10, 2, 0, tzinfo=pendulum.UTC)
+            ti.queued_dttm = pendulum.DateTime(2024, 11, 30, 10, 3, 0, tzinfo=pendulum.UTC)
             ti.start_date = pendulum.DateTime(2024, 11, 30, 10, 5, 0, tzinfo=pendulum.UTC)
             ti.end_date = pendulum.DateTime(2024, 11, 30, 10, 10, 0, tzinfo=pendulum.UTC)
         elif ti.task_id == TASK_ID_3:
             ti.state = TaskInstanceState.RUNNING
             ti.try_number = 1
+            ti.scheduled_dttm = None
+            ti.queued_dttm = None
             ti.start_date = pendulum.DateTime(2024, 11, 30, 10, 10, 0, tzinfo=pendulum.UTC)
             ti.end_date = None
 
@@ -305,6 +317,18 @@ class TestGetGanttDataEndpoint:
         task_instances = data["task_instances"]
         sorted_tis = sorted(task_instances, key=lambda x: (x["task_id"], x["try_number"]))
         assert task_instances == sorted_tis
+
+    def test_timing_fields_are_returned(self, test_client):
+        response = test_client.get(f"/gantt/{DAG_ID}/run_1")
+        assert response.status_code == 200
+        data = response.json()
+        tis = {ti["task_id"]: ti for ti in data["task_instances"]}
+        assert tis[TASK_ID]["scheduled_dttm"] == "2024-11-30T09:50:00Z"
+        assert tis[TASK_ID]["queued_dttm"] == "2024-11-30T09:55:00Z"
+        assert tis[TASK_ID_2]["scheduled_dttm"] == "2024-11-30T10:02:00Z"
+        assert tis[TASK_ID_2]["queued_dttm"] == "2024-11-30T10:03:00Z"
+        assert tis[TASK_ID_3]["scheduled_dttm"] is None
+        assert tis[TASK_ID_3]["queued_dttm"] is None
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/gantt/{DAG_ID}/run_1")

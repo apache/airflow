@@ -106,6 +106,7 @@ def _decode_asset(var: dict[str, Any]):
             )
             for watcher in watchers
         ],
+        allow_producer_teams=var.get("allow_producer_teams", []),
     )
 
 
@@ -166,6 +167,7 @@ def decode_deadline_alert(encoded_data: dict):
         reference=reference,
         interval=datetime.timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
         callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
+        name=data.get(DeadlineAlertFields.NAME),
     )
 
 

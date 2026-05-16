@@ -52,5 +52,8 @@ def eager_load_TI_and_TIH_for_validation(
         contains_eager(orm_model.dag_version).options(joinedload(DagVersion.bundle)),
     )
     if orm_model is TaskInstance:
-        query = query.options(joinedload(orm_model.task_instance_note))
+        query = query.options(
+            joinedload(orm_model.task_instance_note),
+            joinedload(orm_model.rendered_task_instance_fields),
+        )
     return query

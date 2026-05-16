@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
@@ -80,6 +81,44 @@ class TestAgentOperatorTemplateFields:
 
 class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls):
+        """``usage_limits`` is forwarded to ``agent.run_sync`` on the non-durable path."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        limits = UsageLimits(request_limit=3, tool_calls_limit=5)
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits=limits,
+        )
+        op.execute(context=MagicMock())
+
+        mock_agent.run_sync.assert_called_once_with("run", usage_limits=limits)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_regenerate_with_feedback_forwards_usage_limits(self, mock_hook_cls):
+        """``usage_limits`` is also forwarded by ``regenerate_with_feedback``."""
+        mock_agent = _make_mock_agent("revised")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        limits = UsageLimits(request_limit=1)
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits=limits,
+        )
+        op.regenerate_with_feedback(feedback="Add detail", message_history=[])
+
+        mock_agent.run_sync.assert_called_once_with(
+            "Add detail",
+            message_history=[],
+            usage_limits=limits,
+        )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_creates_agent_from_hook(self, mock_hook_cls):
         mock_agent = _make_mock_agent("The answer is 42.")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -97,7 +136,7 @@ class TestAgentOperatorExecute:
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions="You are helpful."
         )
-        mock_agent.run_sync.assert_called_once_with("What is the answer?")
+        mock_agent.run_sync.assert_called_once_with("What is the answer?", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls):
@@ -378,6 +417,7 @@ class TestAgentOperatorRegenerateWithFeedback:
         mock_agent.run_sync.assert_called_once_with(
             "Add more detail",
             message_history=msg_history,
+            usage_limits=None,
         )
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -405,3 +445,61 @@ class TestAgentOperatorRegenerateWithFeedback:
         )
 
         assert output == '{"text":"Revised"}'
+
+
+class TestAgentOperatorDurable:
+    def test_durable_param_stored(self):
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
+        assert op.durable is True
+
+    def test_durable_default_false(self):
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
+        assert op.durable is False
+
+    @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
+    @patch("pydantic_ai.models.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.durable.storage._get_base_path")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_durable_wraps_model_and_cleans_up(
+        self, mock_hook_cls, mock_base_path, mock_infer, _, tmp_path
+    ):
+        """durable=True wraps model with CachingModel and cleans up on success."""
+        from airflow.sdk import ObjectStoragePath
+
+        mock_base_path.return_value = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
+
+        mock_agent = MagicMock()
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_agent.model = "test-model"
+        mock_agent.override = MagicMock()
+        mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
+        mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        mock_resolved = MagicMock()
+        mock_infer.return_value = mock_resolved
+
+        context = MagicMock()
+        context.__getitem__ = MagicMock(
+            return_value=MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        )
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
+        result = op.execute(context=context)
+
+        assert result == "ok"
+        mock_agent.override.assert_called_once()
+        override_kwargs = mock_agent.override.call_args[1]
+        assert "model" in override_kwargs
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_non_durable_does_not_wrap(self, mock_hook_cls):
+        """Default (durable=False) does not use override."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
+        op.execute(context=MagicMock())
+
+        # run_sync called directly, no override
+        mock_agent.run_sync.assert_called_once_with("test", usage_limits=None)
