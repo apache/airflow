@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import argparse
-import datetime
 from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
@@ -76,7 +75,7 @@ def test_args_create():
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -86,7 +85,7 @@ def test_args_create():
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -115,7 +114,7 @@ def test_args_create():
             {
                 "help": "reprocess_behavior for backfill operation",
                 "action": None,
-                "default": "none",
+                "default": None,
                 "type": str,
                 "dest": None,
             },
@@ -125,18 +124,8 @@ def test_args_create():
             {
                 "help": "max_active_runs for backfill operation",
                 "action": None,
-                "default": 10,
+                "default": None,
                 "type": int,
-                "dest": None,
-            },
-        ),
-        (
-            "--run-on-latest-version",
-            {
-                "help": "run_on_latest_version for backfill operation",
-                "action": BooleanOptionalAction,
-                "default": True,
-                "type": bool,
                 "dest": None,
             },
         ),
