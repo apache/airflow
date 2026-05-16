@@ -911,6 +911,196 @@ class _BasePostgresHookRuntimeTests:
         )
         self.cur.executemany.assert_any_call(sql, rows)
 
+    @pytest.mark.parametrize(
+        (
+            "rows",
+            "target_fields",
+            "conflict_fields",
+            "update_fields",
+            "expected_sql",
+        ),
+        [
+            (
+                [(1, "hello"), (2, "world")],
+                ["id", "value"],
+                ["id"],
+                ["value"],
+                (
+                    "INSERT INTO table (id, value) "
+                    "VALUES (%s, %s) "
+                    "ON CONFLICT (id) "
+                    "DO UPDATE SET value = EXCLUDED.value"
+                ),
+            ),
+            (
+                [("hello",)],
+                ["value"],
+                ["value"],
+                None,
+                ("INSERT INTO table (value) VALUES (%s) ON CONFLICT (value) DO NOTHING"),
+            ),
+            (
+                [(1, 10, "hello")],
+                ["id", "tenant_id", "value"],
+                ["id", "tenant_id"],
+                ["value"],
+                (
+                    "INSERT INTO table (id, tenant_id, value) "
+                    "VALUES (%s, %s, %s) "
+                    "ON CONFLICT (id, tenant_id) "
+                    "DO UPDATE SET value = EXCLUDED.value"
+                ),
+            ),
+            (
+                [(1, "alice", "a@example.com")],
+                ["id", "name", "email"],
+                ["id"],
+                ["name", "email"],
+                (
+                    "INSERT INTO table (id, name, email) "
+                    "VALUES (%s, %s, %s) "
+                    "ON CONFLICT (id) "
+                    "DO UPDATE SET "
+                    "name = EXCLUDED.name, email = EXCLUDED.email"
+                ),
+            ),
+        ],
+    )
+    def test_upsert_rows(
+        self,
+        rows,
+        target_fields,
+        conflict_fields,
+        update_fields,
+        expected_sql,
+    ):
+        self.db_hook.upsert_rows(
+            table="table",
+            rows=rows,
+            target_fields=target_fields,
+            conflict_fields=conflict_fields,
+            update_fields=update_fields,
+        )
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        self.cur.executemany.assert_called_once_with(
+            expected_sql,
+            rows,
+        )
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.execute_batch")
+    def test_upsert_rows_fast_executemany(self, mock_execute_batch):
+
+        table = "table"
+        rows = [
+            (1, "hello"),
+            (2, "world"),
+        ]
+
+        self.db_hook.upsert_rows(
+            table=table,
+            rows=rows,
+            target_fields=["id", "value"],
+            conflict_fields=["id"],
+            update_fields=["value"],
+            fast_executemany=True,
+        )
+
+        sql = (
+            "INSERT INTO table (id, value) "
+            "VALUES (%s, %s) "
+            "ON CONFLICT (id) "
+            "DO UPDATE SET value = EXCLUDED.value"
+        )
+
+        mock_execute_batch.assert_called_once_with(
+            self.cur,
+            sql,
+            rows,
+            page_size=1000,
+        )
+
+        self.cur.executemany.assert_not_called()
+
+    def test_upsert_rows_commit_every(self):
+        rows = [
+            (1, "hello"),
+            (2, "world"),
+        ]
+
+        self.db_hook.upsert_rows(
+            table="table",
+            rows=rows,
+            target_fields=["id", "value"],
+            conflict_fields=["id"],
+            update_fields=["value"],
+            commit_every=1,
+        )
+
+        sql = (
+            "INSERT INTO table (id, value) "
+            "VALUES (%s, %s) "
+            "ON CONFLICT (id) "
+            "DO UPDATE SET value = EXCLUDED.value"
+        )
+
+        assert self.cur.executemany.call_count == 2
+
+        self.cur.executemany.assert_has_calls(
+            [
+                mock.call(sql, [(1, "hello")]),
+                mock.call(sql, [(2, "world")]),
+            ]
+        )
+
+        # Initial commit and one commit per chunk.
+        assert self.conn.commit.call_count == 3
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.send_sql_hook_lineage")
+    def test_upsert_rows_empty_rows(self, mock_lineage):
+        self.db_hook.upsert_rows(
+            table="table",
+            rows=[],
+            target_fields=["id", "value"],
+            conflict_fields=["id"],
+            update_fields=["value"],
+        )
+
+        self.cur.executemany.assert_not_called()
+
+        # Only initial transaction reset commit should occur.
+        assert self.conn.commit.call_count == 1
+
+        mock_lineage.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("target_fields", "conflict_fields", "error"),
+        [
+            ([], ["id"], "target_fields must be provided and must not be empty."),
+            ([""], ["id"], "target_fields must be provided and must not be empty."),
+            (["id", ""], ["id"], "target_fields must be provided and must not be empty."),
+            (["id"], [], "conflict_fields must be provided and must not be empty."),
+            (["id"], [""], "conflict_fields must be provided and must not be empty."),
+            (["id"], ["id", ""], "conflict_fields must be provided and must not be empty."),
+        ],
+    )
+    def test_upsert_rows_invalid_fields(
+        self,
+        target_fields,
+        conflict_fields,
+        error,
+    ):
+        with pytest.raises(ValueError, match=error):
+            self.db_hook.upsert_rows(
+                table="table",
+                rows=[(1, "hello")],
+                target_fields=target_fields,
+                conflict_fields=conflict_fields,
+            )
+
     def test_dialect_name(self):
         assert self.db_hook.dialect_name == "postgresql"
 

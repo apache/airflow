@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import closing
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
@@ -725,4 +725,138 @@ class PostgresHook(DbApiHook):
             send_sql_hook_lineage(context=self, sql=sql, row_count=nb_rows)
 
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
+        return None
+
+    def _generate_upsert_sql(
+        self,
+        table: str,
+        values: tuple[Any, ...] | list[Any],
+        target_fields: list[str],
+        conflict_fields: list[str],
+        update_fields: list[str] | None = None,
+        **kwargs,
+    ) -> str:
+        """
+        Generate PostgreSQL UPSERT SQL using ``ON CONFLICT``.
+
+        :param table: Name of target table.
+        :param values: Row values used for placeholder generation.
+        :param target_fields: Non-empty column names used in the ``INSERT`` statement.
+        :param conflict_fields: Non-empty column names used in the ``ON CONFLICT`` clause.
+        :param update_fields: Columns to update on conflict. If omitted or empty,
+            ``DO NOTHING`` is used.
+        """
+        placeholders = ", ".join(["%s"] * len(values))
+
+        columns = ", ".join(target_fields)
+
+        conflict_clause = ", ".join(conflict_fields)
+
+        sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) "
+
+        if update_fields:
+            update_clause = ", ".join(f"{field} = EXCLUDED.{field}" for field in update_fields)
+
+            sql += f"ON CONFLICT ({conflict_clause}) DO UPDATE SET {update_clause}"
+        else:
+            sql += f"ON CONFLICT ({conflict_clause}) DO NOTHING"
+
+        return sql.strip()
+
+    def upsert_rows(
+        self,
+        table: str,
+        rows: Iterable[tuple[Any, ...]],
+        target_fields: list[str],
+        conflict_fields: list[str],
+        update_fields: list[str] | None = None,
+        commit_every: int = 1000,
+        *,
+        fast_executemany: bool = False,
+        autocommit: bool = False,
+    ) -> None:
+        """
+        Upsert rows into a PostgreSQL table using ``ON CONFLICT``.
+
+        :param table: Name of the target table.
+        :param rows: Rows to upsert.
+        :param target_fields: Non-empty column names used in the ``INSERT`` statement.
+        :param conflict_fields: Non-empty column names used in the ``ON CONFLICT`` clause.
+        :param update_fields: Columns updated on conflict. If omitted or empty,
+            conflicting rows are ignored via ``DO NOTHING``.
+        :param commit_every: Maximum number of rows per transaction. Default value is 1000.
+        :param fast_executemany: Use ``psycopg2.extras.execute_batch`` for improved
+            batch performance.
+        :param autocommit: Connection autocommit setting.
+        """
+        if not target_fields or any(not field for field in target_fields):
+            raise ValueError("target_fields must be provided and must not be empty.")
+
+        if not conflict_fields or any(not field for field in conflict_fields):
+            raise ValueError("conflict_fields must be provided and must not be empty.")
+
+        rows = iter(rows)
+
+        nb_rows = 0
+        sql = None
+
+        with self._create_autocommit_connection(autocommit) as conn:
+            conn.commit()
+
+            with closing(conn.cursor()) as cur:
+                for chunked_rows in chunked(rows, commit_every):
+                    values = [self._serialize_cells(row, conn) for row in chunked_rows]
+
+                    if not values:
+                        continue
+
+                    sql = self._generate_upsert_sql(
+                        table=table,
+                        values=values[0],
+                        target_fields=target_fields,
+                        conflict_fields=conflict_fields,
+                        update_fields=update_fields,
+                    )
+
+                    self.log.debug("Generated sql: %s", sql)
+
+                    try:
+                        if fast_executemany:
+                            # execute_batch reduces round trips by batching parameter sets.
+                            execute_batch(
+                                cur,
+                                sql,
+                                values,
+                                page_size=commit_every,
+                            )
+                        else:
+                            cur.executemany(sql, values)
+
+                    except Exception:
+                        self.log.error("Generated sql: %s", sql)
+                        self.log.error("Parameters: %s", values)
+                        raise
+
+                    conn.commit()
+
+                    nb_rows += len(values)
+
+                    self.log.info(
+                        "Upserted %s rows into %s so far",
+                        nb_rows,
+                        table,
+                    )
+
+        if sql:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                row_count=nb_rows,
+            )
+
+        self.log.info(
+            "Done upserting. Upserted a total of %s rows into %s",
+            nb_rows,
+            table,
+        )
         return None
