@@ -75,7 +75,7 @@ class TestTelegramHook:
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
 
-        assert str(ctx.value) == "The conn_id `telegram-webhook-non-existent` isn't defined"
+        assert str(ctx.value) == "[AERR-NOT-FOUND] The conn_id `telegram-webhook-non-existent` isn't defined"
 
     def test_should_raise_exception_if_conn_id_doesnt_contain_token(self):
         with pytest.raises(airflow.exceptions.AirflowException) as ctx:

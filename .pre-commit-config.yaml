@@ -1160,3 +1160,17 @@ repos:
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+  - repo: local
+    hooks:
+      - id: check-missing-error-meta-in-exceptions
+        name: Check for missing error meta properties in exception classes that use error code mixin
+        entry: scripts/ci/prek/check_airflow_exceptions_error_meta.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/.*\.py$|
+          ^task-sdk/src/.*\.py$|
+          ^providers/.*/src/.*\.py$
+        types: [python]
+        additional_dependencies: ['pyyaml>=6.0']
+        require_serial: true

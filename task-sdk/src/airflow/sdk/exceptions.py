@@ -26,6 +26,9 @@ from airflow.sdk import TriggerRule
 # Re exporting AirflowConfigException from shared configuration
 from airflow.sdk._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
+# Using AirflowErrorCodeMixin from shared exceptions
+from airflow.sdk._shared.exceptions import AirflowErrorCodeMixin
+
 if TYPE_CHECKING:
     from collections.abc import Collection
 
@@ -51,10 +54,31 @@ class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
 
-class AirflowNotFoundException(AirflowException):
+class AirflowNotFoundException(AirflowErrorCodeMixin, AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
     status_code = HTTPStatus.NOT_FOUND
+
+    user_facing_error_message = "Requested resource was not found"
+
+    description = (
+        "This error occurs when Airflow is unable to locate a requested object "
+        "during resolution. The object may not exist, may have been removed, or "
+        "may not be accessible through the configured sources (such as metadata "
+        "database, configuration, or external providers). All available lookup "
+        "mechanisms were checked but none returned a matching result."
+    )
+
+    first_steps = (
+        "Verify that the requested identifier is correct and exists. "
+        "Check for typos or mismatched names. Ensure the resource is defined "
+        "in the expected location (e.g., Airflow metadata database, configuration, "
+        "or any configured external providers). If applicable, confirm that "
+        "external systems are reachable and properly configured. "
+        "Review recent changes that may have removed or renamed the resource."
+    )
+
+    documentation = "https://airflow.apache.org/docs/apache-airflow/stable/"
 
 
 class AirflowDagCycleException(AirflowException):
@@ -69,8 +93,30 @@ class AirflowRuntimeError(Exception):
         super().__init__(f"{error.error.value}: {error.detail}")
 
 
-class AirflowTimetableInvalid(AirflowException):
+class AirflowTimetableInvalid(AirflowErrorCodeMixin, AirflowException):
     """Raise when a DAG has an invalid timetable."""
+
+    user_facing_error_message = "Invalid timetable configuration"
+
+    description = (
+        "This error occurs when Airflow is unable to use the provided timetable "
+        "definition for scheduling. The timetable may be malformed, incompatible "
+        "with the current context, or fail internal validation rules required for "
+        "generating valid schedules."
+    )
+
+    first_steps = (
+        "Verify that the timetable definition is correct and follows the expected "
+        "interface or format. If using a custom timetable, ensure it implements all "
+        "required methods and returns valid schedule data. Check for recent changes "
+        "to DAG or Airflow version compatibility that may affect timetable behavior. "
+        "Review logs for specific validation errors that indicate which part of the "
+        "timetable is invalid."
+    )
+
+    documentation = (
+        "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html"
+    )
 
 
 class ErrorType(enum.Enum):
@@ -330,12 +376,53 @@ class TaskAlreadyInTaskGroup(AirflowException):
         return f"cannot add {self.task_id!r} to {self.new_group_id!r} (already in {existing_group})"
 
 
-class TaskNotFound(AirflowException):
+class TaskNotFound(AirflowErrorCodeMixin, AirflowException):
     """Raise when a Task is not available in the system."""
+
+    user_facing_error_message = "Requested task was not found"
+
+    description = (
+        "This error occurs when Airflow is unable to locate a task with the "
+        "specified identifier in the current context. The task may not exist, "
+        "may have been removed or renamed, or may not be part of the active DAG "
+        "or execution scope being evaluated."
+    )
+
+    first_steps = (
+        "Verify that the task_id is correct and exists in the expected DAG. "
+        "Check whether the task has been renamed, removed, or conditionally "
+        "excluded. Ensure you are referencing the correct DAG version and that "
+        "the DAG has been successfully parsed and is active. "
+        "If using dynamic task mapping or generated tasks, confirm that the "
+        "task instance was created as expected during DAG run expansion."
+    )
+
+    documentation = "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html"
 
 
 class NodeNotFound(TaskNotFound, KeyError):
     """Raise when attempting to access an invalid node (task or task group) using [] notation."""
+
+    user_facing_error_message = "Requested Node was not found"
+
+    description = (
+        "This error occurs when Airflow attempts to evaluate, render, or traverse "
+        "a specific structural component (Node) inside a Directed Acyclic Graph "
+        "(Dag), but cannot locate it. It typically triggers within visual graph layouts, "
+        "TaskGroup rendering, or internal serialization code when an element id "
+        "fails to map to the established topology."
+    )
+
+    first_steps = (
+        "Verify that the targeting identifier or key for the specific node is correctly "
+        "spelled. Check the visual graph layout in the Airflow UI to confirm the node is active "
+        "and rendered. Ensure that any parent-child relationships or upstream and downstream "
+        "dependencies are correctly linked. Inspect the Dag serialization and parsing status to "
+        "confirm the structure matches the backend metadata. Confirm that the underlying workflow "
+        "definitions have not dynamically filtered or omitted the node."
+    )
+
+    documentation = "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html"
 
     def __str__(self) -> str:
         return str(self.args[0]) if self.args else ""

@@ -1,0 +1,40 @@
+Error codes with doc pages gen and static checks
+
+This adds a way for devs to use error codes (AERR) while raising
+exceptions. Error codes are derived from the exception class names when
+AirflowErrorCodeMixin is added to respective exception class.  Error
+metadata i.e. user-facing error message, error description,
+documentation link and first steps are specified by dev inside the
+exception class, which are then available to users via docs - a new doc
+page is generated for each error code when breeze builds the docs.
+
+This also adds a static check that validates exception raises for error
+code mixin usage and error meta with supporting tests.  Additionally it
+adds error mixin to few exception classes, as examples to get started.
+
+**Step by step flow**
+
+- dev adds AirflowErrorCodeMixin to respective exception class that
+  they'd want to raise with an error_code.
+- dev then specifies user_facing_error_message, first_steps,
+  error_description, documentation_link for that exception class.
+- AirflowErrorCodeMixin automatically derives an error_code for the
+  exception class.
+- dev runs breeze build-docs that generates a new docs page
+  AERR-NOT-FOUND.rst
+- breeze static check takes care of validating
+  user_facing_error_message, first_steps, error_description,
+documentation_link are specified correctly within the exception class.
+
+On airflow users' side, they now see airflow error code as part of the
+stack trace, which they can use for communicating problems instead of
+pasting verbose stack traces. Error codes also improve LLM-based
+discovery of airflow errors as codes are much more
+deterministic/well-defined than plain stack traces.
+
+
+**Error code as part of exception string**
+
+Error code will be part exceptions' string output in the logs in the
+following format: ``[AERR-TIMETABLE-INVALID] schedule interval must be
+positive...``

@@ -52,6 +52,7 @@ apache-airflow-providers-celery = false
 apache-airflow-providers-docker = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-common-ai = false
+apache-airflow-shared-exceptions = false
 apache-airflow = false
 apache-airflow-shared-observability = false
 apache-airflow-dev = false
@@ -273,6 +274,7 @@ members = [
     "apache-airflow-scripts",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-dagnode",
+    "apache-airflow-shared-exceptions",
     "apache-airflow-shared-listeners",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",
@@ -1427,6 +1429,7 @@ dev = [
     { name = "apache-airflow-scripts" },
     { name = "apache-airflow-shared-configuration" },
     { name = "apache-airflow-shared-dagnode" },
+    { name = "apache-airflow-shared-exceptions" },
     { name = "apache-airflow-shared-listeners" },
     { name = "apache-airflow-shared-logging" },
     { name = "apache-airflow-shared-module-loading" },
@@ -1700,6 +1703,7 @@ dev = [
     { name = "apache-airflow-scripts", editable = "scripts" },
     { name = "apache-airflow-shared-configuration", editable = "shared/configuration" },
     { name = "apache-airflow-shared-dagnode", editable = "shared/dagnode" },
+    { name = "apache-airflow-shared-exceptions", editable = "shared/exceptions" },
     { name = "apache-airflow-shared-listeners", editable = "shared/listeners" },
     { name = "apache-airflow-shared-logging", editable = "shared/logging" },
     { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
@@ -8098,6 +8102,25 @@ mypy = [
 
 [package.metadata]
 requires-dist = [{ name = "structlog", specifier = ">=25.4.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-shared-exceptions"
+version = "0.0"
+source = { editable = "shared/exceptions" }
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow-devel-common" },
+]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
+[package.metadata]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]

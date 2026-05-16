@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
+# Using AirflowErrorCodeMixin from shared exceptions
+from airflow._shared.exceptions import AirflowErrorCodeMixin
+
 try:
     from airflow.sdk.exceptions import (
         AirflowException,
@@ -47,17 +50,101 @@ except ModuleNotFoundError:
     class AirflowException(Exception):  # type: ignore[no-redef]
         """Base exception for Airflow errors."""
 
-    class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
+    class AirflowNotFoundException(AirflowErrorCodeMixin, AirflowException):  # type: ignore[no-redef]
         """Raise when a requested object is not found."""
 
-    class AirflowTimetableInvalid(AirflowException):  # type: ignore[no-redef]
+        user_facing_error_message = "Requested resource was not found"
+
+        description = (
+            "This error occurs when Airflow is unable to locate a requested object "
+            "during resolution. The object may not exist, may have been removed, or "
+            "may not be accessible through the configured sources (such as metadata "
+            "database, configuration, or external providers). All available lookup "
+            "mechanisms were checked but none returned a matching result."
+        )
+
+        first_steps = (
+            "Verify that the requested identifier is correct and exists. "
+            "Check for typos or mismatched names. Ensure the resource is defined "
+            "in the expected location (e.g., Airflow metadata database, configuration, "
+            "or any configured external providers). If applicable, confirm that "
+            "external systems are reachable and properly configured. "
+            "Review recent changes that may have removed or renamed the resource."
+        )
+
+        documentation = "https://airflow.apache.org/docs/apache-airflow/stable/"
+
+    class AirflowTimetableInvalid(AirflowErrorCodeMixin, AirflowException):  # type: ignore[no-redef]
         """Raise when a DAG has an invalid timetable."""
 
-    class TaskNotFound(AirflowException):  # type: ignore[no-redef]
+        user_facing_error_message = "Invalid timetable configuration"
+
+        description = (
+            "This error occurs when Airflow is unable to use the provided timetable "
+            "definition for scheduling. The timetable may be malformed, incompatible "
+            "with the current context, or fail internal validation rules required for "
+            "generating valid schedules."
+        )
+
+        first_steps = (
+            "Verify that the timetable definition is correct and follows the expected "
+            "interface or format. If using a custom timetable, ensure it implements all "
+            "required methods and returns valid schedule data. Check for recent changes "
+            "to Dag or Airflow version compatibility that may affect timetable behavior. "
+            "Review logs for specific validation errors that indicate which part of the "
+            "timetable is invalid."
+        )
+
+        documentation = (
+            "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html"
+        )
+
+    class TaskNotFound(AirflowErrorCodeMixin, AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
+
+        user_facing_error_message = "Requested task was not found"
+
+        description = (
+            "This error occurs when Airflow is unable to locate a task with the "
+            "specified identifier in the current context. The task may not exist, "
+            "may have been removed or renamed, or may not be part of the active Dag "
+            "or execution scope being evaluated."
+        )
+
+        first_steps = (
+            "Verify that the task_id is correct and exists in the expected Dag. "
+            "Check whether the task has been renamed, removed, or conditionally "
+            "excluded. Ensure you are referencing the correct Dag version and that "
+            "the Dag has been successfully parsed and is active. "
+            "If using dynamic task mapping or generated tasks, confirm that the "
+            "task instance was created as expected during Dag run expansion."
+        )
+
+        documentation = "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html"
 
     class NodeNotFound(TaskNotFound, KeyError):  # type: ignore[no-redef]
         """Raise when attempting to access an invalid node (task or task group) using [] notation."""
+
+        user_facing_error_message = "Requested Node was not found"
+
+        description = (
+            "This error occurs when Airflow attempts to evaluate, render, or traverse "
+            "a specific structural component (Node) inside a Directed Acyclic Graph "
+            "(Dag), but cannot locate it. It typically triggers within visual graph layouts, "
+            "TaskGroup rendering, or internal serialization code when an element id "
+            "fails to map to the established topology."
+        )
+
+        first_steps = (
+            "Verify that the targeting identifier or key for the specific node is correctly "
+            "spelled. Check the visual graph layout in the Airflow UI to confirm the node is active "
+            "and rendered. Ensure that any parent-child relationships or upstream and downstream "
+            "dependencies are correctly linked. Inspect the Dag serialization and parsing status to "
+            "confirm the structure matches the backend metadata. Confirm that the underlying workflow "
+            "definitions have not dynamically filtered or omitted the node."
+        )
+
+        documentation = "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html"
 
         def __str__(self) -> str:
             return str(self.args[0]) if self.args else ""
@@ -132,13 +219,81 @@ class AirflowClusterPolicyError(AirflowException):
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system."""
 
+    user_facing_error_message = "Requested Dag was not found"
+
+    description = (
+        "This error occurs when Airflow is unable to locate a Dag with the "
+        "specified identifier within the active metadata database. It typically "
+        "happens when a pipeline is requested by an external trigger, API call, "
+        "or UI operation, but the scheduler or webserver has not yet registered "
+        "or has recently removed the pipeline configuration."
+    )
+
+    first_steps = (
+        "Verify that the Dag ID is spelled correctly and exactly matches the "
+        "definition in your Python source file. Confirm that the Dag file resides "
+        "in the designated Dags directory or within an active Dag bundle. Check the "
+        "Airflow UI main dashboard to see if the Dag is visible, active, or currently "
+        "paused. Inspect the Dag processing and serialization logs to ensure no parsing "
+        "exceptions are blocking the pipeline from registering. Ensure that the scheduler "
+        "or dedicated Dag file processor is running and actively scanning the directory "
+        "for code updates."
+    )
+
+    documentation = "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html"
+
 
 class DagCodeNotFound(AirflowNotFoundException):
     """Raise when a DAG code is not available in the system."""
 
+    user_facing_error_message = "Requested Dag code was not found"
+
+    description = (
+        "This error occurs when Airflow tries to read, render, or display the underlying "
+        "Python source code for a Dag, but cannot find the matching record in the "
+        "dag_code database table. It typically happens when the Webserver or UI "
+        "requests the code view for a Dag ID that has been partially removed, renamed, "
+        "or hasn't been successfully synchronized by the Dag processor/scheduler."
+    )
+
+    first_steps = (
+        "Check the Airflow UI dashboard to verify if the Dag ID is currently active "
+        "and parsed without errors. Confirm whether the underlying Python file still "
+        "exists in your Dags directory and hasn't been deleted or renamed. Verify that "
+        "the Dag processor or scheduler is running actively to ensure new and modified "
+        "code gets serialized into the database. Refresh the Dag structure using the UI "
+        "sync buttons or trigger a parsing interval to force the scheduler to regenerate "
+        "the missing code record. Inspect the database state to ensure that cleanup scripts "
+        "or metadata retention loops have not accidentally purged older Dag code versions."
+    )
+
+    documentation = "https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-serialization.html"
+
 
 class DagRunNotFound(AirflowNotFoundException):
     """Raise when a DAG Run is not available in the system."""
+
+    user_facing_error_message = "Requested Dag Run was not found"
+
+    description = (
+        "This error occurs when Airflow attempts to access, execute, or evaluate "
+        "a specific execution instance (Dag Run) that does not exist in the metadata "
+        "database. It typically triggers when targeting a specific run_id or logical "
+        "date via the UI, API, or automated pipelines without an actively recorded "
+        "history for that instance."
+    )
+
+    first_steps = (
+        "Check the Airflow UI to confirm if the targeted Dag exists, is active, and is unpaused. "
+        "Verify whether the specific execution tracking identifier (run_id or logical date) "
+        "accurately aligns with a historical entry saved in the database. Ensure an actual "
+        "pipeline run has been initialized (manually or via schedule) before attempting to "
+        "interact with individual task scopes. Inspect the central scheduler logs or execution "
+        "logs to determine if an external process, database cleanup script, or task runner "
+        "lifecycle failure prematurely deleted or omitted the run record."
+    )
+
+    documentation = "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dag-run.html"
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
@@ -174,6 +329,32 @@ class SerializationError(AirflowException):
 class TaskInstanceNotFound(AirflowNotFoundException):
     """Raise when a task instance is not available in the system."""
 
+    user_facing_error_message = "Requested Task Instance was not found"
+
+    description = (
+        "This error occurs when Airflow searches for a specific execution slice "
+        "of a task, uniquely identified by its task_id, run_id (or execution_date), "
+        "and map_index but cannot locate the corresponding row in the task_instance "
+        "database table. It typically happens when querying logs, changing task "
+        "states, or attempting to clear an execution for a pipeline run that does "
+        "not contain that specific task record."
+    )
+
+    first_steps = (
+        "Verify that the targeting task_id, run_id, and map_index values are completely accurate. "
+        "Confirm that the parent Dag run exists and is actively tracked in the metadata database. "
+        "Check if the task was recently added, renamed, or removed from the Python Dag file, causing "
+        "a discrepancy between the active code structure and old execution histories. "
+        "Ensure that database maintenance operations, aggressive metadata cleanup scripts, or manual "
+        "database purges did not clear out historical task state tables prematurely. "
+        "Inspect the central scheduler or webserver logs to determine if serialization lag or "
+        "communication errors between distributed executors temporarily broke instance tracking."
+    )
+
+    documentation = (
+        "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#task-instances"
+    )
+
 
 class NotMapped(Exception):
     """Raise if a task is neither mapped nor has any parent mapped groups."""
@@ -181,6 +362,28 @@ class NotMapped(Exception):
 
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
+
+    user_facing_error_message = "Requested Pool was not found"
+
+    description = (
+        "This error occurs when a task is scheduled or triggered with a specific pool "
+        "assignment, but that pool does not exist in the Airflow metadata database. It "
+        "typically happens when a Dag references a custom slot limitation pool that has "
+        "not yet been created via the UI, CLI, or API, or has been accidentally deleted."
+    )
+
+    first_steps = (
+        "Navigate to Admin -> Pools in the Airflow UI to check the list of available slots. "
+        "Verify that the pool name assigned in your task definition exactly matches an existing "
+        "record. Ensure that any custom initialization scripts or deployment pipelines create "
+        "the pool before execution. Check if the task can temporarily fall back to the "
+        "built-in 'default_pool' while resolving the issue. Inspect the database migration and "
+        "setup logs to ensure metadata tables are fully initialized."
+    )
+
+    documentation = (
+        "https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/pools.html"
+    )
 
 
 class FileSyntaxError(NamedTuple):

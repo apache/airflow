@@ -148,6 +148,7 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/sdk/_shared/plugins_manager"
 "../shared/providers_discovery/src/airflow_shared/providers_discovery" = "src/airflow/sdk/_shared/providers_discovery"
 "../shared/template_rendering/src/airflow_shared/template_rendering" = "src/airflow/sdk/_shared/template_rendering"
+"../shared/exceptions/src/airflow_shared/exceptions" = "src/airflow/sdk/_shared/exceptions"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -310,6 +311,7 @@ tmp_path_retention_policy = "failed"
 shared_distributions = [
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-dagnode",
+    "apache-airflow-shared-exceptions",
     "apache-airflow-shared-listeners",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",

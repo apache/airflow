@@ -156,6 +156,7 @@ experience is continuously improving, but defining workflows as code is central 
     best-practices
     faq
     troubleshooting
+    error-codes/index
     Release Policies <release-process>
     release_notes
     privacy_notice

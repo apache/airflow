@@ -365,17 +365,17 @@ def test_validate_success(timetable: Timetable) -> None:
     [
         pytest.param(
             CronTriggerTimetable("0 0 1 13 0", timezone=utc),
-            "[0 0 1 13 0] is not acceptable, out of range",
+            "[AERR-TIMETABLE-INVALID] [0 0 1 13 0] is not acceptable, out of range",
             id="cron",
         ),
         pytest.param(
             DeltaTriggerTimetable(datetime.timedelta(days=-1)),
-            "schedule interval must be positive, not datetime.timedelta(days=-1)",
+            "[AERR-TIMETABLE-INVALID] schedule interval must be positive, not datetime.timedelta(days=-1)",
             id="timedelta",
         ),
         pytest.param(
             DeltaTriggerTimetable(dateutil.relativedelta.relativedelta(days=-1)),
-            "schedule interval must be positive, not relativedelta(days=-1)",
+            "[AERR-TIMETABLE-INVALID] schedule interval must be positive, not relativedelta(days=-1)",
             id="relativedelta",
         ),
     ],

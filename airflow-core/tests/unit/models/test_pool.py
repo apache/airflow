@@ -313,7 +313,7 @@ class TestPool:
         assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT - 1
 
     def test_delete_pool_non_existing(self):
-        with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):
+        with pytest.raises(PoolNotFound, match=r"^\[AERR-POOL-NOT-FOUND\] Pool 'test' doesn't exist$"):
             Pool.delete_pool(name="test")
 
     def test_delete_default_pool_not_allowed(self):

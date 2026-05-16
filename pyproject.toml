@@ -1333,6 +1333,7 @@ dev = [
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-dagnode",
+    "apache-airflow-shared-exceptions",
     "apache-airflow-shared-listeners",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",
@@ -1500,6 +1501,7 @@ apache-airflow-providers-zendesk = false
 apache-airflow-scripts = false
 apache-airflow-shared-configuration = false
 apache-airflow-shared-dagnode = false
+apache-airflow-shared-exceptions = false
 apache-airflow-shared-listeners = false
 apache-airflow-shared-logging = false
 apache-airflow-shared-module-loading = false
@@ -1651,6 +1653,7 @@ apache-airflow-providers-zendesk = false
 apache-airflow-scripts = false
 apache-airflow-shared-configuration = false
 apache-airflow-shared-dagnode = false
+apache-airflow-shared-exceptions = false
 apache-airflow-shared-listeners = false
 apache-airflow-shared-logging = false
 apache-airflow-shared-module-loading = false
@@ -1696,6 +1699,7 @@ apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-dagnode = { workspace = true }
+apache-airflow-shared-exceptions = { workspace = true }
 apache-airflow-shared-listeners = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-module-loading = { workspace = true }
@@ -1833,6 +1837,7 @@ members = [
     "docker-stack-docs",
     "shared/configuration",
     "shared/dagnode",
+    "shared/exceptions",
     "shared/listeners",
     "shared/logging",
     "shared/module_loading",
