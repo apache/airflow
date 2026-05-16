@@ -665,6 +665,7 @@ extend-select = [
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
+    "PTH206", # Checks for uses of .split(os.sep)
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
