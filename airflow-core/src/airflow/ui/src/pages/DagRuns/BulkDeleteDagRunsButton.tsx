@@ -23,7 +23,9 @@ import { FiTrash2 } from "react-icons/fi";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Dialog } from "src/components/ui";
-import { useBulkDagRuns } from "src/queries/useBulkDagRuns";
+import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
+
+import { BulkErrorList } from "./BulkErrorList";
 
 type Props = {
   readonly clearSelections: VoidFunction;
@@ -33,10 +35,15 @@ type Props = {
 const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-  const { bulkDelete, error, isPending } = useBulkDagRuns({
+  const { actionErrors, error, isPending, remove, reset } = useBulkDeleteDagRuns({
     clearSelections,
     onSuccessConfirm: onClose,
   });
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   return (
     <>
@@ -45,7 +52,15 @@ const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) =>
         {translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root
+        onOpenChange={(details) => {
+          if (!details.open) {
+            handleClose();
+          }
+        }}
+        open={open}
+        size="xl"
+      >
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -79,12 +94,13 @@ const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) =>
             </Box>
 
             <ErrorAlert error={error} />
+            <BulkErrorList errors={actionErrors} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
-                  void bulkDelete(selectedDagRuns);
+                  remove(selectedDagRuns);
                 }}
               >
                 <FiTrash2 />

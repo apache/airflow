@@ -26,26 +26,33 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useBulkDagRuns } from "src/queries/useBulkDagRuns";
+import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
+
+import { BulkErrorList } from "./BulkErrorList";
 
 type Props = {
   readonly clearSelections: VoidFunction;
   readonly selectedDagRuns: Array<DAGRunResponse>;
 };
 
+const DEFAULT_SELECTED_OPTIONS = ["existingTasks"];
+
 const BulkClearDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(DEFAULT_SELECTED_OPTIONS);
   const [note, setNote] = useState<string | null>(null);
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-  const { bulkClear, error, isPending } = useBulkDagRuns({
+  const { actionErrors, clear, error, isPending, reset } = useBulkClearDagRuns({
     clearSelections,
     onSuccessConfirm: onClose,
   });
 
   const handleClose = () => {
+    setSelectedOptions(DEFAULT_SELECTED_OPTIONS);
     setNote(null);
+    setRunOnLatestVersion(false);
+    reset();
     onClose();
   };
 
@@ -59,7 +66,15 @@ const BulkClearDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => 
         {translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
+      <Dialog.Root
+        onOpenChange={(details) => {
+          if (!details.open) {
+            handleClose();
+          }
+        }}
+        open={open}
+        size="xl"
+      >
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -75,7 +90,7 @@ const BulkClearDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => 
           <Dialog.Body width="full">
             <Flex justifyContent="center" mb={4}>
               <SegmentedControl
-                defaultValues={["existingTasks"]}
+                defaultValues={DEFAULT_SELECTED_OPTIONS}
                 onChange={setSelectedOptions}
                 options={[
                   {
@@ -112,6 +127,7 @@ const BulkClearDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => 
 
             <ActionAccordion note={note} setNote={setNote} />
             <ErrorAlert error={error} />
+            <BulkErrorList errors={actionErrors} />
             <Flex alignItems="center" justifyContent="space-between" mt={3}>
               <Checkbox
                 checked={runOnLatestVersion}
@@ -125,7 +141,7 @@ const BulkClearDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => 
                 disabled={selectedDagRuns.length === 0}
                 loading={isPending}
                 onClick={() => {
-                  void bulkClear(selectedDagRuns, {
+                  clear(selectedDagRuns, {
                     note,
                     onlyFailed,
                     onlyNew,

@@ -28,7 +28,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 import { Dialog, Menu } from "src/components/ui";
-import { useBulkDagRuns } from "src/queries/useBulkDagRuns";
+import { useBulkUpdateDagRuns } from "src/queries/useBulkUpdateDagRuns";
+
+import { BulkErrorList } from "./BulkErrorList";
 
 type Props = {
   readonly clearSelections: VoidFunction;
@@ -40,7 +42,7 @@ const BulkMarkDagRunsAsButton = ({ clearSelections, selectedDagRuns }: Props) =>
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DAGRunPatchStates>("success");
   const [note, setNote] = useState<string | null>(null);
-  const { bulkMarkAs, error, isPending, setError } = useBulkDagRuns({
+  const { actionErrors, error, isPending, reset, update } = useBulkUpdateDagRuns({
     clearSelections,
     onSuccessConfirm: onClose,
   });
@@ -51,8 +53,14 @@ const BulkMarkDagRunsAsButton = ({ clearSelections, selectedDagRuns }: Props) =>
   const handleOpen = (newState: DAGRunPatchStates) => {
     setState(newState);
     setNote(null);
-    setError(undefined);
+    reset();
     onOpen();
+  };
+
+  const handleClose = () => {
+    setNote(null);
+    reset();
+    onClose();
   };
 
   const directlyAffected = selectedDagRuns.filter((dr) => dr.state !== state);
@@ -99,7 +107,15 @@ const BulkMarkDagRunsAsButton = ({ clearSelections, selectedDagRuns }: Props) =>
         </Menu.Content>
       </Menu.Root>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root
+        onOpenChange={(details) => {
+          if (!details.open) {
+            handleClose();
+          }
+        }}
+        open={open}
+        size="xl"
+      >
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -117,13 +133,14 @@ const BulkMarkDagRunsAsButton = ({ clearSelections, selectedDagRuns }: Props) =>
           <Dialog.Body width="full">
             <ActionAccordion note={note} setNote={setNote} />
             <ErrorAlert error={error} />
+            <BulkErrorList errors={actionErrors} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="brand"
                 disabled={directlyAffected.length === 0}
                 loading={isPending}
                 onClick={() => {
-                  void bulkMarkAs(directlyAffected, { note, state });
+                  update(directlyAffected, { note, state });
                 }}
               >
                 {translate("modal.confirm")}
