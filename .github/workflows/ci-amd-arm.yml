@@ -23,12 +23,15 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - v[0-9]+-[0-9]+-test
+      - chart/v[0-9]+-[0-9]x+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
   pull_request:
     branches:
       - main
       - v[0-9]+-[0-9]+-test
+      - chart/v[0-9]+-[0-9]x+-test
       - v[0-9]+-[0-9]+-stable
+      - chart/v[0-9]+-[0-9]x+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
@@ -40,7 +43,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.10.12"  # Keep this comment to allow automatic replacement of uv version
+  UV_VERSION: "0.11.8"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -710,7 +713,9 @@ jobs:
     permissions:
       contents: read
       packages: read
-    if: needs.build-info.outputs.run-unit-tests == 'true'
+    if: >
+      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.run-unit-tests == 'true'
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
