@@ -276,6 +276,7 @@ with DAG(
         environment_id=ENVIRONMENT_ID,
         composer_dag_id="airflow_monitoring",
         allowed_states=["success"],
+        execution_range=[datetime.now() - timedelta(1), datetime.now()],
     )
     # [END howto_sensor_dag_run]
 
@@ -287,6 +288,7 @@ with DAG(
         environment_id=ENVIRONMENT_ID_ASYNC,
         composer_dag_id="airflow_monitoring",
         allowed_states=["success"],
+        execution_range=[datetime.now() - timedelta(1), datetime.now()],
         deferrable=True,
     )
     # [END howto_sensor_dag_run_deferrable_mode]
