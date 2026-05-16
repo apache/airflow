@@ -757,6 +757,7 @@ class TestSFTPOperatorTrigger:
         """Test run() yields TriggerEvent with status success."""
         import asyncio
         from unittest.mock import patch
+
         trigger = SFTPOperatorTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
@@ -765,9 +766,11 @@ class TestSFTPOperatorTrigger:
         )
         with patch.object(trigger, "_do_transfer", return_value=None):
             events = []
+
             async def collect():
                 async for event in trigger.run():
                     events.append(event)
+
             asyncio.run(collect())
         assert len(events) == 1
         assert events[0].payload["status"] == "success"
@@ -776,6 +779,7 @@ class TestSFTPOperatorTrigger:
         """Test run() yields TriggerEvent with status error on exception."""
         import asyncio
         from unittest.mock import patch
+
         trigger = SFTPOperatorTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
@@ -784,9 +788,11 @@ class TestSFTPOperatorTrigger:
         )
         with patch.object(trigger, "_do_transfer", side_effect=Exception("Connection failed")):
             events = []
+
             async def collect():
                 async for event in trigger.run():
                     events.append(event)
+
             asyncio.run(collect())
         assert len(events) == 1
         assert events[0].payload["status"] == "error"
