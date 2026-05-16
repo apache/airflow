@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-16T00:24:05.191283
+# This constraints file was automatically generated on 2026-05-16T14:52:34.355795
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -396,7 +396,7 @@ hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
 httplib2==0.31.2
-httpr==0.4.6
+httpr==0.4.8
 httptools==0.7.1
 httpx==0.28.1
 huggingface_hub==1.14.0
@@ -493,9 +493,9 @@ oauthlib==3.3.1
 openai==2.36.0
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.47.0
-openlineage-python==1.47.0
-openlineage_sql==1.47.0
+openlineage-integration-common==1.47.1
+openlineage-python==1.47.1
+openlineage_sql==1.47.1
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
@@ -557,9 +557,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.93.0
+pydantic-ai-slim==1.94.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.93.0
+pydantic-graph==1.94.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -609,7 +609,7 @@ requests==2.34.0
 requests_ntlm==1.3.0
 retryhttp==1.4.0
 rich-argparse==1.8.0
-rich-toolkit==0.19.7
+rich-toolkit==0.19.8
 rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
@@ -633,7 +633,7 @@ smart_open==7.6.1
 smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
-snowflake-connector-python==4.4.0
+snowflake-connector-python==4.5.0
 snowflake-snowpark-python==1.50.1
 snowflake-sqlalchemy==1.9.0
 sortedcontainers==2.4.0
@@ -687,7 +687,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==21.3.1
+virtualenv==21.3.2
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.7.0
