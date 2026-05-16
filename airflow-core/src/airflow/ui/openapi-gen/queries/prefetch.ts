@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1463,6 +1463,66 @@ export const prefetchUseProviderServiceGetProviders = (queryClient: QueryClient,
   limit?: number;
   offset?: number;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
+/**
+* List Asset State
+* List all state entries for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns AssetStateCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseAssetStateServiceListAssetState = (queryClient: QueryClient, { assetId }: {
+  assetId: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetStateServiceListAssetStateKeyFn({ assetId }), queryFn: () => AssetStateService.listAssetState({ assetId }) });
+/**
+* Get Asset State
+* Get a single asset state entry.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.key
+* @returns AssetStateEntry Successful Response
+* @throws ApiError
+*/
+export const prefetchUseAssetStateServiceGetAssetState = (queryClient: QueryClient, { assetId, key }: {
+  assetId: number;
+  key: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetStateServiceGetAssetStateKeyFn({ assetId, key }), queryFn: () => AssetStateService.getAssetState({ assetId, key }) });
+/**
+* List Task State
+* List all task state entries for a task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns TaskStateCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskStateServiceListTaskState = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateServiceListTaskStateKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskStateService.listTaskState({ dagId, dagRunId, mapIndex, taskId }) });
+/**
+* Get Task State
+* Get a single task state entry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.mapIndex
+* @returns TaskStateEntry Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskStateServiceGetTaskState = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  taskId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskStateServiceGetTaskStateKeyFn({ dagId, dagRunId, key, mapIndex, taskId }), queryFn: () => TaskStateService.getTaskState({ dagId, dagRunId, key, mapIndex, taskId }) });
 /**
 * Get Xcom Entry
 * Get an XCom entry.

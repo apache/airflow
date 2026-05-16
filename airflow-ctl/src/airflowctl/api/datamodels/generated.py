@@ -49,6 +49,27 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetStateBody(BaseModel):
+    """
+    Request body for setting an asset state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class AssetStateEntry(BaseModel):
+    """
+    A single asset state key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str, Field(title="Value")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -906,6 +927,29 @@ class TaskOutletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
+class TaskStateBody(BaseModel):
+    """
+    Request body for setting a task state value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(title="Value")]
+
+
+class TaskStateEntry(BaseModel):
+    """
+    A single task state key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str, Field(title="Value")]
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+    updated_by_run: Annotated[str, Field(title="Updated By Run")]
+    expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
+
+
 class TimeDelta(BaseModel):
     """
     TimeDelta can be used to interact with datetime.timedelta objects.
@@ -1134,6 +1178,15 @@ class AssetResponse(BaseModel):
     aliases: Annotated[list[AssetAliasResponse], Field(title="Aliases")]
     watchers: Annotated[list[AssetWatcherResponse], Field(title="Watchers")]
     last_asset_event: LastAssetEventResponse | None = None
+
+
+class AssetStateCollectionResponse(BaseModel):
+    """
+    All asset state entries for an asset.
+    """
+
+    asset_states: Annotated[list[AssetStateEntry], Field(title="Asset States")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class BackfillPostBody(BaseModel):
@@ -1852,6 +1905,15 @@ class TaskResponse(BaseModel):
     extra_links: Annotated[
         list[str], Field(description="Extract and return extra_links.", title="Extra Links")
     ]
+
+
+class TaskStateCollectionResponse(BaseModel):
+    """
+    All task state entries for a task instance.
+    """
+
+    task_states: Annotated[list[TaskStateEntry], Field(title="Task States")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class VariableCollectionResponse(BaseModel):

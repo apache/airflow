@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1463,6 +1463,66 @@ export const useProviderServiceGetProvidersSuspense = <TData = Common.ProviderSe
   limit?: number;
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
+/**
+* List Asset State
+* List all state entries for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns AssetStateCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetStateServiceListAssetStateSuspense = <TData = Common.AssetStateServiceListAssetStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId }: {
+  assetId: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetStateServiceListAssetStateKeyFn({ assetId }, queryKey), queryFn: () => AssetStateService.listAssetState({ assetId }) as TData, ...options });
+/**
+* Get Asset State
+* Get a single asset state entry.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.key
+* @returns AssetStateEntry Successful Response
+* @throws ApiError
+*/
+export const useAssetStateServiceGetAssetStateSuspense = <TData = Common.AssetStateServiceGetAssetStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, key }: {
+  assetId: number;
+  key: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetStateServiceGetAssetStateKeyFn({ assetId, key }, queryKey), queryFn: () => AssetStateService.getAssetState({ assetId, key }) as TData, ...options });
+/**
+* List Task State
+* List all task state entries for a task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns TaskStateCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskStateServiceListTaskStateSuspense = <TData = Common.TaskStateServiceListTaskStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskStateServiceListTaskStateKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskStateService.listTaskState({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+/**
+* Get Task State
+* Get a single task state entry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.key
+* @param data.mapIndex
+* @returns TaskStateEntry Successful Response
+* @throws ApiError
+*/
+export const useTaskStateServiceGetTaskStateSuspense = <TData = Common.TaskStateServiceGetTaskStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  key: string;
+  mapIndex?: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskStateServiceGetTaskStateKeyFn({ dagId, dagRunId, key, mapIndex, taskId }, queryKey), queryFn: () => TaskStateService.getTaskState({ dagId, dagRunId, key, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Xcom Entry
 * Get an XCom entry.

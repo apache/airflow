@@ -5529,6 +5529,611 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/{asset_id}/state:
+    get:
+      tags:
+      - Asset State
+      summary: List Asset State
+      description: List all state entries for an asset.
+      operationId: list_asset_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetStateCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset State
+      summary: Clear Asset State
+      description: Delete all state keys for an asset.
+      operationId: clear_asset_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/{asset_id}/state/{key}:
+    get:
+      tags:
+      - Asset State
+      summary: Get Asset State
+      description: Get a single asset state entry.
+      operationId: get_asset_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetStateEntry'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - Asset State
+      summary: Set Asset State
+      description: Set an asset state value. Creates or overwrites the key.
+      operationId: set_asset_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetStateBody'
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset State
+      summary: Delete Asset State
+      description: Delete a single asset state key. No-op if the key does not exist.
+      operationId: delete_asset_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state:
+    get:
+      tags:
+      - Task State
+      summary: List Task State
+      description: List all task state entries for a task instance.
+      operationId: list_task_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStateCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task State
+      summary: Clear Task State
+      description: Delete all task state keys for a task instance.
+      operationId: clear_task_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      - name: all_map_indices
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: All Map Indices
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state/{key}:
+    get:
+      tags:
+      - Task State
+      summary: Get Task State
+      description: Get a single task state entry.
+      operationId: get_task_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStateEntry'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - Task State
+      summary: Set Task State
+      description: Set a task state value. Creates or overwrites the key.
+      operationId: set_task_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStateBody'
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task State
+      summary: Delete Task State
+      description: Delete a single task state key. No-op if the key does not exist.
+      operationId: delete_task_state
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     get:
       tags:
@@ -10577,6 +11182,52 @@ components:
       - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetStateBody:
+      properties:
+        value:
+          type: string
+          title: Value
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: AssetStateBody
+      description: Request body for setting an asset state value.
+    AssetStateCollectionResponse:
+      properties:
+        asset_states:
+          items:
+            $ref: '#/components/schemas/AssetStateEntry'
+          type: array
+          title: Asset States
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - asset_states
+      - total_entries
+      title: AssetStateCollectionResponse
+      description: All asset state entries for an asset.
+    AssetStateEntry:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          type: string
+          title: Value
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - key
+      - value
+      - updated_at
+      title: AssetStateEntry
+      description: A single asset state key/value pair with metadata.
     AssetWatcherResponse:
       properties:
         name:
@@ -14855,6 +15506,63 @@ components:
       - extra_links
       title: TaskResponse
       description: Task serializer for responses.
+    TaskStateBody:
+      properties:
+        value:
+          type: string
+          title: Value
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: TaskStateBody
+      description: Request body for setting a task state value.
+    TaskStateCollectionResponse:
+      properties:
+        task_states:
+          items:
+            $ref: '#/components/schemas/TaskStateEntry'
+          type: array
+          title: Task States
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_states
+      - total_entries
+      title: TaskStateCollectionResponse
+      description: All task state entries for a task instance.
+    TaskStateEntry:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          type: string
+          title: Value
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        updated_by_run:
+          type: string
+          title: Updated By Run
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+      type: object
+      required:
+      - key
+      - value
+      - updated_at
+      - updated_by_run
+      - expires_at
+      title: TaskStateEntry
+      description: A single task state key/value pair with metadata.
     TimeDelta:
       properties:
         __type:
