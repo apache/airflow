@@ -193,6 +193,12 @@
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Coincidir en qualsevol lloc del valor (recerca de subcadena). Més lent en instàncies grans perquè no pot utilitzar l'índex B-tree predeterminat. Més detalls a la secció de documentació sobre índexs de metadades personalitzats.",
+      "title": "Coincidir en qualsevol lloc"
+    }
+  },
   "security": {
     "actions": "Accions",
     "permissions": "Permisos",
@@ -353,6 +359,10 @@
   "triggered": "Executat",
   "tryNumber": "Número d'intent",
   "user": "Usuari",
+  "validation": {
+    "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
+    "mustBeValidNumber": "Ha de ser un número vàlid."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",
