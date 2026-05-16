@@ -969,7 +969,7 @@ class DagFileProcessorManager(LoggingMixin):
                 proc = self._processors.get(file)
                 num_dags = stat.num_dags
                 num_errors = stat.import_errors
-                file_name = Path(file.rel_path).stem
+                file_name = normalize_name_for_stats(Path(file.rel_path).stem)
                 processor_pid = proc.pid if proc else None
                 processor_start_time = proc.start_time if proc else None
                 runtime = (now - processor_start_time) if processor_start_time else None

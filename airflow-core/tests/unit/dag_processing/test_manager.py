@@ -1359,6 +1359,25 @@ class TestDagFileProcessorManager:
             tags={"bundle_name": bundle_name, "file_name": dag_filename[:-3]},
         )
 
+    @mock.patch("airflow.dag_processing.manager.stats.gauge")
+    def test_log_file_processing_stats_sanitizes_last_run_seconds_ago_metric_name(self, statsd_gauge_mock):
+        manager = DagFileProcessorManager(max_runs=1)
+        dag_file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("test_of sprak_opertaor.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+        manager._file_stats[dag_file] = DagFileStat(
+            last_finish_time=timezone.utcnow() - timedelta(seconds=5),
+        )
+
+        manager._log_file_processing_stats({"testing": {dag_file}})
+
+        statsd_gauge_mock.assert_any_call(
+            "dag_processing.last_run.seconds_ago.test_of_sprak_opertaor",
+            mock.ANY,
+        )
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(
         self, tmp_path, session, configure_testing_dag_bundle, test_zip_path
