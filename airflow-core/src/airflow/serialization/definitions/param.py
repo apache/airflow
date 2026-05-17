@@ -21,10 +21,8 @@ from __future__ import annotations
 import collections.abc
 import copy
 from typing import TYPE_CHECKING, Any, Literal
-from jsonschema import FormatChecker, validate
 
 from airflow.exceptions import ParamValidationError
-
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
 if TYPE_CHECKING:

@@ -105,7 +105,6 @@ class Param:
             if suppress_exception:
                 return None
             raise ParamValidationError("No value passed and Param has no default value")
-
         try:
             validate(
                 final_val,
