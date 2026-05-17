@@ -47,6 +47,10 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
             rich.print(f"[red]Invalid variable file: {args.file}")
             sys.exit(1)
 
+    if not isinstance(var_json, dict):
+        rich.print(f"[red]Invalid variable file: {args.file}")
+        sys.exit(1)
+
     action_on_existence = BulkActionOnExistence(args.action_on_existing_key)
     vars_to_update = []
     for k, v in var_json.items():
