@@ -851,13 +851,14 @@ def discover_running_compose_projects() -> set[str]:
             "--filter",
             "label=com.docker.compose.project",
             "--format",
-            '{{ index .Labels "com.docker.compose.project" }}',
+            '{{ .Label "com.docker.compose.project" }}',
         ],
         capture_output=True,
         text=True,
         check=False,
     )
     if result.returncode != 0 or not result.stdout:
+        console_print(f"[error] Unable to find running docker container projects: {result.stderr}")
         return set()
     return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
