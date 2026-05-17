@@ -39,7 +39,7 @@
 # Documentation configuration
 
 This directory used to contain all the documentation files for the project. The documentation has
-been split into separate folders - the documentation is now stored in the folders of the sub-projects it refers to.
+been split into separate folders; the documentation is now stored in the folders of the sub-projects it refers to.
 
 If you are looking for the documentation, it is stored as follows:
 
