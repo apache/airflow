@@ -47,7 +47,7 @@ export class ConfigurationPage extends BasePage {
   }
 
   public async waitForLoad(): Promise<void> {
-    await expect(this.table).toBeVisible({ timeout: 10_000 });
-    await expect(this.rows.first()).toBeVisible({ timeout: 10_000 });
+    await expect(this.table).toBeVisible();
+    await expect(this.rows.first()).toBeVisible();
   }
 }

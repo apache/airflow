@@ -158,6 +158,63 @@ class TestTokenTypeScopeEnforcement:
         assert run.status_code == 200
 
 
+class TestTiSelfScopeEnforcement:
+    """Routes with the ``ti:self`` scope reject mismatched JWT subjects."""
+
+    PATH_TI_ID = "00000000-0000-0000-0000-000000000001"
+    OTHER_TI_ID = "00000000-0000-0000-0000-000000000002"
+
+    @pytest.fixture
+    def app(self):
+        """One router enforces ti:self, another doesn't — to confirm enforcement is opt-in."""
+        app = FastAPI()
+
+        authenticated_router = APIRouter(dependencies=[Security(require_auth)])
+        ti_self_router = APIRouter(dependencies=[Security(require_auth, scopes=["ti:self"])])
+
+        @ti_self_router.get("/{task_instance_id}/state")
+        def state_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        @authenticated_router.get("/no-scope/{task_instance_id}")
+        def no_scope_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        authenticated_router.include_router(ti_self_router, prefix="/ti")
+        app.include_router(authenticated_router)
+        return app
+
+    def _override_jwt(self, app: FastAPI, token_ti_id: UUID):
+        async def mock_jwt(request: Request):
+            return TIToken(id=token_ti_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[_jwt_bearer] = mock_jwt
+
+    def test_matching_subject_is_accepted(self, app):
+        self._override_jwt(app, self.PATH_TI_ID)
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/ti/{self.PATH_TI_ID}/state",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 200
+
+    def test_mismatched_subject_is_rejected(self, app):
+        """A task cannot read or write another task's resources."""
+        self._override_jwt(app, self.OTHER_TI_ID)
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/ti/{self.PATH_TI_ID}/state",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 403
+        assert "does not match" in resp.json()["detail"]
+
+
 class TestGetTeamNameDep:
     """Tests for get_team_name_dep avoiding unnecessary async sessions."""
 

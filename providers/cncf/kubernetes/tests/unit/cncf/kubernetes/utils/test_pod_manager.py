@@ -483,6 +483,51 @@ class TestPodManager:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events_tracks_resource_version_when_first_response_has_no_events(
+        self, mock_sleep
+    ):
+        """Test that watch_pod_events uses list metadata resource version when no events are returned."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        mock_events_1 = mock.Mock()
+        mock_events_1.items = []
+        mock_events_1.metadata = mock.Mock(resource_version="100")
+
+        mock_event_2 = mock.Mock()
+        mock_event_2.metadata.uid = "event-uid-2"
+        mock_event_2.metadata.resource_version = "101"
+        mock_event_2.message = "Event 2"
+        mock_event_2.involved_object.field_path = "spec"
+
+        mock_events_2 = mock.Mock()
+        mock_events_2.items = [mock_event_2]
+        mock_events_2.metadata = mock.Mock(resource_version="101")
+
+        self.mock_kube_client.list_namespaced_event.side_effect = [mock_events_1, mock_events_2]
+        self.pod_manager.stop_watching_events = False
+
+        call_count = 0
+
+        async def side_effect_sleep(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                self.pod_manager.stop_watching_events = True
+
+        mock_sleep.side_effect = side_effect_sleep
+
+        await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+
+        calls = self.mock_kube_client.list_namespaced_event.call_args_list
+        assert len(calls) == 2
+        assert calls[0][1]["resource_version"] is None
+        assert calls[1][1]["resource_version"] == "100"
+        assert calls[1][1]["resource_version_match"] == "NotOlderThan"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
     async def test_watch_pod_events_deduplicates_events(self, mock_sleep):
         """Test that watch_pod_events deduplicates events."""
         mock_pod = mock.Mock()
@@ -926,7 +971,7 @@ class TestPodManager:
             assert self.pod_manager.stop_watching_events is True
             assert mock_time_sleep.call_count == 3
             mock_log_info.assert_any_call(
-                "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+                "::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout
             )
             mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
 
@@ -1549,7 +1594,7 @@ class TestAsyncPodManager:
         )
         assert mock_time_sleep.call_count == 3
         mock_log_info.assert_any_call(
-            "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+            "::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout
         )
         mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
         assert self.async_pod_manager.stop_watching_events is True

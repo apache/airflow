@@ -3,6 +3,21 @@
 
 # AGENTS instructions
 
+## Naming
+
+Write **Dag** (title case) in all prose. Keep the all-caps or lowercase
+spelling only when reproducing a literal code token — never rewrite these,
+even inside fenced code blocks:
+
+- Python: the SDK class `DAG` (`from airflow.sdk import DAG`,
+  `dag = DAG("my_dag", ...)`); identifiers like `dag_id`, `dag`, `my_dag`.
+- CLI: `airflow dags list`, `airflow dags test`, etc.
+- Paths and config keys: `dag_processing/`, `dagprocessor`, `get_dag`, etc.
+- Anti-pattern quotes that show the wrong form to teach the rule itself
+  (e.g., `Use "DAG" — always write "Dag"`).
+
+Don't spell out **Directed Acyclic Graph** except for historical context.
+
 ## Environment Setup
 
 - Install prek: `uv tool install prek`
@@ -122,6 +137,8 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
+- Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
+- Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
 - Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes (usually coordinated during review; do not add by default). **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
 

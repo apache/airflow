@@ -82,6 +82,7 @@ class AwaitMessageTrigger(BaseEventTrigger):
         poll_interval: float = 5,
         commit_offset: bool = True,
     ) -> None:
+        super().__init__()
         self.topics = topics
         self.apply_function = apply_function
         self.apply_function_args = apply_function_args or ()

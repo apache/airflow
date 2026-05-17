@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "13.1.2"
+version = "13.2.0"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -62,7 +62,9 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.13.0",
     "adlfs>=2023.10.0",
-    "azure-batch>=8.0.0",
+    # azure-batch 15.x is a full rewrite of the Azure SDK (track 2) that removes BatchServiceClient, batch_auth,
+    # and the other references in AzureBatchHook. Lifting the upper bound cap needs a full hook rewrite.
+    "azure-batch>=8.0.0,<15.0.0",
     "azure-cosmos>=4.6.0",
     "azure-mgmt-cosmosdb>=3.0.0",
     "azure-datalake-store>=0.0.45",
@@ -154,8 +156,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.1.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.1.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

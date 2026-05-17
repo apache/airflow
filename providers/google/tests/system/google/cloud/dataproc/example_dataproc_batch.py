@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Dataproc batch operators.
+Example Airflow DAG for Managed Spark batch operators.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "managed-spark"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_batch_operator]
     create_batch = DataprocCreateBatchOperator(
@@ -140,8 +140,7 @@ with DAG(
         task_id="cancel_operation",
         project_id=PROJECT_ID,
         region=REGION,
-        # verbose form: "{{ task_instance.xcom_pull('create_batch_4')['operation'] }}"
-        operation_name=create_batch_4.output["operation"],
+        operation_name="{{ task_instance.xcom_pull('create_batch_4')['operation'] }}",
     )
     # [END how_to_cloud_dataproc_cancel_operation_operator]
 

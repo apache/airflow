@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that shows how to use Dataplex Scan Data.
+Example Airflow DAG that shows how to use Knowledge Catalog Scan Data.
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",
-    tags=["example", "dataplex", "data_profile"],
+    tags=["example", "knowledge-catalog", "data_profile"],
 ) as dag:
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET)
     create_table_1 = BigQueryCreateTableOperator(

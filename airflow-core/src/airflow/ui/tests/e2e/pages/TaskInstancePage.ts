@@ -43,7 +43,7 @@ export class TaskInstancePage extends BasePage {
     await expect(async () => {
       await this.navigateTo(`/dags/${dagId}/runs/${runId}/tasks/${taskId}`);
       // #details-panel content depends on chained API calls that can be slow on WebKit.
-      await expect(this.page.locator("#details-panel")).toBeVisible({ timeout: 10_000 });
+      await expect(this.page.locator("#details-panel")).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 

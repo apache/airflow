@@ -118,8 +118,8 @@ test.describe("Variables Page", () => {
     await variablePage.navigate();
 
     await variablePage.search(targetKey);
-    await expect(variablePage.tableRows).toHaveCount(1, { timeout: 10_000 });
-    await expect(variablePage.rowByKey(targetKey)).toHaveCount(1, { timeout: 10_000 });
+    await expect(variablePage.tableRows).toHaveCount(1);
+    await expect(variablePage.rowByKey(targetKey)).toHaveCount(1);
 
     await variablePage.selectRow(targetKey);
     await page.getByRole("button", { name: /^delete$/i }).click();

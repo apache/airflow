@@ -1,0 +1,26 @@
+Fix triggerer race condition and deadlock that caused deferred tasks to stall indefinitely
+
+Triggers that call synchronous SDK methods (e.g. ``get_task_states`` used by
+``safe_to_cancel`` in several Google provider operators) could crash the triggerer's
+internal subprocess.  The triggerer would then continue to heartbeat normally —
+appearing healthy to the scheduler — while silently processing zero triggers, causing
+every deferred task to time out.  This was first reported in :github-issue:`64620`; a
+partial fix shipped in Airflow 3.2.1 (:github-pr:`64882`) but introduced a new deadlock
+with the same visible symptom under load.
+
+Both issues are fixed by replacing the lock-based serialisation with response
+multiplexing: each request now carries a unique ID and the response is routed back to
+the correct caller, so concurrent requests from trigger threads no longer contend or
+deadlock regardless of how many triggers are running or what SDK methods they call.
+
+**New: triggerer subprocess watchdog**
+
+Even with the race fixed, a trigger that blocks the event loop (e.g. by calling
+``time.sleep()`` or performing blocking I/O directly in ``async def run()``) would
+previously leave the triggerer appearing healthy indefinitely.
+
+A new ``[triggerer] runner_health_check_threshold`` config option (default: 30 seconds)
+adds a watchdog: if the triggerer subprocess goes silent for longer than the threshold,
+the parent process stops updating the heartbeat so the scheduler can detect the hang and
+reassign triggers rather than waiting for them to individually time out.  Set the option
+to ``0`` to disable the watchdog.

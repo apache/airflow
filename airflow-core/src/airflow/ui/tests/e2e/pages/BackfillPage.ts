@@ -124,7 +124,7 @@ export class BackfillPage extends BasePage {
   }
 
   public async clickCancelButton(): Promise<void> {
-    await this.cancelButton.click({ timeout: 10_000 });
+    await this.cancelButton.click();
     await expect(this.cancelButton).not.toBeVisible({ timeout: 15_000 });
   }
 
@@ -161,7 +161,7 @@ export class BackfillPage extends BasePage {
       );
     }
 
-    await expect(this.backfillRunButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.backfillRunButton).toBeEnabled();
 
     const responsePromise = this.page.waitForResponse(
       (res) =>
@@ -377,8 +377,8 @@ export class BackfillPage extends BasePage {
 
   public async openBackfillDialog(): Promise<void> {
     await this.triggerButton.click({ timeout: 15_000 });
-    await this.backfillModeRadio.click({ timeout: 10_000 });
-    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 10_000 });
+    await this.backfillModeRadio.click();
+    await expect(this.backfillFromDateInput).toBeVisible();
   }
 
   public async openFilterMenu(): Promise<void> {
@@ -421,7 +421,6 @@ export class BackfillPage extends BasePage {
           {
             intervals: [2000],
             message: `Failed to pause backfill ${backfillId}`,
-            timeout: 10_000,
           },
         )
         .toBeTruthy();
@@ -439,7 +438,7 @@ export class BackfillPage extends BasePage {
       .getByRole("radiogroup", { name: "Reprocess Behavior" })
       .locator("label")
       .filter({ hasText: label })
-      .click({ timeout: 10_000 });
+      .click();
   }
 
   public async toggleColumn(columnName: string): Promise<void> {
@@ -447,7 +446,7 @@ export class BackfillPage extends BasePage {
   }
 
   public async togglePauseState(): Promise<void> {
-    await this.pauseOrUnpauseButton.click({ timeout: 10_000 });
+    await this.pauseOrUnpauseButton.click();
   }
 
   public async waitForBackfillComplete(backfillId: number, timeout: number = 120_000): Promise<void> {
