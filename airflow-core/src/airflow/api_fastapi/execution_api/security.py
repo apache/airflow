@@ -124,7 +124,7 @@ class JWTBearer(HTTPBearer):
         try:
             claims = await validator.avalidated_claims(creds.credentials, dict(self.required_claims))
         except Exception as err:
-            log.warning("Failed to validate JWT", exc_info=True, token=creds.credentials)
+            log.warning("Failed to validate JWT", exc_info=True)
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
 
         claims.setdefault("scope", "execution")
