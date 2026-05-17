@@ -25,6 +25,7 @@ import os
 import sys
 import textwrap
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -35,7 +36,7 @@ from structlog.processors import CallsiteParameter
 from airflow_shared.logging import structlog as structlog_module
 from airflow_shared.logging.structlog import configure_logging
 
-# We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
+# We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
 
 PY_3_11 = sys.version_info >= (3, 11)
@@ -510,6 +511,14 @@ def test_excepthook_passes_keyboard_interrupt_to_original():
         assert calls == [KeyboardInterrupt]
     finally:
         sys.excepthook = original
+
+
+def test_init_log_folder_does_not_raise_on_permission_error():
+    from airflow_shared.logging.structlog import init_log_folder
+
+    with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
+        # Must not raise — CLI commands like `airflow db migrate` rely on this.
+        init_log_folder("/tmp/blocked", 0o775)
 
 
 class TestWarningsInterceptor:

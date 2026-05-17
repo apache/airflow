@@ -100,6 +100,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 ==========================================  ======================================
 PIP package                                 Version required
 ==========================================  ======================================
+``aiofiles``                                ``>=23.2.0``
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-ssh``            ``>=4.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``

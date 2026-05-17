@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockIngestDataOperator,
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
+    BedrockUpdateGuardrailOperator,
 )
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -173,13 +174,20 @@ class TestBedrockCustomizeModelOperator:
     @mock.patch.object(BedrockHook, "get_waiter")
     def test_ensure_unique_job_name(self, _, side_effect, ensure_unique_name, mock_conn, bedrock_hook):
         mock_conn.create_model_customization_job.side_effect = side_effect
-        expected_call_count = len(side_effect) if ensure_unique_name else 1
+        self.operator.ensure_unique_job_name = ensure_unique_name
         self.operator.wait_for_completion = False
+        expected_call_count = len(side_effect) if ensure_unique_name else 1
+
+        if not ensure_unique_name and any(isinstance(e, ClientError) for e in side_effect):
+            with pytest.raises(ClientError):
+                self.operator.execute({})
+            assert mock_conn.create_model_customization_job.call_count == expected_call_count
+            return
 
         response = self.operator.execute({})
 
         assert response == self.CUSTOMIZE_JOB_ARN
-        mock_conn.create_model_customization_job.call_count == expected_call_count
+        assert mock_conn.create_model_customization_job.call_count == expected_call_count
         bedrock_hook.get_waiter.assert_not_called()
         self.operator.defer.assert_not_called()
 
@@ -957,6 +965,36 @@ class TestBedrockCreateGuardrailVersionOperator:
             guardrailIdentifier=GUARDRAIL_ID, description="Production version"
         )
         assert result == "2"
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestBedrockUpdateGuardrailOperator:
+    def setup_method(self):
+        self.operator = BedrockUpdateGuardrailOperator(
+            task_id="update_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_name="updated-guardrail",
+            blocked_input_messaging="Blocked.",
+            blocked_outputs_messaging="Blocked.",
+        )
+
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_client.update_guardrail.return_value = {
+            "guardrailId": GUARDRAIL_ID,
+            "guardrailArn": "arn",
+            "version": "DRAFT",
+            "updatedAt": "now",
+        }
+        mock_conn.return_value = mock_client
+
+        result = self.operator.execute({})
+
+        assert result == GUARDRAIL_ID
+        mock_client.update_guardrail.assert_called_once()
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

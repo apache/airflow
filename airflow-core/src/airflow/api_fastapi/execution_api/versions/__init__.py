@@ -40,18 +40,20 @@ from airflow.api_fastapi.execution_api.versions.v2026_04_06 import (
     MovePreviousRunEndpoint,
     RemoveUpstreamMapIndexesField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_04_17 import (
+from airflow.api_fastapi.execution_api.versions.v2026_06_16 import (
     AddAssetsByAliasEndpoint,
+    AddRetryPolicyFields,
     AddStateEndpoints,
     AddTeamNameField,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_06_16 import AddRetryPolicyFields
+from airflow.api_fastapi.execution_api.versions.v2026_06_30 import AddVariableKeysEndpoint
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2026-06-16", AddRetryPolicyFields),
+    Version("2026-06-30", AddVariableKeysEndpoint),
     Version(
-        "2026-04-17",
+        "2026-06-16",
+        AddRetryPolicyFields,
         AddTeamNameField,
         AddStateEndpoints,
         AddAssetsByAliasEndpoint,
