@@ -64,9 +64,6 @@ KNOWN_VIOLATIONS: set[str] = {
     # falls back to the class-name default on a triggerer round-trip.
     "databricks/src/airflow/providers/databricks/triggers/databricks.py::DatabricksExecutionTrigger",
     "databricks/src/airflow/providers/databricks/triggers/databricks.py::DatabricksSQLStatementExecutionTrigger",
-    # `dataset_id`, `table_id`, `poll_interval` are forwarded to the parent __init__ and used, but
-    # the overridden serialize() omits them.
-    "google/src/airflow/providers/google/cloud/triggers/bigquery.py::BigQueryIntervalCheckTrigger",
     # `poll_interval` and `impersonation_chain` are stored and used but missing from serialize().
     "google/src/airflow/providers/google/cloud/triggers/datafusion.py::DataFusionStartPipelineTrigger",
     # `endpoint_prefix` is stored as self._endpoint_prefix and used in run() but missing from serialize().
