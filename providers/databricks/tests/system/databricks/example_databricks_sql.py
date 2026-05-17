@@ -86,6 +86,17 @@ with DAG(
     )
     # [END howto_operator_databricks_sql_select_file]
 
+    # [START howto_operator_databricks_sql_query_tags]
+    # Example of using the Databricks SQL Operator with automatic Airflow query tags injection.
+    select_with_query_tags = DatabricksSqlOperator(
+        databricks_conn_id=connection_id,
+        sql_endpoint_name=sql_endpoint_name,
+        task_id="select_with_query_tags",
+        sql="select * from default.my_airflow_table",
+        inject_query_tags=True,
+    )
+    # [END howto_operator_databricks_sql_query_tags]
+
     # [START howto_operator_databricks_sql_multiple_file]
     # Example of using the Databricks SQL Operator to select data.
     # SQL statements should be in the file with name test.sql
@@ -111,7 +122,7 @@ with DAG(
     )
     # [END howto_operator_databricks_copy_into]
 
-    (create >> create_file >> import_csv >> select >> select_into_file)
+    (create >> create_file >> import_csv >> select >> select_into_file >> select_with_query_tags)
 
     from tests_common.test_utils.watcher import watcher
 

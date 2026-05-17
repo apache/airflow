@@ -64,6 +64,16 @@ An example usage of the DatabricksSqlOperator to select data from a table and st
     :start-after: [START howto_operator_databricks_sql_select_file]
     :end-before: [END howto_operator_databricks_sql_select_file]
 
+Executing with automatic query tags
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An example usage of the DatabricksSqlOperator with automatic Airflow context query tags injection is as follows:
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql.py
+    :language: python
+    :start-after: [START howto_operator_databricks_sql_query_tags]
+    :end-before: [END howto_operator_databricks_sql_query_tags]
+
 Executing multiple statements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
