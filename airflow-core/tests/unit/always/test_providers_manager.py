@@ -259,6 +259,17 @@ class TestProviderManager:
         assert len(dialect_class_names) == 3
         assert dialect_class_names == ["default", "mssql", "postgresql"]
 
+    def test_object_storage_providers(self):
+        provider_manager = ProvidersManager()
+        storage_types = sorted(provider_manager.object_storage_providers)
+        assert "s3" in storage_types
+        info = provider_manager.object_storage_providers["s3"]
+        assert (
+            info.provider_class_name
+            == "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider"
+        )
+        assert info.provider_name == "apache-airflow-providers-amazon"
+
     def test_discover_object_storage_providers(self):
         providers_manager = ProvidersManager()
         providers_manager._provider_dict = LazyDictWithCache()
