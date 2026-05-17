@@ -873,6 +873,37 @@ class TestGitDagBundle:
         assert "some_other_file.py" not in files_in_repo
         assert "some_relevant_file.py" in files_in_repo
 
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_sparse_checkout_with_version_prunes_dotgit(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        subdir = "some/subdir"
+        subdir_path = repo_path / subdir
+        subdir_path.mkdir(parents=True)
+        file_path = subdir_path / "some_relevant_file.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        otherdir = "other/dir"
+        otherdir_path = repo_path / otherdir
+        otherdir_path.mkdir(parents=True)
+        otherfile_path = otherdir_path / "some_other_file.py"
+        with open(otherfile_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path, otherfile_path])
+        commit = repo.index.commit("Other commit")
+        bundle = GitDagBundle(
+            name="test-sparse-version",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            version=commit.hexsha,
+            sparse_dirs=[subdir],
+        )
+        bundle.initialize()
+        files_in_repo = {f.name for f in bundle.path.glob("**/*.py") if f.is_file()}
+        assert "some_other_file.py" not in files_in_repo
+        assert "some_relevant_file.py" in files_in_repo
+        assert not (bundle.path / ".git").exists()
+
     def test_raises_when_no_repo_url(self):
         bundle = GitDagBundle(
             name="test",
