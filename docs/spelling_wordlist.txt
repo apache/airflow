@@ -243,6 +243,8 @@ classpath
 classpaths
 cleartext
 cli
+ClickHouse
+clickhouse
 ClientSecretCredential
 cloudant
 CloudantV
