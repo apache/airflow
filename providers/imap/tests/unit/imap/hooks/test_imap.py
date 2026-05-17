@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import imaplib
 import json
+import os
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
@@ -30,7 +31,11 @@ from airflow.providers.imap.hooks.imap import ImapHook
 from tests_common.test_utils.config import conf_vars
 
 imaplib_string = "airflow.providers.imap.hooks.imap.imaplib"
-open_string = "airflow.providers.imap.hooks.imap.open"
+# ``ImapHook._create_file`` writes attachments through ``os.open`` / ``os.fdopen``
+# (with ``O_NOFOLLOW``) rather than the builtin ``open`` so that a symlink at the
+# real target path cannot redirect the write. Tests patch those two symbols.
+os_open_string = "airflow.providers.imap.hooks.imap.os.open"
+os_fdopen_string = "airflow.providers.imap.hooks.imap.os.fdopen"
 
 
 def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv", use_ssl=True):
@@ -305,32 +310,35 @@ class TestImapHook:
 
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
 
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_found(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_found(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments("test1.csv", "test_directory")
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
-        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+        assert mock_os_open.call_args[0][0] == "test_directory/test1.csv"
+        mock_fdopen.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_not_found(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_not_found(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
             with pytest.raises(AirflowException):
                 imap_hook.download_mail_attachments("test1.txt", "test_directory")
 
-        mock_open_method.assert_not_called()
-        mock_open_method.return_value.write.assert_not_called()
+        mock_os_open.assert_not_called()
+        mock_fdopen.return_value.write.assert_not_called()
 
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_with_regex_found(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_with_regex_found(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
@@ -338,12 +346,13 @@ class TestImapHook:
                 name=r"test(\d+).csv", local_output_directory="test_directory", check_regex=True
             )
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
-        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+        assert mock_os_open.call_args[0][0] == "test_directory/test1.csv"
+        mock_fdopen.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_with_regex_not_found(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_with_regex_not_found(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
@@ -354,12 +363,13 @@ class TestImapHook:
                     check_regex=True,
                 )
 
-        mock_open_method.assert_not_called()
-        mock_open_method.return_value.write.assert_not_called()
+        mock_os_open.assert_not_called()
+        mock_fdopen.return_value.write.assert_not_called()
 
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_with_latest_only(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_with_latest_only(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
@@ -367,36 +377,91 @@ class TestImapHook:
                 name="test1.csv", local_output_directory="test_directory", latest_only=True
             )
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
-        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+        assert mock_os_open.call_args[0][0] == "test_directory/test1.csv"
+        mock_fdopen.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_with_escaping_chars(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_with_escaping_chars(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="../test1.csv")
 
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments(name="../test1.csv", local_output_directory="test_directory")
 
-        mock_open_method.assert_not_called()
-        mock_open_method.return_value.write.assert_not_called()
+        mock_os_open.assert_not_called()
+        mock_fdopen.return_value.write.assert_not_called()
 
     @patch("airflow.providers.imap.hooks.imap.os.path.islink", return_value=True)
-    @patch(open_string, new_callable=mock_open)
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_with_symlink(self, mock_imaplib, mock_open_method, mock_is_symlink):
+    def test_download_mail_attachments_with_symlink(
+        self, mock_imaplib, mock_os_open, mock_fdopen, mock_is_symlink
+    ):
         _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="symlink")
 
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments(name="symlink", local_output_directory="test_directory")
 
-        assert mock_is_symlink.call_count == 1
-        mock_open_method.assert_not_called()
-        mock_open_method.return_value.write.assert_not_called()
+        # ``os.path.islink`` is consulted twice: once by ``_is_symlink`` on the bare
+        # ``name`` and once by ``_create_file`` on the real joined target path.
+        assert mock_is_symlink.call_count >= 1
+        mock_os_open.assert_not_called()
+        mock_fdopen.return_value.write.assert_not_called()
 
-    @patch(open_string, new_callable=mock_open)
+    @patch("airflow.providers.imap.hooks.imap.os.path.islink")
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
     @patch(imaplib_string)
-    def test_download_mail_attachments_with_mail_filter(self, mock_imaplib, mock_open_method):
+    def test_download_mail_attachments_with_symlink_at_real_target(
+        self, mock_imaplib, mock_os_open, mock_fdopen, mock_islink
+    ):
+        """A symlink at the *real* joined output path must block the write.
+
+        ``_is_symlink`` (called from ``_create_files``) only inspects ``name``
+        relative to the CWD. This test pins the hardened ``_create_file`` check:
+        only the real joined target ``test_directory/test1.csv`` is a symlink, so
+        the write must be refused there even though the bare ``name`` is not.
+        """
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="test1.csv")
+
+        # Bare ``name`` ("test1.csv") is not a symlink; the real joined target
+        # ("test_directory/test1.csv") is.
+        mock_islink.side_effect = lambda path: path == "test_directory/test1.csv"
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(name="test1.csv", local_output_directory="test_directory")
+
+        # The hardened ``_create_file`` symlink check must reject the real target
+        # before any file descriptor is opened, so no write goes through the link.
+        mock_islink.assert_any_call("test_directory/test1.csv")
+        mock_os_open.assert_not_called()
+        mock_fdopen.return_value.write.assert_not_called()
+
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_uses_o_nofollow(self, mock_imaplib, mock_os_open, mock_fdopen):
+        """``_create_file`` must open with ``O_NOFOLLOW`` (where available) to defeat the TOCTOU race."""
+        _create_fake_imap(mock_imaplib, with_mail=True, attachment_name="test1.csv")
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(name="test1.csv", local_output_directory="test_directory")
+
+        mock_os_open.assert_called_once()
+        flags = mock_os_open.call_args[0][1]
+        # Behaviour-preserving create/truncate flags are retained (no O_EXCL).
+        assert flags & os.O_CREAT
+        assert flags & os.O_TRUNC
+        # O_NOFOLLOW is platform-gated; assert it is set wherever the platform has it.
+        if hasattr(os, "O_NOFOLLOW"):
+            assert flags & os.O_NOFOLLOW
+
+    @patch(os_fdopen_string, new_callable=mock_open)
+    @patch(os_open_string)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_mail_filter(self, mock_imaplib, mock_os_open, mock_fdopen):
         _create_fake_imap(mock_imaplib, with_mail=True)
         mail_filter = '(SINCE "01-Jan-2019")'
 
@@ -406,7 +471,7 @@ class TestImapHook:
             )
 
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
-        assert mock_open_method.call_count == 1
+        assert mock_os_open.call_count == 1
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_with_max_mails(self, mock_imaplib):

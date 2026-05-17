@@ -314,7 +314,22 @@ class ImapHook(BaseHook):
     def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
         file_path = self._correct_path(name, local_output_directory)
 
-        with open(file_path, "wb") as file:
+        # Defense-in-depth: ``_is_symlink`` (called from ``_create_files``) only inspects
+        # ``name`` relative to the CWD, not the actual target the attachment is written
+        # to. Re-check the real joined target and refuse to write through a symlink there,
+        # matching the existing ``_is_symlink`` rejection style.
+        if os.path.islink(file_path):
+            self.log.error("Can not create file because it is a symlink!")
+            return
+
+        # ``O_NOFOLLOW`` closes the TOCTOU window between the check above and the open:
+        # if ``file_path`` is (or becomes) a symlink, the open fails instead of following
+        # the link. It is feature-gated with ``getattr`` because it does not exist on
+        # Windows. ``O_CREAT | O_TRUNC`` (deliberately without ``O_EXCL``) preserves the
+        # hook's existing overwrite-on-redownload behaviour.
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(file_path, flags, 0o600)
+        with os.fdopen(fd, "wb") as file:
             file.write(payload)
 
 
