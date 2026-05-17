@@ -24,6 +24,7 @@ import os
 import shlex
 import stat
 import tempfile
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote as urlquote
 
@@ -144,7 +145,7 @@ class GitHook(BaseHook):
             # but also keep a dedicated attribute so configure_hook_env() can avoid
             # treating the GitHub App PEM as an SSH key.
             self.github_app_private_key: str | None = self.private_key
-            self.user_name, self.auth_token = self._get_github_app_token()
+            self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
         else:
             self.github_app_private_key = None
         self._process_git_auth_url()
@@ -191,9 +192,14 @@ class GitHook(BaseHook):
 
         auth = Auth.AppAuth(self.github_app_id, self.github_app_private_key)
         integration = GithubIntegration(auth=auth)
-        access_token = integration.get_access_token(installation_id=self.github_installation_id).token
+        access_token = integration.get_access_token(installation_id=self.github_installation_id)
+        github_app_token_exp = access_token.expires_at - timedelta(minutes=57)
+        log.info(
+            "Successfully obtained GitHub App installation access token (expires at: %s)",
+            github_app_token_exp,
+        )
 
-        return "x-access-token", access_token
+        return "x-access-token", access_token.token, github_app_token_exp
 
     def _process_git_auth_url(self):
         if not isinstance(self.repo_url, str):
@@ -252,6 +258,16 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
+        if self.github_app_token_exp:
+            TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
+            if self.github_app_token_exp < datetime.now(timezone.utc) + TOKEN_REFRESH_BUFFER:
+                log.info(
+                    "GitHub App token is near expiry (expires at: %s). Refreshing token.",
+                    self.github_app_token_exp,
+                )
+                self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
+                self._process_git_auth_url()
+
         # If a GitHub App PEM is present, it should not be treated as an SSH key
         # for configuring `GIT_SSH_COMMAND`.
         if self.private_key and not getattr(self, "github_app_private_key", None):
