@@ -95,7 +95,6 @@ class Param:
         :param suppress_exception: To raise an exception or not when the validations fails.
             If true and validations fails, the return value would be None.
         """
-        import jsonschema
         from jsonschema import FormatChecker, validate
         from jsonschema.exceptions import ValidationError
 

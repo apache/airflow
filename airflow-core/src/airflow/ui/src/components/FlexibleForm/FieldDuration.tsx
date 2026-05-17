@@ -17,8 +17,8 @@
  * under the License.
  */
 import { Input } from "@chakra-ui/react";
-import dayjs from "dayjs"
-import duration from "dayjs/plugin/duration"
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
@@ -30,35 +30,35 @@ dayjs.extend(duration);
 export const FieldDuration = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
-  const param = paramsDict[name] ?? paramPlaceholder;  
+  const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
-  const isEmpty = value === "";
-  const parsedValue = value.replaceAll(",", ".");
+    const isEmpty = value === "";
+    const parsedValue = value.replaceAll(",", ".");
 
-  if (paramsDict[name]) {
-    setParamsDict({
-      ...paramsDict,
-      [name]: {
-        ...paramsDict[name],
-        value: isEmpty ? null : parsedValue,
-      },
-    });
-  }
+    if (paramsDict[name]) {
+      setParamsDict({
+        ...paramsDict,
+        [name]: {
+          ...paramsDict[name],
+          value: isEmpty ? null : parsedValue,
+        },
+      });
+    }
 
-  if (isEmpty) {
-    onUpdate(parsedValue);
+    if (isEmpty) {
+      onUpdate(parsedValue);
 
-    return;
-  }
-  const dur = dayjs.duration(parsedValue);
-  const isValid = !Number.isNaN(dur.asMilliseconds());
+      return;
+    }
+    const dur = dayjs.duration(parsedValue);
+    const isValid = !Number.isNaN(dur.asMilliseconds());
 
-  if (isValid) {
-    onUpdate(parsedValue);
-  } else {
-    onUpdate(undefined, translate("flexibleForm.validationErrorDuration"));
-  }
-};
+    if (isValid) {
+      onUpdate(parsedValue);
+    } else {
+      onUpdate(undefined, translate("flexibleForm.validationErrorDuration"));
+    }
+  };
 
   return (
     <Input

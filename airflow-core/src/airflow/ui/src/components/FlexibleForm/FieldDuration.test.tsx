@@ -18,7 +18,9 @@
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import { Wrapper } from "src/utils/Wrapper";
+
 import { FieldDuration } from "./FieldDuration";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,7 +93,7 @@ describe("FieldDuration", () => {
 
   it("calls onUpdate with empty string when field is cleared", () => {
     const onUpdate = vi.fn();
-    
+
     mockParamsDict.test_duration = { schema: { format: "duration", type: "string" }, value: "PT1H" };
 
     render(<FieldDuration name="test_duration" onUpdate={onUpdate} />, { wrapper: Wrapper });

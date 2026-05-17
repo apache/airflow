@@ -58,7 +58,6 @@ class SerializedParam:
         :param raises: All exceptions during validation are suppressed by
             default. They are only raised if this is set to *True* instead.
         """
-        import jsonschema
         from jsonschema import FormatChecker, validate
 
         try:
