@@ -268,31 +268,6 @@ with DAG(
     )
     # [END howto_operator_run_airflow_cli_command_deferrable_mode]
 
-    # [START howto_sensor_dag_run]
-    dag_run_sensor = CloudComposerDAGRunSensor(
-        task_id="dag_run_sensor",
-        project_id=PROJECT_ID,
-        region=REGION,
-        environment_id=ENVIRONMENT_ID,
-        composer_dag_id="airflow_monitoring",
-        allowed_states=["success"],
-        execution_range=[datetime.now() - timedelta(1), datetime.now()],
-    )
-    # [END howto_sensor_dag_run]
-
-    # [START howto_sensor_dag_run_deferrable_mode]
-    defer_dag_run_sensor = CloudComposerDAGRunSensor(
-        task_id="defer_dag_run_sensor",
-        project_id=PROJECT_ID,
-        region=REGION,
-        environment_id=ENVIRONMENT_ID_ASYNC,
-        composer_dag_id="airflow_monitoring",
-        allowed_states=["success"],
-        execution_range=[datetime.now() - timedelta(1), datetime.now()],
-        deferrable=True,
-    )
-    # [END howto_sensor_dag_run_deferrable_mode]
-
     # [START howto_operator_trigger_dag_run]
     trigger_dag_run = CloudComposerTriggerDAGRunOperator(
         task_id="trigger_dag_run",
@@ -303,6 +278,55 @@ with DAG(
     )
     # [END howto_operator_trigger_dag_run]
 
+    defer_trigger_dag_run = CloudComposerTriggerDAGRunOperator(
+        task_id="defer_trigger_dag_run",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        composer_dag_id="airflow_monitoring",
+    )
+
+    # The Dag-run sensors below pin to the run_id produced by the trigger
+    # operators above. That branch of the sensor is pure id+state equality and
+    # bypasses the execution_range / logical_date window entirely, so the
+    # example does not depend on logical_date being aligned with the Composer
+    # env's wall-clock state (the failure mode that caused PR #61046 to be
+    # reverted). The `timeout=60 * 60` is defence in depth: any future
+    # regression to a windowed code path will fail the system test fast
+    # instead of hanging the CI worker.
+    # [START howto_sensor_dag_run]
+    dag_run_sensor = CloudComposerDAGRunSensor(
+        task_id="dag_run_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        composer_dag_id="airflow_monitoring",
+        composer_dag_run_id="{{ ti.xcom_pull(task_ids='trigger_dag_run')['dag_run_id'] }}",
+        allowed_states=["success"],
+        timeout=60 * 60,
+    )
+    # [END howto_sensor_dag_run]
+
+    # [START howto_sensor_dag_run_deferrable_mode]
+    defer_dag_run_sensor = CloudComposerDAGRunSensor(
+        task_id="defer_dag_run_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        composer_dag_id="airflow_monitoring",
+        composer_dag_run_id="{{ ti.xcom_pull(task_ids='defer_trigger_dag_run')['dag_run_id'] }}",
+        allowed_states=["success"],
+        deferrable=True,
+        timeout=60 * 60,
+    )
+    # [END howto_sensor_dag_run_deferrable_mode]
+
+    # NOTE: the external-task sensors below still rely on the legacy windowed
+    # code path (execution_range plus logical_date). The analogous empty-window
+    # anti-pattern in `_check_task_instances_states` is tracked at
+    # https://github.com/apache/airflow/issues/67051. When that issue is
+    # addressed the example must be restructured at the same time -- mirror
+    # the trigger -> sensor reordering applied above to the Dag-run sensors.
     # [START howto_sensor_external_task]
     external_task_sensor = CloudComposerExternalTaskSensor(
         task_id="external_task_sensor",
@@ -361,8 +385,12 @@ with DAG(
         get_env,
         [update_env, defer_update_env],
         [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
+        # Trigger ops run first so each Dag-run sensor can read its sibling's
+        # run_id via XCom (templated `composer_dag_run_id`).
+        [trigger_dag_run, defer_trigger_dag_run],
         [dag_run_sensor, defer_dag_run_sensor],
-        trigger_dag_run,
+        # External-task sensors still use the legacy windowed path
+        # (https://github.com/apache/airflow/issues/67051).
         [external_task_sensor, defer_external_task_sensor],
         # TEST TEARDOWN
         [delete_env, defer_delete_env],
