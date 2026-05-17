@@ -137,3 +137,21 @@ def test_task_no_docstring():
 
     # Verify that doc_md is None when there's no docstring
     assert task_obj.doc_md is None
+
+
+def test_task_docstring_dedent_simple():
+    """Test that a simple indented docstring is dedented and stripped correctly."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task
+        def my_task():
+            """  My task description.  """
+
+        return my_task()
+
+    dag_obj = pipeline()
+    task_obj = dag_obj.task_dict["my_task"]
+
+    # Verify leading/trailing whitespace is stripped
+    assert task_obj.doc_md == "My task description."
