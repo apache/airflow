@@ -24,7 +24,6 @@ from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.providers.cncf.kubernetes.kube_client import (
-    _disable_verify_ssl,
     _enable_tcp_keepalive,
     get_kube_client,
 )
@@ -79,18 +78,36 @@ class TestClient:
         assert HTTPConnection.default_socket_options == expected_http_connection_options
         assert HTTPSConnection.default_socket_options == expected_https_connection_options
 
-    def test_disable_verify_ssl(self):
-        configuration = Configuration()
-        assert configuration.verify_ssl
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.conf")
+    def test_get_kube_client_does_not_pollute_global_default(self, conf, config):
+        """Disabling ``verify_ssl`` for the executor's client must not leak to the global default.
 
-        _disable_verify_ssl()
+        ``get_kube_client`` previously called ``Configuration.set_default(...)`` which mutated the
+        process-wide ``Configuration._default`` singleton, disabling TLS verification for every
+        other component in the process that later read the default Configuration. The client now
+        builds an isolated ``Configuration()``, so the global default must stay untouched.
+        """
 
-        # Support wide range of kube client libraries
-        if hasattr(Configuration, "get_default_copy"):
-            configuration = Configuration.get_default_copy()
-        else:
-            configuration = Configuration()
-        assert not configuration.verify_ssl
+        def _default_verify_ssl() -> bool:
+            if hasattr(Configuration, "get_default_copy"):
+                return Configuration.get_default_copy().verify_ssl
+            return Configuration().verify_ssl
+
+        # Sanity check: the global default verifies TLS before we do anything.
+        assert _default_verify_ssl() is True
+
+        conf.getboolean.return_value = False
+        conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}
+
+        client = get_kube_client(in_cluster=False)
+
+        # The executor's own client still has TLS verification disabled ...
+        conf.getboolean.assert_called_with("kubernetes_executor", "verify_ssl")
+        assert client.api_client.configuration.verify_ssl is False
+
+        # ... but the process-wide default Configuration must remain unpolluted.
+        assert _default_verify_ssl() is True
 
     @mock.patch("kubernetes.config.incluster_config.InClusterConfigLoader")
     @conf_vars(

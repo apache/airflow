@@ -33,16 +33,6 @@ try:
 
     has_kubernetes = True
 
-    def _get_default_configuration() -> Configuration:
-        if hasattr(Configuration, "get_default_copy"):
-            return Configuration.get_default_copy()
-        return Configuration()
-
-    def _disable_verify_ssl() -> None:
-        configuration = _get_default_configuration()
-        configuration.verify_ssl = False
-        Configuration.set_default(configuration)
-
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
     # in the code base
@@ -121,13 +111,15 @@ def get_kube_client(
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
         _enable_tcp_keepalive()
 
-    configuration = _get_default_configuration()
+    # Build a fresh, isolated Configuration for this client instead of reading
+    # (or mutating) the process-wide ``Configuration._default`` singleton.
+    # This keeps TLS settings such as ``verify_ssl=False`` scoped to the
+    # Kubernetes executor's own client and prevents leaking them to any other
+    # component in the process that later reads the default Configuration.
+    configuration = Configuration()
     api_client_retry_configuration = conf.getjson(
         "kubernetes_executor", "api_client_retry_configuration", fallback={}
     )
-
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
-        _disable_verify_ssl()
 
     if isinstance(api_client_retry_configuration, dict):
         configuration.retries = urllib3.util.Retry(**api_client_retry_configuration)
