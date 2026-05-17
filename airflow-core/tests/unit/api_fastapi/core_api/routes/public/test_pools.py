@@ -1135,46 +1135,37 @@ class TestBulkPools(TestPoolsEndpoint):
         assert updated_pool.include_deferred is True  # unchanged
 
     @pytest.mark.parametrize(
-        ("count_a", "count_b"),
-        [
-            (5, 10),  # testcase: pool count 5 compare with pool count 10
-            (5, 20),  # testcase: pool count 5 compare with pool count 20
-            (10, 20),  # testcase: pool count 10 compare with pool count 20
-        ],
+        ("pool_count"),
+        [5, 10, 20],
     )
-    def test_bulk_delete_query_count_is_independent_of_pool_count(
-        self, test_client, session, count_a, count_b
-    ):
+    def test_bulk_delete_query_count_is_independent_of_pool_count(self, test_client, session, pool_count):
         # Regression guard for the N+1 fix in BulkPoolService.handle_bulk_delete:
         # the query count for a bulk delete must be the same regardless of how
         # many pools are deleted. A regression that re-queries each pool inside
         # the loop would add one SELECT per pool, so the larger run would issue
         # strictly more queries than the smaller one.
 
-        def execute_and_count(num_pools: int) -> int:
-            pool_names = [f"perf_pool_{num_pools}_{i}" for i in range(num_pools)]
-            session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
-            session.commit()
+        EXPECTED_QUERY_COUNT = 4
 
-            request_body = {
-                "actions": [{"action": "delete", "entities": pool_names, "action_on_non_existence": "fail"}]
-            }
+        pool_names = [f"perf_pool_{pool_count}_{i}" for i in range(pool_count)]
+        session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
+        session.commit()
 
-            with count_queries() as result:
-                response = test_client.patch("/pools", json=request_body)
+        request_body = {
+            "actions": [{"action": "delete", "entities": pool_names, "action_on_non_existence": "fail"}]
+        }
 
-            assert response.status_code == 200
-            assert sorted(response.json()["delete"]["success"]) == sorted(pool_names)
-            assert session.scalars(select(Pool).where(Pool.pool.in_(pool_names))).all() == []
+        with count_queries() as result:
+            response = test_client.patch("/pools", json=request_body)
 
-            return sum(result.values())
+        assert response.status_code == 200
+        assert sorted(response.json()["delete"]["success"]) == sorted(pool_names)
+        assert session.scalars(select(Pool).where(Pool.pool.in_(pool_names))).all() == []
 
-        queries_a = execute_and_count(count_a)
-        queries_b = execute_and_count(count_b)
+        query_count = sum(result.values())
 
-        assert queries_a == queries_b, (
-            f"Bulk-delete query count is not constant! "
-            f"{queries_a} queries for {count_a} pools vs {queries_b} queries for {count_b} pools. "
+        assert query_count == EXPECTED_QUERY_COUNT, (
+            f"Bulk-delete query count {query_count} does not match expected {EXPECTED_QUERY_COUNT}. "
             f"A regression that re-queries pools inside the loop would add one SELECT per pool."
         )
 
