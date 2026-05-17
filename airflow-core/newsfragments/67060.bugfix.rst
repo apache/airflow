@@ -1,0 +1,1 @@
+Fix variable import handling for structured falsy values.
