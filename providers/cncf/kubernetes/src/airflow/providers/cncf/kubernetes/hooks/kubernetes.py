@@ -35,7 +35,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
-from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
     API_TIMEOUT_OFFSET_SERVER_SIDE,
@@ -318,8 +318,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             self.disable_tcp_keepalive, _get_bool(self._get_field("disable_tcp_keepalive"))
         )
 
-        if disable_verify_ssl is True:
-            _disable_verify_ssl()
+        # ``disable_verify_ssl`` is applied locally to the returned client's own
+        # Configuration by ``_TimeoutK8sApiClient`` below, so there is no need to
+        # mutate the process-wide ``Configuration._default`` singleton here.
         if disable_tcp_keepalive is not True:
             _enable_tcp_keepalive()
 

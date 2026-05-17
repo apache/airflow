@@ -315,7 +315,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        ("disable_verify_ssl", "conn_id", "disable_called"),
+        ("disable_verify_ssl", "conn_id", "expected_verify_ssl_disabled"),
         (
             (True, None, True),
             (None, None, False),
@@ -329,22 +329,24 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch(f"{HOOK_MODULE}._disable_verify_ssl")
     def test_disable_verify_ssl(
         self,
-        mock_disable,
         disable_verify_ssl,
         conn_id,
-        disable_called,
+        expected_verify_ssl_disabled,
     ):
         """
-        Verifies whether disable verify ssl is called depending on combination of hook param and
-        connection extra. Hook param should beat extra.
+        Verifies whether TLS verification is disabled on the returned client depending on the
+        combination of hook param and connection extra. Hook param should beat extra.
+
+        The decision is now observed directly on the returned client's own ``Configuration``
+        (``_TimeoutK8sApiClient`` applies ``verify_ssl=False`` locally) rather than on a call to
+        the removed global mutator, so this also confirms the setting never leaks past this client.
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_verify_ssl=disable_verify_ssl)
         api_conn = kubernetes_hook.get_conn()
-        assert mock_disable.called is disable_called
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.verify_ssl is (not expected_verify_ssl_disabled)
 
     @pytest.mark.parametrize(
         "config_source",
