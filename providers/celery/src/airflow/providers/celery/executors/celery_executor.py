@@ -282,6 +282,13 @@ class CeleryExecutor(BaseExecutor):
             state, info = state_and_info_by_celery_task_id.get(async_result.task_id)
             if state:
                 self.update_task_state(cast("TaskInstanceKey", key), state, info)
+            else:
+                self.log.warning(
+                    "Celery task absent from broker state: celery_task_id=%s key=%s",
+                    async_result.task_id,
+                    key,
+                )
+                Stats.incr("celery.task_not_found_in_broker")
 
     def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
@@ -297,7 +304,15 @@ class CeleryExecutor(BaseExecutor):
             elif state in (celery_states.STARTED, celery_states.PENDING, celery_states.RETRY):
                 pass
             else:
-                self.log.info("Unexpected state for %s: %s", key, state)
+                worker = info.get("hostname") if isinstance(info, dict) else None
+                self.log.warning(
+                    "Unexpected Celery task state: key=%s celery_state=%s worker=%s info=%r",
+                    key,
+                    state,
+                    worker,
+                    info,
+                )
+                Stats.incr("celery.task_unexpected_state")
         except Exception:
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
