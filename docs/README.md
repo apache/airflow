@@ -173,7 +173,7 @@ The `staging` documentation is produced automatically with `staging` watermark a
 
 This workflow also invalidates cache in Fastly that Apache Software Foundation uses to serve the website,
 so you should always run it after you modify the documentation for the website. Fastly is configured with a
-3600-second TTL, which means that changes may take up to about one hour to propagate to the website.
+3600-second TTL, which means that changes may take up to ~1 hour to propagate to the website.
 
 Shortly after the workflow succeeds and documentation is published, in the live bucket, the [airflow-site-archive](https://github.com/apache/airflow-site-archive)
 repository is automatically synchronized with the live S3 bucket. TODO: IMPLEMENT THIS, FOR NOW IT HAS
