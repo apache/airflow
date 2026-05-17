@@ -15,10 +15,16 @@
     "systemMode": "Следовать системным настройкам"
   },
   "asset_one": "Актив",
-  "asset_other": "Активы",
+  "asset_few": "Актива",
+  "asset_many": "Активов",
+  "asset_other": "Актива",
   "assetEvent_one": "Событие актива",
+  "assetEvent_few": "События активов",
+  "assetEvent_many": "Событий активов",
   "assetEvent_other": "События активов",
   "backfill_one": "Заполнение",
+  "backfill_few": "Заполнения",
+  "backfill_many": "Заполнений",
   "backfill_other": "Заполнения",
   "browse": {
     "auditLog": "Журнал аудита",
@@ -28,10 +34,15 @@
   },
   "collapseAllExtra": "Свернуть все дополнительные JSON",
   "collapseDetailsPanel": "Свернуть панель деталей",
-  "createdAssetEvent_one": "Создано событие актива",
-  "createdAssetEvent_other": "Созданы события активов",
+  "consumingAsset": "Потребляемый актив",
+  "createdAssetEvent_one": "Созданное событие актива",
+  "createdAssetEvent_few": "Созданных события актива",
+  "createdAssetEvent_many": "Созданных событий актива",
+  "createdAssetEvent_other": "Созданных события актива",
   "dag_one": "Dag",
-  "dag_other": "Dag-и",
+  "dag_few": "Dag-а",
+  "dag_many": "Dag-ов",
+  "dag_other": "Dag-а",
   "dagDetails": {
     "catchup": "Сбор данных",
     "dagRunTimeout": "Тайм-аут запуска Dag-а",
@@ -110,6 +121,12 @@
     "notFound": "Страница не найдена",
     "title": "Ошибка"
   },
+  "errors": {
+    "forbidden": {
+      "description": "У вас нет прав для выполнения этого действия.",
+      "title": "Отказано в доступе"
+    }
+  },
   "expand": {
     "collapse": "Свернуть",
     "expand": "Развернуть",
@@ -132,6 +149,7 @@
     "logicalDateTo": "Логическая дата до",
     "runAfterFrom": "Запустить после с",
     "runAfterTo": "Запустить после до",
+    "searchAsset": "Поиск активов",
     "selectDateRange": "Выбрать диапазон дат",
     "startTime": "Время начала"
   },
@@ -170,16 +188,20 @@
     "taskInstance": "Заметка для экземпляра задачи"
   },
   "partitionedDagRun_one": "Разделенный запуск Dag-а",
-  "partitionedDagRun_other": "Разделенных запусков Dag-а",
+  "partitionedDagRun_few": "Разделенных запуска Dag-а",
+  "partitionedDagRun_many": "Разделенных запусков Dag-а",
+  "partitionedDagRun_other": "Разделенных запуска Dag-а",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
-  "pendingDagRun_few": "{{count}} Dag-а ожидают запуска",
-  "pendingDagRun_one": "{{count}} Dag ожидает запуска",
-  "pendingDagRun_other": "{{count}} Dag-ов ожидают запуска",
+  "pendingDagRun_one": "{{count}} запуск Dag-а ожидает исполнения",
+  "pendingDagRun_few": "{{count}} запуска Dag-а ожидают исполнения",
+  "pendingDagRun_many": "{{count}} запусков Dag-а ожидают исполнения",
+  "pendingDagRun_other": "{{count}} запуска Dag-а ожидают исполнения",
   "reset": "Сбросить",
   "runId": "ID запуска",
   "runTypes": {
+    "asset_materialization": "Материализация актива",
     "asset_triggered": "Запущено активом",
     "backfill": "Заполнение",
     "manual": "Вручную",
@@ -192,6 +214,12 @@
     },
     "tooltip": "Нажмите {{hotkey}}, чтобы прокрутить {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Поиск по подстроке (совпадение в любом месте значения). На крупных инсталляциях работает медленнее, так как не может использовать стандартный B-tree индекс. Подробности смотрите в разделе документации по кастомным индексам метаданных.",
+      "title": "Совпадение в любом месте"
+    }
+  },
   "security": {
     "actions": "Действия",
     "permissions": "Разрешения",
@@ -199,6 +227,7 @@
     "roles": "Роли",
     "users": "Пользователи"
   },
+  "selected": "Выбрано",
   "selectLanguage": "Выбор языка",
   "showDetailsPanel": "Показать панель деталей",
   "signedInAs": "Вошли как",
@@ -207,8 +236,10 @@
     "hotkey": "S",
     "show": "Показать источник"
   },
-  "sourceAssetEvent_one": "Событие источника актива",
-  "sourceAssetEvent_other": "Событий источника актива",
+  "sourceAssetEvent_one": "Событие исходного актива",
+  "sourceAssetEvent_few": "События исходного актива",
+  "sourceAssetEvent_many": "Событий исходного актива",
+  "sourceAssetEvent_other": "События исходного актива",
   "startDate": "Дата начала",
   "state": "Состояние",
   "states": {
@@ -235,6 +266,8 @@
     "filterByTag": "Фильтровать Dag-и по тегу",
     "filterColumns": "Фильтровать столбцы таблицы",
     "filterReset_one": "Сбросить фильтр",
+    "filterReset_few": "Сбросить фильтры",
+    "filterReset_many": "Сбросить фильтры",
     "filterReset_other": "Сбросить фильтры",
     "from": "От",
     "maxActiveRuns": "Максимум активных запусков",
@@ -253,8 +286,14 @@
     "triggerRule": "Правило запуска"
   },
   "task_one": "Задача",
-  "task_other": "Задач",
+  "task_few": "Задачи",
+  "task_many": "Задач",
+  "task_other": "Задачи",
   "taskGroup": "Группа задач",
+  "taskGroup_one": "Группа задач",
+  "taskGroup_few": "Группы задач",
+  "taskGroup_many": "Групп задач",
+  "taskGroup_other": "Группы задач",
   "taskId": "ID задачи",
   "taskInstance": {
     "dagVersion": "Версия Dag-а",
@@ -302,11 +341,25 @@
     "utc": "UTC (Всемирное координированное время)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Сбой запроса на массовую очистку {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} успешно очищены. Ключи: {{keys}}",
+        "title": "Запрос на массовую очистку {{resourceName}} отправлен"
+      }
+    },
     "bulkDelete": {
       "error": "Ошибка массового удаления {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} успешно удалены. Ключи: {{keys}}",
         "title": "Запрос на массовое удаление {{resourceName}} отправлен"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Сбой запроса на массовое обновление {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} успешно обновлены. Ключи: {{keys}}",
+        "title": "Запрос на массовое обновление {{resourceName}} отправлен"
       }
     },
     "create": {
@@ -322,10 +375,6 @@
         "description": "{{resourceName}} успешно удалён.",
         "title": "Запрос на удаление {{resourceName}} отправлен"
       }
-    },
-    "forbidden": {
-      "description": "У вас нет разрешения на выполнение этого действия.",
-      "title": "Доступ запрещён"
     },
     "import": {
       "error": "Ошибка импорта {{resourceName}}",
@@ -358,6 +407,10 @@
   "triggered": "Запущено",
   "tryNumber": "Номер попытки",
   "user": "Пользователь",
+  "validation": {
+    "mustBeAtLeast": "Должно быть не меньше {{min}}.",
+    "mustBeValidNumber": "Должно быть действительным числом."
+  },
   "wrap": {
     "hotkey": "W",
     "tooltip": "Нажмите {{hotkey}}, чтобы свернуть/развернуть",
