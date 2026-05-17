@@ -136,7 +136,7 @@ When the release manager publishes the documentation, they choose `auto` destina
 tag they use - `staging` will be used to publish from pre-release tag and `live` will be used to publish
 from the release tag.
 
-You can also manually specify whether documentation should be published to `live` or `staging`, overriding the auto-detection.
+You can also specify whether documentation should be published to `live` or `staging`, thereby overriding the auto-detection.
 
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
