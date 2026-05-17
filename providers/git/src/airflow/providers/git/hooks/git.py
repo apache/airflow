@@ -49,7 +49,7 @@ class GitHook(BaseHook):
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
-    * ``github_client_id`` — GitHub Client ID used for GitHub App authentication. Requires the GitHub App
+    * ``github_app_id`` — GitHub App ID used for GitHub App authentication. Requires the GitHub App
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
@@ -80,7 +80,7 @@ class GitHook(BaseHook):
                         "ssh_config_file": "",
                         "host_proxy_cmd": "",
                         "ssh_port": "",
-                        "github_client_id": "",
+                        "github_app_id": "",
                         "github_installation_id": "",
                     }
                 )
@@ -111,20 +111,20 @@ class GitHook(BaseHook):
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
         # GitHub App Auth Options
-        self.github_client_id = extra.get("github_client_id")
+        self.github_app_id = extra.get("github_app_id")
         self.github_installation_id = extra.get("github_installation_id")
 
         self.env: dict[str, str] = {}
 
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
-        if (self.github_client_id is not None and self.github_installation_id is None) or (
-            self.github_client_id is None and self.github_installation_id is not None
+        if (self.github_app_id is not None and self.github_installation_id is None) or (
+            self.github_app_id is None and self.github_installation_id is not None
         ):
             raise ValueError(
-                "Both 'github_client_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
+                "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
-        if self.github_client_id is not None and self.github_installation_id is not None:
+        if self.github_app_id is not None and self.github_installation_id is not None:
             if not self.key_file and not self.private_key:
                 raise ValueError("Missing inline private_key or key_file for GitHub App Auth")
             if self.key_file and not self.private_key:
@@ -183,15 +183,14 @@ class GitHook(BaseHook):
 
     def _get_github_app_token(self):
         try:
-            from github import GithubIntegration
+            from github import Auth, GithubIntegration
         except ImportError as exc:
             raise ImportError(
                 "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
             ) from exc
 
-        integration = GithubIntegration(
-            integration_id=self.github_client_id, private_key=self.github_app_private_key
-        )
+        auth = Auth.AppAuth(self.github_app_id, self.github_app_private_key)
+        integration = GithubIntegration(auth=auth)
         access_token = integration.get_access_token(installation_id=self.github_installation_id).token
 
         return "x-access-token", access_token
