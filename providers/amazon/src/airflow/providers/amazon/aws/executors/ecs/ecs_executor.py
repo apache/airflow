@@ -156,7 +156,7 @@ class AwsEcsExecutor(BaseExecutor):
         raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
-        """:sphinx-autoapi-skip:"""
+        """:sphinx-autoapi-skip:."""
         from airflow.executors import workloads
 
         for workload in workload_items:
