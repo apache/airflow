@@ -40,9 +40,43 @@
     "parseDuration": "Длительность парсинга:",
     "parsedAt": "Распарсен в:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Должно завершиться в течение {{interval}} от {{reference}}",
+    "count_one": "{{count}} дедлайн",
+    "count_few": "{{count}} дедлайна",
+    "count_many": "{{count}} дедлайнов",
+    "count_other": "{{count}} дедлайна",
+    "referenceType": {
+      "AverageRuntimeDeadline": "Среднее время выполнения",
+      "DagRunLogicalDateDeadline": "Логическая дата",
+      "DagRunQueuedAtDeadline": "Время в очереди"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Фактическое",
+    "expected": "Ожидаемое",
+    "finishedEarly": "Завершено за {{duration}} до дедлайна",
+    "finishedLate": "Завершено через {{duration}} после дедлайна",
+    "label": "Дедлайн",
+    "met": "Соблюден",
+    "missed": "Нарушен",
+    "missedCount_one": "{{count}} пропущенный дедлайн",
+    "missedCount_few": "{{count}} пропущенных дедлайна",
+    "missedCount_many": "{{count}} пропущенных дедлайнов",
+    "missedCount_other": "{{count}} пропущенного дедлайна",
+    "mixedCount": "{{missedCount}} пропущено, {{upcomingCount}} ожидается",
+    "stillRunning": "Все еще выполняется",
+    "upcoming": "Ожидается",
+    "upcomingCount_one": "{{count}} предстоящий дедлайн",
+    "upcomingCount_few": "{{count}} предстоящих дедлайна",
+    "upcomingCount_many": "{{count}} предстоящих дедлайнов",
+    "upcomingCount_other": "{{count}} предстоящих дедлайна"
+  },
   "extraLinks": "Дополнительные ссылки",
   "grid": {
     "buttons": {
+      "newerRuns": "Последующие запуски",
+      "olderRuns": "Предыдущие запуски",
       "resetToLatest": "Сбросить до последнего",
       "toggleGroup": "Переключить группу"
     },
@@ -52,6 +86,9 @@
     "buttons": {
       "advanced": "Расширенные настройки",
       "dagDocs": "Документация Dag-а"
+    },
+    "status": {
+      "deactivated": "Отключен"
     }
   },
   "logs": {
@@ -66,12 +103,18 @@
     },
     "info": "ИНФОРМАЦИЯ",
     "noTryNumber": "Нет номера попытки",
+    "search": {
+      "matchCount": "{{current}} из {{total}}",
+      "noMatches": "Нет совпадений",
+      "placeholder": "Искать в логах..."
+    },
     "settings": "Настройки логов",
     "viewInExternal": "Просмотреть логи в {{name}} (попытка {{attempt}})",
     "warning": "ПРЕДУПРЕЖДЕНИЕ"
   },
   "navigation": {
     "navigation": "Навигация: Shift+{{arrow}}",
+    "openGraphFilters": "Фильтры задач: Ctrl+Shift+F",
     "toggleGroup": "Переключить группу: Пробел"
   },
   "notFound": {
@@ -83,15 +126,27 @@
   "overview": {
     "buttons": {
       "failedRun_one": "Неудачный запуск",
-      "failedRun_other": "Неудачные запуски",
+      "failedRun_few": "Неудачных запуска",
+      "failedRun_many": "Неудачных запусков",
+      "failedRun_other": "Неудачных запуска",
       "failedTask_one": "Неудачная задача",
-      "failedTask_other": "Неудачные задачи",
+      "failedTask_few": "Неудачные задачи",
+      "failedTask_many": "Неудачных задач",
+      "failedTask_other": "Неудачной задачи",
       "failedTaskInstance_one": "Неудачный экземпляр задачи",
-      "failedTaskInstance_other": "Неудачные экземпляры задач"
+      "failedTaskInstance_few": "Неудачных экземпляра задачи",
+      "failedTaskInstance_many": "Неудачных экземпляров задач",
+      "failedTaskInstance_other": "Неудачных экземпляра задачи"
     },
     "charts": {
       "assetEvent_one": "Созданное событие актива",
-      "assetEvent_other": "Созданные события актива"
+      "assetEvent_few": "Созданных события актива",
+      "assetEvent_many": "Созданных событий актива",
+      "assetEvent_other": "Созданных события актива"
+    },
+    "deadlines": {
+      "showAll": "Показать все",
+      "title": "Дедлайны"
     },
     "failedLogs": {
       "hideLogs": "Скрыть логи",
@@ -122,6 +177,16 @@
     "graphDirection": {
       "label": "Направление графа"
     },
+    "graphFilters": {
+      "clearFilters": "Сбросить фильтры",
+      "durationGte": "Минимальная длительность (с)",
+      "durationGteHint": "Для динамических задач: измеряет общий интервал по всем экземплярам",
+      "mapIndex": "Минимальный индекс маппинга",
+      "mapIndexHint": "Показывает динамические задачи, развернутые как минимум до этого индекса",
+      "selectStatus": "Выбрать статус",
+      "selectTaskGroup": "Выбрать группу задач",
+      "title": "Фильтры задач"
+    },
     "showVersionIndicator": {
       "label": "Показать индикатор версии",
       "options": {
@@ -139,11 +204,11 @@
       "direction": "Направление",
       "label": "Фильтр",
       "mode": "Режим",
-      "modeTooltip": "Статический режим сохраняет текущее представление при навигации к другим задачам, в то время как режим Traverse автоматически обновляет активный фильтр до нажатой задачи для более легкой навигации по Dag-у.",
       "modes": {
         "static": "Статический",
         "traverse": "Traverse"
       },
+      "modeTooltip": "Статический режим сохраняет текущее представление при навигации к другим задачам, в то время как режим Traverse автоматически обновляет активный фильтр до нажатой задачи для более легкой навигации по Dag-у.",
       "options": {
         "both": "Как вверх, так и вниз по потоку",
         "downstream": "Вниз по потоку",
@@ -173,8 +238,9 @@
     "code": "Код",
     "details": "Детали",
     "logs": "Логи",
-    "mappedTaskInstances_few": "Экземпляры задач [{{count}}]",
     "mappedTaskInstances_one": "Экземпляр задачи [{{count}}]",
+    "mappedTaskInstances_few": "Экземпляры задач [{{count}}]",
+    "mappedTaskInstances_many": "Экземпляры задач [{{count}}]",
     "mappedTaskInstances_other": "Экземпляры задач [{{count}}]",
     "overview": "Обзор",
     "renderedTemplates": "Отрендеренные шаблоны",
