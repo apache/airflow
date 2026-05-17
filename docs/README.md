@@ -86,7 +86,7 @@ in order to provide caching and automated resolution of folders into index.html 
 Our CloudFront distributions are:
 
 * Live CloudFront url: https://d7fnmbhf26p21.cloudfront.net
-* Staging cloudfront url: https://d3a2du7x0n8ydr.cloudfront.net
+* Staging CloudFront url: https://d3a2du7x0n8ydr.cloudfront.net
 
 Those cloudfront caches are automatically invalidated when we publish new documentation to S3 using
 GitHub Actions workflows, but you can also manually invalidate them using the AWS Console if needed.
