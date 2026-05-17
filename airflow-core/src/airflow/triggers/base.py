@@ -260,7 +260,7 @@ class BaseEventTrigger(BaseTrigger):
         super().__init__(**kwargs)
 
         # Injected by the triggerer before run() is called; mirrors how trigger_id is set
-        self.watched_asset: AssetUniqueKey | None = None
+        self.watched_assets: list[AssetUniqueKey] | None = None
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:

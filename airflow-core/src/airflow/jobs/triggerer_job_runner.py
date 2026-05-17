@@ -774,21 +774,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     ) -> workloads.RunTrigger | None:
         # aip-93
         if trigger.task_instance is None:
-            asset_name: str | None = None
-            asset_uri: str | None = None
+            watched_assets: dict[str, str] | None = None
 
-            # aip-93: Is it always going to be the first asset from the asset_watchers list?
+            # aip-93
             if trigger.asset_watchers:
-                first_asset = trigger.asset_watchers[0].asset
-                asset_name = first_asset.name
-                asset_uri = first_asset.uri
+                watched_assets = {a.name: a.uri for a in trigger.assets}
 
             return workloads.RunTrigger(
                 id=trigger.id,
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
-                watched_asset_name=asset_name,
-                watched_asset_uri=asset_uri,
+                watched_assets=watched_assets,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -1291,14 +1287,13 @@ class TriggerRunner:
             trigger_instance.triggerer_job_id = self.job_id
             trigger_instance.timeout_after = workload.timeout_after
 
-            # aip-93
-            if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_asset_uri:
+            # aip-93: Pass through all watched assets from workload
+            if isinstance(trigger_instance, BaseEventTrigger) and workload.watched_assets:
                 from airflow.sdk.definitions.asset import AssetUniqueKey
 
-                trigger_instance.watched_asset = AssetUniqueKey(
-                    name=workload.watched_asset_name,
-                    uri=workload.watched_asset_uri,
-                )
+                trigger_instance.watched_assets = [
+                    AssetUniqueKey(name=name, uri=uri) for name, uri in workload.watched_assets.items()
+                ]
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
