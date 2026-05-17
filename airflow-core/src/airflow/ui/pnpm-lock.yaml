@@ -105,9 +105,6 @@ importers:
       i18next-http-backend:
         specifier: ^3.0.5
         version: 3.0.5
-      iso8601-duration:
-        specifier: ^2.1.3
-        version: 2.1.3
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -2921,9 +2918,6 @@ packages:
 
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
-
-  iso8601-duration@2.1.3:
-    resolution: {integrity: sha512-OwkROKDXYhqKTl9uyB+/+lQ/Tx+L9LVb9tNRcsO4LtCSBDrmYbzyJLg9rGjYKAPDabD6IVdjMyUnnULHpejrCg==}
 
   isomorphic-fetch@3.0.0:
     resolution: {integrity: sha512-qvUtwJ3j6qwsF3jLxkZ72qCgjMysPzDfeV240JHiGZsANBYd+EEuu35v7dfrJ9Up0Ak07D7GGSkGhCHTqg/5wA==}
@@ -7582,8 +7576,6 @@ snapshots:
   isarray@2.0.5: {}
 
   isexe@2.0.0: {}
-
-  iso8601-duration@2.1.3: {}
 
   isomorphic-fetch@3.0.0:
     dependencies:

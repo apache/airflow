@@ -67,13 +67,15 @@ const isFieldDate = (fieldType: string, fieldSchema: ParamSchema) =>
 const isFieldDateTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "date-time";
 
+const isFieldDuration = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "string" && fieldSchema.format === "duration";
+
 const enumTypes = ["null", "string", "number", "integer"];
 
 const isFieldDropdown = (fieldType: string, fieldSchema: ParamSchema) =>
   enumTypes.includes(fieldType) && Array.isArray(fieldSchema.enum);
 
-const isFieldDuration = (fieldType: string, fieldSchema: ParamSchema) =>
-  fieldType === "string" && fieldSchema.format === "duration";
+
 
 const isFieldMultilineText = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "multiline";

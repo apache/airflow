@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.definitions.param import Param
-from airflow.sdk.exceptions import ParamValidationError
 from airflow.serialization.definitions.param import SerializedParam
 
 
@@ -44,7 +42,7 @@ class TestSerializedParam:
     )
     def test_string_duration_format(self, duration):
         """Test valid ISO 8601 duration strings."""
-        assert Param(duration, type="string", format="duration").resolve() == duration
+        assert SerializedParam(duration, type="string", format="duration").resolve(raises=True) == duration
 
     @pytest.mark.parametrize(
         "duration",
@@ -58,5 +56,5 @@ class TestSerializedParam:
     )
     def test_string_duration_format_error(self, duration):
         """Test invalid ISO 8601 duration strings."""
-        with pytest.raises(ParamValidationError, match="is not a 'duration'"):
-            Param(duration, type="string", format="duration").resolve()
+        with pytest.raises(Exception, match="is not a 'duration'"):
+            SerializedParam(duration, type="string", format="duration").resolve(raises=True)

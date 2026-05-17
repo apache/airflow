@@ -17,42 +17,48 @@
  * under the License.
  */
 import { Input } from "@chakra-ui/react";
-import { parse } from "iso8601-duration";
+import dayjs from "dayjs"
+import duration from "dayjs/plugin/duration"
 import { useTranslation } from "react-i18next";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
+dayjs.extend(duration);
+
 export const FieldDuration = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
-  const param = paramsDict[name] ?? paramPlaceholder;
+  const param = paramsDict[name] ?? paramPlaceholder;  
   const handleChange = (value: string) => {
-    const isEmpty = value === "";
-    const parsedValue = value.replaceAll(",", ".");
+  const isEmpty = value === "";
+  const parsedValue = value.replaceAll(",", ".");
 
-    if (paramsDict[name]) {
-      setParamsDict({
-        ...paramsDict,
-        [name]: {
-          ...paramsDict[name],
-          value: isEmpty ? null : value,
-        },
-      });
-    }
-    if (isEmpty) {
-      onUpdate(value);
+  if (paramsDict[name]) {
+    setParamsDict({
+      ...paramsDict,
+      [name]: {
+        ...paramsDict[name],
+        value: isEmpty ? null : parsedValue,
+      },
+    });
+  }
 
-      return;
-    }
-    try {
-      parse(parsedValue);
-      onUpdate(parsedValue);
-    } catch {
-      onUpdate(undefined, translate("flexibleForm.validationErrorDuration"));
-    }
-  };
+  if (isEmpty) {
+    onUpdate(parsedValue);
+
+    return;
+  }
+  const dur = dayjs.duration(parsedValue);
+  const isValid = !Number.isNaN(dur.asMilliseconds());
+
+  if (isValid) {
+    onUpdate(parsedValue);
+  } else {
+    onUpdate(undefined, translate("flexibleForm.validationErrorDuration"));
+  }
+};
 
   return (
     <Input

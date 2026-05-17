@@ -96,7 +96,7 @@ class Param:
             If true and validations fails, the return value would be None.
         """
         import jsonschema
-        from jsonschema import FormatChecker
+        from jsonschema import FormatChecker, validate
         from jsonschema.exceptions import ValidationError
 
         if value is not NOTSET:
@@ -108,7 +108,7 @@ class Param:
             raise ParamValidationError("No value passed and Param has no default value")
 
         try:
-            jsonschema.validate(
+            validate(
                 final_val,
                 self.schema,
                 format_checker=FormatChecker(),
