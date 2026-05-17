@@ -64,6 +64,7 @@ services:
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/atlassian/jira/tests:/opt/airflow/providers/atlassian/jira/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
+      - ../../../providers/clickhouse/tests:/opt/airflow/providers/clickhouse/tests
       - ../../../providers/cloudant/tests:/opt/airflow/providers/cloudant/tests
       - ../../../providers/cncf/kubernetes/tests:/opt/airflow/providers/cncf/kubernetes/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
