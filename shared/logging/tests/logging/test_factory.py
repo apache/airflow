@@ -160,6 +160,14 @@ class FakeConf:
     def get(self, section, key, **kwargs):
         return self._values.get((section, key), kwargs.get("fallback"))
 
+    def getboolean(self, section, key, **kwargs):
+        value = self._values.get((section, key), kwargs.get("fallback"))
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.lower() in ("1", "true", "yes", "on")
+        return bool(value)
+
 
 def test_resolve_user_defined_module_wins():
     """If the user's logging_config_class module exposes REMOTE_TASK_LOG, it wins."""
@@ -195,11 +203,52 @@ def test_resolve_falls_through_to_provider_dispatch():
     """Default logging_class_path → user_defined is False → provider dispatch runs."""
     info = _info(scheme="fake")
     handler, conn_id = resolve_remote_task_log(
-        conf=FakeConf({("logging", "remote_base_log_folder"): "fake://bucket"}),
+        conf=FakeConf(
+            {
+                ("logging", "remote_base_log_folder"): "fake://bucket",
+                ("logging", "remote_logging"): True,
+            }
+        ),
         providers_manager=FakeProvidersManager({"fake": info}),
         import_string=_fake_import_string,
     )
     assert isinstance(handler, FakeRemoteLogIO)
+    assert conn_id is None
+
+
+def test_resolve_skips_provider_dispatch_when_remote_logging_disabled():
+    """``[logging] remote_logging = False`` must short-circuit provider dispatch."""
+    sentinel_remote = object()
+
+    def fake_import_string(path: str):
+        if path == DEFAULT_LOGGING_CONFIG_PATH:
+            return _FAKE_LOGGING_DICT
+        raise AssertionError(f"unexpected import: {path}")
+
+    import sys
+
+    parent_module = DEFAULT_LOGGING_CONFIG_PATH.rsplit(".", 1)[0]
+    saved = sys.modules.get(parent_module)
+    sys.modules[parent_module] = SimpleNamespace(REMOTE_TASK_LOG=sentinel_remote, DEFAULT_REMOTE_CONN_ID=None)
+    try:
+        # ExplodingProvidersManager fails the test if provider dispatch runs.
+        handler, conn_id = resolve_remote_task_log(
+            conf=FakeConf(
+                {
+                    ("logging", "remote_base_log_folder"): "fake://bucket",
+                    ("logging", "remote_logging"): False,
+                }
+            ),
+            providers_manager=ExplodingProvidersManager(),
+            import_string=fake_import_string,
+        )
+    finally:
+        if saved is not None:
+            sys.modules[parent_module] = saved
+        else:
+            sys.modules.pop(parent_module, None)
+
+    assert handler is sentinel_remote
     assert conn_id is None
 
 
@@ -221,7 +270,12 @@ def test_resolve_falls_back_to_legacy_attr_path_when_dispatch_returns_none():
     )
     try:
         handler, conn_id = resolve_remote_task_log(
-            conf=FakeConf({("logging", "remote_base_log_folder"): "unknown://b"}),
+            conf=FakeConf(
+                {
+                    ("logging", "remote_base_log_folder"): "unknown://b",
+                    ("logging", "remote_logging"): True,
+                }
+            ),
             providers_manager=FakeProvidersManager(),  # empty registry
             import_string=fake_import_string,
         )

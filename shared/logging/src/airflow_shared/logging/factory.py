@@ -23,7 +23,7 @@ This module owns the runtime-independent logic for resolving and instantiating
 :func:`resolve_remote_task_log` with their own ``ProvidersManager`` instance and
 ``import_string`` implementation; that function in turn delegates to
 :func:`_build_remote_task_log_from_provider` for the provider-dispatch step and to
-:func:`airflow_shared.logging.remote.discover_remote_log_handler` for the
+:func:`airflow._shared.logging.remote.discover_remote_log_handler` for the
 user-defined ``logging_config_class`` and legacy fallbacks.
 """
 
@@ -35,7 +35,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from airflow_shared.logging.remote import discover_remote_log_handler
+from .remote import discover_remote_log_handler
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
@@ -170,12 +170,13 @@ def resolve_remote_task_log(
         if remote_task_log is not None or default_remote_conn_id is not None:
             return remote_task_log, default_remote_conn_id
 
-    remote_task_log = _build_remote_task_log_from_provider(
-        remote_base_log_folder=conf.get("logging", "remote_base_log_folder", fallback=None),
-        providers_manager=providers_manager,
-        import_string=import_string,
-    )
-    if remote_task_log is not None:
-        return remote_task_log, conf.get("logging", "remote_log_conn_id", fallback=None)
+    if conf.getboolean("logging", "remote_logging", fallback=False):
+        remote_task_log = _build_remote_task_log_from_provider(
+            remote_base_log_folder=conf.get("logging", "remote_base_log_folder", fallback=None),
+            providers_manager=providers_manager,
+            import_string=import_string,
+        )
+        if remote_task_log is not None:
+            return remote_task_log, conf.get("logging", "remote_log_conn_id", fallback=None)
 
     return discover_remote_log_handler(logging_class_path, DEFAULT_LOGGING_CONFIG_PATH, import_string)
