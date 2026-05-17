@@ -89,6 +89,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         "region",
         "environment_id",
         "composer_dag_id",
+        "composer_dag_run_id",
         "impersonation_chain",
     )
 

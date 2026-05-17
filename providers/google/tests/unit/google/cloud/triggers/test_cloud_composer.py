@@ -281,6 +281,122 @@ class TestCloudComposerDAGRunTrigger:
         assert hook.get_dag_runs.await_count == 1
         assert mock_sleep.await_count == 0
 
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_composer.asyncio.sleep", new_callable=AsyncMock
+    )
+    async def test_trigger_uses_composer_dag_run_id_branch_when_set(
+        self, mock_sleep, composer_airflow_version
+    ):
+        """When ``composer_dag_run_id`` is set, the trigger's run-id branch
+        wins and the windowed ``_check_dag_runs_states`` is not consulted.
+
+        Returning a run whose ``logical_date`` is *outside*
+        ``[start_date, end_date]`` but whose ``dag_run_id`` matches is
+        enough to yield success.
+        """
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        hook = AsyncMock()
+        environment = mock.Mock()
+        environment.config.airflow_uri = "https://composer.example"
+        hook.get_environment.return_value = environment
+        hook.get_dag_runs.return_value = {
+            "dag_runs": [
+                {
+                    "dag_id": TEST_COMPOSER_DAG_ID,
+                    "dag_run_id": "manual__abc",
+                    "state": "success",
+                    date_key: "2099-01-01T00:00:00+00:00",
+                }
+            ],
+            "total_entries": 1,
+        }
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_LOCATION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            composer_dag_run_id="manual__abc",
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_states=TEST_ALLOWED_STATES,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            poll_interval=TEST_POLL_INTERVAL,
+            composer_airflow_version=composer_airflow_version,
+        )
+
+        with mock.patch.object(trigger, "_get_async_hook", return_value=hook):
+            actual_event = await trigger.run().asend(None)
+
+        assert actual_event == TriggerEvent({"status": "success"})
+        assert hook.get_dag_runs.await_count == 1
+        assert mock_sleep.await_count == 0
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_composer.asyncio.sleep", new_callable=AsyncMock
+    )
+    async def test_trigger_polls_until_composer_dag_run_id_appears(
+        self, mock_sleep, composer_airflow_version
+    ):
+        """First poll sees an unrelated run; second poll sees the matching
+        one. The trigger must keep polling and only yield success on the
+        second iteration (no premature short-circuit).
+        """
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        hook = AsyncMock()
+        environment = mock.Mock()
+        environment.config.airflow_uri = "https://composer.example"
+        hook.get_environment.return_value = environment
+        hook.get_dag_runs.side_effect = [
+            {
+                "dag_runs": [
+                    {
+                        "dag_id": TEST_COMPOSER_DAG_ID,
+                        "dag_run_id": "scheduled__not-the-one",
+                        "state": "success",
+                        date_key: "2024-03-22T11:30:00+00:00",
+                    }
+                ],
+                "total_entries": 1,
+            },
+            {
+                "dag_runs": [
+                    {
+                        "dag_id": TEST_COMPOSER_DAG_ID,
+                        "dag_run_id": "manual__abc",
+                        "state": "success",
+                        date_key: "2024-03-22T11:30:00+00:00",
+                    }
+                ],
+                "total_entries": 1,
+            },
+        ]
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_LOCATION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            composer_dag_run_id="manual__abc",
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_states=TEST_ALLOWED_STATES,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            poll_interval=TEST_POLL_INTERVAL,
+            composer_airflow_version=composer_airflow_version,
+        )
+
+        with mock.patch.object(trigger, "_get_async_hook", return_value=hook):
+            actual_event = await trigger.run().asend(None)
+
+        assert actual_event == TriggerEvent({"status": "success"})
+        assert hook.get_dag_runs.await_count == 2
+        assert mock_sleep.await_count == 1
+
 
 class TestCloudComposerExternalTaskTrigger:
     def test_serialize(self, external_task_trigger):
