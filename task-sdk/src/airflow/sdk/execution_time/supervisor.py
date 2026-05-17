@@ -344,6 +344,7 @@ def block_orm_access():
             conf.set("database", "sql_alchemy_conn", conn)
             conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
             conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+        settings.block_orm_access()
 
         # This only gets called when the module does not already have an attribute, and for these values
         # lets give a custom error message
@@ -353,9 +354,6 @@ def block_orm_access():
             raise AttributeError(f"module {settings.__name__!r} has no attribute {name!r}")
 
         settings.__getattr__ = __getattr__
-
-        settings.SQL_ALCHEMY_CONN = conn
-        settings.SQL_ALCHEMY_CONN_ASYNC = conn
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
