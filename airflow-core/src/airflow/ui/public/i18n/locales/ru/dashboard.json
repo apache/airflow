@@ -1,8 +1,9 @@
 {
   "favorite": {
-    "favoriteDags_few": "Первые {{count}} избранных Dag-а",
-    "favoriteDags_one": "Первый {{count}} избранный Dag",
-    "favoriteDags_other": "Первые {{count}} избранных Dag-ов",
+    "firstFavoriteDags_one": "Первый {{count}} избранный Dag",
+    "firstFavoriteDags_few": "Первые {{count}} избранных Dag-а",
+    "firstFavoriteDags_many": "Первые {{count}} избранных Dag-ов",
+    "firstFavoriteDags_other": "Первые {{count}} избранных Dag-а",
     "noDagRuns": "Для этого Dag-а еще нет запусков.",
     "noFavoriteDags": "Ещё нет избранных. Нажмите на иконку со звёздочкой рядом с Dag-ом в списке, чтобы добавить его в избранное."
   },
@@ -21,6 +22,8 @@
   "history": "История",
   "importErrors": {
     "dagImportError_one": "Ошибка импорта Dag-ов",
+    "dagImportError_few": "Ошибки импорта Dag-ов",
+    "dagImportError_many": "Ошибок импорта Dag-ов",
     "dagImportError_other": "Ошибки импорта Dag-ов",
     "searchByFile": "Поиск по файлу",
     "timestamp": "Отметка времени"
