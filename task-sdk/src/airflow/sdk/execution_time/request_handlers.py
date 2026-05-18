@@ -32,15 +32,18 @@ from typing import TYPE_CHECKING
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     VariableResponse,
+    XComResponse,
 )
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
+    XComResult,
 )
 from airflow.sdk.log import mask_secret
 
@@ -81,6 +84,16 @@ def handle_get_variable_keys(
         VariableKeysResult(keys=result.keys, total_entries=result.total_entries, type="VariableKeysResult"),
         {"exclude_unset": True},
     )
+
+
+def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch an XCom value."""
+    xcom = client.xcoms.get(
+        msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+    )
+    if isinstance(xcom, XComResponse):
+        return XComResult.from_xcom_response(xcom), {"exclude_unset": True}
+    return xcom, {}
 
 
 def handle_mask_secret(msg: MaskSecret) -> None:
