@@ -28,6 +28,7 @@ from airflow.logging_config import (
     _ActiveLoggingConfig,
     _get_logging_config,
     _load_logging_config,
+    _warn_if_missing_remote_task_log,
     get_default_remote_conn_id,
     get_remote_task_log,
     load_logging_config,
@@ -208,3 +209,42 @@ class TestGetDefaultRemoteConnId:
             mocked_conf.get.return_value = None
             assert get_default_remote_conn_id() == "cached_conn"
         mock_load.assert_not_called()
+
+
+class TestWarnIfMissingRemoteTaskLog:
+    @pytest.fixture(autouse=True)
+    def _reset_active_logging_config(self, monkeypatch):
+        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", None, raising=False)
+        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", True, raising=False)
+
+    def test_warns_when_user_module_missing_remote_task_log_and_remote_logging_enabled(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__LOGGING__REMOTE_LOGGING", "True")
+        with mock.patch("airflow.logging_config.log") as mock_log:
+            _warn_if_missing_remote_task_log("my_pkg.custom_settings.LOGGING_CONFIG")
+        mock_log.warning.assert_called_once()
+        assert "my_pkg.custom_settings" in mock_log.warning.call_args.args
+
+    def test_no_warning_when_using_fallback_path(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__LOGGING__REMOTE_LOGGING", "True")
+        with mock.patch("airflow.logging_config.log") as mock_log:
+            _warn_if_missing_remote_task_log(DEFAULT_LOGGING_CONFIG_PATH)
+        mock_log.warning.assert_not_called()
+
+    def test_no_warning_when_remote_logging_disabled(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__LOGGING__REMOTE_LOGGING", "False")
+        with mock.patch("airflow.logging_config.log") as mock_log:
+            _warn_if_missing_remote_task_log("my_pkg.custom_settings.LOGGING_CONFIG")
+        mock_log.warning.assert_not_called()
+
+    def test_no_warning_when_remote_task_log_is_set(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__LOGGING__REMOTE_LOGGING", "True")
+        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", object(), raising=False)
+        with mock.patch("airflow.logging_config.log") as mock_log:
+            _warn_if_missing_remote_task_log("my_pkg.custom_settings.LOGGING_CONFIG")
+        mock_log.warning.assert_not_called()
+
+    def test_no_warning_when_empty_logging_class_path(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW__LOGGING__REMOTE_LOGGING", "True")
+        with mock.patch("airflow.logging_config.log") as mock_log:
+            _warn_if_missing_remote_task_log("")
+        mock_log.warning.assert_not_called()
