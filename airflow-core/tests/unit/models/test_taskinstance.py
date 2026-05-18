@@ -2894,8 +2894,8 @@ def test_defer_task_serializes_non_json_next_kwargs(create_task_instance):
     )
 
     assert ti.defer_task(session=session)
-    json.dumps(ti.next_kwargs)
-    assert deserialize(ti.next_kwargs) == {"start_at": start_at, "delay": delay}
+    json.dumps(ti.start_trigger_args.next_kwargs)
+    assert deserialize(ti.start_trigger_args.next_kwargs) == {"start_at": start_at, "delay": delay}
 
 
 def test_defer_task_with_trigger_timeout(create_task_instance):
