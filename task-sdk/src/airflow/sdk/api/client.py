@@ -869,12 +869,23 @@ class DagRunOperations:
             run_after=run_after,
         )
 
+        dag_run_exists_before_trigger = self._dag_run_exists(dag_id=dag_id, run_id=run_id)
+        if dag_run_exists_before_trigger is True:
+            if reset_dag_run:
+                log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
+                return self.clear(run_id=run_id, dag_id=dag_id)
+            log.info("Dag Run already exists!", dag_id=dag_id, run_id=run_id)
+            return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+
         try:
             self.client._request_without_retry(
                 "POST", f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
             )
-        except httpx.RequestError:
-            if not reset_dag_run and self._dag_run_exists(dag_id=dag_id, run_id=run_id):
+        except (httpx.ReadError, httpx.ReadTimeout, httpx.RemoteProtocolError):
+            if (
+                dag_run_exists_before_trigger is False
+                and self._dag_run_exists(dag_id=dag_id, run_id=run_id, retry=True) is True
+            ):
                 log.info(
                     "Dag Run exists after ambiguous trigger response; treating trigger as successful.",
                     dag_id=dag_id,
@@ -885,23 +896,76 @@ class DagRunOperations:
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
-                    log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
+                    log.info(
+                        "Dag Run already exists after trigger attempt; Resetting Dag Run.",
+                        detail=e.detail,
+                        dag_id=dag_id,
+                        run_id=run_id,
+                    )
                     return self.clear(run_id=run_id, dag_id=dag_id)
-
-                log.info("Dag Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                log.info(
+                    "Dag Run already exists after trigger attempt.",
+                    detail=e.detail,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                )
                 return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
             raise
 
         return OKResponse(ok=True)
 
-    def _dag_run_exists(self, dag_id: str, run_id: str) -> bool:
+    def _dag_run_exists(self, dag_id: str, run_id: str, *, retry: bool = False) -> bool | None:
+        """Return whether the Dag run exists, or None when the detail endpoint is unavailable."""
+        if self.client._dry_run:
+            return None
+
         try:
-            self.client.get(f"dag-runs/{dag_id}/{run_id}")
+            if retry:
+                self.client.get(f"dag-runs/{dag_id}/{run_id}")
+            else:
+                self.client._request_without_retry("GET", f"dag-runs/{dag_id}/{run_id}")
+        except httpx.RequestError:
+            return None
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 return False
+            if e.response.status_code == HTTPStatus.METHOD_NOT_ALLOWED:
+                # Older execution API servers may not support the Dag run detail endpoint yet.
+                return None
+            if (
+                e.response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+                and run_id == "previous"
+                and self._is_legacy_previous_dag_run_route_response(e.response)
+            ):
+                return None
+            if e.response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
+                return None
+            raise
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                return False
+            if e.response.status_code == HTTPStatus.METHOD_NOT_ALLOWED:
+                return None
+            if e.response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
+                return None
             raise
         return True
+
+    @staticmethod
+    def _is_legacy_previous_dag_run_route_response(response: httpx.Response) -> bool:
+        """Return whether a 422 came from the legacy ``/{dag_id}/previous`` endpoint."""
+        try:
+            detail = response.json()["detail"]
+        except (KeyError, ValueError, TypeError):
+            return False
+        if not isinstance(detail, list):
+            return False
+        return any(
+            isinstance(error, dict)
+            and error.get("type") == "missing"
+            and error.get("loc") == ["query", "logical_date"]
+            for error in detail
+        )
 
     def clear(self, dag_id: str, run_id: str) -> OKResponse:
         """Clear a Dag run via the API server."""
@@ -1104,6 +1168,7 @@ class Client(httpx.Client):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
+        self._dry_run: bool = dry_run
 
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
