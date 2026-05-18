@@ -145,7 +145,15 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = [
+    "breeze",
+    "breeze-prek",
+    "breeze-quick-start",
+    "breeze-task-sdk-test",
+    "breeze-airflowctl-test",
+    "breeze-e2e-test",
+    "docker-compose",
+]
 
 # Every docker compose project name that any breeze command, prek hook, or
 # CI workflow uses. `breeze down` discovers running compose projects via the
@@ -156,17 +164,9 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
 # step), update this list so `breeze down` stays a one-shot cleanup.
 KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
     "breeze",  # default `breeze shell` / `breeze start-airflow`
-    "prek",  # prek hooks (see scripts/ci/prek/common_prek_utils.py)
-    "docker-compose",  # legacy name kept for migration_tests CI
-    "docs",  # `breeze build-docs`
-    "db",  # `breeze db ...`
-    "providers",  # release-management providers builds
 ]
 KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
     "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
-    "airflow-test",  # airflow-test, airflow-test-<test-type>
-    "constraints-",  # constraints-<python-version>
-    "providers-",  # providers-<index> (parallel provider builds)
 ]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
@@ -263,7 +263,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.1"
-UV_VERSION = "0.11.12"
+UV_VERSION = "0.11.13"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
