@@ -494,7 +494,7 @@ class TaskStateAccessor:
             expires_at = now + retention
         else:
             days = conf.getint("state_store", "default_retention_days")
-            expires_at = now + timedelta(days=days)
+            expires_at = None if days <= 0 else now + timedelta(days=days)
         SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value, expires_at=expires_at))
 
     def delete(self, key: str) -> None:

@@ -1138,8 +1138,6 @@ class TestTaskStateAccessor:
 
     def test_set_global_default_zero_sends_null_expires_at(self, mock_supervisor_comms):
         """When default_retention_days=0 (never expire globally), expires_at=None (stored as NULL)."""
-        from tests_common.test_utils.config import conf_vars
-
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         with conf_vars({("state_store", "default_retention_days"): "0"}):

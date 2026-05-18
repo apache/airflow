@@ -4904,24 +4904,38 @@ class TestTaskInstanceStateOperations:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(
-            SetTaskState(ti_id=runtime_ti.id, key="job_id", value="spark_app_001")
-        )
+        # Check a SetTaskState was sent for the right key/value (expires_at is computed from config)
+        set_calls = [
+            c
+            for c in mock_supervisor_comms.send.call_args_list
+            if isinstance(c.args[0], SetTaskState) and c.args[0].key == "job_id"
+        ]
+        assert len(set_calls) == 1
+        assert set_calls[0].args[0].value == "spark_app_001"
+        assert set_calls[0].args[0].ti_id == runtime_ti.id
         mock_supervisor_comms.send.assert_any_call(GetTaskState(ti_id=runtime_ti.id, key="job_id"))
 
-    def test_task_can_set_state_with_retention_days(self, create_runtime_ti, mock_supervisor_comms):
+    def test_task_can_set_state_with_retention(self, create_runtime_ti, mock_supervisor_comms):
+        from datetime import timedelta
+
         class MyOperator(BaseOperator):
             def execute(self, context):
-                context["task_state"].set("job_id", "spark_app_001", retention=7)
+                context["task_state"].set("job_id", "spark_app_001", retention=timedelta(days=7))
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(
-            SetTaskState(ti_id=runtime_ti.id, key="job_id", value="spark_app_001", retention=7)
-        )
+        set_calls = [
+            c
+            for c in mock_supervisor_comms.send.call_args_list
+            if isinstance(c.args[0], SetTaskState) and c.args[0].key == "job_id"
+        ]
+        assert len(set_calls) == 1
+        msg = set_calls[0].args[0]
+        assert msg.value == "spark_app_001"
+        assert msg.expires_at is not None
 
     def test_task_can_delete_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
