@@ -135,26 +135,13 @@ class DatabricksExecutionTrigger(BaseTrigger):
 
 class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
     """
-    Coordinate whole-run polling and ``rerun_all_failed_tasks`` repair for a Databricks Workflow run.
-
-    Used by the ``repair_coordinator`` sibling task that
-    :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`
-    injects when ``max_full_run_repairs > 0`` on Airflow 3+. The trigger mirrors the coordinator
-    operator's sync state machine: it watches the stable parent ``run_id``, tracks repair progress
-    in trigger serialization state, and emits one event per terminal observation.
-
-    On success it yields ``status="completed"``. On failure with budget remaining, it calls
-    ``repair_run`` with the shared repair payload helper and yields ``status="repaired"`` with the
-    bumped ``repair_attempts`` and new ``latest_repair_id`` so the coordinator can defer again. On
-    failure after the budget is exhausted, it yields ``status="failed"``. Downstream task monitors
-    discover repaired sub-runs from the Databricks API rather than from coordinator XCom.
+    Coordinate parent-run polling and full-run repairs for a Databricks Workflow run.
 
     :param run_id: The Databricks run id to coordinate.
     :param databricks_conn_id: Airflow connection id for the Databricks hook.
     :param max_full_run_repairs: Total repair attempts allowed for this run.
-    :param repair_attempts: Repair attempts already performed (defaults to 0 on the first defer).
-    :param latest_repair_id: Repair id of the most recent repair attempt, or ``None`` on the first
-        defer. Forwarded to ``repair_run`` so Databricks knows which attempt is the latest.
+    :param repair_attempts: Repair attempts already performed.
+    :param latest_repair_id: Repair id of the most recent repair attempt.
     :param polling_period_seconds: How often to poll the run state.
     :param retry_limit: Hook retry limit for transient Databricks API failures.
     :param retry_delay: Hook retry delay (seconds).
@@ -317,17 +304,7 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
 
 class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
     """
-    Wait for the next attempt of a single Databricks Workflow task after its sub-run failed.
-
-    Used by deferrable Databricks task monitors inside a
-    :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`
-    when ``max_full_run_repairs > 0`` on Airflow 3+. After a sub-run fails, the trigger reads the
-    parent run's task list from ``get_run`` and yields ``status="new_attempt"`` when the shared
-    candidate-selection helper finds a newer sub-run with the same ``task_key``.
-
-    If the parent run stays terminal-failed without a new attempt for ``terminal_grace_polls``
-    consecutive polls, the trigger yields ``status="parent_failed"``. The grace window avoids
-    racing the coordinator while it issues ``repair_run``.
+    Wait for the next attempt of a Databricks Workflow task after its sub-run fails.
 
     :param run_id: Parent workflow run id (stable across repairs).
     :param databricks_conn_id: Airflow connection id for the Databricks hook.
@@ -335,9 +312,8 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
     :param original_sub_run_id: The sub-run id of the attempt that just failed; the trigger only
         yields ``new_attempt`` for a sub-run id different from this one.
     :param polling_period_seconds: How often to poll the parent run.
-    :param terminal_grace_polls: Number of consecutive terminal-with-no-new-attempt observations
-        required before yielding ``status="parent_failed"``. Bounds how long we wait for the
-        coordinator to issue a repair after observing terminal failure.
+    :param terminal_grace_polls: Consecutive terminal observations before yielding
+        ``status="parent_failed"``.
     :param retry_limit: Hook retry limit for transient Databricks API failures.
     :param retry_delay: Hook retry delay (seconds).
     :param retry_args: Optional tenacity ``Retrying`` kwargs forwarded to the hook.

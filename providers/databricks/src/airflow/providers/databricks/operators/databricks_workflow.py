@@ -310,31 +310,18 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
 
 class _DatabricksFullRunRepairCoordinatorOperator(BaseOperator):
     """
-    Watch a Databricks Workflow run and trigger ``rerun_all_failed_tasks`` repairs.
-
-    Runs as a sibling of the downstream Databricks task monitors inside a
-    :class:`DatabricksWorkflowTaskGroup`. The ``launch`` task creates or resets the job, starts the
-    run, and publishes ``{conn_id, job_id, run_id}`` so monitors can fan out. This operator then
-    owns the parent-run repair budget, waits for terminal run states, and issues one repair call per
-    failed batch.
-
-    Downstream task monitors observe repairs independently from the Databricks API when their
-    sub-run fails; they do not share repair state through XCom. The coordinator's final return
-    value carries ``{run_id, repair_attempts, latest_repair_id}`` for any user code that wants a
-    post-run summary.
+    Watch a Databricks Workflow run and issue full-run repairs after terminal failures.
 
     :param task_id: The task id of the operator (typically ``"repair_coordinator"``).
     :param databricks_conn_id: Connection id used by the coordinator trigger and repair calls.
-    :param launch_task_id: The full task id of the workflow ``launch`` task whose return value
-        carries ``{conn_id, job_id, run_id}``.
+    :param launch_task_id: The workflow ``launch`` task whose XCom carries the parent run metadata.
     :param max_full_run_repairs: Total repair attempts allowed across the run.
     :param repair_polling_period_seconds: Poll interval used by the trigger or sync poll loop.
     :param databricks_retry_limit: Hook retry limit for transient API failures.
     :param databricks_retry_delay: Hook retry delay (seconds).
     :param databricks_retry_args: Optional ``tenacity.Retrying`` kwargs forwarded to the hook.
-    :param deferrable: If ``True``, watch the run by deferring on
-        :class:`DatabricksWorkflowRepairCoordinatorTrigger`. If ``False``, watch it via a
-        synchronous poll loop that runs the same state machine inline.
+    :param deferrable: Whether to watch the run with
+        :class:`DatabricksWorkflowRepairCoordinatorTrigger`.
     """
 
     caller = "_DatabricksFullRunRepairCoordinatorOperator"
