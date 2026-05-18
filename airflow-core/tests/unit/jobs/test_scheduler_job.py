@@ -37,6 +37,7 @@ import psutil
 import pytest
 import time_machine
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -1247,6 +1248,34 @@ class TestSchedulerJob:
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
+
+    def test_find_executable_task_instances_mysql_hint_only_applies_to_inner_query(self, dag_maker, session):
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_mysql_hint_only_applies_to_inner_query"
+        task_id = "dummy"
+        with dag_maker(dag_id=dag_id, max_active_tasks=16):
+            task = EmptyOperator(task_id=task_id)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dag_run.get_task_instance(task.task_id)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.flush()
+
+        captured_queries = []
+
+        def capture_locked_query(query, **kwargs):
+            captured_queries.append(query)
+            return query
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=capture_locked_query):
+            queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert {queued_ti.key for queued_ti in queued_tis} == {ti.key}
+        compiled_query = str(captured_queries[0].compile(dialect=mysql.dialect()))
+        assert compiled_query.count("USE INDEX (ti_state)") == 1
 
     def test_find_executable_task_instances_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_pool"

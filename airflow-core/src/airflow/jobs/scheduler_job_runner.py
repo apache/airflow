@@ -632,7 +632,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Select only rows where row_number <= max_active_tasks.
             query = (
                 select(TI)
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .select_from(ranked_query)
                 .join(
                     TI,
