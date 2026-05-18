@@ -459,9 +459,7 @@ class TestWasbHook:
         assert hook.check_for_container("missing-container") is False
         mock_container.get_container_properties.assert_called_once_with()
 
-    def test_check_for_container_raises_type_error_for_invalid_client(
-        self, mocked_blob_service_client
-    ):
+    def test_check_for_container_raises_type_error_for_invalid_client(self, mocked_blob_service_client):
         mocked_blob_service_client.return_value.get_container_client.return_value = mock.MagicMock()
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         with pytest.raises(TypeError, match="container for WasbHook must be ContainerClient"):
