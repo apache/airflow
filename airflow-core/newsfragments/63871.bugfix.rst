@@ -1,0 +1,1 @@
+Fix DAG version inflation caused by callable values (e.g. lambdas) in templated fields by normalizing callables to their qualname and sorting dict keys deterministically.
