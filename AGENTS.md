@@ -301,6 +301,30 @@ Remind the user to:
 2. Add a brief description of the changes at the top of the body.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 
+### Golden rule: when a fix is imminent, open the PR, not an issue
+
+If you already know how to fix the problem and you (or the user) are going to
+open the PR shortly, **do not file a GitHub issue first**. Go straight to the
+PR.
+
+- Airflow does not use issues as a changelog, as a parallel bug database, or
+  as a duplicate record of in-flight work. The PR itself is the canonical
+  record — title, description, diff, discussion, and merge all live in one
+  place. An issue that gets closed by a PR a day later is double accounting
+  that carries no information the PR does not already carry.
+- Open issues attract drive-by submissions, often from other agents, that
+  haven't seen the in-flight work. That produces duplicate fixes, low-quality
+  PRs that have to be closed, and wasted reviewer time. Not opening the
+  issue avoids creating that bait in the first place.
+- If you catch yourself drafting an issue body that reads like the PR
+  description you are about to write, that is the signal — skip the issue
+  and open the PR.
+
+The one exception is the case covered by the next section: the PR ships a
+**workaround, mitigation, or partial fix** and the real follow-up work is
+genuinely deferred to a later PR. There, the issue captures work that will
+outlive the PR, so the issue is load-bearing rather than duplicate.
+
 ### Tracking issues for deferred work
 
 When a PR applies a **workaround, version cap, mitigation, or partial fix**
