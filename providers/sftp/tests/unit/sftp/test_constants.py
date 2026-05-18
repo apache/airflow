@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.sftp.operators.constants import SFTPOperation
+from airflow.providers.sftp.constants import SFTPOperation
 
 
 def test_sftp_operation_values():
