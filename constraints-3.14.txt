@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-16T00:23:14.297020
+# This constraints file was automatically generated on 2026-05-18T10:04:21.283598
 # via `uv pip install --resolution highest` for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -34,7 +34,7 @@ APScheduler==3.11.2
 Authlib==1.7.2
 Deprecated==1.3.1
 Events==0.5
-Flask-JWT-Extended==4.7.3
+Flask-JWT-Extended==4.7.4
 Flask-Limiter==3.12
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
@@ -304,7 +304,7 @@ gcsfs==2026.4.0
 genai-prices==0.0.59
 gevent==26.4.0
 gitdb==4.0.12
-google-ads==30.1.0
+google-ads==31.0.0
 google-analytics-admin==0.29.0
 google-api-core==2.30.3
 google-api-python-client==2.196.0
@@ -390,7 +390,7 @@ hvac==2.4.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.4
 ibmcloudant==0.11.6
-idna==3.14
+idna==3.15
 ijson==3.4.0.post0
 immutabledict==4.3.1
 importlib_metadata==8.7.1
@@ -432,7 +432,7 @@ limits==5.8.0
 linkify-it-py==2.1.0
 litellm==1.82.6
 lockfile==0.12.2
-logfire-api==4.32.1
+logfire-api==4.33.0
 looker_sdk==26.8.0
 lxml==6.0.2
 lz4==4.4.5
@@ -440,7 +440,7 @@ markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
 marshmallow==3.26.2
 matplotlib-inline==0.2.2
-mdit-py-plugins==0.6.0
+mdit-py-plugins==0.6.1
 mdurl==0.1.2
 memray==1.19.3
 mergedeep==1.3.4
@@ -475,9 +475,9 @@ nest-asyncio==1.6.0
 numpy==2.4.4
 oauthlib==3.3.1
 openai==2.36.0
-openlineage-integration-common==1.47.0
-openlineage-python==1.47.0
-openlineage_sql==1.47.0
+openlineage-integration-common==1.47.1
+openlineage-python==1.47.1
+openlineage_sql==1.47.1
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
@@ -538,9 +538,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.93.0
+pydantic-ai-slim==1.96.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.93.0
+pydantic-graph==1.96.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -582,11 +582,11 @@ requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
-requests==2.34.0
+requests==2.34.1
 requests_ntlm==1.3.0
 retryhttp==1.4.0
 rich-argparse==1.8.0
-rich-toolkit==0.19.7
+rich-toolkit==0.19.9
 rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
@@ -600,7 +600,7 @@ scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
-sentry-sdk==2.59.0
+sentry-sdk==2.60.0
 setproctitle==1.3.7
 setuptools==82.0.1
 shellingham==1.5.4
@@ -610,7 +610,7 @@ slack_sdk==3.41.0
 smbprotocol==1.16.1
 smmap==5.0.3
 sniffio==1.3.1
-snowflake-connector-python==4.4.0
+snowflake-connector-python==4.5.0
 snowflake-sqlalchemy==1.9.0
 sortedcontainers==2.4.0
 soupsieve==2.8.3
@@ -646,7 +646,7 @@ traitlets==5.15.0
 trino==0.337.0
 typer==0.25.1
 types-protobuf==7.34.1.20260508
-types-requests==2.33.0.20260508
+types-requests==2.33.0.20260513
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
@@ -676,7 +676,7 @@ xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.390.0
 yarl==1.23.0
-ydb-dbapi==0.1.21
+ydb-dbapi==0.1.22
 ydb==3.29.0
 zeep==4.3.2
 zenpy==2.0.57
