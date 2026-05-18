@@ -126,7 +126,10 @@ export type BackfillPostBody = {
 } | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
-    run_on_latest_version?: boolean;
+    /**
+     * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
+     */
+    run_on_latest_version?: boolean | null;
 };
 
 /**
@@ -431,9 +434,9 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
     note?: string | null;
 };
@@ -582,6 +585,7 @@ export type DAGDetailsResponse = {
     default_args: {
     [key: string]: unknown;
 } | null;
+    rerun_with_latest_version?: boolean | null;
     owner_links?: {
     [key: string]: (string);
 } | null;
@@ -668,9 +672,9 @@ export type DAGRunClearBody = {
      */
     only_new?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
+     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
 };
 
 /**
@@ -1880,6 +1884,7 @@ export type ConfigResponse = {
     external_log_name?: string | null;
     theme: Theme | null;
     multi_team: boolean;
+    rerun_with_latest_version?: boolean | null;
 };
 
 /**
