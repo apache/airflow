@@ -1092,6 +1092,10 @@ logging:
       type: string
       example: ~
       default: "warn"
+# OpenTelemetry configuration is split into two different sections:
+# - metrics: for monitoring data
+# - traces: for task execution flow
+# Both sections use 'otel*_' settings, but they configure different features and are NOT interchangable
 metrics:
   description: |
     `StatsD <https://github.com/statsd/statsd>`__ integration settings.
