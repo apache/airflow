@@ -147,8 +147,8 @@ class WasbDagBundle(BaseDagBundle):
             raise ValueError("WASB url with version is not supported")
         if hasattr(self, "_view_url_template") and self._view_url_template:
             return self._view_url_template
-        account_name = self.wasb_hook.blob_service_client.account_name
-        url = f"https://{account_name}.blob.core.windows.net/{self.container_name}"
+        account_url = self.wasb_hook.blob_service_client.url
+        url = f"{account_url.rstrip('/')}/{self.container_name}"
         if self.prefix:
             url += f"/{self.prefix}"
         return url
