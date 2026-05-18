@@ -32,6 +32,8 @@ from airflow.utils.db import (
     compare_type,
 )
 
+from tests_common.test_utils.config import conf_vars
+
 pytestmark = [pytest.mark.db_test]
 try:
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
@@ -109,25 +111,61 @@ try:
             actual = mock_om.call_args.kwargs["revision"]
             assert actual == "abc"
 
+        @conf_vars({("database", "sql_alchemy_conn"): "sqlite:////tmp/fab-test.db"})
         @mock.patch.object(FABDBManager, "get_current_revision")
         def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr, session):
-            with mock.patch(
-                "airflow.providers.fab.auth_manager.models.db.settings.SQL_ALCHEMY_CONN",
-                "sqlite:////tmp/fab-test.db",
-            ):
-                with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
-                    FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+            with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
+                FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
         @mock.patch("alembic.command.upgrade")
         @mock.patch.object(FABDBManager, "create_db_from_orm")
+        @mock.patch.object(FABDBManager, "_has_existing_manager_tables", return_value=False)
         @mock.patch.object(FABDBManager, "get_current_revision", return_value=None)
         def test_upgradedb_empty_db_without_migration_files_uses_create_db_from_orm(
-            self, mock_get_current_revision, mock_create_db_from_orm, mock_upgrade, session
+            self,
+            mock_get_current_revision,
+            mock_has_existing_manager_tables,
+            mock_create_db_from_orm,
+            mock_upgrade,
+            session,
         ):
             FABDBManager(session).upgradedb()
 
+            mock_has_existing_manager_tables.assert_called_once()
             mock_create_db_from_orm.assert_called_once()
             mock_upgrade.assert_not_called()
+            mock_get_current_revision.assert_called_once()
+
+        @mock.patch("alembic.command.upgrade")
+        @mock.patch("alembic.command.stamp")
+        @mock.patch.object(FABDBManager, "get_script_object")
+        @mock.patch.object(FABDBManager, "get_alembic_config", return_value=object())
+        @mock.patch.object(FABDBManager, "create_db_from_orm")
+        @mock.patch.object(FABDBManager, "_has_existing_manager_tables", return_value=True)
+        @mock.patch.object(FABDBManager, "get_current_revision", return_value=None)
+        def test_upgradedb_existing_tables_without_version_stamps_base_then_runs_migrations(
+            self,
+            mock_get_current_revision,
+            mock_has_existing_manager_tables,
+            mock_create_db_from_orm,
+            mock_get_alembic_config,
+            mock_get_script_object,
+            mock_stamp,
+            mock_upgrade,
+            session,
+        ):
+            base_revision = mock.Mock(revision="base-revision", down_revision=None)
+            mock_get_script_object.return_value.walk_revisions.return_value = [
+                mock.Mock(revision="head-revision", down_revision="base-revision"),
+                base_revision,
+            ]
+
+            FABDBManager(session).upgradedb()
+
+            mock_has_existing_manager_tables.assert_called_once()
+            mock_create_db_from_orm.assert_not_called()
+            mock_stamp.assert_called_once_with(mock_get_alembic_config.return_value, "base-revision")
+            mock_upgrade.assert_called_once_with(mock_get_alembic_config.return_value, revision="heads")
             mock_get_current_revision.assert_called_once()
 
         @mock.patch("alembic.command.upgrade")

@@ -99,6 +99,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -130,7 +131,6 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
     return dag_run
 
 
@@ -225,6 +225,9 @@ def patch_dag_run(
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
                 except Exception:
                     log.exception("error calling listener")
+
+            # TODO AIP-103: https://github.com/apache/airflow/issues/66755
+            # Handle clearing states for all task instances in a dagrun when cleared
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
@@ -597,10 +600,10 @@ def trigger_dag_run(
     else:
         triggered_by = DagRunTriggeredByType.REST_API
 
-    try:
-        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-        params = body.validate_context(dag)
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    params = body.validate_context(dag)
 
+    try:
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
@@ -614,14 +617,14 @@ def trigger_dag_run(
             partition_key=params["partition_key"],
             session=session,
         )
+    except (ParamValidationError, ValueError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
-        dag_run_note = body.note
-        if dag_run_note:
-            current_user_id = user.get_id()
-            dag_run.note = (dag_run_note, current_user_id)
-        return dag_run
-    except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    dag_run_note = body.note
+    if dag_run_note:
+        current_user_id = user.get_id()
+        dag_run.note = (dag_run_note, current_user_id)
+    return dag_run
 
 
 @dag_run_router.get(

@@ -60,9 +60,14 @@ subjects:
     name: {{ include "scheduler.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
   {{- end }}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (and (contains "KubernetesExecutor" .Values.executor) (eq .Values.workers.kubernetes.serviceAccount.create nil)) }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+  {{- end }}
+  {{- if and (or .Values.workers.kubernetes.serviceAccount.create .Values.workers.kubernetes.serviceAccount.name) (contains "KubernetesExecutor" .Values.executor) }}
+  - kind: ServiceAccount
+    name: {{ include "worker.kubernetes.serviceAccountName" $ }}
     namespace: "{{ $.Release.Namespace }}"
   {{- end }}
   {{- if .Values.triggerer.enabled }}

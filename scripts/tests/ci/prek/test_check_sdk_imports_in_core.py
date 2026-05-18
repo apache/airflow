@@ -20,7 +20,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from check_sdk_imports import check_file_for_sdk_imports
+from check_sdk_imports_in_core import check_file_for_sdk_imports
 
 
 class TestCheckFileForSdkImports:
@@ -131,6 +131,46 @@ class TestNocheckMarker:
                 """),
                 [(2, "from airflow.sdk.definitions import dag")],
                 id="only-marked-line-suppressed",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa: F401, SDK001\n",
+                [],
+                id="combined-codes-target-last",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa: SDK001, F401\n",
+                [],
+                id="combined-codes-target-first",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa: E402, SDK001, F401\n",
+                [],
+                id="combined-codes-target-middle",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa:SDK001\n",
+                [],
+                id="no-space-after-colon",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa: F401\n",
+                [(1, "from airflow.sdk import DAG")],
+                id="other-code-only-not-suppressed",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa: F401 - see SDK001 docs\n",
+                [(1, "from airflow.sdk import DAG")],
+                id="code-in-explanation-not-suppressed",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa: F401, SDK001 - needed for compat\n",
+                [],
+                id="combined-codes-with-explanation-suppressed",
+            ),
+            pytest.param(
+                "from airflow.sdk import DAG  # noqa\n",
+                [(1, "from airflow.sdk import DAG")],
+                id="bare-noqa-not-suppressed",
             ),
         ],
     )

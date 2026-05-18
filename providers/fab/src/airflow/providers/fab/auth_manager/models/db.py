@@ -18,11 +18,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy import inspect
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.models import model_metadata
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.db import _offline_migration, print_happy_cat
 from airflow.utils.db_manager import BaseDBManager
 
@@ -66,15 +68,53 @@ class FABDBManager(BaseDBManager):
 
     def create_db_from_orm(self):
         super().create_db_from_orm()
-        db, flask_app = _get_flask_db(settings.SQL_ALCHEMY_CONN)
+        sql_conn = settings.get_sql_alchemy_conn() if AIRFLOW_V_3_3_PLUS else settings.SQL_ALCHEMY_CONN
+        db, flask_app = _get_flask_db(sql_conn)
         with flask_app.app_context():
             db.create_all()
+
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def _has_existing_manager_tables(self) -> bool:
+        """Return whether any table managed by this DB manager already exists."""
+        inspector = inspect(self.session.get_bind())
+        table_names_by_schema: dict[str | None, set[str]] = {}
+        for table in self.metadata.tables.values():
+            table_names_by_schema.setdefault(table.schema, set()).add(table.name)
+
+        for schema, table_names in table_names_by_schema.items():
+            existing_table_names = set(inspector.get_table_names(schema=schema))
+            if table_names.intersection(existing_table_names):
+                return True
+        return False
+
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def _get_base_revision(self, config=None) -> str:
+        """Return the first/base Alembic revision for this DB manager."""
+        script = self.get_script_object(config)
+        for revision in script.walk_revisions():
+            if revision.down_revision is None:
+                return revision.revision
+        raise RuntimeError(f"No base revision found for {self.__class__.__name__}")
+
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def _stamp_base_revision(self, config) -> None:
+        """Stamp the database to this DB manager's base Alembic revision."""
+        from alembic import command
+
+        base_revision = self._get_base_revision(config)
+        self.log.info(
+            "%s tables already exist without an Alembic version; stamping base revision %s before upgrade",
+            self.__class__.__name__,
+            base_revision,
+        )
+        command.stamp(config, base_revision)
 
     def reset_to_2_x(self):
         self.create_db_from_orm()
         # And ensure it's at the oldest version
         self.downgrade(_REVISION_HEADS_MAP["1.4.0"])
 
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
     def upgradedb(
         self,
         to_revision=None,
@@ -89,8 +129,6 @@ class FABDBManager(BaseDBManager):
         _release_metadata_locks_if_supported(self)
 
         # alembic adds significant import time, so we import it lazily
-        if not settings.SQL_ALCHEMY_CONN:
-            raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
         from alembic import command
 
         current_revision = self.get_current_revision()
@@ -99,13 +137,20 @@ class FABDBManager(BaseDBManager):
         _release_metadata_locks_if_supported(self)
 
         if not current_revision and not to_revision and not use_migration_files and not show_sql_only:
-            self.create_db_from_orm()
-            return
-
-        config = self.get_alembic_config()
+            if self._has_existing_manager_tables():
+                config = self.get_alembic_config()
+                self._stamp_base_revision(config)
+            else:
+                self.create_db_from_orm()
+                return
+        else:
+            config = self.get_alembic_config()
 
         if show_sql_only:
-            if make_url(settings.SQL_ALCHEMY_CONN).get_backend_name() == "sqlite":
+            sql_conn: str = (
+                settings.get_sql_alchemy_conn() if AIRFLOW_V_3_3_PLUS else str(settings.SQL_ALCHEMY_CONN)
+            )
+            if make_url(sql_conn).get_backend_name() == "sqlite":
                 raise SystemExit("Offline migration not supported for SQLite.")
             if not from_revision:
                 from_revision = current_revision
@@ -129,9 +174,6 @@ class FABDBManager(BaseDBManager):
                 "applying a downgrade (instead of just generating sql), we always "
                 "downgrade from current revision."
             )
-
-        if not settings.SQL_ALCHEMY_CONN:
-            raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
 
         # alembic adds significant import time, so we import it lazily
         from alembic import command
@@ -158,6 +200,7 @@ class FABDBManager(BaseDBManager):
 
     def drop_tables(self, connection):
         super().drop_tables(connection)
-        db, flask_app = _get_flask_db(settings.SQL_ALCHEMY_CONN)
+        sql_conn = settings.get_sql_alchemy_conn() if AIRFLOW_V_3_3_PLUS else settings.SQL_ALCHEMY_CONN
+        db, flask_app = _get_flask_db(sql_conn)
         with flask_app.app_context():
             db.drop_all()

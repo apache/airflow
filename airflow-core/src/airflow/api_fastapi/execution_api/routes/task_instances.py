@@ -41,6 +41,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.observability.traces import override_ids
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -67,6 +68,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute, require_auth
+from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -78,6 +80,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
+from airflow.state import get_state_backend
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -459,6 +462,31 @@ def ti_update_state(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+    if updated_state == TaskInstanceState.SUCCESS:
+        if conf.getboolean("state_store", "clear_on_success"):
+            scope = TaskScope(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index if map_index is not None else -1,
+            )
+            try:
+                get_state_backend().clear(scope, session=session)
+                log.info(
+                    "Cleared task state on success",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    map_index=map_index,
+                )
+            except Exception:
+                log.warning(
+                    "Failed to clear task state on success",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                )
 
 
 def _emit_task_span(ti, state):

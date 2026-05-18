@@ -550,6 +550,30 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
     assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
 
 
+def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
+    """Dry run with invalid conf should fail validation."""
+    from airflow.sdk import Param
+
+    with dag_maker(
+        schedule="@daily",
+        params={"validated_number": Param(1, type="integer", minimum=1, maximum=10)},
+    ) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param validated_number"):
+        list(
+            _do_dry_run(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                reverse=False,
+                reprocess_behavior=ReprocessBehavior.NONE,
+                dag_run_conf={"validated_number": 99},
+                session=session,
+            )
+        )
+
+
 def test_params_stored_correctly(dag_maker, session):
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
