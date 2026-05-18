@@ -119,7 +119,7 @@ class AirflowPlugin:
     # A list of timetable classes that can be used for Dag scheduling.
     timetables: list[Any] = []
 
-    # A list of timetable classes that can be used for Dag scheduling.
+    # A list of partition mapper classes that can be used for Dag scheduling.
     partition_mappers: list[Any] = []
 
     # A list of listeners that can be used for tracking task and Dag states.
