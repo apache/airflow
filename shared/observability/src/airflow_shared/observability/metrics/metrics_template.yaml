@@ -633,6 +633,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.dag_runs.examined"
+    description: "Number of active DAG runs examined in a scheduler loop iteration."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor.open_slots"
+    description: "Number of open executor slots available at the end of a scheduler loop iteration."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.tasks.heartbeat_timeout"
+    description: "Number of task instances whose heartbeat timed out and were terminated in a scheduler loop iteration."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.first_task_scheduling_delay"
     description: "Milliseconds elapsed between first task start_date and dagrun expected start"
     type: "timer"
