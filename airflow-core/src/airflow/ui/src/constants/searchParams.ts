@@ -68,6 +68,7 @@ export enum SearchParamsKeys {
   POOL = "pool",
   POOL_NAME_PATTERN = "pool_name_pattern",
   QUEUE_NAME_PATTERN = "queue_name_pattern",
+  RENDERED_MAP_INDEX = "rendered_map_index",
   RESPONDED_BY_USER_NAME = "responded_by_user_name",
   RESPONSE_RECEIVED = "response_received",
   RETRIES = "retries",
