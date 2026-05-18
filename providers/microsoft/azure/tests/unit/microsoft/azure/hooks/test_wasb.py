@@ -443,6 +443,38 @@ class TestWasbHook:
         assert not hook.check_for_prefix("container", "prefix", timeout=3)
         get_blobs_list.assert_called_once_with(container_name="container", prefix="prefix", timeout=3)
 
+    def test_check_for_container(self, mocked_blob_service_client):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        assert hook.check_for_container("mycontainer") is True
+        mocked_blob_service_client.return_value.get_container_client.assert_called_once_with("mycontainer")
+        mock_container.get_container_properties.assert_called_once_with()
+
+    def test_check_for_container_not_found(self, mocked_blob_service_client):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mock_container.get_container_properties.side_effect = ResourceNotFoundError("Container not found")
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        assert hook.check_for_container("missing-container") is False
+        mock_container.get_container_properties.assert_called_once_with()
+
+    def test_check_for_container_raises_type_error_for_invalid_client(
+        self, mocked_blob_service_client
+    ):
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock.MagicMock()
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with pytest.raises(TypeError, match="container for WasbHook must be ContainerClient"):
+            hook.check_for_container("mycontainer")
+
+    def test_check_for_container_propagates_unexpected_errors(self, mocked_blob_service_client):
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mock_container.get_container_properties.side_effect = OSError("network down")
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with pytest.raises(OSError, match="network down"):
+            hook.check_for_container("mycontainer")
+
     def test_get_blobs_list(self, mocked_blob_service_client):
         mock_container = create_autospec(ContainerClient, instance=True)
         mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
