@@ -35,6 +35,37 @@
 Changelog
 ---------
 
+1.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add run_after to TriggerDagRunOperator (#62259)``
+* ``Add partition_key to Context (#65359)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+1.12.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ExternalTaskSensor check_existence ignored in deferrable mode (Airflow < 3.0) (#64394)``
+* ``Remove premature param value validation in HITLOperator (#64108)``
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``CI: Upgrade important CI environment (#64744)``
+
 1.12.2
 ......
 

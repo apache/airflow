@@ -30,6 +30,7 @@ from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
+    expand_env_var,
 )
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
@@ -99,7 +100,7 @@ def get_sdk_expansion_variables() -> dict[str, Any]:
     SDK only needs AIRFLOW_HOME for expansion. Core specific variables
     (FERNET_KEY, JWT_SECRET_KEY, etc.) are not needed in the SDK.
     """
-    airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+    airflow_home = expand_env_var(os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow")))
     return {
         "AIRFLOW_HOME": airflow_home,
     }
@@ -107,8 +108,11 @@ def get_sdk_expansion_variables() -> dict[str, Any]:
 
 def get_airflow_config() -> str:
     """Get path to airflow.cfg file."""
-    airflow_home = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
-    return os.path.join(airflow_home, "airflow.cfg")
+    airflow_config_var = os.environ.get("AIRFLOW_CONFIG")
+    if airflow_config_var is None:
+        airflow_home: str = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        return os.path.join(expand_env_var(airflow_home), "airflow.cfg")
+    return expand_env_var(airflow_config_var)
 
 
 class AirflowSDKConfigParser(_SharedAirflowConfigParser):
@@ -130,11 +134,11 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
         # Read Core's config.yml (Phase 1: shared config.yml)
-        configuration_description = retrieve_configuration_description()
+        _configuration_description = retrieve_configuration_description()
         # Create default values parser
-        _default_values = create_default_config_parser(configuration_description)
+        _default_values = create_default_config_parser(_configuration_description)
         super().__init__(
-            configuration_description,
+            _configuration_description,
             _default_values,
             ProvidersManagerTaskRuntime,
             create_default_config_parser,
@@ -142,7 +146,7 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
             *args,
             **kwargs,
         )
-        self.configuration_description = configuration_description
+        self._configuration_description = _configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
 

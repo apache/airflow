@@ -76,7 +76,7 @@ apache-airflow-providers-apache-livy package
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 4.5.4
+Release: 4.5.5
 
 Provider package
 ----------------
@@ -131,5 +131,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-livy 4.5.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-livy 4.5.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-livy 4.5.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.5.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-livy 4.5.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-4.5.5-py3-none-any.whl.sha512>`__)

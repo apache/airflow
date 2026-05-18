@@ -30,6 +30,7 @@ import typing_extensions
 
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk.bases.operator import (
+    BASEOPERATOR_ARGS_EXPECTED_TYPES,
     BaseOperator,
     coerce_resources,
     coerce_timedelta,
@@ -498,6 +499,13 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if "self" in self.function_signature.parameters:
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault("task_id", self.function.__name__)
+        for arg_name, expected_type in BASEOPERATOR_ARGS_EXPECTED_TYPES.items():
+            if arg_name in self.kwargs:
+                value = self.kwargs[arg_name]
+                if value is not None and not isinstance(value, expected_type):
+                    raise TypeError(
+                        f"Expected {arg_name!r} to be {expected_type}, got {type(value).__name__}: {value!r}"
+                    )
         update_wrapper(self, self.function)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:

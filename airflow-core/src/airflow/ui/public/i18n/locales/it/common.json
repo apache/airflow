@@ -69,6 +69,11 @@
     "dagVersions": "Versioni del Dag",
     "dataIntervalEnd": "Data Intervallo Fine",
     "dataIntervalStart": "Data Intervallo Inizio",
+    "durationStats": {
+      "mean": "Media",
+      "mode": "Moda"
+    },
+    "expectedDuration": "Durata Prevista",
     "lastSchedulingDecision": "Ultima Decisione di Programmazione",
     "queuedAt": "In Coda il",
     "runAfter": "Esegui dopo",

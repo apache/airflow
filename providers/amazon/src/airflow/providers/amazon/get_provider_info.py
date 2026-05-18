@@ -248,6 +248,13 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon S3 Tables",
+                "external-doc-url": "https://aws.amazon.com/s3/features/tables/",
+                "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3_tables.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon Systems Manager (SSM)",
                 "external-doc-url": "https://aws.amazon.com/systems-manager/",
                 "logo": "/docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png",
@@ -277,7 +284,10 @@ def get_provider_info():
                 "integration-name": "AWS Glue",
                 "external-doc-url": "https://aws.amazon.com/glue/",
                 "logo": "/docs/integration-logos/AWS-Glue_light-bg@4x.png",
-                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/glue.rst"],
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-amazon/operators/glue.rst",
+                    "/docs/apache-airflow-providers-amazon/operators/glue_catalog.rst",
+                ],
                 "tags": ["aws"],
             },
             {
@@ -335,6 +345,13 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "external-doc-url": "https://docs.aws.amazon.com/mwaa/latest/userguide/mwaa-serverless.html",
+                "logo": "/docs/integration-logos/Amazon-MWAA.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa_serverless.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon Neptune",
                 "external-doc-url": "https://aws.amazon.com/neptune/",
                 "logo": "/docs/integration-logos/Amazon-Neptune_64.png",
@@ -353,6 +370,13 @@ def get_provider_info():
                 "external-doc-url": "https://aws.amazon.com/managed-workflows-for-apache-airflow/",
                 "logo": "/docs/integration-logos/Amazon-MWAA.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon S3 Vectors",
+                "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
+                "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/s3_vectors.rst"],
                 "tags": ["aws"],
             },
         ],
@@ -421,6 +445,7 @@ def get_provider_info():
                 "integration-name": "AWS Glue",
                 "python-modules": [
                     "airflow.providers.amazon.aws.operators.glue",
+                    "airflow.providers.amazon.aws.operators.glue_catalog",
                     "airflow.providers.amazon.aws.operators.glue_crawler",
                 ],
             },
@@ -437,8 +462,16 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.mwaa"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "python-modules": ["airflow.providers.amazon.aws.operators.mwaa_serverless"],
+            },
+            {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.operators.s3"],
+            },
+            {
+                "integration-name": "Amazon S3 Tables",
+                "python-modules": ["airflow.providers.amazon.aws.operators.s3_tables"],
             },
             {
                 "integration-name": "Amazon SageMaker",
@@ -446,7 +479,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.operators.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Email Service (SES)",
@@ -494,6 +530,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Neptune",
                 "python-modules": ["airflow.providers.amazon.aws.operators.neptune"],
+            },
+            {
+                "integration-name": "Amazon S3 Vectors",
+                "python-modules": ["airflow.providers.amazon.aws.operators.s3_vectors"],
             },
         ],
         "sensors": [
@@ -574,6 +614,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa"],
             },
             {
+                "integration-name": "Amazon MWAA Serverless",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa_serverless"],
+            },
+            {
                 "integration-name": "Amazon OpenSearch Serverless",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.opensearch_serverless"],
             },
@@ -595,7 +639,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.sensors.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Queue Service (SQS)",
@@ -620,7 +667,13 @@ def get_provider_info():
                 "handler": "airflow.providers.amazon.aws.assets.s3.sanitize_uri",
                 "to_openlineage_converter": "airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage",
                 "factory": "airflow.providers.amazon.aws.assets.s3.create_asset",
-            }
+            },
+            {
+                "schemes": ["redshift"],
+                "handler": "airflow.providers.amazon.aws.assets.redshift.sanitize_uri",
+                "factory": "airflow.providers.amazon.aws.assets.redshift.create_asset",
+                "to_openlineage_converter": "airflow.providers.amazon.aws.assets.redshift.convert_asset_to_openlineage",
+            },
         ],
         "dataset-uris": [
             {
@@ -628,7 +681,13 @@ def get_provider_info():
                 "handler": "airflow.providers.amazon.aws.assets.s3.sanitize_uri",
                 "to_openlineage_converter": "airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage",
                 "factory": "airflow.providers.amazon.aws.assets.s3.create_asset",
-            }
+            },
+            {
+                "schemes": ["redshift"],
+                "handler": "airflow.providers.amazon.aws.assets.redshift.sanitize_uri",
+                "factory": "airflow.providers.amazon.aws.assets.redshift.create_asset",
+                "to_openlineage_converter": "airflow.providers.amazon.aws.assets.redshift.convert_asset_to_openlineage",
+            },
         ],
         "filesystems": ["airflow.providers.amazon.aws.fs.s3"],
         "hooks": [
@@ -755,12 +814,19 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.hooks.s3"],
             },
             {
+                "integration-name": "Amazon S3 Tables",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.s3_tables"],
+            },
+            {
                 "integration-name": "Amazon SageMaker",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.sagemaker"],
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.hooks.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "Amazon Simple Email Service (SES)",
@@ -871,7 +937,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon SageMaker Unified Studio",
-                "python-modules": ["airflow.providers.amazon.aws.triggers.sagemaker_unified_studio"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio",
+                    "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio_notebook",
+                ],
             },
             {
                 "integration-name": "AWS Glue",
@@ -1084,19 +1153,21 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                "hook-name": "Amazon Web Services",
                 "connection-type": "aws",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "port"],
                     "relabeling": {"login": "AWS Access Key ID", "password": "AWS Secret Access Key"},
                     "placeholders": {
-                        "login": "AKIAIOSFODNN7EXAMPLE",
-                        "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-                        "extra": '{\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
+                        "login": "YOUR_AWS_ACCESS_KEY_ID",
+                        "password": "YOUR_AWS_SECRET_ACCESS_KEY",
+                        "extra": '{\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "YOUR_AWS_SESSION_TOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
                     },
                 },
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook",
+                "hook-name": "Amazon Chime Webhook",
                 "connection-type": "chime",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "port", "extra"],
@@ -1110,6 +1181,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook",
+                "hook-name": "Amazon Elastic MapReduce",
                 "connection-type": "emr",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "port", "login", "password"],
@@ -1121,19 +1193,21 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook",
+                "hook-name": "Amazon Redshift",
                 "connection-type": "redshift",
                 "ui-field-behaviour": {"relabeling": {"login": "User", "schema": "Database"}},
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook",
+                "hook-name": "Amazon Athena",
                 "connection-type": "athena",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "port"],
                     "relabeling": {"login": "AWS Access Key ID", "password": "AWS Secret Access Key"},
                     "placeholders": {
-                        "login": "AKIAIOSFODNN7EXAMPLE",
-                        "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-                        "extra": '{\n  "aws_domain": "amazonaws.com",\n  "driver": "rest",\n  "s3_staging_dir": "s3://bucket_name/staging/",\n  "work_group": "primary",\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
+                        "login": "YOUR_AWS_ACCESS_KEY_ID",
+                        "password": "YOUR_AWS_SECRET_ACCESS_KEY",
+                        "extra": '{\n  "aws_domain": "amazonaws.com",\n  "driver": "rest",\n  "s3_staging_dir": "s3://bucket_name/staging/",\n  "work_group": "primary",\n  "region_name": "us-east-1",\n  "session_kwargs": {"profile_name": "default"},\n  "config_kwargs": {"retries": {"mode": "standard", "max_attempts": 10}},\n  "role_arn": "arn:aws:iam::123456789098:role/role-name",\n  "assume_role_method": "assume_role",\n  "assume_role_kwargs": {"RoleSessionName": "airflow"},\n  "aws_session_token": "YOUR_AWS_SESSION_TOKEN",\n  "endpoint_url": "http://localhost:4566"\n}\n',
                     },
                 },
             },

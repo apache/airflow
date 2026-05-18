@@ -93,11 +93,20 @@ class TestEdgeCliDefinition:
             "4",
             "--edge-hostname",
             "edge-worker-1",
+            "--team-name",
+            "team_x",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.queues == "queue1,queue2"
         assert args.concurrency == 4
         assert args.edge_hostname == "edge-worker-1"
+        assert args.team_name == "team_x"
+
+    def test_worker_command_args_without_team_name(self):
+        """Test worker command without --team-name defaults to None."""
+        params = ["edge", "worker"]
+        args = self.arg_parser.parse_args(params)
+        assert args.team_name is None
 
     def test_status_command_args(self):
         """Test status command with pid argument."""
@@ -135,7 +144,15 @@ class TestEdgeCliDefinition:
 
     def test_list_workers_command_args(self):
         """Test list-workers command with output format and state filter."""
-        params = ["edge", "list-workers", "--output", "json", "--state", "running", "maintenance"]
+        params = [
+            "edge",
+            "list-workers",
+            "--output",
+            "json",
+            "--state",
+            "running",
+            "maintenance",
+        ]
         args = self.arg_parser.parse_args(params)
         assert args.output == "json"
         assert args.state == ["running", "maintenance"]

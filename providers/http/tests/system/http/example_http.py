@@ -77,7 +77,8 @@ task_get_op_response_filter = HttpOperator(
     task_id="get_op_response_filter",
     method="GET",
     endpoint="get",
-    response_filter=lambda response: response.json()["nested"]["property"],
+    data={"status": "ready"},
+    response_filter=lambda response: response.json()["args"]["status"],
     dag=dag,
 )
 # [END howto_operator_http_task_get_op_response_filter]
@@ -159,5 +160,5 @@ task_post_op_formenc >> task_get_paginated
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

@@ -1,0 +1,1 @@
+Restore live stdout logging for Elasticsearch in Airflow 3 by correctly configuring the handler in ``airflow_local_settings.py`` and forwarding task logs to stdout in ``LocalExecutor``.

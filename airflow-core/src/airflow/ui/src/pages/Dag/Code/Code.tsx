@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable max-lines */
 import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useState } from "react";
@@ -38,7 +36,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardButton, Tooltip } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
-import { useColorMode } from "src/context/colorMode";
+import { useMonacoTheme } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
@@ -115,7 +113,7 @@ export const Code = () => {
     setIsCompareDropdownOpen(false);
   };
 
-  const { colorMode } = useColorMode();
+  const { beforeMount, theme } = useMonacoTheme();
 
   useHotkeys("w", toggleWrap);
 
@@ -136,8 +134,6 @@ export const Code = () => {
     renderLineHighlight: "none",
     wordWrap: wrap ? "on" : "off",
   };
-
-  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
 
   const hasMultipleVersions = (dagVersions?.dag_versions.length ?? 0) >= 2;
 
@@ -278,6 +274,7 @@ export const Code = () => {
             <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
           )}
           <Editor
+            beforeMount={beforeMount}
             language="python"
             options={editorOptions}
             theme={theme}

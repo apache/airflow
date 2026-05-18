@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import time
+import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -27,6 +29,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     BaseOperatorLink,
     XCom,
+    conf,
 )
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseHook,
@@ -34,6 +37,9 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineRunException,
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
+)
+from airflow.providers.microsoft.azure.triggers.synapse import (
+    AzureSynapsePipelineTrigger,
 )
 
 if TYPE_CHECKING:
@@ -194,11 +200,12 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
     :param parameters: Parameters of the pipeline run. These parameters are referenced in a pipeline via
         ``@pipeline().parameters.parameterName`` and will be used only if the ``reference_pipeline_run_id`` is
         not specified.
-    :param timeout: Time in seconds to wait for a pipeline to reach a terminal status for non-asynchronous
-        waits. Used only if ``wait_for_termination`` is True.
+    :param timeout: Maximum time in seconds to wait for the pipeline run to reach a terminal state. In synchronous
+        mode this controls how long the operator polls for completion. In deferrable mode it determines the maximum
+        time the trigger will wait before emitting a timeout event. Used only if ``wait_for_termination`` is True.
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
-
+    :param deferrable: Run operator in deferrable mode.
     """
 
     template_fields: Sequence[str] = ("azure_synapse_conn_id",)
@@ -217,6 +224,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -230,6 +238,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         self.parameters = parameters
         self.timeout = timeout
         self.check_interval = check_interval
+        self.deferrable = deferrable
 
     @cached_property
     def hook(self):
@@ -255,30 +264,72 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
         if self.wait_for_termination:
-            self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
-
-            if self.hook.wait_for_pipeline_run_status(
-                run_id=self.run_id,
-                expected_statuses=AzureSynapsePipelineRunStatus.SUCCEEDED,
-                check_interval=self.check_interval,
-                timeout=self.timeout,
-            ):
-                self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+            if not self.deferrable:
+                self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
+                if self.hook.wait_for_pipeline_run_status(
+                    run_id=self.run_id,
+                    expected_statuses=AzureSynapsePipelineRunStatus.SUCCEEDED,
+                    check_interval=self.check_interval,
+                    timeout=self.timeout,
+                ):
+                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                else:
+                    raise AzureSynapsePipelineRunException(
+                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                    )
             else:
-                raise AzureSynapsePipelineRunException(
-                    f"Pipeline run {self.run_id} has failed or has been cancelled."
+                end_time = time.time() + self.timeout
+
+                pipeline_run_status = self.hook.get_pipeline_run_status(self.run_id)
+
+                if pipeline_run_status not in AzureSynapsePipelineRunStatus.TERMINAL_STATUSES:
+                    self.defer(
+                        timeout=self.execution_timeout,
+                        trigger=AzureSynapsePipelineTrigger(
+                            azure_synapse_conn_id=self.azure_synapse_conn_id,
+                            azure_synapse_workspace_dev_endpoint=self.azure_synapse_workspace_dev_endpoint,
+                            run_id=self.run_id,
+                            check_interval=self.check_interval,
+                            end_time=end_time,
+                        ),
+                        method_name=self.execute_complete.__name__,
+                    )
+
+                elif pipeline_run_status == AzureSynapsePipelineRunStatus.SUCCEEDED:
+                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+
+                elif pipeline_run_status in AzureSynapsePipelineRunStatus.FAILURE_STATES:
+                    raise AzureSynapsePipelineRunException(
+                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                    )
+        else:
+            if self.deferrable is True:
+                warnings.warn(
+                    "Argument `wait_for_termination` is False and `deferrable` is True, "
+                    "hence `deferrable` parameter doesn't have any effect",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
-    def execute_complete(self, event: dict[str, str]) -> None:
+    def execute_complete(self, context: Context, event: dict[str, str] | None) -> None:
         """
         Return immediately - callback for when the trigger fires.
 
-        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        The trigger communicates the terminal pipeline state through the event payload.
         """
-        if event:
-            if event["status"] == "error":
-                raise AirflowException(event["message"])
-            self.log.info(event["message"])
+        if event is None:
+            raise AzureSynapsePipelineRunException("Trigger returned no event.")
+
+        status = event.get("status")
+        message = event.get("message", "No message returned from trigger.")
+
+        if status == "success":
+            self.log.info(message)
+            return
+        if status == "error":
+            raise AzureSynapsePipelineRunException(message)
+
+        raise AzureSynapsePipelineRunException(f"Unexpected trigger event received: {event}")
 
     def on_kill(self) -> None:
         if self.run_id:

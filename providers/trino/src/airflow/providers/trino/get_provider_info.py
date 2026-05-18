@@ -36,10 +36,20 @@ def get_provider_info():
             }
         ],
         "asset-uris": [
-            {"schemes": ["trino"], "handler": "airflow.providers.trino.assets.trino.sanitize_uri"}
+            {
+                "schemes": ["trino"],
+                "handler": "airflow.providers.trino.assets.trino.sanitize_uri",
+                "factory": "airflow.providers.trino.assets.trino.create_asset",
+                "to_openlineage_converter": "airflow.providers.trino.assets.trino.convert_asset_to_openlineage",
+            }
         ],
         "dataset-uris": [
-            {"schemes": ["trino"], "handler": "airflow.providers.trino.assets.trino.sanitize_uri"}
+            {
+                "schemes": ["trino"],
+                "handler": "airflow.providers.trino.assets.trino.sanitize_uri",
+                "factory": "airflow.providers.trino.assets.trino.create_asset",
+                "to_openlineage_converter": "airflow.providers.trino.assets.trino.convert_asset_to_openlineage",
+            }
         ],
         "hooks": [{"integration-name": "Trino", "python-modules": ["airflow.providers.trino.hooks.trino"]}],
         "transfers": [
@@ -53,6 +63,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.trino.hooks.trino.TrinoHook",
+                "hook-name": "Trino",
                 "connection-type": "trino",
                 "ui-field-behaviour": {
                     "placeholders": {

@@ -16,14 +16,33 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, _jwt_bearer, require_auth
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
+from airflow.api_fastapi.execution_api.security import (
+    ExecutionAPIRoute,
+    _jwt_bearer,
+    get_team_name_dep,
+    require_auth,
+)
+
+
+class TestTIClaims:
+    def test_defaults_scope_and_retains_extra(self):
+        claims = TIClaims(team="data")
+
+        assert claims.scope == "execution"
+        assert claims.team == "data"
+
+    def test_accepts_sub_as_extra_claim(self):
+        claims = TIClaims(sub="not-a-uuid")
+
+        assert claims.sub == "not-a-uuid"
 
 
 class TestExecutionAPIRoute:
@@ -105,11 +124,12 @@ class TestTokenTypeScopeEnforcement:
 
     TI_ID = "00000000-0000-0000-0000-000000000001"
 
-    def _override_jwt(self, app, scope: str):
+    def _override_jwt(self, app, scope: TokenScope):
         ti_id = self.TI_ID
 
         async def mock_jwt(request: Request):
-            return TIToken(id=UUID(ti_id), claims={"scope": scope})
+            claims = TIClaims(scope=scope)
+            return TIToken(id=UUID(ti_id), claims=claims)
 
         app.dependency_overrides[_jwt_bearer] = mock_jwt
 
@@ -136,3 +156,78 @@ class TestTokenTypeScopeEnforcement:
         run = client.get(f"/task-instances/{self.TI_ID}/run", headers={"Authorization": "Bearer fake"})
         assert state.status_code == 200
         assert run.status_code == 200
+
+
+class TestTiSelfScopeEnforcement:
+    """Routes with the ``ti:self`` scope reject mismatched JWT subjects."""
+
+    PATH_TI_ID = "00000000-0000-0000-0000-000000000001"
+    OTHER_TI_ID = "00000000-0000-0000-0000-000000000002"
+
+    @pytest.fixture
+    def app(self):
+        """One router enforces ti:self, another doesn't — to confirm enforcement is opt-in."""
+        app = FastAPI()
+
+        authenticated_router = APIRouter(dependencies=[Security(require_auth)])
+        ti_self_router = APIRouter(dependencies=[Security(require_auth, scopes=["ti:self"])])
+
+        @ti_self_router.get("/{task_instance_id}/state")
+        def state_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        @authenticated_router.get("/no-scope/{task_instance_id}")
+        def no_scope_endpoint(task_instance_id: str):
+            return {"ok": True}
+
+        authenticated_router.include_router(ti_self_router, prefix="/ti")
+        app.include_router(authenticated_router)
+        return app
+
+    def _override_jwt(self, app: FastAPI, token_ti_id: UUID):
+        async def mock_jwt(request: Request):
+            return TIToken(id=token_ti_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[_jwt_bearer] = mock_jwt
+
+    def test_matching_subject_is_accepted(self, app):
+        self._override_jwt(app, self.PATH_TI_ID)
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/ti/{self.PATH_TI_ID}/state",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 200
+
+    def test_mismatched_subject_is_rejected(self, app):
+        """A task cannot read or write another task's resources."""
+        self._override_jwt(app, self.OTHER_TI_ID)
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/ti/{self.PATH_TI_ID}/state",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 403
+        assert "does not match" in resp.json()["detail"]
+
+
+class TestGetTeamNameDep:
+    """Tests for get_team_name_dep avoiding unnecessary async sessions."""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_without_session_when_multi_team_disabled(self):
+        """When multi_team=False, no async session should be created."""
+        token = MagicMock(spec=TIToken)
+
+        with (
+            patch("airflow.configuration.conf.getboolean", return_value=False),
+            patch("airflow.utils.session.create_session_async") as mock_create_session,
+        ):
+            result = await get_team_name_dep(token=token)
+
+        assert result is None
+        mock_create_session.assert_not_called()

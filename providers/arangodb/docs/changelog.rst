@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+2.9.4
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.9.3
 .....
 

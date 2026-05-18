@@ -120,7 +120,8 @@
       "includeDeferred": "包含延後任務",
       "nameMaxLength": "名稱最多只能包含 256 個字元",
       "nameRequired": "名稱是必填的",
-      "slots": "配額"
+      "slots": "配額",
+      "slotsHelperText": "使用 -1 表示無限制配額。"
     },
     "noPoolsFound": "找不到資源池",
     "pool_one": "資源池",

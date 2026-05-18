@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
 import os
 import sys
@@ -30,11 +31,41 @@ import requests
 from click import Choice
 from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
 
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore[no-redef]
+
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
+
+
+def _read_version_from_pyproject(pyproject_path: Path) -> str:
+    with pyproject_path.open("rb") as f:
+        data = tomllib.load(f)
+    version = data.get("project", {}).get("version")
+    if not version:
+        raise RuntimeError(f"Couldn't find project.version in {pyproject_path}")
+    return str(version)
+
+
+def _read_dynamic_version_from_init(init_path: Path) -> str:
+    ast_obj = ast.parse(init_path.read_text())
+    for node in ast_obj.body:
+        if isinstance(node, ast.Assign) and node.targets[0].id == "__version__":  # type: ignore[attr-defined]
+            return ast.literal_eval(node.value)
+    raise RuntimeError(f"Couldn't find __version__ in {init_path}")
+
+
+AIRFLOW_VERSION = _read_version_from_pyproject(AIRFLOW_ROOT_PATH / "pyproject.toml")
+AIRFLOW_CORE_VERSION = _read_version_from_pyproject(AIRFLOW_ROOT_PATH / "airflow-core" / "pyproject.toml")
+# task-sdk pyproject.toml declares [tool.hatch.version] with a dynamic source — read it there.
+AIRFLOW_TASK_SDK_VERSION = _read_dynamic_version_from_init(
+    AIRFLOW_ROOT_PATH / "task-sdk" / "src" / "airflow" / "sdk" / "__init__.py"
+)
 
 now = datetime.now().isoformat()
 
@@ -358,9 +389,13 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #
     # Current exclusions:
     #
-    # * no exclusions
+    # * pyarrow>=22.0.0 on Python 3.14 — older pyarrow releases have no prebuilt wheels for
+    #   Python 3.14 and uv falls back to building from source, which fails. pyarrow 22.0.0 is
+    #   the first release shipping cp314 wheels.
     #
-    additional_constraints_for_highest_resolution: list[str] = []
+    additional_constraints_for_highest_resolution: list[str] = [
+        "pyarrow>=22.0.0; python_version >= '3.14'",
+    ]
 
     result = run_command(
         cmd=[
@@ -370,9 +405,9 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "--no-sources",
             "--exact",
             "--strict",
-            "apache-airflow[all]",
-            "apache-airflow-core[all]",
-            "apache-airflow-task-sdk",
+            f"apache-airflow[all]=={AIRFLOW_VERSION}",
+            f"apache-airflow-core[all]=={AIRFLOW_CORE_VERSION}",
+            f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",
             *additional_constraints_for_highest_resolution,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones

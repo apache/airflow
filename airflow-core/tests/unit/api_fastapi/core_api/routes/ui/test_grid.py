@@ -641,6 +641,29 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert _strip_dag_version_ids(response.json()) == [GRID_RUN_1, GRID_RUN_2]
 
+    def test_get_grid_runs_multiple_dag_versions(self, session, test_client):
+        latest_dag_version = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID_5)).dag_versions[
+            -1
+        ]
+        latest_task_instance = session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.dag_id == DAG_ID_5, TaskInstance.run_id == "run_5_2")
+            .limit(1)
+        )
+        latest_task_instance.dag_version = latest_dag_version
+        session.commit()
+
+        response = test_client.get(f"/grid/runs/{DAG_ID_5}?limit=5")
+        assert response.status_code == 200
+        dag_versions_by_run_id = {
+            run["run_id"]: [dag_version["version_number"] for dag_version in run["dag_versions"]]
+            for run in response.json()
+        }
+        assert dag_versions_by_run_id == {
+            "run_5_1": [1],
+            "run_5_2": [1, 2],
+        }
+
     @pytest.mark.parametrize(
         ("endpoint", "run_type", "expected"),
         [

@@ -218,10 +218,6 @@ API Secret Key
 You should set a static API secret key when deploying with Airflow chart as it will help ensure
 your Airflow components only restart when necessary.
 
-.. note::
-
-   This section also applies to the webserver for Airflow 2 (simply replace ``api`` with ``webserver``).
-
 .. warning::
 
    You should use a different secret key for every instance you run, as this key is used to sign
@@ -248,7 +244,6 @@ Follow below steps to create static API secret key:
       :caption: values.yaml
 
       apiSecretKeySecretName: my-api-secret
-      # Where the random key is under `webserver-secret-key` in the k8s Secret
 
    .. warning::
 
@@ -265,6 +260,17 @@ generated using the secret key has a short expiry time though. Make sure that ti
 that you run Airflow components on is synchronized (for example using ntpd). You might get
 "forbidden" errors when the logs are accessed otherwise.
 
+JWT Secret
+----------
+
+You should set a static JWT Secret key when deploying with Airflow chart as it will increase environment
+stability. It can be achieved by using ``jwtSecretName`` field in the ``values.yaml`` file.
+
+.. note::
+
+   For increase security of production setup, consider creating custom JWT Secret rollover procedure which will
+   not cause failures in dag runs due to mismatch in tokens.
+
 Eviction configuration
 ----------------------
 When running Airflow along with the `Kubernetes Cluster Autoscaler <https://github.com/kubernetes/autoscaler>`_, it is important to configure whether pods can be safely evicted.
@@ -274,14 +280,19 @@ This setting can be configured in the Airflow chart at different levels:
    :caption: values.yaml
 
    workers:
-     safeToEvict: true
+     celery:
+       safeToEvict: true
+     kubernetes:
+       safeToEvict: true
    scheduler:
      safeToEvict: true
    apiServer:
      safeToEvict: true
 
-``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
-``workers.safeToEvict`` shouldn't be set to ``true`` as the workers may be removed before finishing.
+.. note::
+
+   ``workers.kubernetes.safeToEvict`` defaults to ``false`` as it shouldn't be set to ``true``,
+   because the tasks may be removed before finishing.
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -466,7 +477,7 @@ If you are using a Datadog agent in your environment, this will enable Airflow t
 Celery Backend
 --------------
 
-If you are using ``CeleryExecutor`` or ``CeleryKubernetesExecutor``, you can bring your own Celery backend.
+If you are using ``CeleryExecutor``, you can bring your own Celery backend.
 
 By default, the chart will deploy Redis. However, you can use any supported Celery backend instead:
 
@@ -694,8 +705,6 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-jwt-secret``                         | ``.Values.jwtSecretName``                | ``AIRFLOW__API_AUTH__JWT_SECRET``                |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
-| ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
-+-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | ``AIRFLOW__CELERY__RESULT_BACKEND``              |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-broker-url``                 | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
@@ -737,7 +746,7 @@ You can read more about advanced ways of setting configuration variables in the
 Service Account Token Volume Configuration
 ------------------------------------------
 
-When using pod-launching executors (``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``),
+When using pod-launching executors (``CeleryExecutor``, ``KubernetesExecutor``),
 you can configure how Kubernetes service account tokens are mounted into pods. This provides enhanced security control
 and compatibility with security policies like Kyverno.
 
@@ -817,9 +826,7 @@ Supported Executors
 The service account token volume configuration is only effective for pod-launching executors:
 
 * ``CeleryExecutor`` - when launching Celery worker pods
-* ``CeleryKubernetesExecutor`` - for both Celery workers and Kubernetes task pods
 * ``KubernetesExecutor`` - when launching task pods in Kubernetes
-* ``LocalKubernetesExecutor`` - for Kubernetes task pods in local mode
 
 For other executors (``LocalExecutor``, ``SequentialExecutor``), this configuration has no effect
 as they don't launch additional pods.

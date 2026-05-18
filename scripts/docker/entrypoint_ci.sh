@@ -392,6 +392,20 @@ function check_run_tests() {
     fi
 }
 
+function reinstall_shared_distributions() {
+    # The shared distributions under shared/<name>/ are workspace members that are not
+    # transitively required by airflow-core or any provider, so the lowest-direct
+    # `uv sync` above wipes them out from the environment. Re-install them with
+    # --no-deps so that the `airflow_shared.*` namespace used by devel-common test
+    # utils resolves at test collection time without disturbing the lowest-direct
+    # resolution that was just applied.
+    echo
+    echo "${COLOR_BLUE}Re-installing shared distributions (airflow_shared.*) after uv sync${COLOR_RESET}"
+    echo
+    # shellcheck disable=SC2046
+    uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
+}
+
 function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
@@ -413,8 +427,26 @@ function check_force_lowest_dependencies() {
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-            --no-python-downloads --no-managed-python
+
+        local sync_successful="false"
+        for attempt in 1 2 3; do
+            echo "Attempt ${attempt} of syncing to lowest dependencies"
+            set -x
+            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
+                --no-python-downloads --no-managed-python; then
+                set +x
+                sync_successful="true"
+                break
+            fi
+            set +x
+            echo "Sleeping 30s"
+            sleep 30
+            echo "Attempt ${attempt} failed. Retrying..."
+        done
+        if [[ "${sync_successful}" != "true" ]]; then
+            echo "${COLOR_RED}Failed to sync lowest dependencies after 3 attempts.${COLOR_RESET}"
+            exit 1
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
@@ -426,6 +458,7 @@ function check_force_lowest_dependencies() {
         uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
             --no-python-downloads --no-managed-python
     fi
+    reinstall_shared_distributions
 }
 
 function check_airflow_python_client_installation() {

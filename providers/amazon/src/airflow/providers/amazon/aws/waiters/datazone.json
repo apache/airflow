@@ -1,0 +1,30 @@
+{
+    "version": 2,
+    "waiters": {
+        "notebook_run_complete": {
+            "operation": "GetNotebookRun",
+            "delay": 10,
+            "maxAttempts": 4320,
+            "acceptors": [
+                {
+                    "expected": "SUCCEEDED",
+                    "matcher": "path",
+                    "state": "success",
+                    "argument": "status"
+                },
+                {
+                    "expected": "STOPPED",
+                    "matcher": "path",
+                    "state": "failure",
+                    "argument": "status"
+                },
+                {
+                    "expected": "FAILED",
+                    "matcher": "path",
+                    "state": "failure",
+                    "argument": "status"
+                }
+            ]
+        }
+    }
+}

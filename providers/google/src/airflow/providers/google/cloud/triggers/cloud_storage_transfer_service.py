@@ -42,6 +42,8 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     :param project_id: GCP project id.
     :param poll_interval: Interval in seconds between polls.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param files: Optional list of file paths being transferred. When provided, included in the
+        success event for the operator to return to subsequent tasks (e.g. for XCom).
     """
 
     def __init__(
@@ -50,12 +52,14 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         project_id: str = PROVIDE_PROJECT_ID,
         poll_interval: int = 10,
         gcp_conn_id: str = "google_cloud_default",
+        files: list[str] | None = None,
     ) -> None:
         super().__init__()
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.job_names = job_names
         self.poll_interval = poll_interval
+        self.files = files
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize StorageTransferJobsTrigger arguments and classpath."""
@@ -66,6 +70,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                 "job_names": self.job_names,
                 "poll_interval": self.poll_interval,
                 "gcp_conn_id": self.gcp_conn_id,
+                "files": self.files,
             },
         )
 
@@ -117,13 +122,14 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             self.log.info("Transfer jobs completed: %s of %s", jobs_completed_successfully, jobs_total)
             if jobs_completed_successfully == jobs_total:
                 s = "s" if jobs_total > 1 else ""
-                job_names = ", ".join(j for j in self.job_names)
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"Transfer job{s} {job_names} completed successfully",
-                    }
-                )
+                job_names_str = ", ".join(j for j in self.job_names)
+                event_payload: dict[str, Any] = {
+                    "status": "success",
+                    "message": f"Transfer job{s} {job_names_str} completed successfully",
+                }
+                if self.files is not None:
+                    event_payload["files"] = self.files
+                yield TriggerEvent(event_payload)
                 return
 
             self.log.info("Sleeping for %s seconds", self.poll_interval)

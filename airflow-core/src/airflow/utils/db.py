@@ -115,7 +115,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
     "3.1.8": "509b94a1042d",
-    "3.2.0": "658517c60c7f",
+    "3.2.0": "1d6611b6ab7c",
+    "3.3.0": "658517c60c7f",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -151,15 +152,24 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
         raise TimeoutException(message)
 
     # Set the signal handler
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    timeout_supported = False
+    try:
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        timeout_supported = True
+    except (AttributeError, ValueError):
+        log.warning(
+            "timeout_with_traceback requires signal.SIGALRM and the main thread. "
+            "Proceeding without a timeout."
+        )
 
     try:
         yield
     finally:
-        # Cancel the alarm and restore the old handler
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+        if timeout_supported:
+            # Cancel the alarm and restore the old handler
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session
@@ -644,7 +654,8 @@ class AutocommitEngineForMySQL:
     """
 
     def __init__(self):
-        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
+        conn_str = settings.get_sql_alchemy_conn()
+        self.is_mysql = conn_str and conn_str.lower().startswith("mysql")
         self.original_prepare_engine_args = None
 
     def __enter__(self):
@@ -869,7 +880,7 @@ def _get_alembic_config():
     else:
         config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
-    config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", settings.get_sql_alchemy_conn().replace("%", "%%"))
     return config
 
 
@@ -1194,6 +1205,13 @@ def _run_upgradedb(
         with _configured_alembic_environment() as env:
             source_heads = env.script.get_heads()
 
+        # End the read-only transaction from _get_current_revision before
+        # external DB manager migrations, which may run DDL that is blocked by
+        # open transactions (e.g. CREATE INDEX CONCURRENTLY). The advisory lock
+        # from create_global_lock() is unaffected: it is session-level and held
+        # on a separate connection.
+        work_session.rollback()
+
         if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
             external_db_manager = RunDBManager()
             external_db_manager.upgradedb(work_session, use_migration_files=use_migration_files)
@@ -1226,9 +1244,6 @@ def upgradedb(
     """
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
-
-    if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
 
     from alembic import command
 
@@ -1365,9 +1380,6 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             "applying a downgrade (instead of just generating sql), we always "
             "downgrade from current revision."
         )
-
-    if not settings.SQL_ALCHEMY_CONN:
-        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
 
     # alembic adds significant import time, so we import it lazily
     from alembic import command

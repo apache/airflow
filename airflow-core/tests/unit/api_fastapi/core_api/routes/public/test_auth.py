@@ -149,8 +149,12 @@ class TestLogout(TestAuthEndpoint):
 
         assert response.status_code == 307
         cookies = response.headers.get_list("set-cookie")
-        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
+        token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c and f"Path={SUBPATH}" in c)
         assert f"Path={SUBPATH}" in token_cookie
+        # Stale root-path cookie must also be cleared
+        assert any(
+            f"{COOKIE_NAME_JWT_TOKEN}=" in c and "Path=/" in c and f"Path={SUBPATH}" not in c for c in cookies
+        )
 
 
 class TestLogoutTokenRevocation:
@@ -185,6 +189,8 @@ class TestLogoutTokenRevocation:
     def test_logout_revokes_token(self, logout_client):
         """Test that logout revokes the JWT token and persists it in the database."""
         now = int(time.time())
+        auth_manager = logout_client.app.state.auth_manager
+        signer = auth_manager._get_token_signer()
         token_payload = {
             "sub": "admin",
             "jti": "test-jti-123",
@@ -192,9 +198,11 @@ class TestLogoutTokenRevocation:
             "iat": now,
             "nbf": now,
             "aud": "apache-airflow",
+            # Include the signer's configured issuer so the validator (which
+            # reads `[api_auth] jwt_issuer` from the same config) does not
+            # reject the synthetic token for missing iss.
+            "iss": signer.issuer,
         }
-        auth_manager = logout_client.app.state.auth_manager
-        signer = auth_manager._get_token_signer()
         token_str = jwt.encode(token_payload, signer._secret_key, algorithm=signer.algorithm)
 
         logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)

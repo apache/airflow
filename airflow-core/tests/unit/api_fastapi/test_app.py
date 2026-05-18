@@ -98,27 +98,20 @@ def test_catch_all_route_last(client):
 
 
 @pytest.mark.parametrize(
-    ("fastapi_apps", "expected_message", "invalid_path"),
+    ("invalid_prefix", "expected_message"),
     [
-        (
-            [{"name": "test", "app": FastAPI(), "url_prefix": ""}],
-            "'url_prefix' key is empty string for the fastapi app: test",
-            "",
-        ),
-        (
-            [{"name": "test", "app": FastAPI(), "url_prefix": next(iter(app_module.RESERVED_URL_PREFIXES))}],
-            "attempted to use reserved url_prefix",
-            next(iter(app_module.RESERVED_URL_PREFIXES)),
-        ),
+        ("", "'url_prefix' key is empty string for the fastapi app: test"),
+        *((prefix, "attempted to use reserved url_prefix") for prefix in app_module.RESERVED_URL_PREFIXES),
     ],
 )
-def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, invalid_path):
+def test_plugin_with_invalid_url_prefix(caplog, invalid_prefix, expected_message):
+    fastapi_apps = [{"name": "test", "app": FastAPI(), "url_prefix": invalid_prefix}]
     app = FastAPI()
     with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
         app_module.init_plugins(app)
 
     assert any(expected_message in rec.message for rec in caplog.records)
-    assert not any(r.path == invalid_path for r in app.routes)
+    assert not any(r.path == invalid_prefix for r in app.routes)
 
 
 class TestGetCookiePath:
