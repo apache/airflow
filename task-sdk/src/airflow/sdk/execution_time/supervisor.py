@@ -101,6 +101,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -140,6 +141,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
+    handle_get_variable_keys,
     handle_mask_secret,
 )
 
@@ -342,6 +344,7 @@ def block_orm_access():
             conf.set("database", "sql_alchemy_conn", conn)
             conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
             conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+        settings.block_orm_access()
 
         # This only gets called when the module does not already have an attribute, and for these values
         # lets give a custom error message
@@ -351,9 +354,6 @@ def block_orm_access():
             raise AttributeError(f"module {settings.__name__!r} has no attribute {name!r}")
 
         settings.__getattr__ = __getattr__
-
-        settings.SQL_ALCHEMY_CONN = conn
-        settings.SQL_ALCHEMY_CONN_ASYNC = conn
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
@@ -1455,6 +1455,8 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates

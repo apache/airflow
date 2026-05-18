@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -34,6 +34,7 @@ import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
@@ -117,11 +118,9 @@ const taskInstanceColumns = ({
         {
           accessorKey: "dag_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink to={`/dags/${original.dag_id}`}>
+              <TruncatedText text={original.dag_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("dagId"),
@@ -134,11 +133,9 @@ const taskInstanceColumns = ({
           accessorKey: "run_after",
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original)}>
-                  <Time datetime={original.run_after} />
-                </RouterLink>
-              </Link>
+              <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+                <Time datetime={original.run_after} />
+              </RouterLink>
             ) : (
               <Time datetime={original.run_after} />
             ),
@@ -151,11 +148,9 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={getTaskInstanceLink(original)}>
-                <TruncatedText text={original.task_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+              <TruncatedText text={original.task_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("taskId"),
@@ -182,11 +177,9 @@ const taskInstanceColumns = ({
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
       Boolean(taskId) && Boolean(runId) ? (
-        <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={getTaskInstanceLink(original)}>
-            <Time datetime={original.start_date} />
-          </RouterLink>
-        </Link>
+        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+          <Time datetime={original.start_date} />
+        </RouterLink>
       ) : (
         <Time datetime={original.start_date} />
       ),

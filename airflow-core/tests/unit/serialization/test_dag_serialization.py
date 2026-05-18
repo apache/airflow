@@ -82,6 +82,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
+    LazyDeserializedDAG,
     OperatorSerialization,
     _XComRef,
 )
@@ -114,6 +115,7 @@ from tests_common.test_utils.timetables import (
     cron_timetable,
     delta_timetable,
 )
+from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -704,6 +706,43 @@ class TestStringifiedDAGs:
         for dag_id in stringified_dags:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
+    @pytest.mark.db_test
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_make_equal_hash_with_dag_processor(self):
+        dagbag1 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        hash_result1 = LazyDeserializedDAG.from_dag(next(iter(dagbag1.dags.values()))).hash
+
+        dagbag2 = DagBag(TEST_DAGS_FOLDER / "test_dag_decorator_version.py")
+        hash_result2 = LazyDeserializedDAG.from_dag(next(iter(dagbag2.dags.values()))).hash
+
+        assert hash_result1 == hash_result2
+
+    @pytest.mark.db_test
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_hash_succeeds_for_dag_with_mixed_primitive_key_template_field(self):
+        """SerializedDagModel.hash() must not raise on a template field whose dict has mixed-type primitive keys.
+
+        Building the Dag twice via ``create_dag()`` produces independent Dag and
+        operator instances, so the hashes must also be equal across calls —
+        otherwise the serialization path is leaking non-deterministic state
+        (memory addresses, dict ordering, etc.) into the hash.
+        """
+        from airflow.providers.standard.operators.python import PythonOperator
+
+        def create_dag():
+            with DAG(dag_id="dag_mixed_keys", schedule=None, start_date=datetime(2024, 1, 1)) as dag:
+                PythonOperator(
+                    task_id="op",
+                    python_callable=empty_function,
+                    op_kwargs={"data": {1: "a", "b": "c", None: "z", 2: "d"}, empty_function: "t"},
+                )
+            return dag
+
+        first_hash = LazyDeserializedDAG.from_dag(create_dag()).hash
+        second_hash = LazyDeserializedDAG.from_dag(create_dag()).hash
+
+        assert first_hash == second_hash
+
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.db_test
     def test_roundtrip_provider_example_dags(self):
@@ -896,9 +935,9 @@ class TestStringifiedDAGs:
         if isinstance(task, MappedOperator):
             # MappedOperator.operator_class now stores only minimal type information
             # for memory efficiency (task_type and _operator_name).
-            serialized_task.operator_class["task_type"] == type(task).__name__
+            assert serialized_task.operator_class["task_type"] == task.operator_class.__name__
             if isinstance(serialized_task.operator_class, DecoratedOperator):
-                serialized_task.operator_class["_operator_name"] == task._operator_name
+                assert serialized_task.operator_class["_operator_name"] == task._operator_name
 
             # Serialization cleans up default values in partial_kwargs, this
             # adds them back to both sides.

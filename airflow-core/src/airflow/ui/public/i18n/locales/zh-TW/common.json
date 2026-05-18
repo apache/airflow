@@ -61,6 +61,11 @@
     "dagVersions": "Dag 版本",
     "dataIntervalEnd": "資料區間結束",
     "dataIntervalStart": "資料區間起始",
+    "durationStats": {
+      "mean": "平均值",
+      "mode": "眾數"
+    },
+    "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
     "partitionKey": "資產分區鍵",
