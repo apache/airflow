@@ -130,6 +130,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
@@ -2244,6 +2245,8 @@ def supervise_task(
         path to a callable to initialize it (empty means no integration).
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
+    :raises InvalidCoordinatorError: If the coordinator for the task is not
+        configured correctly.
     """
     _make_process_nondumpable()
 
@@ -2284,6 +2287,17 @@ def supervise_task(
     if not dag_rel_path:
         raise ValueError("dag_path is required")
 
+    try:
+        coordinator = get_coordinator_manager().for_queue(ti.queue)
+    except:
+        log.exception(
+            "Failed to initialize coordinator for task",
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            queue=ti.queue,
+        )
+        raise
+
     with _ensure_client(server, token, client=client, dry_run=dry_run) as client:
         start = time.monotonic()
 
@@ -2303,27 +2317,25 @@ def supervise_task(
         reset_secrets_masker()
 
         try:
-            process = ActivitySubprocess.start(
-                dag_rel_path=dag_rel_path,
+            result = coordinator.execute_task(
                 what=ti,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
                 client=client,
                 logger=logger,
-                bundle_info=bundle_info,
-                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
                 sentry_integration=sentry_integration,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             )
-
-            exit_code = process.wait()
             end = time.monotonic()
             log.info(
                 "Workload finished",
                 workload_type="ExecuteTask",
                 workload_id=str(ti.id),
-                exit_code=exit_code,
+                exit_code=result.exit_code,
                 duration=end - start,
-                final_state=process.final_state,
+                final_state=result.final_state,
             )
-            return exit_code
+            return result.exit_code
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

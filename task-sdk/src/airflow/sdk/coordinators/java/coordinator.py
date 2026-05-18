@@ -19,17 +19,168 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
+import email
+import os
+import pathlib
+import selectors
+import socket
+import subprocess
+import time
+import zipfile
+from typing import TYPE_CHECKING, cast
 
-from airflow.sdk.coordinators.java.bundle_scanner import BundleScanner, read_dag_code
+import attrs
+import psutil
+import structlog
+
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger
+    from typing_extensions import Self
+
+    from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import BundleInfo
     from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
 
+log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.java")
 
+
+def _start_server() -> socket.socket:
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.setblocking(True)
+    server.listen(1)  # Just need to listen to the child process.
+    return server
+
+
+def _calculate_classpath(app_home: pathlib.Path) -> str:
+    jars = (p.as_posix() for p in app_home.iterdir() if p.suffix == ".jar")
+    return os.pathsep.join(jars)
+
+
+def _find_main_class(app_home: pathlib.Path) -> str:
+    for p in app_home.iterdir():
+        if p.suffix != ".jar":
+            continue
+        with zipfile.ZipFile(p) as zf:
+            with zf.open("META-INF/MANIFEST.MF") as f:
+                if main_class := email.message_from_binary_file(f)["Main-Class"]:
+                    return main_class
+    raise FileNotFoundError(f"cannot fine main class in {app_home.resolve()}")
+
+
+def _accept_connections(
+    servers: dict[str, socket.socket],
+    proc: subprocess.Popen,
+    *,
+    max_wait: float = 10.0,
+) -> dict[str, socket.socket]:
+    """Block until the Java process connects to servers."""
+    accepted: dict[str, socket.socket] = {}
+    with selectors.DefaultSelector() as sel:
+        for key, soc in servers.items():
+            sel.register(soc, selectors.EVENT_READ, data=key)
+        deadline = time.monotonic() + max_wait
+        while len(accepted) < len(servers):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("process did not connect within timeout")
+            if proc.poll() is not None:
+                raise RuntimeError(f"process exited with {proc.returncode} before connecting")
+            for event, _ in sel.select(timeout=min(remaining, 1.0)):
+                log.debug("Accepting child process connection", key=(key := event.data))
+                conn, _ = cast("socket.socket", event.fileobj).accept()
+                sel.unregister(servers[key])
+                accepted[key] = conn
+    return accepted
+
+
+@attrs.define(kw_only=True)
+class _JavaActivitySubprocess(ActivitySubprocess):
+    """Java task runner process."""
+
+    _comm_server: socket.socket
+    _logs_server: socket.socket
+    _child_process: subprocess.Popen
+
+    # Keep track of channels used to pipe subprocess stdout and stderr so we can
+    # close them on exit. The "read" side is handled by _register_pipe_readers
+    # callbacks so we don't need to worry about them.
+    _stdout_w: socket.socket
+    _stderr_w: socket.socket
+
+    @classmethod
+    def start(  # type: ignore[override]
+        cls,
+        *,
+        what: TaskInstanceDTO,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        logger: FilteringBoundLogger | None = None,
+        sentry_integration: str = "",
+        java_executable: str,
+        jvm_args: list[str],
+        bundles_folder: pathlib.Path,
+        **kwargs,
+    ) -> Self:
+        comm_server = _start_server()
+        logs_server = _start_server()
+
+        stdout_r, stdout_w = socket.socketpair()
+        stderr_r, stderr_w = socket.socketpair()
+
+        comm_host, comm_port = comm_server.getsockname()
+        logs_host, logs_port = logs_server.getsockname()
+
+        proc = subprocess.Popen(
+            [
+                java_executable,
+                "-classpath",
+                _calculate_classpath(bundles_folder),
+                *jvm_args,
+                _find_main_class(bundles_folder),
+                # Arguments to MainClass...
+                f"--comm={comm_host}:{comm_port}",
+                f"--logs={logs_host}:{logs_port}",
+            ],
+            stdout=stdout_w.makefile("wb", buffering=0).fileno(),
+            stderr=stderr_w.makefile("wb", buffering=0).fileno(),
+        )
+        log.info("Starting subprocess", pid=proc.pid)
+        socks = _accept_connections({"comm": comm_server, "logs": logs_server}, proc)
+
+        self = cls(
+            id=what.id,
+            pid=proc.pid,
+            process=psutil.Process(proc.pid),
+            process_log=logger or structlog.get_logger(logger_name="task").bind(),
+            start_time=time.monotonic(),
+            stdin=socks["comm"],
+            child_process=proc,
+            comm_server=comm_server,
+            logs_server=logs_server,
+            stdout_w=stdout_w,
+            stderr_w=stderr_w,
+            **kwargs,
+        )
+        self._register_pipe_readers(stdout_r, stderr_r, socks["comm"], socks["logs"])
+        self._on_child_started(
+            ti=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
+        return self
+
+    def wait(self) -> int:
+        code = super().wait()
+        self._close_unused_sockets(self._comm_server, self._logs_server, self._stdout_w, self._stderr_w)
+        return code
+
+
+@attrs.define(kw_only=True)
 class JavaCoordinator(BaseCoordinator):
     """
     Coordinator that launches a JVM subprocess for DAG parsing and task execution.
@@ -55,67 +206,33 @@ class JavaCoordinator(BaseCoordinator):
         flow; unused for pure-Java DAGs.
     """
 
-    def __init__(
-        self,
-        *,
-        java_executable: str = "java",
-        jvm_args: list[str] | None = None,
-        bundles_folder: str | None = None,
-    ) -> None:
-        self.java_executable = java_executable
-        self.jvm_args = list(jvm_args) if jvm_args else []
-        self.bundles_folder = bundles_folder
+    java_executable: str = "java"
+    jvm_args: list[str] = attrs.field(factory=list)
+    bundles_folder: pathlib.Path = attrs.field(converter=pathlib.Path)
 
-    def get_code_from_file(self, fileloc: str) -> str:
-        """Read embedded DAG source code from a JAR bundle."""
-        code = read_dag_code(Path(fileloc))
-        if code is None:
-            raise FileNotFoundError(f"No DAG source code found in JAR: {fileloc}")
-        return code
-
-    def task_execution_cmd(
+    def execute_task(
         self,
         *,
         what: TaskInstanceDTO,
-        dag_file_path: str,
-        bundle_path: str,
+        dag_rel_path: str | os.PathLike[str],
         bundle_info: BundleInfo,
-        comm_addr: str,
-        logs_addr: str,
-    ) -> list[str]:
-        """Build the ``java`` command for executing a task in a JAR bundle."""
-        if dag_file_path.endswith(".jar"):
-            # Case 1: Pure Java Dag -- the dag_file_path points directly to a
-            # bundle JAR inside the Airflow Core Dag Bundle.
-            jar_path = Path(dag_file_path)
-            classpath = f"{bundle_path}/*"
-            return [
-                self.java_executable,
-                *self.jvm_args,
-                "-classpath",
-                classpath,
-                BundleScanner.resolve_jar(jar_path),
-                f"--comm={comm_addr}",
-                f"--logs={logs_addr}",
-            ]
-
-        # Case 2: Python Stub Dag -- the dag_file_path is a Python file but
-        # the task delegates to a Java runtime.  The actual JAR bundle lives
-        # in ``bundles_folder`` (passed to __init__ from the [sdk] coordinators
-        # config entry).
-        if not self.bundles_folder:
-            raise ValueError(
-                "JavaCoordinator: bundles_folder kwarg must be set for Python stub DAGs "
-                "that delegate to Java task execution."
-            )
-
-        resolved = BundleScanner(Path(self.bundles_folder)).resolve(dag_id=what.dag_id)
-        return [
-            self.java_executable,
-            *self.jvm_args,
-            "-classpath",
-            resolved.classpath,
-            resolved.main_class,
-            f"--comm={comm_addr}",
-            f"--logs={logs_addr}",
-        ]
+        client: Client,
+        logger: FilteringBoundLogger | None = None,
+        sentry_integration: str = "",
+        subprocess_logs_to_stdout: bool,
+        **kwargs,
+    ) -> BaseCoordinator.ExecutionResult:
+        process = _JavaActivitySubprocess.start(
+            what=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            client=client,
+            logger=logger,
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            sentry_integration=sentry_integration,
+            java_executable=self.java_executable,
+            jvm_args=self.jvm_args,
+            bundles_folder=self.bundles_folder,
+        )
+        exit_code = process.wait()
+        return self.ExecutionResult(exit_code, process.final_state)
