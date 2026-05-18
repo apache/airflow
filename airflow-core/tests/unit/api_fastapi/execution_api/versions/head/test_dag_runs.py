@@ -23,7 +23,7 @@ from fastapi import Request
 from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
@@ -217,7 +217,7 @@ class TestDagRunTrigger:
         session.commit()
 
         async def auth_as_parent_ti(request: Request) -> TIToken:
-            return TIToken(id=parent_ti.id, claims={"scope": "execution"})
+            return TIToken(id=parent_ti.id, claims=TIClaims(scope="execution"))
 
         exec_app.dependency_overrides[require_auth] = auth_as_parent_ti
         try:
