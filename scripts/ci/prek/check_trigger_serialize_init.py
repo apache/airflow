@@ -54,21 +54,7 @@ DEFERRING_DOC = (
     "https://github.com/apache/airflow/blob/main/airflow-core/docs/authoring-and-scheduling/deferring.rst"
 )
 
-# Key format for both sets below: "<path relative to the providers/ directory>::<ClassName>".
-
-# Trigger classes that genuinely violate the __init__/serialize() contract today. They predate
-# the check and are excluded so it can be enabled without a tree-wide fix; each is tracked for a
-# follow-up fix in a separate PR. Do NOT add new entries here -- fix the trigger instead.
-KNOWN_VIOLATIONS: set[str] = {
-    # `caller` is passed straight to DatabricksHook(caller=...) and never stored/serialized, so it
-    # falls back to the class-name default on a triggerer round-trip.
-    "databricks/src/airflow/providers/databricks/triggers/databricks.py::DatabricksExecutionTrigger",
-    "databricks/src/airflow/providers/databricks/triggers/databricks.py::DatabricksSQLStatementExecutionTrigger",
-    # `poll_interval` and `impersonation_chain` are stored and used but missing from serialize().
-    "google/src/airflow/providers/google/cloud/triggers/datafusion.py::DataFusionStartPipelineTrigger",
-    # `endpoint_prefix` is stored as self._endpoint_prefix and used in run() but missing from serialize().
-    "apache/livy/src/airflow/providers/apache/livy/triggers/livy.py::LivyTrigger",
-}
+# Key format: "<path relative to the providers/ directory>::<ClassName>".
 
 # Trigger classes that the check flags but which are correct *by design*: an old/aliased parameter
 # is folded into its replacement at construction time, so it does not need to round-trip. These are
@@ -82,8 +68,6 @@ BY_DESIGN_EXCLUSIONS: set[str] = {
     "google/src/airflow/providers/google/cloud/triggers/kubernetes_engine.py::GKEJobTrigger",
     "cncf/kubernetes/src/airflow/providers/cncf/kubernetes/triggers/job.py::KubernetesJobTrigger",
 }
-
-_EXCLUDED = KNOWN_VIOLATIONS | BY_DESIGN_EXCLUSIONS
 
 
 def _get_init_param_names(func: ast.FunctionDef) -> set[str]:
@@ -223,7 +207,7 @@ class ModuleAnalyzer:
         results: list[tuple[str, list[str]]] = []
         rel = self.path.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix()
         for name, cls in self.classes.items():
-            if f"{rel}::{name}" in _EXCLUDED:
+            if f"{rel}::{name}" in BY_DESIGN_EXCLUSIONS:
                 continue
             if not self.is_trigger(cls):
                 continue
