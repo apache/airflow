@@ -1,9 +1,6 @@
  <!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
-<!-- SPDX-License-Identifier: Apache-2.0
-     https://www.apache.org/legal/release-policy.html -->
-
 # adopt — first-time install of apache-steward into an adopter repo
 
 The default sub-action when the user says "adopt apache-steward".
@@ -38,17 +35,38 @@ between automatically:
   version (overrides the prompt).
 - `method:<git-branch | git-tag | svn-zip>` — explicit method
   (overrides the prompt).
-- `skill-families:<list>` — comma-separated families to
-  symlink (default: prompt).
+- `skill-families:<list>` — comma-separated **opt-in**
+  families to symlink (default: prompt). Valid values:
+  `security`, `pr-management`. The flag does **not** accept
+  the always-on families (`setup-*` minus `setup-steward`
+  itself, and `list-steward-*`); per
+  [`SKILL.md` Golden rule 8](SKILL.md#golden-rules) those
+  are wired up unconditionally on every adopt run and the
+  user is never asked about them.
 
 ## Step 0 — Pre-flight
 
 1. Confirm we are in a git repo (`git rev-parse
    --show-toplevel`).
-2. Confirm we are **not** in `apache/airflow-steward` itself
+2. **Confirm we are in the main checkout, not a git worktree.**
+   Compare `git rev-parse --git-dir` against
+   `git rev-parse --git-common-dir` — they are equal in the
+   main checkout and different in a worktree. If different,
+   stop with:
+
+   > *"`adopt` runs in the main checkout, not a worktree. From
+   > the main: `cd <main-path> && /setup-steward`. To wire this
+   > worktree up after adoption lands in the main, use
+   > `/setup-steward worktree-init`."*
+
+   The main's path is
+   `$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd)")` —
+   surface it explicitly in the error message so the operator
+   can `cd` there without guessing.
+3. Confirm we are **not** in `apache/airflow-steward` itself
    (read `git remote get-url origin` and refuse if it
    resolves to the framework).
-3. Detect the adopter's existing skills-dir convention by
+4. Detect the adopter's existing skills-dir convention by
    following [`conventions.md`](conventions.md). Pin the
    result as `<adopter-skills-dir>` for the rest of this
    flow.
@@ -119,8 +137,56 @@ fetch — the recipe ran first and left the snapshot in place.
 
 After the fetch (or skip), confirm
 `<snapshot-dir>/.claude/skills/` lists the framework skills
-(`pr-management-*`, `security-*`, `setup-*`). If not, the
-fetch produced an unexpected layout — surface and stop.
+(`pr-management-*`, `security-*`, `setup-*`,
+`list-steward-*`). If not, the fetch produced an unexpected
+layout — surface and stop.
+
+## Step 3b — Reconcile the committed `setup-steward` with the new snapshot + reload in-flight
+
+Per [`SKILL.md` Golden rule 9](SKILL.md#golden-rules), the
+adopter-side committed `setup-steward` skill must match the
+snapshot's version before the rest of this run executes —
+otherwise we finish adoption against the *old* bootstrap
+logic for a *new* framework version.
+
+1. Diff `<adopter-skills-dir>/setup-steward/` against
+   `.apache-steward/.claude/skills/setup-steward/`.
+2. If they match — skip the rest of this step.
+3. If they differ and the adopter has **no** local
+   modifications beyond what the snapshot ships — overwrite
+   the committed copy from the snapshot:
+
+   ```bash
+   # Flat layout:
+   rm -rf <adopter-skills-dir>/setup-steward
+   cp -r .apache-steward/.claude/skills/setup-steward \
+         <adopter-skills-dir>/setup-steward
+
+   # Double-symlinked layout: copy into .github/skills/ —
+   # the .claude/skills/setup-steward symlink already
+   # points at it.
+   ```
+
+4. If the adopter **does** have local modifications,
+   surface the diff and stop. The user either (a) confirms
+   the local mods can be discarded, (b) upstreams them as a
+   PR to `apache/airflow-steward` first, or (c) defers the
+   bootstrap-skill refresh — in (c) the rest of this run
+   continues against the in-flight (older) version with a
+   warning.
+5. **Reload in-flight.** Immediately after the copy lands,
+   re-read `<adopter-skills-dir>/setup-steward/SKILL.md`
+   and `<adopter-skills-dir>/setup-steward/adopt.md` (the
+   current sub-action file), plus any helper file already
+   open in this run (`conventions.md`, `overrides.md`),
+   before continuing to Step 4. The remaining steps run
+   against the just-loaded content.
+
+For a FRESH adoption where the bootstrap recipe placed the
+matching `setup-steward` content on disk before this skill
+was invoked, the diff in (1) is empty and this step is a
+no-op. For a SUBSEQUENT adoption against an old committed
+copy, the overwrite + reload is the common case.
 
 ## Step 4 — Write `<committed-lock>` (FRESH only)
 
@@ -141,19 +207,40 @@ ref:    <branch | tag | version>
 
 ## Step 5 — Pick the skill families
 
-(SUBSEQUENT adoption: re-use the families currently
-symlinked, if any. Or re-prompt if none.)
+The framework's family set splits into two tiers:
 
-If `skill-families:` was passed, use those. Otherwise,
-prompt the user:
+**Always-on (no prompt; per
+[`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):**
+
+- **`setup-*`** *(minus `setup-steward` itself)* — every
+  `setup-*` skill in the snapshot. Today:
+  `setup-isolated-setup-install`,
+  `setup-isolated-setup-update`,
+  `setup-isolated-setup-verify`, `setup-override-upstream`,
+  `setup-shared-config-sync`.
+- **`list-steward-*`** — every `list-steward-*` skill in
+  the snapshot. Today: `list-steward-skills`.
+
+These are wired up unconditionally; the user is **not**
+asked about them and they cannot be opted out via the
+`skill-families:` flag. The lock files do not record them
+because they are framework-mandated, not user-selected.
+
+**Opt-in (prompt, or read from
+`skill-families:` / the locks):**
+
+(SUBSEQUENT adoption: re-use the opt-in families currently
+recorded in `<committed-lock>` / `<local-lock>`, if any. Or
+re-prompt if none.)
+
+If `skill-families:` was passed, use those values verbatim
+for the opt-in set. Otherwise prompt the user with:
 
 - **`security`** — eight skills for security-issue
   handling. Maintainer-only; not useful unless the project
   has a security tracker.
-- **`pr-management`** — three skills for maintainer-facing
+- **`pr-management`** — five skills for maintainer-facing
   PR queue work.
-- **`setup`** *(implicit)* — always installed because the
-  snapshot carries it.
 
 **Prefer structured Q&A.** When the agent harness offers a
 structured-question tool, use a *multi-select* prompt for
@@ -165,6 +252,10 @@ pre-selected; the user can also tick `security`). If the
 user named no family, default to selecting both for an
 adopter that is a maintainer-driven repo, or to no
 pre-selection otherwise. Free-form chat is the fallback.
+
+Do **not** offer `setup-*` or `list-steward-*` as
+selectable options in the prompt — they are wired up
+silently regardless of what the user picks here.
 
 ## Step 6 — Write `<local-lock>`
 
@@ -189,26 +280,65 @@ idempotent — re-add them if they're missing.
 ```text
 /.apache-steward/
 /.apache-steward.local.lock
+/.claude/settings.local.json
 /.claude/skills/security-*
 /.claude/skills/pr-management-*
 /.claude/skills/setup-isolated-setup-*
+/.claude/skills/setup-override-upstream
 /.claude/skills/setup-shared-config-sync
+/.claude/skills/list-steward-*
 /.github/skills/security-*
 /.github/skills/pr-management-*
 /.github/skills/setup-isolated-setup-*
+/.github/skills/setup-override-upstream
 /.github/skills/setup-shared-config-sync
+/.github/skills/list-steward-*
 ```
+
+The `setup-override-upstream`, `setup-shared-config-sync`,
+`setup-isolated-setup-*`, and `list-steward-*` entries are
+the always-on families per
+[`SKILL.md` Golden rule 8](SKILL.md#golden-rules); they are
+gitignored on every adopter regardless of the opt-in
+family pick. `setup-steward` itself is **not** gitignored —
+it is the one committed framework skill.
+
+`.claude/settings.local.json` is the project-local
+per-machine settings file that
+[Step 12 pass 3](#step-12--post-install-sync--worktree-propagation--sandbox-allowlist--sanity-check)
+populates with the project-root sandbox-allowlist entry (and
+that each worktree carries independently). Most adopters
+already gitignore this file by Claude Code convention; the
+adopt flow checks for the line and adds it if missing.
 
 Mirror under `.github/skills/` only if the adopter uses the
 double-symlinked convention.
 
 ## Step 8 — Wire up the framework-skill symlinks
 
-For each skill family the user picked, walk
-`<snapshot-dir>/.claude/skills/` and create a gitignored
-symlink for every matching skill at
-`<adopter-skills-dir>/<skill>` → relative path into
+The skill walks `<snapshot-dir>/.claude/skills/` and creates
+a gitignored symlink for every framework skill the adopter
+should have callable, at `<adopter-skills-dir>/<skill>` →
+relative path into
 `<snapshot-dir>/.claude/skills/<skill>/`.
+
+The set of skills to link is the **union** of:
+
+1. **The opt-in families the user picked in Step 5**
+   (`security`, `pr-management`, or both). Each contributes
+   every framework skill in the snapshot whose name starts
+   with that family's prefix.
+2. **The always-on families** (no user input — per
+   [`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):
+   every `setup-*` skill *except* `setup-steward` itself,
+   and every `list-steward-*` skill.
+
+The always-on set is added on every run, even when the user
+picked no opt-in families, even when `skill-families:` was
+passed with a narrow value, and even on the SUBSEQUENT-
+adoption path where the committed lock only records the
+opt-in pick. Compute the family glob fresh from the snapshot
+contents on disk — do not hard-code skill names.
 
 If the adopter uses the double-symlinked convention
 (see [`conventions.md`](conventions.md)), create both
@@ -217,10 +347,17 @@ snapshot, the outer `.claude/skills/` points at the
 inner. Both gitignored.
 
 **Never overwrite an existing committed skill** of the same
-name. Surface conflicts and stop.
+name. Surface conflicts and stop. `setup-steward` itself is
+the one committed skill — the symlink wiring step skips it
+by name; the committed copy is reconciled in
+[Step 3b](#step-3b--reconcile-the-committed-setup-steward-with-the-new-snapshot--reload-in-flight),
+not here.
 
-Show the symlinks the skill is about to create, ask the
-user to confirm, then create them.
+Show the symlinks the skill is about to create, grouped by
+*opt-in family* / *always-on family*, ask the user to
+confirm, then create them. Always-on entries are surfaced
+read-only — the prompt is "confirm this list" not "edit this
+list".
 
 ## Step 9 — Scaffold `.apache-steward-overrides/` (FRESH only)
 
@@ -249,14 +386,30 @@ Framework changes go via PR to `apache/airflow-steward`.
 This directory is **committed** (overrides ship with the
 adopter repo).
 
-## Step 9b — Scaffold `.apache-steward-overrides/user.md` (FRESH only)
+## Step 9b — Scaffold `user.md` (FRESH only)
 
-Create `<repo-root>/.apache-steward-overrides/user.md` with a
-project-agnostic template. The security skills read this file at
-run-time to resolve per-user preferences (PMC status, local clone
-paths, optional tool backends). If the file is missing, the skills
-fall back to interactive prompting and offer to save the answer
-back into this file.
+Create the operator's per-user configuration file. The security
+skills read it at run-time to resolve per-user preferences (PMC
+status, local clone paths, optional tool backends). If the file
+is missing, the skills fall back to interactive prompting and
+offer to save the answer back into this file.
+
+**Recommended location: `~/.config/apache-steward/user.md`** — the
+OS-conventional per-user config dir. One file, shared across every
+worktree of every adopter project on the operator's machine, so
+identity-and-tool-picks stay coherent without symlinks or
+per-worktree bootstrap.
+
+**Fallback location: `<repo-root>/.apache-steward-overrides/user.md`** —
+the legacy per-project location. Adopters with an existing
+project-local `user.md` keep working without action; new adopters
+should prefer the per-user location above.
+
+The full resolution order (env override → per-user → per-project)
+is documented in [`AGENTS.md` → *Per-project and per-user
+configuration* → *`user.md` resolution order*](../../../AGENTS.md#usermd-resolution-order).
+
+Use this project-agnostic template:
 
 ```markdown
 # Per-user configuration for apache-steward
@@ -300,6 +453,21 @@ setup; the skills skip any block that is missing or marked `TODO`.
   PonyMail should query (e.g. `["security@<project>.apache.org"]`).
   Only used when `enabled: true`.
 ```
+
+**Where to write the file.** Default to
+`~/.config/apache-steward/user.md` for new adopters (the per-user
+canonical location — shared across every worktree and every
+adopter project on the operator's machine). If the operator
+already has `<repo-root>/.apache-steward-overrides/user.md` from a
+previous setup, leave it alone — skills resolve the per-project
+file as a fallback, no migration needed. If both exist, the
+per-user file wins; surface the conflict to the operator so they
+can pick one and delete the other.
+
+Create the parent directory with `mkdir -p ~/.config/apache-steward/`
+before writing, then write the file at mode `0600` (the directory at
+`0700`) since it holds personal preferences and — eventually —
+identity that the operator may not want world-readable.
 
 Show the file to the user and offer to fill in the `TODO` fields.
 Do **not** ask one blind question per field — auto-detect what you
@@ -373,32 +541,302 @@ collected values substituted in (leaving any unanswered field as
 
 ## Step 10 — Worktree-aware post-checkout hook (FRESH only)
 
-Install
-`<repo-root>/.git/hooks/post-checkout` that re-creates the
-gitignored symlinks if a fresh worktree is checked out. The
-hook is a one-liner that re-invokes
-`/setup-steward verify --auto-fix-symlinks`. Surface the
-hook content to the user before writing.
+Install `<repo-root>/.git/hooks/post-checkout` that chains into
+the sandbox-allowlist helper installed by
+`setup-isolated-setup-install`, so the new worktree's working
+directory is added to the worktree's own
+`.claude/settings.local.json`'s `sandbox.filesystem.allowRead` /
+`allowWrite` (defensive against
+[issue #197](https://github.com/apache/airflow-steward/issues/197)
+— see
+[`setup-isolated-setup-install/SKILL.md` → Step P](../setup-isolated-setup-install/SKILL.md#step-p--project-root-coverage-in-the-sandbox-allowlists)).
+
+The hook is a small shell script. Surface the exact content to
+the user before writing:
+
+```bash
+#!/usr/bin/env bash
+# apache-steward post-checkout hook (installed by /setup-steward adopt).
+# Add the current worktree's working dir to the worktree's own
+# .claude/settings.local.json sandbox allowlists (per issue #197).
+# Chains into the helper if installed by /setup-isolated-setup-install;
+# no-op when the helper is absent.
+set -u
+if [ -x "$HOME/.claude/scripts/sandbox-add-project-root.sh" ]; then
+  "$HOME/.claude/scripts/sandbox-add-project-root.sh" || true
+fi
+exit 0
+```
+
+The `|| true` guard keeps the hook from failing the surrounding
+git operation (`git checkout`, `git worktree add`) — the hook is
+best-effort reconciliation, not a gate.
+
+If the operator has not yet run `/setup-isolated-setup-install`,
+the helper-script line is a no-op (the `-x` test fails). When
+they later install the secure setup, no hook re-write is needed:
+the next `post-checkout` fires the helper automatically.
+
+**Why no framework-skill symlink reconciliation here.** Earlier
+template versions of this hook also called
+`/setup-steward verify --auto-fix-symlinks` to recreate
+gitignored symlinks after a checkout. That line printed a spurious
+`No such file or directory` error on every `git checkout` because
+`/setup-steward` is a **Claude Code slash command**, not a shell
+command, and the hook fires in the operator's shell where there is
+no slash-command dispatcher. The line has been removed.
+Symlink-drift reconciliation now happens **lazily** — the next
+time the operator opens Claude Code in the worktree, the framework
+skills' pre-flight drift check surfaces any missing symlinks and
+`/setup-steward verify` (or any skill that needs the symlink)
+prompts for the fix. Adopters whose existing hooks still contain
+the broken line should remove it; the
+[`setup-isolated-setup-update`](../setup-isolated-setup-update/SKILL.md)
+drift check surfaces stale hook content on a routine sweep.
 
 ## Step 11 — Project doc updates (FRESH only)
 
-Add (or extend) a brief paragraph in the adopter's
-`README.md` or `CONTRIBUTING.md` (whichever already mentions
-agents / skills) noting:
+Update two adopter-facing docs so contributors discover the
+framework before they hit a "skill not found" error:
 
-- the project adopts apache-steward via the snapshot
-  mechanism;
-- a fresh clone needs `/setup-steward` to populate the
-  framework before any framework skill is invocable;
-- adopter-specific modifications live in
-  `.apache-steward-overrides/`.
+1. **`README.md` (contributor-facing summary, REQUIRED if
+   the file exists).** This is the doc most fresh-clone
+   contributors read first. Add a dedicated section. If the
+   project uses PyPI-sync markers (e.g.
+   `<!-- START Contributing ... -->` / `<!-- END Contributing ... -->`),
+   place the new section **outside** any sync block so the
+   adoption note does not leak into the published PyPI
+   description.
 
-Surface the doc diff to the user before writing.
+   Suggested template — substitute the adopter's name and
+   the skill families they actually installed:
 
-## Step 12 — Sanity check
+   ```markdown
+   ## Agent-assisted contribution (apache-steward)
 
-Run [`verify.md`](verify.md)'s checklist as a final step.
-Every check should be ✓ before the skill reports success.
+   This repo adopts the
+   [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+   framework via a snapshot mechanism. The framework provides
+   maintainer-facing skills (e.g. `pr-management-triage`,
+   `pr-management-code-review`, `pr-management-stats`,
+   `pr-management-mentor`, and the `security-*` family)
+   exposed as agent skills in agent harnesses such as Claude
+   Code.
+
+   The framework is **not** vendored — it lives as a
+   gitignored snapshot under `.apache-steward/`, fetched on
+   demand from the version pinned in the committed
+   [`.apache-steward.lock`](.apache-steward.lock). The only
+   framework artefact committed to this repo is the
+   `setup-steward` skill at
+   [`.github/skills/setup-steward/`](.github/skills/setup-steward/);
+   everything else is a gitignored symlink the setup skill
+   wires up.
+
+   A fresh clone needs the snapshot populated before any
+   framework skill is invocable. In your agent harness, run:
+
+       /setup-steward
+
+   (or follow [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/))
+   to fetch the snapshot per the committed lock, scaffold the
+   gitignored symlinks, and install the post-checkout hook
+   that re-creates them on each worktree checkout.
+
+   Adopter-specific modifications to framework workflows live
+   in [`.apache-steward-overrides/`](.apache-steward-overrides/)
+   (committed) — never edit the snapshot directly. Framework
+   changes go via PR to
+   [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+   ```
+
+   Trim the skill-family list to what was actually picked in
+   Step 5 (only mention `security-*` if the adopter installed
+   that family, etc.). Adjust the skill paths to the adopter's
+   convention (flat vs double-symlinked — see
+   [`conventions.md`](conventions.md)). Skip this sub-step
+   entirely if `README.md` does not exist.
+
+2. **`AGENTS.md` (agent-facing detail, ONLY if the file
+   already exists).** Agent harnesses load this file
+   automatically; a short section here tells the agent the
+   adoption is in place and where to find the contributor
+   summary. Cross-reference back to the `README.md` section
+   you just wrote so the agent lands on the human-readable
+   summary first.
+
+   Suggested template:
+
+   ```markdown
+   ## apache-steward framework
+
+   This repo adopts the
+   [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+   framework via the snapshot mechanism. The framework
+   provides the `pr-management-*` skills; they are gitignored
+   symlinks into the `.apache-steward/` snapshot directory.
+
+   A fresh clone needs the snapshot populated before any
+   framework skill is invocable. Run `/setup-steward` (or
+   follow [`.claude/skills/setup-steward/`](.claude/skills/setup-steward/))
+   to fetch it per the committed
+   [`.apache-steward.lock`](.apache-steward.lock). The
+   contributor-facing summary of the adoption + setup flow
+   lives in the
+   [Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+
+   Adopter-specific modifications to framework-skill
+   workflows live in
+   [`.apache-steward-overrides/`](.apache-steward-overrides/)
+   — never edit the snapshot directly. Framework changes go
+   via PR to
+   [`apache/airflow-steward`](https://github.com/apache/airflow-steward).
+   ```
+
+   Do not create `AGENTS.md` if it does not already exist —
+   the contributor-facing section in `README.md` is the
+   authoritative entry-point, and an empty `AGENTS.md` would
+   be more noise than signal.
+
+3. **`CONTRIBUTING.md` (fallback only).** If `README.md` is
+   absent or strictly off-limits (some projects vendor it
+   from another source and rebuild on release), add the
+   `README.md` template content here instead.
+
+**Doctoc and other auto-update hooks.** If the adopter
+runs `doctoc` or similar README-TOC hooks, expect the next
+commit to also touch the TOC block. Either run the hook
+yourself before staging or note it in the commit message.
+
+Surface the rendered diff (`git diff README.md AGENTS.md`)
+to the user before writing. The user confirms once for the
+whole doc set; do not ask separately per file.
+
+## Step 12 — Post-install sync + worktree propagation + sandbox-allowlist + sanity check
+
+Four passes, in this order:
+
+1. **Sync hooks and config from the snapshot.** Walk every
+   hook or config file the framework ships that an adopter
+   is expected to carry locally — at minimum the
+   `post-checkout` hook installed in
+   [Step 10](#step-10--worktree-aware-post-checkout-hook-fresh-only),
+   plus any other adopter-side hook or config file the
+   framework adds in future. For each one, compare the
+   adopter's installed copy against the snapshot's expected
+   content; if drifted, re-install from the snapshot (after
+   surfacing the diff and asking for confirmation when the
+   local copy looks hand-edited). This is the "sync local
+   versions with the framework's latest" pass and runs
+   *every* time `/setup-steward` runs in either FRESH or
+   SUBSEQUENT adoption — it is the same pass `/setup-steward
+   upgrade` runs after a snapshot refresh.
+
+2. **Propagate to every worktree (run `worktree-init`
+   unconditionally).** The main is now adopted; any
+   pre-existing linked worktree of this repo still lacks
+   the snapshot symlink and the `<adopter-skills-dir>`
+   symlinks. `worktree-init` is **always run on every
+   worktree** at the end of adopt, even when none exist
+   yet, even when the worktree appears wired, because
+   `worktree-init` is idempotent and the cost of an
+   unnecessary run is trivially small. Conversely, *not*
+   running it leaves worktree state inconsistent with the
+   freshly-adopted main.
+
+   Procedure:
+
+   - Enumerate worktrees with
+     `git worktree list --porcelain`. Filter to linked
+     worktrees only — skip the main (already handled in
+     Steps 1–11 above) and skip any bare worktrees.
+   - If the list is empty, this pass is a no-op; record
+     "no linked worktrees" in the recap and continue.
+   - For each linked worktree, invoke
+     `/setup-steward worktree-init` with that worktree's
+     working directory as the `cwd`. The sub-action picks up
+     the family set from `<main>/.apache-steward.lock` plus
+     the always-on families per
+     [`SKILL.md` Golden rule 8](SKILL.md#golden-rules), and
+     reconciles both the snapshot symlink and the
+     `<adopter-skills-dir>` symlinks (see
+     [`worktree-init.md` Step 1 + Step 1b](worktree-init.md)).
+   - Collect each invocation's recap into a per-worktree
+     row in the adopt summary's `Worktrees:` section.
+
+   Do **not** abort adopt because one worktree failed — the
+   main is already adopted, and the failing worktree is
+   recorded in the summary for later resolution (typically:
+   the user `cd`s there and re-runs `/setup-steward
+   worktree-init` after merging the adoption commit
+   forward).
+
+3. **Add the adopter's project root to each worktree's
+   project-local sandbox allowlists.** Defensive against
+   [issue #197](https://github.com/apache/airflow-steward/issues/197) —
+   `sandbox.filesystem.allowRead: ["."]` does not in practice
+   cover CWD, so reads under a freshly-cloned adopter repo
+   fail under the sandbox until an explicit absolute path is
+   added. Invoke the helper **with sandbox bypass** (the
+   target file is in Claude Code's built-in sandbox
+   `denyWithinAllow` set, so the Bash write is blocked without
+   it — see
+   [`docs/setup/secure-agent-setup.md` → *Security rationale*](../../../docs/setup/secure-agent-setup.md#security-rationale--why-project-local-is-safe-to-write-to)):
+
+   ```bash
+   ~/.claude/scripts/sandbox-add-project-root.sh --all-worktrees
+   ```
+
+   Set `dangerouslyDisableSandbox: true` on the Bash call with
+   the reason *"writing project-local sandbox-allowlist entries
+   (issue #197 fix)"*. Surface the bypass proposal to the
+   operator **before** invoking — name the helper, name the
+   target file (`.claude/settings.local.json` of each
+   worktree), and confirm. The bypass triggers
+   `sandbox-bypass-warn.sh`'s bold-red banner as a backstop, but
+   the agent must propose first; do not silently approve.
+
+   The helper enumerates `git worktree list --porcelain` and,
+   for each worktree, writes that worktree's own absolute path
+   into that worktree's own
+   `<worktree>/.claude/settings.local.json` (gitignored,
+   per-machine, per-worktree). It does **not** write to
+   user-scope or to the committed project-scope; see
+   [`setup-isolated-setup-install/SKILL.md` → Step P](../setup-isolated-setup-install/SKILL.md#step-p--project-root-coverage-in-the-sandbox-allowlists)
+   for the scope rationale. Idempotent — already-present paths
+   are skipped.
+
+   Failure modes:
+
+   - **Helper absent** (`~/.claude/scripts/sandbox-add-project-root.sh`
+     does not exist) → surface as ⚠ in the adopt summary with a
+     pointer at `/setup-isolated-setup-install`. Do not block
+     adopt — many adopters set up secure-agent isolation later,
+     and the framework-skill symlinks are usable without it (the
+     adopter just runs Bash outside the sandbox until they wire
+     in the secure setup).
+   - **Helper present, exits non-zero** → surface as ✗ with the
+     helper's stderr output, but continue with pass 4 and report
+     the gap in the summary.
+   - **Helper succeeds, no paths added** (everything already
+     covered) → surface as ✓ "sandbox allowlist already covers
+     this project + N worktrees".
+
+   This pass is the same as
+   [`upgrade.md` Step 6c](upgrade.md#step-6c--propagate-to-every-worktree-run-worktree-init-unconditionally)'s
+   trailing helper-invocation step — both rely on `worktree-init`
+   having run first (pass 2 above) so the worktree list is the
+   one to feed the helper.
+
+4. **Run the verify checklist.** Invoke
+   [`verify.md`](verify.md)'s checks. Every check should be
+   ✓ before the skill reports success. The hook-content
+   drift check passes trivially because pass (1) just
+   refreshed the hook from the snapshot; the worktree
+   symlink checks pass trivially because pass (2) just
+   ran `worktree-init` everywhere; the sandbox-allowlist
+   check passes trivially because pass (3) just ran the
+   helper.
 
 ## Output to the user
 
@@ -424,7 +862,10 @@ Committed (you'll see in `git status`):
 Gitignored (do NOT commit):
   .apache-steward/
   .apache-steward.local.lock
-  .claude/skills/{security,pr-management,setup-isolated-setup,setup-shared-config-sync}-*
+  .claude/skills/{security,pr-management}-*            # opt-in families
+  .claude/skills/setup-isolated-setup-*                # always-on
+  .claude/skills/{setup-override-upstream,setup-shared-config-sync}  # always-on
+  .claude/skills/list-steward-*                        # always-on
   (and same patterns under .github/skills/ for double-symlinked layouts)
 ```
 

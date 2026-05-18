@@ -321,8 +321,12 @@ dev/registry/providers.json
 /.claude/skills/security-*
 /.claude/skills/pr-management-*
 /.claude/skills/setup-isolated-setup-*
+/.claude/skills/setup-override-upstream
 /.claude/skills/setup-shared-config-sync
+/.claude/skills/list-steward-*
 /.github/skills/security-*
 /.github/skills/pr-management-*
 /.github/skills/setup-isolated-setup-*
+/.github/skills/setup-override-upstream
 /.github/skills/setup-shared-config-sync
+/.github/skills/list-steward-*

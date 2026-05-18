@@ -1,9 +1,6 @@
  <!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
-<!-- SPDX-License-Identifier: Apache-2.0
-     https://www.apache.org/legal/release-policy.html -->
-
 # conventions — auto-detect the adopter's skills-dir layout
 
 Different ASF projects already organise their `.claude/skills/`
@@ -31,6 +28,29 @@ started using Claude Code use this. **Detection signal**:
 For framework symlinks: create them at
 `<repo-root>/.claude/skills/<n>` → relative path into
 `.apache-steward/.claude/skills/<n>/`.
+
+**Caveat — `.claude/` already gitignored.** Some adopters (notably
+those that previously used Claude Code with per-user `.claude/`
+settings) have `.claude/` listed in their repo's `.gitignore`.
+This prevents `.claude/skills/setup-steward/` from being committed
+per [`SKILL.md` Golden rule 6](SKILL.md#golden-rules) (which expects
+`setup-steward` itself to be the only committed framework skill).
+
+Three resolution paths:
+
+- **Override the gitignore** — add `!/.claude/skills/setup-steward/`
+  after the broader `.claude/` line. Keeps the rest of `.claude/`
+  gitignored; commits only the framework's bootstrap skill.
+- **Switch to Pattern B** — move skills to `.github/skills/` and use
+  the double-symlinked layout. Sidesteps the `.claude/` gitignore
+  entirely. See *B. Double-symlinked* below.
+- **Defer commit** — treat the whole adoption as a no-commit local
+  experiment until the gitignore is revised. Useful for spike-style
+  evaluation.
+
+The adopt flow surfaces the conflict when it detects `.claude/` is
+gitignored AND Pattern A was selected; the user picks one of the
+three above.
 
 ### B. Double-symlinked — `.claude/skills/` mirrors `.github/skills/`
 
