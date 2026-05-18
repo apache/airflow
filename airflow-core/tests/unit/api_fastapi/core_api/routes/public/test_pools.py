@@ -25,6 +25,7 @@ from airflow.models.pool import Pool
 from airflow.models.team import Team
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.db import clear_db_pools, clear_db_teams
 from tests_common.test_utils.logs import check_last_log
 
@@ -1092,6 +1093,41 @@ class TestBulkPools(TestPoolsEndpoint):
         assert updated_pool.slots == 50  # updated
         assert updated_pool.description is None  # unchanged
         assert updated_pool.include_deferred is True  # unchanged
+
+    @pytest.mark.parametrize(
+        ("pool_count"),
+        [5, 10, 20],
+    )
+    def test_bulk_delete_query_count_is_independent_of_pool_count(self, test_client, session, pool_count):
+        # Regression guard for the N+1 fix in BulkPoolService.handle_bulk_delete:
+        # the query count for a bulk delete must be the same regardless of how
+        # many pools are deleted. A regression that re-queries each pool inside
+        # the loop would add one SELECT per pool, so the larger run would issue
+        # strictly more queries than the smaller one.
+
+        EXPECTED_QUERY_COUNT = 4
+
+        pool_names = [f"perf_pool_{pool_count}_{i}" for i in range(pool_count)]
+        session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
+        session.commit()
+
+        request_body = {
+            "actions": [{"action": "delete", "entities": pool_names, "action_on_non_existence": "fail"}]
+        }
+
+        with count_queries() as result:
+            response = test_client.patch("/pools", json=request_body)
+
+        assert response.status_code == 200
+        assert sorted(response.json()["delete"]["success"]) == sorted(pool_names)
+        assert session.scalars(select(Pool).where(Pool.pool.in_(pool_names))).all() == []
+
+        query_count = sum(result.values())
+
+        assert query_count == EXPECTED_QUERY_COUNT, (
+            f"Bulk-delete query count {query_count} does not match expected {EXPECTED_QUERY_COUNT}. "
+            f"A regression that re-queries pools inside the loop would add one SELECT per pool."
+        )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/pools", json={})
