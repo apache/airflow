@@ -203,6 +203,18 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "celery.task_not_found_in_broker"
+    description: "Number of tracked Celery tasks absent from broker state during sync."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "celery.task_unexpected_state"
+    description: "Number of Celery tasks that transitioned to an unhandled state during sync."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "task_removed_from_dag"
     description: "Number of tasks removed for a given Dag (i.e. task no longer exists in Dag).
     Metric with dag_id and run_type tagging."
