@@ -347,7 +347,7 @@ class TestDatabricksFullRunRepairCoordinatorOperator:
         deferrable: bool = True,
     ) -> _DatabricksFullRunRepairCoordinatorOperator:
         return _DatabricksFullRunRepairCoordinatorOperator(
-            task_id="full_run_repair_coordinator",
+            task_id="repair_coordinator",
             databricks_conn_id="databricks_default",
             launch_task_id=self.LAUNCH_TASK_ID,
             max_full_run_repairs=max_full_run_repairs,
@@ -471,7 +471,7 @@ class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
                 task._convert_to_databricks_workflow_task = MagicMock(return_value={})
                 tg.add(task)
 
-        coordinator = tg.children["wf.full_run_repair_coordinator"]
+        coordinator = tg.children["wf.repair_coordinator"]
         assert isinstance(coordinator, _DatabricksFullRunRepairCoordinatorOperator)
         assert coordinator.max_full_run_repairs == 2
         assert coordinator.repair_polling_period_seconds == 15
