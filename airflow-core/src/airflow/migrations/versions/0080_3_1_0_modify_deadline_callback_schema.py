@@ -99,9 +99,6 @@ def upgrade():
             .limit(batch_size)
         ).fetchall()
 
-        if not rows:
-            break
-
         batch = []
         for row in rows:
             path = row[1] or ""
@@ -189,9 +186,6 @@ def downgrade():
             .where(deadline_read.c.callback_old.is_(None))
             .limit(batch_size)
         ).fetchall()
-
-        if not rows:
-            break
 
         batch = []
         for row in rows:
