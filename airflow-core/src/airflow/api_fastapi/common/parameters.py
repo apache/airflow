@@ -900,6 +900,44 @@ class RangeFilter(BaseParam[Range]):
         )
 
 
+class NullableDatetimeRangeFilter(RangeFilter):
+    """
+    RangeFilter for nullable datetime columns (``start_date``, ``end_date``), rewritten for index use.
+
+    ``COALESCE(column, now())`` wraps the column in a function call that prevents PostgreSQL from
+    using btree indexes, forcing sequential scans on large tables. This class emits equivalent
+    ``OR`` predicates so each branch can be satisfied by an independent index scan.
+
+    NULL semantics: ``start_date=NULL`` means the task has not started yet; ``end_date=NULL`` means
+    the task is still running. For lower bounds the NULL branch passes unconditionally — a not-yet-
+    started/ended task will eventually satisfy any past lower bound. For upper bounds the NULL branch
+    is ``col IS NULL AND now() <= x``, preserving the COALESCE(col, now()) semantics without the
+    function-wrap index penalty.
+    """
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if self.value is None:
+            return select
+
+        if self.value.lower_bound_gte:
+            x = self.value.lower_bound_gte
+            select = select.where(or_(self.attribute >= x, self.attribute.is_(None)))
+        if self.value.lower_bound_gt:
+            x = self.value.lower_bound_gt
+            select = select.where(or_(self.attribute > x, self.attribute.is_(None)))
+        if self.value.upper_bound_lte:
+            x = self.value.upper_bound_lte
+            select = select.where(or_(self.attribute <= x, and_(self.attribute.is_(None), func.now() <= x)))
+        if self.value.upper_bound_lt:
+            x = self.value.upper_bound_lt
+            select = select.where(or_(self.attribute < x, and_(self.attribute.is_(None), func.now() < x)))
+
+        return select
+
+
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
 ) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
@@ -910,17 +948,15 @@ def datetime_range_filter_factory(
         upper_bound_lt: datetime | None = Query(alias=f"{filter_name}_lt", default=None),
     ) -> RangeFilter:
         attr = getattr(model, attribute_name or filter_name)
-        if filter_name in ("start_date", "end_date"):
-            attr = func.coalesce(attr, func.now())
-        return RangeFilter(
-            Range(
-                lower_bound_gte=lower_bound_gte,
-                lower_bound_gt=lower_bound_gt,
-                upper_bound_lte=upper_bound_lte,
-                upper_bound_lt=upper_bound_lt,
-            ),
-            attr,
+        range_val = Range(
+            lower_bound_gte=lower_bound_gte,
+            lower_bound_gt=lower_bound_gt,
+            upper_bound_lte=upper_bound_lte,
+            upper_bound_lt=upper_bound_lt,
         )
+        if filter_name in ("start_date", "end_date"):
+            return NullableDatetimeRangeFilter(range_val, attr)
+        return RangeFilter(range_val, attr)
 
     return depends_datetime
 
