@@ -1,8 +1,8 @@
 {
   "additional_data": "Дополнительные данные",
-  "asset_one": "Актив",
   "asset_few": "Актива",
   "asset_many": "Активов",
+  "asset_one": "Актив",
   "asset_other": "Актива",
   "consumingDags": "Потребляющие Dag-и",
   "consumingTasks": "Потребляющие задачи",

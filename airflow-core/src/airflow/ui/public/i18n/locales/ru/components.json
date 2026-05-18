@@ -1,8 +1,8 @@
 {
   "backfill": {
-    "affected_one": "{{count}} запуск будет запущен",
     "affected_few": "{{count}} запуска будут запущены",
     "affected_many": "{{count}} запусков будет запущено",
+    "affected_one": "{{count}} запуск будет запущен",
     "affected_other": "{{count}} запуска будет запущено",
     "affectedNone": "Нет процессов, соответствующих выбранным критериям.",
     "allRuns": "Все процессы",
@@ -50,9 +50,9 @@
   "dagWarnings": {
     "error_one": "1 ошибка",
     "errorAndWarning": "1 ошибка и {{warningText}}",
-    "warning_one": "{{count}} предупреждение",
     "warning_few": "{{count}} предупреждения",
     "warning_many": "{{count}} предупреждений",
+    "warning_one": "{{count}} предупреждение",
     "warning_other": "{{count}} предупреждения"
   },
   "dateRangeFilter": {
@@ -64,22 +64,22 @@
   },
   "durationChart": {
     "duration": "Продолжительность (секунды)",
-    "lastDagRun_one": "Последний {{count}} запуск Dag-а",
     "lastDagRun_few": "Последние {{count}} запуска Dag-а",
     "lastDagRun_many": "Последние {{count}} запусков Dag-а",
+    "lastDagRun_one": "Последний {{count}} запуск Dag-а",
     "lastDagRun_other": "Последние {{count}} запуска Dag-а",
-    "lastTaskInstance_one": "Последний {{count}} экземпляр задачи",
     "lastTaskInstance_few": "Последние {{count}} экземпляра задачи",
     "lastTaskInstance_many": "Последние {{count}} экземпляров задачи",
+    "lastTaskInstance_one": "Последний {{count}} экземпляр задачи",
     "lastTaskInstance_other": "Последние {{count}} экземпляра задачи",
     "queuedDuration": "Длительность в очереди",
     "runAfter": "Запустить после",
     "runDuration": "Длительность запуска"
   },
   "fileUpload": {
-    "files_one": "{{count}} файл",
     "files_few": "{{count}} файла",
     "files_many": "{{count}} файлов",
+    "files_one": "{{count}} файл",
     "files_other": "{{count}} файла"
   },
   "flexibleForm": {
@@ -101,25 +101,25 @@
     "downloadImageError": "Не удалось скачать изображение графа.",
     "downloadImageErrorTitle": "Ошибка загрузки",
     "otherDagRuns": "+Другие запуски Dag-а",
-    "taskCount_one": "{{count}} задача",
     "taskCount_few": "{{count}} задачи",
     "taskCount_many": "{{count}} задач",
+    "taskCount_one": "{{count}} задача",
     "taskCount_other": "{{count}} задачи",
     "taskGroup": "Группа задач",
     "zoomToTask": "Приблизить к выбранной задаче"
   },
   "limitedList": "Ещё +{{count}}",
   "limitedList.allItems": "Все {{count}} элемента(ов):",
-  "limitedList.allTags_one": "Все теги ({{count}})",
   "limitedList.allTags_few": "Все теги ({{count}})",
   "limitedList.allTags_many": "Все теги ({{count}})",
+  "limitedList.allTags_one": "Все теги ({{count}})",
   "limitedList.allTags_other": "Все теги ({{count}})",
   "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать Dag-и",
   "limitedList.clickToOpenFull": "Нажмите \"Ещё +{{count}}\", чтобы открыть полный вид",
   "limitedList.copyPasteText": "Вы можете скопировать и вставить текст выше",
-  "limitedList.showingItems_one": "Показан {{count}} элемент",
   "limitedList.showingItems_few": "Показано {{count}} элемента",
   "limitedList.showingItems_many": "Показано {{count}} элементов",
+  "limitedList.showingItems_one": "Показан {{count}} элемент",
   "limitedList.showingItems_other": "Показано {{count}} элемента",
   "logs": {
     "file": "Файл",

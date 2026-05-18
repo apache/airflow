@@ -20,18 +20,18 @@
       "host": "Хост",
       "port": "Порт"
     },
-    "connection_one": "Соединение",
     "connection_few": "Соединения",
     "connection_many": "Соединений",
+    "connection_one": "Соединение",
     "connection_other": "Соединения",
     "delete": {
-      "deleteConnection_one": "Удалить {{count}} соединение",
       "deleteConnection_few": "Удалить {{count}} соединения",
       "deleteConnection_many": "Удалить {{count}} соединений",
+      "deleteConnection_one": "Удалить {{count}} соединение",
       "deleteConnection_other": "Удалить {{count}} соединения",
-      "firstConfirmMessage_one": "Вы собираетесь удалить следующее соединение",
       "firstConfirmMessage_few": "Вы собираетесь удалить следующие соединения",
       "firstConfirmMessage_many": "Вы собираетесь удалить следующие соединения",
+      "firstConfirmMessage_one": "Вы собираетесь удалить следующее соединение",
       "firstConfirmMessage_other": "Вы собираетесь удалить следующие соединения",
       "title": "Удалить соединение"
     },
@@ -108,9 +108,9 @@
     "columns": {
       "source": "Источник"
     },
-    "importError_one": "Ошибка импорта плагина",
     "importError_few": "Ошибки импорта плагинов",
     "importError_many": "Ошибки импорта плагинов",
+    "importError_one": "Ошибка импорта плагина",
     "importError_other": "Ошибки импорта плагинов",
     "searchPlaceholder": "Поиск по файлу"
   },
@@ -132,9 +132,9 @@
       "slotsHelperText": "Используйте -1 для неограниченного количества слотов."
     },
     "noPoolsFound": "Пулы не найдены",
-    "pool_one": "Пул",
     "pool_few": "Пула",
     "pool_many": "Пулов",
+    "pool_one": "Пул",
     "pool_other": "Пула",
     "searchPlaceholder": "Поиск пулов",
     "sort": {
@@ -155,13 +155,13 @@
       "isEncrypted": "Зашифровано"
     },
     "delete": {
-      "deleteVariable_one": "Удалить {{count}} переменную",
       "deleteVariable_few": "Удалить {{count}} переменные",
       "deleteVariable_many": "Удалить {{count}} переменных",
+      "deleteVariable_one": "Удалить {{count}} переменную",
       "deleteVariable_other": "Удалить {{count}} переменные",
-      "firstConfirmMessage_one": "Вы собираетесь удалить следующую переменную",
       "firstConfirmMessage_few": "Вы собираетесь удалить следующие переменные",
       "firstConfirmMessage_many": "Вы собираетесь удалить следующие переменные",
+      "firstConfirmMessage_one": "Вы собираетесь удалить следующую переменную",
       "firstConfirmMessage_other": "Вы собираетесь удалить следующие переменные",
       "title": "Удалить переменную",
       "tooltip": "Удалить выбранные переменные"
@@ -197,9 +197,9 @@
     },
     "noRowsMessage": "Переменные не найдены",
     "searchPlaceholder": "Поиск ключей",
-    "variable_one": "Переменная",
     "variable_few": "Переменные",
     "variable_many": "Переменных",
+    "variable_one": "Переменная",
     "variable_other": "Переменной"
   }
 }
