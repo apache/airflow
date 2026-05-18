@@ -30,7 +30,7 @@ const matchesSchemaType = (parsed: unknown, types: Array<string | undefined>): b
     (type) =>
       type === valueType ||
       // JSON Schema "integer" is a subtype of "number"; exclude floats that JSON.parse accepts.
-      (type === "integer" && valueType === "number" && Number.isInteger(parsed as number)),
+      (type === "integer" && valueType === "number" && Number.isInteger(parsed)),
   );
 };
 
@@ -49,9 +49,9 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
   const storedDisplay =
     param.value === null || param.value === undefined
       ? ""
-      : typeof param.value === "object"
-        ? JSON.stringify(param.value, undefined, 2)
-        : String(param.value as boolean | number | string);
+      : typeof param.value === "string"
+        ? param.value
+        : JSON.stringify(param.value, undefined, 2);
 
   const displayValue = inputText ?? storedDisplay;
 
