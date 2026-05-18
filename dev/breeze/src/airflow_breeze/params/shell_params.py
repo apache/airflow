@@ -61,6 +61,8 @@ from airflow_breeze.global_constants import (
     MOUNT_SELECTED,
     MOUNT_TESTS,
     MSSQL_HOST_PORT,
+    MYSQL_FLAVOR_MARIADB,
+    MYSQL_FLAVOR_MYSQL,
     MYSQL_HOST_PORT,
     POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
@@ -207,6 +209,7 @@ class ShellParams:
     keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
+    mariadb_version: str = ""
     mount_sources: str = MOUNT_SELECTED
     mount_ui_dist: bool = False
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
@@ -318,13 +321,22 @@ class ShellParams:
         cache_dir = Path(BUILD_CACHE_PATH, self.airflow_branch, self.python, self.image_type)
         return cache_dir
 
+    @property
+    def mysql_flavor(self) -> str:
+        # Presence of --mariadb-version is the sole switch between MySQL and MariaDB
+        # for the `mysql` backend; an empty mariadb_version means upstream MySQL.
+        return MYSQL_FLAVOR_MARIADB if self.mariadb_version else MYSQL_FLAVOR_MYSQL
+
     @cached_property
     def backend_version(self) -> str:
         version = ""
         if self.backend == "postgres":
             version = self.postgres_version
         if self.backend == "mysql":
-            version = self.mysql_version
+            if self.mariadb_version:
+                version = self.mariadb_version
+            else:
+                version = self.mysql_version
         return version
 
     @cached_property
@@ -347,6 +359,11 @@ class ShellParams:
             # sqlite database is not persisted between runs of the script and that the
             # breeze database is not cleaned accidentally
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-no-volume.yml"
+        elif backend == "mysql" and self.mariadb_version:
+            # MariaDB-flavored mysql backend: same wire protocol, different server image.
+            # The container still reports BACKEND=mysql and connects via mysql+pymysql://;
+            # SQLAlchemy detects MariaDB at runtime via dialect.is_mariadb.
+            backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "backend-mysql-mariadb.yml"
         else:
             backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}.yml"
         if backend in ("sqlite", "none", "custom") or not self.forward_ports:
@@ -675,6 +692,8 @@ services:
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
         _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
+        _set_var(_env, "MARIADB_VERSION", self.mariadb_version)
+        _set_var(_env, "MYSQL_FLAVOR", self.mysql_flavor)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
