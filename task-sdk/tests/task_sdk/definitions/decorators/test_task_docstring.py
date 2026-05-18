@@ -155,3 +155,31 @@ def test_task_docstring_dedent_simple():
 
     # Verify leading/trailing whitespace is stripped
     assert task_obj.doc_md == "My task description."
+
+
+def test_task_docstring_already_dedented():
+    """Test that already-dedented docstrings are handled as a no-op by textwrap.dedent.
+
+    When a docstring has no common leading whitespace, textwrap.dedent should
+    return it unchanged and .strip() only removes surrounding whitespace.
+    """
+    import textwrap
+
+    # Verify textwrap.dedent behavior on non-indented strings
+    raw_doc = "This docstring has no leading indentation."
+    assert textwrap.dedent(raw_doc).strip() == "This docstring has no leading indentation."
+
+    # With a simple one-liner docstring (no common indent to strip)
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task
+        def my_task():
+            """This docstring has no leading indentation."""
+
+        return my_task()
+
+    dag_obj = pipeline()
+    task_obj = dag_obj.task_dict["my_task"]
+
+    # The docstring should be unchanged after dedent + strip
+    assert task_obj.doc_md == "This docstring has no leading indentation."
