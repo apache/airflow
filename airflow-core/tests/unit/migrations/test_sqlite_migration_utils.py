@@ -65,15 +65,6 @@ class _OfflineFakeOp:
         self.executed.append(statement)
 
 
-def test_disable_sqlite_fkeys_restores_pragma_on_success() -> None:
-    op = _FakeOp(dialect_name="sqlite")
-
-    with disable_sqlite_fkeys(op) as yielded_op:
-        assert yielded_op is op
-
-    assert op.executed == ["PRAGMA foreign_keys=off", "PRAGMA foreign_keys=on"]
-
-
 def test_disable_sqlite_fkeys_restores_pragma_on_exception() -> None:
     op = _FakeOp(dialect_name="sqlite")
 

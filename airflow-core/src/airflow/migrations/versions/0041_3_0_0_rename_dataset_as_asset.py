@@ -31,7 +31,11 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.utils import disable_sqlite_fkeys, mysql_drop_foreignkey_if_exists
+from airflow.migrations.utils import (
+    disable_sqlite_fkeys,
+    ignore_sqlite_value_error,
+    mysql_drop_foreignkey_if_exists,
+)
 
 # revision identifiers, used by Alembic.
 revision = "05234396c6fc"
@@ -108,12 +112,9 @@ def _drop_fkey_if_exists(table, constraint_name):
         op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
     else:
         # SQLite requires foreign key constraints to be disabled during batch operations.
-        with disable_sqlite_fkeys(op):
-            try:
-                with op.batch_alter_table(table, schema=None) as batch_op:
-                    batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
-            except ValueError:
-                pass
+        with disable_sqlite_fkeys(op), ignore_sqlite_value_error():
+            with op.batch_alter_table(table, schema=None) as batch_op:
+                batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
 
 
 # original table name to new table name
