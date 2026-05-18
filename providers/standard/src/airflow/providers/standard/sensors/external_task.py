@@ -156,6 +156,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param allowed_states: Iterable of allowed states, default is ``['success']``
     :param skipped_states: Iterable of states to make this task mark as skipped, default is ``None``
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
+    :param execution_date supports templated values using either:
+        ``{{ logical_date }}`` (preferred)
+        ``{{ execution_date }}`` (legacy)
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same logical date as the current task or DAG.
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
@@ -174,7 +177,13 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param deferrable: Run sensor in deferrable mode
     """
 
-    template_fields = ["external_dag_id", "external_task_id", "external_task_ids", "external_task_group_id"]
+    template_fields = [
+        "external_dag_id",
+        "external_task_id",
+        "external_task_ids",
+        "external_task_group_id",
+        "execution_date",
+    ]
     ui_color = "#4db7db"
     operator_extra_links = [ExternalDagLink()]
 
@@ -188,6 +197,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         allowed_states: Iterable[str] | None = None,
         skipped_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
+        execution_date: str | datetime.datetime | None = None,
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
@@ -248,12 +258,22 @@ class ExternalTaskSensor(BaseSensorOperator):
                 f"when `external_task_id` and `external_task_group_id` is `None`: {State.dag_states}"
             )
 
-        if execution_delta is not None and execution_date_fn is not None:
+        if execution_delta is not None and execution_date_fn is not None and execution_date is not None:
             raise ValueError(
-                "Only one of `execution_delta` or `execution_date_fn` may "
-                "be provided to ExternalTaskSensor; not both."
+                "Only one of `execution_delta`, `execution_date` or `execution_date_fn` may "
+                "be provided to ExternalTaskSensor."
             )
 
+        if execution_delta is not None:
+            warnings.warn(
+                "`execution_delta` is deprecated. Use `execution_date`.", DeprecationWarning, stacklevel=1
+            )
+
+        if execution_date_fn is not None:
+            warnings.warn(
+                "`execution_date_fn` is deprecated. Use `execution_date`.", DeprecationWarning, stacklevel=1
+            )
+        self.execution_date = execution_date
         self.execution_delta = execution_delta
         self.execution_date_fn = execution_date_fn
         self.external_dag_id = external_dag_id
@@ -267,13 +287,25 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.external_dates_filter: str | None = None
 
     def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
+        execution_date_value = self.execution_date
+
+        if execution_date_value is not None:
+            if isinstance(execution_date_value, datetime.datetime):
+                return [execution_date_value]
+
+            import pendulum
+
+            return [pendulum.parse(execution_date_value)]
+
         logical_date = self._get_logical_date(context)
 
-        if self.execution_delta:
+        if self.execution_delta is not None:
             return [logical_date - self.execution_delta]
+
         if self.execution_date_fn:
             result = self._handle_execution_date_fn(context=context)
             return result if isinstance(result, list) else [result]
+
         return [logical_date]
 
     @staticmethod
