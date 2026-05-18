@@ -808,51 +808,95 @@ def test_encode_timezone():
 
 
 @pytest.mark.parametrize(
-    ("cls", "args", "encode_type", "encode_var"),
+    ("cls", "kwargs", "encode_type", "encode_var"),
     [
-        (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
+        (IdentityMapper, {}, "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
             StartOfHourMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfHourMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+        ),
+        (
+            StartOfHourMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfHourMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
         ),
         (
             StartOfDayMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfDayMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
+        ),
+        (
+            StartOfDayMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfDayMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
         ),
         (
             StartOfWeekMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfWeekMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
+        ),
+        (
+            StartOfWeekMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfWeekMapper",
+            {
+                "timezone": "Asia/Taipei",
+                "input_format": "%Y-%m-%dT%H:%M:%S",
+                "output_format": "%Y-%m-%d (W%V)",
+            },
         ),
         (
             StartOfMonthMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfMonthMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
+        ),
+        (
+            StartOfMonthMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfMonthMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
         ),
         (
             StartOfQuarterMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfQuarterMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
+        ),
+        (
+            StartOfQuarterMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+            {
+                "timezone": "Asia/Taipei",
+                "input_format": "%Y-%m-%dT%H:%M:%S",
+                "output_format": "%Y-Q{quarter}",
+            },
         ),
         (
             StartOfYearMapper,
-            [],
+            {},
             "airflow.partition_mappers.temporal.StartOfYearMapper",
-            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
+            {"timezone": "UTC", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
+        ),
+        (
+            StartOfYearMapper,
+            {"timezone": "Asia/Taipei"},
+            "airflow.partition_mappers.temporal.StartOfYearMapper",
+            {"timezone": "Asia/Taipei", "input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
         ),
     ],
 )
-def test_encode_partition_mapper(cls, args, encode_type, encode_var):
+def test_encode_partition_mapper(cls, kwargs, encode_type, encode_var):
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = cls(*args)
+    partition_mapper = cls(**kwargs)
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: encode_type,
         Encoding.VAR: encode_var,
