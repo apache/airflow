@@ -49,6 +49,12 @@ to pick the one that fits your use case:
    * - Parse files (PDF, DOCX, CSV, etc.) into document dicts for embedding
      - :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
      - *(no decorator)*
+   * - Chunk documents and produce embedding vectors
+     - :class:`~airflow.providers.common.ai.operators.llamaindex_embedding.EmbeddingOperator`
+     - *(no decorator)*
+   * - Retrieve relevant chunks from a vector index
+     - :class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.RetrievalOperator`
+     - *(no decorator)*
 
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
 summarization, extraction, or any prompt that produces one response. Supports structured output
