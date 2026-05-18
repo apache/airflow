@@ -159,6 +159,9 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
             if operation.done:
                 # An operation can only have one of those two combinations: if it is failed, then
                 # the error field will be populated, else, then the response field will be.
+                # In both cases the metadata Any may still carry the Execution proto, which holds
+                # the short execution name needed for fetching container logs from Cloud Logging.
+                execution_name = self._extract_execution_name(operation)
                 if operation.error.SerializeToString():
                     yield TriggerEvent(
                         {
@@ -166,6 +169,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                             "operation_error_code": operation.error.code,
                             "operation_error_message": operation.error.message,
                             "job_name": self.job_name,
+                            "execution_name": execution_name,
                         }
                     )
                     return
@@ -190,6 +194,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                                 f"{execution.cancelled_count}."
                             ),
                             "job_name": self.job_name,
+                            "execution_name": execution_name,
                         }
                     )
                     return
@@ -203,6 +208,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                                 f"{execution.failed_count} of task_count={execution.task_count}."
                             ),
                             "job_name": self.job_name,
+                            "execution_name": execution_name,
                         }
                     )
                     return
@@ -210,6 +216,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                     {
                         "status": RunJobStatus.SUCCESS.value,
                         "job_name": self.job_name,
+                        "execution_name": execution_name,
                     }
                 )
                 return
@@ -235,3 +242,11 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
             impersonation_chain=self.impersonation_chain,
             transport=self.transport,
         )
+
+    @staticmethod
+    def _extract_execution_name(operation: Any) -> str | None:
+        """Return the short execution name from a Cloud Run job LRO operation, or ``None``."""
+        execution_pb = Execution.pb(Execution())
+        if operation.metadata.Unpack(execution_pb) and execution_pb.name:
+            return execution_pb.name.rsplit("/", 1)[-1]
+        return None
