@@ -36,10 +36,14 @@ class ProductMapper(PartitionMapper):
         self.mappers = [mapper0, mapper1, *mappers]
         self.delimiter = delimiter
 
-    def to_downstream(self, key: str) -> str:
+    def _split_segments(self, key: str) -> list[str]:
         segments = key.split(self.delimiter)
         if len(segments) != len(self.mappers):
             raise ValueError(f"Expected {len(self.mappers)} segments in key, got {len(segments)}")
+        return segments
+
+    def to_downstream(self, key: str) -> str:
+        segments = self._split_segments(key)
         results: list[str] = []
         for mapper, segment in zip(self.mappers, segments):
             result = mapper.to_downstream(segment)
@@ -50,6 +54,11 @@ class ProductMapper(PartitionMapper):
                 )
             results.append(result)
         return self.delimiter.join(results)
+
+    def validate_source_key(self, key: str) -> None:
+        segments = self._split_segments(key)
+        for mapper, segment in zip(self.mappers, segments):
+            mapper.validate_source_key(segment)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper

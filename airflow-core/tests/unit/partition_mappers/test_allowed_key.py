@@ -32,6 +32,15 @@ class TestAllowedKeyMapper:
         with pytest.raises(ValueError, match="not in allowed keys"):
             pm.to_downstream("apac")
 
+    def test_validate_source_key(self):
+        pm = AllowedKeyMapper(["us", "eu", "apac"])
+        pm.validate_source_key("apac")
+
+    def test_validate_source_key_invalid_key(self):
+        pm = AllowedKeyMapper(["us", "eu"])
+        with pytest.raises(ValueError, match="not in allowed keys"):
+            pm.validate_source_key("apac")
+
     def test_serialize(self):
         pm = AllowedKeyMapper(["a", "b", "c"])
         assert pm.serialize() == {"allowed_keys": ["a", "b", "c"]}

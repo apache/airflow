@@ -520,14 +520,16 @@ class AssetManager(LoggingMixin):
             if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
                 raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
+            partition_mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
+
             try:
-                # We'll need to catch every possible exception happen when mapping partition_key.
-                target_key = timetable.get_partition_mapper(
-                    name=asset_model.name, uri=asset_model.uri
-                ).to_downstream(partition_key)
+                # We'll need to catch every possible exception that happens
+                # when validating or mapping partition_key.
+                partition_mapper.validate_source_key(partition_key)
+                target_key = partition_mapper.to_downstream(partition_key)
             except Exception as err:
                 log.exception(
-                    "Could not map partition key for asset in target Dag. "
+                    "Could not validate or map partition key for asset in target Dag. "
                     "This likely indicates the target Dag's partition mapper "
                     "is misconfigured, or does not support this partition key.",
                     partition_key=partition_key,
@@ -535,7 +537,7 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                 )
                 log_extra = (
-                    f"Could not map partition_key '{partition_key}' for asset "
+                    f"Could not validate or map partition_key '{partition_key}' for asset "
                     f"(name='{asset_model.name}', uri='{asset_model.uri}') in target Dag "
                     f"'{target_dag.dag_id}'. This likely indicates that the partition "
                     f"mapper in the target Dag is misconfigured or does not support this "
