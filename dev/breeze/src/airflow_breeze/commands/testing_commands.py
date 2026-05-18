@@ -276,7 +276,7 @@ def _run_test(
         )
         if result.returncode != 0:
             notify_on_unhealthy_backend_container(
-                project_name=project_name, backend=shell_params.backend, output=output
+                project_name=compose_project_name, backend=shell_params.backend, output=output
             )
         if os.environ.get("CI") == "true" and result.returncode != 0:
             get_console(output=output).print(f"[error]Test failed with {result.returncode}.[/]")
@@ -308,9 +308,9 @@ def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     """Return compose project name and project name."""
     project_name = file_name_from_test_type(shell_params.test_type)
     if shell_params.test_type == ALL_TEST_TYPE:
-        compose_project_name = "airflow-test"
+        compose_project_name = "breeze-airflow-test"
     else:
-        compose_project_name = f"airflow-test-{project_name}"
+        compose_project_name = f"breeze-airflow-test-{project_name}"
     return compose_project_name, project_name
 
 

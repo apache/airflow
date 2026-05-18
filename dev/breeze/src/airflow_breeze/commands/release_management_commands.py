@@ -137,6 +137,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -1259,7 +1260,7 @@ def run_generate_constraints(
 ) -> tuple[int, str]:
     result = execute_command_in_shell(
         shell_params,
-        project_name=f"constraints-{shell_params.python.replace('.', '-')}",
+        project_name=f"breeze-constraints-{shell_params.python.replace('.', '-')}",
         command="/opt/airflow/scripts/in_container/run_generate_constraints.py",
         output=output,
     )
@@ -1544,7 +1545,9 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
+    result_command = execute_command_in_shell(
+        shell_params, project_name=f"breeze-providers-{index}", output=output
+    )
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -1696,7 +1699,7 @@ def install_provider_distributions(
             skip_cleanup=skip_cleanup,
         )
     else:
-        result_command = execute_command_in_shell(shell_params, project_name="providers")
+        result_command = execute_command_in_shell(shell_params, project_name="breeze-providers")
         fix_ownership_using_docker()
         sys.exit(result_command.returncode)
 
@@ -1773,7 +1776,7 @@ def verify_provider_distributions(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
         shell_params,
-        project_name="providers",
+        project_name="breeze-providers",
         command="python /opt/airflow/scripts/in_container/verify_providers.py",
     )
     fix_ownership_using_docker()
@@ -2666,16 +2669,7 @@ def generate_issue_content_providers(
             all_prs.update(prs)
             provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
-        if not github_token:
-            # Get GitHub token from gh CLI and set it in environment copy
-            gh_token_result = run_command(
-                ["gh", "auth", "token"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if gh_token_result.returncode == 0:
-                github_token = gh_token_result.stdout.strip()
+        github_token = retrieve_github_token(github_token)
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -4164,6 +4158,7 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
+    github_token = retrieve_github_token(github_token) or ""
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}

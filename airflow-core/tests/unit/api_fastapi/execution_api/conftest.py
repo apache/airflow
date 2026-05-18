@@ -19,16 +19,25 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from starlette.routing import Mount
 
 from airflow.api_fastapi.app import cached_app
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.security import _jwt_bearer
+from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.security import require_auth
+
+
+@pytest.fixture(autouse=True)
+def _restore_lifespan_registry():
+    snapshot = dict(lifespan.registry._services)
+    yield
+    lifespan.registry._services = snapshot
 
 
 def _get_execution_api_app(root_app: FastAPI) -> FastAPI:
     """Find the mounted execution API sub-app."""
     for route in root_app.routes:
-        if hasattr(route, "path") and route.path == "/execution":
+        if isinstance(route, Mount) and route.path == "/execution" and isinstance(route.app, FastAPI):
             return route.app
     raise RuntimeError("Execution API sub-app not found")
 
@@ -44,15 +53,15 @@ def client(request: pytest.FixtureRequest):
     app = cached_app(apps="execution")
     exec_app = _get_execution_api_app(app)
 
-    async def mock_jwt_bearer(request: Request):
+    async def mock_require_auth(request: Request) -> TIToken:
         from uuid import UUID
 
         ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
-        return TIToken(id=ti_id, claims={"sub": str(ti_id), "scope": "execution"})
+        return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
 
-    exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+    exec_app.dependency_overrides[require_auth] = mock_require_auth
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
         yield client
 
-    exec_app.dependency_overrides.pop(_jwt_bearer, None)
+    exec_app.dependency_overrides.pop(require_auth, None)
