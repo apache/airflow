@@ -39,6 +39,15 @@ class TestProductMapper:
         with pytest.raises(ValueError, match="Expected 2 segments"):
             pm.to_downstream("2024-01-15T10:30:00")
 
+    def test_validate_source_key(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        pm.validate_source_key("2024-01-15T10:30:00|2024-01-15T10:30:00")
+
+    def test_validate_source_key_rejects_non_canonical_segment(self):
+        pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+        with pytest.raises(ValueError, match="does not round-trip"):
+            pm.validate_source_key("2024-1-15T10:30:00|2024-01-15T10:30:00")
+
     def test_custom_delimiter(self):
         pm = ProductMapper(StartOfHourMapper(), StartOfDayMapper(), delimiter="::")
         assert pm.to_downstream("2024-01-15T10:30:00::2024-01-15T10:30:00") == "2024-01-15T10::2024-01-15"

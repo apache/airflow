@@ -28,10 +28,16 @@ class AllowedKeyMapper(PartitionMapper):
     def __init__(self, allowed_keys: list[str]) -> None:
         self.allowed_keys = allowed_keys
 
-    def to_downstream(self, key: str) -> str:
+    def _validate_key(self, key: str) -> None:
         if key not in self.allowed_keys:
             raise ValueError(f"Key {key!r} not in allowed keys {self.allowed_keys}")
+
+    def to_downstream(self, key: str) -> str:
+        self._validate_key(key)
         return key
+
+    def validate_source_key(self, key: str) -> None:
+        self._validate_key(key)
 
     def serialize(self) -> dict[str, Any]:
         return {"allowed_keys": self.allowed_keys}
