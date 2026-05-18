@@ -53,7 +53,7 @@ class TestAssetStateEndpoint:
         self.asset = _create_asset(session)
         session.commit()
         self._session = session
-        self._base_url = f"/assets/{self.asset.id}/state"
+        self._base_url = f"/assets/{self.asset.id}/states"
 
     def teardown_method(self):
         self.clear_db()
@@ -198,7 +198,7 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
         test_client.delete(self._base_url)
 
-        other_url = f"/assets/{other_asset.id}/state"
+        other_url = f"/assets/{other_asset.id}/states"
         assert test_client.get(f"{other_url}/watermark").json()["value"] == "theirs"
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):

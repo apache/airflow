@@ -35,7 +35,7 @@ from airflow.state.metastore import MetastoreStateBackend
 
 asset_state_router = AirflowRouter(
     tags=["Asset State"],
-    prefix="/assets/{asset_id}/state",
+    prefix="/assets/{asset_id}/states",
 )
 
 

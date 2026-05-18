@@ -6927,7 +6927,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/assets/{asset_id}/state': {
+    '/api/v2/assets/{asset_id}/states': {
         get: {
             req: ListAssetStateData;
             res: {
@@ -6979,7 +6979,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/assets/{asset_id}/state/{key}': {
+    '/api/v2/assets/{asset_id}/states/{key}': {
         get: {
             req: GetAssetStateData;
             res: {
@@ -7056,7 +7056,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states': {
         get: {
             req: ListTaskStateData;
             res: {
@@ -7108,7 +7108,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state/{key}': {
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}': {
         get: {
             req: GetTaskStateData;
             res: {

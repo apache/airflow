@@ -3507,7 +3507,7 @@ export class AssetStateService {
     public static listAssetState(data: ListAssetStateData): CancelablePromise<ListAssetStateResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/assets/{asset_id}/state',
+            url: '/api/v2/assets/{asset_id}/states',
             path: {
                 asset_id: data.assetId
             },
@@ -3535,7 +3535,7 @@ export class AssetStateService {
     public static clearAssetState(data: ClearAssetStateData): CancelablePromise<ClearAssetStateResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/assets/{asset_id}/state',
+            url: '/api/v2/assets/{asset_id}/states',
             path: {
                 asset_id: data.assetId
             },
@@ -3560,7 +3560,7 @@ export class AssetStateService {
     public static getAssetState(data: GetAssetStateData): CancelablePromise<GetAssetStateResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/assets/{asset_id}/state/{key}',
+            url: '/api/v2/assets/{asset_id}/states/{key}',
             path: {
                 asset_id: data.assetId,
                 key: data.key
@@ -3587,7 +3587,7 @@ export class AssetStateService {
     public static setAssetState(data: SetAssetStateData): CancelablePromise<SetAssetStateResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
-            url: '/api/v2/assets/{asset_id}/state/{key}',
+            url: '/api/v2/assets/{asset_id}/states/{key}',
             path: {
                 asset_id: data.assetId,
                 key: data.key
@@ -3615,7 +3615,7 @@ export class AssetStateService {
     public static deleteAssetState(data: DeleteAssetStateData): CancelablePromise<DeleteAssetStateResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/assets/{asset_id}/state/{key}',
+            url: '/api/v2/assets/{asset_id}/states/{key}',
             path: {
                 asset_id: data.assetId,
                 key: data.key
@@ -3648,7 +3648,7 @@ export class TaskStateService {
     public static listTaskState(data: ListTaskStateData): CancelablePromise<ListTaskStateResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3683,7 +3683,7 @@ export class TaskStateService {
     public static clearTaskState(data: ClearTaskStateData): CancelablePromise<ClearTaskStateResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3717,7 +3717,7 @@ export class TaskStateService {
     public static getTaskState(data: GetTaskStateData): CancelablePromise<GetTaskStateResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3752,7 +3752,7 @@ export class TaskStateService {
     public static setTaskState(data: SetTaskStateData): CancelablePromise<SetTaskStateResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
@@ -3788,7 +3788,7 @@ export class TaskStateService {
     public static deleteTaskState(data: DeleteTaskStateData): CancelablePromise<DeleteTaskStateResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state/{key}',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}',
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,

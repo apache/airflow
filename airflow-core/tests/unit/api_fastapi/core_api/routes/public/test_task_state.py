@@ -34,7 +34,7 @@ TASK_ID = "test_task"
 LOGICAL_DATE = timezone.datetime(2026, 1, 1)
 RUN_ID = DagRun.generate_run_id(run_type=DagRunType.MANUAL, logical_date=LOGICAL_DATE, run_after=LOGICAL_DATE)
 
-BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/state"
+BASE_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/states"
 
 
 def _create_dag_run(dag_maker, session):
@@ -184,7 +184,7 @@ class TestSetTaskState(TestTaskStateEndpoint):
 
     def test_set_nonexistent_dag_run_returns_404(self, test_client):
         """set() raises ValueError when DagRun doesn't exist — should surface as 404."""
-        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/state/job_id"
+        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/states/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
 

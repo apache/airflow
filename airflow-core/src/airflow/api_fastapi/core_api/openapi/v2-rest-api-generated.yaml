@@ -5529,7 +5529,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/assets/{asset_id}/state:
+  /api/v2/assets/{asset_id}/states:
     get:
       tags:
       - Asset State
@@ -5636,7 +5636,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/assets/{asset_id}/state/{key}:
+  /api/v2/assets/{asset_id}/states/{key}:
     get:
       tags:
       - Asset State
@@ -5794,7 +5794,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states:
     get:
       tags:
       - Task State
@@ -5948,7 +5948,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state/{key}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states/{key}:
     get:
       tags:
       - Task State

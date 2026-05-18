@@ -38,7 +38,7 @@ from airflow.state.metastore import MetastoreStateBackend
 
 task_state_router = AirflowRouter(
     tags=["Task State"],
-    prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state",
+    prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states",
 )
 
 
