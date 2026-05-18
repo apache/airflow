@@ -38,6 +38,14 @@ const defaultInitialValues: Record<string, FilterValue> = {};
 const getFilterIcon = (config: FilterConfig): React.ReactNode =>
   config.icon ?? getDefaultFilterIcon(config.type);
 
+const areFilterValuesEqual = (left: FilterValue, right: FilterValue) => {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return Object.is(left, right);
+  }
+};
+
 export const FilterBar = ({
   configs,
   initialValues = defaultInitialValues,
@@ -84,23 +92,40 @@ export const FilterBar = ({
     }
 
     setFilters((prevFilters) => {
-      // Use a Set to avoid O(n²) lookup when checking for existing pills.
-      const existingKeys = new Set(prevFilters.map((filter) => filter.config.key));
-      const toAdd = pillsToAdd.filter((pill) => !existingKeys.has(pill.config.key));
+      const pillsByKey = new Map(pillsToAdd.map((pill) => [pill.config.key, pill]));
 
-      // Remove pills that had a committed value but whose URL param was cleared externally.
-      const afterRemove = prevFilters.filter((filter) => {
-        const pillHadValue = isValidFilterValue(filter.config.type, filter.value);
-        const urlValue = initialValues[filter.config.key];
+      const reconciledFilters = prevFilters.flatMap((filter) => {
+        const pill = pillsByKey.get(filter.config.key);
 
-        return !pillHadValue || isValidFilterValue(filter.config.type, urlValue);
+        if (pill === undefined) {
+          const pillHadValue = isValidFilterValue(filter.config.type, filter.value);
+          const urlValue = initialValues[filter.config.key];
+
+          if (pillHadValue && !isValidFilterValue(filter.config.type, urlValue)) {
+            return [];
+          }
+
+          return [filter];
+        }
+
+        if (areFilterValuesEqual(filter.value, pill.value)) {
+          return [filter];
+        }
+
+        return [{ ...filter, value: pill.value }];
       });
 
-      if (toAdd.length === 0 && afterRemove.length === prevFilters.length) {
+      const existingKeys = new Set(prevFilters.map((filter) => filter.config.key));
+      const toAdd = pillsToAdd.filter((pill) => !existingKeys.has(pill.config.key));
+      const hasReconciledChanges =
+        reconciledFilters.length !== prevFilters.length ||
+        reconciledFilters.some((filter, index) => filter !== prevFilters[index]);
+
+      if (!hasReconciledChanges && toAdd.length === 0) {
         return prevFilters;
       }
 
-      return [...afterRemove, ...toAdd];
+      return [...reconciledFilters, ...toAdd];
     });
     // configs is intentionally omitted — it is structurally stable across renders and including
     // it would risk infinite re-render loops. initialValuesKey captures all relevant URL changes.
