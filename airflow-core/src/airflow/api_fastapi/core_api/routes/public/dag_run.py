@@ -76,7 +76,9 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
     DAGRunClearBody,
     DAGRunCollectionResponse,
     DAGRunPatchBody,
@@ -97,8 +99,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_asset,
     requires_access_dag,
 )
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
-from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
+from airflow.api_fastapi.core_api.services.public.dag_run import BulkDagRunService, DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
@@ -251,6 +252,23 @@ def patch_dag_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
     return final_dag_run
+
+
+@dag_run_router.patch(
+    "",
+    dependencies=[
+        Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.RUN)),
+        Depends(action_logging()),
+    ],
+)
+def bulk_dag_runs(
+    request: BulkBody[BulkDAGRunBody],
+    session: SessionDep,
+    dag_id: str,
+    user: GetUserDep,
+) -> BulkResponse:
+    """Bulk delete Dag Runs."""
+    return BulkDagRunService(session=session, request=request, dag_id=dag_id, user=user).handle_request()
 
 
 @dag_run_router.get(

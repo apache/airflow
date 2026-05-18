@@ -50,6 +50,13 @@ class DAGRunPatchBody(StrictBaseModel):
     note: str | None = Field(None, max_length=1000)
 
 
+class BulkDAGRunBody(StrictBaseModel):
+    """Request body for bulk delete operations on Dag Runs."""
+
+    dag_run_id: str
+    dag_id: str | None = None
+
+
 class DAGRunClearBody(StrictBaseModel):
     """Dag Run serializer for clear endpoint body."""
 
