@@ -654,8 +654,7 @@ class AutocommitEngineForMySQL:
     """
 
     def __init__(self):
-        conn_str = settings.get_sql_alchemy_conn()
-        self.is_mysql = conn_str and conn_str.lower().startswith("mysql")
+        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
         self.original_prepare_engine_args = None
 
     def __enter__(self):
@@ -880,7 +879,7 @@ def _get_alembic_config():
     else:
         config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
-    config.set_main_option("sqlalchemy.url", settings.get_sql_alchemy_conn().replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
     return config
 
 
@@ -1245,6 +1244,9 @@ def upgradedb(
     if from_revision and not show_sql_only:
         raise AirflowException("`from_revision` only supported with `sql_only=True`.")
 
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
+
     from alembic import command
 
     import_all_models()
@@ -1380,6 +1382,9 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             "applying a downgrade (instead of just generating sql), we always "
             "downgrade from current revision."
         )
+
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set.")
 
     # alembic adds significant import time, so we import it lazily
     from alembic import command

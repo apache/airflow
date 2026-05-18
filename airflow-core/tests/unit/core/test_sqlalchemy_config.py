@@ -38,8 +38,8 @@ class TestSqlAlchemySettings:
         try:
             with pytest.MonkeyPatch.context() as mp:
                 mp.setattr(
-                    settings._AirflowSettings,
-                    "sql_alchemy_conn",
+                    settings,
+                    "SQL_ALCHEMY_CONN",
                     "mysql+foobar://user:pass@host/dbname?inline=param&another=param",
                 )
                 yield
@@ -56,7 +56,7 @@ class TestSqlAlchemySettings:
         settings.configure_orm()
         expected_kwargs = dict(
             connect_args={}
-            if not settings.get_sql_alchemy_conn().startswith("sqlite")
+            if not settings.SQL_ALCHEMY_CONN.startswith("sqlite")
             else {"check_same_thread": False},
             max_overflow=10,
             pool_pre_ping=True,
@@ -66,7 +66,7 @@ class TestSqlAlchemySettings:
             future=True,
         )
         mock_create_engine.assert_called_once_with(
-            settings.get_sql_alchemy_conn(),
+            settings.SQL_ALCHEMY_CONN,
             **expected_kwargs,
         )
 
@@ -83,7 +83,7 @@ class TestSqlAlchemySettings:
         monkeypatch,
     ):
         """SQLAlchemy 2.0+ uses QueuePool for file-based SQLite, so pool settings should be applied."""
-        monkeypatch.setattr(settings._AirflowSettings, "sql_alchemy_conn", "sqlite:////tmp/airflow.db")
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", "sqlite:////tmp/airflow.db")
         settings.configure_orm()
         expected_kwargs = dict(
             connect_args={"check_same_thread": False},
@@ -114,7 +114,7 @@ class TestSqlAlchemySettings:
     )
     def test_prepare_engine_args_sqlite_in_memory_skips_pool_settings(self, conn_str, monkeypatch):
         """In-memory SQLite uses SingletonThreadPool which doesn't support pool_size/max_overflow."""
-        monkeypatch.setattr(settings._AirflowSettings, "sql_alchemy_conn", conn_str)
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", conn_str)
         engine_args = settings.prepare_engine_args()
         assert "pool_size" not in engine_args
         assert "max_overflow" not in engine_args
@@ -139,7 +139,7 @@ class TestSqlAlchemySettings:
         with conf_vars(config):
             settings.configure_orm()
             engine_args = {"arg": 1}
-            if settings.get_sql_alchemy_conn().startswith("mysql"):
+            if settings.SQL_ALCHEMY_CONN.startswith("mysql"):
                 engine_args["isolation_level"] = "READ COMMITTED"
             expected_kwargs = dict(
                 connect_args=SQL_ALCHEMY_CONNECT_ARGS,
@@ -148,7 +148,7 @@ class TestSqlAlchemySettings:
                 **engine_args,
             )
             mock_create_engine.assert_called_once_with(
-                settings.get_sql_alchemy_conn(),
+                settings.SQL_ALCHEMY_CONN,
                 **expected_kwargs,
             )
 
