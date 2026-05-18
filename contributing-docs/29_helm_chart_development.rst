@@ -134,8 +134,9 @@ component is already in its target home.
    * - Jobs (Kubernetes-executor-specific)
      - Chart
      - Jobs that are specific to the Kubernetes executor live under the
-       kubernetes section. Jobs that are independent of the executor choice
-       (for example, the CreateUser job) remain top-level.
+       kubernetes section. Jobs scoped to a specific auth manager live under
+       that auth manager's section (for example, the CreateUser job belongs
+       under the fab section).
    * - OpenTelemetry
      - Chart
      - OTel is the designated primary telemetry path and is to be supported by the chart.
