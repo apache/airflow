@@ -6843,10 +6843,6 @@ export const $TaskStateEntry = {
             format: 'date-time',
             title: 'Updated At'
         },
-        updated_by_run: {
-            type: 'string',
-            title: 'Updated By Run'
-        },
         expires_at: {
             anyOf: [
                 {
@@ -6861,7 +6857,7 @@ export const $TaskStateEntry = {
         }
     },
     type: 'object',
-    required: ['key', 'value', 'updated_at', 'updated_by_run', 'expires_at'],
+    required: ['key', 'value', 'updated_at', 'expires_at'],
     title: 'TaskStateEntry',
     description: 'A single task state key/value pair with metadata.'
 } as const;

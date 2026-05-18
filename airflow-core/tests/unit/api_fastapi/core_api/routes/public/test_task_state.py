@@ -103,9 +103,7 @@ class TestListTaskState(TestTaskStateEndpoint):
         response = test_client.get(BASE_URL)
         item = response.json()["task_states"][0]
         assert "updated_at" in item
-        assert "updated_by_run" in item
         assert "expires_at" in item
-        assert item["updated_by_run"] == RUN_ID
 
     def test_map_index_isolation(self, test_client):
         """map_index=-1 (default) doesn't return rows for other map indices."""
@@ -138,7 +136,6 @@ class TestGetTaskState(TestTaskStateEndpoint):
         data = response.json()
         assert data["key"] == "job_id"
         assert data["value"] == "spark_001"
-        assert data["updated_by_run"] == RUN_ID
 
     def test_missing_key_returns_404(self, test_client):
         response = test_client.get(f"{BASE_URL}/nonexistent")

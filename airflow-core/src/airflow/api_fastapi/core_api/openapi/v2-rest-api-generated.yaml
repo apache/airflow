@@ -15545,9 +15545,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-        updated_by_run:
-          type: string
-          title: Updated By Run
         expires_at:
           anyOf:
           - type: string
@@ -15559,7 +15556,6 @@ components:
       - key
       - value
       - updated_at
-      - updated_by_run
       - expires_at
       title: TaskStateEntry
       description: A single task state key/value pair with metadata.

@@ -946,7 +946,6 @@ class TaskStateEntry(BaseModel):
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str, Field(title="Value")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
-    updated_by_run: Annotated[str, Field(title="Updated By Run")]
     expires_at: Annotated[datetime | None, Field(title="Expires At")] = None
 
 

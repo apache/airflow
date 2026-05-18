@@ -27,7 +27,6 @@ class TaskStateEntry(BaseModel):
     key: str
     value: str
     updated_at: datetime
-    updated_by_run: str
     expires_at: datetime | None
 
 

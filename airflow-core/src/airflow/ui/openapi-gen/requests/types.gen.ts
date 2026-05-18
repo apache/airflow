@@ -1677,7 +1677,6 @@ export type TaskStateEntry = {
     key: string;
     value: string;
     updated_at: string;
-    updated_by_run: string;
     expires_at: string | null;
 };
 

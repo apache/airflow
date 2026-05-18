@@ -62,7 +62,6 @@ def list_task_state(
         select(
             TaskStateModel.key,
             TaskStateModel.value,
-            TaskStateModel.run_id,
             TaskStateModel.updated_at,
             TaskStateModel.expires_at,
         ).where(
@@ -73,13 +72,7 @@ def list_task_state(
         )
     ).all()
     entries = [
-        TaskStateEntry(
-            key=r.key,
-            value=r.value,
-            updated_at=r.updated_at,
-            updated_by_run=r.run_id,
-            expires_at=r.expires_at,
-        )
+        TaskStateEntry(key=r.key, value=r.value, updated_at=r.updated_at, expires_at=r.expires_at)
         for r in rows
     ]
     return TaskStateCollectionResponse(task_states=entries, total_entries=len(entries))
@@ -103,7 +96,6 @@ def get_task_state(
         select(
             TaskStateModel.key,
             TaskStateModel.value,
-            TaskStateModel.run_id,
             TaskStateModel.updated_at,
             TaskStateModel.expires_at,
         ).where(
@@ -119,13 +111,7 @@ def get_task_state(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Task state key {key!r} not found"},
         )
-    return TaskStateEntry(
-        key=row.key,
-        value=row.value,
-        updated_at=row.updated_at,
-        updated_by_run=row.run_id,
-        expires_at=row.expires_at,
-    )
+    return TaskStateEntry(key=row.key, value=row.value, updated_at=row.updated_at, expires_at=row.expires_at)
 
 
 @task_state_router.put(
