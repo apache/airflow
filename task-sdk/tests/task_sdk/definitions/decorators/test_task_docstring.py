@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import pendulum
-import pytest
 
 from airflow.sdk import dag, task
 
@@ -146,7 +145,7 @@ def test_task_docstring_dedent_simple():
     def pipeline():
         @task
         def my_task():
-            """  My task description.  """
+            """My task description."""
 
         return my_task()
 
