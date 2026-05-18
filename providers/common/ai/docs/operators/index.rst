@@ -46,6 +46,9 @@ to pick the one that fits your use case:
    * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - ``@task.agent``
+   * - Parse files (PDF, DOCX, CSV, etc.) into document dicts for embedding
+     - :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
+     - *(no decorator)*
 
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
 summarization, extraction, or any prompt that produces one response. Supports structured output
