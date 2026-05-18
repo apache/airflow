@@ -1535,6 +1535,7 @@ apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
+sphinx-airflow-theme = false
 # End of automatically generated exclude-newer-package entries
 
 # Manual overrides (kept outside the auto-generated block above so the
@@ -1678,6 +1679,7 @@ apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
+sphinx-airflow-theme = false
 # End of automatically generated exclude-newer-package-pip entries
 
 # Manual overrides — see the matching block under
@@ -1718,6 +1720,7 @@ apache-airflow-shared-serialization = { workspace = true }
 apache-airflow-shared-state = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
+sphinx-airflow-theme = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-akeyless = { workspace = true }
@@ -1842,6 +1845,7 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
+    "docs-theme",
     "shared/configuration",
     "shared/dagnode",
     "shared/listeners",

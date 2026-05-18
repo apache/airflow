@@ -1,0 +1,57 @@
+
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+<div class="toctree" role="navigation" aria-label="main navigation">
+    {{ toctree(includehidden=theme_sidebar_includehidden, collapse=theme_sidebar_collapse) }}
+</div>
+
+<!-- Toctree layout styles — colors are handled by the SCSS system (_roadmap.scss)
+     to support dark mode. Only layout/structure rules remain here. -->
+<style type="text/css">
+    .toctree li {
+        list-style: none;
+    }
+    .toctree > ul {
+        padding-left: 0;
+    }
+    .toctree ul {
+        padding-left: 15px;
+        display: none;
+    }
+    .toctree > ul,
+    .toctree li.current > ul {
+        display: block;
+    }
+    .toctree a .toctree-expand {
+        display: inline-block;
+        position: relative;
+        height: 1em;
+    }
+    .toctree a .toctree-expand:before {
+        position: absolute;
+        top: 6px;
+        left: -12px;
+        content: '►';
+        font-size: 7px;
+    }
+    .toctree .current > a > .toctree-expand:before {
+        content: '▼';
+    }
+</style>

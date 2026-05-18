@@ -104,6 +104,11 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: ${{ inputs.use-local-venv == 'true' }}
+      # `_gen/` is gitignored and bind-mounted from host into the container, so
+      # baking it into the image is masked at runtime. Fetch on host instead.
+      - name: "Fetch sphinx-airflow-theme static assets"
+        shell: bash
+        run: python scripts/ci/fetch_theme_assets.py
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
         if: ${{ matrix.python-version == inputs.default-python-version }}

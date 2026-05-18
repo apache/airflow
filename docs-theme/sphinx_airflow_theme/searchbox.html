@@ -1,0 +1,47 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+<div class="searchb-box">
+    <form class="search-form" action="{{ pathto('search') }}" method="get">
+        <input class="search-form__input" type="text" name="q" placeholder="{{ _('Search docs') }}" size="16">
+        <input type="hidden" name="check_keywords" value="yes" />
+        <input type="hidden" name="area" value="default" />
+
+        <button class="search-form__button" type="submit">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+                <g id="Group_1579" data-name="Group 1579" transform="translate(-41.001 -41)">
+                    <path id="Path_169" d="M71.415 64.687a7.215 7.215 0 1 0-6.729 6.728 7.222 7.222 0 0 0 6.729-6.728z" fill="none" data-name="Path 169" transform="translate(-14.277 -14.276)"></path>
+                    <path id="Path_170" d="M60.863 59.8l-6.093-6.09a7.78 7.78 0 1 0-1.06 1.06l6.09 6.093a.468.468 0 0 0 .662 0l.4-.4a.468.468 0 0 0 .001-.663zM42.512 49.183a6.274 6.274 0 1 1 5.851 5.85 6.28 6.28 0 0 1-5.851-5.85z" fill="#51504f" data-name="Path 170"></path>
+                </g>
+            </svg>
+        </button>
+    </form>
+</div>
+
+
+<style>
+    .searchb-box {
+        margin-bottom: 26px;
+    }
+    .searchb-box .search-form {
+        width: 100%;
+        margin-top: 20px;
+    }
+</style>

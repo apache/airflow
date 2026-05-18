@@ -1,0 +1,180 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+<style>
+/* Footer icon hover: reveal each SVG's original colors on hover by removing
+     grayscale and increasing opacity. This keeps original brand colors embedded
+     inside the SVGs and avoids forcing a single accent color. */
+.footer-section__media-section--link {
+    display: inline-block;
+}
+.footer-section__media-section--link svg,
+.footer-section__media-section--link img {
+    filter: grayscale(1);
+    opacity: 0.6;
+    transition: filter 0.18s ease, opacity 0.18s ease;
+}
+.footer-section__media-section--link:hover svg,
+.footer-section__media-section--link:hover img {
+    filter: none;
+    opacity: 1;
+}
+</style>
+
+<footer>
+    <div class="footer-section footer-section__media-section">
+        <div class="d-flex align-items-center">
+
+            <a class="footer-section__media-section--link icon-github" target="_blank" href="https://github.com/apache/airflow">
+                <svg xmlns="http://www.w3.org/2000/svg" width="46.14" height="45" viewBox="0 0 46.14 45">
+                    <path id="Path_207" d="M228.962 1078.578a23.072 23.072 0 0 0-7.29 44.96c1.154.212 1.574-.5 1.574-1.112 0-.548-.02-2-.031-3.924-6.417 1.394-7.771-3.093-7.771-3.093a6.109 6.109 0 0 0-2.562-3.375c-2.095-1.431.159-1.4.159-1.4a4.846 4.846 0 0 1 3.533 2.377c2.058 3.525 5.4 2.507 6.714 1.917a4.926 4.926 0 0 1 1.464-3.084c-5.123-.582-10.508-2.562-10.508-11.4a8.919 8.919 0 0 1 2.374-6.191 8.3 8.3 0 0 1 .226-6.105s1.937-.62 6.344 2.365a21.857 21.857 0 0 1 11.551 0c4.4-2.985 6.338-2.365 6.338-2.365a8.284 8.284 0 0 1 .23 6.105 8.9 8.9 0 0 1 2.371 6.191c0 8.862-5.393 10.812-10.533 11.384a5.506 5.506 0 0 1 1.566 4.272c0 3.084-.028 5.572-.028 6.329 0 .617.415 1.334 1.586 1.109a23.073 23.073 0 0 0-7.308-44.958z" fill="#fff" fill-rule="evenodd" data-name="Path 207" transform="translate(-205.894 -1078.578)"></path>
+                </svg>
+
+            </a>
+
+            <a class="footer-section__media-section--link icon-github-issues" target="_blank" href="https://github.com/apache/airflow/issues">
+                <svg xmlns="http://www.w3.org/2000/svg" width="45" height="45" viewBox="0 0 45 45">
+                    <g id="Group_210" data-name="Group 210" transform="translate(-339.789 -1315.282)">
+                        <path id="Path_218" d="M394.82 1315.282h-21.671a9.784 9.784 0 0 0 9.784 9.778h3.986v3.857a9.784 9.784 0 0 0 9.784 9.771v-21.523a1.884 1.884 0 0 0-1.883-1.883z" fill="#fff" data-name="Path 218" transform="translate(-11.914)"></path>
+                        <path id="Path_219" d="M378.14 1332.072h-21.671a9.778 9.778 0 0 0 9.778 9.778h4.018v3.857a9.784 9.784 0 0 0 9.752 9.778v-21.536a1.877 1.877 0 0 0-1.877-1.877z" fill="#fff" data-name="Path 219" transform="translate(-5.957 -5.996)"></path>
+                        <path id="Path_220" d="M361.46 1348.862h-21.671a9.778 9.778 0 0 0 9.778 9.778h3.992v3.857a9.778 9.778 0 0 0 9.778 9.778v-21.529a1.883 1.883 0 0 0-1.877-1.884z" fill="#fff" data-name="Path 220" transform="translate(0 -11.993)"></path>
+
+<style>
+/* Per-icon brand color overrides on hover. Use !important to override inline fills. */
+.icon-github:hover svg path,
+.icon-github:hover svg circle { fill: #24292e !important; }
+.icon-github-issues:hover svg path,
+.icon-github-issues:hover svg circle { fill: #24292e !important; }
+.icon-twitter:hover svg path,
+.icon-twitter:hover svg circle { fill: #1DA1F2 !important; }
+.icon-slack:hover svg path,
+.icon-slack:hover svg circle { fill: #4A154B !important; }
+.icon-youtube:hover svg path,
+.icon-youtube:hover svg circle { fill: #FF0000 !important; }
+.icon-stackoverflow:hover svg path,
+.icon-stackoverflow:hover svg circle { fill: #F48024 !important; }
+.icon-linkedin:hover svg path,
+.icon-linkedin:hover svg circle { fill: #0A66C2 !important; }
+.icon-facebook:hover svg path,
+.icon-facebook:hover svg circle { fill: #1877F2 !important; }
+</style>
+                    </g>
+                </svg>
+
+            </a>
+
+            <a class="footer-section__media-section--link icon-slack" target="_blank" href="https://s.apache.org/airflow-slack">
+                <svg xmlns="http://www.w3.org/2000/svg" width="45.073" height="45.073" viewBox="0 0 45.073 45.073">
+                    <g id="Group_208" data-name="Group 208" transform="translate(-661.145 -806.287)">
+                        <g id="Group_204" data-name="Group 204" transform="translate(661.145 830.01)">
+                            <path id="Path_208" d="M670.634 856.859a4.744 4.744 0 1 1-4.744-4.744h4.744z" fill="#fff" data-name="Path 208" transform="translate(-661.145 -852.115)"></path>
+                            <path id="Path_209" d="M684.059 856.859a4.744 4.744 0 0 1 9.489 0v11.861a4.744 4.744 0 1 1-9.489 0z" fill="#fff" data-name="Path 209" transform="translate(-672.198 -852.115)"></path>
+                        </g>
+                        <g id="Group_205" data-name="Group 205" transform="translate(661.145 806.287)">
+                            <path id="Path_210" d="M688.8 815.776a4.744 4.744 0 1 1 4.744-4.745v4.745z" fill="#fff" data-name="Path 210" transform="translate(-672.198 -806.287)"></path>
+                            <path id="Path_211" d="M677.751 829.2a4.744 4.744 0 0 1 0 9.489H665.89a4.744 4.744 0 1 1 0-9.489z" fill="#fff" data-name="Path 211" transform="translate(-661.145 -817.34)"></path>
+                        </g>
+                        <g id="Group_206" data-name="Group 206" transform="translate(684.868 806.287)">
+                            <path id="Path_212" d="M729.887 833.945a4.744 4.744 0 1 1 4.745 4.745h-4.745z" fill="#fff" data-name="Path 212" transform="translate(-718.026 -817.34)"></path>
+                            <path id="Path_213" d="M716.462 822.893a4.744 4.744 0 1 1-9.489 0v-11.862a4.744 4.744 0 0 1 9.489 0z" fill="#fff" data-name="Path 213" transform="translate(-706.973 -806.287)"></path>
+                        </g>
+                        <g id="Group_207" data-name="Group 207" transform="translate(684.868 830.01)">
+                            <path id="Path_214" d="M711.718 875.029a4.744 4.744 0 1 1-4.745 4.744v-4.744z" fill="#fff" data-name="Path 214" transform="translate(-706.973 -863.168)"></path>
+                            <path id="Path_215" d="M711.718 861.6a4.744 4.744 0 1 1 0-9.489h11.861a4.744 4.744 0 0 1 0 9.489z" fill="#fff" data-name="Path 215" transform="translate(-706.973 -852.115)"></path>
+                        </g>
+                    </g>
+                </svg>
+
+            </a>
+
+            <a class="footer-section__media-section--link icon-stackoverflow" target="_blank" href="https://stackoverflow.com/questions/tagged/airflow">
+                <svg xmlns="http://www.w3.org/2000/svg" width="37.647" height="44.6" viewBox="0 0 37.647 44.6">
+                    <g id="Group_209" data-name="Group 209" transform="translate(-645.2 -975.455)">
+                        <path id="Path_216" d="M677.028 1043.1v-11.948h3.966v15.914H645.2v-15.914h3.966v11.948z" fill="#fff" data-name="Path 216" transform="translate(0 -27.014)"></path>
+                        <path id="Path_217" d="M661.012 1003.008l19.467 4.069.824-3.914-19.467-4.069zm2.575-9.27l18.025 8.395 1.648-3.605-18.025-8.446zm5-8.858l15.3 12.721 2.524-3.039-15.3-12.721zm9.888-9.425l-3.193 2.369 11.845 15.965 3.193-2.369zm-17.875 36.617h19.879v-3.966H660.6z" fill="#fff" data-name="Path 217" transform="translate(-7.469)"></path>
+                    </g>
+                </svg>
+
+            </a>
+
+            <a class="footer-section__media-section--link icon-youtube" target="_blank" href="https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA">
+                <svg xmlns="http://www.w3.org/2000/svg" width="49.594" height="34.941" viewBox="0 0 49.594 34.941">
+                    <path id="Path_223" d="M1124.557 1230a6.232 6.232 0 0 0-4.385-4.413c-3.867-1.043-19.376-1.043-19.376-1.043s-15.508 0-19.376 1.043a6.232 6.232 0 0 0-4.385 4.413c-1.036 3.893-1.036 12.014-1.036 12.014s0 8.122 1.036 12.015a6.232 6.232 0 0 0 4.385 4.413c3.867 1.043 19.376 1.043 19.376 1.043s15.509 0 19.376-1.043a6.232 6.232 0 0 0 4.385-4.413c1.036-3.893 1.036-12.015 1.036-12.015s.001-8.123-1.036-12.014zm-28.833 19.388v-14.748l12.962 7.374z" fill="#fff" data-name="Path 223" transform="translate(-1076 -1224.542)"></path>
+                </svg>
+
+            </a>
+
+        </div>
+        {% if theme_hide_website_buttons %}
+
+        <div class="footer-section__media-section--button-with-text">
+            <span class="footer-section__media-section--text">Want to be a part of Apache Airflow?</span>
+            <a href="/community">
+
+                <button id="" class="btn-filled bodytext__medium--white ">Join community</button>
+
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+    <div class="footer-section footer-section__policies-section">
+        <div class="footer-section">
+            <span>© The Apache Software Foundation <script>document.write(new Date().getFullYear())</script></span>
+            <div class="footer-section__policies-section--policies">
+
+                <a href="https://www.apache.org/licenses/" class="footer-section__policies-section--policy-item">
+                    <span>License</span>
+                </a>
+
+                <a href="https://www.apache.org/foundation/sponsorship.html" class="footer-section__policies-section--policy-item">
+                    <span>Donate</span>
+                </a>
+
+                <a href="https://events.apache.org/" class="footer-section__policies-section--policy-item">
+                    <span>Events</span>
+                </a>
+
+                <a href="https://www.apache.org/foundation/thanks.html" class="footer-section__policies-section--policy-item">
+                    <span>Thanks</span>
+                </a>
+
+                <a href="https://www.apache.org/security/" class="footer-section__policies-section--policy-item">
+                    <span>Security</span>
+                </a>
+
+                <a href="https://privacy.apache.org/policies/privacy-policy-public.html" class="footer-section__policies-section--policy-item">
+                    <span>Privacy</span>
+                </a>
+
+                <a href="https://airflow.apache.org/code-of-conduct/" class="footer-section__policies-section--policy-item">
+                    <span>Code of conduct</span>
+                </a>
+
+                {% if not theme_hide_website_buttons %}
+                {% endif %}
+
+            </div>
+        </div>
+        <span class="footer-section__policies-section--disclaimer">
+            Apache Airflow, Apache, Airflow, the Airflow logo, and the Apache logo are either registered trademarks or trademarks of The Apache Software Foundation.
+            All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
+        </span>
+    </div>
+</footer>

@@ -73,6 +73,7 @@
 !conf.py
 !docs
 !docker-stack-docs
+!docs-theme
 !providers-summary-docs
 
 # Avoid triggering context change on README change (new companies using Airflow)
