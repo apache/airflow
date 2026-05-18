@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+13.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to AzureContainerInstancesOperator (#62772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Azure Batch provider import error by capping azure-batch<15 (#66452)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adjust log message header for expandable sources (#66570)``
+
 13.2.0
 ......
 

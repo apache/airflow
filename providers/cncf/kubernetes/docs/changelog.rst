@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+10.17.1
+.......
+
 **Default xcom-sidecar image is now pinned to** ``alpine:3.23``.
 The default container image for the xcom sidecar (used by ``KubernetesPodOperator``
 when ``do_xcom_push=True``) has changed from the unpinned ``alpine`` (which resolves
@@ -40,6 +43,28 @@ Deployments that override the image via ``xcom_sidecar_container_image`` (or the
 that relied on the unpinned default will now be pinned to ``alpine:3.23`` until
 the next Airflow upgrade. Set ``xcom_sidecar_container_image`` explicitly if you
 need a different alpine version, a private mirror, or another base image.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable KPO trigger_reentry crash when pod is GC'd before re-entry (#66716)``
+* ``Fix: Add latency + status metrics around pod API calls (#66806)``
+* ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``
+* ``Re-defer task when Kubernetes pod is not completed (#66705)``
+* ``Fix KubernetesPodTrigger pod terminal state handling (#66650)``
+* ``Fix race condition in AsyncKubernetesHook corrupting global kubernetes_asyncio config (#65566)``
+* ``Respecting unwrap_single for non-deferrable execution (#66596)``
+* ``Fix kubernetes cleanup-pods ignoring --verbose (#65955)``
+* ``Preserve event resource version after empty sync polls (#66471)``
+* ``Fix SparkKubernetesOperator with deferrable=True falling through to KubernetesPodOperator.execute() creating a spurious pod (#66448)``
+* ``KubernetesExecutor: scope periodic completed-pod adoption to dead schedulers (#66400)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix hardcoded OS path in K8s provider (#67040)``
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``[main] CI: Upgrade important CI environment (#66600)``
+   * ``Pin Docker Hub test images against K8s system-test rate-limit flakes (#66423)``
 
 10.17.0
 .......

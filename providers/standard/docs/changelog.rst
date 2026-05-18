@@ -35,12 +35,29 @@
 Changelog
 ---------
 
+1.13.1
+......
+
 .. warning::
   The Airflow variable used by ``PythonVirtualenvOperator`` to override the virtualenv cache hash
   has been renamed from ``PythonVirtualenvOperator.cache_key`` to ``python_virtualenv_operator_cache_key``.
   The old name contained a dot which is incompatible with secrets backends that restrict allowed
   characters (e.g. Azure Key Vault). Cached virtual environments will be rebuilt once due to the
   changed hash input.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'None' Task ID state when matching states in 'ExternalTaskSensor' (#66881)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky FileTrigger/FileDeleteTrigger tests by awaiting the task (#66825)``
+   * ``Add doc_md to branch and short-circuit examples (#66691)``
+   * ``Docs: add doc_md and task docstrings to measurement correction example Dags (#66707)``
+   * ``Add doc_md to Python and LatestOnly example DAGs (#66670)``
+   * ``Examples: add measurement correction storyline DAGs (continuation of #61953) (#66257)``
+   * ``AIP-103: Wiring up task SDK comms and context accessors (#66160)``
 
 1.13.0
 ......

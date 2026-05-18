@@ -28,6 +28,22 @@
 Changelog
 ---------
 
+4.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add to list dbt Cloud job runs with support for filtering by status, ordering, and job_definition_id, and optionally returning only the most recent run via latest_only. Unit tests have been included. (#66150)``
+
+Misc
+~~~~
+
+* ``Refactor deferrable execution in DbtCloudRunJobOperator to align with PR #64051 patterns. Simplify trigger polling/control flow and propagate execution_timeout via defer. Add tests for best-effort cancellation semantics in execute_complete and on_kill. (#66449)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.8.2
 .....
 
