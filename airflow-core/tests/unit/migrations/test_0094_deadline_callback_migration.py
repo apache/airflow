@@ -112,7 +112,10 @@ class TestMigration0094NullCallbackRepair:
 
     def test_null_callback_does_not_crash(self):
         engine = _make_engine()
-        deadline_id = str(uuid.uuid4())
+        # `_upgrade_mysql_sqlite` declares ``id`` as ``sa.Uuid()``; on SQLite the
+        # write path emits the hex (no-dash) form. Insert IDs in that same form so
+        # the UPDATE in the migration loop matches the row we created.
+        deadline_id = uuid.uuid4().hex
         with engine.begin() as conn:
             _insert_dagrun(conn)
             _insert_deadline(conn, deadline_id, callback=None)
@@ -139,8 +142,8 @@ class TestMigration0094NullCallbackRepair:
     def test_mixed_null_and_valid_callbacks(self):
         """A batch with both NULL and well-formed rows must migrate both."""
         engine = _make_engine()
-        null_id = str(uuid.uuid4())
-        valid_id = str(uuid.uuid4())
+        null_id = uuid.uuid4().hex
+        valid_id = uuid.uuid4().hex
         valid_callback = json.dumps(
             {
                 "__data__": {"path": "mymodule.cb", "kwargs": {"k": "v"}},
