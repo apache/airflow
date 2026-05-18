@@ -52,6 +52,11 @@ class GitDagBundle(BaseDagBundle):
         to share the object directory via hard links, but if you have a lot of current versions
         running, or an especially large git repo leaving this as True will save some disk space
         at the expense of `git` operations not working in the bundle that Tasks run from.
+    :param sparse_dirs: List of directories to include when cloning the repository. Needs git version 2.25 or higher.
+
+        The sparse checkout will only produce the files and subfolders of the list of provided directories
+        into the working tree. The "cone" mode is used, which means that effective and fast filtering can be made.
+        See https://git-scm.com/docs/git-sparse-checkout for more information on the sparse checkout feature.
     """
 
     supports_versioning = True
@@ -65,6 +70,7 @@ class GitDagBundle(BaseDagBundle):
         repo_url: str | None = None,
         submodules: bool = False,
         prune_dotgit_folder: bool = True,
+        sparse_dirs: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,7 +84,7 @@ class GitDagBundle(BaseDagBundle):
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
         self.submodules = submodules
-
+        self.sparse_dirs = sparse_dirs
         # Force prune to False if submodules are used, otherwise git links break
         if self.submodules:
             self.prune_dotgit_folder = False
@@ -93,6 +99,7 @@ class GitDagBundle(BaseDagBundle):
             versions_path=self.versions_dir,
             git_conn_id=self.git_conn_id,
             submodules=self.submodules,
+            sparse_dirs=self.sparse_dirs,
         )
 
         self._log.debug("bundle configured")
@@ -247,7 +254,14 @@ class GitDagBundle(BaseDagBundle):
                 Repo.clone_from(
                     url=self.bare_repo_path,
                     to_path=self.repo_path,
+                    multi_options=["--sparse", "--no-checkout"] if self.sparse_dirs else None,
                 )
+                if self.sparse_dirs:
+                    self._log.info("Setting up sparse checkout")
+                    repo = Repo(self.repo_path)
+                    repo.git.sparse_checkout("init", "--cone")
+                    repo.git.sparse_checkout("set", *self.sparse_dirs)
+                    repo.git.checkout(self.tracking_ref)
             else:
                 self._log.debug("repo exists", repo_path=self.repo_path)
             self.repo = Repo(self.repo_path)

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link, Text } from "@chakra-ui/react";
+import { Flex, HStack, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -36,6 +36,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
@@ -73,11 +74,9 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
         {
           accessorKey: "dag_display_name",
           cell: ({ row: { original } }: DagRunRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink to={`/dags/${original.dag_id}`}>
+              <TruncatedText text={original.dag_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("dagId"),
@@ -86,22 +85,18 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
   {
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }: DagRunRow) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
-          <TruncatedText text={original.dag_run_id} />
-        </RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+        <TruncatedText text={original.dag_run_id} />
+      </RouterLink>
     ),
     header: translate("dagRunId"),
   },
   {
     accessorKey: "run_after",
     cell: ({ row: { original } }: DagRunRow) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
-          <Time datetime={original.run_after} />
-        </RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+        <Time datetime={original.run_after} />
+      </RouterLink>
     ),
     header: translate("dagRun.runAfter"),
   },

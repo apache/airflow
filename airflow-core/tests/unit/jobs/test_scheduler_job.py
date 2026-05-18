@@ -37,6 +37,7 @@ import psutil
 import pytest
 import time_machine
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -818,6 +819,65 @@ class TestSchedulerJob:
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_process_executor_events_stale_success_when_scheduled_after_defer(
+        self, mock_get_backend, mock_task_callback, dag_maker
+    ):
+        """
+        Trigger moved TI to scheduled (resume after defer) before executor success from defer exit arrived.
+
+        Regression for https://github.com/apache/airflow/issues/66374 — must not treat as state mismatch.
+        """
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        dag_id = "test_process_executor_events_stale_success_scheduled_after_defer"
+        task_id_1 = "dummy_task"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task1 = EmptyOperator(task_id=task_id_1)
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti1.state = State.SCHEDULED
+        ti1.next_method = "execute_callback"
+        ti1.queued_by_job_id = scheduler_job.id
+        ti1.try_number = 1
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.has_task = mock.MagicMock(return_value=False)
+        mock_stats.incr.reset_mock()
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.SCHEDULED
+        self.job_runner.executor.callback_sink.send.assert_not_called()
+        mock_stats.incr.assert_not_called()
+
+        # Without next_method, scheduled + stale success is still a mismatch (e.g. external kill).
+        ti1.next_method = None
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        mock_stats.incr.reset_mock()
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        mock_stats.incr.assert_any_call(
+            "scheduler.tasks.killed_externally",
+            tags={"dag_id": dag_id, "task_id": ti1.task_id},
+        )
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events_multiple_try_numbers_warns(
         self, mock_get_backend, mock_task_callback, dag_maker, caplog
     ):
@@ -1247,6 +1307,34 @@ class TestSchedulerJob:
         assert len(queued_tis) == 2
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
+
+    def test_find_executable_task_instances_mysql_hint_only_applies_to_inner_query(self, dag_maker, session):
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_mysql_hint_only_applies_to_inner_query"
+        task_id = "dummy"
+        with dag_maker(dag_id=dag_id, max_active_tasks=16):
+            task = EmptyOperator(task_id=task_id)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dag_run.get_task_instance(task.task_id)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.flush()
+
+        captured_queries = []
+
+        def capture_locked_query(query, **kwargs):
+            captured_queries.append(query)
+            return query
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=capture_locked_query):
+            queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert {queued_ti.key for queued_ti in queued_tis} == {ti.key}
+        compiled_query = str(captured_queries[0].compile(dialect=mysql.dialect()))
+        assert compiled_query.count("USE INDEX (ti_state)") == 1
 
     def test_find_executable_task_instances_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_pool"
@@ -3743,7 +3831,7 @@ class TestSchedulerJob:
 
         dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
         # check that next_dagrun is dr.logical_date
-        dag_maker.dag_model.next_dagrun == dr.logical_date
+        assert dag_maker.dag_model.next_dagrun == dr.logical_date
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
@@ -4600,7 +4688,7 @@ class TestSchedulerJob:
         dr = drs[0]
 
         self.job_runner._schedule_dag_run(dag_run=dr, session=session)
-        len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 1
+        assert len(self.job_runner.scheduler_dag_bag.get_dag_for_run(dr, session).tasks) == 1
         dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dr.dag_versions[-1].id == dag_version_1.id
 
@@ -5799,7 +5887,7 @@ class TestSchedulerJob:
         dag_models = query.all()
         self.job_runner._create_dag_runs(dag_models, session)
         dr = session.scalars(select(DagRun)).one()
-        dr.state == DagRunState.QUEUED
+        assert dr.state == DagRunState.QUEUED
         assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         assert dag_maker.dag_model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=2)
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)

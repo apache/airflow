@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
@@ -32,6 +31,7 @@ import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TogglePause } from "src/components/TogglePause";
+import { RouterLink } from "src/components/ui";
 
 import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
@@ -93,17 +93,15 @@ export const Header = ({
       label: translate("dagDetails.latestRun"),
       value:
         Boolean(latestRunInfo) && latestRunInfo !== undefined ? (
-          <Link asChild color="fg.info">
-            <RouterLink to={`/dags/${latestRunInfo.dag_id}/runs/${latestRunInfo.run_id}`}>
-              <DagRunInfo
-                endDate={latestRunInfo.end_date}
-                logicalDate={latestRunInfo.logical_date}
-                runAfter={latestRunInfo.run_after}
-                startDate={latestRunInfo.start_date}
-                state={latestRunInfo.state}
-              />
-            </RouterLink>
-          </Link>
+          <RouterLink to={`/dags/${latestRunInfo.dag_id}/runs/${latestRunInfo.run_id}`}>
+            <DagRunInfo
+              endDate={latestRunInfo.end_date}
+              logicalDate={latestRunInfo.logical_date}
+              runAfter={latestRunInfo.run_after}
+              startDate={latestRunInfo.start_date}
+              state={latestRunInfo.state}
+            />
+          </RouterLink>
         ) : undefined,
     },
     ...nextRunStat,

@@ -18,9 +18,9 @@
  */
 import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 
 import { LimitedItemsList } from "src/components/LimitedItemsList";
+import { RouterLink } from "src/components/ui";
 import { getSafeExternalUrl } from "src/utils/links";
 
 const DEFAULT_OWNERS: Array<string> = [];
@@ -52,9 +52,9 @@ export const DagOwners = ({
         {owner}
       </Link>
     ) : (
-      <Link asChild color="fg.info" key={owner}>
-        <RouterLink to={ownerFilterLink}>{owner}</RouterLink>
-      </Link>
+      <RouterLink key={owner} to={ownerFilterLink}>
+        {owner}
+      </RouterLink>
     );
   });
 

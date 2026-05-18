@@ -175,7 +175,7 @@
             "value": { "$ref": "#/definitions/dict" }
           }
         },
-        "catchup": { "type": "boolean", "default": false },
+        "catchup": { "type": "boolean" },
         "allowed_run_types": {
           "anyOf": [
             { "type": "array", "items": { "type": "string" } },
@@ -204,9 +204,9 @@
             ]
         },
         "_concurrency": { "type" : "number"},
-        "max_active_tasks": { "type" : "number", "default": 16},
-        "max_active_runs": { "type" : "number", "default": 16},
-        "max_consecutive_failed_dag_runs": { "type" : "number", "default": 0},
+        "max_active_tasks": { "type" : "number" },
+        "max_active_runs": { "type" : "number" },
+        "max_consecutive_failed_dag_runs": { "type" : "number" },
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -224,7 +224,7 @@
         ]},
         "edge_info": { "$ref": "#/definitions/edge_info" },
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
-        "disable_bundle_versioning": {"type":  "boolean", "default": false }
+        "disable_bundle_versioning": {"type":  "boolean" }
       },
       "required": [
         "dag_id",
