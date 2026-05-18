@@ -32,6 +32,7 @@ WASB_CONN_ID = "wasb_dags_connection"
 CONTAINER_NAME = "my-airflow-dags-container"
 CONTAINER_PREFIX = "project1/dags"
 ACCOUNT_NAME = "myaccount"
+ACCOUNT_URL = f"https://{ACCOUNT_NAME}.blob.core.windows.net"
 
 
 @pytest.fixture(autouse=True)
@@ -58,7 +59,7 @@ class TestWasbDagBundle:
     )
     def test_view_url_generates_blob_url(self, mock_wasb_hook_property):
         mock_hook = MagicMock()
-        mock_hook.blob_service_client.account_name = ACCOUNT_NAME
+        mock_hook.blob_service_client.url = ACCOUNT_URL
         mock_wasb_hook_property.return_value = mock_hook
 
         bundle = WasbDagBundle(
@@ -68,14 +69,14 @@ class TestWasbDagBundle:
             container_name=CONTAINER_NAME,
         )
         url: str = bundle.view_url()
-        assert url == f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER_NAME}/{CONTAINER_PREFIX}"
+        assert url == f"{ACCOUNT_URL}/{CONTAINER_NAME}/{CONTAINER_PREFIX}"
 
     @patch(
         "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle.wasb_hook", new_callable=PropertyMock
     )
     def test_view_url_template_generates_blob_url(self, mock_wasb_hook_property):
         mock_hook = MagicMock()
-        mock_hook.blob_service_client.account_name = ACCOUNT_NAME
+        mock_hook.blob_service_client.url = ACCOUNT_URL
         mock_wasb_hook_property.return_value = mock_hook
 
         bundle = WasbDagBundle(
@@ -85,7 +86,7 @@ class TestWasbDagBundle:
             container_name=CONTAINER_NAME,
         )
         url: str = bundle.view_url_template()
-        assert url == f"https://{ACCOUNT_NAME}.blob.core.windows.net/{CONTAINER_NAME}/{CONTAINER_PREFIX}"
+        assert url == f"{ACCOUNT_URL}/{CONTAINER_NAME}/{CONTAINER_PREFIX}"
 
     def test_supports_versioning(self):
         bundle = WasbDagBundle(
