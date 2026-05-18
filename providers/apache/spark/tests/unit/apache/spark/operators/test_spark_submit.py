@@ -321,6 +321,7 @@ class TestSparkSubmitOperator:
             openlineage_inject_transport_info=True,
             **self._config,
         )
+        mock_get_hook.return_value._should_track_driver_status = False
         operator.execute(MagicMock())
 
         assert operator.conf == {
@@ -387,6 +388,7 @@ class TestSparkSubmitOperator:
             openlineage_inject_transport_info=True,
             **self._config,
         )
+        mock_get_hook.return_value._should_track_driver_status = False
         operator.execute({"ti": mock_ti})
 
         assert operator.conf == {
@@ -425,6 +427,7 @@ class TestSparkSubmitOperator:
             CompositeConfig.from_dict({"transports": {"test1": {"type": "console"}}})
         )
 
+        mock_get_hook.return_value._should_track_driver_status = False
         with caplog.at_level(logging.INFO):
             operator = SparkSubmitOperator(
                 task_id="spark_submit_job",
@@ -456,6 +459,7 @@ class TestSparkSubmitOperator:
             config=ConsoleConfig()
         )
 
+        mock_get_hook.return_value._should_track_driver_status = False
         with caplog.at_level(logging.INFO):
             operator = SparkSubmitOperator(
                 task_id="spark_submit_job",
@@ -474,3 +478,129 @@ class TestSparkSubmitOperator:
         assert operator.conf == {
             "parquet.compression": "SNAPPY",
         }
+
+
+class FakeTaskState:
+    """In-memory task state for tests."""
+
+    def __init__(self, stored: dict[str, str] | None = None):
+        self._store: dict[str, str] = dict(stored or {})
+
+    def get(self, key: str) -> str | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: str) -> None:
+        self._store[key] = value
+
+
+class TestSparkSubmitOperatorResumable:
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_resumable_dag", schedule=None, default_args=args)
+
+    def _make_operator(self, **kwargs):
+        return SparkSubmitOperator(task_id="test", dag=self.dag, application="test.jar", **kwargs)
+
+    def _make_hook(self, should_track=False, is_yarn=False, is_kubernetes=False):
+        hook = MagicMock()
+        hook._should_track_driver_status = should_track
+        hook._is_yarn = is_yarn
+        hook._is_kubernetes = is_kubernetes
+        hook._connection = {"master": "spark://localhost:7077"}
+        return hook
+
+    def test_non_cluster_mode_calls_hook_submit_directly(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=False)
+
+        operator.execute(context={})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+
+    def test_cluster_mode_first_run_persists_id_before_polling(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-001"
+
+        task_state = FakeTaskState()
+        persisted_before_poll = []
+
+        def track_poll(external_id, context):
+            persisted_before_poll.append(task_state.get("spark_job_id"))
+
+        operator.poll_until_complete = track_poll
+
+        operator.execute(context={"task_state": task_state})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+        assert persisted_before_poll == ["driver-001"]
+
+    @pytest.mark.parametrize(
+        ("prior_status", "expect_submit", "expect_poll_id"),
+        [
+            ("RUNNING", False, "driver-001"),
+            ("SUBMITTED", False, "driver-001"),
+            ("FINISHED", False, None),
+            ("FAILED", True, "driver-new"),
+            ("KILLED", True, "driver-new"),
+        ],
+    )
+    def test_retry_behaviour_based_on_prior_driver_status(self, prior_status, expect_submit, expect_poll_id):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-new"
+        task_state = FakeTaskState({"spark_job_id": "driver-001"})
+
+        operator.get_job_status = lambda external_id: prior_status
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_state": task_state})
+
+        if expect_submit:
+            operator._hook.submit.assert_called_once_with("test.jar")
+        else:
+            operator._hook.submit.assert_not_called()
+
+        if expect_poll_id:
+            assert polled == [expect_poll_id]
+        else:
+            assert polled == []
+
+    def test_no_task_state_always_submits_fresh(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        operator._hook.submit.return_value = "driver-001"
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        # no task_state key in context
+        operator.execute(context={})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+        assert polled == ["driver-001"]
+
+    @pytest.mark.parametrize(
+        ("is_yarn", "is_kubernetes", "status", "expected_active", "expected_succeeded"),
+        [
+            (False, False, "RUNNING", True, False),
+            (False, False, "SUBMITTED", True, False),
+            (False, False, "FINISHED", False, True),
+            (False, False, "FAILED", False, False),
+            (True, False, "RUNNING", True, False),
+            (True, False, "ACCEPTED", True, False),
+            (True, False, "NEW", True, False),
+            (True, False, "FINISHED", False, True),
+            (True, False, "FAILED", False, False),
+            (False, True, "Running", True, False),
+            (False, True, "Pending", True, False),
+            (False, True, "Succeeded", False, True),
+            (False, True, "Failed", False, False),
+        ],
+    )
+    def test_job_status_mappings(self, is_yarn, is_kubernetes, status, expected_active, expected_succeeded):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn=is_yarn, is_kubernetes=is_kubernetes)
+
+        assert operator.is_job_active(status) == expected_active
+        assert operator.is_job_succeeded(status) == expected_succeeded

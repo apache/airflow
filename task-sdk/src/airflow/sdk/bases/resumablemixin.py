@@ -18,8 +18,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import structlog
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+
+log = structlog.get_logger(__name__)
 
 
 class ResumableJobMixin:
@@ -82,9 +86,21 @@ class ResumableJobMixin:
             if external_id:
                 status = self.get_job_status(external_id)
                 if self.is_job_active(status):
+                    log.info(
+                        "Reconnecting to existing job identified by: %s (status: %s)", external_id, status
+                    )
                     return self.poll_until_complete(external_id, context)
                 if self.is_job_succeeded(status):
+                    log.info(
+                        "Job with identifier: %s already completed successfully, skipping resubmission",
+                        external_id,
+                    )
                     return self.get_job_result(external_id, context)
+                log.info(
+                    "Prior job with identifier: %s in terminal state %s, resubmitting fresh",
+                    external_id,
+                    status,
+                )
 
         external_id = self.submit_job(context)
 

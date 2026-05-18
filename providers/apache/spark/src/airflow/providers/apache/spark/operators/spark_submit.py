@@ -20,6 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import requests
+
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
@@ -27,11 +29,28 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
 )
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
+try:
+    from airflow.sdk.bases.resumablemixin import ResumableJobMixin
+except ImportError:
+    # Airflow 2 compat.
+    # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
+    # behave as before
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow 2 stub — no task_state, always submits fresh."""
+
+        external_id_key: str = "remote_job_id"
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-class SparkSubmitOperator(BaseOperator):
+class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     """
     Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
@@ -187,6 +206,10 @@ class SparkSubmitOperator(BaseOperator):
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
 
+    # Generic key used across all Spark deployment modes (standalone driver ID,
+    # YARN application ID, K8s driver pod name).
+    external_id_key = "spark_job_id"
+
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
         self.conf = self.conf or {}
@@ -198,7 +221,62 @@ class SparkSubmitOperator(BaseOperator):
             self.conf = inject_transport_information_into_spark_properties(self.conf, context)
         if self._hook is None:
             self._hook = self._get_hook()
+        if self._hook._should_track_driver_status:
+            return self.execute_resumable(context)
         self._hook.submit(self.application)
+
+    def submit_job(self, context: Context) -> str:
+        driver_id = self._hook.submit(self.application)
+        if not driver_id:
+            raise RuntimeError("spark-submit did not return a driver ID")
+        self.log.info("Spark driver submitted: %s", driver_id)
+        return driver_id
+
+    def get_job_status(self, external_id: str) -> str:
+        if self._hook._is_yarn:
+            # TODO: call YARN ResourceManager REST API
+            # GET http://rm:8088/ws/v1/cluster/apps/{external_id}
+            raise NotImplementedError("YARN job status not yet implemented")
+        if self._hook._is_kubernetes:
+            # TODO: call K8s pod status API
+            raise NotImplementedError("K8s job status not yet implemented")
+        host = self._hook._connection["master"].replace("spark://", "").split(":")[0]
+        response = requests.get(f"http://{host}:6066/v1/submissions/status/{external_id}", timeout=30)
+        response.raise_for_status()
+        status = response.json()["driverState"]
+        self.log.info("Driver %s status: %s", external_id, status)
+        return status
+
+    def is_job_active(self, status: str) -> bool:
+        if self._hook._is_yarn:
+            # https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html
+            return status in ("NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING")
+        if self._hook._is_kubernetes:
+            return status in ("Pending", "Running")
+        return status in ("SUBMITTED", "RUNNING")
+
+    def is_job_succeeded(self, status: str) -> bool:
+        if self._hook._is_kubernetes:
+            return status == "Succeeded"
+        # standalone and YARN both use FINISHED
+        return status == "FINISHED"
+
+    def poll_until_complete(self, external_id: str, context: Context) -> None:
+        if self._hook._is_yarn:
+            # TODO: poll YARN ResourceManager until app reaches terminal state
+            raise NotImplementedError("YARN poll not yet implemented")
+        if self._hook._is_kubernetes:
+            # TODO: poll K8s pod phase until terminal
+            raise NotImplementedError("K8s poll not yet implemented")
+        self.log.info("Polling driver %s until completion", external_id)
+        self._hook._driver_id = external_id
+        self._hook._driver_status = "SUBMITTED"
+        self._hook._start_driver_status_tracking()
+        if self._hook._driver_status != "FINISHED":
+            raise RuntimeError(f"Driver {external_id} exited with status {self._hook._driver_status}")
+
+    def get_job_result(self, external_id: str, context: Context) -> None:
+        return None
 
     def on_kill(self) -> None:
         if self._hook is None:
