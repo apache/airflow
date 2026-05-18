@@ -172,6 +172,33 @@ class TestMigration0080Upgrade:
             cb = json.loads(cb)
         assert cb["__data__"]["kwargs"] == {}
 
+    def test_upgrade_exact_batch_boundary(self, monkeypatch):
+        """Rows == batch_size must force a second iteration that returns 0 rows and exits cleanly."""
+        # Force a small batch_size so 2 inserted rows == batch_size exactly.
+        monkeypatch.setattr(_migration.conf, "getint", lambda *a, **kw: 2)
+        engine = _make_engine_pre_0080()
+        with engine.begin() as conn:
+            for i in range(2):
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO deadline (id, dagrun_id, deadline_time, callback, callback_kwargs)"
+                        " VALUES (:id, 1, '2025-01-01', :cb, :kw)"
+                    ),
+                    {"id": str(uuid.uuid4()), "cb": f"mod.cb_{i}", "kw": json.dumps({"i": i})},
+                )
+
+        _run_upgrade(engine)
+
+        rows = _read_deadline(engine)
+        assert len(rows) == 2
+        paths = sorted(
+            (json.loads(r["callback"]) if isinstance(r["callback"], str) else r["callback"])["__data__"][
+                "path"
+            ]
+            for r in rows
+        )
+        assert paths == ["mod.cb_0", "mod.cb_1"]
+
 
 class TestMigration0080Downgrade:
     def test_downgrade_empty_table(self):

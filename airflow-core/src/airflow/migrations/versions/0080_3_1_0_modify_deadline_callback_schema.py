@@ -211,6 +211,10 @@ def downgrade():
                     path = path[:_CALLBACK_MAX_LEN]
                 kwargs = cb_inner.get("kwargs", {})
                 if not isinstance(kwargs, dict):
+                    print(
+                        f"WARNING: kwargs for deadline {row[0]} is not a dict "
+                        f"(type={type(kwargs).__name__}); resetting to empty dict."
+                    )
                     kwargs = {}
             batch.append({"row_id": row[0], "old_callback": path, "old_kwargs": kwargs})
 

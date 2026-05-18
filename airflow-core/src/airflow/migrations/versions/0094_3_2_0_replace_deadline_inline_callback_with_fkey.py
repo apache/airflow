@@ -69,10 +69,8 @@ def _upgrade_postgresql(conn, batch_size):
                         d.id AS deadline_id,
                         gen_random_uuid() AS callback_id,
                         COALESCE(dr.dag_id, '') AS dag_id,
-                        -- COALESCE on NULL callback (legacy 0080 bug, see PR #66016)
-                        -- so we don't insert NULL into callback.data downstream.
                         COALESCE(d.callback::jsonb->'__data__'->>'path', '') AS cb_path,
-                        COALESCE(d.callback::jsonb->'__data__'->'kwargs', '{}'::jsonb) AS cb_kwargs,
+                        COALESCE(NULLIF(d.callback::jsonb->'__data__'->'kwargs', 'null'::jsonb), '{}'::jsonb) AS cb_kwargs,
                         CASE
                             WHEN d.callback_state IN (:state_success, :state_failed) THEN d.callback_state
                             ELSE :state_pending
@@ -179,6 +177,7 @@ def _upgrade_mysql_sqlite(conn, batch_size):
     )
 
     batch_num = 0
+    null_callback_count = 0
     while True:
         batch_num += 1
         batch = conn.execute(
@@ -203,10 +202,7 @@ def _upgrade_mysql_sqlite(conn, batch_size):
             callback_id = uuid6.uuid7()
             raw_cb = row.callback
             if raw_cb is None:
-                # Defensive: legacy MySQL deployments that ran the original (buggy)
-                # 0080 may have NULL callback rows. Treat as empty envelope so 0094
-                # doesn't crash on json.loads(None); see PR #66016.
-                print(f"WARNING: deadline {row.id} has NULL callback; defaulting to empty envelope.")
+                null_callback_count += 1
                 cb = {}
             elif isinstance(raw_cb, dict):
                 cb = raw_cb
@@ -253,6 +249,12 @@ def _upgrade_mysql_sqlite(conn, batch_size):
             deadline_updates,
         )
         print(f"Migrated {len(batch)} deadline records in batch {batch_num}")
+
+    if null_callback_count:
+        print(
+            f"WARNING: {null_callback_count} deadline rows had NULL callback "
+            "(legacy 0080 data); migrated with empty envelope."
+        )
 
 
 def upgrade():

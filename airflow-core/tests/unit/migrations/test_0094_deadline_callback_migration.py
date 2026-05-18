@@ -22,7 +22,7 @@ Regression tests for migration 0094 (e812941398f4).
 These tests focus on the defensive NULL-callback path: legacy MySQL
 deployments that ran the original (buggy) 0080 left ``deadline.callback``
 rows as NULL. 0094 must heal those rows instead of crashing on
-``json.loads(None)``. See PR #66016.
+``json.loads(None)``.
 """
 
 from __future__ import annotations
