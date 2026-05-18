@@ -33,6 +33,7 @@ from alembic import op
 
 from airflow.migrations.utils import (
     disable_sqlite_fkeys,
+    get_dialect_name,
     ignore_sqlite_value_error,
     mysql_drop_foreignkey_if_exists,
 )
@@ -103,8 +104,7 @@ def _rename_pk_constraint(
 
 
 def _drop_fkey_if_exists(table, constraint_name):
-    conn = op.get_bind()
-    dialect_name = conn.dialect.name
+    dialect_name = get_dialect_name(op)
 
     if dialect_name == "mysql":
         mysql_drop_foreignkey_if_exists(constraint_name, table, op)

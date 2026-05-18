@@ -162,6 +162,12 @@ deadline_alert_table = sa.table(
     sa.column("serialized_dag_id"),
 )
 
+deadline_table = sa.table(
+    "deadline",
+    sa.column("created_at", UtcDateTime),
+    sa.column("last_updated_at", UtcDateTime),
+)
+
 
 def upgrade() -> None:
     """Make changes to enable adding DeadlineAlerts to the UI."""
@@ -186,8 +192,6 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
         )
 
-        conn = op.get_bind()
-
         with op.batch_alter_table("deadline", schema=None) as batch_op:
             batch_op.add_column(sa.Column("deadline_alert_id", sa.Uuid(), nullable=True))
             batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
@@ -203,13 +207,13 @@ def upgrade() -> None:
         # For migration/backcompat purposes if no timestamp is there from the migration, use now()
         # then lock the columns down so all new entries require the timestamps to be provided.
         now = timezone.utcnow()
-        conn.execute(
-            sa.text("""
-                UPDATE deadline
-                SET created_at = :now, last_updated_at = :now
-                WHERE created_at IS NULL OR last_updated_at IS NULL
-            """),
-            {"now": now},
+        op.execute(
+            deadline_table.update()
+            .where(sa.or_(deadline_table.c.created_at.is_(None), deadline_table.c.last_updated_at.is_(None)))
+            .values(
+                created_at=op.inline_literal(now),
+                last_updated_at=op.inline_literal(now),
+            )
         )
 
         with op.batch_alter_table("deadline", schema=None) as batch_op:
