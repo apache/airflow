@@ -23,13 +23,26 @@ import pytest
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
     _jwt_bearer,
     get_team_name_dep,
     require_auth,
 )
+
+
+class TestTIClaims:
+    def test_defaults_scope_and_retains_extra(self):
+        claims = TIClaims(team="data")
+
+        assert claims.scope == "execution"
+        assert claims.team == "data"
+
+    def test_accepts_sub_as_extra_claim(self):
+        claims = TIClaims(sub="not-a-uuid")
+
+        assert claims.sub == "not-a-uuid"
 
 
 class TestExecutionAPIRoute:
@@ -111,11 +124,12 @@ class TestTokenTypeScopeEnforcement:
 
     TI_ID = "00000000-0000-0000-0000-000000000001"
 
-    def _override_jwt(self, app, scope: str):
+    def _override_jwt(self, app, scope: TokenScope):
         ti_id = self.TI_ID
 
         async def mock_jwt(request: Request):
-            return TIToken(id=UUID(ti_id), claims={"scope": scope})
+            claims = TIClaims(scope=scope)
+            return TIToken(id=UUID(ti_id), claims=claims)
 
         app.dependency_overrides[_jwt_bearer] = mock_jwt
 
