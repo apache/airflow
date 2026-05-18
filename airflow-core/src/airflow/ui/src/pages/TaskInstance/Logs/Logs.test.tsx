@@ -155,7 +155,7 @@ describe("Task log grouping", () => {
 });
 
 describe("Task Identity preamble", () => {
-  it("renders Task Identity preamble after the Log message source details group", async () => {
+  it("renders Task Identity preamble after the 'Pre Execute' group header as first group element", async () => {
     render(
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
     );
@@ -166,13 +166,19 @@ describe("Task Identity preamble", () => {
 
     expect(sourceGroup).toBeInTheDocument();
 
-    // Task Identity preamble should be visible
-    expect(screen.getByText("Task Identity")).toBeInTheDocument();
+    // Expand the Pre Execute group to reveal the preamble
+    const groupHeader = screen.getByTestId("summary-Pre Execute");
+
+    fireEvent.click(groupHeader);
+
+    // Task Identity preamble should be visible after expanding the group
+    await waitFor(() => expect(screen.getByText("Task Identity")).toBeInTheDocument());
     expect(screen.getByText("ti_id")).toBeInTheDocument();
     // Value is a text node adjacent to =; match via partial text
     expect(screen.getByText(/01951900-16f6-7c1c-ae66-91bdfe9e0cfd/u)).toBeInTheDocument();
+    expect(screen.getByText("Done. Returned value was: None")).toBeInTheDocument();
 
-    // Preamble should come after the source details group in DOM order.
+    // Preamble should come after the "Pre Execute" group header in DOM order.
     const preamble = screen.getByText("Task Identity");
 
     expect(preamble).toBeInTheDocument();
@@ -180,7 +186,7 @@ describe("Task Identity preamble", () => {
 
     // DOCUMENT_POSITION_FOLLOWING (4) is set when preamble comes after the source group summary
     // eslint-disable-next-line no-bitwise
-    expect(sourceGroup.compareDocumentPosition(preamble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(groupHeader.compareDocumentPosition(preamble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("does not render TI context fields on individual log lines", async () => {
