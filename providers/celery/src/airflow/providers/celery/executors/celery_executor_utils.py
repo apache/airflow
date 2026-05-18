@@ -32,7 +32,7 @@ import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from functools import cache
+from functools import cache, lru_cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
@@ -158,6 +158,21 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
         celery_app.task(name="execute_command")(execute_command)
 
     return celery_app
+
+
+@lru_cache(maxsize=8)
+def _get_celery_app_for_workload(team_name: str | None) -> Celery:
+    """Return a subprocess-local Celery app cached by team name for task publishing."""
+    if TYPE_CHECKING:
+        _conf: ExecutorConf | AirflowConfigParser
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.executors.base_executor import ExecutorConf
+
+        _conf = ExecutorConf(team_name)
+    else:
+        # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf.
+        _conf = conf
+    return create_celery_app(_conf)
 
 
 # Keep module-level app for backward compatibility.
@@ -389,24 +404,12 @@ def send_workload_to_executor(
     Send workload to executor (serialized and executed as a Celery task).
 
     This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
-    team-specific Celery apps, we pass the team_name and reconstruct the Celery app here.
+    team-specific Celery apps, we pass the team_name and create the app in the subprocess. The app
+    is cached per subprocess and team so Celery backend resolution is amortized across publishes.
     """
     key, args, queue, team_name = workload_tuple
 
-    # Reconstruct the Celery app from configuration, which may or may not be team-specific.
-    # ExecutorConf wraps config access to automatically use team-specific config where present.
-    if TYPE_CHECKING:
-        _conf: ExecutorConf | AirflowConfigParser
-    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf.
-    if AIRFLOW_V_3_2_PLUS:
-        from airflow.executors.base_executor import ExecutorConf
-
-        _conf = ExecutorConf(team_name)
-    else:
-        # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf.
-        _conf = conf
-    # Create the Celery app with the correct configuration.
-    celery_app = create_celery_app(_conf)
+    celery_app = _get_celery_app_for_workload(team_name)
 
     celery_task_id = None
     if AIRFLOW_V_3_0_PLUS:
