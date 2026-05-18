@@ -324,7 +324,7 @@ def run_command_via_breeze_shell(
     backend: str = "none",
     executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
-    project_name: str = "prek",
+    project_name: str = "breeze-prek",
     skip_environment_initialization: bool = True,
     warn_image_upgrade_needed: bool = False,
     enable_pseudo_terminal: bool = False,
