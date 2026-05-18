@@ -23,7 +23,8 @@ from sqlalchemy import select
 
 from airflow._shared.state import TaskScope
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_state import (
     TaskStateBody,
@@ -54,28 +55,32 @@ def list_task_state(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
+    limit: QueryLimit,
+    offset: QueryOffset,
     session: SessionDep,
     map_index: Annotated[int, Query(ge=-1)] = -1,
 ) -> TaskStateCollectionResponse:
     """List all task state entries for a task instance."""
-    rows = session.execute(
-        select(
-            TaskStateModel.key,
-            TaskStateModel.value,
-            TaskStateModel.updated_at,
-            TaskStateModel.expires_at,
-        ).where(
-            TaskStateModel.dag_id == dag_id,
-            TaskStateModel.run_id == dag_run_id,
-            TaskStateModel.task_id == task_id,
-            TaskStateModel.map_index == map_index,
-        )
-    ).all()
+    base = select(
+        TaskStateModel.key,
+        TaskStateModel.value,
+        TaskStateModel.updated_at,
+        TaskStateModel.expires_at,
+    ).where(
+        TaskStateModel.dag_id == dag_id,
+        TaskStateModel.run_id == dag_run_id,
+        TaskStateModel.task_id == task_id,
+        TaskStateModel.map_index == map_index,
+    )
+    paginated, total_entries = paginated_select(
+        statement=base, filters=[], order_by=None, offset=offset, limit=limit, session=session
+    )
+    rows = session.execute(paginated).all()
     entries = [
         TaskStateEntry(key=r.key, value=r.value, updated_at=r.updated_at, expires_at=r.expires_at)
         for r in rows
     ]
-    return TaskStateCollectionResponse(task_states=entries, total_entries=len(entries))
+    return TaskStateCollectionResponse(task_states=entries, total_entries=total_entries)
 
 
 @task_state_router.get(
@@ -109,7 +114,7 @@ def get_task_state(
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Task state key {key!r} not found"},
+            detail=f"Task state key {key!r} not found",
         )
     return TaskStateEntry(key=row.key, value=row.value, updated_at=row.updated_at, expires_at=row.expires_at)
 
@@ -131,7 +136,10 @@ def set_task_state(
 ) -> None:
     """Set a task state value. Creates or overwrites the key."""
     scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
-    MetastoreStateBackend().set(scope, key, body.value, session=session)
+    try:
+        MetastoreStateBackend().set(scope, key, body.value, session=session)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
 @task_state_router.delete(

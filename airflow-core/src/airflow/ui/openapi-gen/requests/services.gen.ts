@@ -3499,6 +3499,8 @@ export class AssetStateService {
      * List all state entries for an asset.
      * @param data The data for the request.
      * @param data.assetId
+     * @param data.limit
+     * @param data.offset
      * @returns AssetStateCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3508,6 +3510,10 @@ export class AssetStateService {
             url: '/api/v2/assets/{asset_id}/state',
             path: {
                 asset_id: data.assetId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset
             },
             errors: {
                 401: 'Unauthorized',
@@ -3634,6 +3640,8 @@ export class TaskStateService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.limit
+     * @param data.offset
      * @returns TaskStateCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3647,7 +3655,9 @@ export class TaskStateService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                limit: data.limit,
+                offset: data.offset
             },
             errors: {
                 401: 'Unauthorized',

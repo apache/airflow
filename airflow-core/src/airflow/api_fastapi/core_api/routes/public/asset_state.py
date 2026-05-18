@@ -20,7 +20,8 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow._shared.state import AssetScope
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.asset_state import (
     AssetStateBody,
@@ -45,18 +46,22 @@ asset_state_router = AirflowRouter(
 )
 def list_asset_state(
     asset_id: int,
+    limit: QueryLimit,
+    offset: QueryOffset,
     session: SessionDep,
 ) -> AssetStateCollectionResponse:
     """List all state entries for an asset."""
-    rows = session.execute(
-        select(
-            AssetStateModel.key,
-            AssetStateModel.value,
-            AssetStateModel.updated_at,
-        ).where(AssetStateModel.asset_id == asset_id)
-    ).all()
+    base = select(
+        AssetStateModel.key,
+        AssetStateModel.value,
+        AssetStateModel.updated_at,
+    ).where(AssetStateModel.asset_id == asset_id)
+    paginated, total_entries = paginated_select(
+        statement=base, filters=[], order_by=None, offset=offset, limit=limit, session=session
+    )
+    rows = session.execute(paginated).all()
     entries = [AssetStateEntry(key=r.key, value=r.value, updated_at=r.updated_at) for r in rows]
-    return AssetStateCollectionResponse(asset_states=entries, total_entries=len(entries))
+    return AssetStateCollectionResponse(asset_states=entries, total_entries=total_entries)
 
 
 @asset_state_router.get(
@@ -83,7 +88,7 @@ def get_asset_state(
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Asset state key {key!r} not found"},
+            detail=f"Asset state key {key!r} not found",
         )
     return AssetStateEntry(key=row.key, value=row.value, updated_at=row.updated_at)
 

@@ -85,6 +85,26 @@ class TestListAssetState(TestAssetStateEndpoint):
         assert "updated_at" in item
         assert item["key"] == "watermark"
 
+    def test_pagination_limit(self, test_client):
+        for k in ("watermark", "file_count", "last_run"):
+            _create_asset_state(self._session, self.asset.id, k, "v")
+        self._session.commit()
+
+        response = test_client.get(f"{self._base_url}?limit=2")
+        data = response.json()
+        assert data["total_entries"] == 3
+        assert len(data["asset_states"]) == 2
+
+    def test_pagination_offset(self, test_client):
+        for k in ("watermark", "file_count", "last_run"):
+            _create_asset_state(self._session, self.asset.id, k, "v")
+        self._session.commit()
+
+        response = test_client.get(f"{self._base_url}?limit=2&offset=2")
+        data = response.json()
+        assert data["total_entries"] == 3
+        assert len(data["asset_states"]) == 1
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(self._base_url).status_code == 401
 

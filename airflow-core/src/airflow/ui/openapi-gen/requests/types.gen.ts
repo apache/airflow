@@ -3806,6 +3806,8 @@ export type GetProvidersResponse = ProviderCollectionResponse;
 
 export type ListAssetStateData = {
     assetId: number;
+    limit?: number;
+    offset?: number;
 };
 
 export type ListAssetStateResponse = AssetStateCollectionResponse;
@@ -3841,7 +3843,9 @@ export type DeleteAssetStateResponse = void;
 export type ListTaskStateData = {
     dagId: string;
     dagRunId: string;
+    limit?: number;
     mapIndex?: number;
+    offset?: number;
     taskId: string;
 };
 

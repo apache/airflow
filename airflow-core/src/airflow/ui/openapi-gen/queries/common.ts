@@ -726,9 +726,11 @@ export const UseProviderServiceGetProvidersKeyFn = ({ limit, offset }: {
 export type AssetStateServiceListAssetStateDefaultResponse = Awaited<ReturnType<typeof AssetStateService.listAssetState>>;
 export type AssetStateServiceListAssetStateQueryResult<TData = AssetStateServiceListAssetStateDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetStateServiceListAssetStateKey = "AssetStateServiceListAssetState";
-export const UseAssetStateServiceListAssetStateKeyFn = ({ assetId }: {
+export const UseAssetStateServiceListAssetStateKeyFn = ({ assetId, limit, offset }: {
   assetId: number;
-}, queryKey?: Array<unknown>) => [useAssetStateServiceListAssetStateKey, ...(queryKey ?? [{ assetId }])];
+  limit?: number;
+  offset?: number;
+}, queryKey?: Array<unknown>) => [useAssetStateServiceListAssetStateKey, ...(queryKey ?? [{ assetId, limit, offset }])];
 export type AssetStateServiceGetAssetStateDefaultResponse = Awaited<ReturnType<typeof AssetStateService.getAssetState>>;
 export type AssetStateServiceGetAssetStateQueryResult<TData = AssetStateServiceGetAssetStateDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetStateServiceGetAssetStateKey = "AssetStateServiceGetAssetState";
@@ -739,12 +741,14 @@ export const UseAssetStateServiceGetAssetStateKeyFn = ({ assetId, key }: {
 export type TaskStateServiceListTaskStateDefaultResponse = Awaited<ReturnType<typeof TaskStateService.listTaskState>>;
 export type TaskStateServiceListTaskStateQueryResult<TData = TaskStateServiceListTaskStateDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskStateServiceListTaskStateKey = "TaskStateServiceListTaskState";
-export const UseTaskStateServiceListTaskStateKeyFn = ({ dagId, dagRunId, mapIndex, taskId }: {
+export const UseTaskStateServiceListTaskStateKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
+  limit?: number;
   mapIndex?: number;
+  offset?: number;
   taskId: string;
-}, queryKey?: Array<unknown>) => [useTaskStateServiceListTaskStateKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }])];
+}, queryKey?: Array<unknown>) => [useTaskStateServiceListTaskStateKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, taskId }])];
 export type TaskStateServiceGetTaskStateDefaultResponse = Awaited<ReturnType<typeof TaskStateService.getTaskState>>;
 export type TaskStateServiceGetTaskStateQueryResult<TData = TaskStateServiceGetTaskStateDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskStateServiceGetTaskStateKey = "TaskStateServiceGetTaskState";

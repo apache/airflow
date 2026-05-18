@@ -5546,6 +5546,22 @@ paths:
         schema:
           type: integer
           title: Asset Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       responses:
         '200':
           description: Successful Response
@@ -5815,6 +5831,22 @@ paths:
           minimum: -1
           default: -1
           title: Map Index
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       responses:
         '200':
           description: Successful Response

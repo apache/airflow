@@ -1468,12 +1468,16 @@ export const ensureUseProviderServiceGetProvidersData = (queryClient: QueryClien
 * List all state entries for an asset.
 * @param data The data for the request.
 * @param data.assetId
+* @param data.limit
+* @param data.offset
 * @returns AssetStateCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetStateServiceListAssetStateData = (queryClient: QueryClient, { assetId }: {
+export const ensureUseAssetStateServiceListAssetStateData = (queryClient: QueryClient, { assetId, limit, offset }: {
   assetId: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStateServiceListAssetStateKeyFn({ assetId }), queryFn: () => AssetStateService.listAssetState({ assetId }) });
+  limit?: number;
+  offset?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStateServiceListAssetStateKeyFn({ assetId, limit, offset }), queryFn: () => AssetStateService.listAssetState({ assetId, limit, offset }) });
 /**
 * Get Asset State
 * Get a single asset state entry.
@@ -1495,15 +1499,19 @@ export const ensureUseAssetStateServiceGetAssetStateData = (queryClient: QueryCl
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.limit
+* @param data.offset
 * @returns TaskStateCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskStateServiceListTaskStateData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+export const ensureUseTaskStateServiceListTaskStateData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
+  limit?: number;
   mapIndex?: number;
+  offset?: number;
   taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateServiceListTaskStateKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskStateService.listTaskState({ dagId, dagRunId, mapIndex, taskId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateServiceListTaskStateKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStateService.listTaskState({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
 /**
 * Get Task State
 * Get a single task state entry.

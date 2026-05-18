@@ -122,6 +122,26 @@ class TestListTaskState(TestTaskStateEndpoint):
         response = test_client.get(BASE_URL)
         assert response.json()["total_entries"] == 0
 
+    def test_pagination_limit(self, test_client):
+        for k in ("a", "b", "c"):
+            _create_task_state(self._session, k, "v", self.dag_run)
+        self._session.commit()
+
+        response = test_client.get(f"{BASE_URL}?limit=2")
+        data = response.json()
+        assert data["total_entries"] == 3
+        assert len(data["task_states"]) == 2
+
+    def test_pagination_offset(self, test_client):
+        for k in ("a", "b", "c"):
+            _create_task_state(self._session, k, "v", self.dag_run)
+        self._session.commit()
+
+        response = test_client.get(f"{BASE_URL}?limit=2&offset=2")
+        data = response.json()
+        assert data["total_entries"] == 3
+        assert len(data["task_states"]) == 1
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(BASE_URL).status_code == 401
 
@@ -161,6 +181,12 @@ class TestSetTaskState(TestTaskStateEndpoint):
 
     def test_empty_body_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={}).status_code == 422
+
+    def test_set_nonexistent_dag_run_returns_404(self, test_client):
+        """set() raises ValueError when DagRun doesn't exist — should surface as 404."""
+        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/state/job_id"
+        response = test_client.put(bad_url, json={"value": "v"})
+        assert response.status_code == 404
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.put(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
