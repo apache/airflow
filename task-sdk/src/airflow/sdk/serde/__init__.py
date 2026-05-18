@@ -332,8 +332,10 @@ def _match_glob(classname: str):
 @functools.cache
 def _match_regexp(classname: str):
     """Check if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
+    # fullmatch (not match) so a pattern like ``airflow\.models\.Variable`` cannot also admit
+    # ``airflow.models.Variable_Malicious`` — re.match only anchors at the start of the string.
     patterns = _get_regexp_patterns()
-    return any(p.match(classname) is not None for p in patterns)
+    return any(p.fullmatch(classname) is not None for p in patterns)
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
