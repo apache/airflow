@@ -21,6 +21,7 @@ import itertools
 import logging
 import re
 from datetime import time, timedelta
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -1394,6 +1395,41 @@ class TestExternalTaskSensorV3:
             task_ids=["test_task"],
         )
         assert op.external_dates_filter == expected_date.isoformat()
+
+    @pytest.mark.execution_timeout(10)
+    def test_handle_execution_date(self, dag_maker) -> None:
+        for param in ["logical_date", "execution_date"]:
+            with dag_maker("test_dag_child"):
+                op = ExternalTaskSensor(
+                    task_id=f"test_external_task_sensor_check-{param}",
+                    external_dag_id="test_dag_parent",
+                    external_task_id="test_task",
+                    execution_date=f"{{{{ {param} - macros.timedelta(hours=1) }}}}",
+                    allowed_states=["success"],
+                )
+
+            import airflow.macros as macros
+
+            ctx: dict[str, Any] = self.context
+            ctx["macros"] = macros  # ensure template rendering works
+
+            op.render_template_fields(ctx)
+            ti = self.context["ti"]
+            ti.get_ti_count.return_value = 1
+            op.execute(context=self.context)
+
+            expected_date = DEFAULT_DATE - timedelta(hours=1)
+            ti.get_ti_count.assert_has_calls(
+                [
+                    mock.call(
+                        dag_id="test_dag_parent",
+                        logical_dates=[expected_date],
+                        states=["success"],
+                        task_ids=["test_task"],
+                    )
+                ]
+            )
+            assert op.external_dates_filter == expected_date.isoformat()
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_duplicate_task_ids(self, dag_maker):
