@@ -137,24 +137,17 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
     """
     Coordinate whole-run polling and ``rerun_all_failed_tasks`` repair for a Databricks Workflow run.
 
-    Owned by the ``coordinator`` sibling task that
+    Used by the ``repair_coordinator`` sibling task that
     :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`
-    injects when ``max_full_run_repairs > 0`` on Airflow 3+. Keeps a single Databricks job run alive across
-    repair attempts so the same job cluster is reused. Each defer/resume cycle of the coordinator
-    task corresponds to one iteration:
+    injects when ``max_full_run_repairs > 0`` on Airflow 3+. The trigger mirrors the coordinator
+    operator's sync state machine: it watches the stable parent ``run_id``, tracks repair progress
+    in trigger serialization state, and emits one event per terminal observation.
 
-    1. Poll the run until it reaches a terminal state.
-    2. On terminal success, yield ``status="completed"``.
-    3. On terminal failure with repair budget remaining, call
-       :meth:`~airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run` with
-       ``rerun_all_failed_tasks=True`` and yield ``status="repaired"`` along with the new
-       ``latest_repair_id`` and bumped ``repair_attempts``; the coordinator task then re-defers on
-       a fresh trigger instance with the new state. Downstream task monitors observe the new sub-run
-       attempt by polling the Databricks API directly (via
-       :class:`DatabricksWorkflowRepairWaitTrigger`), not via any inter-task XCom.
-    4. On terminal failure with the budget exhausted, yield ``status="failed"``.
-
-    The Databricks ``run_id`` is stable across repair attempts; only ``latest_repair_id`` changes.
+    On success it yields ``status="completed"``. On failure with budget remaining, it calls
+    ``repair_run`` with the shared repair payload helper and yields ``status="repaired"`` with the
+    bumped ``repair_attempts`` and new ``latest_repair_id`` so the coordinator can defer again. On
+    failure after the budget is exhausted, it yields ``status="failed"``. Downstream task monitors
+    discover repaired sub-runs from the Databricks API rather than from coordinator XCom.
 
     :param run_id: The Databricks run id to coordinate.
     :param databricks_conn_id: Airflow connection id for the Databricks hook.
@@ -326,25 +319,15 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
     """
     Wait for the next attempt of a single Databricks Workflow task after its sub-run failed.
 
-    Used by Databricks task monitors inside a
+    Used by deferrable Databricks task monitors inside a
     :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`
-    when ``max_full_run_repairs > 0`` on Airflow 3+. A monitor whose sub-run reaches terminal failure defers
-    on this trigger; the trigger polls the parent run's task list and yields when a new attempt of
-    the same ``task_key`` appears (issued by the sibling ``coordinator`` task via
-    ``rerun_all_failed_tasks``), so the monitor can then defer on a fresh
-    :class:`DatabricksExecutionTrigger` watching the new sub-run id.
+    when ``max_full_run_repairs > 0`` on Airflow 3+. After a sub-run fails, the trigger reads the
+    parent run's task list from ``get_run`` and yields ``status="new_attempt"`` when the shared
+    candidate-selection helper finds a newer sub-run with the same ``task_key``.
 
-    Each poll cycle:
-
-    1. If a Databricks task with our ``databricks_task_key`` exists whose ``run_id`` differs from
-       ``original_sub_run_id`` and whose ``start_time`` is newer, yield ``status="new_attempt"``
-       with the new sub-run id.
-    2. Otherwise, if the parent run is in a terminal failure state, count one "grace" observation.
-       After ``terminal_grace_polls`` consecutive terminal observations without a new attempt,
-       yield ``status="parent_failed"``. This avoids racing the coordinator: the parent run is
-       briefly terminal between sub-run failure and the coordinator issuing ``repair_run``.
-    3. Otherwise (parent still running, or terminal but inside the grace window), sleep and poll
-       again.
+    If the parent run stays terminal-failed without a new attempt for ``terminal_grace_polls``
+    consecutive polls, the trigger yields ``status="parent_failed"``. The grace window avoids
+    racing the coordinator while it issues ``repair_run``.
 
     :param run_id: Parent workflow run id (stable across repairs).
     :param databricks_conn_id: Airflow connection id for the Databricks hook.
