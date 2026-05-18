@@ -69,8 +69,10 @@ def _upgrade_postgresql(conn, batch_size):
                         d.id AS deadline_id,
                         gen_random_uuid() AS callback_id,
                         COALESCE(dr.dag_id, '') AS dag_id,
-                        d.callback::jsonb->'__data__'->>'path' AS cb_path,
-                        d.callback::jsonb->'__data__'->'kwargs' AS cb_kwargs,
+                        -- COALESCE on NULL callback (legacy 0080 bug, see PR #66016)
+                        -- so we don't insert NULL into callback.data downstream.
+                        COALESCE(d.callback::jsonb->'__data__'->>'path', '') AS cb_path,
+                        COALESCE(d.callback::jsonb->'__data__'->'kwargs', '{}'::jsonb) AS cb_kwargs,
                         CASE
                             WHEN d.callback_state IN (:state_success, :state_failed) THEN d.callback_state
                             ELSE :state_pending
@@ -199,11 +201,26 @@ def _upgrade_mysql_sqlite(conn, batch_size):
 
         for row in batch:
             callback_id = uuid6.uuid7()
-            cb = row.callback if isinstance(row.callback, dict) else json.loads(row.callback)
-            cb_inner = cb.get("__data__", cb)
+            raw_cb = row.callback
+            if raw_cb is None:
+                # Defensive: legacy MySQL deployments that ran the original (buggy)
+                # 0080 may have NULL callback rows. Treat as empty envelope so 0094
+                # doesn't crash on json.loads(None); see PR #66016.
+                print(f"WARNING: deadline {row.id} has NULL callback; defaulting to empty envelope.")
+                cb = {}
+            elif isinstance(raw_cb, dict):
+                cb = raw_cb
+            else:
+                cb = json.loads(raw_cb)
+            cb_inner = cb.get("__data__", cb) if isinstance(cb, dict) else {}
+            if not isinstance(cb_inner, dict):
+                cb_inner = {}
+            kwargs = cb_inner.get("kwargs", {})
+            if not isinstance(kwargs, dict):
+                kwargs = {}
             cb_data = {
-                "path": cb_inner.get("path", ""),
-                "kwargs": cb_inner.get("kwargs", {}),
+                "path": cb_inner.get("path", "") or "",
+                "kwargs": kwargs,
                 "prefix": _CALLBACK_METRICS_PREFIX,
                 "dag_id": row.dag_id or "",
             }
