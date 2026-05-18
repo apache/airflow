@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_dry_run,
     option_llm_model,
+    option_mariadb_version,
     option_mysql_version,
     option_postgres_version,
     option_python,
@@ -187,6 +188,7 @@ def version():
 @option_backend
 @option_postgres_version
 @option_terminal_multiplexer
+@option_mariadb_version
 @option_mysql_version
 @option_auth_manager
 @option_llm_model
@@ -202,6 +204,7 @@ def change_config(
     backend: str,
     terminal_multiplexer: str,
     postgres_version: str,
+    mariadb_version: str,
     mysql_version: str,
     auth_manager: str,
     llm_model: str,
@@ -247,6 +250,7 @@ def change_config(
     console_print(f"[info]* Backend: {backend}[/]")
     console_print(f"[info]* Postgres version: {postgres_version}[/]")
     console_print(f"[info]* MySQL version: {mysql_version}[/]")
+    console_print(f"[info]* MariaDB version: {mariadb_version or '(unset; using MySQL)'}[/]")
     console_print(f"[info]* Terminal multiplexer: {terminal_multiplexer}[/]")
     console_print(f"[info]* Auth Manager: {auth_manager}[/]")
     console_print(f"[info]* LLM Model: {llm_model}[/]")

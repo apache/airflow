@@ -231,6 +231,29 @@ class BackendVersionChoice(CacheableChoice):
         return super().convert(value, param, ctx)
 
 
+class OptionalBackendVersionChoice(BackendVersionChoice):
+    """
+    BackendVersionChoice variant where an empty value is a valid signal meaning "not set".
+
+    Used for --mariadb-version: leaving it unset means "use MySQL"; supplying one of the
+    listed versions means "use that MariaDB version".
+    """
+
+    name = "OptionalBackendVersionChoice"
+
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
+        if value in (None, ""):
+            return ""
+        return super().convert(value, param, ctx)
+
+    def get_metavar(self, param, ctx=None) -> str:
+        # Don't highlight any cached value as "active": empty (= use MySQL) is the
+        # meaningful default for this option, and we don't want the help text to imply
+        # otherwise just because the user previously picked a MariaDB version.
+        choices_str = " | ".join(self.choices)
+        return f"[{choices_str}]"
+
+
 class MySQLBackendVersionChoice(BackendVersionChoice):
     def convert(self, value, param, ctx):
         if isinstance(value, CacheableDefault):

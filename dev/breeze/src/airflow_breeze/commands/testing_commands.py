@@ -57,6 +57,7 @@ from airflow_breeze.commands.common_options import (
     option_include_success_outputs,
     option_install_airflow_with_constraints,
     option_keep_env_variables,
+    option_mariadb_version,
     option_mount_sources,
     option_mysql_version,
     option_no_db_cleanup,
@@ -663,6 +664,7 @@ option_total_test_timeout = click.option(
 @option_install_airflow_with_constraints
 @option_keep_env_variables
 @option_mount_sources
+@option_mariadb_version
 @option_mysql_version
 @option_no_db_cleanup
 @option_distribution_format
@@ -727,6 +729,7 @@ def core_tests(**kwargs):
 @option_install_airflow_with_constraints
 @option_keep_env_variables
 @option_mount_sources
+@option_mariadb_version
 @option_mysql_version
 @option_no_db_cleanup
 @option_distribution_format
@@ -1009,6 +1012,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
 @option_core_integration
 @option_keep_env_variables
 @option_mount_sources
+@option_mariadb_version
 @option_mysql_version
 @option_no_db_cleanup
 @option_postgres_version
@@ -1030,6 +1034,7 @@ def core_integration_tests(
     keep_env_variables: bool,
     integration: tuple,
     mount_sources: str,
+    mariadb_version: str,
     mysql_version: str,
     no_db_cleanup: bool,
     postgres_version: str,
@@ -1049,6 +1054,7 @@ def core_integration_tests(
         integration=integration,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
+        mariadb_version=mariadb_version,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         postgres_version=postgres_version,
@@ -1093,6 +1099,7 @@ def core_integration_tests(
 @option_providers_integration
 @option_keep_env_variables
 @option_mount_sources
+@option_mariadb_version
 @option_mysql_version
 @option_no_db_cleanup
 @option_postgres_version
@@ -1114,6 +1121,7 @@ def integration_providers_tests(
     integration: tuple,
     keep_env_variables: bool,
     mount_sources: str,
+    mariadb_version: str,
     mysql_version: str,
     no_db_cleanup: bool,
     postgres_version: str,
@@ -1133,6 +1141,7 @@ def integration_providers_tests(
         integration=integration,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
+        mariadb_version=mariadb_version,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         postgres_version=postgres_version,
@@ -1176,6 +1185,7 @@ def integration_providers_tests(
 @option_github_repository
 @option_keep_env_variables
 @option_mount_sources
+@option_mariadb_version
 @option_mysql_version
 @option_no_db_cleanup
 @option_use_airflow_version
@@ -1204,6 +1214,7 @@ def system_tests(
     github_repository: str,
     keep_env_variables: bool,
     mount_sources: str,
+    mariadb_version: str,
     mysql_version: str,
     no_db_cleanup: bool,
     postgres_version: str,
@@ -1231,6 +1242,7 @@ def system_tests(
         integration=(),
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
+        mariadb_version=mariadb_version,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         postgres_version=postgres_version,
@@ -1342,6 +1354,7 @@ def helm_tests(
 @option_forward_credentials
 @option_github_repository
 @option_keep_env_variables
+@option_mariadb_version
 @option_mysql_version
 @option_postgres_version
 @option_python
@@ -1361,6 +1374,7 @@ def python_api_client_tests(
     forward_credentials: bool,
     github_repository: str,
     keep_env_variables: bool,
+    mariadb_version: str,
     mysql_version: str,
     postgres_version: str,
     python: str,
@@ -1379,6 +1393,7 @@ def python_api_client_tests(
         github_repository=github_repository,
         integration=(),
         keep_env_variables=keep_env_variables,
+        mariadb_version=mariadb_version,
         mysql_version=mysql_version,
         postgres_version=postgres_version,
         python=python,
@@ -1785,6 +1800,7 @@ def _run_test_command(
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_xdist: bool,
+    mariadb_version: str = "",
     mysql_version: str = "",
     postgres_version: str = "",
 ):
@@ -1815,6 +1831,7 @@ def _run_test_command(
         install_airflow_with_constraints=install_airflow_with_constraints,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
+        mariadb_version=mariadb_version,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         distribution_format=distribution_format,

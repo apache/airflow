@@ -34,6 +34,7 @@ from airflow_breeze.commands.common_options import (
     option_dry_run,
     option_forward_credentials,
     option_github_repository,
+    option_mariadb_version,
     option_max_time,
     option_mysql_version,
     option_postgres_version,
@@ -110,6 +111,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_forward_credentials
 @option_github_repository
 @option_all_integration
+@option_mariadb_version
 @option_max_time
 @option_mysql_version
 @option_postgres_version

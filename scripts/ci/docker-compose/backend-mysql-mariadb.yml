@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# MariaDB-flavored mysql backend.
+#
+# Selected by Breeze when running with `--backend mysql --mariadb-version <ver>`.
+# Substitutes a MariaDB server image for upstream MySQL while keeping the same
+# wire protocol, hostname (`mysql`), URL (`mysql+pymysql://`), and BACKEND env
+# var (`mysql`). SQLAlchemy's mysql dialect detects MariaDB at runtime via the
+# server handshake and sets `dialect.is_mariadb=True`, which the few
+# divergence sites (e.g. migrations/0049 REGEXP_REPLACE) already gate on.
+---
+services:
+  airflow:
+    environment:
+      - BACKEND=mysql
+      - MYSQL_FLAVOR=mariadb
+      # client_flag=65536 enables CLIENT_MULTI_STATEMENTS, required for migration
+      # 0017's PREPARE/EXECUTE/DEALLOCATE block. mysqlclient enables this flag by
+      # default; pymysql does not, so we set it explicitly.
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+pymysql://root@mysql/airflow?charset=utf8mb4&client_flag=65536
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql+pymysql://root@mysql/airflow?charset=utf8mb4&client_flag=65536
+    depends_on:
+      mysql:
+        condition: service_healthy
+  mysql:
+    image: mariadb:${MARIADB_VERSION}
+    environment:
+      - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=true
+      - MARIADB_ROOT_HOST=%
+      - MARIADB_DATABASE=airflow
+      - MARIADB_INITDB_SKIP_TZINFO=1
+    volumes:
+      - ../mysql/conf.d:/etc/mysql/conf.d:ro
+      - mariadb-db-volume:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+    restart: "on-failure"
+    command: [
+      'mariadbd',
+      '--character-set-server=utf8mb4',
+      '--collation-server=utf8mb4_unicode_ci',
+    ]
+volumes:
+  mariadb-db-volume:
