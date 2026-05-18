@@ -24,7 +24,7 @@ and credit will always be given.
 This page aims to explain the basic concept of contributions. It contains links
 to detailed documents for the different aspects of contribution. We encourage both
 Open Source first timers as well as more experienced contributors to read and
-learn about this community's contribution guidelines as it support easy and efficient collaboration.
+learn about this community's contribution guidelines as it supports easy and efficient collaboration.
 
 Getting Started
 ----------------
@@ -47,7 +47,7 @@ community - mostly Airflow committers (maintainers). Mentoring new members of th
 maintainers job so do not be afraid to ask them to help you. You can do it
 via comments in your PR, asking on a devlist or via Slack. We also have a dedicated ``#new-contributors`` Slack channel where you can ask any questions
 about making your first Pull Request (PR) contribution to the Airflow codebase - it's a safe space
-where it is expected that people asking questions do not know a lot Airflow (yet!).
+where it is expected that people asking questions do not know a lot about Airflow (yet!).
 If you need help with Airflow see the Slack channel ``#user-troubleshooting``.
 
 To check on how mentoring works for the projects under Apache Software Foundation's

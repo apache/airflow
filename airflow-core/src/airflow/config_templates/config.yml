@@ -261,7 +261,10 @@ core:
     allowed_deserialization_classes_regexp:
       description: |
         Space-separated list of classes that may be imported during deserialization. Items are processed
-        as regex expressions. Python built-in classes (like dict) are always allowed.
+        as regex expressions and matched against the full classname (``re.fullmatch`` semantics), so a
+        pattern such as ``airflow\.models\.Variable`` does not also admit ``airflow.models.VariableXYZ``.
+        Use ``.*`` (e.g. ``airflow\.models\..*``) to allow a prefix and any suffix. Python built-in
+        classes (like dict) are always allowed.
         This is a secondary option to ``[core] allowed_deserialization_classes``.
       version_added: 2.8.2
       type: string
@@ -3025,6 +3028,20 @@ state_store:
       type: string
       example: "mypackage.state.CustomStateBackend"
       default: "airflow.state.metastore.MetastoreStateBackend"
+    clear_on_success:
+      description: |
+        If set to True, all task state keys for a task instance are automatically cleared
+        when that task instance moved to SUCCESS.
+
+        Defaults to False so that task state persists after success for observability —
+        operators and the UI can inspect what the task wrote (e.g. submitted job IDs,
+        advanced watermarks) after the run completes.
+        Consider setting to True if you do not need post-success visibility and want automatic
+        cleanup without waiting for the global retention period.
+      version_added: 3.3.0
+      type: boolean
+      example: "True"
+      default: "False"
     default_retention_days:
       description: |
         Number of days to retain task state after their last update.

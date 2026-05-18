@@ -1101,7 +1101,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     """
     from datetime import datetime
 
-    from airflow import settings
+    from airflow import settings  # noqa: SDK002
 
     params = {}
     if in_env_var_format:

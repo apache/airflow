@@ -527,6 +527,42 @@ class TestGcpSqlHookDefaultProjectId:
             operation_name="operation_id", project_id="example-project"
         )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    def test_get_operation(self, mock_get_conn):
+        operations_method = mock_get_conn.return_value.operations
+        get_method = operations_method.return_value.get
+        execute_method = get_method.return_value.execute
+
+        mock_response = {"name": "operation_id", "status": "DONE"}
+        execute_method.return_value = mock_response
+
+        result = self.cloudsql_hook.get_operation(project_id="gcp-project", operation_name="operation_id")
+
+        assert result == mock_response
+        operations_method.assert_called_once()
+        get_method.assert_called_once_with(project="gcp-project", operation="operation_id")
+        execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.build")
+    def test_get_conn_obj_caching(self, mock_build):
+        self.cloudsql_hook._authorize = mock.MagicMock()
+        self.cloudsql_hook.get_client_options = mock.MagicMock()
+        mock_service_obj = mock.MagicMock()
+        mock_build.return_value = mock_service_obj
+
+        conn1 = self.cloudsql_hook.get_conn()
+        conn2 = self.cloudsql_hook.get_conn()
+
+        assert conn1 is conn2
+        assert mock_build.call_count == 1
+        mock_build.assert_called_once_with(
+            "sqladmin",
+            self.cloudsql_hook.api_version,
+            http=self.cloudsql_hook._authorize.return_value,
+            cache_discovery=False,
+            client_options=self.cloudsql_hook.get_client_options.return_value,
+        )
+
 
 class TestGcpSqlHookNoDefaultProjectID:
     def setup_method(self):
@@ -1968,3 +2004,17 @@ class TestCloudSQLAsyncHook:
         )
         with pytest.raises(HttpError):
             await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
+
+    @pytest.mark.asyncio
+    async def test_get_sync_hook_override_sets_custom_api_version(self):
+        hook = CloudSQLAsyncHook(gcp_conn_id="test_conn")
+        with mock.patch(
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.get_sync_hook",
+            new_callable=mock.AsyncMock,
+        ) as mock_super_get_sync:
+            mock_super_get_sync.return_value = mock.MagicMock()
+
+            await hook.get_sync_hook(api_version="api_v42")
+
+            assert hook._hook_kwargs["api_version"] == "api_v42"
+            mock_super_get_sync.assert_called_once()

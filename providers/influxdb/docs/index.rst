@@ -34,7 +34,8 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/influxdb>
+    Connection types (InfluxDB 2.x) <connections/influxdb>
+    Connection types (InfluxDB 3.x) <connections/influxdb3>
     Operators <operators/index>
 
 .. toctree::
@@ -103,6 +104,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``influxdb-client``                         ``>=1.19.0``
+``influxdb3-python``                        ``>=0.7.0``
 ``requests``                                ``>=2.32.0,<3``
 ==========================================  ==================
 

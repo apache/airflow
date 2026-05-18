@@ -299,7 +299,7 @@ repos:
           ^tests/unit/models/test_variable\.py$
       - id: check-sdk-imports
         name: Check for SDK imports in core files
-        entry: ../scripts/ci/prek/check_sdk_imports.py
+        entry: ../scripts/ci/prek/check_sdk_imports_in_core.py
         language: python
         types: [python]
         files: ^src/airflow/

@@ -826,3 +826,22 @@ significantly from typical web applications — many scanner findings (such as "
 code" or "database credentials accessible in configuration") are expected behavior. Reports must
 include a proof-of-concept that demonstrates how the finding violates the security model described
 in this document, including identifying the specific user role involved and the attack scenario.
+
+Supported deployment platforms
+..............................
+
+Apache Airflow officially supports Linux-based deployment environments only. The reference
+deployment, the CI matrix, and the official Docker image are all Linux-targeted (Debian Bookworm).
+macOS is supported for local development but is not a deployment platform. Windows is not supported
+for deployment - except WSL2 for develop (buy only with POSIX filesystem which is the same as Linux).
+
+Vulnerability reports that only manifest on a non-Linux platform — behavior that depends on Windows
+path separators, macOS-specific filesystem semantics, etc. — are **out of scope** for the security
+process. We do not issue CVEs or advisories for platform-specific bugs in deployment configurations
+the project does not support.
+
+Reports where the bug affects both supported (Linux) and unsupported (Windows, macOS) platforms are
+judged on the Linux behavior; the non-Linux aspect is informational.
+
+Reporters who identify a non-Linux-only bug should still report it through the regular contribution
+process — fixes are welcome as defense-in-depth hardening, with no CVE or advisory.
