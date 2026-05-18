@@ -51,6 +51,10 @@ POLL_SLEEP = 0.01
 TIMEOUT = 0.02
 IMPERSONATION_CHAIN = "impersonation_chain"
 USE_REGIONAL_ENDPOINT = True
+EXECUTION_NAME = "jobname-abc12"
+EXECUTION_FULL_NAME = (
+    f"projects/{PROJECT_ID}/locations/{LOCATION}/jobs/{JOB_NAME}/executions/{EXECUTION_NAME}"
+)
 
 
 @pytest.fixture
@@ -93,7 +97,14 @@ class TestCloudBatchJobFinishedTrigger:
     ):
         """
         Tests the CloudRunJobFinishedTrigger fires once the job execution reaches a successful state.
+
+        The success event must carry the short ``execution_name`` parsed from the operation's
+        Execution metadata so that ``execute_complete`` can fetch the container logs from
+        Cloud Logging (see issue #36963).
         """
+
+        metadata_any = Any()
+        metadata_any.Pack(Execution.pb(Execution(name=EXECUTION_FULL_NAME)))
 
         async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
@@ -102,6 +113,7 @@ class TestCloudBatchJobFinishedTrigger:
             operation.error = Any()
             operation.error.ParseFromString(b"")
             operation.response = _packed_execution_response(task_count=3, succeeded_count=3, failed_count=0)
+            operation.metadata = metadata_any
             return operation
 
         mock_hook.return_value.get_operation = _mock_operation
@@ -112,6 +124,7 @@ class TestCloudBatchJobFinishedTrigger:
                 {
                     "status": RunJobStatus.SUCCESS.value,
                     "job_name": JOB_NAME,
+                    "execution_name": EXECUTION_NAME,
                 }
             )
             == actual
@@ -176,14 +189,23 @@ class TestCloudBatchJobFinishedTrigger:
         self, mock_hook, trigger: CloudRunJobFinishedTrigger
     ):
         """
-        Tests the CloudRunJobFinishedTrigger raises an exception once the job execution fails.
+        Tests the CloudRunJobFinishedTrigger fires a FAIL event when the operation fails.
+
+        The FAIL event must also carry ``execution_name`` (parsed from
+        ``operation.metadata`` whenever it is populated) so that
+        ``execute_complete`` can still pull container logs from Cloud Logging
+        before raising — see issue #36963.
         """
+
+        metadata_any = Any()
+        metadata_any.Pack(Execution.pb(Execution(name=EXECUTION_FULL_NAME)))
 
         async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
             operation.done = True
             operation.name = "name"
             operation.error = Status(code=13, message="Some message")
+            operation.metadata = metadata_any
             return operation
 
         mock_hook.return_value.get_operation = _mock_operation
@@ -197,6 +219,7 @@ class TestCloudBatchJobFinishedTrigger:
                     "operation_error_code": ERROR_CODE,
                     "operation_error_message": ERROR_MESSAGE,
                     "job_name": JOB_NAME,
+                    "execution_name": EXECUTION_NAME,
                 }
             )
             == actual
