@@ -37,7 +37,6 @@ from requests.exceptions import ConnectionError, HTTPError, Timeout
 from sqlalchemy import create_engine
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowOptionalProviderFeatureException,
     Connection,
     conf,
@@ -138,6 +137,7 @@ class SnowflakeHook(DbApiHook):
         )
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, PasswordField, StringField
+        from wtforms.validators import Optional
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -153,7 +153,11 @@ class SnowflakeHook(DbApiHook):
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
             "proxy_host": StringField(lazy_gettext("Proxy Host"), widget=BS3TextFieldWidget()),
-            "proxy_port": IntegerField(lazy_gettext("Proxy Port")),
+            "proxy_port": IntegerField(
+                lazy_gettext("Proxy Port"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional()],
+            ),
             "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget()),
             "proxy_password": PasswordField(lazy_gettext("Proxy Password"), widget=BS3PasswordFieldWidget()),
         }
@@ -581,7 +585,7 @@ class SnowflakeHook(DbApiHook):
         p_key = None
 
         if private_key_content and private_key_file:
-            raise AirflowException(
+            raise ValueError(
                 "The private_key_file and private_key_content extra fields are mutually exclusive. "
                 "Please remove one."
             )

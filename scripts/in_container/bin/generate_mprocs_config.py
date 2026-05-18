@@ -118,6 +118,8 @@ def generate_mprocs_config() -> str:
         env = {}
         env["AIRFLOW__EDGE__API_URL"] = "http://localhost:8080"
         env["AIRFLOW__BUNDLES__FOLDER"] = "./bin"
+        env["AIRFLOW__LOGGING__BASE_LOG_FOLDER"] = "./logs"
+        env["AIRFLOW__EXECUTION__API_URL"] = "http://localhost:8080/execution/"
 
         # Build command with environment cleanup
         go_worker_cmd_parts = [

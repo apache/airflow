@@ -21,6 +21,8 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import Backend from "i18next-http-backend";
 import { initReactI18next } from "react-i18next";
 
+import { VersionService } from "openapi/requests/services.gen";
+
 export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ar", name: "العربية" },
@@ -61,28 +63,40 @@ const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? 
 const baseUrl = new URL(baseHref, globalThis.location.origin);
 const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
-void i18n
-  .use(Backend)
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    backend: {
-      loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json`,
-    },
-    defaultNS: "common",
-    detection: {
-      caches: ["localStorage"],
-      order: ["localStorage", "navigator", "htmlTag"],
-    },
-    fallbackLng: defaultLanguage,
-    interpolation: {
-      escapeValue: false,
-    },
-    ns: namespaces,
-    react: {
-      useSuspense: false,
-    },
-    supportedLngs: supportedLanguages.map((lang) => lang.code),
+const initI18n = (version: string) => {
+  const queryString = version ? `?v=${version}` : "";
+
+  void i18n
+    .use(Backend)
+    .use(LanguageDetector)
+    .use(initReactI18next)
+    .init({
+      backend: {
+        loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json${queryString}`,
+      },
+      defaultNS: "common",
+      detection: {
+        caches: ["localStorage"],
+        order: ["localStorage", "navigator", "htmlTag"],
+      },
+      fallbackLng: defaultLanguage,
+      interpolation: {
+        escapeValue: false,
+      },
+      ns: namespaces,
+      react: {
+        useSuspense: false,
+      },
+      supportedLngs: supportedLanguages.map((lang) => lang.code),
+    });
+};
+
+void VersionService.getVersion()
+  .then((data) => {
+    initI18n(data.version);
+  })
+  .catch(() => {
+    initI18n("");
   });
 
 export { default } from "i18next";

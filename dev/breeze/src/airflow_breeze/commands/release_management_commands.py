@@ -112,6 +112,7 @@ from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageTagExistException,
     PrepareReleasePackageWrongSetupException,
     build_provider_distribution,
+    check_flit_worktree_compatibility,
     cleanup_build_remnants,
     get_packages_list_to_act_on,
     move_built_distributions_and_cleanup,
@@ -136,6 +137,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -262,12 +264,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.11.7"
+AIRFLOW_PIP_VERSION = "26.1.1"
+AIRFLOW_UV_VERSION = "0.11.13"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.46"
+GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.3.9"
+PREK_VERSION = "0.3.13"
 HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
@@ -1100,7 +1102,12 @@ def _build_provider_distributions(
 
 @release_management_group.command(
     name="prepare-provider-distributions",
-    help="Prepare sdist/whl distributions of Airflow Providers.",
+    help=(
+        "Prepare sdist/whl distributions of Airflow Providers. "
+        "Each provider directory is wiped with `git clean -fdx` (preserving "
+        ".venv, .idea, .vscode) before build to keep in-tree generated files "
+        "out of the artifact. See dev/breeze release-management docs."
+    ),
 )
 @option_distribution_format
 @option_version_suffix
@@ -1157,6 +1164,11 @@ def prepare_provider_distributions(
     version_suffix: str,
 ):
     perform_environment_checks()
+    # Workaround for pypa/flit#798 (fix PR pypa/flit#799) plus the Breeze
+    # Docker-mount case. Remove this call and the helper it invokes once
+    # the conditions in the tracking issue are met:
+    # https://github.com/apache/airflow/issues/65772
+    check_flit_worktree_compatibility(distribution_format)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     console_print("\n[info]Cleaning generated _api folders from docs directories")
@@ -1253,7 +1265,7 @@ def run_generate_constraints(
 ) -> tuple[int, str]:
     result = execute_command_in_shell(
         shell_params,
-        project_name=f"constraints-{shell_params.python.replace('.', '-')}",
+        project_name=f"breeze-constraints-{shell_params.python.replace('.', '-')}",
         command="/opt/airflow/scripts/in_container/run_generate_constraints.py",
         output=output,
     )
@@ -1348,7 +1360,11 @@ def tag_providers(
     release_date: str,
 ):
     found_remote = None
-    remotes = ["origin", "apache"]
+    # Standard convention is `upstream` → apache/airflow, `origin` → fork. We keep
+    # `apache` and `origin` in the fallback list so release-manager setups that
+    # predate the convention (origin cloned straight from apache/airflow, or a
+    # remote literally named `apache`) still work.
+    remotes = ["upstream", "origin", "apache"]
     for remote in remotes:
         try:
             result = run_command(
@@ -1538,7 +1554,9 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
+    result_command = execute_command_in_shell(
+        shell_params, project_name=f"breeze-providers-{index}", output=output
+    )
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -1690,7 +1708,7 @@ def install_provider_distributions(
             skip_cleanup=skip_cleanup,
         )
     else:
-        result_command = execute_command_in_shell(shell_params, project_name="providers")
+        result_command = execute_command_in_shell(shell_params, project_name="breeze-providers")
         fix_ownership_using_docker()
         sys.exit(result_command.returncode)
 
@@ -1767,7 +1785,7 @@ def verify_provider_distributions(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
         shell_params,
-        project_name="providers",
+        project_name="breeze-providers",
         command="python /opt/airflow/scripts/in_container/verify_providers.py",
     )
     fix_ownership_using_docker()
@@ -2457,13 +2475,14 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
     return None
 
 
-def get_prs_for_package(provider_id: str) -> list[int]:
+def get_prs_for_package(provider_id: str, current_release_version: str | None = None) -> list[int]:
     pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
     prs = []
-    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
-    if not provider_yaml_dict:
-        raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
-    current_release_version = provider_yaml_dict["versions"][0]
+    if current_release_version is None:
+        provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
+        if not provider_yaml_dict:
+            raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
+        current_release_version = provider_yaml_dict["versions"][0]
     provider_details = get_provider_details(provider_id)
     changelog_lines = provider_details.changelog_path.read_text().splitlines()
     extract_prs = False
@@ -2486,6 +2505,25 @@ def get_prs_for_package(provider_id: str) -> list[int]:
             if match_result:
                 prs.append(int(match_result.group(1)))
     return prs
+
+
+def _is_initial_provider_release(provider_yaml_dict: dict[str, Any] | None) -> bool:
+    """Return True when metadata indicates this is the provider's first release."""
+    if not provider_yaml_dict:
+        return False
+    versions = provider_yaml_dict.get("versions", [])
+    return len(versions) == 1
+
+
+def _should_include_provider_in_issue(
+    provider_yaml_dict: dict[str, Any] | None,
+    prs_for_current_release: list[int],
+    prs_after_exclusions: list[int],
+) -> bool:
+    """Return True when provider should be included in provider testing issue."""
+    return bool(prs_after_exclusions) or (
+        _is_initial_provider_release(provider_yaml_dict) and not prs_for_current_release
+    )
 
 
 def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str:
@@ -2595,19 +2633,21 @@ def generate_issue_content_providers(
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
         suffix: str
+        is_new: bool
 
     if not provider_distributions:
         provider_distributions = list(get_provider_dependencies().keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
+        provider_distributions_metadata = get_provider_distributions_metadata()
         if excluded_pr_list:
-            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
+            excluded_prs = {int(pr) for pr in excluded_pr_list.split(",")}
         else:
-            excluded_prs = []
+            excluded_prs = set()
         commented_prs = get_commented_out_prs_from_provider_changelogs()
         console_print(
             "[info]Automatically excluding {len(commented_prs)} PRs that are only commented out in changelog:"
         )
-        excluded_prs.extend(commented_prs)
+        excluded_prs.update(commented_prs)
         all_prs: set[int] = set()
         all_retrieved_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
@@ -2620,26 +2660,25 @@ def generate_issue_content_providers(
             else:
                 console_print(f"Skipping extracting PRs for provider {provider_id} as it is missing in dist")
                 continue
-            prs = get_prs_for_package(provider_id)
-            if not prs:
+            provider_yaml_dict = provider_distributions_metadata.get(provider_id)
+            if not provider_yaml_dict:
+                raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
+            prs = get_prs_for_package(provider_id, current_release_version=provider_yaml_dict["versions"][0])
+            filtered_prs = [pr for pr in prs if pr not in excluded_prs]
+            if not _should_include_provider_in_issue(provider_yaml_dict, prs, filtered_prs):
                 console_print(
                     f"[warning]Skipping provider {provider_id}. "
-                    "The changelog file doesn't contain any PRs for the release.\n"
+                    "The changelog file does not contain PR references for the release.\n"
                 )
                 continue
+            if not prs and _is_initial_provider_release(provider_yaml_dict):
+                console_print(
+                    f"[info]Including provider {provider_id}: initial release without PR references in changelog."
+                )
             all_prs.update(prs)
-            provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
+            provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
-        if not github_token:
-            # Get GitHub token from gh CLI and set it in environment copy
-            gh_token_result = run_command(
-                ["gh", "auth", "token"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if gh_token_result.returncode == 0:
-                github_token = gh_token_result.stdout.strip()
+        github_token = retrieve_github_token(github_token)
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -2651,8 +2690,8 @@ def generate_issue_content_providers(
             f"Retrieving {all_retrieved_prs_len} (excluded {all_prs_len - all_retrieved_prs_len})"
         )
         console_print(f"Retrieved PRs: {all_retrieved_prs}")
-        excluded_prs = sorted(set(all_prs) - set(all_retrieved_prs))
-        console_print(f"Excluded PRs: {excluded_prs}")
+        excluded_prs_for_report = sorted(set(all_prs) - set(all_retrieved_prs))
+        console_print(f"Excluded PRs: {excluded_prs_for_report}")
         with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {all_retrieved_prs_len} PRs ", total=all_retrieved_prs_len)
             for pr_number in all_retrieved_prs:
@@ -2701,25 +2740,26 @@ def generate_issue_content_providers(
                                 f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
                             )
                 progress.advance(task)
-        get_provider_distributions_metadata.cache_clear()
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
             if provider_id not in provider_prs:
                 continue
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
-            provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
-            if pull_request_list:
-                if only_available_in_dist:
-                    package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
-                else:
-                    package_suffix = ""
-                providers[provider_id] = ProviderPRInfo(
-                    version=provider_yaml_dict["versions"][0],
-                    provider_id=provider_id,
-                    pypi_package_name=provider_yaml_dict["package-name"],
-                    pr_list=pull_request_list,
-                    suffix=package_suffix if package_suffix else "",
-                )
+            provider_yaml_dict = provider_distributions_metadata.get(provider_id)
+            if not provider_yaml_dict:
+                continue
+            if only_available_in_dist:
+                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+            else:
+                package_suffix = ""
+            providers[provider_id] = ProviderPRInfo(
+                version=provider_yaml_dict["versions"][0],
+                provider_id=provider_id,
+                pypi_package_name=provider_yaml_dict["package-name"],
+                pr_list=pull_request_list,
+                suffix=package_suffix if package_suffix else "",
+                is_new=_is_initial_provider_release(provider_yaml_dict),
+            )
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )
@@ -3014,21 +3054,6 @@ def generate_issue_content_core(
     )
 
 
-def _get_github_token(github_token: str) -> str:
-    """Return github_token as-is, or fall back to ``gh auth token``."""
-    if github_token:
-        return github_token
-    result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
-    return github_token
-
-
 def _get_airflowctl_prs(
     verbose: bool,
     previous_release: str,
@@ -3239,7 +3264,7 @@ def generate_airflowctl_changelog(
     verbose = get_verbose()
 
     prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
-    github_token = _get_github_token(github_token)
+    github_token = retrieve_github_token(github_token) or ""
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
@@ -3337,6 +3362,38 @@ def generate_providers_metadata(
         console_print(metadata_dict)
         return
 
+    package_ids = list(get_provider_dependencies().keys())
+
+    # Hygiene pass: every entry in `provider.yaml`'s `versions:` list except
+    # the first is supposed to be a published PyPI release. The first entry
+    # is the in-progress next release and is allowed to predate publication;
+    # the rest must be reachable on PyPI. Any older entry that PyPI does not
+    # know about is stale (e.g. a release that was prepared but never
+    # published) — drop it from `provider.yaml` so the metadata generated
+    # below reflects only versions a user can actually install.
+    from airflow_breeze.utils.packages import get_provider_distributions_metadata
+    from airflow_breeze.utils.provider_dependencies import (
+        prune_unreleased_versions_from_provider_yaml,
+    )
+
+    console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
+    with Pool() as pypi_pool:
+        pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
+    total_pruned = 0
+    for pid, pruned in zip(package_ids, pruned_per_provider):
+        if pruned:
+            console_print(f"[warning]{pid}: removed unreleased versions from provider.yaml: {pruned}[/]")
+            total_pruned += len(pruned)
+    if total_pruned:
+        console_print(
+            f"\n[warning]Removed {total_pruned} unreleased version entr"
+            f"{'y' if total_pruned == 1 else 'ies'} from provider.yaml files. "
+            "Re-reading provider metadata.[/]\n"
+        )
+        get_provider_distributions_metadata.cache_clear()
+    else:
+        console_print("[info]All provider.yaml versions[1:] are present on PyPI.[/]\n")
+
     partial_generate_providers_metadata = partial(
         generate_providers_metadata_for_provider,
         provider_version=None,
@@ -3345,7 +3402,6 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    package_ids = get_provider_dependencies().keys()
     with Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
@@ -3535,9 +3591,12 @@ def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_v
 @click.option(
     "--remote-name",
     type=str,
-    default="apache",
+    default="upstream",
     envvar="REMOTE_NAME",
-    help="Name of the remote to push the changes to.",
+    help=(
+        "Name of the remote to push the changes to (default: 'upstream' per the standard "
+        "remote naming convention — see contributing-docs/10_working_with_git.rst)."
+    ),
 )
 @click.option(
     "--airflow-versions",
@@ -3669,7 +3728,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.21.0"
+OPENAPI_GENERATOR_CLI_VER = "7.22.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -3950,11 +4009,12 @@ def prepare_python_client(
                 f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
                 f"reproducibility problems with prepared package.[/]"
             )
+            console_print(f"[info]Please rerun breeze with Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}.[/]")
             console_print(
-                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
-            )
-            console_print(
-                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+                "\n  - For the recommended uvx-based setup, set UV_PYTHON before invoking breeze:\n"
+                f"        UV_PYTHON={DEFAULT_PYTHON_MAJOR_MINOR_VERSION} breeze ...\n"
+                "  - For a legacy global install, reinstall with the right Python:\n"
+                f"        uv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
             )
             sys.exit(1)
 
@@ -4368,7 +4428,7 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
-    github_token = _get_github_token(github_token)
+    github_token = retrieve_github_token(github_token) or ""
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}

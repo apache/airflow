@@ -50,6 +50,7 @@ TASK_RUN_ID3 = 33
 TASK_RUN_ID3_KEY = "third_task"
 JOB_ID = 42
 RUN_PAGE_URL = "https://XX.cloud.databricks.com/#jobs/1/runs/1"
+CALLER = "DatabricksSubmitRunOperator"
 ERROR_MESSAGE = "error message from databricks API"
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 
@@ -152,8 +153,19 @@ class TestDatabricksExecutionTrigger:
                 "retry_args": None,
                 "run_page_url": RUN_PAGE_URL,
                 "repair_run": False,
+                "caller": "DatabricksExecutionTrigger",
             },
         )
+
+    def test_serialize_round_trip_caller(self):
+        trigger = DatabricksExecutionTrigger(
+            run_id=RUN_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            caller=CALLER,
+        )
+        _, kwargs = trigger.serialize()
+        restored = DatabricksExecutionTrigger(**kwargs)
+        assert restored.caller == CALLER
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
@@ -259,6 +271,12 @@ class TestDatabricksExecutionTrigger:
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_run")
+    async def test_on_kill_cancels_run(self, mock_cancel_run):
+        await self.trigger.on_kill()
+        mock_cancel_run.assert_called_once_with(RUN_ID)
+
 
 class TestDatabricksSQLStatementExecutionTrigger:
     @pytest.fixture(autouse=True)
@@ -293,8 +311,20 @@ class TestDatabricksSQLStatementExecutionTrigger:
                 "retry_delay": 10,
                 "retry_limit": 3,
                 "retry_args": None,
+                "caller": "DatabricksSQLStatementExecutionTrigger",
             },
         )
+
+    def test_serialize_round_trip_caller(self):
+        trigger = DatabricksSQLStatementExecutionTrigger(
+            statement_id=STATEMENT_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            end_time=self.end_time,
+            caller=CALLER,
+        )
+        _, kwargs = trigger.serialize()
+        restored = DatabricksSQLStatementExecutionTrigger(**kwargs)
+        assert restored.caller == CALLER
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_sql_statement_state")
@@ -361,3 +391,9 @@ class TestDatabricksSQLStatementExecutionTrigger:
             )
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_sql_statement")
+    async def test_on_kill_cancels_statement(self, mock_cancel_sql_statement):
+        await self.trigger.on_kill()
+        mock_cancel_sql_statement.assert_called_once_with(STATEMENT_ID)

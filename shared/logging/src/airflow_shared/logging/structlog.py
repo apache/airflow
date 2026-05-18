@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import sys
+import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
@@ -58,6 +59,44 @@ __all__ = [
 JWT_PATTERN = re.compile(r"eyJ[\.A-Za-z0-9-_]*")
 
 LEVEL_TO_FILTERING_LOGGER: dict[int, type[Logger]] = {}
+
+
+# ``_parse_path`` was introduced in Python 3.12; older versions use a different
+# parsing path (``_flavour.parse_parts``) that does not call ``sys.intern``,
+# so the patch is neither necessary nor applicable there. Python 3.14 removed
+# the ``sys.intern`` call upstream, so the patch is unnecessary there too.
+if sys.version_info < (3, 12) or sys.version_info >= (3, 14):
+    _PatchedPath = Path  # type: ignore[misc, assignment]
+else:
+
+    class _PatchedPath(Path):
+        """
+        Backport of Python 3.14's ``PurePath._parse_path`` without ``sys.intern``.
+
+        The ``sys.intern`` call in the stock ``_parse_path`` causes memory
+        to grow unboundedly in long-running processes. Upstream removed it
+        in Python 3.14 (https://github.com/python/cpython/issues/119518);
+        this class applies the same fix for earlier versions.
+        """
+
+        @classmethod
+        def _parse_path(cls, path: str) -> tuple[str, str, list[str]]:
+            if not path:
+                return "", "", []
+            sep = os.path.sep
+            altsep = os.path.altsep
+            if altsep:
+                path = path.replace(altsep, sep)
+            drv, root, rel = os.path.splitroot(path)
+            if not root and drv.startswith(sep) and not drv.endswith(sep):
+                drv_parts = drv.split(sep)
+                if len(drv_parts) == 4 and drv_parts[2] not in "?.":
+                    # e.g. //server/share
+                    root = sep
+                elif len(drv_parts) == 6:
+                    # e.g. //?/unc/server/share
+                    root = sep
+            return drv, root, [x for x in rel.split(sep) if x and x != "."]
 
 
 def _make_airflow_structlogger(min_level):
@@ -165,24 +204,38 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
     return maker
 
 
+# structlog >= 26.1.0 added a `name` slot + kwarg to BytesLogger
+# (hynek/structlog#786). Detect it once so we can avoid a redundant slot and
+# forward `name` through the parent init. The same detection is applied to
+# WriteLogger so the analogous upstream change lands without a regression.
+_BYTES_LOGGER_HAS_NAME = "name" in getattr(structlog.BytesLogger, "__slots__", ())
+_WRITE_LOGGER_HAS_NAME = "name" in getattr(structlog.WriteLogger, "__slots__", ())
+
+
 class NamedBytesLogger(structlog.BytesLogger):
-    __slots__ = ("name",)
+    __slots__ = () if _BYTES_LOGGER_HAS_NAME else ("name",)
 
     def __init__(self, name: str | None = None, file: BinaryIO | None = None):
-        self.name = name
         if file is not None:
             file = make_file_io_non_caching(file)
-        super().__init__(file)
+        if _BYTES_LOGGER_HAS_NAME:
+            super().__init__(file, name=name)  # type: ignore[call-arg]
+        else:
+            super().__init__(file)
+            self.name = name
 
 
 class NamedWriteLogger(structlog.WriteLogger):
-    __slots__ = ("name",)
+    __slots__ = () if _WRITE_LOGGER_HAS_NAME else ("name",)
 
     def __init__(self, name: str | None = None, file: TextIO | None = None):
-        self.name = name
         if file is not None:
             file = make_file_io_non_caching(file)
-        super().__init__(file)
+        if _WRITE_LOGGER_HAS_NAME:
+            super().__init__(file, name=name)  # type: ignore[call-arg]
+        else:
+            super().__init__(file)
+            self.name = name
 
 
 LogOutputType = TypeVar("LogOutputType", bound=TextIO | BinaryIO)
@@ -555,6 +608,17 @@ def configure_logging(
             text_output = cast("TextIO", output)
         logger_factory = LoggerFactory(NamedWriteLogger, io=text_output)
 
+    # Replace structlog's WRITE_LOCKS dict with a WeakKeyDictionary so entries
+    # for closed file descriptors are garbage-collected instead of leaking.
+    # TODO: drop once structlog ships the upstream fix (tracked for 26.1.0).
+    try:
+        from structlog import _output as _structlog_output
+
+        if isinstance(_structlog_output.WRITE_LOCKS, dict):
+            _structlog_output.WRITE_LOCKS = weakref.WeakKeyDictionary()  # type: ignore[assignment]
+    except Exception:
+        pass
+
     structlog.configure(
         processors=shared_pre_chain + [for_structlog],
         cache_logger_on_first_use=cache_logger_on_first_use,
@@ -717,10 +781,16 @@ def init_log_folder(directory: str | os.PathLike[str], new_folder_permissions: i
     sure that the same group is set as default group for both - impersonated user and main airflow
     user.
     """
-    directory = Path(directory)
-    for parent in reversed(Path(directory).parents):
-        parent.mkdir(mode=new_folder_permissions, exist_ok=True)
-    directory.mkdir(mode=new_folder_permissions, exist_ok=True)
+    directory = _PatchedPath(directory)
+    try:
+        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
+    except OSError as e:
+        log.warning(
+            "Could not create log folder %s: %s. "
+            "Airflow will continue but logging to this directory may fail.",
+            directory,
+            e,
+        )
 
 
 def init_log_file(
@@ -737,7 +807,7 @@ def init_log_file(
 
     See above ``init_log_folder`` method for more detailed explanation.
     """
-    full_path = Path(base_log_folder, local_relative_path)
+    full_path = _PatchedPath(base_log_folder, local_relative_path)
     init_log_folder(full_path.parent, new_folder_permissions)
 
     try:

@@ -29,7 +29,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
@@ -165,14 +164,14 @@ def init_error_handlers(app: FastAPI) -> None:
 
 
 def init_middlewares(app: FastAPI) -> None:
+    from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
     from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
     app.add_middleware(JWTRefreshMiddleware)
-    if conf.getboolean("core", "simple_auth_manager_all_admins"):
-        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
-        app.add_middleware(SimpleAllAdminMiddleware)
+    for middleware_cls, middleware_kwargs in get_auth_manager().get_fastapi_middlewares():
+        app.add_middleware(middleware_cls, **middleware_kwargs)
 
     # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
     # the full end-to-end duration including compression time.

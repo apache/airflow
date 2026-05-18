@@ -44,12 +44,17 @@ class TestFunctionHookNoDefaultProjectId:
         ):
             self.gcf_function_hook_no_project_id = CloudFunctionsHook(gcp_conn_id="test", api_version="v1")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.functions.build")
-    def test_gcf_client_creation(self, mock_build, mock_authorize):
+    def test_gcf_client_creation(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.gcf_function_hook_no_project_id.get_conn()
         mock_build.assert_called_once_with(
-            "cloudfunctions", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "cloudfunctions",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
         assert self.gcf_function_hook_no_project_id._conn == result
@@ -106,12 +111,17 @@ class TestFunctionHookDefaultProjectId:
         ):
             self.gcf_function_hook = CloudFunctionsHook(gcp_conn_id="test", api_version="v1")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.functions.build")
-    def test_gcf_client_creation(self, mock_build, mock_authorize):
+    def test_gcf_client_creation(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.gcf_function_hook.get_conn()
         mock_build.assert_called_once_with(
-            "cloudfunctions", "v1", http=mock_authorize.return_value, cache_discovery=False
+            "cloudfunctions",
+            "v1",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
         assert self.gcf_function_hook._conn == result

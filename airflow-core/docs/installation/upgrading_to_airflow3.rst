@@ -317,6 +317,7 @@ and FastAPI middlewares (``fastapi_root_middlewares``).
 
 If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
 All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+For the full chart-specific upgrade checklist (``values.yaml`` changes, the standalone Dag processor, JWT secret, FAB defaults, minimum Kubernetes version, and renamed keys across chart ``1.16.0``..``1.18.0``), see :doc:`helm-chart:upgrading-to-airflow-3`.
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
@@ -372,7 +373,21 @@ These include:
   - ``next_ds``
   - ``execution_date``
 - The ``catchup_by_default`` Dag parameter is now ``False`` by default.
-- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
+- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``.
+
+  This only affects Dags that pass a **bare cron string** to ``schedule=`` (e.g.
+  ``schedule="0 0 * * *"``); Dags that pass an explicit timetable instance are
+  unaffected. Decide whether you rely on ``data_interval_start`` /
+  ``data_interval_end`` (and on the related templated values like ``ds`` /
+  ``ts`` in your tasks, which are derived from ``logical_date`` and shift
+  between the two timetables). If you do, set
+  ``create_cron_data_intervals=True`` explicitly to keep ``CronDataIntervalTimetable``.
+  If you don't, the new ``False`` default is fine.
+
+  Set this **before** the upgrade. If you instead change the flag after some
+  Airflow 3 dagruns already exist (going
+  ``CronTriggerTimetable`` -> ``CronDataIntervalTimetable``), one scheduled run
+  is skipped to avoid colliding with the previous run's ``logical_date``.
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini

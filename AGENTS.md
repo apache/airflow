@@ -3,10 +3,26 @@
 
 # AGENTS instructions
 
+## Naming
+
+Write **Dag** (title case) in all prose. Keep the all-caps or lowercase
+spelling only when reproducing a literal code token — never rewrite these,
+even inside fenced code blocks:
+
+- Python: the SDK class `DAG` (`from airflow.sdk import DAG`,
+  `dag = DAG("my_dag", ...)`); identifiers like `dag_id`, `dag`, `my_dag`.
+- CLI: `airflow dags list`, `airflow dags test`, etc.
+- Paths and config keys: `dag_processing/`, `dagprocessor`, `get_dag`, etc.
+- Anti-pattern quotes that show the wrong form to teach the rule itself
+  (e.g., `Use "DAG" — always write "Dag"`).
+
+Don't spell out **Directed Acyclic Graph** except for historical context.
+
 ## Environment Setup
 
 - Install prek: `uv tool install prek`
 - Enable commit hooks: `prek install`
+- Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uvx` from the current git worktree's `dev/breeze` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
 - **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`.
 - Place temporary scripts in `dev/` (mounted as `/opt/airflow/dev/` inside Breeze).
 
@@ -121,8 +137,10 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
+- Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
+- Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
-- Newsfragments are only added if a major change or breaking change is applied. This is usually coordinate during review. Please do not add newsfragments per default as in most cases this needs a reversion during review.
+- Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes (usually coordinated during review; do not add by default). **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
 
 ## Testing Standards
 
@@ -143,25 +161,84 @@ Write commit messages focused on user impact, not implementation details.
 
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
-- **Bad:** `Initialize DAG bundles in CLI get_dag function`
+- **Bad:** `Initialize Dag bundles in CLI get_dag function`
 
-Add a newsfragment for user-visible changes:
+For `airflow-core` (and `chart/`, `dev/mypy/`) user-visible changes, add a newsfragment in that distribution's `newsfragments/` directory:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
+
+**Do not add newsfragments for `providers/` or `airflow-ctl/`** — their release managers regenerate the changelog from `git log` and do not consume newsfragments. Update the changelog directly when needed: `providers/<provider>/docs/changelog.rst` (see `providers/AGENTS.md`) or `airflow-ctl/RELEASE_NOTES.rst`. Changes to `task-sdk/` use `airflow-core/newsfragments/` since task-sdk ships in airflow-core.
 
 - NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
 
+### Git remote naming conventions
+
+Airflow standardises on two git remote names, and the rest of this file, the
+contributing docs, and the release docs all assume them:
+
+- **`upstream`** — the canonical `apache/airflow` repository (fetch from here).
+- **`origin`** — the contributor's fork of `apache/airflow` (push PR branches here).
+
+Always push branches to `origin`. Never push directly to `upstream` (and never
+push directly to `main` on either remote).
+
+**Before running any remote-based command, run `git remote -v` and verify the
+names match this convention.** If they do not — for example, the upstream remote
+is called `apache`, or `origin` points at `apache/airflow` with the fork under a
+different name like `fork` — **do not silently go along with the existing
+names**. Surface the mismatch to the user and propose the exact rename commands
+to bring the checkout in line with the convention, then ask the user to confirm
+before running them. Examples:
+
+- Upstream is named `apache`, fork is `origin` (common legacy layout):
+
+  ```bash
+  git remote rename apache upstream
+  ```
+
+- `origin` points at `apache/airflow` and the fork is named `fork` (release-manager
+  / "cloned upstream directly" layout):
+
+  ```bash
+  git remote rename origin upstream
+  git remote rename fork origin
+  ```
+
+- Upstream is missing entirely:
+
+  ```bash
+  git remote add upstream https://github.com/apache/airflow.git
+  # or, for SSH:
+  git remote add upstream git@github.com:apache/airflow.git
+  ```
+
+- Fork is missing entirely:
+
+  ```bash
+  gh repo fork apache/airflow --remote --remote-name origin
+  ```
+
+After any rename/add, re-run `git remote -v` to confirm the new state before
+continuing with commands that assume `upstream` / `origin`.
+
+If a doc, script, or command you're about to run uses the old `apache` name (or
+any other variant), **translate it to the `upstream` convention** in what you
+propose to the user, rather than perpetuating the old name. Flag the stale
+documentation so it can be fixed in a follow-up.
+
 ### Creating Pull Requests
 
-**Always push to the user's fork**, not to the upstream `apache/airflow` repo. Never push
-directly to `main`.
+**Always push to the user's fork (`origin`)**, not to `upstream` (`apache/airflow`).
+Never push directly to `main`.
 
-Before pushing, determine the fork remote. Check `git remote -v` — if `origin` does **not**
-point to `apache/airflow`, use `origin` (it's the user's fork). If `origin` points to
-`apache/airflow`, look for another remote that points to the user's fork. If no fork remote
-exists, create one:
+Before pushing, confirm the remote setup matches the conventions above
+(`upstream` → `apache/airflow`, `origin` → your fork). Run `git remote -v` and,
+if the names don't match, propose renames as described in "Git remote naming
+conventions" — ask the user to confirm before running them.
+
+If the fork remote does not exist at all, create one:
 
 ```bash
-gh repo fork apache/airflow --remote --remote-name fork
+gh repo fork apache/airflow --remote --remote-name origin
 ```
 
 Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
@@ -186,18 +263,18 @@ Before pushing, always rebase your branch onto the latest target branch (usually
 to avoid merge conflicts and ensure CI runs against up-to-date code:
 
 ```bash
-git fetch <upstream-remote> <target_branch>
-git rebase <upstream-remote>/<target_branch>
+git fetch upstream <target_branch>
+git rebase upstream/<target_branch>
 ```
 
 If there are conflicts, resolve them and continue the rebase. If the rebase is too complex,
 ask the user for guidance.
 
-Then push the branch to the fork remote and open the PR creation page in the browser
+Then push the branch to your fork (`origin`) and open the PR creation page in the browser
 with the body pre-filled (including the generative AI disclosure already checked):
 
 ```bash
-git push -u <fork-remote> <branch-name>
+git push -u origin <branch-name>
 gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
 Brief description of the changes.
 
@@ -272,6 +349,65 @@ If a PR you already opened has such forward-looking language, open the
 tracking issue, add a PR comment referencing the issue URL, and push a
 follow-up commit that adds the tracking-issue URL as a comment at the
 workaround site in the code.
+
+### GitHub messages drafted by agents
+
+Anything an agent drafts that ends up posted to GitHub on the user's
+account — PR / issue comments, PR-level reviews, line-level review
+comments, discussion replies — must end with an attribution footer.
+The footer is required whether or not a human reviewed the draft
+first; what changes between the two cases is the wording.
+
+Place the footer on its own paragraph at the end of the message,
+separated from the body by a blank line and a horizontal rule. Use
+the same agent name string used in `Generated-by:` on PR bodies (for
+example, `Claude Code (Opus 4.7)`).
+
+- **Agent draft, posted without prior human review** (autonomous /
+  routine work, scheduled triage, etc.):
+
+  ```
+  ---
+  Drafted-by: <Agent Name and Version> (no human review before posting)
+  ```
+
+- **Agent draft, reviewed and approved by a human maintainer before
+  posting:**
+
+  ```
+  ---
+  Drafted-by: <Agent Name and Version>; reviewed by @<github-handle> before posting
+  ```
+
+  The `@<github-handle>` is the human who actually read the draft
+  and said "post it as-is" (or similar). It is not the user the agent
+  is "running on behalf of" if no review took place — that case is the
+  first form, not this one.
+
+This footer is in addition to, not a replacement for, any per-tool
+disclosure rules (the PR body still keeps its own `Generated-by:`
+block under the AI-disclosure checkbox; commit messages still follow
+the no-self-as-co-author rule above). Do not skip the footer to
+shorten a message — attribution applies regardless of message length.
+
+## apache-steward framework
+
+This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+framework via the snapshot mechanism. The framework provides the
+`pr-management-*` skills (triage, code-review, stats, mentor); they are
+gitignored symlinks into the `.apache-steward/` snapshot directory.
+
+A fresh clone needs the snapshot populated before any framework skill is
+invocable. Run `/setup-steward` (or follow
+[`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
+it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+contributor-facing summary of the adoption + setup flow lives in the
+[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+
+Adopter-specific modifications to framework-skill workflows live in
+[`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
+the snapshot directly. Framework changes go via PR to
+[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
 
 ## Boundaries
 
