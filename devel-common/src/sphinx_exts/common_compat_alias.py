@@ -39,6 +39,7 @@ from sphinx.ext.intersphinx import resolve_reference_any_inventory
 
 if TYPE_CHECKING:
     from docutils.nodes import Element, TextElement
+    from sphinx.addnodes import pending_xref
     from sphinx.application import Sphinx
     from sphinx.environment import BuildEnvironment
 
@@ -79,7 +80,7 @@ def _canonical_targets(name: str) -> list[str]:
 def resolve_compat_sdk_xref(
     app: Sphinx,
     env: BuildEnvironment,
-    node: Element,
+    node: pending_xref,
     contnode: TextElement,
 ) -> Element | None:
     """Sphinx ``missing-reference`` handler that aliases compat.sdk symbols."""
