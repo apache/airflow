@@ -47,6 +47,13 @@ export const getRedirectPath = (targetPath: string): string => {
   return new URL(targetPath, baseUrl).pathname;
 };
 
+// Build a same-origin "next" target (path + query + hash) from a Location.
+// Using a relative URL ensures redirects work correctly when the UI is
+// reached through a proxy or a different origin than the API server reports
+// (e.g. Gitpod port-based domains, see #46533).
+export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "search">): string =>
+  `${location.pathname}${location.search}${location.hash}`;
+
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.filter((route) => route.path !== undefined).map((route) => route.path);
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
