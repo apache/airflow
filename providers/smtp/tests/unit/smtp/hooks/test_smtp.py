@@ -756,3 +756,44 @@ class TestSmtpHookAsync:
 
         assert mock_smtp_client.auth_xoauth2.called
         mock_smtp_client.auth_xoauth2.assert_awaited_once_with(SMTP_LOGIN, ACCESS_TOKEN)
+
+    @patch(smtplib_string)
+    def test_test_connection_success(self, mock_smtplib):
+        """Test that test_connection correctly handles the tuple returned by noop()."""
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=True)
+        # smtplib.noop() returns a tuple (status_code, message)
+        mock_conn.noop.return_value = (250, b"2.0.0 Ok")
+
+        with SmtpHook(smtp_conn_id=CONN_ID_DEFAULT) as smtp_hook:
+            success, message = smtp_hook.test_connection()
+
+        assert success is True
+        assert message == "Connection successfully tested"
+        mock_conn.noop.assert_called_once()
+
+    @patch(smtplib_string)
+    def test_test_connection_failure_non_250(self, mock_smtplib):
+        """Test that test_connection returns failure when noop returns non-250 status."""
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=True)
+        # smtplib.noop() returns a tuple (status_code, message)
+        mock_conn.noop.return_value = (421, b"4.2.1 Service not available")
+
+        with SmtpHook(smtp_conn_id=CONN_ID_DEFAULT) as smtp_hook:
+            success, message = smtp_hook.test_connection()
+
+        assert success is False
+        assert message == "Failed to establish connection"
+        mock_conn.noop.assert_called_once()
+
+    @patch(smtplib_string)
+    def test_test_connection_exception(self, mock_smtplib):
+        """Test that test_connection handles exceptions gracefully."""
+        mock_conn = _create_fake_smtp(mock_smtplib, use_ssl=True)
+        mock_conn.noop.side_effect = smtplib.SMTPException("Connection error")
+
+        with SmtpHook(smtp_conn_id=CONN_ID_DEFAULT) as smtp_hook:
+            success, message = smtp_hook.test_connection()
+
+        assert success is False
+        assert "Connection error" in message
+        mock_conn.noop.assert_called_once()
