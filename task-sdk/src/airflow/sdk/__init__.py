@@ -16,11 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-# Make ``airflow.sdk`` a namespace-extending package so sibling distributions
-# (e.g. ``apache-airflow-coordinators-java`` shipping
-# ``airflow/sdk/coordinators/java/``) can contribute sub-packages.
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
-
 from typing import TYPE_CHECKING
 
 __all__ = [
