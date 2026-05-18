@@ -4892,7 +4892,7 @@ def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
 class TestTaskInstanceStateOperations:
     """Tests to verify that tasks can perform state operations (task / asset) via the supervisor."""
 
-    def test_task_can_set_and_get_state(self, create_runtime_ti, mock_supervisor_comms):
+    def test_task_can_set_and_get_state(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         class MyOperator(BaseOperator):
             def execute(self, context):
                 ts = context["task_state"]
@@ -4901,41 +4901,42 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
 
-        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        # Check a SetTaskState was sent for the right key/value (expires_at is computed from config)
-        set_calls = [
-            c
-            for c in mock_supervisor_comms.send.call_args_list
-            if isinstance(c.args[0], SetTaskState) and c.args[0].key == "job_id"
-        ]
-        assert len(set_calls) == 1
-        assert set_calls[0].args[0].value == "spark_app_001"
-        assert set_calls[0].args[0].ti_id == runtime_ti.id
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(
+                ti_id=runtime_ti.id,
+                key="job_id",
+                value="spark_app_001",
+                expires_at=frozen_dt + timedelta(days=30),
+            )
+        )
         mock_supervisor_comms.send.assert_any_call(GetTaskState(ti_id=runtime_ti.id, key="job_id"))
 
-    def test_task_can_set_state_with_retention(self, create_runtime_ti, mock_supervisor_comms):
-        from datetime import timedelta
-
+    def test_task_can_set_state_with_retention(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         class MyOperator(BaseOperator):
             def execute(self, context):
                 context["task_state"].set("job_id", "spark_app_001", retention=timedelta(days=7))
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        set_calls = [
-            c
-            for c in mock_supervisor_comms.send.call_args_list
-            if isinstance(c.args[0], SetTaskState) and c.args[0].key == "job_id"
-        ]
-        assert len(set_calls) == 1
-        msg = set_calls[0].args[0]
-        assert msg.value == "spark_app_001"
-        assert msg.expires_at is not None
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(
+                ti_id=runtime_ti.id,
+                key="job_id",
+                value="spark_app_001",
+                expires_at=frozen_dt + timedelta(days=7),
+            )
+        )
 
     def test_task_can_delete_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):
