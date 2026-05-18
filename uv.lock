@@ -2205,7 +2205,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "sqlalchemy-utils" },
     { name = "time-machine", extra = ["dateutil"] },
-    { name = "typer-slim" },
+    { name = "typer" },
     { name = "types-aiofiles" },
     { name = "types-cachetools" },
     { name = "types-certifi" },
@@ -2567,7 +2567,7 @@ requires-dist = [
     { name = "time-machine", extras = ["dateutil"], specifier = ">=3.0.0" },
     { name = "towncrier", marker = "extra == 'devscripts'", specifier = ">=23.11.0" },
     { name = "twine", marker = "extra == 'devscripts'", specifier = ">=4.0.2" },
-    { name = "typer-slim", specifier = ">=0.15.1" },
+    { name = "typer", specifier = ">=0.22.0" },
     { name = "types-aiofiles", marker = "extra == 'mypy'", specifier = ">=23.2.0.20240403" },
     { name = "types-cachetools", marker = "extra == 'mypy'", specifier = ">=6.2.0.20251022" },
     { name = "types-certifi", marker = "extra == 'mypy'", specifier = ">=2021.10.8.3" },
@@ -21892,18 +21892,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e4/51/9aed62104cea109b820bbd6c14245af756112017d309da813ef107d42e7e/typer-0.25.1.tar.gz", hash = "sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc", size = 122276, upload-time = "2026-04-30T19:32:16.964Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/f9/2b3ff4e56e5fa7debfaf9eb135d0da96f3e9a1d5b27222223c7296336e5f/typer-0.25.1-py3-none-any.whl", hash = "sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89", size = 58409, upload-time = "2026-04-30T19:32:18.271Z" },
-]
-
-[[package]]
-name = "typer-slim"
-version = "0.24.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "typer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/a7/e6aecc4b4eb59598829a3b5076a93aff291b4fdaa2ded25efc4e1f4d219c/typer_slim-0.24.0.tar.gz", hash = "sha256:f0ed36127183f52ae6ced2ecb2521789995992c521a46083bfcdbb652d22ad34", size = 4776, upload-time = "2026-02-16T22:08:51.2Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/24/5480c20380dfd18cf33d14784096dca45a24eae6102e91d49a718d3b6855/typer_slim-0.24.0-py3-none-any.whl", hash = "sha256:d5d7ee1ee2834d5020c7c616ed5e0d0f29b9a4b1dd283bdebae198ec09778d0e", size = 3394, upload-time = "2026-02-16T22:08:49.92Z" },
 ]
 
 [[package]]

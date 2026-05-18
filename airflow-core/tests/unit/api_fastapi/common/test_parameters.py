@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -27,11 +28,14 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
+    NullableDatetimeRangeFilter,
+    RangeFilter,
     SortParam,
     _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
     _TaskDisplayNamePrefixPatternParam,
+    datetime_range_filter_factory,
     filter_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
@@ -335,3 +339,61 @@ class TestTaskDisplayNamePrefixPatternParam:
 
         sql = _compile(statement)
         assert "true" in sql or "1 = 1" in sql
+
+
+def _make_datetime_filter(filter_name, model=TaskInstance, attribute_name=None, **kwargs):
+    """Call datetime_range_filter_factory outside FastAPI by supplying None for all omitted bounds."""
+    defaults = dict(lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None)
+    defaults.update(kwargs)
+    return datetime_range_filter_factory(filter_name, model, attribute_name)(**defaults)
+
+
+class TestDatetimeRangeFilterFactory:
+    """datetime_range_filter_factory dispatches to NullableDatetimeRangeFilter for start/end dates."""
+
+    def test_start_date_returns_nullable_filter(self):
+        rf = _make_datetime_filter("start_date")
+        assert isinstance(rf, NullableDatetimeRangeFilter)
+
+    def test_end_date_returns_nullable_filter(self):
+        rf = _make_datetime_filter("end_date")
+        assert isinstance(rf, NullableDatetimeRangeFilter)
+
+    def test_aliased_filter_name_returns_plain_filter(self):
+        """dag_run_start_date uses attribute_name='start_date' via outer join; NULL means 'no run',
+        not 'currently running', so it must return a plain RangeFilter to avoid inflating counts."""
+        rf = _make_datetime_filter("dag_run_start_date", model=DagRun, attribute_name="start_date")
+        assert type(rf) is RangeFilter
+
+    def test_aliased_end_date_returns_plain_filter(self):
+        """dag_run_end_date uses attribute_name='end_date' via outer join; must return plain RangeFilter."""
+        rf = _make_datetime_filter("dag_run_end_date", model=DagRun, attribute_name="end_date")
+        assert type(rf) is RangeFilter
+
+    def test_other_column_returns_plain_filter(self):
+        rf = _make_datetime_filter("queued_dttm")
+        assert type(rf) is RangeFilter
+
+    def test_lower_bound_does_not_include_now(self):
+        """NULL branch on lower bounds passes unconditionally — no now() call."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("start_date", lower_bound_gte=bound)
+        sql = _compile(rf.to_orm(select(TaskInstance)))
+        assert "is null" in sql
+        assert "now()" not in sql
+        assert "coalesce" not in sql
+
+    def test_upper_bound_includes_now_for_running_tasks(self):
+        """NULL branch on upper bounds uses now() to proxy the in-progress task's current time."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("end_date", upper_bound_lte=bound)
+        sql = _compile(rf.to_orm(select(TaskInstance)))
+        assert "is null" in sql
+        assert "now()" in sql
+        assert "coalesce" not in sql
+
+    def test_no_coalesce_for_start_date(self):
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
+        sql = _compile(rf.to_orm(select(TaskInstance)))
+        assert "coalesce" not in sql
