@@ -51,6 +51,7 @@ class TestAssetStateEndpoint:
     def setup(self, session):
         self.clear_db()
         self.asset = _create_asset(session)
+        session.commit()
         self._session = session
         self._base_url = f"/assets/{self.asset.id}/state"
 
