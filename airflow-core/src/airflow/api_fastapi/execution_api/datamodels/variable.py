@@ -34,3 +34,10 @@ class VariablePostBody(StrictBaseModel):
 
     value: str | None = Field(alias="val")
     description: str | None = Field(default=None)
+
+
+class VariableKeysResponse(StrictBaseModel):
+    """Variable keys schema for list responses."""
+
+    keys: list[str]
+    total_entries: int

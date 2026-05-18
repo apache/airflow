@@ -291,6 +291,7 @@ def create_backfill_dry_run(
             to_date=to_date,
             reverse=body.run_backwards,
             reprocess_behavior=body.reprocess_behavior,
+            dag_run_conf=body.dag_run_conf,
             session=session,
         )
         backfills = [

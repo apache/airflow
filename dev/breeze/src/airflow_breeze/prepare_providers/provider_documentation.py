@@ -100,7 +100,7 @@ Changelog
 Initial version of the provider.
 """
 
-SHORT_HASH_TO_TYPE_DICT = {}
+SHORT_HASH_TO_TYPE_DICT: dict[str, TypeOfChange] = {}
 
 
 class TypeOfChange(Enum):

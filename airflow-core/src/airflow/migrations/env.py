@@ -80,7 +80,7 @@ def run_migrations_offline():
 
     """
     context.configure(
-        url=settings.SQL_ALCHEMY_CONN,
+        url=settings.get_sql_alchemy_conn(),
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=compare_type,

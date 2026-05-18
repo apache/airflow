@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from functools import cache
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from openlineage.client.event_v2 import Dataset, Job, Run, RunEvent, RunState
@@ -112,6 +113,34 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
     events: list[RunEvent] = []
     query_count = 0
 
+    # Build hook identity -> (hook, conn_id) mapping before iterating.
+    # Using id(hook) as cache key instead of conn_id ensures distinct hook instances
+    # with the same conn_id but different params are cached separately.
+    _hook_info: dict[int, tuple[Any, str | None]] = {}
+    for e in sql_extras:
+        hid = id(e.context)
+        if hid not in _hook_info:
+            _hook_info[hid] = (e.context, _get_hook_conn_id(e.context))
+
+    @cache
+    def _get_connection(hook_id: int):
+        hook, conn_id = _hook_info[hook_id]
+        return hook.get_connection(conn_id)
+
+    @cache
+    def _get_database_info(hook_id: int):
+        hook, conn_id = _hook_info[hook_id]
+        try:
+            return hook.get_openlineage_database_info(_get_connection(hook_id))
+        except Exception as e:
+            log.debug("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+            return None
+
+    @cache
+    def _get_namespace(hook_id: int) -> str | None:
+        db_info = _get_database_info(hook_id)
+        return SQLParser.create_namespace(db_info) if db_info is not None else None
+
     for extra_info in sql_extras:
         value = extra_info.value
 
@@ -124,12 +153,13 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
         query_count += 1
 
         hook = extra_info.context
-        conn_id = _get_hook_conn_id(hook)
-        namespace = _resolve_namespace(hook, conn_id)
+        hook_id = id(hook)
+        conn_id = _hook_info[hook_id][1]
 
         # Parse SQL to obtain lineage (inputs, outputs, facets)
         query_lineage: OperatorLineage | None = None
-        if sql_text and conn_id:
+        database_info = _get_database_info(hook_id) if conn_id else None
+        if sql_text and conn_id and database_info is not None:
             try:
                 query_lineage = get_openlineage_facets_with_sql(
                     hook=hook,
@@ -137,6 +167,8 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                     conn_id=conn_id,
                     database=value.get(SqlJobHookLineageExtra.VALUE__DEFAULT_DB.value),
                     use_connection=False,  # Temporary solution before we figure out timeouts for queries
+                    connection=_get_connection(hook_id),
+                    database_info=database_info,
                 )
             except Exception as e:
                 log.debug("Failed to parse SQL for query %s: %s", query_count, e)
@@ -149,6 +181,7 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
             query_lineage = OperatorLineage(job_facets=job_facets)
 
         # Enrich run facets with external query info when available.
+        namespace = _get_namespace(hook_id) if conn_id else None
         if job_id and namespace:
             query_lineage.run_facets.setdefault(
                 "externalQuery",
@@ -179,27 +212,6 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
         except Exception as e:
             log.warning("Failed to emit OpenLineage events for SQL hook lineage: %s", e)
             log.debug("Emission failure details:", exc_info=True)
-
-    return None
-
-
-def _resolve_namespace(hook, conn_id: str | None) -> str | None:
-    """
-    Resolve the OpenLineage namespace from a hook.
-
-    Tries ``hook.get_openlineage_database_info`` to build the namespace.
-    Returns ``None`` when the hook does not expose this method.
-    """
-    if conn_id:
-        try:
-            connection = hook.get_connection(conn_id)
-            database_info = hook.get_openlineage_database_info(connection)
-        except Exception as e:
-            log.debug("Failed to get OpenLineage database info: %s", e)
-            database_info = None
-
-        if database_info is not None:
-            return SQLParser.create_namespace(database_info)
 
     return None
 
