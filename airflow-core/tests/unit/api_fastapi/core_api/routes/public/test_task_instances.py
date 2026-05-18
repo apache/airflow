@@ -56,6 +56,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_task_instance_note
 from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_teams,
