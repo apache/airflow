@@ -80,6 +80,8 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+_FALLBACK_PAGE_LIMIT: int = conf.getint("api", "fallback_page_limit")
+
 
 class _MySQLCollate(FunctionElement):
     """
@@ -147,7 +149,7 @@ class LimitFilter(BaseParam[NonNegativeInt]):
         return select.limit(self.value)
 
     @classmethod
-    def depends(cls, limit: NonNegativeInt = conf.getint("api", "fallback_page_limit")) -> LimitFilter:
+    def depends(cls, limit: NonNegativeInt = _FALLBACK_PAGE_LIMIT) -> LimitFilter:
         return cls().set_value(min(limit, conf.getint("api", "maximum_page_limit")))
 
 
@@ -648,13 +650,13 @@ class SortParam(BaseParam[list[str]]):
         else:
             default_list = list(default)
 
-        def inner(
-            order_by: list[str] = Query(
-                default=default_list,
-                description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
-                f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
-            ),
-        ) -> SortParam:
+        _order_by_query = Query(
+            default=default_list,
+            description=f"Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. "
+            f"Supported attributes: `{', '.join(all_attrs) if all_attrs else self.get_primary_key_string()}`",
+        )
+
+        def inner(order_by: list[str] = _order_by_query) -> SortParam:
             return self.set_value(order_by)
 
         return inner

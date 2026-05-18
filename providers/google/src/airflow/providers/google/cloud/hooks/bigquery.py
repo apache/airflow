@@ -712,11 +712,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: The name of the project where we have the table
         :param dataset_id: The name of the dataset where we have the table
         :param table_id: The name of the table
-        :param rows: the rows to insert
+        :param rows: the rows to insert. Each row is a mapping of column name to
+            value, matching the table schema.
 
             .. code-block:: python
 
-                rows = [{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
+                rows = [{"a_key": "a_value_0"}, {"a_key": "a_value_1"}]
 
         :param ignore_unknown_values: [Optional] Accept rows that contain values
             that do not match the schema. The unknown values are ignored.

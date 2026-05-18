@@ -19,6 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from tableauserverclient import JobItem
+
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
@@ -115,9 +117,16 @@ class TableauOperator(BaseOperator):
 
             resource_id = self._get_resource_id(tableau_hook)
 
-            response = method(resource_id)
-
-            job_id = response.id
+            if self.resource == "tasks" and self.method == "run":
+                task_item = resource.get_by_id(resource_id)
+                response_bytes = method(task_item)
+                job_items = JobItem.from_response(response_bytes, tableau_hook.server.namespace)
+                if not job_items:
+                    raise ValueError("Tableau tasks.run returned no JobItem in response")
+                job_id = job_items[0].id
+            else:
+                response = method(resource_id)
+                job_id = response.id
 
             if self.method == "refresh":
                 if self.blocking_refresh:

@@ -1000,6 +1000,46 @@ class TestDagFileProcessorManager:
         # SerializedDagModel gives history about Dags
         assert serialized_dag_count == 1
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_marks_dags_in_inactive_bundles(self, session):
+        """Dags whose bundle is no longer active should be marked stale even without a parse signal."""
+        session.add(DagBundleModel(name="gone-bundle"))
+        session.flush()
+        session.execute(
+            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
+        )
+        session.add(
+            DagModel(
+                dag_id="dag_in_inactive_bundle",
+                bundle_name="gone-bundle",
+                relative_fileloc="some_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.add(
+            DagModel(
+                dag_id="dag_in_active_bundle",
+                bundle_name="testing",
+                relative_fileloc="other_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        manager.deactivate_stale_dags(last_parsed={})
+
+        is_stale_by_dag = dict(
+            session.execute(
+                select(DagModel.dag_id, DagModel.is_stale).where(
+                    DagModel.dag_id.in_(["dag_in_inactive_bundle", "dag_in_active_bundle"])
+                )
+            ).all()
+        )
+        assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
     @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)

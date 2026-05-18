@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, Text
+from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,19 +39,27 @@ class TaskStateModel(Base):
 
     __tablename__ = "task_state"
 
-    dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False, primary_key=True)
-    task_id: Mapped[str] = mapped_column(StringID(), nullable=False, primary_key=True)
-    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, server_default="-1")
-    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
+    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False)
 
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
 
     value: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    # Optional override for early expiry. When set, garbage collection deletes this row when
+    # expires_at < now(), even if updated_at is recent. NULL means no early expiry —
+    # the row is still cleaned up by the global `updated_at + default_retention_days` check.
+    # Populated via task_state.set(retention_days=N) for keys that should expire differently
+    # than the deployment wide default.
+    expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
-        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_pkey"),
+        UniqueConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_uq"),
         ForeignKeyConstraint(
             ["dag_run_id"],
             ["dag_run.id"],
@@ -59,4 +67,5 @@ class TaskStateModel(Base):
             ondelete="CASCADE",
         ),
         Index("idx_task_state_lookup", "dag_id", "run_id", "task_id", "map_index"),
+        Index("idx_task_state_expires_at", "expires_at"),
     )
