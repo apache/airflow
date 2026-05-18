@@ -48,8 +48,11 @@ from airflow.providers.databricks.operators.databricks import (
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
     DatabricksSQLStatementExecutionTrigger,
+    DatabricksWorkflowRepairWaitTrigger,
 )
 from airflow.providers.databricks.utils import databricks as utils
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-operator"
@@ -2724,3 +2727,184 @@ class TestDatabricksTaskOperator:
         expected_task_key = "test_task_key"
 
         assert expected_task_key == operator.databricks_task_key
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Workflow repair flow is Airflow 3+ only")
+class TestExecuteCompleteWorkflowRepair:
+    PARENT_RUN_ID = 100
+    ORIGINAL_SUB_RUN_ID = 500
+    NEW_SUB_RUN_ID = 700
+
+    @staticmethod
+    def _terminal_failure_event(sub_run_id: int) -> dict[str, Any]:
+        return {
+            "run_id": sub_run_id,
+            "run_page_url": "https://example",
+            "run_state": RunState(
+                life_cycle_state="TERMINATED",
+                state_message="boom",
+                result_state="FAILED",
+            ).to_json(),
+            "errors": [{"task_key": "tk", "run_id": sub_run_id, "error": "boom"}],
+        }
+
+    def _operator_with_workflow_tg(self, max_full_run_repairs: int) -> DatabricksNotebookOperator:
+        # Pass workflow_run_metadata (templated field) rather than setting
+        # databricks_run_id directly. Airflow re-instantiates the operator at deferrable
+        # resume time, so execute_complete must rederive the parent run id from the
+        # rendered template, not from any attribute set during execute().
+        operator = DatabricksNotebookOperator(
+            task_id="task1",
+            notebook_path="path",
+            source="WORKSPACE",
+            databricks_conn_id="databricks_default",
+            workflow_run_metadata={
+                "conn_id": "databricks_default",
+                "job_id": 1,
+                "run_id": self.PARENT_RUN_ID,
+            },
+        )
+
+        # _databricks_workflow_task_group walks up `task_group` looking for is_databricks=True.
+        # Hand it a single-hop chain so it finds our mocked group directly.
+        tg = MagicMock()
+        tg.is_databricks = True
+        tg.max_full_run_repairs = max_full_run_repairs
+        tg.repair_polling_period_seconds = 15
+        tg.task_group = None
+        operator.task_group = tg
+        return operator
+
+    def test_execute_complete_failure_defers_on_wait_trigger_when_max_full_run_repairs_set(self):
+        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete(
+                context=None,
+                event=self._terminal_failure_event(self.ORIGINAL_SUB_RUN_ID),
+            )
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksWorkflowRepairWaitTrigger)
+        assert trigger.run_id == self.PARENT_RUN_ID
+        assert trigger.databricks_task_key == operator.databricks_task_key
+        assert trigger.original_sub_run_id == self.ORIGINAL_SUB_RUN_ID
+        assert trigger.polling_period_seconds == 15
+        assert exc.value.method_name == "execute_complete_after_repair_wait"
+
+    def test_execute_complete_failure_pulls_workflow_metadata_from_xcom(self):
+        # Mirrors the deferrable-resume path where execute() never ran (so
+        # workflow_run_metadata was not pre-populated): the resolver must fall back
+        # to xcom_pull from the upstream .launch task to recover the parent run id.
+        operator = DatabricksNotebookOperator(
+            task_id="task1",
+            notebook_path="path",
+            source="WORKSPACE",
+            databricks_conn_id="databricks_default",
+        )
+        tg = MagicMock()
+        tg.is_databricks = True
+        tg.max_full_run_repairs = 2
+        tg.repair_polling_period_seconds = 15
+        tg.task_group = None
+        operator.task_group = tg
+        operator.upstream_task_ids = {"workflow.launch"}
+
+        ti = MagicMock()
+        ti.xcom_pull.return_value = {
+            "conn_id": "databricks_default",
+            "job_id": 1,
+            "run_id": self.PARENT_RUN_ID,
+        }
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete(
+                context={"ti": ti},
+                event=self._terminal_failure_event(self.ORIGINAL_SUB_RUN_ID),
+            )
+
+        ti.xcom_pull.assert_called_once_with(task_ids="workflow.launch")
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksWorkflowRepairWaitTrigger)
+        assert trigger.run_id == self.PARENT_RUN_ID
+
+    def test_execute_complete_after_repair_wait_new_attempt_defers_on_execution_trigger(self):
+        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete_after_repair_wait(
+                context=None,
+                event={
+                    "status": "new_attempt",
+                    "parent_run_id": self.PARENT_RUN_ID,
+                    "databricks_task_key": operator.databricks_task_key,
+                    "new_sub_run_id": self.NEW_SUB_RUN_ID,
+                    "run_page_url": "https://example",
+                },
+            )
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksExecutionTrigger)
+        assert trigger.run_id == self.NEW_SUB_RUN_ID
+        assert exc.value.method_name == "execute_complete"
+
+    def test_execute_complete_after_repair_wait_parent_failed_raises(self):
+        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+
+        with pytest.raises(AirflowException, match="repair budget is exhausted"):
+            operator.execute_complete_after_repair_wait(
+                context=None,
+                event={
+                    "status": "parent_failed",
+                    "parent_run_id": self.PARENT_RUN_ID,
+                    "databricks_task_key": operator.databricks_task_key,
+                    "parent_run_state": RunState(
+                        life_cycle_state="TERMINATED",
+                        state_message=None,
+                        result_state="FAILED",
+                    ).to_json(),
+                    "run_page_url": "https://example",
+                },
+            )
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_sync_wait_for_new_sub_run_attempt_returns_new_attempt(self, mock_sleep):
+        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        operator.databricks_run_id = self.PARENT_RUN_ID
+        hook.get_run.side_effect = [
+            {
+                "state": {"life_cycle_state": "RUNNING", "result_state": None, "state_message": None},
+                "tasks": [
+                    {
+                        "run_id": self.ORIGINAL_SUB_RUN_ID,
+                        "task_key": operator.databricks_task_key,
+                        "start_time": 1000,
+                    },
+                ],
+            },
+            {
+                "state": {"life_cycle_state": "RUNNING", "result_state": None, "state_message": None},
+                "tasks": [
+                    {
+                        "run_id": self.ORIGINAL_SUB_RUN_ID,
+                        "task_key": operator.databricks_task_key,
+                        "start_time": 1000,
+                    },
+                    {
+                        "run_id": self.NEW_SUB_RUN_ID,
+                        "task_key": operator.databricks_task_key,
+                        "start_time": 2000,
+                    },
+                ],
+            },
+        ]
+
+        result = operator._sync_wait_for_new_sub_run_attempt(
+            original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
+            original_start_time=1000,
+            tg=operator.task_group,
+        )
+
+        assert result == self.NEW_SUB_RUN_ID
+        mock_sleep.assert_called_once_with(15)

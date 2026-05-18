@@ -28,18 +28,20 @@ pytest.importorskip("flask_session")
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.databricks.hooks.databricks import RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
     _CreateDatabricksWorkflowOperator,
+    _DatabricksFullRunRepairCoordinatorOperator,
     _flatten_node,
 )
+from airflow.providers.databricks.triggers.databricks import DatabricksWorkflowRepairCoordinatorTrigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+from airflow.utils.timezone import datetime as tz_datetime
 
-DEFAULT_DATE = timezone.datetime(2021, 1, 1)
+DEFAULT_DATE = tz_datetime(2021, 1, 1)
 
 ACCESS_CONTROL_LIST = [
     {
@@ -333,3 +335,167 @@ def test_on_kill(mock_databricks_hook, context, mock_workflow_run_metadata):
     operator.on_kill()
 
     operator._hook.cancel_run.assert_called_once_with(RUN_ID)
+
+
+class TestDatabricksFullRunRepairCoordinatorOperator:
+    LAUNCH_TASK_ID = "wf.launch"
+    LAUNCH_RETURN = {"conn_id": "databricks_default", "job_id": 42, "run_id": 100}
+
+    def _make_operator(
+        self,
+        max_full_run_repairs: int = 2,
+        deferrable: bool = True,
+    ) -> _DatabricksFullRunRepairCoordinatorOperator:
+        return _DatabricksFullRunRepairCoordinatorOperator(
+            task_id="full_run_repair_coordinator",
+            databricks_conn_id="databricks_default",
+            launch_task_id=self.LAUNCH_TASK_ID,
+            max_full_run_repairs=max_full_run_repairs,
+            repair_polling_period_seconds=10,
+            deferrable=deferrable,
+        )
+
+    def test_execute_raises_when_launch_xcom_missing(self):
+        operator = self._make_operator()
+        ctx = {"ti": MagicMock()}
+        ctx["ti"].xcom_pull.return_value = None
+
+        with pytest.raises(AirflowException, match="did not publish workflow run metadata"):
+            operator.execute(ctx)
+
+    def test_execute_defers_on_coordinator_trigger(self):
+        operator = self._make_operator(max_full_run_repairs=3)
+        ctx = {"ti": MagicMock()}
+        ctx["ti"].xcom_pull.return_value = self.LAUNCH_RETURN
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(ctx)
+
+        ctx["ti"].xcom_push.assert_not_called()
+        assert exc.value.method_name == "execute_complete"
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksWorkflowRepairCoordinatorTrigger)
+        assert trigger.run_id == self.LAUNCH_RETURN["run_id"]
+        assert trigger.max_full_run_repairs == 3
+        assert trigger.repair_attempts == 0
+        assert trigger.latest_repair_id is None
+        assert trigger.polling_period_seconds == 10
+
+    def test_execute_complete_repaired_redefers_without_xcom_push(self):
+        operator = self._make_operator(max_full_run_repairs=3)
+        ctx = {"ti": MagicMock()}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete(
+                ctx,
+                event={
+                    "status": "repaired",
+                    "run_id": 100,
+                    "repair_attempts": 1,
+                    "latest_repair_id": 555,
+                },
+            )
+
+        ctx["ti"].xcom_push.assert_not_called()
+        trigger = exc.value.trigger
+        assert isinstance(trigger, DatabricksWorkflowRepairCoordinatorTrigger)
+        assert trigger.run_id == 100
+        assert trigger.repair_attempts == 1
+        assert trigger.latest_repair_id == 555
+        assert trigger.max_full_run_repairs == 3
+
+    def test_execute_complete_failed_raises_with_errors_in_message(self):
+        operator = self._make_operator(max_full_run_repairs=2)
+        ctx = {"ti": MagicMock()}
+        errors = [{"task_key": "t1", "run_id": 11, "error": "boom"}]
+
+        with pytest.raises(AirflowException) as exc:
+            operator.execute_complete(
+                ctx,
+                event={
+                    "status": "failed",
+                    "run_id": 100,
+                    "repair_attempts": 2,
+                    "latest_repair_id": 999,
+                    "errors": errors,
+                },
+            )
+
+        message = str(exc.value)
+        assert "100" in message
+        assert "max_full_run_repairs=2" in message
+        assert "boom" in message
+        ctx["ti"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.databricks.operators.databricks_workflow.time.sleep")
+    def test_sync_run_repairs_failed_run_and_returns_success(self, mock_sleep):
+        operator = self._make_operator(max_full_run_repairs=2, deferrable=False)
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        hook.get_run_state.side_effect = [
+            RunState("TERMINATED", "FAILED", ""),
+            RunState("TERMINATED", "SUCCESS", ""),
+        ]
+        hook.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
+            "tasks": [],
+            "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
+        }
+        hook.repair_run.return_value = 555
+
+        result = operator._run_sync(run_id=100)
+
+        hook.repair_run.assert_called_once_with(
+            {
+                "run_id": 100,
+                "rerun_all_failed_tasks": True,
+                "rerun_dependent_tasks": True,
+                "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
+            }
+        )
+        assert result == {"run_id": 100, "repair_attempts": 1, "latest_repair_id": 555}
+        mock_sleep.assert_not_called()
+
+
+class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Coordinator task is only injected on Airflow 3+")
+    def test_max_full_run_repairs_positive_injects_coordinator_with_launch_upstream(self):
+        with DAG(dag_id="dwf_with_coord", schedule=None, start_date=DEFAULT_DATE):
+            with DatabricksWorkflowTaskGroup(
+                group_id="wf",
+                databricks_conn_id="databricks_conn",
+                max_full_run_repairs=2,
+                repair_polling_period_seconds=15,
+            ) as tg:
+                task = MagicMock(task_id="task1")
+                task._convert_to_databricks_workflow_task = MagicMock(return_value={})
+                tg.add(task)
+
+        coordinator = tg.children["wf.full_run_repair_coordinator"]
+        assert isinstance(coordinator, _DatabricksFullRunRepairCoordinatorOperator)
+        assert coordinator.max_full_run_repairs == 2
+        assert coordinator.repair_polling_period_seconds == 15
+        assert coordinator.launch_task_id == "wf.launch"
+        assert "wf.launch" in coordinator.upstream_task_ids
+
+    def test_negative_max_full_run_repairs_rejected(self):
+        with pytest.raises(ValueError, match="max_full_run_repairs must be >= 0"):
+            DatabricksWorkflowTaskGroup(
+                group_id="wf_invalid",
+                databricks_conn_id="databricks_conn",
+                max_full_run_repairs=-1,
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Repair behavior only applies on Airflow 3+")
+    def test_warns_when_user_task_has_retries_and_max_full_run_repairs_positive(self):
+        with DAG(dag_id="dwf_warn_retries", schedule=None, start_date=DEFAULT_DATE):
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="wf",
+                databricks_conn_id="databricks_conn",
+                max_full_run_repairs=1,
+            )
+            tg.__enter__()
+            task = EmptyOperator(task_id="task1", retries=2)
+            task._convert_to_databricks_workflow_task = MagicMock(return_value={})
+            with pytest.warns(UserWarning, match=r"retries=2 while max_full_run_repairs=1"):
+                tg.__exit__(None, None, None)

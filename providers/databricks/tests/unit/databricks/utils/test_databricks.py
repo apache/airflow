@@ -25,8 +25,10 @@ import pytest
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.utils.databricks import (
+    build_repair_run_json,
     extract_failed_task_errors,
     extract_failed_task_errors_async,
+    find_new_workflow_task_attempt,
     normalise_json_content,
     validate_trigger_event,
 )
@@ -94,6 +96,42 @@ class TestDatabricksOperatorSharedFunctions:
         event = {}
         with pytest.raises(AirflowException):
             validate_trigger_event(event)
+
+    def test_find_new_workflow_task_attempt_picks_newest_matching_attempt(self):
+        tasks = [
+            {"run_id": TASK_RUN_ID_1, "task_key": TASK_KEY_1, "start_time": 1000},
+            {"run_id": 201, "task_key": TASK_KEY_1, "start_time": 1500},
+            {"run_id": 202, "task_key": TASK_KEY_1, "start_time": 2500},
+            {"run_id": 203, "task_key": TASK_KEY_2, "start_time": 3000},
+        ]
+
+        result = find_new_workflow_task_attempt(
+            tasks=tasks,
+            task_key=TASK_KEY_1,
+            original_sub_run_id=TASK_RUN_ID_1,
+            original_start_time=1000,
+        )
+
+        assert result == {"run_id": 202, "task_key": TASK_KEY_1, "start_time": 2500}
+
+    def test_build_repair_run_json_includes_optional_fields_only_when_present(self):
+        assert build_repair_run_json(run_id=RUN_ID, latest_repair_id=None) == {
+            "run_id": RUN_ID,
+            "rerun_all_failed_tasks": True,
+            "rerun_dependent_tasks": True,
+        }
+
+        assert build_repair_run_json(
+            run_id=RUN_ID,
+            latest_repair_id=42,
+            overriding_parameters={"notebook_params": {"date": "2024-01-01"}},
+        ) == {
+            "run_id": RUN_ID,
+            "rerun_all_failed_tasks": True,
+            "rerun_dependent_tasks": True,
+            "latest_repair_id": 42,
+            "overriding_parameters": {"notebook_params": {"date": "2024-01-01"}},
+        }
 
 
 class TestExtractFailedTaskErrors:

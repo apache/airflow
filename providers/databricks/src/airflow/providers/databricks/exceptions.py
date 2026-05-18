@@ -30,3 +30,19 @@ class DatabricksSqlExecutionError(AirflowException):
 
 class DatabricksSqlExecutionTimeout(DatabricksSqlExecutionError):
     """Raised when a sql execution times out."""
+
+
+class DatabricksWorkflowRepairError(AirflowException):
+    """Raised when Databricks Workflow repair coordination fails."""
+
+
+class DatabricksWorkflowRepairMetadataError(DatabricksWorkflowRepairError):
+    """Raised when workflow repair metadata is missing or invalid."""
+
+
+class DatabricksWorkflowRepairBudgetExhausted(DatabricksWorkflowRepairError):
+    """Raised when a Databricks Workflow run fails after exhausting repair attempts."""
+
+
+class DatabricksWorkflowRepairTriggerError(DatabricksWorkflowRepairError):
+    """Raised when a Databricks Workflow repair trigger emits an invalid event."""

@@ -27,6 +27,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.databricks.exceptions import (
+    DatabricksWorkflowRepairBudgetExhausted,
+    DatabricksWorkflowRepairTriggerError,
+)
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -43,9 +47,11 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
+    DatabricksWorkflowRepairWaitTrigger,
 )
 from airflow.providers.databricks.utils.databricks import (
     extract_failed_task_errors,
+    find_new_workflow_task_attempt,
     normalise_json_content,
     validate_trigger_event,
 )
@@ -1429,19 +1435,64 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.databricks_task_key,
             run_state.life_cycle_state,
         )
-        if self.deferrable and not run_state.is_terminal:
-            self.defer(
-                trigger=DatabricksExecutionTrigger(
-                    run_id=current_task_run_id,
-                    databricks_conn_id=self.databricks_conn_id,
-                    polling_period_seconds=self.polling_period_seconds,
-                    retry_limit=self.databricks_retry_limit,
-                    retry_delay=self.databricks_retry_delay,
-                    retry_args=self.databricks_retry_args,
-                    caller=self.caller,
-                ),
-                method_name=DEFER_METHOD_NAME,
-            )
+        if self.deferrable:
+            if not run_state.is_terminal:
+                self.defer(
+                    trigger=DatabricksExecutionTrigger(
+                        run_id=current_task_run_id,
+                        databricks_conn_id=self.databricks_conn_id,
+                        polling_period_seconds=self.polling_period_seconds,
+                        retry_limit=self.databricks_retry_limit,
+                        retry_delay=self.databricks_retry_delay,
+                        retry_args=self.databricks_retry_args,
+                        caller=self.caller,
+                    ),
+                    method_name=DEFER_METHOD_NAME,
+                )
+            elif not run_state.is_successful:
+                tg = self._workflow_task_group_with_repair()
+                if tg is not None:
+                    self._defer_to_workflow_repair_wait(
+                        original_sub_run_id=current_task_run_id,
+                        original_start_time=run.get("start_time"),
+                        tg=tg,
+                    )
+        else:
+            tg = self._workflow_task_group_with_repair()
+            if tg is not None:
+                while True:
+                    while not run_state.is_terminal:
+                        time.sleep(self.polling_period_seconds)
+                        run = self._hook.get_run(current_task_run_id)
+                        run_state = RunState(**run["state"])
+                        self.log.info(
+                            "Current state of the databricks task %s is %s",
+                            self.databricks_task_key,
+                            run_state.life_cycle_state,
+                        )
+                    if run_state.is_successful:
+                        break
+                    new_sub_run_id = self._sync_wait_for_new_sub_run_attempt(
+                        original_sub_run_id=current_task_run_id,
+                        original_start_time=run.get("start_time"),
+                        tg=tg,
+                    )
+                    if new_sub_run_id is None:
+                        break
+                    self.log.info(
+                        "Workflow coordinator produced a new attempt for task_key %s (sub-run %s).",
+                        self.databricks_task_key,
+                        new_sub_run_id,
+                    )
+                    current_task_run_id = new_sub_run_id
+                    run = self._hook.get_run(current_task_run_id)
+                    run_state = RunState(**run["state"])
+                    self.log.info(
+                        "Current state of the databricks task %s is %s",
+                        self.databricks_task_key,
+                        run_state.life_cycle_state,
+                    )
+
         while not run_state.is_terminal:
             time.sleep(self.polling_period_seconds)
             run = self._hook.get_run(current_task_run_id)
@@ -1461,13 +1512,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
         if self._databricks_workflow_task_group:
-            # If we are in a DatabricksWorkflowTaskGroup, we should have an upstream task launched.
-            if not self.workflow_run_metadata:
-                launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
-                self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
-            workflow_run_metadata = WorkflowRunMetadata(**self.workflow_run_metadata)
-            self.databricks_run_id = workflow_run_metadata.run_id
-            self.databricks_conn_id = workflow_run_metadata.conn_id
+            workflow_run_metadata = self._resolve_workflow_run_metadata(context)
 
             # Store operator links in XCom for Airflow 3 compatibility
             if AIRFLOW_V_3_0_PLUS:
@@ -1482,10 +1527,166 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
+    def _resolve_workflow_run_metadata(self, context: Context | dict | None) -> WorkflowRunMetadata:
+        """
+        Populate ``databricks_run_id`` / ``databricks_conn_id`` from ``workflow_run_metadata``.
+
+        Resolves both the standard ``execute`` path and the deferrable-resume path: when a task
+        resumes via ``execute_complete``, the operator is freshly re-instantiated, so any
+        attributes set during ``execute`` (including ``databricks_run_id``) are lost. The
+        templated ``workflow_run_metadata`` field is rendered from the upstream ``.launch``
+        task's XCom on every task-instance run, so it is the canonical source for the parent
+        workflow run id across both entry points.
+        """
+        if not self.workflow_run_metadata and context is not None:
+            launch_task_id = next((task for task in self.upstream_task_ids if task.endswith(".launch")), None)
+            ti = context.get("ti") if isinstance(context, dict) else context["ti"]
+            if launch_task_id is not None and ti is not None:
+                self.workflow_run_metadata = ti.xcom_pull(task_ids=launch_task_id)
+        if not self.workflow_run_metadata:
+            raise ValueError("workflow_run_metadata is required to resolve the parent workflow run")
+        workflow_run_metadata = WorkflowRunMetadata(**self.workflow_run_metadata)
+        self.databricks_run_id = workflow_run_metadata.run_id
+        self.databricks_conn_id = workflow_run_metadata.conn_id
+        return workflow_run_metadata
+
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
         errors = event.get("errors", [])
+
+        if not run_state.is_successful:
+            tg = self._workflow_task_group_with_repair()
+            if tg is not None:
+                self._resolve_workflow_run_metadata(context)
+                self._defer_to_workflow_repair_wait(
+                    original_sub_run_id=event["run_id"],
+                    original_start_time=event.get("run_start_time"),
+                    tg=tg,
+                )
+
         self._handle_terminal_run_state(run_state, errors)
+
+    def _workflow_task_group_with_repair(self) -> DatabricksWorkflowTaskGroup | None:
+        if not AIRFLOW_V_3_0_PLUS:
+            return None
+        tg = self._databricks_workflow_task_group
+        if tg is None or getattr(tg, "max_full_run_repairs", 0) <= 0:
+            return None
+        return tg
+
+    def _sync_wait_for_new_sub_run_attempt(
+        self,
+        original_sub_run_id: int,
+        original_start_time: int | None,
+        tg: DatabricksWorkflowTaskGroup,
+    ) -> int | None:
+        """
+        Sync equivalent of :class:`DatabricksWorkflowRepairWaitTrigger`.
+
+        Polls the parent run for a new attempt of ``self.databricks_task_key`` after a
+        sub-run reaches terminal failure, then lets the caller switch to that attempt and
+        continue polling. Returns the new sub-run id, or ``None`` if the parent run
+        terminates without producing a new attempt within the grace window.
+        """
+        self.log.info(
+            "Sub-run %s for task_key %s reached terminal failure; waiting for a repair "
+            "attempt issued by the workflow coordinator.",
+            original_sub_run_id,
+            self.databricks_task_key,
+        )
+        polling_period_seconds = tg.repair_polling_period_seconds
+        terminal_grace_polls = 3
+        terminal_observations = 0
+        while True:
+            run_info = self._hook.get_run(self.databricks_run_id)  # type: ignore[arg-type]
+            parent_run_state = RunState(**run_info["state"])
+            tasks = run_info.get("tasks", [])
+            new_attempt = find_new_workflow_task_attempt(
+                tasks=tasks,
+                task_key=self.databricks_task_key,
+                original_sub_run_id=original_sub_run_id,
+                original_start_time=original_start_time,
+            )
+            if new_attempt is not None:
+                return new_attempt["run_id"]
+            if parent_run_state.is_terminal:
+                terminal_observations += 1
+                if terminal_observations >= terminal_grace_polls:
+                    self.log.info(
+                        "Parent run %s reached terminal state %s without a new attempt for "
+                        "task_key %s after %s grace polls.",
+                        self.databricks_run_id,
+                        parent_run_state.result_state,
+                        self.databricks_task_key,
+                        terminal_grace_polls,
+                    )
+                    return None
+            else:
+                terminal_observations = 0
+            time.sleep(polling_period_seconds)
+
+    def _defer_to_workflow_repair_wait(
+        self,
+        original_sub_run_id: int,
+        original_start_time: int | None,
+        tg: DatabricksWorkflowTaskGroup,
+    ) -> None:
+        self.log.info(
+            "Sub-run %s for task_key %s reached terminal failure; deferring to wait for a repair "
+            "attempt issued by the workflow coordinator.",
+            original_sub_run_id,
+            self.databricks_task_key,
+        )
+        self.defer(
+            trigger=DatabricksWorkflowRepairWaitTrigger(
+                run_id=self.databricks_run_id,  # type: ignore[arg-type]
+                databricks_conn_id=self.databricks_conn_id,
+                databricks_task_key=self.databricks_task_key,
+                original_sub_run_id=original_sub_run_id,
+                original_start_time=original_start_time,
+                polling_period_seconds=tg.repair_polling_period_seconds,
+                retry_limit=self.databricks_retry_limit,
+                retry_delay=self.databricks_retry_delay,
+                retry_args=self.databricks_retry_args,
+                caller=self.caller,
+            ),
+            method_name="execute_complete_after_repair_wait",
+        )
+
+    def execute_complete_after_repair_wait(self, context: dict | None, event: dict) -> None:
+        status = event.get("status")
+        if status == "new_attempt":
+            new_sub_run_id = event["new_sub_run_id"]
+            self.log.info(
+                "Workflow coordinator produced a new attempt for task_key %s (sub-run %s); "
+                "deferring on a fresh DatabricksExecutionTrigger to monitor it.",
+                self.databricks_task_key,
+                new_sub_run_id,
+            )
+            self.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=new_sub_run_id,
+                    databricks_conn_id=self.databricks_conn_id,
+                    polling_period_seconds=self.polling_period_seconds,
+                    retry_limit=self.databricks_retry_limit,
+                    retry_delay=self.databricks_retry_delay,
+                    retry_args=self.databricks_retry_args,
+                    caller=self.caller,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
+        elif status == "parent_failed":
+            parent_state = RunState.from_json(event["parent_run_state"])
+            raise DatabricksWorkflowRepairBudgetExhausted(
+                f"Databricks workflow run {event.get('parent_run_id')} reached terminal failure "
+                f"({parent_state.result_state}) without producing a new attempt for task_key "
+                f"{self.databricks_task_key!r}; repair budget is exhausted or the coordinator "
+                f"did not issue a repair."
+            )
+        else:
+            raise DatabricksWorkflowRepairTriggerError(
+                f"DatabricksWorkflowRepairWaitTrigger emitted unexpected status {status!r}: {event}"
+            )
 
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
