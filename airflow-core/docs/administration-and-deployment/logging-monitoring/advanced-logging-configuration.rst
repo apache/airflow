@@ -46,13 +46,14 @@ that Python objects log to loggers that follow naming convention of ``<package>.
 You can read more about standard python logging classes (Loggers, Handlers, Formatters) in the
 `Python logging documentation <https://docs.python.org/library/logging.html>`_.
 
-Create a custom logging class
------------------------------
+Create a custom logging config
+------------------------------
 
 Configuring your logging classes can be done via the ``logging_config_class`` option in ``airflow.cfg`` file.
-This configuration should specify the import path to a configuration compatible with
-:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a
-:envvar:`PYTHONPATH` environment variable.
+Despite the option name the value is a dotted import path to a ``dict`` that satisfies
+:func:`logging.config.dictConfig` — not a Python class. The ``_class`` suffix is
+historical and kept for backwards compatibility. If your file is a standard import
+location, then you should set a :envvar:`PYTHONPATH` environment variable.
 
 Follow the steps below to enable custom logging config class:
 
@@ -100,6 +101,56 @@ See :doc:`../modules_management` for details on how Python and Airflow manage mo
 .. note::
 
    You can override the way both standard logs of the components and "task" logs are handled.
+
+
+Custom logging configs and remote logging
+-----------------------------------------
+
+When ``[logging] remote_logging = True`` and you point ``logging_config_class``
+at your own module, define two module-level attributes alongside your
+``LOGGING_CONFIG`` dict:
+
+* ``REMOTE_TASK_LOG`` — an instance of
+  :class:`~airflow.logging.remote.RemoteLogIO` (or
+  :class:`~airflow.logging.remote.RemoteLogStreamIO`) that uploads task logs
+  and reads them back for the UI.
+* ``DEFAULT_REMOTE_CONN_ID`` — default Airflow connection id used when
+  ``[logging] remote_log_conn_id`` is unset.
+
+If ``REMOTE_TASK_LOG`` is missing, Airflow emits one ``WARNING`` at startup
+and the UI cannot read task logs back from the remote backend.
+
+    .. code-block:: python
+
+      # ~/airflow/config/log_config.py
+      from airflow.logging.remote import RemoteLogIO
+
+
+      class MyRemoteLogIO:
+          @property
+          def processors(self):
+              return ()
+
+          def upload(self, path, ti): ...  # upload local log file at ``path`` to your backend
+
+          def read(self, relative_path, ti): ...  # return (source_info, log_messages) for the UI
+
+
+      REMOTE_TASK_LOG: RemoteLogIO | None = MyRemoteLogIO()
+      DEFAULT_REMOTE_CONN_ID: str | None = "my_remote_conn"
+
+      LOGGING_CONFIG = {
+          "version": 1,
+          "disable_existing_loggers": False,
+          # ... your formatters / handlers / loggers / root ...
+      }
+
+.. note::
+
+   ``airflow.config_templates.airflow_local_settings`` (and its
+   ``DEFAULT_LOGGING_CONFIG``) is planned for deprecation. Build
+   ``LOGGING_CONFIG`` directly rather than deep-copying from it, and define
+   ``REMOTE_TASK_LOG`` yourself rather than re-exporting from that module.
 
 
 Custom logger for Operators, Hooks and Tasks
