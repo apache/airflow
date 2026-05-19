@@ -22,6 +22,7 @@ import json
 
 import pytest
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
@@ -40,6 +41,32 @@ class _CoordinatorB(BaseCoordinator):
     pass
 
 
+@pytest.fixture
+def sdk_config(monkeypatch):
+    """Set the ``[sdk]`` env vars consumed by :meth:`CoordinatorManager.from_config`.
+
+    :return: Callable ``apply(*, coordinators=None, queue_to_coordinator=None)`` --
+        each argument is the raw JSON string for the matching env var, or ``None``
+        to unset it. The conf cache is invalidated after each call (and again on
+        teardown) so ``from_config()`` re-reads the values just set.
+    """
+    from airflow.sdk.configuration import conf
+
+    def _apply(*, coordinators: str | None = None, queue_to_coordinator: str | None = None) -> None:
+        if coordinators is None:
+            monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
+        else:
+            monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", coordinators)
+        if queue_to_coordinator is None:
+            monkeypatch.delenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", raising=False)
+        else:
+            monkeypatch.setenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", queue_to_coordinator)
+        conf.invalidate_cache()
+
+    yield _apply
+    conf.invalidate_cache()
+
+
 class TestCoordinatorManager:
     @pytest.fixture(autouse=True)
     def _reset_cache(self):
@@ -47,55 +74,41 @@ class TestCoordinatorManager:
         yield
         reset_coordinator_manager()
 
-    def test_from_config_loads_instances(self, monkeypatch):
-        coordinators_json = json.dumps(
-            [
+    def test_from_config_loads_specs_and_resolves_instances(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
                 {
-                    "name": "alpha",
-                    "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
-                    "kwargs": {"label": "alpha-label"},
-                },
-                {
-                    "name": "beta",
-                    "classpath": f"{_CoordinatorB.__module__}._CoordinatorB",
-                },
-            ]
+                    "alpha": {
+                        "classpath": f"{_CoordinatorA.__module__}._CoordinatorA",
+                        "kwargs": {"label": "alpha-label"},
+                    },
+                    "beta": {"classpath": f"{_CoordinatorB.__module__}._CoordinatorB", "kwargs": {}},
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-a": "alpha"}),
         )
-        queue_json = json.dumps({"queue-a": "alpha"})
-
-        monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", coordinators_json)
-        monkeypatch.setenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", queue_json)
-
-        from airflow.sdk.configuration import conf
-
-        conf.invalidate_cache()
-
         manager = CoordinatorManager.from_config()
-        assert list(manager._queue_to_coordinator) == ["queue-a"]
+        assert manager._queue_to_coordinator == {"queue-a": "alpha"}
+        assert manager._created_coordinators == {}
 
         coordinator_for_queue_a = manager.for_queue("queue-a")
         assert isinstance(coordinator_for_queue_a, _CoordinatorA)
-        assert coordinator_for_queue_a.label == "alpha-label"
+        assert manager.for_queue("queue-a") is coordinator_for_queue_a, "instance should be cached"
+        assert manager._created_coordinators == {"alpha": coordinator_for_queue_a}
+
+        coordinator_for_queue_missing = manager.for_queue("queue-1")
+        assert isinstance(coordinator_for_queue_missing, _PythonCoordinator)
+        assert manager.for_queue("queue-1") is coordinator_for_queue_missing
+        assert manager._created_coordinators == {"alpha": coordinator_for_queue_a}
 
     def test_from_config_empty(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)
         monkeypatch.delenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", raising=False)
-
-        from airflow.sdk.configuration import conf
-
         conf.invalidate_cache()
 
         manager = CoordinatorManager.from_config()
+        assert manager._coordinator_specs == {}
         assert manager._queue_to_coordinator == {}
-
-    def test_for_queue_resolves_via_mapping(self):
-        coordinator_a = _CoordinatorA()
-        coordinator_b = _CoordinatorB()
-        manager = CoordinatorManager({"queue-a": coordinator_a, "queue-b": coordinator_b})
-
-        assert manager.for_queue("queue-a") is coordinator_a
-        assert manager.for_queue("queue-b") is coordinator_b
-        assert isinstance(manager.for_queue("queue-missing"), _PythonCoordinator)
 
     def test_get_coordinator_manager_is_cached(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__SDK__COORDINATORS", raising=False)

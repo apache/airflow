@@ -2009,35 +2009,35 @@ sdk:
   options:
     coordinators:
       description: |
-        JSON list of runtime coordinator entries.
+        JSON object mapping of coordinator keys to coordinator definitions.
 
-        Each entry is an object with ``name``, ``classpath`` and optional
-        ``kwargs``.  ``classpath`` is resolved via ``import_string`` and
-        constructed with ``kwargs`` once per process.  Entries are
+        Each value is an object with ``classpath`` and optional ``kwargs``.
+        ``classpath`` is resolved via ``import_string`` and constructed with
+        ``kwargs`` on first use.  Entries are
         independent instances, so the same ``classpath`` can be configured
-        multiple times with different ``kwargs`` (for example, two
-        ``JavaCoordinator`` instances pinned to different JDK versions).
-      version_added: 3.1.7
+        multiple times under different names with different ``kwargs`` (for
+        example, two ``JavaCoordinator`` instances pinned to different JDK
+        versions).
+      version_added: 3.3.0
       type: string
       example: |
-        [
-          {
-            "name": "jdk-17",
+        {
+          "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java", "jvm_args": ["-Xmx1024m"]}
           }
-        ]
+        }
       default: ~
     queue_to_coordinator:
       description: |
-        JSON mapping of queue names to coordinator ``name`` from
+        JSON mapping of queue names to a coordinator key from
         ``[sdk] coordinators``.
 
-        When a task's ``language`` field is not set, this mapping is checked
-        to route the task to a configured coordinator instance based on its
-        queue.  This is useful when queues are used as environment or
-        isolation identifiers (e.g. ``legacy-java``, ``modern-java``).
-      version_added: 3.1.7
+        This mapping is checked to route a task to a configured coordinator
+        instance based on its queue.  An entry in this mapping is needed if
+        tasks of a queue should be handled by a custom coordinator instead of
+        the default Python task-running mechanism.
+      version_added: 3.3.0
       type: string
       example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
       default: ~

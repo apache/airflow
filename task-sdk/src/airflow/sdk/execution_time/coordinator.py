@@ -42,12 +42,15 @@ driven by :func:`~airflow.sdk.execution_time.selector_loop.service_selector`.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 from typing import TYPE_CHECKING, Any
 
 import attrs
+import pydantic
 
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -58,6 +61,13 @@ if TYPE_CHECKING:
 
     from airflow.sdk.api.client import Client
     from airflow.sdk.execution_time.workloads.task import TaskInstanceDTO
+
+__all__ = [
+    "BaseCoordinator",
+    "CoordinatorManager",
+    "get_coordinator_manager",
+    "reset_coordinator_manager",
+]
 
 
 class BaseCoordinator:
@@ -95,6 +105,11 @@ class BaseCoordinator:
         This should execute the task and return a result.
         """
         raise NotImplementedError
+
+
+class _CoordinatorSpec(pydantic.BaseModel):
+    classpath: str
+    kwargs: dict[str, Any]
 
 
 class _PythonCoordinator(BaseCoordinator):
@@ -141,60 +156,59 @@ def _build_python_coordinator() -> _PythonCoordinator:
     return _PythonCoordinator()
 
 
-@attrs.define
+@attrs.define(kw_only=True)
 class CoordinatorManager:
     """
-    Registry of coordinator instances loaded from the ``[sdk] coordinators`` config.
+    Registry of coordinator instances loaded from ``[sdk]`` configurations.
 
-    Each entry in the JSON list takes the form::
+    The ``[sdk] coordinators`` value is a JSON object keyed by coordinator name::
 
         {
-            "name": "jdk-11",
-            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-            "kwargs": {"java_executable": "/usr/lib/jvm/jdk-11/bin/java", ...}
+            "jdk-11": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"java_executable": "/usr/lib/jvm/jdk-11/bin/java", ...},
+            }
         }
 
     The ``classpath`` is resolved via
-    :func:`~airflow.sdk._shared.module_loading.import_string` (no
-    :class:`ProvidersManager` involvement) and constructed with ``kwargs``.
+    :func:`~airflow.sdk._shared.module_loading.import_string` and constructed
+    with ``kwargs`` on first use. A coordinator entry that is never looked up
+    incurs no startup cost.
 
-    The ``[sdk] queue_to_coordinator`` config maps queue names to a coordinator
-    ``name`` from that list, which lets users reuse existing queue assignments
-    to route tasks to a specific coordinator instance (for example, a
-    ``"legacy-java"`` queue routed to a JDK 11 coordinator and a
-    ``"modern-java"`` queue routed to a JDK 17 coordinator).
+    The ``[sdk] queue_to_coordinator`` config maps queue names to a key in the
+    object, which lets users reuse existing queue assignments to route tasks to
+    a specific coordinator instance (for example, a ``"legacy-java"`` queue
+    routed to a JDK 11 coordinator, and a ``"modern-java"`` queue routed to a
+    JDK 17 coordinator).
 
     :meta private:
     """
 
-    _queue_to_coordinator: Mapping[str, BaseCoordinator]
+    _coordinator_specs: Mapping[str, _CoordinatorSpec]
+    _queue_to_coordinator: Mapping[str, str]
+
+    _created_coordinators: dict[str, BaseCoordinator] = attrs.field(init=False, factory=dict)
 
     @classmethod
     def from_config(cls) -> Self:
-        """Load coordinator instances from the ``[sdk]`` configuration."""
-        from airflow.sdk.configuration import conf
-
-        coordinator_entry_list = conf.getjson("sdk", "coordinators", fallback=[])
-        if not isinstance(coordinator_entry_list, list):
-            coordinator_entries = {}
-        else:
-            coordinator_entries = {d["name"]: d for d in coordinator_entry_list if "name" in d}
-
-        queue_mapping = conf.getjson("sdk", "queue_to_coordinator", fallback={})
-        if not isinstance(queue_mapping, dict):
-            queue_mapping = {}
-
-        def _build_coordinator(key: str) -> BaseCoordinator:
-            entry = coordinator_entries[key]
-            coordinator_cls = import_string(entry["classpath"])
-            return coordinator_cls(**entry["kwargs"])
-
-        queue_to_coordinator = {
-            queue: _build_coordinator(coordinator_key)
-            for queue, coordinator_key in queue_mapping.items()
-            if coordinator_key in coordinator_entries
+        """Load coordinator specs from configuration without initialization."""
+        coordinator_specs = {
+            k: _CoordinatorSpec.model_validate(v)
+            for k, v in conf.getjson("sdk", "coordinators", fallback={}).items()
         }
-        return cls(queue_to_coordinator)
+        queue_to_coordinator = conf.getjson("sdk", "queue_to_coordinator", fallback={})
+        for key in queue_to_coordinator.values():
+            if key not in coordinator_specs:
+                raise ValueError(f"[sdk] queue_to_coordinator references invalid coordinator key: {key!r}")
+        return cls(coordinator_specs=coordinator_specs, queue_to_coordinator=queue_to_coordinator)
+
+    def _for_queue_internal(self, queue: str) -> BaseCoordinator:
+        key = self._queue_to_coordinator[queue]
+        with contextlib.suppress(KeyError):
+            return self._created_coordinators[key]
+        spec = self._coordinator_specs[key]
+        coordinator = self._created_coordinators[key] = import_string(spec.classpath)(**spec.kwargs)
+        return coordinator
 
     def for_queue(self, queue: str) -> BaseCoordinator:
         """
@@ -202,7 +216,10 @@ class CoordinatorManager:
 
         If an entry is not registered, a Python coordinator is returned.
         """
-        return self._queue_to_coordinator.get(queue) or _build_python_coordinator()
+        try:
+            return self._for_queue_internal(queue)
+        except KeyError:
+            return _build_python_coordinator()
 
 
 @functools.cache
@@ -214,11 +231,3 @@ def get_coordinator_manager() -> CoordinatorManager:
 def reset_coordinator_manager() -> None:
     """Clear the cached :class:`CoordinatorManager` (test helper)."""
     get_coordinator_manager.cache_clear()
-
-
-__all__ = [
-    "BaseCoordinator",
-    "CoordinatorManager",
-    "get_coordinator_manager",
-    "reset_coordinator_manager",
-]
