@@ -63,7 +63,7 @@ Misc
 Doc-only
 ~~~~~~~~
 
-* ``Add Bundle documentation for Amazon S3 and Google GCS providers (#66993)``
+* ``Add Bundle documentation for Amazon S3 (#66993)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

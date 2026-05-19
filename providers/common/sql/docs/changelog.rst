@@ -38,8 +38,8 @@ Changelog
 
    Review your DAGs and configuration if you rely on deferred execution for paginated GenericTransfer tasks.
 
-Features
-~~~~~~~~
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 * ``Add standardized SQL check representation for listeners (#66849)``
 

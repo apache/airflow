@@ -29,7 +29,7 @@ Bug Fixes
 * ``Fix provider DB upgrades with existing tables (#66883)``
 * ``Clean up FK associations before deleting role (#65375) (#66686)``
 * ``Fix session cookie serialization when using securecookie backend (#66565)``
-* ``Fix the ldap authentication handler in the flask-ap... in override.py (#66417)``
+* ``Fix escape special characters in LDAP authentication filter (#66417)``
 
 Misc
 ~~~~

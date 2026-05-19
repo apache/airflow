@@ -79,21 +79,17 @@ Bug Fixes
 * ``Fix broken GKEStartPodOperator extra link (#66657)``
 * ``Adjust GCP BigQuery triggers for the private cloud (#66404)``
 
-Misc
-~~~~
-
-* ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
-* ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
-
 Doc-only
 ~~~~~~~~
 
-* ``Add Bundle documentation for Amazon S3 and Google GCS providers (#66993)``
-* ``Move BigQuery streaming-buffer system test to manual-only (#67009)``
+* ``Add Bundle documentation for Google GCS (#66993)``
 * ``Document Dataproc limitations in Sovereign Cloud from Google (#66706)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Move BigQuery streaming-buffer system test to manual-only (#67009)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+   * ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
    * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
    * ``Fix no-op equality checks in Vertex AI trigger tests (#66894)``
    * ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``

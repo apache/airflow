@@ -32,7 +32,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix Alibaba OSS provider: configurable endpoint and task handler log … (#66479)``
+* ``Fix support configurable endpoint and fix task handler log reads (#66479)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

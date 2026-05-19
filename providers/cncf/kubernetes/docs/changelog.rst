@@ -30,24 +30,25 @@ Changelog
 10.17.1
 .......
 
-**Default xcom-sidecar image is now pinned to** ``alpine:3.23``.
-The default container image for the xcom sidecar (used by ``KubernetesPodOperator``
-when ``do_xcom_push=True``) has changed from the unpinned ``alpine`` (which resolves
-to ``alpine:latest``) to the pinned ``alpine:3.23``. The pin makes the kubelet's
-default ``imagePullPolicy`` ``IfNotPresent`` instead of ``Always``, so a node with
-the image cached does not re-pull on every task — protecting deployments and CI
-from Docker Hub anonymous-pull rate limits.
+.. note::
+   **Default xcom-sidecar image is now pinned to** ``alpine:3.23``.
+   The default container image for the xcom sidecar (used by ``KubernetesPodOperator``
+   when ``do_xcom_push=True``) has changed from the unpinned ``alpine`` (which resolves
+   to ``alpine:latest``) to the pinned ``alpine:3.23``. The pin makes the kubelet's
+   default ``imagePullPolicy`` ``IfNotPresent`` instead of ``Always``, so a node with
+   the image cached does not re-pull on every task — protecting deployments and CI
+   from Docker Hub anonymous-pull rate limits.
 
-Deployments that override the image via ``xcom_sidecar_container_image`` (or the
-``[kubernetes] xcom_sidecar_container_image`` config) are unaffected. Deployments
-that relied on the unpinned default will now be pinned to ``alpine:3.23`` until
-the next Airflow upgrade. Set ``xcom_sidecar_container_image`` explicitly if you
-need a different alpine version, a private mirror, or another base image.
+   Deployments that override the image via ``xcom_sidecar_container_image`` (or the
+   ``[kubernetes] xcom_sidecar_container_image`` config) are unaffected. Deployments
+   that relied on the unpinned default will now be pinned to ``alpine:3.23`` until
+   the next Airflow upgrade. Set ``xcom_sidecar_container_image`` explicitly if you
+   need a different alpine version, a private mirror, or another base image.
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix deferrable KPO trigger_reentry crash when pod is GC'd before re-entry (#66716)``
+* ``Fix deferrable KubernetesPodOperator trigger_reentry crash when pod is GC'd before re-entry (#66716)``
 * ``Fix: Add latency + status metrics around pod API calls (#66806)``
 * ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``
 * ``Re-defer task when Kubernetes pod is not completed (#66705)``
