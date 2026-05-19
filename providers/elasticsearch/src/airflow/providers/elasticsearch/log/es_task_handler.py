@@ -43,6 +43,7 @@ from elasticsearch.exceptions import NotFoundError
 import airflow.logging_config as alc
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
@@ -269,7 +270,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -651,7 +652,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
         self.PAGE = 0
         self.MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
