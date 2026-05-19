@@ -253,6 +253,32 @@ class TestCloudRunExecuteJobOperator:
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail_on_cancellation(self, hook_mock):
+        """
+        Pin the contract that a FAIL event emitted by the trigger when a Cloud Run Job is
+        cancelled (no ``operation.error`` but ``cancelled_count > 0``) propagates as an
+        AirflowException — see #57791.
+        """
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {
+            "status": RunJobStatus.FAIL.value,
+            "operation_error_code": None,
+            "operation_error_message": (
+                "Cloud Run Job did not finish all tasks: task_count=3, succeeded_count=1, "
+                "failed_count=0, cancelled_count=2."
+            ),
+            "job_name": JOB_NAME,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "cancelled_count=2" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
         hook_mock.return_value.get_job.return_value = JOB
 

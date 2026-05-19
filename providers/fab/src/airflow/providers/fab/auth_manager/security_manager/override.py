@@ -1544,6 +1544,36 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def get_all_users(self) -> list[User]:
         return self.session.scalars(select(self.user_model)).all()
 
+    def on_user_login(self, user) -> None:
+        """
+        Run after a successful user login.
+
+        Override to add custom logic (e.g. audit logging). Mirrors
+        ``BaseSecurityManager.on_user_login`` from FAB 5.2.1+.
+
+        :param user: The authenticated user model.
+        """
+
+    def on_user_login_failed(self, user) -> None:
+        """
+        Run after a failed user login attempt.
+
+        Override to add custom logic (e.g. audit logging). Mirrors
+        ``BaseSecurityManager.on_user_login_failed`` from FAB 5.2.1+.
+
+        :param user: The identified (but not authenticated) user model.
+        """
+
+    def on_user_logout(self, user) -> None:
+        """
+        Run when a user logs out.
+
+        Override to add custom logic (e.g. audit logging). Mirrors
+        ``BaseSecurityManager.on_user_logout`` from FAB 5.2.1+.
+
+        :param user: The user model that is logging out.
+        """
+
     def update_user_auth_stat(self, user, success=True) -> None:
         """
         Update user authentication stats.
@@ -1569,6 +1599,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         else:
             user.fail_login_count += 1
         self.update_user(user)
+        # Fire the auth event hooks added in FAB 5.2.1 (PR #2450) so subclasses
+        # can plug in audit logging / custom side effects without having to
+        # override update_user_auth_stat itself.
+        if success:
+            self.on_user_login(user)
+        else:
+            self.on_user_login_failed(user)
 
     """
     -------------

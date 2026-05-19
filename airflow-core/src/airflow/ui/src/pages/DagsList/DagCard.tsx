@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, SimpleGrid, Link, Spinner } from "@chakra-ui/react";
+import { Box, Flex, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
@@ -28,7 +27,7 @@ import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
-import { Tooltip } from "src/components/ui";
+import { RouterLink, Tooltip } from "src/components/ui";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagTags } from "./DagTags";
@@ -50,11 +49,9 @@ export const DagCard = ({ dag }: Props) => {
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={1}>
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink data-testid="dag-id" to={`/dags/${dag.dag_id}`}>
-                {dag.dag_display_name}
-              </RouterLink>
-            </Link>
+            <RouterLink color="fg.info" data-testid="dag-id" fontWeight="bold" to={`/dags/${dag.dag_id}`}>
+              {dag.dag_display_name}
+            </RouterLink>
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
@@ -83,20 +80,18 @@ export const DagCard = ({ dag }: Props) => {
         </Stat>
         <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}>
-                <DagRunInfo
-                  endDate={latestRun.end_date}
-                  logicalDate={latestRun.logical_date}
-                  runAfter={latestRun.run_after}
-                  startDate={latestRun.start_date}
-                  state={latestRun.state}
-                />
-                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
-                  <Spinner />
-                ) : undefined}
-              </RouterLink>
-            </Link>
+            <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}>
+              <DagRunInfo
+                endDate={latestRun.end_date}
+                logicalDate={latestRun.logical_date}
+                runAfter={latestRun.run_after}
+                startDate={latestRun.start_date}
+                state={latestRun.state}
+              />
+              {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
+                <Spinner />
+              ) : undefined}
+            </RouterLink>
           ) : undefined}
         </Stat>
         <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
