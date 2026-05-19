@@ -38,7 +38,9 @@ def example_langchain_chat():
             llm_model="openai:gpt-4o",
         )
         llm = hook.get_chat_model()
-        return llm.invoke(f"Summarize concisely: {text}").content
+        # LangChain BaseMessage.content is `str | list[...]` (multi-modal union);
+        # coerce to str for the text-only path this example demonstrates.
+        return str(llm.invoke(f"Summarize concisely: {text}").content)
 
     summarize("Apache Airflow is a platform for authoring, scheduling, and monitoring workflows.")
 
@@ -89,7 +91,7 @@ def example_langchain_chat_and_embedding():
         chat = hook.get_chat_model()
         embeddings = hook.get_embedding_model()
         return {
-            "answer": chat.invoke("In one sentence: what does Airflow do?").content,
+            "answer": str(chat.invoke("In one sentence: what does Airflow do?").content),
             "embedding_dim": len(embeddings.embed_query("Airflow")),
         }
 
@@ -117,7 +119,7 @@ def example_langchain_different_conns():
         chat = hook.get_chat_model()
         embeddings = hook.get_embedding_model()
         return {
-            "answer": chat.invoke("In one sentence: what does Airflow do?").content,
+            "answer": str(chat.invoke("In one sentence: what does Airflow do?").content),
             "embedding_dim": len(embeddings.embed_query("Airflow")),
         }
 
