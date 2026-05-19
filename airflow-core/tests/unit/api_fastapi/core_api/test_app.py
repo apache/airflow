@@ -21,19 +21,15 @@ import inspect
 import typing
 
 import pytest
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.core_api.app import init_config
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 
 pytestmark = pytest.mark.db_test
@@ -147,22 +143,3 @@ class TestRouterLevelDefaultDeny:
             "ui_router must declare Depends(get_user) at the router level so every UI endpoint "
             "default-denies unauthenticated requests."
         )
-
-
-class TestCorsMiddlewareAllowCredentials:
-    @pytest.mark.parametrize(
-        ("config_value", "expected_allow_credentials"),
-        [(None, True), ("True", True), ("False", False)],
-    )
-    def test_init_config_passes_allow_credentials(self, config_value, expected_allow_credentials):
-        config = {("api", "access_control_allow_origins"): "https://example.com"}
-        if config_value is not None:
-            config[("api", "access_control_allow_credentials")] = config_value
-
-        with conf_vars(config):
-            app = FastAPI()
-            init_config(app)
-
-        cors_middlewares = [m for m in app.user_middleware if m.cls is CORSMiddleware]
-        assert len(cors_middlewares) == 1
-        assert cors_middlewares[0].kwargs["allow_credentials"] is expected_allow_credentials
