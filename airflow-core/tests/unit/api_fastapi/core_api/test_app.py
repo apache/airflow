@@ -26,6 +26,9 @@ from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.core_api.routes.public import authenticated_router
+from airflow.api_fastapi.core_api.routes.ui import ui_router
+from airflow.api_fastapi.core_api.security import get_user
 
 from tests_common.test_utils.db import clear_db_jobs
 
@@ -127,9 +130,6 @@ class TestRouterLevelDefaultDeny:
     """
 
     def test_authenticated_router_carries_get_user_dependency(self):
-        from airflow.api_fastapi.core_api.routes.public import authenticated_router
-        from airflow.api_fastapi.core_api.security import get_user
-
         assert any(
             getattr(dep, "dependency", None) is get_user for dep in authenticated_router.dependencies
         ), (
@@ -139,9 +139,6 @@ class TestRouterLevelDefaultDeny:
         )
 
     def test_ui_router_carries_get_user_dependency(self):
-        from airflow.api_fastapi.core_api.routes.ui import ui_router
-        from airflow.api_fastapi.core_api.security import get_user
-
         assert any(getattr(dep, "dependency", None) is get_user for dep in ui_router.dependencies), (
             "ui_router must declare Depends(get_user) at the router level so every UI endpoint "
             "default-denies unauthenticated requests."
