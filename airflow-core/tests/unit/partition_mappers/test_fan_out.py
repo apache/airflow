@@ -226,3 +226,21 @@ class TestFanOutMapper:
         assert isinstance(restored.window, window_cls)
         assert isinstance(restored.downstream_mapper, expected_downstream_cls)
         assert list(restored.to_downstream(upstream_key)) == list(mapper.to_downstream(upstream_key))
+
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        """max_downstream_keys=5 survives encode_partition_mapper → decode_partition_mapper."""
+        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.encoders import encode_partition_mapper
+
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        """max_downstream_keys must NOT appear in the encoded payload when not set (zero-bloat contract)."""
+        from airflow.serialization.encoders import encode_partition_mapper
+        from airflow.serialization.enums import Encoding
+
+        mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var

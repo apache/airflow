@@ -22,5 +22,6 @@ from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 class AllowedKeyMapper(PartitionMapper):
     """Partition mapper that validates keys against a set of allowed keys."""
 
-    def __init__(self, allowed_keys: list[str]) -> None:
+    def __init__(self, allowed_keys: list[str], *, max_downstream_keys: int | None = None) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.allowed_keys = allowed_keys

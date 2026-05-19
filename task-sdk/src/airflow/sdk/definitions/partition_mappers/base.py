@@ -36,6 +36,15 @@ class PartitionMapper:
     #: Temporal mappers override to ``datetime``.
     expected_decoded_type: ClassVar[type] = str
 
+    def __init__(self, *, max_downstream_keys: int | None = None) -> None:
+        if max_downstream_keys is not None and (
+            not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
+        ):
+            raise ValueError(
+                f"max_downstream_keys must be a positive integer or None, got {max_downstream_keys!r}"
+            )
+        self.max_downstream_keys = max_downstream_keys
+
 
 class RollupMapper(PartitionMapper):
     """
@@ -49,7 +58,10 @@ class RollupMapper(PartitionMapper):
 
     is_rollup: ClassVar[bool] = True
 
-    def __init__(self, *, upstream_mapper: PartitionMapper, window: Window) -> None:
+    def __init__(
+        self, *, upstream_mapper: PartitionMapper, window: Window, max_downstream_keys: int | None = None
+    ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         # Mirrors the core-side ``RollupMapper.__init__`` check so user code
         # ``from airflow.sdk import RollupMapper`` fails at Dag parse time rather
         # than slipping through to the scheduler tick (where the misconfiguration

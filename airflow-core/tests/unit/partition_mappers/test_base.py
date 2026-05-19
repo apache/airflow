@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.partition_mappers.base import PartitionMapper
+from airflow.partition_mappers.identity import IdentityMapper
 
 
 class TestPartitionMapperInitSubclass:
@@ -125,3 +126,65 @@ class TestRollupMapperInit:
 
         # Should not raise.
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
+
+
+class TestPartitionMapperMaxDownstreamKeysValidator:
+    """Verify the max_downstream_keys validator on the PartitionMapper base class.
+
+    Uses IdentityMapper as the most lightweight concrete subclass — the
+    validator lives on the base class so any subclass exercises it.
+    """
+
+    def test_max_downstream_keys_none_is_accepted(self):
+        """Default (None) leaves max_downstream_keys as None."""
+        mapper = IdentityMapper()
+        assert mapper.max_downstream_keys is None
+
+    def test_max_downstream_keys_one_is_accepted(self):
+        """Minimum positive integer value is accepted."""
+        mapper = IdentityMapper(max_downstream_keys=1)
+        assert mapper.max_downstream_keys == 1
+
+    def test_max_downstream_keys_zero_raises(self):
+        """0 is rejected — it would trip on every fan-out and is almost certainly a typo."""
+        with pytest.raises(ValueError, match="max_downstream_keys"):
+            IdentityMapper(max_downstream_keys=0)
+
+    def test_max_downstream_keys_negative_raises(self):
+        """Negative integers are rejected."""
+        with pytest.raises(ValueError, match="max_downstream_keys"):
+            IdentityMapper(max_downstream_keys=-1)
+
+    def test_max_downstream_keys_float_raises(self):
+        """Float values are rejected even when numerically equal to a valid integer (e.g. ``1.0``)."""
+        with pytest.raises(ValueError, match="max_downstream_keys"):
+            IdentityMapper(max_downstream_keys=1.0)  # type: ignore[arg-type]
+
+    def test_max_downstream_keys_string_raises(self):
+        """String values are rejected even if they look like integers."""
+        with pytest.raises(ValueError, match="max_downstream_keys"):
+            IdentityMapper(max_downstream_keys="5")  # type: ignore[arg-type]
+
+
+class TestRollupMapperMaxDownstreamKeys:
+    def test_max_downstream_keys_encode_decode_roundtrip(self):
+        from airflow.partition_mappers.base import RollupMapper
+        from airflow.partition_mappers.temporal import StartOfDayMapper
+        from airflow.partition_mappers.window import DayWindow
+        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.encoders import encode_partition_mapper
+
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow(), max_downstream_keys=5)
+        restored = decode_partition_mapper(encode_partition_mapper(mapper))
+        assert restored.max_downstream_keys == 5
+
+    def test_max_downstream_keys_absent_from_default_encoded_payload(self):
+        from airflow.partition_mappers.base import RollupMapper
+        from airflow.partition_mappers.temporal import StartOfDayMapper
+        from airflow.partition_mappers.window import DayWindow
+        from airflow.serialization.encoders import encode_partition_mapper
+        from airflow.serialization.enums import Encoding
+
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
+        assert "max_downstream_keys" not in encoded_var
