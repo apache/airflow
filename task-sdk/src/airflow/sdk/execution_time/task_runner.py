@@ -183,6 +183,9 @@ class RuntimeTaskInstance(TaskInstance):
     _cached_template_context: Context | None = None
     """The Task Instance context. This is used to cache get_template_context."""
 
+    _terminal_state_send_failed: bool = False
+    """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
+
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
