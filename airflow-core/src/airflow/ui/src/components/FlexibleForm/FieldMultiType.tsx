@@ -66,7 +66,7 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
       // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
       paramsDict[name].value = null;
       setInputText(null);
-      setParamsDict(paramsDict);
+      setParamsDict(paramsDict, name);
       onUpdate(value);
 
       return;
@@ -95,7 +95,7 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
     if (matched) {
       paramsDict[name].value = resolved;
       setInputText(null);
-      setParamsDict(paramsDict);
+      setParamsDict(paramsDict, name);
       onUpdate(value);
     } else {
       // Don't overwrite the last valid stored value; keep the typed text visible and signal the error.
