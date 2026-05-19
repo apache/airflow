@@ -19,7 +19,6 @@
 
 /* eslint-disable max-lines */
 import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
-import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -35,6 +34,7 @@ import type { ApiError } from "openapi/requests/core/ApiError";
 import type { DAGSourceResponse } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardButton, Tooltip } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
