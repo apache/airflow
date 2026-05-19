@@ -30,15 +30,18 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink, Tooltip } from "src/components/ui";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
+  readonly runStateCounts: Record<string, number> | undefined;
+  readonly runStateCountsLoading: boolean;
 };
 
-export const DagCard = ({ dag }: Props) => {
+export const DagCard = ({ dag, runStateCounts, runStateCountsLoading }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
 
@@ -104,6 +107,9 @@ export const DagCard = ({ dag }: Props) => {
         </Stat>
         <RecentRuns latestRuns={dag.latest_dag_runs} />
       </SimpleGrid>
+      <Box borderColor="border.subtle" borderTopWidth={1} px={3} py={2}>
+        <DagRunStateCounts counts={runStateCounts} dagId={dag.dag_id} isLoading={runStateCountsLoading} />
+      </Box>
     </Box>
   );
 };

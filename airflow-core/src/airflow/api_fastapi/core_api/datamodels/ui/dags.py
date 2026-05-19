@@ -21,6 +21,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
+from airflow.utils.state import DagRunState
 
 
 class DAGWithLatestDagRunsResponse(DAGResponse):
@@ -37,3 +38,16 @@ class DAGWithLatestDagRunsCollectionResponse(BaseModel):
 
     total_entries: int
     dags: list[DAGWithLatestDagRunsResponse]
+
+
+class DAGRunStateCountsResponse(BaseModel):
+    """Per-DAG counts of DagRuns grouped by state."""
+
+    dag_id: str
+    state_counts: dict[DagRunState, int]
+
+
+class DAGsRunStateCountsCollectionResponse(BaseModel):
+    """Collection of per-DAG DagRun-state counts for the DAG list page."""
+
+    dags: list[DAGRunStateCountsResponse]
