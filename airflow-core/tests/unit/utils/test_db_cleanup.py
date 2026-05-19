@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import func, inspect, select, text
+from sqlalchemy import event, func, inspect, select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -65,6 +65,21 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
+
+
+@contextmanager
+def capture_sql_statements(session):
+    statements: list[str] = []
+    bind = session.get_bind()
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(bind, "before_cursor_execute", capture)
+    try:
+        yield statements
+    finally:
+        event.remove(bind, "before_cursor_execute", capture)
 
 
 @pytest.fixture(autouse=True)
@@ -447,7 +462,7 @@ class TestDBCleanup:
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
-        Verify that running cleanup_table with drops the archives when requested.
+        Verify that running cleanup_table drops the archives when requested.
 
         Archived tables from DB migration should be kept when skip_archive is True.
         """
@@ -474,13 +489,39 @@ class TestDBCleanup:
             assert session.scalar(select(func.count()).select_from(model)) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
-    @patch("airflow.utils.db.reflect_tables")
-    def test_skip_archive_failure_will_remove_table(self, reflect_tables_mock):
-        """
-        Verify that running cleanup_table with skip_archive = True, and failure happens.
+    @pytest.mark.parametrize(
+        "batch_size", [pytest.param(None, id="single_delete"), pytest.param(2, id="batched")]
+    )
+    def test_skip_archive_does_not_create_archive_table(self, batch_size):
+        """Verify skip_archive avoids archive-table SQL instead of creating then dropping archives."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        create_tis(base_date=base_date, num_tis=10)
 
-        The archive table should be removed from db if any exception.
-        """
+        with create_session() as session:
+            for name in _get_archived_table_names(["dag_run"], session):
+                session.execute(text(f"DROP TABLE IF EXISTS {name}"))
+            session.commit()
+
+            clean_before_date = base_date.add(days=5)
+            with capture_sql_statements(session) as statements:
+                _cleanup_table(
+                    **config_dict["dag_run"].__dict__,
+                    clean_before_timestamp=clean_before_date,
+                    dry_run=False,
+                    session=session,
+                    table_names=["dag_run"],
+                    skip_archive=True,
+                    batch_size=batch_size,
+                )
+
+            model = config_dict["dag_run"].orm_model
+            assert session.scalar(select(func.count()).select_from(model)) == 5
+            assert len(_get_archived_table_names(["dag_run"], session)) == 0
+            assert [statement for statement in statements if ARCHIVE_TABLE_PREFIX in statement] == []
+
+    @patch("airflow.utils.db_cleanup.reflect_tables")
+    def test_skip_archive_failure_does_not_create_archive_table(self, reflect_tables_mock):
+        """Verify skip_archive failures do not leave archive tables behind."""
         reflect_tables_mock.side_effect = SQLAlchemyError("Deletion failed")
         base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
         num_tis = 10
