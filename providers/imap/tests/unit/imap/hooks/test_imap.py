@@ -318,6 +318,31 @@ class TestImapHook:
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite_renames(self, mock_imaplib, mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
+
+    @patch("airflow.providers.imap.hooks.imap.os.path.exists", side_effect=[True, True, False])
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_without_overwrite_multiple_files(
+        self, mock_imaplib, mock_open_method, mock_exists
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite_file=False)
+
+        assert mock_exists.call_count == 3
+        mock_open_method.assert_called_once_with("test_directory/test1.csv_2", "wb")
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
     def test_download_mail_attachments_not_found(self, mock_imaplib, mock_open_method):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
