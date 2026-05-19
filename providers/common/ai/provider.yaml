@@ -48,6 +48,9 @@ integrations:
   - integration-name: MCP Server
     external-doc-url: https://modelcontextprotocol.io/
     tags: [ai]
+  - integration-name: LangChain
+    external-doc-url: https://python.langchain.com/
+    tags: [ai]
 
 hooks:
   - integration-name: Pydantic AI
@@ -56,6 +59,9 @@ hooks:
   - integration-name: MCP Server
     python-modules:
       - airflow.providers.common.ai.hooks.mcp
+  - integration-name: LangChain
+    python-modules:
+      - airflow.providers.common.ai.hooks.langchain
 
 plugins:
   - name: hitl_review

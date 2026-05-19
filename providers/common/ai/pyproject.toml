@@ -95,6 +95,10 @@ dependencies = [
 "common.sql" = [
     "apache-airflow-providers-common-sql"
 ]
+"langchain" = [
+    "langchain>=1.0.0",
+    "langchain-openai>=0.3.0",
+]
 
 [dependency-groups]
 dev = [
