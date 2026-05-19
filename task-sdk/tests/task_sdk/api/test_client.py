@@ -838,6 +838,23 @@ class TestVariableOperations:
                     key="test_key",
                 )
 
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_variable_get_authz_returns_permission_denied(self, status_code):
+        """401/403 from the API server is reported as PERMISSION_DENIED, not raised.
+
+        The ExecutionAPISecretsBackend uses this distinction to refuse fallback
+        to a less-restrictive backend on an explicit deny.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        resp = client.variables.get(key="denied_var")
+        assert isinstance(resp, ErrorResponse)
+        assert resp.error == ErrorType.PERMISSION_DENIED
+        assert resp.detail == {"key": "denied_var", "status_code": status_code}
+
     def test_variable_set_success(self):
         # Simulate a successful response from the server when putting a variable
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1117,6 +1134,19 @@ class TestConnectionOperations:
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
+
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_connection_get_authz_returns_permission_denied(self, status_code):
+        """401/403 from the API server is reported as PERMISSION_DENIED, not raised."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="denied_conn")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.PERMISSION_DENIED
+        assert result.detail == {"conn_id": "denied_conn", "status_code": status_code}
 
 
 class TestAssetEventOperations:
