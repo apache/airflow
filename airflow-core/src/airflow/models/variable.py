@@ -32,6 +32,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -493,8 +494,6 @@ class Variable(Base, LoggingMixin):
 
         var_val = None
         # iterate over backends if not in cache (or expired)
-        from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
-
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = secrets_backend.get_variable(key=key, team_name=team_name)

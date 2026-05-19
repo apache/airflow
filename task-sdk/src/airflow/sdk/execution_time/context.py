@@ -42,7 +42,12 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
     BaseAssetUniqueKey,
 )
-from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowNotFoundException,
+    AirflowRuntimeError,
+    AirflowSecretsBackendAccessDenied,
+    ErrorType,
+)
 from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
@@ -160,8 +165,6 @@ def _get_connection(conn_id: str) -> Connection:
 
     # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
     # in worker contexts or MetastoreBackend in API server contexts)
-    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
-
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
@@ -201,7 +204,6 @@ async def _async_get_connection(conn_id: str) -> Connection:
     except SecretCache.NotPresentException:
         pass  # continue to backends
 
-    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     # Try secrets backends
@@ -254,8 +256,6 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             return var_val
     except SecretCache.NotPresentException:
         pass  # Continue to check backends
-
-    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
 
     backends = ensure_secrets_backend_loaded()
 
