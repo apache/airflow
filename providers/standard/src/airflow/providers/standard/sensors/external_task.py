@@ -29,6 +29,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperatorLink,
     BaseSensorOperator,
     conf,
+    timezone,
 )
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
@@ -258,7 +259,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 f"when `external_task_id` and `external_task_group_id` is `None`: {State.dag_states}"
             )
 
-        if execution_delta is not None and execution_date_fn is not None and execution_date is not None:
+        if sum(x is not None for x in (execution_delta, execution_date_fn, execution_date)) > 1:
             raise ValueError(
                 "Only one of `execution_delta`, `execution_date` or `execution_date_fn` may "
                 "be provided to ExternalTaskSensor."
@@ -293,9 +294,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             if isinstance(execution_date_value, datetime.datetime):
                 return [execution_date_value]
 
-            import pendulum
-
-            return [pendulum.parse(execution_date_value)]
+            return [timezone.parse(execution_date_value)]
 
         logical_date = self._get_logical_date(context)
 

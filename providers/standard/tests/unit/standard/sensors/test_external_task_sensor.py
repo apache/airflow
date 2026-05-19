@@ -672,7 +672,7 @@ exit 0
         # Test that providing execution_delta and a function raises an error
         with pytest.raises(
             ValueError,
-            match="Only one of `execution_delta` or `execution_date_fn` may be provided to ExternalTaskSensor; not both.",
+            match="Only one of `execution_delta`, `execution_date` or `execution_date_fn` may be provided to ExternalTaskSensor.",
         ):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check_delta",
@@ -1430,6 +1430,32 @@ class TestExternalTaskSensorV3:
                 ]
             )
             assert op.external_dates_filter == expected_date.isoformat()
+
+    @pytest.mark.execution_timeout(3)
+    def test_external_task_sensor_error_delta_and_execution_date(self) -> None:
+        override_candidates = [
+            (
+                "execution_delta",
+                timedelta(seconds=123),
+            ),
+            ("execution_date", "{{ logical_date - macros.timedelta(hours=1) }}"),
+            ("execution_date_fn", lambda dt: dt),
+        ]
+
+        for r in range(2, 4):
+            for overrides in itertools.combinations(override_candidates, r):
+                with DAG("test_external_task_sensor_error_delta_and_execution_date"):
+                    with pytest.raises(
+                        ValueError,
+                        match="Only one of `execution_delta`, `execution_date` or `execution_date_fn` may be provided to ExternalTaskSensor.",
+                    ):
+                        ExternalTaskSensor(
+                            task_id="test_external_task_sensor_error_delta_and_execution_date",
+                            external_dag_id="test_dag_parent",
+                            external_task_id="test_task",
+                            allowed_states=["success"],
+                            **dict(overrides),
+                        )
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_duplicate_task_ids(self, dag_maker):
