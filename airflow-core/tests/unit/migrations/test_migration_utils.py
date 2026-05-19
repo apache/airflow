@@ -136,7 +136,6 @@ def _get_revisions_in_order() -> list[str]:
 
 
 @pytest.fixture(scope="module")
-@pytest.mark.backend("sqlite", "postgres")
 def stairway_db():
     """
     Bring the DB to the stairway base revision before the test runs, and
@@ -154,7 +153,6 @@ def stairway_db():
     upgradedb()
 
 
-@pytest.mark.backend("sqlite", "postgres")
 def test_migration_stairway(stairway_db) -> None:
     """
     Walk every incremental migration step since 3.0.0: upgrade → downgrade → re-upgrade.
