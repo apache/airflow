@@ -40,7 +40,7 @@ executable.
 ## Context
 
 The executable provider's bundle spec
-([`providers/sdk/executable/docs/bundle-spec.rst`](../../providers/sdk/executable/docs/bundle-spec.rst))
+([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
 defines a deployment artifact as a ZIP archive containing:
 
 1. `airflow-metadata.yaml` declaring `format_version`, `sdk` (language/version),

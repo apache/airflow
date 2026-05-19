@@ -45,9 +45,9 @@ local-process only.
 Meanwhile, the Python side of Airflow has standardised on a different
 wire protocol for non-Python language runtimes — the *coordinator
 protocol* — pioneered by the Java SDK and described in
-[java-sdk ADR 0002](../../../feature-java-sdk-worktrees/feature-java-all/java-sdk/adr/0002-dag-parsing.md)
+[java-sdk ADR 0002](../../java-sdk/adr/0002-dag-parsing.md)
 and
-[java-sdk ADR 0003](../../../feature-java-sdk-worktrees/feature-java-all/java-sdk/adr/0003-workload-execution.md).
+[java-sdk ADR 0003](../../java-sdk/adr/0003-workload-execution.md).
 Its shape is:
 
 - The runtime is launched with `--comm=<host:port>` and
@@ -66,11 +66,11 @@ Its shape is:
   runtime.
 
 The Python-side launcher is
-[`ExecutableCoordinator`](../../providers/sdk/executable/src/airflow/providers/sdk/executable/coordinator.py),
+[`ExecutableCoordinator`](../../task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py),
 which already builds command lines of the form
 `<binary> --comm=<addr> --logs=<addr>` for both `dag_parsing_runtime_cmd`
 and `task_execution_runtime_cmd`. The bundle-spec contract
-([`providers/sdk/executable/docs/bundle-spec.rst`](../../providers/sdk/executable/docs/bundle-spec.rst))
+([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
 ratifies that any compiled SDK shipping a ZIP bundle "MUST honour the
 SDK coordinator protocol (`--comm=<addr>` / `--logs=<addr>`
 socket-based IPC)". The Java SDK satisfies this contract; the Go SDK
@@ -141,7 +141,7 @@ When `Serve` enters coordinator mode it:
 2. **Connects out** to the comm address, then to the logs address. Both
    are TCP. We dial; we do not listen. The launcher already has both
    listeners up before exec'ing the binary
-   ([java-sdk ADR 0002, "What the Base Class Handles Automatically"](../../../feature-java-sdk-worktrees/feature-java-all/java-sdk/adr/0002-dag-parsing.md#what-the-base-class-handles-automatically)).
+   ([java-sdk ADR 0002, "What the Base Class Handles Automatically"](../../java-sdk/adr/0002-dag-parsing.md#what-the-base-class-handles-automatically)).
 
 3. **Routes structured logs to the logs socket.** A new
    `slog.Handler` writes JSON-line records (one record per line, UTF-8,
@@ -153,7 +153,7 @@ When `Serve` enters coordinator mode it:
 
 4. **Reads the first comm frame and dispatches by message type.** The
    first frame's body has a `type` field per the Java SDK's encoding
-   ([java-sdk ADR 0003, "Task SDK Protocol Messages"](../../../feature-java-sdk-worktrees/feature-java-all/java-sdk/adr/0003-workload-execution.md#task-sdk-protocol-messages)).
+   ([java-sdk ADR 0003, "Task SDK Protocol Messages"](../../java-sdk/adr/0003-workload-execution.md#task-sdk-protocol-messages)).
    Two values are valid here:
 
    - `DagFileParseRequest` → DAG-parsing one-shot.
@@ -191,7 +191,7 @@ The serialised DAG payload must match Python's `SerializedDAG.serialize_dag`
 output **exactly**, including the `__type` / `__var` wrapping rules,
 unwrapping of "non-decorated" fields (`start_date`, `end_date`, `tags`),
 and the timetable encoding listed in
-[java-sdk ADR 0002, "DagFileParsingResult Format"](../../../feature-java-sdk-worktrees/feature-java-all/java-sdk/adr/0002-dag-parsing.md#dagfileparsingresult-format).
+[java-sdk ADR 0002, "DagFileParsingResult Format"](../../java-sdk/adr/0002-dag-parsing.md#dagfileparsingresult-format).
 The Go SDK gains a `serde` package that performs this encoding from
 `bundlev1.Bundle` / `bundlev1.Task`, validated against
 `validation/serialization/test_dags.yaml` (the same fixture set the Java
@@ -325,7 +325,7 @@ func main() { bundlev1server.Serve(&myBundle{}) }
   time.
 - The bundle ZIP produced by `airflow-go-pack` (ADR 0002) becomes
   spec-conformant
-  ([`providers/sdk/executable/docs/bundle-spec.rst`](../../providers/sdk/executable/docs/bundle-spec.rst))
+  ([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
   without further changes, because the binary now honours
   `--comm=<addr>`/`--logs=<addr>` as the spec demands.
 - Mixed-language pipelines (Python `@task.stub` DAGs delegating to a Go

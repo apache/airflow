@@ -34,7 +34,7 @@ the packer writes is changed.
 
 ADR 0001 / ADR 0002 picked a ZIP archive as the bundle container,
 following the executable provider's existing
-[bundle spec](../../providers/sdk/executable/docs/bundle-spec.rst).
+[`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst).
 A conforming bundle today is `bundle.zip` with three required entries:
 `airflow-metadata.yaml`, the primary DAG source file, and the compiled
 executable.

@@ -40,7 +40,7 @@ treat ADR 0004 as authoritative wherever the two disagree.
 
 [ADR 0001](0001-bundle-packing-options.md) enumerated nine candidate
 mechanisms for producing a conforming bundle ZIP
-([`providers/sdk/executable/docs/bundle-spec.rst`](../../providers/sdk/executable/docs/bundle-spec.rst))
+([`task-sdk/docs/bundle-spec.rst`](../../task-sdk/docs/bundle-spec.rst))
 from a Go SDK build. Two reasons drive the choice:
 
 1. **The repository already requires Go 1.24.** `go-sdk/go.mod` declares
