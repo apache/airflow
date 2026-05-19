@@ -80,7 +80,6 @@ if TYPE_CHECKING:
         get_unique_task_id as get_unique_task_id,
         task_decorator_factory as task_decorator_factory,
     )
-    from airflow.sdk.bases.resumablemixin import ResumableJobMixin as ResumableJobMixin
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
     from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
@@ -156,7 +155,6 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "BaseBranchOperator": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
     "BranchMixIn": ("airflow.sdk.bases.branch", "airflow.providers.standard.operators.branch"),
-    "ResumableJobMixin": "airflow.sdk.bases.resumablemixin",
     "SkipMixin": (
         "airflow.sdk.bases.skipmixin",
         "airflow.models.skipmixin",
