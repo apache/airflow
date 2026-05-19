@@ -161,8 +161,10 @@ class AllowlistManager:
         self.allowlist_file.write_text("\n".join(lines) + "\n")
 
     def generate(self) -> int:
+        roots = ", ".join(_PROJECT_SOURCE_ROOTS)
         console.print(
-            f"Scanning [cyan]{REPO_ROOT}[/cyan] for @provide_session functions with positional session …"
+            f"Scanning project source roots ([cyan]{roots}[/cyan]) under [cyan]{REPO_ROOT}[/cyan] "
+            "for @provide_session functions with positional session …"
         )
         counts: dict[str, int] = {}
         for path in _iter_python_files():
