@@ -1346,24 +1346,34 @@ class TestTIUpdateState:
             "message": "Task Instance not found",
         }
 
-    def test_ti_update_state_running_errors(self, client, session, create_task_instance, time_machine):
+    @pytest.mark.parametrize(
+        "payload_state",
+        [State.RUNNING, State.SCHEDULED, State.QUEUED, State.RESTARTING],
+    )
+    def test_ti_update_state_rejects_unsupported_payload_state(
+        self, client, session, create_task_instance, payload_state
+    ):
         """
-        Test that a 422 error is returned when the Task Instance state is RUNNING in the payload.
+        Test that a 422 error is returned when the Task Instance state is unsupported in the payload.
 
-        Task should be set to Running state via the /execution/task-instances/{task_instance_id}/run endpoint.
+        Task states owned by the scheduler or executor should not be accepted as worker-reported
+        state transitions.
         """
         ti = create_task_instance(
-            task_id="test_ti_update_state_running_errors",
-            state=State.QUEUED,
+            task_id="test_ti_update_state_rejects_unsupported_payload_state",
+            state=State.RUNNING,
             session=session,
             start_date=DEFAULT_START_DATE,
         )
 
         session.commit()
 
-        response = client.patch(f"/execution/task-instances/{ti.id}/state", json={"state": "running"})
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json={"state": payload_state})
 
         assert response.status_code == 422
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.RUNNING
+        assert session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all() == []
 
     def test_ti_update_state_database_error(self, client, session, create_task_instance):
         """
