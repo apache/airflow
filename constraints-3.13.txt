@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-18T21:01:50.926632
+# This constraints file was automatically generated on 2026-05-19T17:31:43.635766
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -227,9 +227,9 @@ azure-mgmt-resource==25.0.0
 azure-mgmt-storage==24.0.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.3
-azure-storage-blob==12.28.0
-azure-storage-file-datalake==12.23.0
-azure-storage-file-share==12.24.0
+azure-storage-blob==12.29.0
+azure-storage-file-datalake==12.24.0
+azure-storage-file-share==12.25.0
 azure-synapse-artifacts==0.22.0
 azure-synapse-spark==0.7.0
 babel==2.18.0
@@ -396,7 +396,7 @@ httplib2==0.31.2
 httpr==0.4.8
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.14.0
+huggingface_hub==1.15.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -553,9 +553,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.96.0
+pydantic-ai-slim==1.96.1
 pydantic-extra-types==2.11.1
-pydantic-graph==1.96.0
+pydantic-graph==1.96.1
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -580,7 +580,7 @@ python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
-python-ldap==3.4.6
+python-ldap==3.4.5
 python-multipart==0.0.28
 python-slugify==8.0.4
 python-telegram-bot==22.7
@@ -656,7 +656,7 @@ textual==6.2.1
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
-tiktoken==0.12.0
+tiktoken==0.13.0
 tinycss2==1.4.0
 tokenizers==0.23.1
 tomlkit==0.15.0
@@ -677,7 +677,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.14
+uv==0.11.15
 uvicorn==0.47.0
 uvloop==0.22.1
 validators==0.35.0
