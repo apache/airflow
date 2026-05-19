@@ -127,7 +127,7 @@ const parseLogs = ({
   }
 
   // Extract TI identity fields from the first structured log line and insert a single preamble
-  // entry after the "Log message source details" group (or at position 0 if absent), so they
+  // entry after the "Pre Execute" group header (or at position 0 if absent), so they
   // appear once rather than repeated on every line.
   const tiContext = extractTIContext(data);
 
@@ -135,7 +135,6 @@ const parseLogs = ({
     type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
     const groupStack: Array<Group> = [];
     const result: Array<JSX.Element | ""> = [];
-    let tiInsertAt: number | undefined;
 
     parsedLines.forEach((line) => {
       const text = innerText(line);
@@ -160,6 +159,9 @@ const parseLogs = ({
                     {finishedGroup.name}
                   </chakra.span>
                 </chakra.summary>
+                {finishedGroup.name === "Pre Execute" && tiContext !== undefined
+                  ? renderTIContextPreamble(tiContext, "jsx", "Task Identity")
+                  : null}
                 {finishedGroup.lines}
               </chakra.details>
             </Box>
@@ -171,10 +173,6 @@ const parseLogs = ({
             lastGroup.lines.push(groupElement);
           } else {
             result.push(groupElement);
-          }
-
-          if (groupStack.length === 0 && finishedGroup.name.startsWith("Log message source details")) {
-            tiInsertAt = result.length;
           }
         }
 
@@ -198,14 +196,6 @@ const parseLogs = ({
           </Box>,
         );
       }
-    }
-
-    if (tiContext !== undefined) {
-      result.splice(
-        tiInsertAt ?? 0,
-        0,
-        renderTIContextPreamble(tiContext, "jsx", "Task Identity") as JSX.Element,
-      );
     }
 
     return result;
