@@ -60,3 +60,8 @@ API Resource Configs
 
 Labels
     A dictionary of labels to be applied on the BigQuery job.
+
+http_proxy
+    Optional HTTP proxy to use when connecting to BigQuery. If not provided, the connection will not use an HTTP proxy. Can also be supplied via environmental variable or connection extra.
+https_proxy
+    Optional HTTPS proxy to use when connecting to BigQuery. If not provided, the connection will not use an HTTPS proxy. Can also be supplied via environmental variable or connection extra.
