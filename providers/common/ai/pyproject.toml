@@ -95,6 +95,9 @@ dependencies = [
 "common.sql" = [
     "apache-airflow-providers-common-sql"
 ]
+"langchain" = [
+    "langchain>=1.0.0",
+]
 
 [dependency-groups]
 dev = [
@@ -107,7 +110,8 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "apache-airflow-providers-common-sql[datafusion]"
+    "apache-airflow-providers-common-sql[datafusion]",
+    "langchain>=1.0.0",
 ]
 
 # To build docs:
