@@ -27,9 +27,6 @@ if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
 
 
-# TODO: inherit from BaseChatHook / BaseEmbeddingHook once the BaseAIHook
-# contract is extracted in common.ai (tracked separately as a follow-up; do not
-# block this PR on it).
 class LangChainHook(BaseHook):
     """
     Bridge an Airflow connection to LangChain chat and embedding models.

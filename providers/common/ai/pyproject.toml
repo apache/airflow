@@ -111,7 +111,9 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "apache-airflow-providers-common-sql[datafusion]"
+    "apache-airflow-providers-common-sql[datafusion]",
+    "langchain>=1.0.0",
+    "langchain-openai>=0.3.0",
 ]
 
 # To build docs:
