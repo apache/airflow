@@ -51,11 +51,6 @@ Features
 * ``Add run_after to TriggerDagRunOperator (#62259)``
 * ``Add partition_key to Context (#65359)``
 
-Misc
-~~~~
-
-* ``Rename default PythonVirtualenvOperator.cache_key variable to python_virtualenv_operator_cache_key (#67157)``
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
