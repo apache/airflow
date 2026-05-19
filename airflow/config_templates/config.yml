@@ -2130,10 +2130,12 @@ webserver:
       default: "1.0"
     require_confirmation_dag_change:
       description: |
-        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
-        to a DAG that may be running on sensitive environments like production.
-        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
-        Trigger a DAG
+        Require confirmation when changing a DAG in the web UI. This helps prevent accidental changes
+        in sensitive environments such as production.
+        When set to ``True``, a confirmation dialog is shown when a user tries to Pause/Unpause
+        or Trigger a DAG **from the DAG detail page** (Grid view).
+        In Airflow 2.x, this does **not** apply to Pause/Unpause or Trigger actions
+        on the DAG list page (``/home``).
       version_added: 2.9.0
       type: boolean
       example: ~
