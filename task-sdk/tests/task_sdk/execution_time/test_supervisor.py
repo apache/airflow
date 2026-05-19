@@ -1186,7 +1186,7 @@ class TestWatchedSubprocess:
 
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
-        mock_socket = mocker.MagicMock()
+        mock_socket = mocker.MagicMock(spec=socket.socket)
         proc._open_sockets[mock_socket] = "test placeholder"
         proc._process_exit_monotonic = time.monotonic() - 2
 
