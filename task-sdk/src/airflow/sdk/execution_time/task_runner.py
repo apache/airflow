@@ -840,27 +840,24 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
-    with detail_span("get_bundle"):
-        bundle_prepare_start = time.monotonic()
-        bundle_instance = DagBundlesManager().get_bundle(
-            name=bundle_info.name,
-            version=bundle_info.version,
-        )
-    with detail_span("initialize"):
-        bundle_instance.initialize()
+    bundle_prepare_start = time.monotonic()
+    bundle_instance = DagBundlesManager().get_bundle(
+        name=bundle_info.name,
+        version=bundle_info.version,
+    )
+    bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     dag_file_parse_start = time.monotonic()
-    with detail_span("make BundleDagBag"):
-        bag = BundleDagBag(
-            dag_folder=dag_absolute_path,
-            safe_mode=False,
-            load_op_links=False,
-            bundle_path=bundle_instance.path,
-            bundle_name=bundle_info.name,
-        )
+    bag = BundleDagBag(
+        dag_folder=dag_absolute_path,
+        safe_mode=False,
+        load_op_links=False,
+        bundle_path=bundle_instance.path,
+        bundle_name=bundle_info.name,
+    )
     dag_file_parse_ms = int((time.monotonic() - dag_file_parse_start) * 1000)
     if TYPE_CHECKING:
         assert what.ti.dag_id
