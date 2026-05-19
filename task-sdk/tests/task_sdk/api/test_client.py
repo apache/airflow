@@ -841,6 +841,23 @@ class TestVariableOperations:
                     key="test_key",
                 )
 
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_variable_get_authz_returns_permission_denied(self, status_code):
+        """401/403 from the API server is reported as PERMISSION_DENIED, not raised.
+
+        The ExecutionAPISecretsBackend uses this distinction to refuse fallback
+        to a less-restrictive backend on an explicit deny.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        resp = client.variables.get(key="denied_var")
+        assert isinstance(resp, ErrorResponse)
+        assert resp.error == ErrorType.PERMISSION_DENIED
+        assert resp.detail == {"key": "denied_var", "status_code": status_code}
+
     def test_variable_set_success(self):
         # Simulate a successful response from the server when putting a variable
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1120,6 +1137,19 @@ class TestConnectionOperations:
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
+
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_connection_get_authz_returns_permission_denied(self, status_code):
+        """401/403 from the API server is reported as PERMISSION_DENIED, not raised."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=status_code, json={"detail": "Forbidden"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.connections.get(conn_id="denied_conn")
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.PERMISSION_DENIED
+        assert result.detail == {"conn_id": "denied_conn", "status_code": status_code}
 
 
 class TestAssetEventOperations:
@@ -2113,6 +2143,8 @@ class TestTaskStateOperations:
         assert result.error == ErrorType.TASK_STATE_NOT_FOUND
 
     def test_set_success(self):
+        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
             assert request.url.path == f"/state/ti/{self.TI_ID}/job_id"
@@ -2120,7 +2152,42 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="spark_app_001")
+        result = client.task_state.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_expires_at_sends_field(self):
+        """expires_at is forwarded as an ISO datetime string in the request body."""
+        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["value"] == "spark_app_001"
+            assert body["expires_at"] == "2026-05-21T12:00:00Z"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_never_expire_sends_null_expires_at(self):
+        """NEVER_EXPIRE sends expires_at=null — stored as NULL in DB, GC skips it."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body.get("expires_at") is None
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.set(
+            ti_id=self.TI_ID,
+            key="job_id",
+            value="v",
+            expires_at=None,
+        )
         assert result == OKResponse(ok=True)
 
     def test_delete_success(self):

@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
@@ -30,3 +32,4 @@ class TaskStatePutBody(StrictBaseModel):
     """Request body for setting a task state value."""
 
     value: str
+    expires_at: datetime | None = None
