@@ -172,6 +172,40 @@ class TestUriMasking:
         assert result == expected
 
 
+class TestConnectionDisplayMapper:
+    """Regression tests for ``ConnectionDisplayMapper`` attribute mapping."""
+
+    @pytest.mark.parametrize(
+        "mapper_fn",
+        [
+            pytest.param(
+                connection_command.ConnectionDisplayMapper.full_details,
+                id="full_details",
+            ),
+            pytest.param(
+                connection_command.ConnectionDisplayMapper.masked_sensitive,
+                id="masked_sensitive",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("is_encrypted", "is_extra_encrypted"),
+        [
+            pytest.param(True, False, id="password-only-encrypted"),
+            pytest.param(False, True, id="extra-only-encrypted"),
+        ],
+    )
+    def test_maps_encryption_flags_to_correct_keys(self, mapper_fn, is_encrypted, is_extra_encrypted):
+        conn = Connection(conn_id="test_mapper", conn_type="http")
+        conn.is_encrypted = is_encrypted
+        conn.is_extra_encrypted = is_extra_encrypted
+
+        result = mapper_fn(conn)
+
+        assert result["is_encrypted"] == is_encrypted
+        assert result["is_extra_encrypted"] == is_extra_encrypted
+
+
 class TestCliExportConnections:
     parser = cli_parser.get_parser()
 
