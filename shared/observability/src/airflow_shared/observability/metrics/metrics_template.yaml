@@ -646,7 +646,9 @@ metrics:
     name_variables: []
 
   - name: "scheduler.tasks.heartbeat_timeout"
-    description: "Number of task instances whose heartbeat timed out and were terminated in a scheduler loop iteration."
+    description: >-
+      Number of task instances whose heartbeat timed out and were
+      terminated in a scheduler loop iteration.
     type: "gauge"
     legacy_name: "-"
     name_variables: []
