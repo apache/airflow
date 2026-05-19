@@ -109,6 +109,7 @@ describe("FieldMultiType", () => {
       render(<FieldMultiType name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
       fireEvent.change(screen.getByRole("textbox"), { target: { value: '{"key": "val"}' } });
       expect(mockParamsDict.test_param.value).toEqual({ key: "val" });
+      expect(mockSetParamsDict).toHaveBeenCalledWith(mockParamsDict, "test_param");
     });
 
     it("stores a plain string when JSON parse fails", () => {
@@ -181,6 +182,7 @@ describe("FieldMultiType", () => {
       render(<FieldMultiType name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
       fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
       expect(mockParamsDict.test_param.value).toBeNull();
+      expect(mockSetParamsDict).toHaveBeenCalledWith(mockParamsDict, "test_param");
     });
 
     it("calls onUpdate with the raw input string", () => {
@@ -208,6 +210,7 @@ describe("FieldMultiType", () => {
       fireEvent.change(screen.getByRole("textbox"), { target: { value: "nightly" } });
       expect(onUpdate).toHaveBeenCalledWith("", expect.stringContaining("integer"));
       expect(mockParamsDict.test_param.value).toBe(0);
+      expect(mockSetParamsDict).not.toHaveBeenCalled();
     });
 
     it("accepts a valid integer for type=['integer','object']", () => {

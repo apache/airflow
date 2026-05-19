@@ -54,47 +54,37 @@ type FormStore = {
   touchedKeys: ReadonlySet<string>;
 };
 
-const getParsedConf = (confString: string): Record<string, unknown> =>
-  JSON.parse(confString) as Record<string, unknown>;
-
-export const buildParamsDictWithConfValues = (newParamsDict: ParamsSpec, confString: string): ParamsSpec => {
-  const parsedConf = getParsedConf(confString);
-  const paramsWithValues: Array<[string, ParamSpec]> = [];
-  const inParamsDict = new Set<string>(Object.keys(newParamsDict));
+export const hydrateParams = (newParamsDict: ParamsSpec, confString: string): ParamsSpec => {
+  const parsedConf = JSON.parse(confString) as Record<string, unknown>;
+  const paramsWithValues: ParamsSpec = {};
 
   for (const [key, param] of Object.entries(newParamsDict)) {
-    paramsWithValues.push([
-      key,
-      {
-        description: param.description ?? null,
-        schema: param.schema,
-        value: Object.hasOwn(parsedConf, key) ? parsedConf[key] : param.value,
-      },
-    ]);
+    paramsWithValues[key] = {
+      description: param.description,
+      schema: param.schema,
+      value: Object.hasOwn(parsedConf, key) ? parsedConf[key] : param.value,
+    };
   }
 
   for (const [key, value] of Object.entries(parsedConf)) {
-    if (!inParamsDict.has(key)) {
-      paramsWithValues.push([
-        key,
-        {
-          description: null,
-          schema: paramPlaceholder.schema,
-          value,
-        },
-      ]);
+    if (!Object.hasOwn(newParamsDict, key)) {
+      paramsWithValues[key] = {
+        description: null,
+        schema: paramPlaceholder.schema,
+        value,
+      };
     }
   }
 
-  return Object.fromEntries(paramsWithValues);
+  return paramsWithValues;
 };
 
-export const buildConfFromTouchedParams = (
+export const serializeConf = (
   paramsDict: ParamsSpec,
   confString: string,
   touchedKeys: ReadonlySet<string>,
 ) => {
-  const nextConf = { ...getParsedConf(confString) };
+  const nextConf = JSON.parse(confString) as Record<string, unknown>;
 
   for (const key of touchedKeys) {
     const param = paramsDict[key];
@@ -113,7 +103,7 @@ const createParamStore = () =>
     disabled: false,
     initializeParamsDict: (newParamsDict: ParamsSpec) =>
       set((state) => ({
-        paramsDict: buildParamsDictWithConfValues(newParamsDict, state.conf),
+        paramsDict: hydrateParams(newParamsDict, state.conf),
       })),
     initialParamDict: {},
     paramsDict: {},
@@ -124,47 +114,12 @@ const createParamStore = () =>
           return {};
         }
 
-        const parsedConf = JSON.parse(confString) as Record<string, unknown>;
         const baseDict =
           Object.keys(state.initialParamDict).length > 0 ? state.initialParamDict : state.paramsDict;
+        const paramsDict =
+          Object.keys(baseDict).length > 0 ? hydrateParams(baseDict, confString) : state.paramsDict;
 
-        // Preserve a stable ordering of parameters (and thus sections in the trigger form)
-        // by following the order from the initial param dict when available.
-        const updatedParamsDictEntries: Array<[string, ParamSpec]> = [];
-        const inBase = new Set<string>(Object.keys(baseDict));
-
-        for (const [key, baseParam] of Object.entries(baseDict)) {
-          if (Object.hasOwn(parsedConf, key)) {
-            updatedParamsDictEntries.push([
-              key,
-              {
-                description: baseParam.description ?? null,
-                schema: baseParam.schema,
-                value: parsedConf[key],
-              },
-            ]);
-          }
-        }
-
-        // Append any extra keys that exist in the JSON but not in the base dict.
-        for (const [key, value] of Object.entries(parsedConf)) {
-          if (!inBase.has(key)) {
-            const existingParam = state.paramsDict[key] ?? state.initialParamDict[key];
-
-            updatedParamsDictEntries.push([
-              key,
-              {
-                description: existingParam?.description ?? null,
-                schema: existingParam?.schema ?? paramPlaceholder.schema,
-                value,
-              },
-            ]);
-          }
-        }
-
-        const updatedParamsDict: ParamsSpec = Object.fromEntries(updatedParamsDictEntries);
-
-        return { conf: confString, paramsDict: updatedParamsDict };
+        return { conf: confString, paramsDict, touchedKeys: new Set<string>() };
       }),
 
     setDisabled: (disabled: boolean) => set(() => ({ disabled })),
@@ -183,7 +138,7 @@ const createParamStore = () =>
           touchedKeys.add(touchedKey);
         }
 
-        const newConf = buildConfFromTouchedParams(newParamsDict, state.conf, touchedKeys);
+        const newConf = serializeConf(newParamsDict, state.conf, touchedKeys);
 
         if (
           state.conf === newConf &&
