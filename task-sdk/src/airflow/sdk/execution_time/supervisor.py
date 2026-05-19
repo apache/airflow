@@ -1660,7 +1660,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 else TaskStateResult.from_task_state_response(task_state)
             )
         elif isinstance(msg, SetTaskState):
-            self.client.task_state.set(msg.ti_id, msg.key, msg.value)
+            self.client.task_state.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
             resp = OKResponse(ok=True)
         elif isinstance(msg, DeleteTaskState):
             self.client.task_state.delete(msg.ti_id, msg.key)
