@@ -2753,6 +2753,46 @@ class TestHandleRequest:
             "detail": error.response.json(),
         }
 
+    def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
+        """A transient network error must not crash the IPC generator.
+
+        Without the catch-all in handle_requests, an httpx.ConnectError would
+        propagate, the generator would terminate, the task subprocess would
+        get EOFError on every subsequent send, and the worker would be stuck.
+        Verify that the error is reported back to the task as an
+        API_SERVER_ERROR ErrorResponse and that the loop stays alive for the
+        next request.
+        """
+        watched_subprocess, read_socket = watched_subprocess
+
+        # First request raises a network exception, second succeeds.
+        first_call = httpx.ConnectError("connection refused")
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(side_effect=[first_call, None])
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        # First request — should produce an ErrorResponse, not crash the generator.
+        msg1 = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req1 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg1.model_dump())
+        generator.send(req1)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes_ = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes_)
+
+        assert frame.id == req1.id
+        assert frame.error is not None
+        assert frame.error["error"] == "API_SERVER_ERROR"
+        assert frame.error["detail"]["exception_type"] == "ConnectError"
+
+        # Second request — generator must still be alive and process it normally.
+        msg2 = SucceedTask(end_date=timezone.parse("2024-10-31T12:01:00Z"))
+        req2 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg2.model_dump())
+        # Should not raise StopIteration (which would mean the loop crashed).
+        generator.send(req2)
+
 
 class TestSetSupervisorComms:
     class DummyComms:
