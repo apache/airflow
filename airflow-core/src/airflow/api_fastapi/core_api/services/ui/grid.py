@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -31,6 +33,64 @@ from airflow.serialization.definitions.mappedoperator import SerializedMappedOpe
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
 log = structlog.get_logger(logger_name=__name__)
+
+
+@dataclass
+class GridNodeAgg:
+    """Compact task instance summary used to aggregate grid state without keeping TI details."""
+
+    child_states: Counter[Any] = field(default_factory=Counter)
+    min_start_date: datetime | None = None
+    max_end_date: datetime | None = None
+    dag_version_number: int | None = None
+
+    def add_ti(
+        self,
+        *,
+        state: Any,
+        start_date: datetime | None,
+        end_date: datetime | None,
+        dag_version_number: int | None,
+    ) -> None:
+        """Merge one task instance row into the summary."""
+        self.child_states[state] += 1
+        if start_date is not None and (self.min_start_date is None or start_date < self.min_start_date):
+            self.min_start_date = start_date
+        if end_date is not None and (self.max_end_date is None or end_date > self.max_end_date):
+            self.max_end_date = end_date
+        if dag_version_number is not None and (
+            self.dag_version_number is None or dag_version_number > self.dag_version_number
+        ):
+            self.dag_version_number = dag_version_number
+
+    def merge(self, other: GridNodeAgg) -> None:
+        """Merge another summary into this one."""
+        self.child_states.update(other.child_states)
+        if other.min_start_date is not None and (
+            self.min_start_date is None or other.min_start_date < self.min_start_date
+        ):
+            self.min_start_date = other.min_start_date
+        if other.max_end_date is not None and (
+            self.max_end_date is None or other.max_end_date > self.max_end_date
+        ):
+            self.max_end_date = other.max_end_date
+        if other.dag_version_number is not None and (
+            self.dag_version_number is None or other.dag_version_number > self.dag_version_number
+        ):
+            self.dag_version_number = other.dag_version_number
+
+    def with_placeholder_state(self) -> GridNodeAgg:
+        """Represent mapped tasks without rows as a single no-status square in the grid."""
+        if self.child_states:
+            return self
+        placeholder = GridNodeAgg(dag_version_number=self.dag_version_number)
+        placeholder.add_ti(
+            state=None,
+            start_date=None,
+            end_date=None,
+            dag_version_number=self.dag_version_number,
+        )
+        return placeholder
 
 
 def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] | None) -> None:
@@ -55,90 +115,82 @@ def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] |
 
 
 def agg_state(states):
-    states = Counter(states)
+    state_counts = states if isinstance(states, Counter) else Counter(states)
     for state in state_priority:
-        if state in states:
+        if state in state_counts:
             return state
     return None
 
 
-def _get_aggs_for_node(detail):
-    states = [x["state"] for x in detail]
-    try:
-        min_start_date = min(x["start_date"] for x in detail if x["start_date"])
-    except ValueError:
-        min_start_date = None
-    try:
-        max_end_date = max(x["end_date"] for x in detail if x["end_date"])
-    except ValueError:
-        max_end_date = None
-
-    dag_version_numbers = [
-        x.get("dag_version_number") for x in detail if x.get("dag_version_number") is not None
-    ]
-    dag_version_number = max(dag_version_numbers) if dag_version_numbers else None
-
+def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
     return {
-        "state": agg_state(states),
-        "min_start_date": min_start_date,
-        "max_end_date": max_end_date,
-        "child_states": dict(Counter(states)),
-        "dag_version_number": dag_version_number,
+        "state": agg_state(summary.child_states),
+        "min_start_date": summary.min_start_date,
+        "max_end_date": summary.max_end_date,
+        "child_states": dict(summary.child_states),
+        "dag_version_number": summary.dag_version_number,
     }
 
 
 def _find_aggregates(
     node: SerializedTaskGroup | SerializedBaseOperator | TaskMap,
     parent_node: SerializedTaskGroup | SerializedBaseOperator | TaskMap | None,
-    ti_details: dict[str, list],
-) -> Iterable[dict]:
+    ti_details: Mapping[str, GridNodeAgg],
+) -> Iterable[tuple[dict[str, Any], GridNodeAgg]]:
     """Recursively fill the Task Group Map."""
     node_id = node.node_id
     parent_id = parent_node.node_id if parent_node else None
     # Do not mutate ti_details by accidental key creation
-    details = ti_details.get(node_id, [])
+    summary = ti_details.get(node_id)
+    if summary is None:
+        summary = GridNodeAgg()
 
     if node is None:
         return
     if isinstance(node, SerializedMappedOperator):
-        # For unmapped tasks, reflect a single None state so UI shows one square
-        mapped_details = details or [{"state": None, "start_date": None, "end_date": None}]
-        yield {
-            "task_id": node_id,
-            "task_display_name": node.task_display_name,
-            "type": "mapped_task",
-            "parent_id": parent_id,
-            **_get_aggs_for_node(mapped_details),
-            "details": mapped_details,
-        }
+        mapped_summary = summary.with_placeholder_state()
+        yield (
+            {
+                "task_id": node_id,
+                "task_display_name": node.task_display_name,
+                "type": "mapped_task",
+                "parent_id": parent_id,
+                **_get_aggs_for_node(mapped_summary),
+            },
+            mapped_summary,
+        )
 
         return
     if isinstance(node, SerializedTaskGroup):
-        children_details = []
+        children_summary = GridNodeAgg()
         for child in get_task_group_children_getter()(node):
-            for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):
+            for child_node, child_summary in _find_aggregates(
+                node=child, parent_node=node, ti_details=ti_details
+            ):
                 if child_node["parent_id"] == node_id:
-                    # Collect detailed task instance data from all children
-                    if child_node.get("details"):
-                        children_details.extend(child_node["details"])
-                yield child_node
+                    children_summary.merge(child_summary)
+                yield child_node, child_summary
         if node_id:
-            yield {
-                "task_id": node_id,
-                "task_display_name": node_id,
-                "type": "group",
-                "parent_id": parent_id,
-                **_get_aggs_for_node(children_details),
-                "details": children_details,
-            }
+            yield (
+                {
+                    "task_id": node_id,
+                    "task_display_name": node_id,
+                    "type": "group",
+                    "parent_id": parent_id,
+                    **_get_aggs_for_node(children_summary),
+                },
+                children_summary,
+            )
         return
     if isinstance(node, SerializedBaseOperator):
-        yield {
-            "task_id": node_id,
-            "task_display_name": node.task_display_name,
-            "type": "task",
-            "parent_id": parent_id,
-            **_get_aggs_for_node(details),
-            "details": details,
-        }
+        yield (
+            {
+                "task_id": node_id,
+                "task_display_name": node.task_display_name,
+                "type": "task",
+                "parent_id": parent_id,
+                **_get_aggs_for_node(summary),
+            },
+            summary,
+        )
         return
