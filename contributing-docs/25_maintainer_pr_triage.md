@@ -22,7 +22,7 @@
 This document describes how Apache Airflow maintainers triage incoming Pull Requests
 using **agentic skills** that run inside [Claude Code](https://claude.com/claude-code).
 The triage workflow that used to live in the `breeze pr auto-triage` command has been
-replaced by the [`pr-triage`](../.github/skills/pr-triage/SKILL.md) skill, which is
+replaced by the [`pr-management-triage`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/SKILL.md) skill, which is
 maintained as plain Markdown alongside the codebase and is invoked from a maintainer's
 local Claude Code session.
 
@@ -57,7 +57,7 @@ weigh. That time is finite and irreplaceable.
 To protect it, the project splits PR handling into two stages:
 
 1. **First pass — automated, mechanical, fast.** A maintainer invokes the
-   [`pr-triage`](../.github/skills/pr-triage/SKILL.md) skill, which sweeps the open
+   [`pr-management-triage`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/SKILL.md) skill, which sweeps the open
    PR queue, runs purely deterministic checks (CI status, merge conflicts, unresolved
    review threads, workflow-approval state, draft staleness), and proposes a
    disposition for each PR. The maintainer confirms in batches — accepting a group of
@@ -85,7 +85,7 @@ goal is not to push contributors faster; it is to make sure that when a maintain
 ```mermaid
 flowchart TD
     A[Contributor opens PR] --> B["Open PR (no label)"]
-    B -->|"Maintainer invokes<br/>pr-triage skill in Claude Code"| C["Stage 1: TRIAGE<br/>Deterministic checks"]
+    B -->|"Maintainer invokes<br/>pr-management-triage skill in Claude Code"| C["Stage 1: TRIAGE<br/>Deterministic checks"]
     C --> D{Outcome}
     D -->|Issues found| E[Convert to Draft<br/>with comment + AI footer]
     D -->|Looks good| F["Add 'ready for<br/>maintainer review' label"]
@@ -102,14 +102,15 @@ flowchart TD
 
 Stage 1 is the focus of this document. Stage 2 is plain human review and intentionally
 has no automation behind it — the dedicated review skill that may eventually live
-alongside `pr-triage` is out of scope here.
+alongside `pr-management-triage` is out of scope here.
 
-## Stage 1: invoking the `pr-triage` skill
+## Stage 1: invoking the `pr-management-triage` skill
 
-The skill lives at [`.github/skills/pr-triage/`](../.github/skills/pr-triage/) with a
-matching symlink at `.claude/skills/pr-triage` so Claude Code picks it up without any
-per-developer setup. Its entry point is
-[`SKILL.md`](../.github/skills/pr-triage/SKILL.md); the rest of the directory breaks
+The skill is provided by the [`apache/airflow-steward`](https://github.com/apache/airflow-steward) framework,
+adopted via its snapshot mechanism (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-steward) for first-time setup). After running `/setup-steward` the
+framework lives gitignored at `.apache-steward/` and a `.claude/skills/pr-management-triage` symlink picks it up
+so Claude Code finds it without any per-developer config. Its entry point is
+[`SKILL.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/SKILL.md); the rest of the directory breaks
 the logic out by topic (classification, fetch-and-batch, stale sweeps, comment
 templates, etc.).
 
@@ -124,13 +125,13 @@ for a triage. Common phrasings the skill recognises:
 - `run the stale sweep` — close stale drafts / convert inactive PRs to draft
 - `morning triage` — same as the default sweep
 
-The skill's `when_to_use` block (in [`SKILL.md`](../.github/skills/pr-triage/SKILL.md))
+The skill's `when_to_use` block (in [`SKILL.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/SKILL.md))
 lists the full set of recognised invocation patterns.
 
 ### What the triage skill checks
 
 The first-pass classification is purely deterministic — see
-[`classify-and-act.md`](../.github/skills/pr-triage/classify-and-act.md) for the full decision matrix
+[`classify-and-act.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/classify-and-act.md) for the full decision matrix
 — and runs against data fetched in a single aliased GraphQL call per page of PRs:
 
 1. **Pending workflow approval** — first-time-contributor PRs whose CI workflows
@@ -143,14 +144,14 @@ The first-pass classification is purely deterministic — see
    `GET /repos/.../actions/runs?status=action_required` endpoint as the primary
    signal, then cross-referenced against `statusCheckRollup`. The REST call is
    needed because the rollup can return `SUCCESS` while real CI is still pending —
-   see Golden rule 1b in [`SKILL.md`](../.github/skills/pr-triage/SKILL.md#golden-rules).
+   see Golden rule 1b in [`SKILL.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/SKILL.md#golden-rules).
 4. **Unresolved review threads** — open conversations from collaborators or from
    `copilot*[bot]` (Copilot threads are evaluated separately, with a 7-day grace
    window).
 5. **Staleness** — drafts older than 7 days with no author reply after a triage
    comment, untriaged drafts older than 2 weeks, non-draft PRs with 4+ weeks of
    inactivity, and workflow-approval PRs with 4+ weeks of inactivity. See
-   [`stale-sweeps.md`](../.github/skills/pr-triage/stale-sweeps.md).
+   [`stale-sweeps.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/stale-sweeps.md).
 
 ### Available triage actions
 
@@ -172,14 +173,14 @@ available. The full set of actions:
 | `skip` | Leave the PR alone this run. |
 
 The full action recipes (the `gh` / GraphQL calls each action issues) are in
-[`actions.md`](../.github/skills/pr-triage/actions.md); the comment bodies posted by
+[`actions.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/actions.md); the comment bodies posted by
 the `draft` / `comment` / `close` / `ping` actions are in
-[`comment-templates.md`](../.github/skills/pr-triage/comment-templates.md).
+[`comment-templates.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/comment-templates.md).
 
 ### AI-attribution footer on every contributor-facing comment
 
 Every comment the skill posts to a contributor ends with the same AI-attribution
-footer (see [`comment-templates.md`](../.github/skills/pr-triage/comment-templates.md#ai-attribution-footer)).
+footer (see [`comment-templates.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/comment-templates.md#ai-attribution-footer)).
 The footer:
 
 - tells the contributor the comment was drafted by an AI-assisted tool and may
@@ -190,7 +191,7 @@ The footer:
   section above so the contributor can read the rationale for the two-stage process.
 
 This is non-negotiable per Golden rule 8 in
-[`SKILL.md`](../.github/skills/pr-triage/SKILL.md#golden-rules) — only the
+[`SKILL.md`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-triage/SKILL.md#golden-rules) — only the
 intentionally-terse `suspicious-changes` template is exempt.
 
 ## Stage 2: human review
@@ -201,14 +202,14 @@ critique, suggest, and approve loop is exactly the part of the work that needs f
 human attention.
 
 A separate `pr-review` skill that handles structured walk-throughs of long diffs may
-appear alongside `pr-triage` in the future, but it is out of scope here. Anything
+appear alongside `pr-management-triage` in the future, but it is out of scope here. Anything
 about line-level review comments, approve / request-changes submissions, or merge
-decisions belongs in that future skill, not in `pr-triage`.
+decisions belongs in that future skill, not in `pr-management-triage`.
 
-## Backlog statistics — the `pr-stats` skill
+## Backlog statistics — the `pr-management-stats` skill
 
-The [`pr-stats`](../.github/skills/pr-stats/SKILL.md) skill is the read-only,
-no-mutations counterpart of `pr-triage`. It is the successor to the now-removed
+The [`pr-management-stats`](https://github.com/apache/airflow-steward/blob/main/.claude/skills/pr-management-stats/SKILL.md) skill is the read-only,
+no-mutations counterpart of `pr-management-triage`. It is the successor to the now-removed
 `breeze pr stats` command and produces two summary tables grouped by `area:*` label:
 
 - **Triaged PRs — Final State** — for PRs that were triaged and have since been
@@ -219,14 +220,14 @@ no-mutations counterpart of `pr-triage`. It is the successor to the now-removed
   histograms (`<1d`, `1-7d`, `1-4w`, `>4w`) on both the time-since-drafting and
   time-since-author-response axes.
 
-Invoke it the same way as `pr-triage` — open Claude Code in your local clone and ask
+Invoke it the same way as `pr-management-triage` — open Claude Code in your local clone and ask
 for stats. Phrasings the skill recognises include `run PR stats`, `show the area
 breakdown`, `how is the PR queue doing`, or any variation on "give me numbers about
-the open PR backlog". A typical workflow is `pr-stats` → spot the area with the worst
-triage coverage → `pr-triage label:area:<that-area>` to act on it.
+the open PR backlog". A typical workflow is `pr-management-stats` → spot the area with the worst
+triage coverage → `pr-management-triage label:area:<that-area>` to act on it.
 
 The skill detects triaged PRs by scanning comment bodies for the canonical
-`Pull Request quality criteria` marker that `pr-triage` posts on every triage comment.
+`Pull Request quality criteria` marker that `pr-management-triage` posts on every triage comment.
 That same detector also catches the legacy HTML-comment markers left by the removed
 breeze command, so historical triaged PRs are still counted correctly.
 

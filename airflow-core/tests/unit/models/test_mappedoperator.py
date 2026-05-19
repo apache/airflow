@@ -421,7 +421,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
 @pytest.mark.parametrize(
     ("template", "expected_rendered_names"),
     [
-        pytest.param(None, [None, None], id="unset"),
+        pytest.param(None, ["0", "1"], id="unset"),
         pytest.param("", ["", ""], id="constant"),
         pytest.param("{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"),
         pytest.param("{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"),
@@ -459,7 +459,7 @@ def test_expand_mapped_task_instance_with_named_index(
     session.flush()
 
     indices = session.scalars(
-        select(TaskInstance.rendered_map_index)
+        select(TaskInstance.rendered_map_index)  # type: ignore[call-overload]
         .where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.task_id == "task1",

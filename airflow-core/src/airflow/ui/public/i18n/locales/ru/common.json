@@ -60,6 +60,11 @@
     "dagVersions": "Версии Dag-а",
     "dataIntervalEnd": "Конец временного интервала",
     "dataIntervalStart": "Начало временного интервала",
+    "durationStats": {
+      "mean": "Среднее",
+      "mode": "Мода"
+    },
+    "expectedDuration": "Ожидаемая Длительность",
     "lastSchedulingDecision": "Последнее решение о расписании",
     "mappedPartitionKey": "Ключ распределенной части",
     "partitionKey": "Ключ части",

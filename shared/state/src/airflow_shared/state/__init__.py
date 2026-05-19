@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
@@ -91,11 +93,23 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def set(self, scope: StateScope, key: str, value: str, *, session: Session | None = None) -> None:
+    def set(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: Session | None = None,
+    ) -> None:
         """
         Write or overwrite the value for the given key.
 
         Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
+        Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
+        skipped by garbage collection.
         """
 
     @abstractmethod
@@ -132,7 +146,13 @@ class BaseStateBackend(ABC):
 
     @abstractmethod
     async def aset(
-        self, scope: StateScope, key: str, value: str, *, session: AsyncSession | None = None
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: AsyncSession | None = None,
     ) -> None:
         """
         Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``.

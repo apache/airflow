@@ -1764,6 +1764,8 @@ class TestTaskStateOperations:
         assert result.error == ErrorType.TASK_STATE_NOT_FOUND
 
     def test_set_success(self):
+        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
+
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
             assert request.url.path == f"/state/ti/{self.TI_ID}/job_id"
@@ -1771,7 +1773,42 @@ class TestTaskStateOperations:
             return httpx.Response(status_code=204)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_state.set(ti_id=self.TI_ID, key="job_id", value="spark_app_001")
+        result = client.task_state.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_expires_at_sends_field(self):
+        """expires_at is forwarded as an ISO datetime string in the request body."""
+        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["value"] == "spark_app_001"
+            assert body["expires_at"] == "2026-05-21T12:00:00Z"
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.set(
+            ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
+        )
+        assert result == OKResponse(ok=True)
+
+    def test_set_with_never_expire_sends_null_expires_at(self):
+        """NEVER_EXPIRE sends expires_at=null — stored as NULL in DB, GC skips it."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body.get("expires_at") is None
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_state.set(
+            ti_id=self.TI_ID,
+            key="job_id",
+            value="v",
+            expires_at=None,
+        )
         assert result == OKResponse(ok=True)
 
     def test_delete_success(self):

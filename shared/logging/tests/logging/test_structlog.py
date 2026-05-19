@@ -707,3 +707,24 @@ def test_dict_positional_arg_formatting(structlog_config, get_logger, message, a
 
     written = json.load(bio)
     assert written["event"] == expected_event
+
+
+def test_named_bytes_logger_preserves_name():
+    """
+    structlog 26.1.0 (hynek/structlog#786) gives ``BytesLogger`` its own ``name``
+    slot and sets ``self.name`` in ``__init__``; older releases do not. This test
+    runs against whichever version is installed and pins the contract that the
+    supplied name survives construction on both.
+    """
+    from airflow_shared.logging.structlog import NamedBytesLogger
+
+    assert NamedBytesLogger("my.logger").name == "my.logger"
+    assert NamedBytesLogger().name is None
+
+
+def test_named_write_logger_preserves_name():
+    """Same contract for NamedWriteLogger in case structlog mirrors #786 for WriteLogger."""
+    from airflow_shared.logging.structlog import NamedWriteLogger
+
+    assert NamedWriteLogger("my.logger").name == "my.logger"
+    assert NamedWriteLogger().name is None
