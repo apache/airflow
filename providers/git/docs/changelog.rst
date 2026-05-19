@@ -26,6 +26,7 @@ Features
 ~~~~~~~~
 
 * ``Add Git Sparse Checkout to Git Dag Bundle (#67047)``
+* ``Add BundleVersion dataclass and version_data persistence to DagVersion (#66491)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
