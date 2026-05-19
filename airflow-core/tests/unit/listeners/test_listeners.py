@@ -118,7 +118,7 @@ def test_listener_suppresses_exceptions(create_task_instance, session, cap_struc
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     ti.run()
-    assert "error calling listener" in cap_structlog
+    assert "error calling on_task_instance_success listener" in cap_structlog
 
 
 @provide_session

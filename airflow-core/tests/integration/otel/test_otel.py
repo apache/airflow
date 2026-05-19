@@ -86,7 +86,7 @@ def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
     )
 
 
-def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
+def unpause_trigger_dag_and_get_run_id(dag_id: str, conf: dict | None = None) -> str:
     unpause_command = ["airflow", "dags", "unpause", dag_id]
 
     # Unpause the dag using the cli.
@@ -105,6 +105,11 @@ def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
         "--logical-date",
         execution_date.isoformat(),
     ]
+
+    if conf:
+        import json
+
+        trigger_command += ["--conf", json.dumps(conf)]
 
     # Trigger the dag using the cli.
     subprocess.run(trigger_command, check=True, env=os.environ.copy())
@@ -438,7 +443,65 @@ class TestOtelIntegration:
             assert set(metrics_to_check).issubset(metrics_dict.keys())
 
     @pytest.mark.execution_timeout(90)
-    def test_dag_execution_succeeds(self, capfd):
+    @pytest.mark.parametrize(
+        ("task_span_detail_level", "expected_hierarchy"),
+        [
+            pytest.param(
+                None,
+                {
+                    "dag_run.otel_test_dag": None,
+                    "sub_span1": "worker.task1",
+                    "task_run.task1": "dag_run.otel_test_dag",
+                    "worker.task1": "task_run.task1",
+                },
+                id="default_spans",
+            ),
+            pytest.param(
+                2,
+                {
+                    "hook.on_starting": "startup",
+                    "get_bundle": "parse",
+                    "initialize": "parse",
+                    "_verify_bundle_access": "parse",
+                    "make BundleDagBag": "parse",
+                    "parse": "startup",
+                    "get_template_context": "startup",
+                    "startup": "worker.task1",
+                    "delete xcom": "run",
+                    "get_template_env": "_prepare",
+                    "render_templates": "_prepare",
+                    "_serialize_rendered_fields": "_prepare",
+                    "set_rendered_fields": "_prepare",
+                    "set_rendered_map_index": "_prepare",
+                    "_validate_task_inlets_and_outlets": "_prepare",
+                    "listener.on_task_instance_running": "_prepare",
+                    "_prepare": "run",
+                    "prepare context": "_execute_task",
+                    "pre-execute": "_execute_task",
+                    "on_execute_callback": "_execute_task",
+                    "execute": "_execute_task",
+                    "post_execute_hook": "_execute_task",
+                    "_execute_task": "run",
+                    "render_map_index": "run",
+                    "push xcom": "run",
+                    "handle success": "run",
+                    "handle_extra_links": "finalize",
+                    "success_callback": "finalize",
+                    "listener.on_task_instance_success": "finalize",
+                    "listener.before_stopping": "finalize",
+                    "finalize": "run",
+                    "run": "worker.task1",
+                    "close_socket": "worker.task1",
+                    "sub_span1": "prepare context",
+                    "dag_run.otel_test_dag": None,
+                    "task_run.task1": "dag_run.otel_test_dag",
+                    "worker.task1": "task_run.task1",
+                },
+                id="detail_spans",
+            ),
+        ],
+    )
+    def test_dag_execution_succeeds(self, capfd, task_span_detail_level, expected_hierarchy):
         """The same scheduler will start and finish the dag processing."""
         scheduler_process = None
         apiserver_process = None
@@ -454,7 +517,13 @@ class TestOtelIntegration:
 
             assert dag is not None
 
-            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
+            conf = None
+            if task_span_detail_level is not None:
+                from airflow_shared.observability.traces import TASK_SPAN_DETAIL_LEVEL_KEY
+
+                conf = {TASK_SPAN_DETAIL_LEVEL_KEY: task_span_detail_level}
+
+            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
 
             # Skip the span_status check.
             wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
@@ -492,7 +561,6 @@ class TestOtelIntegration:
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
         r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
         data = r.json()
-
         trace = data["data"][-1]
         spans = trace["spans"]
 
@@ -509,12 +577,7 @@ class TestOtelIntegration:
             return nested
 
         nested = get_span_hierarchy()
-        assert nested == {
-            "dag_run.otel_test_dag": None,
-            "sub_span1": "worker.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
-            "worker.task1": "task_run.task1",
-        }
+        assert nested == expected_hierarchy
 
     def start_scheduler(self, capture_output: bool = False):
         stdout = None if capture_output else subprocess.DEVNULL

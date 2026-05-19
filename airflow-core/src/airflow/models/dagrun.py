@@ -28,7 +28,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
-from opentelemetry import context, trace
+from opentelemetry import trace
+from opentelemetry.context import context
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
@@ -62,7 +63,11 @@ from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics import stats
-from airflow._shared.observability.traces import new_dagrun_trace_carrier, override_ids
+from airflow._shared.observability.traces import (
+    TASK_SPAN_DETAIL_LEVEL_KEY,
+    new_dagrun_trace_carrier,
+    override_ids,
+)
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -376,7 +381,9 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
-        self.context_carrier: dict[str, str] = new_dagrun_trace_carrier()
+        self.context_carrier: dict[str, str] = new_dagrun_trace_carrier(
+            task_span_detail_level=self.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None)
+        )
 
         if not isinstance(partition_key, str | None):
             raise ValueError(
@@ -1078,7 +1085,7 @@ class DagRun(Base, LoggingMixin):
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
-                context=context.Context(),
+                context=context.Context(),  # maybe need to make optional!!!
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
@@ -1267,7 +1274,10 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
             )
             session.flush()
-            self._emit_dagrun_span(state=self.state)
+            try:
+                self._emit_dagrun_span(state=self.state)
+            except Exception:
+                self.log.warning("Failed to emit dag run span", exc_info=True)
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
