@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, ButtonGroup, Flex, IconButton, Popover, Portal } from "@chakra-ui/react";
+import { Box, Button, ButtonGroup, Flex, Popover, Portal } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdSettings } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
+import { IconButton } from "src/components/ui";
 
 type Props = {
   readonly dependencyType: "data" | "scheduling";
@@ -35,11 +36,10 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
   return (
     <Box borderRadius="md" position="absolute" px={2} py={1} right={2} top={1} zIndex={1}>
       <Flex justifyContent="space-between">
-        <ButtonGroup attached size="sm" variant="outline">
+        <ButtonGroup attached variant="outline">
           <Button
             bg={dependencyType === "scheduling" ? "brand.500" : "bg.subtle"}
             color={dependencyType === "scheduling" ? "white" : "fg.default"}
-            colorPalette="brand"
             onClick={() => setDependencyType("scheduling")}
           >
             {translate("assets:scheduling")}
@@ -47,7 +47,6 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
           <Button
             bg={dependencyType === "data" ? "brand.500" : "bg.subtle"}
             color={dependencyType === "data" ? "white" : "fg.default"}
-            colorPalette="brand"
             onClick={() => setDependencyType("data")}
           >
             {translate("assets:taskDependencies")}
@@ -55,13 +54,7 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
         </ButtonGroup>
         <Popover.Root positioning={{ placement: "bottom-end" }}>
           <Popover.Trigger asChild>
-            <IconButton
-              aria-label={translate("dag:panel.buttons.options")}
-              colorPalette="brand"
-              size="md"
-              title={translate("dag:panel.buttons.options")}
-              variant="ghost"
-            >
+            <IconButton label={translate("dag:panel.buttons.options")}>
               <MdSettings />
             </IconButton>
           </Popover.Trigger>

@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, IconButton, Stack, Text } from "@chakra-ui/react";
+import { Box, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 
 export type AdvancedSearchToggleProps = {
@@ -65,7 +66,6 @@ export const AdvancedSearchToggle = ({
       <IconButton
         aria-label="Toggle match-anywhere search"
         aria-pressed={enabled}
-        colorPalette="brand"
         data-testid="advanced-search-toggle"
         flexShrink={0}
         onClick={() => onToggle(!enabled)}

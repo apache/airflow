@@ -151,7 +151,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   return (
     <>
-      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false} size="xl">
+      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -235,7 +235,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 {translate("dags:runAndTaskActions.options.preventRunningTasks")}
               </Checkbox>
               <Button
-                colorPalette="brand"
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isPendingPatchDagRun}
                 onClick={onOpen}
