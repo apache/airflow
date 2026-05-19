@@ -97,30 +97,6 @@ rationale).
 _Note: This comment was drafted by an AI-assisted triage tool and may contain mistakes. Once you have addressed the points above, an Apache Airflow maintainer — a real person — will take the next look at your PR. We use this [two-stage triage process](https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md#why-the-first-pass-is-automated) so that our maintainers' limited time is spent where it matters most: the conversation with you._
 ```
 
-## Reviewer-mention policy in author-primary templates
-
-When a comment's only addressee is the PR author (the
-`request-author-confirmation`, `reviewer-ping` author-primary,
-and `review-nudge` author-primary templates), the body references
-the reviewer **without** `@`-mentioning them. The framework's
-default `<reviewers>` placeholder renders as `@login` and is
-appropriate when the reviewer is one of the message's addressees
-(e.g. the reviewer-re-review variants).  In author-primary
-templates we use a different placeholder, `<reviewer_logins>`,
-that renders the same set of GitHub logins **as
-backtick-quoted code** (e.g. `` `phanikumv` ``,
-`` `phanikumv`, `eladkal` ``) — recognisable as a GitHub
-handle without producing a notification.
-
-The policy: reviewer is mentioned for context; an `@`-ping is
-only appropriate when the reviewer is the next person whose
-action we are asking for.
-
-| Placeholder | Renders as | Use in |
-|---|---|---|
-| `<reviewers>` | `@login [, @login ...]` (framework default) | reviewer-re-review variants, `mark-ready-with-ping` |
-| `<reviewer_logins>` | `` `login` [, `login` ...] `` (backtick-quoted, no `@`) | `request-author-confirmation`, `reviewer-ping` (author-primary), `review-nudge` (author-primary) |
-
 ## Template bodies
 
 The framework's [`comment-templates.md`](../../.claude/skills/pr-management-triage/comment-templates.md)
@@ -169,14 +145,6 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 <ai_attribution_footer>
 ```
 
-### `review-nudge` (author-primary)
-
-```markdown
-@<author> — This PR has new commits since the last review requesting changes from <reviewer_logins>. Could you address the outstanding review comments and either push a fix or reply in each thread explaining why the feedback doesn't apply? Once the threads are resolved please mark the PR as "Ready for review" and re-request review. Thanks!
-
-<ai_attribution_footer>
-```
-
 ### `review-nudge` (reviewer-re-review)
 
 ```markdown
@@ -184,33 +152,6 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 
 <ai_attribution_footer>
 ```
-
-### `reviewer-ping` (author-primary)
-
-```markdown
-@<author> — There are <N> unresolved review thread(s) on this PR from <reviewer_logins>. Could you either push a fix or reply in each thread explaining why the feedback doesn't apply? When you believe the feedback is addressed, please mark the threads as resolved and ping the reviewer (<reviewer_logins>) for a final look. Thanks!
-
-<ai_attribution_footer>
-```
-
-### `request-author-confirmation`
-
-```markdown
-@<author> — There are <N> unresolved review thread(s) on this PR from <reviewer_logins>, and you have engaged with each one (post-review commits and/or in-thread replies). Could you confirm whether you believe the feedback is fully addressed and the PR is ready for maintainer review confirmation?
-
-If yes, please mark the thread(s) as resolved and ping the reviewer (<reviewer_logins>) for a final look. They will either label the PR ready for maintainer review or follow up with additional feedback.
-
-If you are still working on a thread, please reply with what is outstanding so the threads stay unresolved on purpose.
-
-<ai_attribution_footer>
-```
-
-The literal marker string `ready for maintainer review confirmation`
-appears in the first paragraph verbatim — the framework's
-[`viewer_confirmation_request_present`](../../.claude/skills/pr-management-triage/classify-and-act.md#viewer_confirmation_request_present)
-precondition searches for that exact text on subsequent sweeps;
-do not edit the wording around it in a way that breaks the
-case-sensitive substring match.
 
 ### `reviewer-ping` (reviewer-re-review)
 
