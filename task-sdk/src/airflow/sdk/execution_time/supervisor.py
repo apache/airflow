@@ -823,6 +823,7 @@ class WatchedSubprocess:
         if stuck_sockets:
             log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
 
+        self._open_sockets.clear()
         self.selector.close()
         self.stdin.close()
 
@@ -1312,6 +1313,7 @@ class ActivitySubprocess(WatchedSubprocess):
                         timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
                     )
                     self._cleanup_open_sockets()
+                    break
 
             if alive:
                 # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
