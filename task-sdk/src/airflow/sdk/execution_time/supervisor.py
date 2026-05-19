@@ -1304,6 +1304,38 @@ class ActivitySubprocess(WatchedSubprocess):
                 rendered_map_index=self._rendered_map_index,
             )
 
+    def _send_terminal_state_msg(self, msg: SucceedTask | RetryTask | DeferTask | RescheduleTask) -> None:
+        # Capture the message BEFORE the API call so the recovery dispatcher
+        # in `update_task_state_if_needed` can re-issue it if the call raises
+        # (network blip, transient server 5xx). Clear the pending slot and
+        # record the resulting state only after the call returns successfully.
+        self._pending_terminal_state_msg = msg
+        if isinstance(msg, SucceedTask):
+            self.client.task_instances.succeed(
+                id=self.id,
+                when=msg.end_date,
+                task_outlets=msg.task_outlets,
+                outlet_events=msg.outlet_events,
+                rendered_map_index=self._rendered_map_index,
+            )
+            self._terminal_state = msg.state
+        elif isinstance(msg, RetryTask):
+            self.client.task_instances.retry(
+                id=self.id,
+                end_date=msg.end_date,
+                rendered_map_index=self._rendered_map_index,
+                retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
+                retry_reason=getattr(msg, "retry_reason", None),
+            )
+            self._terminal_state = msg.state
+        elif isinstance(msg, DeferTask):
+            self.client.task_instances.defer(self.id, msg)
+            self._terminal_state = TaskInstanceState.DEFERRED
+        elif isinstance(msg, RescheduleTask):
+            self.client.task_instances.reschedule(self.id, msg)
+            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
+        self._pending_terminal_state_msg = None
+
     def _replay_pending_terminal_state_msg(self) -> None:
         """
         Re-issue the dedicated API call for an unsynced terminal-state msg.
@@ -1316,31 +1348,7 @@ class ActivitySubprocess(WatchedSubprocess):
         if msg is None:
             return
         try:
-            if isinstance(msg, SucceedTask):
-                self.client.task_instances.succeed(
-                    id=self.id,
-                    when=msg.end_date,
-                    task_outlets=msg.task_outlets,
-                    outlet_events=msg.outlet_events,
-                    rendered_map_index=self._rendered_map_index,
-                )
-                self._terminal_state = msg.state
-            elif isinstance(msg, RetryTask):
-                self.client.task_instances.retry(
-                    id=self.id,
-                    end_date=msg.end_date,
-                    rendered_map_index=self._rendered_map_index,
-                    retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
-                    retry_reason=getattr(msg, "retry_reason", None),
-                )
-                self._terminal_state = msg.state
-            elif isinstance(msg, DeferTask):
-                self.client.task_instances.defer(self.id, msg)
-                self._terminal_state = TaskInstanceState.DEFERRED
-            elif isinstance(msg, RescheduleTask):
-                self.client.task_instances.reschedule(self.id, msg)
-                self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
-            self._pending_terminal_state_msg = None
+            self._send_terminal_state_msg(msg)
         except Exception:
             log.exception(
                 "Recovery retry of terminal-state API call failed; TI may be stuck on the server",
@@ -1528,33 +1536,11 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SucceedTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
-            # Capture the message BEFORE the API call so the recovery
-            # dispatcher can re-issue it if the call raises (network blip,
-            # transient server 5xx). On success, clear the pending slot and
-            # record the final state.
-            self._pending_terminal_state_msg = msg
-            self.client.task_instances.succeed(
-                id=self.id,
-                when=msg.end_date,
-                task_outlets=msg.task_outlets,
-                outlet_events=msg.outlet_events,
-                rendered_map_index=self._rendered_map_index,
-            )
-            self._terminal_state = msg.state
-            self._pending_terminal_state_msg = None
+            self._send_terminal_state_msg(msg)
         elif isinstance(msg, RetryTask):
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
-            self._pending_terminal_state_msg = msg
-            self.client.task_instances.retry(
-                id=self.id,
-                end_date=msg.end_date,
-                rendered_map_index=self._rendered_map_index,
-                retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
-                retry_reason=getattr(msg, "retry_reason", None),
-            )
-            self._terminal_state = msg.state
-            self._pending_terminal_state_msg = None
+            self._send_terminal_state_msg(msg)
         elif isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
@@ -1591,15 +1577,9 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = XComSequenceSliceResult.from_response(xcoms)
         elif isinstance(msg, DeferTask):
             self._rendered_map_index = msg.rendered_map_index
-            self._pending_terminal_state_msg = msg
-            self.client.task_instances.defer(self.id, msg)
-            self._terminal_state = TaskInstanceState.DEFERRED
-            self._pending_terminal_state_msg = None
+            self._send_terminal_state_msg(msg)
         elif isinstance(msg, RescheduleTask):
-            self._pending_terminal_state_msg = msg
-            self.client.task_instances.reschedule(self.id, msg)
-            self._terminal_state = TaskInstanceState.UP_FOR_RESCHEDULE
-            self._pending_terminal_state_msg = None
+            self._send_terminal_state_msg(msg)
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):

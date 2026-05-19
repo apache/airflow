@@ -3079,18 +3079,59 @@ class TestHandleRequest:
         # Should not raise StopIteration (which would mean the loop crashed).
         generator.send(req2)
 
-    def test_terminal_state_not_set_when_succeed_api_fails(self, watched_subprocess, mocker):
-        """`_terminal_state` must NOT be set when `task_instances.succeed()` raises.
+    @pytest.mark.parametrize(
+        ("msg", "api_method", "expected_state"),
+        [
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "succeed",
+                TaskInstanceState.SUCCESS,
+                id="succeed",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+                id="retry",
+            ),
+            pytest.param(
+                DeferTask(
+                    next_method="execute_complete",
+                    classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+                    trigger_kwargs={},
+                ),
+                "defer",
+                TaskInstanceState.DEFERRED,
+                id="defer",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                "reschedule",
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                id="reschedule",
+            ),
+        ],
+    )
+    def test_terminal_state_not_set_when_direct_api_fails(
+        self, watched_subprocess, mocker, msg, api_method, expected_state
+    ):
+        """`_terminal_state` must NOT be set when the dedicated terminal-state
+        API raises.
 
-        The original `SucceedTask` is captured in `_pending_terminal_state_msg`
+        The original message is captured in `_pending_terminal_state_msg`
         BEFORE the API call so the recovery dispatcher in
         `update_task_state_if_needed` can re-issue it on subprocess exit.
+        Covers all four terminal-state message types.
         """
         watched_subprocess, _ = watched_subprocess
-        watched_subprocess.client.task_instances.succeed = mocker.Mock(
-            side_effect=httpx.ConnectError("connection refused")
+        setattr(
+            watched_subprocess.client.task_instances,
+            api_method,
+            mocker.Mock(side_effect=httpx.ConnectError("connection refused")),
         )
-        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
 
         with pytest.raises(httpx.ConnectError):
             watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
@@ -3099,40 +3140,61 @@ class TestHandleRequest:
         # Pending msg preserved so the recovery dispatcher can re-issue.
         assert watched_subprocess._pending_terminal_state_msg is msg
 
-    def test_update_task_state_replays_pending_succeed_call(self, watched_subprocess, mocker):
-        """If a SucceedTask API call was attempted and raised, the recovery
-        dispatcher must re-issue the dedicated `succeed()` call (not `finish()`,
-        which the server-side endpoint refuses for SUCCESS)."""
+    @pytest.mark.parametrize(
+        ("msg", "api_method", "expected_state"),
+        [
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "succeed",
+                TaskInstanceState.SUCCESS,
+                id="succeed",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+                id="retry",
+            ),
+            pytest.param(
+                DeferTask(
+                    next_method="execute_complete",
+                    classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+                    trigger_kwargs={},
+                ),
+                "defer",
+                TaskInstanceState.DEFERRED,
+                id="defer",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                "reschedule",
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                id="reschedule",
+            ),
+        ],
+    )
+    def test_update_task_state_replays_pending_terminal_state_call(
+        self, watched_subprocess, mocker, msg, api_method, expected_state
+    ):
+        """If a direct terminal-state API call was attempted and raised, the
+        recovery dispatcher must re-issue the dedicated endpoint (not
+        `finish()`, which the server-side endpoint refuses for SUCCESS /
+        DEFERRED / SERVER_TERMINATED). Covers all four message types.
+        """
         watched_subprocess, _ = watched_subprocess
         watched_subprocess._exit_code = 0
         # Simulate the failure scenario: original API call raised, msg preserved.
-        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
         watched_subprocess._pending_terminal_state_msg = msg
 
         watched_subprocess.update_task_state_if_needed()
 
         # Recovery re-issues the dedicated endpoint, NOT finish().
-        watched_subprocess.client.task_instances.succeed.assert_called_once()
+        getattr(watched_subprocess.client.task_instances, api_method).assert_called_once()
         watched_subprocess.client.task_instances.finish.assert_not_called()
-        assert watched_subprocess._terminal_state == msg.state
-        assert watched_subprocess._pending_terminal_state_msg is None
-
-    def test_update_task_state_replays_pending_defer_call(self, watched_subprocess, mocker):
-        """Recovery dispatcher routes a pending DeferTask to `defer()`."""
-        watched_subprocess, _ = watched_subprocess
-        watched_subprocess._exit_code = 0
-        msg = DeferTask(
-            next_method="execute_complete",
-            classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
-            trigger_kwargs={},
-        )
-        watched_subprocess._pending_terminal_state_msg = msg
-
-        watched_subprocess.update_task_state_if_needed()
-
-        watched_subprocess.client.task_instances.defer.assert_called_once()
-        watched_subprocess.client.task_instances.finish.assert_not_called()
-        assert watched_subprocess._terminal_state == TaskInstanceState.DEFERRED
+        assert watched_subprocess._terminal_state == expected_state
         assert watched_subprocess._pending_terminal_state_msg is None
 
     def test_update_task_state_no_recovery_without_pending_msg(self, watched_subprocess, mocker):
