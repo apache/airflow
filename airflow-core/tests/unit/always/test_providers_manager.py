@@ -225,6 +225,8 @@ class TestProviderManager:
         providers_manager._discover_remote_logging()
         winner = providers_manager._remote_logging_by_scheme["dup"]
         assert winner.package_name == "fake.remote.logging.first"
+        assert len(providers_manager._remote_logging_info_list) == 1
+        assert providers_manager._remote_logging_info_list[0].package_name == "fake.remote.logging.first"
 
     def test_providers_manager_remote_logging_bad_class_filtered(self):
         providers_manager = ProvidersManager()

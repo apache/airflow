@@ -563,9 +563,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
                     scheme=entry["scheme"],
                     package_name=provider_package,
                 )
-                self._remote_logging_info_list.append(info)
-                existing = self._remote_logging_by_scheme.get(info.scheme)
-                if existing is not None:
+                if (existing := self._remote_logging_by_scheme.get(info.scheme)) is not None:
                     log.warning(
                         "Remote logging scheme '%s' is already registered by %s; ignoring "
                         "duplicate registration from %s.",
@@ -574,6 +572,7 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
                         info.package_name,
                     )
                     continue
+                self._remote_logging_info_list.append(info)
                 self._remote_logging_by_scheme[info.scheme] = info
 
     def _discover_taskflow_decorators(self) -> None:

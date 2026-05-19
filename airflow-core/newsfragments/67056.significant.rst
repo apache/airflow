@@ -25,7 +25,7 @@ handler are now two independent steps.
    ``REMOTE_TASK_LOG`` / ``DEFAULT_REMOTE_CONN_ID`` attributes. This is the
    per-scheme ``if/elif`` chain in ``airflow_local_settings.py`` and is
    transitional — it will be removed once every in-tree provider exposes
-   ``from_config``.
+   ``from_config`` in Airflow 4.0.
 
 **``RemoteLogIO.from_config`` contract:**
 
