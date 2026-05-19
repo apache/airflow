@@ -211,21 +211,6 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
             self.remove_section(section)
 
 
-def get_state_backend():
-    """
-    Get the state backend if configured via ``[workers] state_backend``.
-
-    Returns the instantiated backend, or ``None`` if not configured.
-    """
-    # Lazy import to trigger __getattr__ and lazy initialization
-    from airflow.sdk.configuration import conf
-
-    class_name = conf.get("workers", "state_backend", fallback="")
-    if not class_name:
-        return None
-    return import_string(class_name)()
-
-
 def get_custom_secret_backend(worker_mode: bool = False):
     """
     Get Secret Backend if defined in airflow.cfg.

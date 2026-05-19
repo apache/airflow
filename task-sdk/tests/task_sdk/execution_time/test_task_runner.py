@@ -5229,14 +5229,14 @@ class TestTaskInstanceStateOperations:
         mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
 
         mock_backend = mock.MagicMock()
-        mock_backend.serialize_asset_state_value.return_value = "mem://my_asset/watermark"
+        mock_backend.serialize_asset_state_to_ref.return_value = "mem://my_asset/watermark"
 
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_backend.serialize_asset_state_value.assert_called_once_with(
+        mock_backend.serialize_asset_state_to_ref.assert_called_once_with(
             value="2026-05-01", key="watermark", asset_ref="my_asset"
         )
         mock_supervisor_comms.send.assert_any_call(
@@ -5258,14 +5258,14 @@ class TestTaskInstanceStateOperations:
 
         mock_backend = mock.MagicMock()
         ref = f"mem://{runtime_ti.id}/job_id"
-        mock_backend.serialize_task_state_value.return_value = ref
+        mock_backend.serialize_task_state_to_ref.return_value = ref
 
         with mock.patch(
             "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_backend.serialize_task_state_value.assert_called_once_with(
+        mock_backend.serialize_task_state_to_ref.assert_called_once_with(
             value="app_001", key="job_id", ti_id=str(runtime_ti.id)
         )
         mock_supervisor_comms.send.assert_any_call(SetTaskState(ti_id=runtime_ti.id, key="job_id", value=ref))

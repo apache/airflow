@@ -445,9 +445,18 @@ class VariableAccessor:
 @cache
 def _get_worker_state_backend() -> BaseStateBackend | None:
     """Return the configured worker-side state backend, instantiated once and cached."""
-    from airflow.sdk.configuration import get_state_backend
+    class_name = conf.get("workers", "state_backend", fallback="")
+    if not class_name:
+        return None
+    from airflow.sdk._shared.module_loading import import_string
 
-    return get_state_backend()
+    try:
+        return import_string(class_name)()
+    except (ImportError, AttributeError) as e:
+        raise ValueError(
+            f"Could not load worker state backend {class_name!r}. "
+            f"Check the [workers] state_backend config value. Error: {e}"
+        ) from e
 
 
 class TaskStateAccessor:
@@ -485,7 +494,7 @@ class TaskStateAccessor:
             # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
             # custom backend using the reference
             backend = _get_worker_state_backend()
-            return backend.deserialize_task_state_value(stored) if backend else stored
+            return backend.deserialize_task_state_from_ref(stored) if backend else stored
         return None
 
     def set(self, key: str, value: str, *, retention: timedelta | None = None) -> None:
@@ -515,7 +524,7 @@ class TaskStateAccessor:
         # to the stored value to store in the DB
         backend = _get_worker_state_backend()
         stored = (
-            backend.serialize_task_state_value(value=value, key=key, ti_id=str(self._ti_id))
+            backend.serialize_task_state_to_ref(value=value, key=key, ti_id=str(self._ti_id))
             if backend
             else value
         )
@@ -600,7 +609,7 @@ class AssetStateAccessor:
             # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
             # custom backend using the reference
             backend = _get_worker_state_backend()
-            return backend.deserialize_asset_state_value(stored) if backend else stored
+            return backend.deserialize_asset_state_from_ref(stored) if backend else stored
         return None
 
     def set(self, key: str, value: str) -> None:
@@ -613,7 +622,7 @@ class AssetStateAccessor:
         backend = _get_worker_state_backend()
         asset_ref = self._name or self._uri or ""
         stored = (
-            backend.serialize_asset_state_value(value=value, key=key, asset_ref=asset_ref)
+            backend.serialize_asset_state_to_ref(value=value, key=key, asset_ref=asset_ref)
             if backend
             else value
         )
@@ -636,8 +645,8 @@ class AssetStateAccessor:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         backend = _get_worker_state_backend()
-        # session=None signals worker-side: backend cleans up external storage only.
-        # DB reference is removed separately via comms below.
+        # custom backends handle external storage cleanup only;
+        # DB reference is removed by the comms call below.
         if backend is not None:
             backend.delete(AssetScope(name=self._name, uri=self._uri), key)
 
@@ -659,7 +668,8 @@ class AssetStateAccessor:
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         backend = _get_worker_state_backend()
-        # session=None signals worker-side: backend cleans up external storage only.
+        # custom backends handle external storage cleanup only;
+        # DB references are cleared by the comms call below.
         # DB references are cleared separately via comms below.
         if backend is not None:
             backend.clear(AssetScope(name=self._name, uri=self._uri))

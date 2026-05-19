@@ -1386,23 +1386,23 @@ class InMemoryStateBackend(BaseStateBackend):
         self._actual_key_value_store: dict[str, str] = {}  # key -> actual value
         self.reference: dict[str, str] = {}  # key -> stored ref (mem:// URI)
 
-    def serialize_task_state_value(self, *, value: str, key: str, ti_id: str) -> str:
+    def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str:
         ref = f"mem://{ti_id}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
 
-    def deserialize_task_state_value(self, stored: str) -> str:
+    def deserialize_task_state_from_ref(self, stored: str) -> str:
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
-    def serialize_asset_state_value(self, *, value: str, key: str, asset_ref: str) -> str:
+    def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str:
         ref = f"mem://{asset_ref}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
 
-    def deserialize_asset_state_value(self, stored: str) -> str:
+    def deserialize_asset_state_from_ref(self, stored: str) -> str:
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 

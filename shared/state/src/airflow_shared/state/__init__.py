@@ -199,17 +199,22 @@ class BaseStateBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_state_value(self, *, value: str, key: str, ti_id: str) -> str:
+    def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str:
         """
         Serialize a task state value before it is sent to the execution API for db persistence.
 
         Called by ``TaskStateAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path (e.g. an S3 key) rather than the
         actual value. Default: return ``value`` unchanged.
+
+        The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
+        must always return the same string. Do not use timestamps or random UUIDs as part of
+        the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
+        object will be orphaned.
         """
         return value
 
-    def deserialize_task_state_value(self, stored: str) -> str:
+    def deserialize_task_state_from_ref(self, stored: str) -> str:
         """
         Resolve a stored task state string back to the actual value.
 
@@ -218,7 +223,7 @@ class BaseStateBackend(ABC):
         """
         return stored
 
-    def serialize_asset_state_value(self, *, value: str, key: str, asset_ref: str) -> str:
+    def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str:
         """
         Serialize an asset state value before it is sent to the Execution API for db persistence.
 
@@ -228,10 +233,15 @@ class BaseStateBackend(ABC):
 
         ``asset_ref`` is either the asset name or URI, depending on how the accessor was
         constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
+
+        The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
+        must always return the same string. Do not use timestamps or random UUIDs as part of
+        the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
+        object will be orphaned.
         """
         return value
 
-    def deserialize_asset_state_value(self, stored: str) -> str:
+    def deserialize_asset_state_from_ref(self, stored: str) -> str:
         """
         Resolve a stored asset state string back to the actual value.
 
