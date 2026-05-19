@@ -492,3 +492,83 @@ class TestWorkflowDependsOn:
         dbx_key = self._expected_default_key("dbx_task")
 
         assert tasks_by_key[dbx_key]["depends_on"] == []
+
+
+class TestWorkflowDependsOnWirePayload:
+    """Wire-boundary coverage: the spec sent to the Databricks Jobs API carries ``depends_on``.
+
+    :class:`TestWorkflowDependsOn` asserts the in-process ``create_workflow_json`` payload.
+    These tests assert the *wire* payload — what ``_create_or_reset_job`` actually hands to
+    ``DatabricksHook.create_job`` (new job) or ``DatabricksHook.reset_job`` (existing job),
+    which is what the Databricks REST API receives.
+    """
+
+    DAG_ID = "test_depends_on_wire_dag"
+    GROUP_ID = "wf_group"
+    CONN_ID = "databricks_conn"
+
+    @staticmethod
+    def _build_notebook(task_id: str, **kwargs) -> DatabricksNotebookOperator:
+        return DatabricksNotebookOperator(
+            task_id=task_id,
+            notebook_path=f"/path/{task_id}",
+            source="WORKSPACE",
+            **kwargs,
+        )
+
+    def _expected_default_key(self, group_task_id: str) -> str:
+        full_task_id = f"{self.GROUP_ID}.{group_task_id}"
+        return hashlib.md5(f"{self.DAG_ID}__{full_task_id}".encode()).hexdigest()
+
+    def _launch_task(self, dag: DAG) -> _CreateDatabricksWorkflowOperator:
+        launch = dag.task_dict[f"{self.GROUP_ID}.launch"]
+        assert isinstance(launch, _CreateDatabricksWorkflowOperator)
+        return launch
+
+    @staticmethod
+    def _tasks_by_key(workflow_json: dict) -> dict:
+        return {t["task_key"]: t for t in workflow_json["tasks"]}
+
+    def _build_two_task_dag(self) -> DAG:
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a")
+                task_b = self._build_notebook("task_b")
+                task_a >> task_b
+        return dag
+
+    def _assert_parent_depends_on(self, job_spec: dict) -> None:
+        tasks_by_key = self._tasks_by_key(job_spec)
+        a_key = self._expected_default_key("task_a")
+        b_key = self._expected_default_key("task_b")
+
+        assert len(job_spec["tasks"]) == 2
+        assert set(tasks_by_key) == {a_key, b_key}
+        assert tasks_by_key[a_key]["depends_on"] == []
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": a_key}]
+
+    def test_create_job_payload_carries_parent_depends_on(self, mock_databricks_hook):
+        """No existing job → ``create_job`` receives a spec whose ``depends_on`` references the parent key."""
+        launch_task = self._launch_task(self._build_two_task_dag())
+        launch_task._hook.list_jobs.return_value = []
+        launch_task._hook.create_job.return_value = 999
+
+        launch_task._create_or_reset_job(context=MagicMock())
+
+        launch_task._hook.create_job.assert_called_once()
+        launch_task._hook.reset_job.assert_not_called()
+        (job_spec,) = launch_task._hook.create_job.call_args.args
+        self._assert_parent_depends_on(job_spec)
+
+    def test_reset_job_payload_carries_parent_depends_on(self, mock_databricks_hook):
+        """Existing job → ``reset_job`` receives a spec whose ``depends_on`` references the parent key."""
+        launch_task = self._launch_task(self._build_two_task_dag())
+        launch_task._hook.list_jobs.return_value = [{"job_id": 42}]
+
+        launch_task._create_or_reset_job(context=MagicMock())
+
+        launch_task._hook.reset_job.assert_called_once()
+        launch_task._hook.create_job.assert_not_called()
+        job_id, job_spec = launch_task._hook.reset_job.call_args.args
+        assert job_id == 42
+        self._assert_parent_depends_on(job_spec)
