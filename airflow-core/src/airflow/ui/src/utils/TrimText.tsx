@@ -69,7 +69,7 @@ export const TrimText = ({
         </Box>
       </Tooltip>
 
-      <Dialog.Root onOpenChange={onClose} open={isClickable ? open : undefined} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={isClickable ? open : undefined}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">{translate("trimText.details")}</Heading>

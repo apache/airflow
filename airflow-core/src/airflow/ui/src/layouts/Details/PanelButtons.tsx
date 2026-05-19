@@ -20,7 +20,6 @@ import {
   Box,
   createListCollection,
   Flex,
-  IconButton,
   Popover,
   Portal,
   Select,
@@ -42,6 +41,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
@@ -211,13 +211,7 @@ export const PanelButtons = ({
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <IconButton
-                aria-label={translate("dag:panel.buttons.options")}
-                colorPalette="brand"
-                size="md"
-                title={translate("dag:panel.buttons.options")}
-                variant="ghost"
-              >
+              <IconButton label={translate("dag:panel.buttons.options")}>
                 <MdSettings />
               </IconButton>
             </Popover.Trigger>

@@ -35,7 +35,6 @@ export const FieldBool = ({ name, namespace = "default" }: FlexibleFormElementPr
   return (
     <Switch
       checked={Boolean(param.value)}
-      colorPalette="brand"
       disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}

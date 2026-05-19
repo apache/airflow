@@ -16,24 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { AiOutlineFileSync } from "react-icons/ai";
+import { Menu as ChakraMenu } from "@chakra-ui/react";
+import { forwardRef, useContext } from "react";
 
-import { IconButton } from "src/components/ui";
-import { useDagParsing } from "src/queries/useDagParsing.ts";
+import { Tooltip } from "src/components/ui/Tooltip";
 
-type Props = {
-  readonly dagId: string;
-  readonly fileToken: string;
-};
+import { MenuContext } from "./MenuRoot";
 
-export const ParseDagButton = ({ dagId, fileToken }: Props) => {
-  const { t: translate } = useTranslation("components");
-  const { isPending, mutate } = useDagParsing({ dagId });
+type MenuTriggerProps = ChakraMenu.TriggerProps;
+
+export const Trigger = forwardRef<HTMLButtonElement, MenuTriggerProps>((props, ref) => {
+  const { children, ...rest } = props;
+  const { tooltipLabel, triggerId } = useContext(MenuContext);
+
+  if (Boolean(tooltipLabel)) {
+    return (
+      <Tooltip content={tooltipLabel} ids={Boolean(triggerId) ? { trigger: triggerId } : undefined}>
+        <ChakraMenu.Trigger asChild ref={ref} {...rest}>
+          {children}
+        </ChakraMenu.Trigger>
+      </Tooltip>
+    );
+  }
 
   return (
-    <IconButton label={translate("reparseDag")} loading={isPending} onClick={() => mutate({ fileToken })}>
-      <AiOutlineFileSync />
-    </IconButton>
+    <ChakraMenu.Trigger ref={ref} {...rest}>
+      {children}
+    </ChakraMenu.Trigger>
   );
-};
+});

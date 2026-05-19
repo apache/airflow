@@ -16,24 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { AiOutlineFileSync } from "react-icons/ai";
+import { IconButton as ChakraIconButton } from "@chakra-ui/react";
+import type { IconButtonProps } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-import { IconButton } from "src/components/ui";
-import { useDagParsing } from "src/queries/useDagParsing.ts";
+import { Tooltip } from "./Tooltip";
 
 type Props = {
-  readonly dagId: string;
-  readonly fileToken: string;
-};
+  readonly label?: string;
+} & IconButtonProps;
 
-export const ParseDagButton = ({ dagId, fileToken }: Props) => {
-  const { t: translate } = useTranslation("components");
-  const { isPending, mutate } = useDagParsing({ dagId });
-
-  return (
-    <IconButton label={translate("reparseDag")} loading={isPending} onClick={() => mutate({ fileToken })}>
-      <AiOutlineFileSync />
-    </IconButton>
-  );
-};
+// variant="ghost" is set here since IconButton shares the button recipe with Button.
+export const IconButton = forwardRef<HTMLButtonElement, Props>(
+  ({ label, variant = "ghost", ...props }, ref) =>
+    label === undefined ? (
+      <ChakraIconButton ref={ref} variant={variant} {...props} />
+    ) : (
+      <Tooltip content={label}>
+        <ChakraIconButton aria-label={label} ref={ref} variant={variant} {...props} />
+      </Tooltip>
+    ),
+);
