@@ -143,6 +143,7 @@ class TestSentryHook:
         yield
         mock_sentry_sdk.integrations.logging.ignore_logger.reset_mock()
         mock_sentry_sdk.init.reset_mock()
+        mock_sentry_sdk.new_scope.reset_mock()
         mock_sentry_sdk.get_current_scope.reset_mock()
         mock_sentry_sdk.add_breadcrumb.reset_mock()
         mock_sentry_sdk.capture_exception.reset_mock()
