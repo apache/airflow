@@ -40,7 +40,9 @@ class _BaseTemporalMapper(PartitionMapper):
         timezone: str | Timezone | FixedTimezone = "UTC",
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
         if isinstance(timezone, str):
@@ -186,7 +188,9 @@ class FanOutMapper(PartitionMapper):
         upstream_mapper: PartitionMapper,
         window: Window,
         downstream_mapper: PartitionMapper | None = None,
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.upstream_mapper = upstream_mapper
         self.window = window
         self.downstream_mapper = downstream_mapper or self._resolve_default_downstream_mapper(window)

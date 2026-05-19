@@ -29,6 +29,8 @@ class ProductMapper(PartitionMapper):
         /,
         *mappers: PartitionMapper,
         delimiter: str = "|",
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.mappers = [mapper0, mapper1, *mappers]
         self.delimiter = delimiter
