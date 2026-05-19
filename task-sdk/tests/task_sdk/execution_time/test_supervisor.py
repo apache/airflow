@@ -175,6 +175,8 @@ from tests_common.test_utils.config import conf_vars
 if TYPE_CHECKING:
     import kgb
 
+    from airflow.sdk.definitions.context import Context
+
 log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
@@ -3306,7 +3308,7 @@ class TestInProcessTestSupervisor:
             collected[0] = context.get("exception")
 
         class FailingOperator(BaseOperator):
-            def execute(self, context=None):
+            def execute(self, context: Context):
                 raise _Failure("boom")
 
         task = FailingOperator(task_id="failing", on_failure_callback=failure_callback)
