@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.s3_tables import (
     S3TablesCreateTableOperator,
     S3TablesDeleteNamespaceOperator,
     S3TablesDeleteTableBucketOperator,
+    S3TablesDeleteTableBucketPolicyOperator,
     S3TablesDeleteTableOperator,
     S3TablesPutTableBucketPolicyOperator,
     S3TablesRenameTableOperator,
@@ -417,6 +418,26 @@ class TestS3TablesPutTableBucketPolicyOperator:
             tableBucketARN=TABLE_BUCKET_ARN,
             resourcePolicy=POLICY,
         )
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
+
+class TestS3TablesDeleteTableBucketPolicyOperator:
+    def setup_method(self):
+        self.operator = S3TablesDeleteTableBucketPolicyOperator(
+            task_id="delete_policy",
+            table_bucket_arn=TABLE_BUCKET_ARN,
+        )
+
+    @mock.patch.object(S3TablesHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute(self, mock_conn):
+        mock_client = mock.MagicMock()
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        mock_client.delete_table_bucket_policy.assert_called_once_with(tableBucketARN=TABLE_BUCKET_ARN)
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

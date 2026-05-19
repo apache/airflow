@@ -101,6 +101,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -140,6 +141,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
+    handle_get_variable_keys,
     handle_mask_secret,
 )
 
@@ -1455,6 +1457,8 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_connection(self.client, msg)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
             xcom = self.client.xcoms.get(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
@@ -1656,7 +1660,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 else TaskStateResult.from_task_state_response(task_state)
             )
         elif isinstance(msg, SetTaskState):
-            self.client.task_state.set(msg.ti_id, msg.key, msg.value)
+            self.client.task_state.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
             resp = OKResponse(ok=True)
         elif isinstance(msg, DeleteTaskState):
             self.client.task_state.delete(msg.ti_id, msg.key)

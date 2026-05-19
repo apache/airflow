@@ -48,6 +48,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run OpenSearch remote logging e2e tests (true/false)"
         required: true
         type: string
+      run-event-driven-e2e-tests:
+        description: "Whether to run event driven e2e tests (true/false)"
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -273,6 +277,18 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "xcom_object_storage"
+
+  test-e2e-integration-tests-event-driven:
+    name: "Event driven tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Event driven e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "event_driven"
+    if: inputs.canary-run == 'true' || inputs.run-event-driven-e2e-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"

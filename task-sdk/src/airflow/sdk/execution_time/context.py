@@ -21,7 +21,7 @@ import contextlib
 import functools
 import inspect
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from uuid import UUID
@@ -29,6 +29,7 @@ from uuid import UUID
 import attrs
 import structlog
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -107,6 +108,11 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 
 
 log = structlog.get_logger(logger_name="task")
+
+#: Pass as ``retention`` to ``task_state.set()`` to store a key that never expires,
+#: regardless of the global ``[state_store] default_retention_days`` config.
+#: Example: ``context["task_state"].set("job_id", job_id, retention=NEVER_EXPIRE)``
+NEVER_EXPIRE: timedelta = timedelta.max
 
 T = TypeVar("T")
 
@@ -277,6 +283,35 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     )
 
 
+_VARIABLE_KEYS_PAGE_SIZE = 1000
+
+
+def _get_variable_keys(prefix: str | None = None) -> list[str]:
+    from airflow.sdk.exceptions import AirflowRuntimeError
+    from airflow.sdk.execution_time.comms import (
+        ErrorResponse,
+        GetVariableKeys,
+        VariableKeysResult,
+    )
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    all_keys: list[str] = []
+    offset = 0
+    while True:
+        msg = SUPERVISOR_COMMS.send(
+            GetVariableKeys(prefix=prefix, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=offset)
+        )
+        if isinstance(msg, ErrorResponse):
+            raise AirflowRuntimeError(msg)
+        if not isinstance(msg, VariableKeysResult):
+            raise TypeError(f"Unexpected response type for GetVariableKeys: {type(msg).__name__}")
+        all_keys.extend(msg.keys)
+        if len(msg.keys) < _VARIABLE_KEYS_PAGE_SIZE:
+            break
+        offset += len(msg.keys)
+    return all_keys
+
+
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
@@ -438,12 +473,29 @@ class TaskStateAccessor:
             return resp.value
         return None
 
-    def set(self, key: str, value: str) -> None:
-        """Write or overwrite the value for the given key."""
+    def set(self, key: str, value: str, *, retention: timedelta | None = None) -> None:
+        """
+        Write or overwrite the value for the given key.
+
+        ``retention`` is an optional key that controls when this key expires:
+
+        - ``timedelta(...)`` — expire after the given duration (e.g. ``timedelta(hours=6)``).
+        - ``NEVER_EXPIRE`` — key never expires, regardless of the global config and is skipped by garbage collection.
+        - ``None`` (default) — use the global ``[state_store] default_retention_days`` config.
+        """
         from airflow.sdk.execution_time.comms import SetTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value))
+        # expires_at is always resolved on the worker in UTC before being sent.
+        now = datetime.now(tz=timezone.utc)
+        if retention is NEVER_EXPIRE:
+            expires_at = None
+        elif retention is not None:
+            expires_at = now + retention
+        else:
+            days = conf.getint("state_store", "default_retention_days")
+            expires_at = None if days <= 0 else now + timedelta(days=days)
+        SUPERVISOR_COMMS.send(SetTaskState(ti_id=self._ti_id, key=key, value=value, expires_at=expires_at))
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
@@ -1072,7 +1124,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     """
     from datetime import datetime
 
-    from airflow import settings
+    from airflow import settings  # noqa: SDK002
 
     params = {}
     if in_env_var_format:

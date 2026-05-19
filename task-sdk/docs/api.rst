@@ -261,6 +261,10 @@ For a complete list of available context variables (such as ``dag_run``,
 ``task_instance``, ``logical_date``, etc.), see the
 :ref:`Templates reference <templates-ref>`.
 
+.. rubric:: Task State
+
+.. autodata:: airflow.sdk.NEVER_EXPIRE
+
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret

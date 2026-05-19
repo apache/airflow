@@ -21,6 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
+from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -75,6 +76,7 @@ from airflow.sdk.api.datamodels._generated import (
     TITerminalStatePayload,
     TriggerDAGRunPayload,
     ValidationError as RemoteValidationError,
+    VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
     XComResponse,
@@ -505,6 +507,14 @@ class VariableOperations:
         # decouple from the server response string
         return OKResponse(ok=True)
 
+    def keys(self, prefix: str | None = None, limit: int = 1000, offset: int = 0) -> VariableKeysResponse:
+        """List variable keys from the API server, optionally filtered by key prefix."""
+        params: dict[str, str | int] = {"limit": limit, "offset": offset}
+        if prefix is not None:
+            params["prefix"] = prefix
+        resp = self.client.get("variables/keys", params=params)
+        return VariableKeysResponse.model_validate_json(resp.read())
+
 
 class XComOperations:
     __slots__ = ("client",)
@@ -684,9 +694,9 @@ class TaskStateOperations:
             raise
         return TaskStateResponse.model_validate_json(resp.read())
 
-    def set(self, ti_id: uuid.UUID, key: str, value: str) -> OKResponse:
+    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None) -> OKResponse:
         """Set a task state value via the API server."""
-        body = TaskStatePutBody(value=value)
+        body = TaskStatePutBody(value=value, expires_at=expires_at)
         self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 

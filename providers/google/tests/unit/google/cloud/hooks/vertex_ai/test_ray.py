@@ -94,6 +94,23 @@ class TestRayWithDefaultProjectIdHook:
             labels=None,
         )
 
+    @mock.patch(RAY_STRING.format("vertex_ray.create_ray_cluster"))
+    @mock.patch(RAY_STRING.format("aiplatform.init"))
+    def test_create_ray_cluster_default_head_node_type(
+        self, mock_aiplatform_init, mock_create_ray_cluster
+    ) -> None:
+        self.hook.create_ray_cluster(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            head_node_type=None,
+            python_version=TEST_PYTHON_VERSION,
+            ray_version=TEST_RAY_VERSION,
+            cluster_name=TEST_CLUSTER_NAME,
+        )
+        mock_aiplatform_init.assert_called_once()
+        call_kwargs = mock_create_ray_cluster.call_args.kwargs
+        assert isinstance(call_kwargs["head_node_type"], Resources)
+
     @mock.patch(RAY_STRING.format("vertex_ray.delete_ray_cluster"))
     @mock.patch(RAY_STRING.format("aiplatform.init"))
     @mock.patch(RAY_STRING.format("PersistentResourceServiceClient.persistent_resource_path"))

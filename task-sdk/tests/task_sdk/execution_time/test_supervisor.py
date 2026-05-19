@@ -113,6 +113,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -147,6 +148,7 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     UpdateHITLDetail,
     ValidateInletsAndOutlets,
+    VariableKeysResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -1569,6 +1571,20 @@ REQUEST_TEST_CASES = [
         expected_body={"ok": True, "type": "OKResponse"},
     ),
     RequestTestCase(
+        message=GetVariableKeys(prefix="test_"),
+        test_id="get_variable_keys",
+        client_mock=ClientMock(
+            method_path="variables.keys",
+            kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
+            response=VariableKeysResult(keys=["test_key"], total_entries=1),
+        ),
+        expected_body={
+            "keys": ["test_key"],
+            "total_entries": 1,
+            "type": "VariableKeysResult",
+        },
+    ),
+    RequestTestCase(
         message=DeferTask(next_method="execute_callback", classpath="my-classpath"),
         test_id="patch_task_instance_to_deferred",
         client_mock=ClientMock(
@@ -2611,7 +2627,7 @@ REQUEST_TEST_CASES = [
     ),
     RequestTestCase(
         message=GetXComCount(key="test_key", dag_id="test_dag", run_id="test_run", task_id="test_task"),
-        expected_body={"len": 5, "type": "XComLengthResponse"},
+        expected_body={"len": 5, "type": "XComCountResponse"},
         client_mock=ClientMock(
             method_path="xcoms.head",
             args=("test_dag", "test_run", "test_task", "test_key"),
@@ -2706,11 +2722,33 @@ REQUEST_TEST_CASES = [
         expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
     ),
     RequestTestCase(
-        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
+        message=SetTaskState(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
         test_id="set_task_state",
         client_mock=ClientMock(
             method_path="task_state.set",
             args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=SetTaskState(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
+        test_id="set_task_state_with_expires_at",
+        client_mock=ClientMock(
+            method_path="task_state.set",
+            args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},

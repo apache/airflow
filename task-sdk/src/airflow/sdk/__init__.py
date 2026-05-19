@@ -55,6 +55,7 @@ __all__ = [
     "IdentityMapper",
     "Label",
     "Metadata",
+    "NEVER_EXPIRE",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
@@ -170,6 +171,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
+    from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.types import TaskInstance
 
@@ -245,6 +247,7 @@ __lazy_imports: dict[str, str] = {
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "NEVER_EXPIRE": ".execution_time.context",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",

@@ -123,6 +123,7 @@ class FileGroupForCi(Enum):
     REMOTE_LOGGING_E2E_S3_FILES = auto()
     REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES = auto()
     REMOTE_LOGGING_E2E_OPENSEARCH_FILES = auto()
+    EVENT_DRIVEN_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -203,6 +204,14 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.REMOTE_LOGGING_E2E_OPENSEARCH_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_opensearch_tests/.*",
             r"^providers/opensearch/.*",
+        ],
+        FileGroupForCi.EVENT_DRIVEN_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/event_driven_tests/.*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/dags/example_event_driven\.py$",
+            r"^airflow-e2e-tests/docker/kafka/.*",
+            r"^airflow-e2e-tests/docker/kafka\.yml$",
+            r"^providers/apache/kafka/.*",
+            r"^providers/common/messaging/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow-core/src/airflow/.*\.py",
@@ -974,6 +983,10 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def run_event_driven_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.EVENT_DRIVEN_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1084,6 +1097,7 @@ class SelectiveChecks:
             or self.run_remote_logging_s3_e2e_tests
             or self.run_remote_logging_elasticsearch_e2e_tests
             or self.run_remote_logging_opensearch_e2e_tests
+            or self.run_event_driven_e2e_tests
             or self.run_ui_e2e_tests
         )
 
