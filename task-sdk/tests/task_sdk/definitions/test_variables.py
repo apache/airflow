@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import json
+import queue
+import threading
 from unittest import mock
 from unittest.mock import patch
 
@@ -262,6 +264,49 @@ class TestVariableFromSecrets:
         mock_env_get.return_value = "fake_value"
         Variable.get(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
+
+    def test_get_variable_env_var_in_virtualenv_does_not_wait_for_supervisor_comms(self, monkeypatch):
+        """Regression test for Variable.get() hanging in PythonVirtualenvOperator child processes."""
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        events = queue.Queue()
+        release_supervisor_comms = threading.Event()
+
+        class BlockingSupervisorComms:
+            def send(self, *args, **kwargs):
+                events.put("supervisor_comms")
+                release_supervisor_comms.wait(timeout=5)
+
+        SecretCache.reset()
+        monkeypatch.setenv("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", "1")
+        monkeypatch.setenv("AIRFLOW_VAR_DEMO_MESSAGE", "hello from env")
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", BlockingSupervisorComms(), raising=False)
+
+        result = {}
+        error = {}
+
+        def get_variable():
+            try:
+                result["value"] = Variable.get(key="DEMO_MESSAGE")
+            except BaseException as exc:
+                error["exception"] = exc
+            finally:
+                events.put("done")
+
+        thread = threading.Thread(target=get_variable, daemon=True)
+        thread.start()
+        first_event = events.get(timeout=5)
+
+        release_supervisor_comms.set()
+        thread.join(timeout=5)
+
+        assert first_event == "done", (
+            "Variable.get() should not wait for supervisor comms when an env var backend returns the value "
+            "inside a PythonVirtualenvOperator child process."
+        )
+        assert error == {}
+        assert result == {"value": "hello from env"}
 
     @conf_vars(
         {

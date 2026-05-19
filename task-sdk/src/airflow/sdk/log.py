@@ -250,11 +250,15 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     they're masked in both the task subprocess AND supervisor's log output.
     Works safely in both sync and async contexts.
     """
+    import os
     from contextlib import suppress
 
     from airflow.sdk._shared.secrets_masker import _secrets_masker
 
     _secrets_masker().add_mask(secret, name)
+
+    if os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE"):
+        return
 
     with suppress(Exception):
         # Try to tell supervisor (only if in task execution context)

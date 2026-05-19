@@ -38,6 +38,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
@@ -236,7 +237,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
         return openapi_schema
 
 
-def create_task_execution_api_app() -> FastAPI:
+def create_task_execution_api_app() -> CadwynWithOpenAPICustomization:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
     from airflow.api_fastapi.execution_api.versions import bundle
@@ -300,6 +301,17 @@ def get_extra_schemas() -> dict[str, dict]:
     }
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        with override_process_context("server"):
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -309,11 +321,12 @@ class InProcessExecutionAPI:
     needed so that we can use the sync httpx client
     """
 
-    _app: FastAPI | None = None
+    request_scoped_server_context: bool = attrs.field(default=False, kw_only=True)
+    _app: CadwynWithOpenAPICustomization | None = None
     _cm: AsyncExitStack | None = None
 
     @cached_property
-    def app(self):
+    def app(self) -> CadwynWithOpenAPICustomization:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -344,13 +357,19 @@ class InProcessExecutionAPI:
         return self._app
 
     @cached_property
+    def asgi_app(self) -> Any:
+        if self.request_scoped_server_context:
+            return _RequestScopedServerContextApp(self.app)
+        return self.app
+
+    @cached_property
     def transport(self) -> httpx.WSGITransport:
         import asyncio
 
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        middleware = ASGIMiddleware(self.app)
+        middleware = ASGIMiddleware(self.asgi_app)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -365,4 +384,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx.ASGITransport(app=self.asgi_app)
