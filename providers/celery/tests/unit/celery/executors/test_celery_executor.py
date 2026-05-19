@@ -558,8 +558,37 @@ def test_send_workload_uses_external_executor_id_as_celery_task_id():
     assert result.task_id == pre_assigned_id
 
 
+@pytest.mark.parametrize("team_name", [None, "team-a"])
+def test_get_celery_app_for_workload_reuses_cache_for_same_team(team_name):
+    first_app = mock.Mock()
+    second_app = mock.Mock()
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        side_effect=[first_app, second_app],
+    ) as mock_create_celery_app:
+        assert celery_executor_utils._get_celery_app_for_workload(team_name) is first_app
+        assert celery_executor_utils._get_celery_app_for_workload(team_name) is first_app
+
+    mock_create_celery_app.assert_called_once()
+
+
+def test_get_celery_app_for_workload_keeps_cache_team_scoped():
+    team_a_app = mock.Mock()
+    team_b_app = mock.Mock()
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        side_effect=[team_a_app, team_b_app],
+    ) as mock_create_celery_app:
+        assert celery_executor_utils._get_celery_app_for_workload("team-a") is team_a_app
+        assert celery_executor_utils._get_celery_app_for_workload("team-b") is team_b_app
+
+    assert mock_create_celery_app.call_count == 2
+
+
 def test_send_workload_reuses_celery_app_for_same_team():
-    """Publishing multiple workloads for the same team reuses the subprocess-local Celery app."""
+    """Publishing multiple workloads for the same team reuses the cached Celery app."""
     celery_executor_utils._get_celery_app_for_workload.cache_clear()
     key = TaskInstanceKey(
         dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
@@ -590,7 +619,7 @@ def test_send_workload_reuses_celery_app_for_same_team():
 
 
 def test_send_workload_keeps_celery_app_cache_team_scoped():
-    """Different teams get distinct cached Celery app instances in the publisher subprocess."""
+    """Different teams get distinct cached Celery app instances in the publisher process."""
     celery_executor_utils._get_celery_app_for_workload.cache_clear()
     key = TaskInstanceKey(
         dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1

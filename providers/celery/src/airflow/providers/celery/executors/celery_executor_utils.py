@@ -32,7 +32,7 @@ import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from functools import cache, lru_cache
+from functools import cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
@@ -160,11 +160,15 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     return celery_app
 
 
-@lru_cache(maxsize=8)
+@cache
 def _get_celery_app_for_workload(team_name: str | None) -> Celery:
-    """Return a subprocess-local Celery app cached by team name for task publishing."""
-    if TYPE_CHECKING:
-        _conf: ExecutorConf | AirflowConfigParser
+    """
+    Return a Celery app cached by team name for task publishing.
+
+    Publishing workloads may run either inline in the scheduler process or in a publisher
+    subprocess. Cache the app in whichever process executes the publish path so result
+    backend resolution is amortized while retaining per-team broker isolation.
+    """
     if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
 
