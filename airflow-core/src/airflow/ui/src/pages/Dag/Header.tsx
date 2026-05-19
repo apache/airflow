@@ -25,7 +25,6 @@ import { DagIcon } from "src/assets/DagIcon";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
-import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
@@ -149,13 +148,9 @@ export const Header = ({
       icon={<DagIcon />}
       stats={stats}
       subTitle={
-        isStale ? (
-          <DagDeactivatedBadge />
-        ) : (
-          dag !== undefined && (
-            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
-          )
-        )
+        dag !== undefined && !isStale ? (
+          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+        ) : undefined
       }
       title={dag?.dag_display_name ?? dagId}
     />

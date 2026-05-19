@@ -25,9 +25,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
-import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
+import { DagImportErrorsModal } from "./DagImportErrorsModal";
 
-export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
+export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { i18n, t: translate } = useTranslation("dashboard");
 
@@ -49,6 +49,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
       <ErrorAlert error={error} />
       {iconOnly ? (
         <StateBadge
+          aria-label={translate("importErrors.dagImportError", { count: importErrorsCount })}
           as={Button}
           colorPalette="failed"
           height={7}
@@ -69,7 +70,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           onClick={onOpen}
         />
       )}
-      <DAGImportErrorsModal onClose={onClose} open={open} />
+      <DagImportErrorsModal onClose={onClose} open={open} />
     </Box>
   );
 };

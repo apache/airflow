@@ -4815,6 +4815,18 @@ paths:
           \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
           \ effectively matches items starting with `test`, and `s3://` matches items\
           \ starting with `s3`."
+      - name: filename
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Exact filename match. Returns only the import error for this
+            specific file path.
+          title: Filename
+        description: Exact filename match. Returns only the import error for this
+          specific file path.
       responses:
         '200':
           description: Successful Response

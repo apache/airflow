@@ -3663,6 +3663,10 @@ export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
     /**
+     * Exact filename match. Returns only the import error for this specific file path.
+     */
+    filename?: string | null;
+    /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.

@@ -1361,16 +1361,18 @@ export const useImportErrorServiceGetImportError = <TData = Common.ImportErrorSe
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``filename_prefix_pattern`` parameter when possible.
 * @param data.filenamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @param data.filename Exact filename match. Returns only the import error for this specific file path.
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }: {
+  filename?: string;
   filenamePattern?: string;
   filenamePrefixPattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }, queryKey), queryFn: () => ImportErrorService.getImportErrors({ filename, filenamePattern, filenamePrefixPattern, limit, offset, orderBy }) as TData, ...options });
 /**
 * Get Jobs
 * Get all jobs.

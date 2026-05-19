@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack, ClipboardRoot } from "@chakra-ui/react";
+import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -35,7 +35,7 @@ type ImportDAGErrorModalProps = {
 
 const PAGE_LIMIT = 15;
 
-export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
+export const DagImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -81,20 +81,26 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
 
         <Dialog.Body>
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
-            {data?.import_errors.map((importError) => (
-              <Accordion.Item key={importError.import_error_id} value={importError.filename}>
-                <Accordion.ItemTrigger cursor="pointer">
-                  <Text display="flex" fontWeight="bold">
-                    {translate("components:versionDetails.bundleName")}
-                    {": "}
-                    {importError.bundle_name}
-                  </Text>
-                  <PiFilePy />
-                  {importError.filename}
-                  <ClipboardRoot onClick={(event) => event.stopPropagation()} value={importError.filename}>
-                    <ClipboardIconButton variant="outline" />
-                  </ClipboardRoot>
-                </Accordion.ItemTrigger>
+            {(data?.import_errors ?? []).map((importError) => (
+              <Accordion.Item key={importError.import_error_id} value={String(importError.import_error_id)}>
+                <HStack align="stretch" gap={0} w="100%">
+                  <Accordion.ItemTrigger cursor="pointer" flex="1">
+                    <HStack alignItems="center" flexWrap="wrap" gap={2} w="100%">
+                      <Text display="flex" fontWeight="bold">
+                        {translate("components:versionDetails.bundleName")}
+                        {": "}
+                        {importError.bundle_name}
+                      </Text>
+                      <PiFilePy />
+                      {importError.filename}
+                    </HStack>
+                  </Accordion.ItemTrigger>
+                  <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
+                    <ClipboardRoot value={importError.filename}>
+                      <ClipboardIconButton variant="outline" />
+                    </ClipboardRoot>
+                  </Box>
+                </HStack>
                 <Accordion.ItemContent>
                   <Text color="fg.muted" fontSize="sm" mb={1}>
                     {translate("importErrors.timestamp")}
