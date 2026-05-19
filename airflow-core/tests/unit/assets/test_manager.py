@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, event, func, insert, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -38,6 +38,7 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
@@ -161,6 +162,76 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.usefixtures("clear_assets")
+    def test_register_asset_change_with_alias_no_lazy_load(
+        self, session, dag_maker, mock_task_instance, testing_dag_bundle
+    ):
+        bundle_name = "testing"
+
+        consumer_dag_1 = DagModel(
+            dag_id="consumer_1", bundle_name=bundle_name, is_stale=False, fileloc="dag1.py"
+        )
+        session.add(consumer_dag_1)
+
+        asm = AssetModel(uri="test://asset1/", name="test_asset_uri", group="asset")
+        session.add(asm)
+
+        asam = AssetAliasModel(name="test_alias_name", group="test")
+        session.add(asam)
+        asam.scheduled_dags = [
+            DagScheduleAssetAliasReference(alias_id=asam.id, dag_id=consumer_dag_1.dag_id)
+        ]
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        # Add a bunch of preexisting asset events for the alias
+        pre_existing_events = []
+        for _ in range(5):
+            ev = AssetEvent(asset_id=asm.id)
+            session.add(ev)
+            pre_existing_events.append(ev)
+        session.flush()
+
+        session.execute(
+            insert(asset_alias_asset_event_association_table).values(
+                [{"alias_id": asam.id, "event_id": ev.id} for ev in pre_existing_events]
+            )
+        )
+        session.commit()
+
+        asset = Asset(uri="test://asset1", name="test_asset_uri")
+        asset_manager = AssetManager()
+
+        query_count = 0
+
+        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            nonlocal query_count
+            if "asset_alias_asset_event" in statement and "SELECT" in statement.upper():
+                query_count += 1
+
+        event.listen(session.bind, "before_cursor_execute", before_cursor_execute)
+
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset,
+            source_alias_names=["test_alias_name"],
+            session=session,
+        )
+        session.flush()
+
+        event.remove(session.bind, "before_cursor_execute", before_cursor_execute)
+
+        # Ensure no SELECTs were made to the association table (no lazy loading)
+        assert query_count == 0
+
+        # Ensure we've created the new asset event and it is associated
+        # Total events should be 5 pre-existing + 1 new = 6
+        assert (
+            session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asm.id))
+            == 6
+        )
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 1
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()
