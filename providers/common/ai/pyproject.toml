@@ -103,6 +103,13 @@ dependencies = [
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
 ]
+# crewai pulls chromadb, which transitively requires onnxruntime.
+# onnxruntime >=1.24 dropped cp310 wheels, and crewai itself caps Python
+# to <3.14. Gate the extra to 3.11-3.13 so 3.10 / 3.14 envs don't fail
+# to resolve.
+"crewai" = [
+    'crewai>=1.14.5; python_version >= "3.11" and python_version < "3.14"',
+]
 "pdf" = ["pypdf>=4.0.0"]
 "docx" = ["python-docx>=1.0.0"]
 

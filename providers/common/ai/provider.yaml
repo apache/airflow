@@ -59,6 +59,9 @@ integrations:
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst
     tags: [ai]
+  - integration-name: CrewAI
+    external-doc-url: https://docs.crewai.com/
+    tags: [ai]
 
 hooks:
   - integration-name: Pydantic AI
@@ -73,6 +76,9 @@ hooks:
   - integration-name: LlamaIndex
     python-modules:
       - airflow.providers.common.ai.hooks.llamaindex
+  - integration-name: CrewAI
+    python-modules:
+      - airflow.providers.common.ai.hooks.crewai
 
 plugins:
   - name: hitl_review
