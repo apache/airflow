@@ -218,6 +218,13 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: update-notice-year
+        name: Update NOTICE files to current year (manual)
+        entry: ./scripts/ci/prek/update_notice_year.py
+        stages: ['manual']
+        language: python
+        pass_filenames: false
+        require_serial: true
       - id: check-notice-files
         name: Check NOTICE files for current year and ASF references
         entry: ./scripts/ci/prek/check_notice_files.py
