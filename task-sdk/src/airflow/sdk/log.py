@@ -228,14 +228,14 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     raw_logger = getattr(logger, "_logger")
     # Dedicated logger for remote-upload visibility — operators relying on
     # remote log handlers need a way to see when those handlers fail to load
-    # or fail to upload. The default behaviour was to silently fall through.
+    # or fail to upload.
     upload_log = structlog.get_logger("airflow.logging.remote")
 
     handler = load_remote_log_handler()
     if not handler:
         upload_log.warning(
             "remote_log_handler_unavailable",
-            ti_id=str(getattr(ti, "id", None)),
+            ti_id=str(ti.id),
             note="Remote log handler could not be loaded; logs will be available locally only.",
         )
         return
@@ -245,8 +245,8 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     except Exception as exc:
         upload_log.warning(
             "remote_log_path_resolution_failed",
-            ti_id=str(getattr(ti, "id", None)),
-            error=str(exc),
+            ti_id=str(ti.id),
+            exc_info=exc,
         )
         return
     if not relative_path:
@@ -258,9 +258,9 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI):
     except Exception as exc:
         upload_log.warning(
             "remote_log_upload_failed",
-            ti_id=str(getattr(ti, "id", None)),
+            ti_id=str(ti.id),
             log_relative_path=log_relative_path,
-            error=str(exc),
+            exc_info=exc,
         )
 
 
