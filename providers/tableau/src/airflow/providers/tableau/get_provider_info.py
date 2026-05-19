@@ -47,7 +47,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.tableau.hooks.tableau.TableauHook",
-                "hook-name": "Tableau",
                 "connection-type": "tableau",
             }
         ],

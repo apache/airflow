@@ -53,7 +53,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.docker.hooks.docker.DockerHook",
-                "hook-name": "Docker",
                 "connection-type": "docker",
                 "conn-fields": {
                     "reauth": {

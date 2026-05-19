@@ -53,7 +53,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
-                "hook-name": "Cassandra",
                 "connection-type": "cassandra",
             }
         ],

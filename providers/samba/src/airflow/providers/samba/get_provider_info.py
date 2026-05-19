@@ -46,7 +46,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.samba.hooks.samba.SambaHook",
-                "hook-name": "Samba",
                 "connection-type": "samba",
                 "conn-fields": {
                     "share_type": {
