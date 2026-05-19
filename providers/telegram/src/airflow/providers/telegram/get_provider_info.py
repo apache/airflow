@@ -44,7 +44,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.telegram.hooks.telegram.TelegramHook",
-                "hook-name": "Telegram",
                 "connection-type": "telegram",
                 "ui-field-behaviour": {"hidden-fields": ["schema", "extra", "login", "port"]},
             }

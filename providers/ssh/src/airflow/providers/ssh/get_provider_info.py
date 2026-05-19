@@ -56,7 +56,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.ssh.hooks.ssh.SSHHook",
-                "hook-name": "SSH",
                 "connection-type": "ssh",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema"],

@@ -98,7 +98,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.teradata.hooks.teradata.TeradataHook",
-                "hook-name": "Teradata",
                 "connection-type": "teradata",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port"],

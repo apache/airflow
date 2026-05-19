@@ -49,7 +49,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.jenkins.hooks.jenkins.JenkinsHook",
-                "hook-name": "Jenkins",
                 "connection-type": "jenkins",
                 "ui-field-behaviour": {
                     "hidden-fields": ["extra"],

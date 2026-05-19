@@ -43,7 +43,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.iceberg.hooks.iceberg.IcebergHook",
-                "hook-name": "Iceberg",
                 "connection-type": "iceberg",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port"],

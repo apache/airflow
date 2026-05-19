@@ -50,7 +50,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.airbyte.hooks.airbyte.AirbyteHook",
-                "hook-name": "Airbyte",
                 "connection-type": "airbyte",
                 "ui-field-behaviour": {
                     "hidden-fields": ["extra", "port"],
