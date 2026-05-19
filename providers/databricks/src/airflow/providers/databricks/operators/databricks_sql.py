@@ -58,7 +58,7 @@ _QUERY_TAG_ESCAPE_SEQUENCES = {
 }
 
 
-def _escape_query_tag_value(value: str) -> str:
+def _escape_query_tag_value(value: object) -> str:
     escaped = str(value)
 
     for char, replacement in _QUERY_TAG_ESCAPE_SEQUENCES.items():
@@ -90,8 +90,10 @@ def _merge_query_tags(session_config: dict[str, Any], query_tags: str) -> dict[s
     return updated_config
 
 
-def _inject_query_tags(hook: DatabricksSqlHook, context: Context) -> None:
+def _inject_query_tags(hook: DatabricksSqlHook, context: Context | None) -> None:
     """Inject Airflow context metadata into Databricks query tags."""
+    if not context:
+        return
     query_tags = _format_query_tags(context)
     if not query_tags:
         return

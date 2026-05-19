@@ -450,9 +450,7 @@ def _run_with_mocked_hook(op, context, initial_session_config, conn_extra=None):
     from unittest.mock import MagicMock
 
     op.do_xcom_push = False
-    with patch(
-        "airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook"
-    ) as db_mock_class:
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
         db_mock = db_mock_class.return_value
         db_mock.session_config = initial_session_config
         db_mock.databricks_conn = MagicMock(extra_dejson=conn_extra or {})
@@ -467,8 +465,7 @@ def test_query_tags_injection_appends_to_existing_tags():
     result = _run_with_mocked_hook(op, context, {"query_tags": "user_tag:value"})
 
     assert result["query_tags"] == (
-        "user_tag:value,airflow_dag_id:test_dag,"
-        "airflow_task_id:test_task,airflow_run_id:test_run_123"
+        "user_tag:value,airflow_dag_id:test_dag,airflow_task_id:test_task,airflow_run_id:test_run_123"
     )
 
 
@@ -537,9 +534,7 @@ def test_query_tags_injection_falls_back_to_conn_extra_when_session_config_none(
         conn_extra={"session_configuration": {"query_tags": "conn_tag:1"}},
     )
 
-    assert result["query_tags"] == (
-        "conn_tag:1,airflow_dag_id:d,airflow_task_id:t,airflow_run_id:r"
-    )
+    assert result["query_tags"] == ("conn_tag:1,airflow_dag_id:d,airflow_task_id:t,airflow_run_id:r")
 
 
 def test_query_tags_injection_disabled():
