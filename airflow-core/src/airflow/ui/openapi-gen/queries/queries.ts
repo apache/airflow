@@ -698,6 +698,17 @@ export const useDagServiceGetLatestRunInfo = <TData = Common.DagServiceGetLatest
   dagId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }, queryKey), queryFn: () => DagService.getLatestRunInfo({ dagId }) as TData, ...options });
 /**
+* Get Dag Run State Counts
+* Return per-DAG DagRun state counts (zero-filled, all-time) for the DAG list page.
+* @param data The data for the request.
+* @param data.dagIds
+* @returns DAGsRunStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetDagRunStateCountsUi = <TData = Common.DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds }: {
+  dagIds: string[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }, queryKey), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) as TData, ...options });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId

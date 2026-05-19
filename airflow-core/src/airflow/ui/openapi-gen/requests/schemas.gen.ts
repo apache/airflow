@@ -8090,6 +8090,29 @@ export const $DAGRunLightResponse = {
     description: 'DAG Run serializer for responses.'
 } as const;
 
+export const $DAGRunStateCountsResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        state_counts: {
+            additionalProperties: {
+                type: 'integer'
+            },
+            propertyNames: {
+                '$ref': '#/components/schemas/DagRunState'
+            },
+            type: 'object',
+            title: 'State Counts'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'state_counts'],
+    title: 'DAGRunStateCountsResponse',
+    description: 'Per-DAG counts of DagRuns grouped by state.'
+} as const;
+
 export const $DAGRunStates = {
     properties: {
         queued: {
@@ -8416,6 +8439,22 @@ export const $DAGWithLatestDagRunsResponse = {
     required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
+} as const;
+
+export const $DAGsRunStateCountsCollectionResponse = {
+    properties: {
+        dags: {
+            items: {
+                '$ref': '#/components/schemas/DAGRunStateCountsResponse'
+            },
+            type: 'array',
+            title: 'Dags'
+        }
+    },
+    type: 'object',
+    required: ['dags'],
+    title: 'DAGsRunStateCountsCollectionResponse',
+    description: 'Collection of per-DAG DagRun-state counts for the DAG list page.'
 } as const;
 
 export const $DagRunStatsResponse = {

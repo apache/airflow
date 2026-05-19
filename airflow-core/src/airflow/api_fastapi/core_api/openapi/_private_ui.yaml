@@ -579,6 +579,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/run_state_counts:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Run State Counts
+      description: Return per-DAG DagRun state counts (zero-filled, all-time) for
+        the DAG list page.
+      operationId: get_dag_run_state_counts_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          title: Dag Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGsRunStateCountsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dependencies:
     get:
       tags:
@@ -2118,6 +2152,24 @@ components:
       - duration
       title: DAGRunLightResponse
       description: DAG Run serializer for responses.
+    DAGRunStateCountsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        state_counts:
+          additionalProperties:
+            type: integer
+          propertyNames:
+            $ref: '#/components/schemas/DagRunState'
+          type: object
+          title: State Counts
+      type: object
+      required:
+      - dag_id
+      - state_counts
+      title: DAGRunStateCountsResponse
+      description: Per-DAG counts of DagRuns grouped by state.
     DAGRunStates:
       properties:
         queued:
@@ -2351,6 +2403,18 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
+    DAGsRunStateCountsCollectionResponse:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DAGRunStateCountsResponse'
+          type: array
+          title: Dags
+      type: object
+      required:
+      - dags
+      title: DAGsRunStateCountsCollectionResponse
+      description: Collection of per-DAG DagRun-state counts for the DAG list page.
     DagRunState:
       type: string
       enum:

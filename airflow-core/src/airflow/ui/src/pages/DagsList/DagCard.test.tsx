@@ -53,6 +53,15 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
   </BaseWrapper>
 );
 
+// Render with the run-state-counts row in its loading state so it renders
+// skeletons rather than StateBadges. Without this, every card would emit
+// 4 extra "state-badge" testids and break getByTestId assertions in tests
+// that target the latest-run badge.
+const renderCard = (dag: DAGWithLatestDagRunsResponse) =>
+  render(<DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading />, {
+    wrapper: GMTWrapper,
+  });
+
 const mockDag = {
   allowed_run_types: null,
   asset_expression: null,
@@ -136,7 +145,7 @@ afterEach(() => {
 
 describe("DagCard", () => {
   it("DagCard should render without tags", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
     expect(screen.queryByTestId("dag-tag")).toBeNull();
   });
@@ -154,7 +163,7 @@ describe("DagCard", () => {
       tags,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
+    renderCard(expandedMockDag);
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.queryByText("tag3")).toBeInTheDocument();
@@ -176,14 +185,14 @@ describe("DagCard", () => {
       tags,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={expandedMockDag} />, { wrapper: GMTWrapper });
+    renderCard(expandedMockDag);
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
     expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 
   it("DagCard should render schedule section", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const scheduleElement = screen.getByTestId("schedule");
 
     expect(scheduleElement).toBeInTheDocument();
@@ -192,7 +201,7 @@ describe("DagCard", () => {
   });
 
   it("DagCard should render latest run section with actual run data", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const latestRunElement = screen.getByTestId("latest-run");
 
     expect(latestRunElement).toBeInTheDocument();
@@ -201,7 +210,7 @@ describe("DagCard", () => {
   });
 
   it("DagCard should render next run section with timestamp", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const nextRunElement = screen.getByTestId("next-run");
 
     expect(nextRunElement).toBeInTheDocument();
@@ -210,7 +219,7 @@ describe("DagCard", () => {
   });
 
   it("DagCard should not render next run timestamp for a paused Dag", () => {
-    render(<DagCard dag={{ ...mockDag, is_paused: true }} />, { wrapper: GMTWrapper });
+    renderCard({ ...mockDag, is_paused: true });
     const nextRunElement = screen.getByTestId("next-run");
 
     expect(nextRunElement).toBeInTheDocument();
@@ -218,7 +227,7 @@ describe("DagCard", () => {
   });
 
   it("DagCard should render StateBadge as success", () => {
-    render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
+    renderCard(mockDag);
     const stateBadge = screen.getByTestId("state-badge");
 
     expect(stateBadge).toBeInTheDocument();
@@ -243,7 +252,7 @@ describe("DagCard", () => {
       ],
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={mockDagWithFailedRun} />, { wrapper: GMTWrapper });
+    renderCard(mockDagWithFailedRun);
     const stateBadge = screen.getByTestId("state-badge");
 
     expect(stateBadge).toBeInTheDocument();

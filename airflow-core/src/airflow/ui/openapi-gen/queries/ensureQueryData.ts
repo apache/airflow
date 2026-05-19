@@ -698,6 +698,17 @@ export const ensureUseDagServiceGetLatestRunInfoData = (queryClient: QueryClient
   dagId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }), queryFn: () => DagService.getLatestRunInfo({ dagId }) });
 /**
+* Get Dag Run State Counts
+* Return per-DAG DagRun state counts (zero-filled, all-time) for the DAG list page.
+* @param data The data for the request.
+* @param data.dagIds
+* @returns DAGsRunStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagServiceGetDagRunStateCountsUiData = (queryClient: QueryClient, { dagIds }: {
+  dagIds: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId

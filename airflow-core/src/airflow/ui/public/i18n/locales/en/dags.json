@@ -76,6 +76,11 @@
       "upstream": "Upstream"
     }
   },
+  "runStateCounts": {
+    "label": "Run states",
+    "loading": "Loading run state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter runs"
+  },
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",
