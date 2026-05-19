@@ -60,8 +60,10 @@ Before running:
        pip install langchain langchain-openai langchain-text-splitters \\
                    langchain-community faiss-cpu
 
-2. Create an LLM connection named ``pydanticai_default`` (or the value of
-   ``LLM_CONN_ID`` below) for your chosen model provider.
+2. Create an LLM connection of type ``langchain`` named ``langchain_default``
+   (or the value of ``LLM_CONN_ID`` below) for your chosen model provider.
+   Set ``password`` to your API key; the ``host`` field is optional and only
+   needed for custom endpoints / Ollama.
 
 3. Optionally place a knowledge base directory at ``DOCS_PATH`` and a
    survey CSV at ``SURVEY_CSV_PATH``.  If ``DOCS_PATH`` is empty, sample
@@ -82,10 +84,9 @@ from airflow.sdk import Param
 # Configuration
 # ---------------------------------------------------------------------------
 
-LLM_CONN_ID = "pydanticai_default"
-LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o")
-
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
+LLM_CONN_ID = "langchain_default"
+LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-4o")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "openai:text-embedding-3-small")
 
 DOCS_PATH = os.environ.get("DOCS_PATH", "/opt/airflow/data/rag_documents")
 
@@ -193,8 +194,7 @@ def _ensure_knowledge_base(hook) -> str:
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
     chunks = splitter.split_documents(docs)
 
-    embeddings = hook.get_embedding_model()
-    vectorstore = FAISS.from_documents(chunks, embeddings)
+    vectorstore = FAISS.from_documents(chunks, hook.get_embedding_model())
 
     os.makedirs(INDEX_PERSIST_DIR, exist_ok=True)
     vectorstore.save_local(INDEX_PERSIST_DIR)
@@ -210,6 +210,14 @@ def _ensure_knowledge_base(hook) -> str:
 def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
     """Construct the agent's tool set."""
     from langchain.tools import tool
+    from langchain_community.vectorstores import FAISS
+
+    # Build the vector store once and close over it -- the agent may invoke
+    # search_knowledge_base many times, and reloading the FAISS index plus
+    # re-initialising the embedding model on every call would be wasteful.
+    vectorstore = FAISS.load_local(
+        index_dir, hook.get_embedding_model(), allow_dangerous_deserialization=True
+    )
 
     # -- Tool 1: Knowledge base search (vector retrieval) ------------------
 
@@ -220,12 +228,6 @@ def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
         Use this for questions about Airflow features, architecture,
         operators, executors, connections, or best practices.
         """
-        from langchain_community.vectorstores import FAISS
-
-        embeddings = hook.get_embedding_model()
-        vectorstore = FAISS.load_local(
-            index_dir, embeddings, allow_dangerous_deserialization=True
-        )
         results = vectorstore.similarity_search(query, k=3)
 
         if not results:
@@ -308,8 +310,8 @@ def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
 
                 counts = Counter(r.get(version_col, "unknown") for r in rows)
                 top5 = counts.most_common(5)
-                lines = [f"  {v}: {c} ({round(100*c/total,1)}%)" for v, c in top5]
-                return f"Airflow version distribution (top 5):\n" + "\n".join(lines)
+                lines = [f"  {v}: {c} ({round(100 * c / total, 1)}%)" for v, c in top5]
+                return "Airflow version distribution (top 5):\n" + "\n".join(lines)
 
         return (
             f"Survey dataset has {total} responses across {len(columns)} columns. "
@@ -359,28 +361,19 @@ def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
             "configured via an Airflow connection."
         )
 
-    # -- Tool 4: Calculator ------------------------------------------------
+    # -- Tool 4: Current UTC time -----------------------------------------
 
     @tool
-    def calculate(expression: str) -> str:
-        """Evaluate a mathematical expression.
+    def get_current_utc_time() -> str:
+        """Return the current UTC date and time in ISO-8601 format.
 
-        Use for computing percentages, averages, growth rates, or any
-        numerical calculation.  Supports basic Python math operations.
-
-        Examples: "100 * 0.35", "1234 / 5678 * 100", "round(3.14159, 2)"
+        Use when the question depends on a current timestamp (e.g. "is the
+        merge freeze active right now", "how recent is the survey data").
+        LLMs cannot reliably know the wall-clock time on their own.
         """
-        allowed_names = {
-            "abs": abs, "round": round, "min": min, "max": max,
-            "sum": sum, "len": len, "pow": pow,
-        }
-        try:
-            result = eval(expression, {"__builtins__": {}}, allowed_names)  # noqa: S307
-            return str(result)
-        except Exception as e:
-            return f"Calculation error: {e}. Check the expression syntax."
+        return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
-    return [search_knowledge_base, query_survey_data, search_web, calculate]
+    return [search_knowledge_base, query_survey_data, search_web, get_current_utc_time]
 
 
 # ---------------------------------------------------------------------------
@@ -404,9 +397,9 @@ def example_langchain_tool_agent():
 
     The agent uses LangChain's ``create_agent`` with a ReAct reasoning
     loop.  It autonomously decides which tools to call -- knowledge base
-    search, survey data query, web search, or calculator -- based on the
-    user's question.  The number and sequence of tool calls is determined
-    by the LLM at runtime.
+    search, survey data query, web search, or current-time lookup --
+    based on the user's question.  The number and sequence of tool calls
+    is determined by the LLM at runtime.
 
     The surrounding Airflow DAG provides what the agent cannot:
     human review of the question (HITLEntryOperator), formatted report
@@ -472,7 +465,8 @@ def example_langchain_tool_agent():
             system_prompt=(
                 "You are a thorough research assistant for Apache Airflow. "
                 "You have access to tools for searching a knowledge base, "
-                "querying survey data, searching the web, and doing math. "
+                "querying survey data, searching the web, and checking the "
+                "current UTC time. "
                 "Use the appropriate tools to fully answer the question. "
                 "Combine information from multiple sources when relevant. "
                 "Always cite which tool provided each piece of information."
@@ -493,10 +487,12 @@ def example_langchain_tool_agent():
             msg = step["messages"][-1]
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tc in msg.tool_calls:
-                    tool_calls_log.append({
-                        "tool": tc["name"],
-                        "args": str(tc.get("args", {}))[:200],
-                    })
+                    tool_calls_log.append(
+                        {
+                            "tool": tc["name"],
+                            "args": str(tc.get("args", {}))[:200],
+                        }
+                    )
                     print(f"  Tool call: {tc['name']}({tc.get('args', {})})")
             elif hasattr(msg, "content") and msg.content:
                 final_answer = msg.content

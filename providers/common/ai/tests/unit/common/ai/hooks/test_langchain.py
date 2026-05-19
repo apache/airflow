@@ -23,167 +23,248 @@ import pytest
 from airflow.providers.common.ai.hooks.langchain import LangChainHook
 
 
+def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:
+    mock_conn = MagicMock()
+    mock_conn.password = password
+    mock_conn.host = host
+    mock_conn.extra_dejson = extra or {}
+    return mock_conn
+
+
 class TestLangChainHookInit:
     def test_default_params(self):
         hook = LangChainHook()
-        assert hook.llm_conn_id == "pydanticai_default"
-        assert hook.embed_conn_id == "pydanticai_default"
-        assert hook.embed_model == "text-embedding-3-small"
+        assert hook.llm_conn_id == "langchain_default"
+        assert hook.embed_conn_id == "langchain_default"
         assert hook.llm_model is None
+        assert hook.embed_model is None
 
-    def test_separate_embed_conn_id(self):
-        hook = LangChainHook(llm_conn_id="llm_conn", embed_conn_id="embed_conn")
-        assert hook.llm_conn_id == "llm_conn"
-        assert hook.embed_conn_id == "embed_conn"
-
-    def test_embed_conn_defaults_to_llm_conn(self):
+    def test_embed_conn_falls_back_to_llm_conn(self):
         hook = LangChainHook(llm_conn_id="my_conn")
+        assert hook.llm_conn_id == "my_conn"
         assert hook.embed_conn_id == "my_conn"
 
-    def test_conn_type_is_pydanticai(self):
-        assert LangChainHook.conn_type == "pydanticai"
-        assert LangChainHook.default_conn_name == "pydanticai_default"
+    def test_explicit_separate_conns_and_models(self):
+        hook = LangChainHook(
+            llm_conn_id="chat_conn",
+            embed_conn_id="embed_conn",
+            llm_model="openai:gpt-4o",
+            embed_model="openai:text-embedding-3-small",
+        )
+        assert hook.llm_conn_id == "chat_conn"
+        assert hook.embed_conn_id == "embed_conn"
+        assert hook.llm_model == "openai:gpt-4o"
+        assert hook.embed_model == "openai:text-embedding-3-small"
+
+    def test_conn_type_is_langchain(self):
+        assert LangChainHook.conn_type == "langchain"
+        assert LangChainHook.default_conn_name == "langchain_default"
+        assert LangChainHook.conn_name_attr == "llm_conn_id"
+        assert LangChainHook.hook_name == "LangChain"
 
 
-class TestResolveConnectionKwargs:
-    @patch.object(LangChainHook, "get_connection")
-    def test_extracts_password_as_api_key(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test-key"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        hook = LangChainHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_key": "sk-test-key"}
-
-    @patch.object(LangChainHook, "get_connection")
-    def test_extracts_host_as_base_url(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = ""
-        mock_conn.host = "https://custom.api.com"
-        mock_get_conn.return_value = mock_conn
-
-        hook = LangChainHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"base_url": "https://custom.api.com"}
-
-    @patch.object(LangChainHook, "get_connection")
-    def test_both_password_and_host(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-key"
-        mock_conn.host = "https://api.example.com"
-        mock_get_conn.return_value = mock_conn
-
-        hook = LangChainHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_key": "sk-key", "base_url": "https://api.example.com"}
-
-    @patch.object(LangChainHook, "get_connection")
-    def test_empty_fields_return_empty_dict(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = ""
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        hook = LangChainHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {}
+class TestGetUiFieldBehaviour:
+    def test_shape(self):
+        behaviour = LangChainHook.get_ui_field_behaviour()
+        assert behaviour["hidden_fields"] == ["schema", "port", "login"]
+        assert behaviour["relabeling"] == {"password": "API Key"}
+        assert "host" in behaviour["placeholders"]
+        assert "extra" in behaviour["placeholders"]
+        # extra placeholder shows both chat and embedding model keys
+        assert "model" in behaviour["placeholders"]["extra"]
+        assert "embed_model" in behaviour["placeholders"]["extra"]
 
 
-def _make_mock_chat_openai_module():
-    mock_module = MagicMock()
-    mock_cls = MagicMock()
-    mock_module.ChatOpenAI = mock_cls
-    return mock_module, mock_cls
+class TestResolveModelId:
+    def test_constructor_wins_over_extra(self):
+        result = LangChainHook._resolve_model_id(
+            {"model": "anthropic:claude-3-7-sonnet"},
+            constructor_value="openai:gpt-4o",
+            extra_key="model",
+            kind="chat",
+        )
+        assert result == "openai:gpt-4o"
 
+    def test_falls_back_to_extra(self):
+        result = LangChainHook._resolve_model_id(
+            {"model": "anthropic:claude-3-7-sonnet"},
+            constructor_value=None,
+            extra_key="model",
+            kind="chat",
+        )
+        assert result == "anthropic:claude-3-7-sonnet"
 
-def _make_mock_openai_embeddings_module():
-    mock_module = MagicMock()
-    mock_cls = MagicMock()
-    mock_module.OpenAIEmbeddings = mock_cls
-    return mock_module, mock_cls
+    def test_raises_when_neither_set_for_chat(self):
+        with pytest.raises(ValueError, match="No chat model identifier set"):
+            LangChainHook._resolve_model_id(
+                {},
+                constructor_value=None,
+                extra_key="model",
+                kind="chat",
+            )
+
+    def test_raises_when_neither_set_for_embedding(self):
+        with pytest.raises(ValueError, match="No embedding model identifier set"):
+            LangChainHook._resolve_model_id(
+                {},
+                constructor_value=None,
+                extra_key="embed_model",
+                kind="embedding",
+            )
 
 
 class TestGetChatModel:
-    def test_raises_without_llm_model(self):
-        hook = LangChainHook()
-        with pytest.raises(ValueError, match="llm_model must be set"):
-            hook.get_chat_model()
-
+    @patch("langchain.chat_models.init_chat_model")
     @patch.object(LangChainHook, "get_connection")
-    def test_returns_chat_openai(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
+    def test_dispatches_via_init_chat_model_with_api_key(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="sk-test")
 
-        mock_module, mock_cls = _make_mock_chat_openai_module()
+        hook = LangChainHook(llm_model="openai:gpt-4o")
+        result = hook.get_chat_model()
 
-        hook = LangChainHook(llm_model="gpt-4o")
-        with patch.dict("sys.modules", {"langchain_openai": mock_module}):
-            result = hook.get_chat_model()
+        mock_get_conn.assert_called_once_with("langchain_default")
+        mock_init_chat_model.assert_called_once_with("openai:gpt-4o", api_key="sk-test")
+        assert result is mock_init_chat_model.return_value
 
-        mock_cls.assert_called_once_with(model="gpt-4o", api_key="sk-test")
-        assert result == mock_cls.return_value
-
+    @patch("langchain.chat_models.init_chat_model")
     @patch.object(LangChainHook, "get_connection")
-    def test_passes_base_url(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = "https://custom.api.com"
-        mock_get_conn.return_value = mock_conn
+    def test_dispatches_with_base_url(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="sk-test", host="http://localhost:11434/v1")
 
-        mock_module, mock_cls = _make_mock_chat_openai_module()
+        hook = LangChainHook(llm_model="openai:llama3")
+        hook.get_chat_model()
 
-        hook = LangChainHook(llm_model="gpt-4o")
-        with patch.dict("sys.modules", {"langchain_openai": mock_module}):
-            hook.get_chat_model()
-
-        mock_cls.assert_called_once_with(
-            model="gpt-4o", api_key="sk-test", base_url="https://custom.api.com"
+        mock_init_chat_model.assert_called_once_with(
+            "openai:llama3", api_key="sk-test", base_url="http://localhost:11434/v1"
         )
+
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainHook, "get_connection")
+    def test_resolves_model_from_extra(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"model": "anthropic:claude-3-7-sonnet"})
+
+        hook = LangChainHook()
+        hook.get_chat_model()
+
+        mock_init_chat_model.assert_called_once_with("anthropic:claude-3-7-sonnet", api_key="sk-test")
+
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainHook, "get_connection")
+    def test_raises_when_no_model(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn(password="sk-test")
+
+        hook = LangChainHook()
+        with pytest.raises(ValueError, match="No chat model identifier set"):
+            hook.get_chat_model()
+        mock_init_chat_model.assert_not_called()
+
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainHook, "get_connection")
+    def test_no_credentials_passes_empty_kwargs(self, mock_get_conn, mock_init_chat_model):
+        mock_get_conn.return_value = _conn()
+
+        hook = LangChainHook(llm_model="openai:gpt-4o")
+        hook.get_chat_model()
+
+        mock_init_chat_model.assert_called_once_with("openai:gpt-4o")
 
 
 class TestGetEmbeddingModel:
+    @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")
-    def test_returns_openai_embeddings(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
+    def test_dispatches_via_init_embeddings_with_api_key(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn(password="sk-test")
 
-        mock_module, mock_cls = _make_mock_openai_embeddings_module()
+        hook = LangChainHook(embed_model="openai:text-embedding-3-small")
+        result = hook.get_embedding_model()
 
-        hook = LangChainHook(embed_model="text-embedding-3-large")
-        with patch.dict("sys.modules", {"langchain_openai": mock_module}):
-            result = hook.get_embedding_model()
+        mock_get_conn.assert_called_once_with("langchain_default")
+        mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-small", api_key="sk-test")
+        assert result is mock_init_embeddings.return_value
 
-        mock_cls.assert_called_once_with(model="text-embedding-3-large", api_key="sk-test")
-        assert result == mock_cls.return_value
-
+    @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")
-    def test_uses_embed_conn_id(self, mock_get_conn):
-        mock_conn_llm = MagicMock()
-        mock_conn_llm.password = "sk-llm"
-        mock_conn_llm.host = ""
+    def test_dispatches_with_base_url(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn(password="sk-test", host="http://localhost:11434/v1")
 
-        mock_conn_embed = MagicMock()
-        mock_conn_embed.password = "sk-embed"
-        mock_conn_embed.host = ""
+        hook = LangChainHook(embed_model="openai:nomic-embed-text")
+        hook.get_embedding_model()
 
-        mock_get_conn.side_effect = lambda conn_id: (
-            mock_conn_embed if conn_id == "embed_conn" else mock_conn_llm
+        mock_init_embeddings.assert_called_once_with(
+            "openai:nomic-embed-text",
+            api_key="sk-test",
+            base_url="http://localhost:11434/v1",
         )
 
-        mock_module, mock_cls = _make_mock_openai_embeddings_module()
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_resolves_embed_model_from_extra(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn(
+            password="sk-test", extra={"embed_model": "openai:text-embedding-3-large"}
+        )
 
-        hook = LangChainHook(llm_conn_id="llm_conn", embed_conn_id="embed_conn")
-        with patch.dict("sys.modules", {"langchain_openai": mock_module}):
+        hook = LangChainHook()
+        hook.get_embedding_model()
+
+        mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-large", api_key="sk-test")
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_uses_embed_conn_id_when_set(self, mock_get_conn, mock_init_embeddings):
+        # llm_conn_id and embed_conn_id resolve to different connections.
+        llm_conn = _conn(password="sk-chat", extra={"model": "openai:gpt-4o"})
+        embed_conn = _conn(
+            password="sk-embed",
+            extra={"embed_model": "openai:text-embedding-3-small"},
+        )
+        mock_get_conn.side_effect = lambda conn_id: embed_conn if conn_id == "embed_conn" else llm_conn
+
+        hook = LangChainHook(llm_conn_id="chat_conn", embed_conn_id="embed_conn")
+        hook.get_embedding_model()
+
+        # embed conn picked, with its api key and model
+        mock_get_conn.assert_called_with("embed_conn")
+        mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-small", api_key="sk-embed")
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_raises_when_no_embed_model(self, mock_get_conn, mock_init_embeddings):
+        # extra has chat model but no embed_model -- should still raise
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"model": "openai:gpt-4o"})
+
+        hook = LangChainHook()
+        with pytest.raises(ValueError, match="No embedding model identifier set"):
             hook.get_embedding_model()
+        mock_init_embeddings.assert_not_called()
 
-        mock_cls.assert_called_once_with(model="text-embedding-3-small", api_key="sk-embed")
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_no_credentials_passes_empty_kwargs(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn()
+
+        hook = LangChainHook(embed_model="openai:text-embedding-3-small")
+        hook.get_embedding_model()
+
+        mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-small")
+
+
+class TestSameHookForBoth:
+    """A single hook instance must serve both chat and embedding calls."""
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch("langchain.chat_models.init_chat_model")
+    @patch.object(LangChainHook, "get_connection")
+    def test_chat_and_embed_from_one_hook(self, mock_get_conn, mock_init_chat_model, mock_init_embeddings):
+        mock_get_conn.return_value = _conn(password="sk-test")
+
+        hook = LangChainHook(
+            llm_model="openai:gpt-4o",
+            embed_model="openai:text-embedding-3-small",
+        )
+        chat = hook.get_chat_model()
+        embed = hook.get_embedding_model()
+
+        mock_init_chat_model.assert_called_once_with("openai:gpt-4o", api_key="sk-test")
+        mock_init_embeddings.assert_called_once_with("openai:text-embedding-3-small", api_key="sk-test")
+        assert chat is mock_init_chat_model.return_value
+        assert embed is mock_init_embeddings.return_value
