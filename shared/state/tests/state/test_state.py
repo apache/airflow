@@ -123,8 +123,8 @@ class TestBaseStateBackend:
             async def adelete(self, scope, key): ...
             async def aclear(self, scope, *, all_map_indices=False): ...
 
-            def serialize_asset_state_value(self, *, value, key, asset_name):
-                return f"s3://bucket/assets/{asset_name}/{key}"
+            def serialize_asset_state_value(self, *, value, key, asset_ref):
+                return f"s3://bucket/assets/{asset_ref}/{key}"
 
             def deserialize_asset_state_value(self, stored):
                 return f"resolved:{stored}"

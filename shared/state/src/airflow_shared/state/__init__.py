@@ -50,8 +50,13 @@ class AssetScope:
     """
     Identifies the state namespace for an asset.
 
-    We need to store ``name`` or ``uri`` since workers do not have access to the integer ``asset_id``.
-    (Access method is through AssetStateAccessor).
+    Server-side backends receive ``asset_id``. Worker-side backends receive ``name`` or ``uri``
+    since workers do not have access to the integer ``asset_id``.
+
+    Note: ``name`` and ``uri`` are not guaranteed to be unique over time — if an asset is
+    deactivated and a new one created with the same name, both share the same ``name`` value.
+    State for inactive assets is cleaned up by the orphan GC pass; until then, stale rows exist
+    in the DB but cannot be written to (the Execution API resolver filters to active assets only).
     """
 
     asset_id: int | None = None

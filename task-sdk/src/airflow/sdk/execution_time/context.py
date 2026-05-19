@@ -444,12 +444,7 @@ class VariableAccessor:
 
 @cache
 def _get_worker_state_backend() -> BaseStateBackend | None:
-    """
-    Return the configured worker-side state backend, instantiated once and cached.
-
-    # TODO: rebase / include https://github.com/apache/airflow/pull/66699 once merged
-    # to also forward ``retention_days`` through the comms layer.
-    """
+    """Return the configured worker-side state backend, instantiated once and cached."""
     from airflow.sdk.configuration import get_state_backend
 
     return get_state_backend()

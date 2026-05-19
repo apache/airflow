@@ -5269,3 +5269,24 @@ class TestTaskInstanceStateOperations:
             value="app_001", key="job_id", ti_id=str(runtime_ti.id)
         )
         mock_supervisor_comms.send.assert_any_call(SetTaskState(ti_id=runtime_ti.id, key="job_id", value=ref))
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_calls_clear_when_worker_backend_configured(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When clear_on_success=True and a worker backend is configured, clear() is called on task success."""
+        mock_backend = mock.MagicMock()
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch(
+            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+        ):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(ClearTaskState(ti_id=runtime_ti.id, all_map_indices=False))
