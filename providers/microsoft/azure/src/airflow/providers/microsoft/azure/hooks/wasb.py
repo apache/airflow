@@ -279,13 +279,9 @@ class WasbHook(BaseHook):
         :param container_name: Name of the container.
         :return: True if the container exists, False otherwise.
         """
-        try:
-            container = self._get_container_client(container_name)
-            self.check_for_variable_type("container", container, ContainerClient)
-            cast("ContainerClient", container).get_container_properties()
-        except ResourceNotFoundError:
-            return False
-        return True
+        container = self._get_container_client(container_name)
+        self.check_for_variable_type("container", container, ContainerClient)
+        return cast("ContainerClient", container).exists()
 
     def check_for_variable_type(self, variable_name: str, container: Any, expected_type: type[Any]) -> None:
         if not isinstance(container, expected_type):

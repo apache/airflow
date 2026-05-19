@@ -445,19 +445,20 @@ class TestWasbHook:
 
     def test_check_for_container(self, mocked_blob_service_client):
         mock_container = create_autospec(ContainerClient, instance=True)
+        mock_container.exists.return_value = True
         mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         assert hook.check_for_container("mycontainer") is True
         mocked_blob_service_client.return_value.get_container_client.assert_called_once_with("mycontainer")
-        mock_container.get_container_properties.assert_called_once_with()
+        mock_container.exists.assert_called_once_with()
 
     def test_check_for_container_not_found(self, mocked_blob_service_client):
         mock_container = create_autospec(ContainerClient, instance=True)
-        mock_container.get_container_properties.side_effect = ResourceNotFoundError("Container not found")
+        mock_container.exists.return_value = False
         mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         assert hook.check_for_container("missing-container") is False
-        mock_container.get_container_properties.assert_called_once_with()
+        mock_container.exists.assert_called_once_with()
 
     def test_check_for_container_raises_type_error_for_invalid_client(self, mocked_blob_service_client):
         mocked_blob_service_client.return_value.get_container_client.return_value = mock.MagicMock()
@@ -467,7 +468,7 @@ class TestWasbHook:
 
     def test_check_for_container_propagates_unexpected_errors(self, mocked_blob_service_client):
         mock_container = create_autospec(ContainerClient, instance=True)
-        mock_container.get_container_properties.side_effect = OSError("network down")
+        mock_container.exists.side_effect = OSError("network down")
         mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
         with pytest.raises(OSError, match="network down"):
