@@ -48,6 +48,7 @@ from sqlalchemy import (
     Uuid,
     and_,
     case,
+    cast,
     delete,
     extract,
     false,
@@ -775,6 +776,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if self.map_index >= 0:
             return str(self.map_index)
         return None
+
+    @rendered_map_index.expression  # type: ignore[no-redef]
+    def rendered_map_index(cls):
+        return case(
+            (cls._rendered_map_index.isnot(None), cls._rendered_map_index),
+            (cls.map_index >= 0, cast(cls.map_index, String)),
+            else_=None,
+        )
 
     @property
     def log_url(self) -> str:

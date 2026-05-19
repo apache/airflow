@@ -399,6 +399,8 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
+    if "rendered_map_index" in data:
+        data["_rendered_map_index"] = data.pop("rendered_map_index")
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     try:
@@ -862,7 +864,7 @@ def ti_patch_rendered_map_index(
 
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
 
-    query = update(TI).where(TI.id == task_instance_id).values(rendered_map_index=rendered_map_index)
+    query = update(TI).where(TI.id == task_instance_id).values(_rendered_map_index=rendered_map_index)
     result = session.execute(query)
 
     result = cast("CursorResult[Any]", result)
