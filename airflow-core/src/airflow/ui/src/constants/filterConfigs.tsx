@@ -246,6 +246,13 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.RENDERED_MAP_INDEX]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("common:taskInstance.renderedMapIndex"),
+      supportsAdvancedSearch: true,
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.RESPONDED_BY_USER_NAME]: {
       hotkeyDisabled: true,
       icon: <FiUser />,

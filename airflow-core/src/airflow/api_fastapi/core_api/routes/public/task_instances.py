@@ -59,6 +59,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIQueueFilter,
     QueryTIQueueNamePatternSearch,
     QueryTIQueueNamePrefixPatternSearch,
+    QueryTIRenderedMapIndexPatternSearch,
+    QueryTIRenderedMapIndexPrefixPatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
     QueryTITaskDisplayNamePrefixPatternSearch,
@@ -179,6 +181,8 @@ def get_mapped_task_instances(
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
     operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
+    rendered_map_index_pattern: QueryTIRenderedMapIndexPatternSearch,
+    rendered_map_index_prefix_pattern: QueryTIRenderedMapIndexPrefixPatternSearch,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -255,6 +259,8 @@ def get_mapped_task_instances(
             operator_name_pattern,
             operator_name_prefix_pattern,
             map_index,
+            rendered_map_index_pattern,
+            rendered_map_index_prefix_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -467,6 +473,8 @@ def get_task_instances(
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
     operator_name_prefix_pattern: QueryTIOperatorNamePrefixPatternSearch,
     map_index: QueryTIMapIndexFilter,
+    rendered_map_index_pattern: QueryTIRenderedMapIndexPatternSearch,
+    rendered_map_index_prefix_pattern: QueryTIRenderedMapIndexPrefixPatternSearch,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -574,6 +582,8 @@ def get_task_instances(
         operator_name_pattern,
         operator_name_prefix_pattern,
         map_index,
+        rendered_map_index_pattern,
+        rendered_map_index_prefix_pattern,
     ]
 
     if use_cursor:

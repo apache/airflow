@@ -275,6 +275,7 @@
     "priorityWeight": "Priority Weight",
     "queue": "Queue",
     "queuedWhen": "Queued At",
+    "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
     "triggerer": {
       "assigned": "Assigned triggerer",
