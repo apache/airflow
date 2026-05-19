@@ -793,6 +793,28 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
+            except Exception as e:
+                # Generic exception handling so a transient network error (httpx.ConnectError /
+                # httpx.TimeoutException) or any other exception
+                # doesn't crash this generator and crash the IPC communication between supervisor and task.
+                log.exception(
+                    "Unhandled exception while handling task request",
+                    request_id=request.id,
+                    exc_info=e,
+                )
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": str(e),
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
             finally:
                 if token is not None:
                     otel_context.detach(token)
