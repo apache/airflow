@@ -493,11 +493,16 @@ class Variable(Base, LoggingMixin):
 
         var_val = None
         # iterate over backends if not in cache (or expired)
+        from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = secrets_backend.get_variable(key=key, team_name=team_name)
                 if var_val is not None:
                     break
+            except AirflowSecretsBackendAccessDenied:
+                # Authoritative deny — must NOT fall through to a less-restrictive backend.
+                raise
             except Exception:
                 log.exception(
                     "Unable to retrieve variable from secrets backend (%s). "

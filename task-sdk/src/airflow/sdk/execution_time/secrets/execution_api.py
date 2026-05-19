@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
+from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
 
 if TYPE_CHECKING:
     from airflow.sdk import Connection
@@ -45,7 +46,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
     def _raise_if_authz_denied(self, msg, *, resource: str, key: str) -> None:
         """
-        Raise PermissionError on an explicit deny response from the Execution API.
+        Raise on an explicit deny response from the Execution API.
 
         Returning None on a 401/403 would let the secrets-backend dispatcher
         fall through to a less-restrictive backend (e.g. EnvironmentVariablesBackend
@@ -59,7 +60,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         from airflow.sdk.execution_time.comms import ErrorResponse
 
         if isinstance(msg, ErrorResponse) and msg.error == ErrorType.PERMISSION_DENIED:
-            raise PermissionError(
+            raise AirflowSecretsBackendAccessDenied(
                 f"Access denied for {resource} {key!r} by Execution API; refusing to fall back "
                 "to a less-restrictive secrets backend."
             )
@@ -72,8 +73,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :param team_name: Name of the team associated to the task trying to access the connection.
             Unused here because the team name is inferred from the task ID provided in the execution API JWT token.
         :return: Connection object or None if not found
-        :raises PermissionError: when the Execution API explicitly denies access (401/403). The
-            secrets-backend dispatcher must not fall through to an unauthenticated backend in that case.
+        :raises AirflowSecretsBackendAccessDenied: when the Execution API explicitly denies access
+            (401/403). Subclasses ``PermissionError``. The secrets-backend dispatcher must not fall
+            through to an unauthenticated backend in that case.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
@@ -90,7 +92,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Convert ExecutionAPI response to SDK Connection
             return _process_connection_result_conn(msg)
-        except PermissionError:
+        except AirflowSecretsBackendAccessDenied:
             # Re-raise so the dispatcher does NOT fall through.
             raise
         except Exception:
@@ -106,8 +108,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :param team_name: Name of the team associated to the task trying to access the variable.
             Unused here because the team name is inferred from the task ID provided in the execution API JWT token.
         :return: Variable value or None if not found
-        :raises PermissionError: when the Execution API explicitly denies access (401/403). The
-            secrets-backend dispatcher must not fall through to an unauthenticated backend in that case.
+        :raises AirflowSecretsBackendAccessDenied: when the Execution API explicitly denies access
+            (401/403). Subclasses ``PermissionError``. The secrets-backend dispatcher must not fall
+            through to an unauthenticated backend in that case.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -125,7 +128,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             if isinstance(msg, VariableResult):
                 return msg.value  # Already a string | None
             return None
-        except PermissionError:
+        except AirflowSecretsBackendAccessDenied:
             raise
         except Exception:
             # If SUPERVISOR_COMMS fails for any non-authz reason, return None
@@ -138,7 +141,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
         :param conn_id: connection id
         :return: Connection object or None if not found
-        :raises PermissionError: see :meth:`get_connection`.
+        :raises AirflowSecretsBackendAccessDenied: see :meth:`get_connection`.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
@@ -155,7 +158,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Convert ExecutionAPI response to SDK Connection
             return _process_connection_result_conn(msg)
-        except PermissionError:
+        except AirflowSecretsBackendAccessDenied:
             raise
         except Exception:
             # If SUPERVISOR_COMMS fails for any non-authz reason, return None
@@ -168,7 +171,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
         :param key: Variable key
         :return: Variable value or None if not found
-        :raises PermissionError: see :meth:`get_variable`.
+        :raises AirflowSecretsBackendAccessDenied: see :meth:`get_variable`.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -186,7 +189,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             if isinstance(msg, VariableResult):
                 return msg.value  # Already a string | None
             return None
-        except PermissionError:
+        except AirflowSecretsBackendAccessDenied:
             raise
         except Exception:
             # If SUPERVISOR_COMMS fails for any non-authz reason, return None

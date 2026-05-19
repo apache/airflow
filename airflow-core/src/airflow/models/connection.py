@@ -549,12 +549,17 @@ class Connection(Base, LoggingMixin):
             pass  # continue business
 
         # iterate over backends if not in cache (or expired)
+        from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+
         for secrets_backend in ensure_secrets_loaded():
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
+            except AirflowSecretsBackendAccessDenied:
+                # Authoritative deny — must NOT fall through to a less-restrictive backend.
+                raise
             except Exception:
                 log.debug(
                     "Unable to retrieve connection from secrets backend (%s). "

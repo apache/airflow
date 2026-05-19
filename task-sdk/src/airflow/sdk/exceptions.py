@@ -57,6 +57,17 @@ class AirflowNotFoundException(AirflowException):
     status_code = HTTPStatus.NOT_FOUND
 
 
+class AirflowSecretsBackendAccessDenied(PermissionError):
+    """
+    Authoritative deny from a secrets backend; dispatcher must NOT fall through.
+
+    Distinct from a generic ``PermissionError`` (e.g. an incidental filesystem
+    ``OSError``-family raise from inside an unrelated backend) so the
+    secrets-backend dispatcher loops can re-raise only this signal and keep
+    treating other exceptions as "try the next backend".
+    """
+
+
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition."""
 

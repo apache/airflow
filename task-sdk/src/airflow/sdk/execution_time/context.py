@@ -160,6 +160,8 @@ def _get_connection(conn_id: str) -> Connection:
 
     # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
     # in worker contexts or MetastoreBackend in API server contexts)
+    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
@@ -168,6 +170,9 @@ def _get_connection(conn_id: str) -> Connection:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
                 _mask_connection_secrets(conn)
                 return conn
+        except AirflowSecretsBackendAccessDenied:
+            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+            raise
         except Exception:
             log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
@@ -196,6 +201,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
     except SecretCache.NotPresentException:
         pass  # continue to backends
 
+    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
     # Try secrets backends
@@ -215,6 +221,9 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
                 _mask_connection_secrets(conn)
                 return conn
+        except AirflowSecretsBackendAccessDenied:
+            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+            raise
         except Exception:
             # If one backend fails, try the next one
             log.debug(
@@ -246,6 +255,8 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     except SecretCache.NotPresentException:
         pass  # Continue to check backends
 
+    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+
     backends = ensure_secrets_backend_loaded()
 
     # Iterate over backends if not in cache (or expired)
@@ -262,6 +273,9 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 if isinstance(var_val, str):
                     mask_secret(var_val, key)
                 return var_val
+        except AirflowSecretsBackendAccessDenied:
+            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+            raise
         except Exception:
             log.exception(
                 "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
