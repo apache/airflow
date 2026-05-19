@@ -25,7 +25,7 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.observability.traces import new_task_run_carrier
@@ -126,6 +126,16 @@ class TaskMap(TaskInstanceDependencies):
         return TaskMapVariant.DICT
 
     @classmethod
+    def get_task_map_length(cls, dag_id: str, task_id: str, run_id: str, session: Session) -> int | None:
+        return session.scalar(
+            select(TaskMap.length).where(
+                TaskMap.dag_id == dag_id,
+                TaskMap.task_id == task_id,
+                TaskMap.run_id == run_id,
+            )
+        )
+
+    @classmethod
     def expand_mapped_task(
         cls,
         task: Operator,
@@ -155,7 +165,13 @@ class TaskMap(TaskInstanceDependencies):
             )
 
         try:
-            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
+            total_length: int | None = TaskMap.get_task_map_length(
+                dag_id=task.dag_id, task_id=task.task_id, run_id=run_id, session=session
+            )
+            if not total_length:
+                total_length = get_mapped_ti_count(task, run_id, session=session)
+            else:
+                task = next((op for op in task.get_direct_relatives(upstream=False) if op.is_mapped), task)
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
                 task.log.error(
@@ -167,16 +183,19 @@ class TaskMap(TaskInstanceDependencies):
             total_length = None
 
         state: str | None = None
-        unmapped_ti: TaskInstance | None = session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == task.dag_id,
-                TaskInstance.task_id == task.task_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.map_index == -1,
-                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
-            )
-        ).one_or_none()
-
+        unmapped_ti: TaskInstance | None = (
+            session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == task.dag_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == -1,
+                    or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+                )
+            ).one_or_none()
+            if task and task.is_mapped
+            else None
+        )
         all_expanded_tis: list[TaskInstance] = []
 
         if unmapped_ti:
@@ -226,15 +245,8 @@ class TaskMap(TaskInstanceDependencies):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = (
-                session.scalar(
-                    select(func.max(TaskInstance.map_index)).where(
-                        TaskInstance.dag_id == task.dag_id,
-                        TaskInstance.task_id == task.task_id,
-                        TaskInstance.run_id == run_id,
-                    )
-                )
-                or 0
+            current_max_mapping = TaskInstance.get_current_max_mapping(
+                dag_id=task.dag_id, task_id=task.task_id, run_id=run_id, session=session
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
