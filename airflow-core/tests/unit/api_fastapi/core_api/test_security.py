@@ -535,6 +535,7 @@ class TestFastApiSecurity:
         session = Mock()
         request = Mock()
         request.path_params = {}
+        request.query_params = {}
         user = Mock()
 
         await requires_access_event_log("GET")(request, user, session)
