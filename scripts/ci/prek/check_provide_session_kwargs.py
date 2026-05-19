@@ -110,7 +110,7 @@ def _iter_positional_session_in_provide_session(
 ) -> typing.Iterator[tuple[ast.FunctionDef | ast.AsyncFunctionDef, ast.arg]]:
     """Yield ``@provide_session`` functions in *path* whose ``session`` is positional."""
     try:
-        source = path.read_text(encoding="utf-8")
+        source = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return
     try:

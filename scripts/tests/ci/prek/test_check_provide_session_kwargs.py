@@ -191,6 +191,12 @@ class TestIterPositionalSessionInProvideSession:
         path = write_python_file("def foo(:\n    pass")
         assert _count_violations(path) == 0
 
+    def test_invalid_utf8_does_not_crash(self, tmp_path):
+        path = tmp_path / "invalid_utf8.py"
+        path.write_bytes(b"# bad byte: \xff\n@provide_session\ndef foo(session=NEW_SESSION):\n    pass\n")
+
+        assert _count_violations(path) == 1
+
 
 class TestAllowlistManager:
     def test_load_missing_file_returns_empty(self, tmp_path):
