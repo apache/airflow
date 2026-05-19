@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from json import JSONDecodeError
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -592,12 +593,10 @@ class TestFastApiSecurity:
     @patch.object(Team, "get_name_if_exists")
     @patch.object(Connection, "get_team_name")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection_body_parse_failure_fails_closed(
+    async def test_requires_access_connection_body_parse_failure_returns_400(
         self, mock_get_auth_manager, mock_get_team_name, mock_get_name_if_exists, method
     ):
-        """If the request body cannot be parsed, the auth callback must still run with team=None."""
-        from json import JSONDecodeError
-
+        """If the request body cannot be parsed, fail closed with 400 before any authz check."""
         auth_manager = Mock()
         auth_manager.is_authorized_connection.return_value = False
         mock_get_auth_manager.return_value = auth_manager
@@ -611,12 +610,61 @@ class TestFastApiSecurity:
             with pytest.raises(HTTPException) as exc_info:
                 await requires_access_connection(method)(fastapi_request, user)
 
-        assert exc_info.value.status_code == 403
-        auth_manager.is_authorized_connection.assert_any_call(
-            method=method,
-            details=ConnectionDetails(conn_id="conn_id", team_name=None),
-            user=user,
-        )
+        assert exc_info.value.status_code == 400
+        auth_manager.is_authorized_connection.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("method", ["POST", "PUT"])
+    @pytest.mark.parametrize("bad_team_name", [123, ["x"], {"name": "x"}, True])
+    @patch.object(Team, "get_name_if_exists")
+    @patch.object(Connection, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_connection_non_string_team_name_returns_400(
+        self,
+        mock_get_auth_manager,
+        mock_get_team_name,
+        mock_get_name_if_exists,
+        bad_team_name,
+        method,
+    ):
+        """Non-string team_name in the body must be rejected with 400 before authz / DB lookup."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_connection.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+        fastapi_request = Mock()
+        fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.json = AsyncMock(return_value={"team_name": bad_team_name})
+        user = Mock()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(HTTPException) as exc_info:
+                await requires_access_connection(method)(fastapi_request, user)
+
+        assert exc_info.value.status_code == 400
+        assert "team_name" in exc_info.value.detail
+        auth_manager.is_authorized_connection.assert_not_called()
+        mock_get_name_if_exists.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("bad_dag_id", [123, ["x"], {"name": "x"}, True])
+    @patch("airflow.api_fastapi.core_api.security.requires_access_dag")
+    async def test_requires_access_backfill_non_string_dag_id_returns_400(
+        self, mock_requires_access_dag, bad_dag_id
+    ):
+        """Non-string dag_id in the body must be rejected with 400 before authz."""
+        fastapi_request = Mock()
+        fastapi_request.path_params = {}
+        fastapi_request.json = AsyncMock(return_value={"dag_id": bad_dag_id})
+        user = Mock()
+        session = Mock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await requires_access_backfill("POST")(fastapi_request, user, session)
+
+        assert exc_info.value.status_code == 400
+        assert "dag_id" in exc_info.value.detail
+        mock_requires_access_dag.assert_not_called()
 
     @patch.object(Connection, "get_conn_id_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
