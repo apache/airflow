@@ -145,26 +145,10 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 <ai_attribution_footer>
 ```
 
-### `review-nudge` (author-primary)
-
-```markdown
-@<author> — This PR has new commits since the last review requesting changes from <reviewers>. Could you address the outstanding review comments and either push a fix or reply in each thread explaining why the feedback doesn't apply? Once the threads are resolved please mark the PR as "Ready for review" and re-request review. Thanks!
-
-<ai_attribution_footer>
-```
-
 ### `review-nudge` (reviewer-re-review)
 
 ```markdown
 @<author> <reviewers> — This PR has new commits since the last review requesting changes, and the diff looks like it addresses the feedback (see <thread-links>). @<reviewers>, could you take another look when you have a chance to confirm? Thanks!
-
-<ai_attribution_footer>
-```
-
-### `reviewer-ping` (author-primary)
-
-```markdown
-@<author> — There are <N> unresolved review thread(s) on this PR from <reviewers>. Could you either push a fix or reply in each thread explaining why the feedback doesn't apply? Once you believe the feedback is addressed, mark the thread as resolved so the reviewer isn't re-pinged needlessly. Thanks!
 
 <ai_attribution_footer>
 ```

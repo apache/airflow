@@ -1,6 +1,9 @@
  <!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/legal/release-policy.html -->
+
 # adopt — first-time install of apache-steward into an adopter repo
 
 The default sub-action when the user says "adopt apache-steward".
@@ -37,9 +40,9 @@ between automatically:
   (overrides the prompt).
 - `skill-families:<list>` — comma-separated **opt-in**
   families to symlink (default: prompt). Valid values:
-  `security`, `pr-management`. The flag does **not** accept
-  the always-on families (`setup-*` minus `setup-steward`
-  itself, and `list-steward-*`); per
+  `security`, `pr-management`, `issue`. The flag does **not**
+  accept the always-on families (`setup-*` minus
+  `setup-steward` itself, and `list-steward-*`); per
   [`SKILL.md` Golden rule 8](SKILL.md#golden-rules) those
   are wired up unconditionally on every adopt run and the
   user is never asked about them.
@@ -137,7 +140,7 @@ fetch — the recipe ran first and left the snapshot in place.
 
 After the fetch (or skip), confirm
 `<snapshot-dir>/.claude/skills/` lists the framework skills
-(`pr-management-*`, `security-*`, `setup-*`,
+(`pr-management-*`, `security-*`, `issue-*`, `setup-*`,
 `list-steward-*`). If not, the fetch produced an unexpected
 layout — surface and stop.
 
@@ -241,17 +244,24 @@ for the opt-in set. Otherwise prompt the user with:
   has a security tracker.
 - **`pr-management`** — five skills for maintainer-facing
   PR queue work.
+- **`issue`** — five skills for general-issue tracker work
+  (triage, reassess, reproducer, fix-workflow, stats).
+  Maintainer-only; for projects with a general-issue tracker
+  (JIRA, GitHub Issues, Bugzilla, GitLab Issues) that is
+  *not* the security tracker. See
+  [`docs/issue-management/README.md`](../../../docs/issue-management/README.md).
 
 **Prefer structured Q&A.** When the agent harness offers a
 structured-question tool, use a *multi-select* prompt for
-the two opt-in families (`security`, `pr-management`) — the
-families are not mutually exclusive. Pre-select whichever
-family the user named in their initial "adopt" request (e.g.
-*"adopt apache-steward for PR triage"* → `pr-management`
-pre-selected; the user can also tick `security`). If the
-user named no family, default to selecting both for an
-adopter that is a maintainer-driven repo, or to no
-pre-selection otherwise. Free-form chat is the fallback.
+the three opt-in families (`security`, `pr-management`,
+`issue`) — the families are not mutually exclusive.
+Pre-select whichever family the user named in their initial
+"adopt" request (e.g. *"adopt apache-steward for PR triage"*
+→ `pr-management` pre-selected; the user can also tick the
+others). If the user named no family, default to selecting
+all three for an adopter that is a maintainer-driven repo,
+or to no pre-selection otherwise. Free-form chat is the
+fallback.
 
 Do **not** offer `setup-*` or `list-steward-*` as
 selectable options in the prompt — they are wired up
@@ -283,12 +293,14 @@ idempotent — re-add them if they're missing.
 /.claude/settings.local.json
 /.claude/skills/security-*
 /.claude/skills/pr-management-*
+/.claude/skills/issue-*
 /.claude/skills/setup-isolated-setup-*
 /.claude/skills/setup-override-upstream
 /.claude/skills/setup-shared-config-sync
 /.claude/skills/list-steward-*
 /.github/skills/security-*
 /.github/skills/pr-management-*
+/.github/skills/issue-*
 /.github/skills/setup-isolated-setup-*
 /.github/skills/setup-override-upstream
 /.github/skills/setup-shared-config-sync
@@ -325,9 +337,9 @@ relative path into
 The set of skills to link is the **union** of:
 
 1. **The opt-in families the user picked in Step 5**
-   (`security`, `pr-management`, or both). Each contributes
-   every framework skill in the snapshot whose name starts
-   with that family's prefix.
+   (`security`, `pr-management`, `issue`, or any
+   combination). Each contributes every framework skill in
+   the snapshot whose name starts with that family's prefix.
 2. **The always-on families** (no user input — per
    [`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):
    every `setup-*` skill *except* `setup-steward` itself,

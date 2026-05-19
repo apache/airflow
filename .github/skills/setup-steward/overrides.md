@@ -1,6 +1,9 @@
  <!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/legal/release-policy.html -->
+
 # overrides — manage agentic overrides for framework skills
 
 The agentic-overrides mechanism is the framework's answer to
