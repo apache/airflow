@@ -45,15 +45,18 @@ Default (files passed by prek/pre-commit):
     ``scripts/ci/prek/known_provide_session_positional.txt`` and re-run.
 
 ``--all-files``:
-    Walk the whole repository and check every ``.py`` file.
+    Walk every ``.py`` file under the project source roots
+    (``airflow-core``, ``airflow-ctl``, ``task-sdk``, ``providers``, ``shared``) —
+    the same scope the pre-commit hook applies to.
 
 ``--cleanup``:
     Remove entries for files that no longer exist. Safe to run at any time;
     does not add new entries or raise limits.
 
 ``--generate``:
-    Scan the whole repository and *rebuild* the allowlist from scratch.
-    Intended for the initial setup or after a large-scale clean-up sprint.
+    Scan the same project source roots as ``--all-files`` and *rebuild* the
+    allowlist from scratch. Intended for the initial setup or after a
+    large-scale clean-up sprint.
 """
 
 from __future__ import annotations
@@ -72,6 +75,10 @@ REPO_ROOT = Path(__file__).parents[3]
 
 _PROVIDE_SESSION_DECORATOR = "provide_session"
 
+# Top-level directories scanned by ``--all-files`` / ``--generate``. Keep in sync with the
+# ``files:`` pattern for this hook in ``.pre-commit-config.yaml``.
+_PROJECT_SOURCE_ROOTS = ("airflow-core", "airflow-ctl", "task-sdk", "providers", "shared")
+
 
 def _has_provide_session_decorator(nodes: list[ast.expr]) -> bool:
     """Whether one of ``nodes`` is a ``@provide_session`` decorator.
@@ -88,8 +95,11 @@ def _has_provide_session_decorator(nodes: list[ast.expr]) -> bool:
 
 
 def _session_is_positional(args: ast.arguments) -> ast.arg | None:
-    """Return the ``session`` arg if it is positional (not keyword-only)."""
-    for argument in args.args:
+    """Return the ``session`` arg if it is positional (not keyword-only).
+
+    Covers both regular positional args and positional-only args (``def f(session, /, ...)``).
+    """
+    for argument in (*args.posonlyargs, *args.args):
         if argument.arg == "session":
             return argument
     return None
@@ -194,7 +204,7 @@ class AllowlistManager:
 
 def _iter_python_files() -> list[Path]:
     candidates: list[Path] = []
-    for top in ("airflow-core", "airflow-ctl", "task-sdk", "providers", "shared"):
+    for top in _PROJECT_SOURCE_ROOTS:
         candidates.extend(
             p.resolve()
             for p in (REPO_ROOT / top).rglob("*.py")
@@ -268,7 +278,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--all-files",
         action="store_true",
-        help="Check every Python file in the repository",
+        help=(
+            "Check every Python file under the project source roots "
+            "(airflow-core, airflow-ctl, task-sdk, providers, shared)"
+        ),
     )
     parser.add_argument(
         "--cleanup",
@@ -301,7 +314,32 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    return _check_provide_session_kwargs([Path(f).resolve() for f in args.files], allowlist, manager)
+    paths = [Path(f).resolve() for f in args.files]
+    paths = _expand_for_allowlist_edits(paths, manager, allowlist)
+    return _check_provide_session_kwargs(paths, allowlist, manager)
+
+
+def _expand_for_allowlist_edits(
+    paths: list[Path], manager: AllowlistManager, allowlist: dict[str, int]
+) -> list[Path]:
+    """Add allowlisted files when the allowlist itself is being changed.
+
+    Without this, a contributor could raise counts in
+    ``known_provide_session_positional.txt`` and the hook would do no validation
+    (since only the ``.txt`` file is passed), letting the loosened allowlist
+    sail through.
+    """
+    if not any(p == manager.allowlist_file for p in paths):
+        return paths
+
+    expanded = list(paths)
+    seen = {p for p in paths if p.suffix == ".py"}
+    for rel in allowlist:
+        candidate = (REPO_ROOT / rel).resolve()
+        if candidate.exists() and candidate not in seen:
+            seen.add(candidate)
+            expanded.append(candidate)
+    return expanded
 
 
 if __name__ == "__main__":
