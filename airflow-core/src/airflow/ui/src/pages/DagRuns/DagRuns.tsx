@@ -42,10 +42,11 @@ import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import BulkDeleteDagRunsButton from "src/pages/BulkDeleteDagRunsButton";
-import { DagRunsFilters } from "src/pages/DagRunsFilters";
-import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
+
+import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
+import { DagRunsFilters } from "./DagRunsFilters";
+import DeleteRunButton from "./DeleteRunButton";
 
 const getRowKey = (dagRun: DAGRunResponse) => `${dagRun.dag_id}:${dagRun.dag_run_id}`;
 

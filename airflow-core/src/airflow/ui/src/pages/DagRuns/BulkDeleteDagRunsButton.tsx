@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Stack, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Accordion, Dialog } from "src/components/ui";
-import { useBulkDagRuns } from "src/queries/useBulkDagRuns";
+import { Accordion, Alert, Dialog } from "src/components/ui";
+import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
 
 import { getBulkDagRunsColumns } from "./bulkDagRunsColumns";
 
@@ -36,10 +36,15 @@ type Props = {
 const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
-  const { bulkAction, error, isPending } = useBulkDagRuns({
+  const { actionErrors, bulkDelete, error, isPending, reset } = useBulkDeleteDagRuns({
     clearSelections,
     onSuccessConfirm: onClose,
   });
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   const columns = getBulkDagRunsColumns(translate);
 
@@ -61,7 +66,7 @@ const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) =>
         {translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -118,23 +123,25 @@ const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) =>
             </Box>
 
             <ErrorAlert error={error} />
+            {actionErrors.length > 0 ? (
+              <Stack gap={2} mt={3}>
+                {actionErrors.map((actionError, index) => (
+                  // eslint-disable-next-line react/no-array-index-key -- errors have no stable id
+                  <Alert key={index} status="error" title={actionError.error} />
+                ))}
+              </Stack>
+            ) : undefined}
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
-                  bulkAction({
-                    actions: [
-                      {
-                        action: "delete" as const,
-                        action_on_non_existence: "skip",
-                        entities: selectedDagRuns.map((dagRun) => ({
-                          dag_id: dagRun.dag_id,
-                          dag_run_id: dagRun.dag_run_id,
-                        })),
-                      },
-                    ],
-                  });
+                  bulkDelete(
+                    selectedDagRuns.map((dagRun) => ({
+                      dag_id: dagRun.dag_id,
+                      dag_run_id: dagRun.dag_run_id,
+                    })),
+                  );
                 }}
               >
                 <FiTrash2 />
