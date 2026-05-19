@@ -25,6 +25,7 @@ from unittest import mock
 
 import pytest
 import yaml
+from kubernetes import client
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
@@ -2330,3 +2331,177 @@ class TestKubernetesExecutorMultiTeam:
             assert namespace == "team-a-ns"
         finally:
             executor.end()
+
+
+class TestCleanupZombieKpoPods:
+    """Unit tests for KubernetesExecutor._cleanup_zombie_kpo_pods."""
+
+    def setup_method(self) -> None:
+        self.executor = KubernetesExecutor()
+        self.executor._last_completed_pod_adoption = time.monotonic()
+        self.kube_client = mock.MagicMock(spec=client.CoreV1Api)
+
+    @staticmethod
+    def _make_pod(dag_id, task_id, run_id, *, map_index=-1, try_number=1, name="test-pod", namespace="default"):
+        from airflow.providers.cncf.kubernetes.pod_generator import make_safe_label_value
+
+        pod = mock.MagicMock()
+        pod.metadata.name = name
+        pod.metadata.namespace = namespace
+        labels = {
+            "dag_id": make_safe_label_value(dag_id),
+            "task_id": make_safe_label_value(task_id),
+            "run_id": make_safe_label_value(run_id),
+            "try_number": str(try_number),
+            "kubernetes_pod_operator": "True",
+        }
+        if map_index >= 0:
+            labels["map_index"] = str(map_index)
+        pod.metadata.labels = labels
+        return pod
+
+    @staticmethod
+    def _make_active_ti_row(dag_id, task_id, run_id, *, map_index=-1, try_number=1):
+        row = mock.MagicMock()
+        row.dag_id = dag_id
+        row.task_id = task_id
+        row.run_id = run_id
+        row.map_index = map_index
+        row.try_number = try_number
+        return row
+
+    def _run_cleanup(self, pods, active_ti_rows):
+        mock_session = mock.MagicMock()
+        mock_session.execute.return_value.all.return_value = active_ti_rows
+        with mock.patch.object(self.executor, "_list_pods", return_value=pods):
+            self.executor._cleanup_zombie_kpo_pods(self.kube_client, session=mock_session)
+        return mock_session
+
+    def test_no_pods_does_nothing(self):
+        mock_session = self._run_cleanup(pods=[], active_ti_rows=[])
+        self.kube_client.delete_namespaced_pod.assert_not_called()
+        mock_session.execute.assert_not_called()
+
+    def test_zombie_pod_no_matching_ti_is_force_deleted(self):
+        """A pod whose TI has already finished (no active TI found) is force-deleted."""
+        from kubernetes import client as k8s_client
+
+        pod = self._make_pod("dag1", "task1", "run1", try_number=1)
+        self._run_cleanup(pods=[pod], active_ti_rows=[])
+
+        self.kube_client.delete_namespaced_pod.assert_called_once_with(
+            "test-pod",
+            "default",
+            body=k8s_client.V1DeleteOptions(grace_period_seconds=0),
+        )
+
+    def test_healthy_pod_with_matching_active_ti_not_deleted(self):
+        """A pod whose TI is still active is left alone."""
+        pod = self._make_pod("dag1", "task1", "run1", try_number=1)
+        active_ti = self._make_active_ti_row("dag1", "task1", "run1", try_number=1)
+        self._run_cleanup(pods=[pod], active_ti_rows=[active_ti])
+        self.kube_client.delete_namespaced_pod.assert_not_called()
+
+    def test_stale_retry_pod_is_force_deleted(self):
+        """Pod from a previous retry (pod.try_number < active TI try_number) is a zombie."""
+        pod = self._make_pod("dag1", "task1", "run1", try_number=1)
+        active_ti = self._make_active_ti_row("dag1", "task1", "run1", try_number=2)
+        self._run_cleanup(pods=[pod], active_ti_rows=[active_ti])
+        self.kube_client.delete_namespaced_pod.assert_called_once()
+
+    def test_current_try_pod_is_not_deleted(self):
+        """Pod whose try_number matches the active TI's current try_number is healthy."""
+        pod = self._make_pod("dag1", "task1", "run1", try_number=3)
+        active_ti = self._make_active_ti_row("dag1", "task1", "run1", try_number=3)
+        self._run_cleanup(pods=[pod], active_ti_rows=[active_ti])
+        self.kube_client.delete_namespaced_pod.assert_not_called()
+
+    def test_pod_missing_required_labels_is_skipped(self):
+        """Pods without dag_id/task_id/run_id are ignored rather than crashing."""
+        pod = mock.MagicMock()
+        pod.metadata.labels = {"kubernetes_pod_operator": "True"}
+        pod.metadata.name = "bad-pod"
+        pod.metadata.namespace = "default"
+        self._run_cleanup(pods=[pod], active_ti_rows=[])
+        self.kube_client.delete_namespaced_pod.assert_not_called()
+
+    def test_404_on_delete_is_silently_ignored(self):
+        """If the pod disappears before we delete it, no exception propagates."""
+        pod = self._make_pod("dag1", "task1", "run1")
+        self.kube_client.delete_namespaced_pod.side_effect = ApiException(status=404)
+        self._run_cleanup(pods=[pod], active_ti_rows=[])  # Must not raise
+
+    def test_non_404_api_error_is_logged_not_raised(self):
+        """Non-404 errors during deletion are logged as warnings, not re-raised."""
+        pod = self._make_pod("dag1", "task1", "run1")
+        self.kube_client.delete_namespaced_pod.side_effect = ApiException(status=500)
+        self._run_cleanup(pods=[pod], active_ti_rows=[])  # Must not raise
+
+    def test_only_zombie_pods_deleted_healthy_pods_untouched(self):
+        """When the pod list is mixed, only zombies are deleted."""
+        zombie = self._make_pod("dag1", "task1", "run1", try_number=1, name="zombie")
+        healthy = self._make_pod("dag1", "task2", "run1", try_number=1, name="healthy")
+        active_ti = self._make_active_ti_row("dag1", "task2", "run1", try_number=1)
+
+        self._run_cleanup(pods=[zombie, healthy], active_ti_rows=[active_ti])
+
+        self.kube_client.delete_namespaced_pod.assert_called_once_with(
+            "zombie", "default", body=mock.ANY
+        )
+
+    def test_mapped_task_pod_matched_by_map_index(self):
+        """Mapped task pods require an exact map_index match to be considered healthy."""
+        alive_pod = self._make_pod("dag1", "t1", "r1", map_index=0, try_number=1, name="p0")
+        zombie_pod = self._make_pod("dag1", "t1", "r1", map_index=1, try_number=1, name="p1")
+        active_ti = self._make_active_ti_row("dag1", "t1", "r1", map_index=0, try_number=1)
+
+        self._run_cleanup(pods=[alive_pod, zombie_pod], active_ti_rows=[active_ti])
+
+        self.kube_client.delete_namespaced_pod.assert_called_once_with(
+            "p1", "default", body=mock.ANY
+        )
+
+    def test_force_delete_uses_grace_period_zero(self):
+        """Zombie deletion must pass grace_period_seconds=0 to bypass stuck sidecars."""
+        pod = self._make_pod("dag1", "task1", "run1", try_number=1)
+        self._run_cleanup(pods=[pod], active_ti_rows=[])
+
+        call_kwargs = self.kube_client.delete_namespaced_pod.call_args
+        body = call_kwargs.kwargs.get("body") or call_kwargs.args[2]
+        assert body.grace_period_seconds == 0
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._cleanup_zombie_kpo_pods"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
+    )
+    def test_sync_calls_cleanup_when_config_enabled(self, mock_adopt, mock_cleanup):
+        """sync() invokes _cleanup_zombie_kpo_pods when clean_zombie_kpo_pods=True."""
+        self.executor.kube_client = self.kube_client
+        self.executor.kube_scheduler = mock.MagicMock()
+        self.executor.scheduler_job_id = "1"
+        self.executor.kube_config.clean_zombie_kpo_pods = True
+        self.executor.kube_config.zombie_kpo_pod_cleanup_interval = 0
+        self.executor._last_zombie_kpo_cleanup = 0.0
+
+        self.executor.sync()
+
+        mock_cleanup.assert_called_once_with(self.kube_client)
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._cleanup_zombie_kpo_pods"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
+    )
+    def test_sync_skips_cleanup_when_config_disabled(self, mock_adopt, mock_cleanup):
+        """sync() does not call _cleanup_zombie_kpo_pods when clean_zombie_kpo_pods=False."""
+        self.executor.kube_client = self.kube_client
+        self.executor.kube_scheduler = mock.MagicMock()
+        self.executor.scheduler_job_id = "1"
+        self.executor.kube_config.clean_zombie_kpo_pods = False
+
+        self.executor.sync()
+
+        mock_cleanup.assert_not_called()

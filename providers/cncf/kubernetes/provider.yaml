@@ -324,6 +324,27 @@ config:
         type: string
         example: ~
         default: "False"
+      clean_zombie_kpo_pods:
+        description: |
+          If True, the Kubernetes Executor will periodically scan for
+          KubernetesPodOperator pods that are still Running in Kubernetes but
+          whose TaskInstance has reached a terminal state (zombie pods), and
+          force-delete them. This prevents sidecar containers that ignore
+          SIGTERM (e.g. the xcom sidecar) from keeping pods alive indefinitely
+          after the task has finished.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
+      zombie_kpo_pod_cleanup_interval:
+        description: |
+          How often (in seconds) to scan for and force-delete zombie
+          KubernetesPodOperator pods. Only used when clean_zombie_kpo_pods
+          is True.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "300"
       worker_pod_pending_fatal_container_state_reasons:
         description: |
           If the worker pods are in a pending state due to a fatal container
