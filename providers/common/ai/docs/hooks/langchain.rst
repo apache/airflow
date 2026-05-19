@@ -40,26 +40,14 @@ Chat model usage
 Pass ``llm_model`` to the constructor (or set ``extra["model"]`` on the
 connection) and call ``get_chat_model()``:
 
-.. code-block:: python
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_langchain_hook.py
+    :language: python
+    :start-after: [START howto_hook_langchain_chat]
+    :end-before: [END howto_hook_langchain_chat]
 
-    from airflow.providers.common.ai.hooks.langchain import LangChainHook
-    from airflow.sdk import task
-
-
-    @task
-    def run_chain(query: str) -> str:
-        hook = LangChainHook(
-            llm_conn_id="langchain_default",
-            llm_model="openai:gpt-4o",
-        )
-        llm = hook.get_chat_model()
-
-        from langchain_core.output_parsers import StrOutputParser
-        from langchain_core.prompts import ChatPromptTemplate
-
-        prompt = ChatPromptTemplate.from_template("Summarize: {query}")
-        chain = prompt | llm | StrOutputParser()
-        return chain.invoke({"query": query})
+The returned model is a LangChain ``BaseChatModel``, so it composes with the
+rest of LangChain's runnable surface
+(``ChatPromptTemplate`` / ``StrOutputParser`` / ``RunnableSequence`` / ...).
 
 Supported chat providers
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,29 +74,18 @@ Embedding model usage
 Pass ``embed_model`` to the constructor (or set ``extra["embed_model"]`` on
 the connection) and call ``get_embedding_model()``:
 
-.. code-block:: python
-
-    @task
-    def build_index(texts: list[str]) -> None:
-        hook = LangChainHook(
-            llm_conn_id="langchain_default",
-            embed_model="openai:text-embedding-3-small",
-        )
-        embeddings = hook.get_embedding_model()
-        # ... vectors = embeddings.embed_documents(texts); build vector store, etc.
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_langchain_hook.py
+    :language: python
+    :start-after: [START howto_hook_langchain_embedding]
+    :end-before: [END howto_hook_langchain_embedding]
 
 The same hook instance can serve both chat and embedding models when both
 identifiers are set:
 
-.. code-block:: python
-
-    hook = LangChainHook(
-        llm_conn_id="langchain_default",
-        llm_model="openai:gpt-4o",
-        embed_model="openai:text-embedding-3-small",
-    )
-    chat_model = hook.get_chat_model()
-    embedding_model = hook.get_embedding_model()
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_langchain_hook.py
+    :language: python
+    :start-after: [START howto_hook_langchain_chat_and_embedding]
+    :end-before: [END howto_hook_langchain_chat_and_embedding]
 
 Supported embedding providers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -136,16 +113,10 @@ If chat and embeddings live on different API keys (e.g. premium chat key vs
 free-tier embeddings key), pass an explicit ``embed_conn_id``. When unset it
 falls back to ``llm_conn_id``, so the common one-provider case stays simple:
 
-.. code-block:: python
-
-    hook = LangChainHook(
-        llm_conn_id="openai_chat",
-        embed_conn_id="openai_embed",
-        llm_model="openai:gpt-4o",
-        embed_model="openai:text-embedding-3-small",
-    )
-    chat_model = hook.get_chat_model()
-    embedding_model = hook.get_embedding_model()
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_langchain_hook.py
+    :language: python
+    :start-after: [START howto_hook_langchain_different_conns]
+    :end-before: [END howto_hook_langchain_different_conns]
 
 Connection Configuration
 ------------------------
