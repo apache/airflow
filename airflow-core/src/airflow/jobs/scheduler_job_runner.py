@@ -2403,10 +2403,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
                 default=None,
             )
-            for task_instance in unfinished_task_instances:
-                task_instance.state = TaskInstanceState.SKIPPED
-                session.merge(task_instance)
-            session.flush()
+            if unfinished_task_instances:
+                session.execute(
+                    update(TI)
+                    .where(TI.id.in_(ti.id for ti in unfinished_task_instances))
+                    .values(state=TaskInstanceState.SKIPPED)
+                    .execution_options(synchronize_session="fetch")
+                )
+                session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
             if dag_run.state in State.finished_dr_states and dag_run.run_type in (
