@@ -30,7 +30,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
+from urllib.parse import urlparse
 
+import google_auth_httplib2
 import pendulum
 from aiohttp import ClientSession as ClientSession
 from asgiref.sync import sync_to_async
@@ -166,8 +168,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         connection_form_widgets["labels"] = StringField(
             lazy_gettext("Labels"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
         )
-        connection_form_widgets["labels"] = StringField(
-            lazy_gettext("Labels"), widget=BS3TextFieldWidget(), validators=[ValidJson()]
+        connection_form_widgets["http_proxy"] = StringField(
+            lazy_gettext("HTTP Proxy"), widget=BS3TextFieldWidget()
+        )
+        connection_form_widgets["https_proxy"] = StringField(
+            lazy_gettext("HTTPS Proxy"), widget=BS3TextFieldWidget()
         )
         return connection_form_widgets
 
@@ -184,6 +189,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         api_resource_configs: dict | None | object = _UNSET,
         impersonation_scopes: str | Sequence[str] | None = None,
         labels: dict | None | object = _UNSET,
+        http_proxy: str | None | object = _UNSET,
+        https_proxy: str | None | object = _UNSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -219,6 +226,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             self.labels = labels or {}  # type: ignore[assignment]
 
+        if http_proxy is _UNSET:
+            self.http_proxy: str | None = self._get_field("http_proxy", None)
+        else:
+            self.http_proxy = http_proxy  # type: ignore[assignment]
+
+        if https_proxy is _UNSET:
+            self.https_proxy: str | None = self._get_field("https_proxy", None)
+        else:
+            self.https_proxy = https_proxy  # type: ignore[assignment]
+
         self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
@@ -240,6 +257,30 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             hook=self,
         )
 
+    def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
+        """Return an authorized HTTP object, optionally configured with a proxy."""
+        proxy_url = self.http_proxy or self.https_proxy
+        if not proxy_url:
+            return super()._authorize()
+
+        import httplib2
+        from googleapiclient.http import set_user_agent
+
+        from airflow import version
+
+        parsed = urlparse(proxy_url)
+        proxy_info = httplib2.ProxyInfo(
+            proxy_type=httplib2.socks.PROXY_TYPE_HTTP,
+            proxy_host=parsed.hostname,
+            proxy_port=parsed.port or 80,
+            proxy_user=parsed.username,
+            proxy_pass=parsed.password,
+        )
+        http = set_user_agent(
+            httplib2.Http(proxy_info=proxy_info), "airflow/" + version.version
+        )
+        return google_auth_httplib2.AuthorizedHttp(self.get_credentials(), http=http)
+
     def get_client(self, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None) -> Client:
         """
         Get an authenticated BigQuery Client.
@@ -247,13 +288,28 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: Project ID for the project which the client acts on behalf of.
         :param location: Default location for jobs / datasets / tables.
         """
-        return Client(
-            client_info=CLIENT_INFO,
-            project=project_id,
-            location=location,
-            credentials=self.get_credentials(),
-            client_options=self.get_client_options(),
-        )
+        credentials = self.get_credentials()
+        kwargs: dict[str, Any] = {
+            "client_info": CLIENT_INFO,
+            "project": project_id,
+            "location": location,
+            "credentials": credentials,
+            "client_options": self.get_client_options(),
+        }
+        if self.http_proxy or self.https_proxy:
+            import requests
+            from google.auth.transport.requests import AuthorizedSession, Request
+
+            session = requests.Session()
+            session.proxies = {}
+            if self.http_proxy:
+                session.proxies["http"] = self.http_proxy
+            if self.https_proxy:
+                session.proxies["https"] = self.https_proxy
+            kwargs["_http"] = AuthorizedSession(
+                credentials, auth_request=Request(session=session)
+            )
+        return Client(**kwargs)
 
     def get_uri(self) -> str:
         """Override from ``DbApiHook`` for ``get_sqlalchemy_engine()``."""
