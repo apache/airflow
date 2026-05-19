@@ -93,7 +93,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -144,7 +144,6 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {

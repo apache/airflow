@@ -1036,6 +1036,20 @@ def _build_skaffold_config(
     if dependencies_paths != ["**"]:
         dependencies_paths.append(f"{core_relative_path}/**")
 
+    providers_relative_path = "providers"
+    providers_dest = f"{AIRFLOW_SOURCES_TO}/providers"
+
+    sync_entries.append(
+        {
+            "src": f"{providers_relative_path}/**",
+            "dest": providers_dest,
+            "strip": f"{providers_relative_path}/",
+        }
+    )
+
+    if dependencies_paths != ["**"]:
+        dependencies_paths.append(f"{providers_relative_path}/**")
+
     # --------------------
     # Skaffold config
     # --------------------
@@ -1621,7 +1635,7 @@ def deploy_airflow(
 @kubernetes_group.command(
     name="dev",
     help=(
-        "Run skaffold dev loop to sync dags and airflow-core sources to running pods "
+        "Run skaffold dev loop to sync dags, airflow-core, and providers sources to running pods "
         "(scheduler/triggerer/dag-processor/API Server hot-reload; UI auto-refresh not supported yet). "
     ),
     context_settings=dict(

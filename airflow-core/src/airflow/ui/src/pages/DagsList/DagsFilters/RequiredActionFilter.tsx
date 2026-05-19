@@ -32,10 +32,8 @@ export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
 
   return (
     <Button
-      colorPalette="brand"
       data-testid="dags-needs-review-filter"
       onClick={onToggle}
-      size="sm"
       variant={needsReview ? "solid" : "outline"}
     >
       <StateBadge colorPalette="deferred">

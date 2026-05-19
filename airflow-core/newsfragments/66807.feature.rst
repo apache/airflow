@@ -1,0 +1,1 @@
+Add ``dagrun.first_task_start_delay`` timer that measures the elapsed time between a Dag run's ``queued_at`` and the start time of its first task. This separates executor-pickup latency from the scheduler-enqueue latency captured by ``dagrun.first_task_scheduling_delay``.

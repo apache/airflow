@@ -61,6 +61,11 @@
     "dagVersions": "Dag 버전",
     "dataIntervalEnd": "데이터 구간 종료",
     "dataIntervalStart": "데이터 구간 시작",
+    "durationStats": {
+      "mean": "평균",
+      "mode": "최빈값"
+    },
+    "expectedDuration": "예상 소요 시간",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
     "mappedPartitionKey": "매핑된 파티션 키",
     "partitionKey": "파티션 키",

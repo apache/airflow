@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack, IconButton, Text } from "@chakra-ui/react";
+import { Box, Heading, HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -39,7 +39,7 @@ import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
-import { ProgressBar, Pagination, Toaster } from "src/components/ui";
+import { IconButton, ProgressBar, Pagination, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;
@@ -231,8 +231,6 @@ export const DataTable = <TData,>({
                 onStateChange({ ...initialState, cursor: previousCursor });
               }
             }}
-            size="sm"
-            variant="ghost"
           >
             <HiChevronLeft />
           </IconButton>
@@ -245,8 +243,6 @@ export const DataTable = <TData,>({
                 onStateChange({ ...initialState, cursor: nextCursor });
               }
             }}
-            size="sm"
-            variant="ghost"
           >
             <HiChevronRight />
           </IconButton>

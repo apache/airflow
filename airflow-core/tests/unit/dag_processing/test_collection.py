@@ -570,6 +570,7 @@ class TestUpdateDagParsingResults:
                     mock_dag,
                     bundle_name="testing",
                     bundle_version=None,
+                    version_data=None,
                     min_update_interval=mock.ANY,
                     session=mock_session,
                     _prefetched=mock.ANY,
@@ -1136,6 +1137,24 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
         orm_dag = session.get(DagModel, "dag_max_runs")
         assert orm_dag.max_active_runs == 3
+
+    @pytest.mark.parametrize(
+        ("field", "cfg_key", "schema_default"),
+        [
+            ("max_active_runs", "max_active_runs_per_dag", 16),
+            ("max_active_tasks", "max_active_tasks_per_dag", 16),
+            ("max_consecutive_failed_dag_runs", "max_consecutive_failed_dag_runs_per_dag", 0),
+        ],
+    )
+    def test_config_driven_field_equal_to_schema_default_not_overridden_by_conf(
+        self, testing_dag_bundle, session, dag_maker, field, cfg_key, schema_default
+    ):
+        with conf_vars({("core", cfg_key): "1"}):
+            with dag_maker(f"dag_{field}_schema_default", schedule=None, **{field: schema_default}) as dag:
+                ...
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            orm_dag = session.get(DagModel, f"dag_{field}_schema_default")
+            assert getattr(orm_dag, field) == schema_default
 
     def test_max_active_runs_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
         with conf_vars({("core", "max_active_runs_per_dag"): "4"}):

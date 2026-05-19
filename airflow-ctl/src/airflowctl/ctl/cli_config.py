@@ -423,11 +423,19 @@ class CommandFactory:
             args = []
             return_annotation: str = ""
 
-            for arg in node.args.args:
+            # In ``ast.arguments``, ``defaults`` aligns with the *tail* of
+            # ``args``. A parameter is required when its position from the
+            # left is *before* the first defaulted position. Equivalent to
+            # ``len(args) - len(defaults)``.
+            positional_args = [a for a in node.args.args if a.arg != "self"]
+            defaults_count = len(node.args.defaults)
+            required_count = len(positional_args) - defaults_count
+            required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+
+            for arg in positional_args:
                 arg_name = arg.arg
                 arg_type = ast.unparse(arg.annotation) if arg.annotation else "Any"
-                if arg_name != "self":
-                    args.append({arg_name: arg_type})
+                args.append({arg_name: arg_type})
 
             if node.returns:
                 return_annotation = [
@@ -437,6 +445,7 @@ class CommandFactory:
             return {
                 "name": func_name,
                 "parameters": args,
+                "required_param_names": required_param_names,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -532,6 +541,26 @@ class CommandFactory:
             action=arg_action,
         )
 
+    @staticmethod
+    def _create_positional_arg(
+        parameter_key: str,
+        arg_type: type | Callable,
+        arg_help: str,
+    ) -> Arg:
+        """
+        Build a positional ``Arg`` for a required primitive parameter.
+
+        ``argparse`` rejects ``default`` and ``dest`` on positional arguments,
+        so this helper keeps both unset and uses the raw parameter name (with
+        underscores) as the flag so the parsed ``Namespace`` attribute lines up
+        with the operation method's signature.
+        """
+        return Arg(
+            flags=(parameter_key,),
+            type=arg_type,
+            help=arg_help,
+        )
+
     def _create_arg_for_non_primitive_type(
         self,
         parameter_type: str,
@@ -577,20 +606,44 @@ class CommandFactory:
         """Create Arg from Operation Method checking for parameters and return types."""
         for operation in self.operations:
             args = []
+            required_names: set[str] = operation.get("required_param_names") or set()
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
                         base_parameter_type = parameter_type.replace(" | None", "").strip()
                         is_bool = base_parameter_type == "bool"
-                        args.append(
-                            self._create_arg(
-                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=self._python_type_from_string(parameter_type),
-                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
-                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=None,
-                            )
+                        # Required, non-bool primitives are exposed as positional
+                        # arguments per the dev-list lazy consensus
+                        # (https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm).
+                        # Bool stays --flag/--no-flag and ``parameter_type``
+                        # ending in ``| None`` is treated as optional.
+                        is_required_positional = (
+                            parameter_key in required_names and not is_bool and "| None" not in parameter_type
                         )
+                        if is_required_positional:
+                            args.append(
+                                self._create_positional_arg(
+                                    parameter_key=parameter_key,
+                                    arg_type=self._python_type_from_string(parameter_type),
+                                    arg_help=(
+                                        f"{parameter_key} for {operation.get('name')} "
+                                        f"operation in {operation.get('parent').name}"
+                                    ),
+                                )
+                            )
+                        else:
+                            args.append(
+                                self._create_arg(
+                                    arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
+                                    arg_type=self._python_type_from_string(parameter_type),
+                                    arg_action=argparse.BooleanOptionalAction if is_bool else None,
+                                    arg_help=(
+                                        f"{parameter_key} for {operation.get('name')} "
+                                        f"operation in {operation.get('parent').name}"
+                                    ),
+                                    arg_default=None,
+                                )
+                            )
                     else:
                         args.extend(
                             self._create_arg_for_non_primitive_type(

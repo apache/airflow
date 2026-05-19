@@ -84,7 +84,7 @@ class AwsTaskLogFetcher(Thread):
             )
         except ClientError as error:
             if error.response["Error"]["Code"] != "ResourceNotFoundException":
-                self.logger.warning("Error on retrieving Cloudwatch log events", error)
+                self.logger.warning("Error on retrieving Cloudwatch log events: %s", error)
             else:
                 self.logger.info(
                     "Cannot find log stream yet, it can take a couple of seconds to show up. "
@@ -95,7 +95,7 @@ class AwsTaskLogFetcher(Thread):
                 )
             yield from ()
         except ConnectionClosedError as error:
-            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
+            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events: %s", error)
             yield from ()
 
     @staticmethod
