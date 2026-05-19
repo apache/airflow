@@ -4278,7 +4278,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-compat"
-version = "1.14.3"
+version = "1.15.0"
 source = { editable = "providers/common/compat" }
 dependencies = [
     { name = "apache-airflow" },

@@ -121,7 +121,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ===================
 ``apache-airflow``                          ``>=3.0.0,!=3.1.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.3``
+``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``pydantic``                                ``>=2.11.0``
 ``retryhttp``                               ``>=1.4.0``
 ``aiofiles``                                ``>=23.2.0``

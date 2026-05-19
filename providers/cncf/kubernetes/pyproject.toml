@@ -61,7 +61,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=23.2.0",
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.14.3",
+    "apache-airflow-providers-common-compat>=1.15.0",
     "asgiref>=3.5.2; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
     # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
