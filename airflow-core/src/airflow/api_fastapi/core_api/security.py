@@ -331,6 +331,35 @@ def requires_access_backfill(
     return inner
 
 
+def requires_access_event_log(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
+    """Wrap ``requires_access_dag`` and extract the dag_id from the event_log_id."""
+
+    async def inner(
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        dag_id = None
+
+        event_log_id_raw = request.path_params.get("event_log_id")
+        try:
+            event_log_id = int(event_log_id_raw) if event_log_id_raw is not None else None
+        except ValueError:
+            event_log_id = None
+
+        if event_log_id is not None:
+            dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
+
+        requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
+            request,
+            user,
+        )
+
+    return inner
+
+
 class PermittedPoolFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted pools for the user."""
 
