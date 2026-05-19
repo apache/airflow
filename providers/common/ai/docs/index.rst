@@ -36,7 +36,7 @@
 
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
-    Hooks <hooks/pydantic_ai>
+    Hooks <hooks/index>
     Toolsets <toolsets>
     Operators <operators/index>
     HITL Review <hitl_review>
