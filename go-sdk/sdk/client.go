@@ -84,7 +84,7 @@ func (*client) GetConnection(ctx context.Context, connID string) (Connection, er
 		return Connection{}, err
 	}
 
-	return connFromAPIResponse(resp)
+	return ConnFromAPIResponse(resp)
 }
 
 func (c *client) PushXCom(

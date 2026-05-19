@@ -80,8 +80,8 @@ apache-airflow-providers-salesforce = false
 apache-airflow-providers-ssh = false
 apache-airflow-providers-papermill = false
 apache-airflow-providers-google = false
-apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-vertica = false
+apache-airflow-providers-microsoft-psrp = false
 apache-airflow-providers-apache-hdfs = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-mypy = false
@@ -97,6 +97,7 @@ apache-airflow-shared-serialization = false
 apache-airflow-scripts = false
 apache-airflow-providers-exasol = false
 apache-airflow-providers-mongo = false
+apache-airflow-shared-workloads = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
@@ -147,11 +148,13 @@ apache-airflow-providers-atlassian-jira = false
 apache-airflow-providers-odbc = false
 apache-airflow-providers-postgres = false
 apache-airflow-providers-openai = false
-apache-airflow-task-sdk-integration-tests = false
+apache-airflow-providers-sdk-executable = false
 apache-airflow-providers-smtp = false
+apache-airflow-task-sdk-integration-tests = false
 apache-airflow-providers-dingding = false
 apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-cloudant = false
+apache-airflow-providers-sdk-java = false
 apache-aurflow-docker-stack = false
 
 [manifest]
@@ -249,6 +252,8 @@ members = [
     "apache-airflow-providers-redis",
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-samba",
+    "apache-airflow-providers-sdk-executable",
+    "apache-airflow-providers-sdk-java",
     "apache-airflow-providers-segment",
     "apache-airflow-providers-sendgrid",
     "apache-airflow-providers-sftp",
@@ -285,6 +290,7 @@ members = [
     "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-workloads",
     "apache-airflow-task-sdk",
     "apache-airflow-task-sdk-integration-tests",
     "docker-stack",
@@ -1024,6 +1030,8 @@ all = [
     { name = "apache-airflow-providers-redis" },
     { name = "apache-airflow-providers-salesforce" },
     { name = "apache-airflow-providers-samba" },
+    { name = "apache-airflow-providers-sdk-executable" },
+    { name = "apache-airflow-providers-sdk-java" },
     { name = "apache-airflow-providers-segment" },
     { name = "apache-airflow-providers-sendgrid" },
     { name = "apache-airflow-providers-sftp" },
@@ -1343,6 +1351,12 @@ salesforce = [
 samba = [
     { name = "apache-airflow-providers-samba" },
 ]
+sdk-executable = [
+    { name = "apache-airflow-providers-sdk-executable" },
+]
+sdk-java = [
+    { name = "apache-airflow-providers-sdk-java" },
+]
 segment = [
     { name = "apache-airflow-providers-segment" },
 ]
@@ -1439,6 +1453,7 @@ dev = [
     { name = "apache-airflow-shared-state" },
     { name = "apache-airflow-shared-template-rendering" },
     { name = "apache-airflow-shared-timezones" },
+    { name = "apache-airflow-shared-workloads" },
     { name = "apache-airflow-task-sdk", extra = ["all"] },
     { name = "apache-airflow-task-sdk-integration-tests" },
 ]
@@ -1634,6 +1649,10 @@ requires-dist = [
     { name = "apache-airflow-providers-salesforce", marker = "extra == 'salesforce'", editable = "providers/salesforce" },
     { name = "apache-airflow-providers-samba", marker = "extra == 'all'", editable = "providers/samba" },
     { name = "apache-airflow-providers-samba", marker = "extra == 'samba'", editable = "providers/samba" },
+    { name = "apache-airflow-providers-sdk-executable", marker = "extra == 'all'", editable = "providers/sdk/executable" },
+    { name = "apache-airflow-providers-sdk-executable", marker = "extra == 'sdk-executable'", editable = "providers/sdk/executable" },
+    { name = "apache-airflow-providers-sdk-java", marker = "extra == 'all'", editable = "providers/sdk/java" },
+    { name = "apache-airflow-providers-sdk-java", marker = "extra == 'sdk-java'", editable = "providers/sdk/java" },
     { name = "apache-airflow-providers-segment", marker = "extra == 'all'", editable = "providers/segment" },
     { name = "apache-airflow-providers-segment", marker = "extra == 'segment'", editable = "providers/segment" },
     { name = "apache-airflow-providers-sendgrid", marker = "extra == 'all'", editable = "providers/sendgrid" },
@@ -1684,7 +1703,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.14" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "sdk-executable", "sdk-java", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1712,6 +1731,7 @@ dev = [
     { name = "apache-airflow-shared-state", editable = "shared/state" },
     { name = "apache-airflow-shared-template-rendering", editable = "shared/template_rendering" },
     { name = "apache-airflow-shared-timezones", editable = "shared/timezones" },
+    { name = "apache-airflow-shared-workloads", editable = "shared/workloads" },
     { name = "apache-airflow-task-sdk", extras = ["all"], editable = "task-sdk" },
     { name = "apache-airflow-task-sdk-integration-tests", editable = "task-sdk-integration-tests" },
 ]
@@ -7053,6 +7073,88 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
+name = "apache-airflow-providers-sdk-executable"
+version = "0.1.0"
+source = { editable = "providers/sdk/executable" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+common-compat = [
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
+    { name = "pyyaml" },
+]
+provides-extras = ["common-compat"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-sdk-java"
+version = "0.1.0"
+source = { editable = "providers/sdk/java" }
+dependencies = [
+    { name = "apache-airflow" },
+]
+
+[package.optional-dependencies]
+common-compat = [
+    { name = "apache-airflow-providers-common-compat" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
+]
+provides-extras = ["common-compat"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
 name = "apache-airflow-providers-segment"
 version = "3.9.4"
 source = { editable = "providers/segment" }
@@ -8456,6 +8558,25 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-shared-workloads"
+version = "0.0"
+source = { editable = "shared/workloads" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow-devel-common" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.10.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
 
 [[package]]
 name = "apache-airflow-task-sdk"

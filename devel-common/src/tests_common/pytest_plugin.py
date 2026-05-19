@@ -2519,7 +2519,6 @@ def create_runtime_ti(mocked_parse):
     from uuid6 import uuid7
 
     from airflow.sdk import DAG
-    from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
     from airflow.timetables.base import TimeRestriction
 
@@ -2547,6 +2546,13 @@ def create_runtime_ti(mocked_parse):
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.sdk._shared.workloads import TaskInstanceDTO
+        else:
+            from airflow.executors.workloads.task import TaskInstanceDTO  # type: ignore[no-redef,assignment]
+
         from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
         from airflow.utils.types import DagRunType
 
@@ -2624,14 +2630,17 @@ def create_runtime_ti(mocked_parse):
         }
 
         startup_details = StartupDetails(
-            ti=TaskInstance(
+            ti=TaskInstanceDTO(
                 id=ti_id,
                 task_id=task.task_id,
                 dag_id=dag_id,
                 run_id=run_id,
                 try_number=try_number,
-                map_index=map_index,
+                map_index=map_index if map_index is not None else -1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),

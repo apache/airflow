@@ -36,6 +36,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Task SDK integration tests (true/false)"
         required: true
         type: string
+      run-go-sdk-tests:
+        description: "Whether to run Go SDK tests (true/false)"
+        required: true
+        type: string
       run-remote-logging-s3-e2e-tests:
         description: "Whether to run S3 remote logging e2e tests (true/false)"
         required: true
@@ -289,6 +293,18 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "event_driven"
     if: inputs.canary-run == 'true' || inputs.run-event-driven-e2e-tests == 'true'
+
+  test-e2e-integration-tests-go-sdk:
+    name: "Go SDK executor coordinator e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Go SDK executor coordinator e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "go_sdk"
+    if: inputs.canary-run == 'true' || inputs.run-go-sdk-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"

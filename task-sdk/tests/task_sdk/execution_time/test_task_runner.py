@@ -55,6 +55,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow.sdk._shared.workloads import TaskInstanceDTO
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -194,13 +195,16 @@ class CustomOperator(BaseOperator):
 def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="super_basic",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -241,13 +245,16 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     mock_dag.task_dict = {"a": mock_task}
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="super_basic",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -301,13 +308,16 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
 def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, expected_error):
     """Check for nice error messages on dag not found."""
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id=task_id,
             dag_id=dag_id,
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -347,13 +357,16 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
     and should surface as a hard failure (SystemExit in the task runner process).
     """
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="madeup_dag_id",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -408,13 +421,16 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     mock_comms_instance.socket = None
     mock_comms_decoder_cls.__getitem__.return_value.return_value = mock_comms_instance
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="my_task",
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
             context_carrier={},
         ),
         dag_rel_path="",
@@ -501,13 +517,16 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
 
     # Step 3: build StartupDetails with ti.context_carrier = ti_carrier.
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="my_task",
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
             context_carrier=ti_carrier,
         ),
         dag_rel_path="",
@@ -569,13 +588,16 @@ def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
     provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="standalone_task",
             dag_id="test_dag",
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
             context_carrier=None,
         ),
         dag_rel_path="",
@@ -610,13 +632,16 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     dag1_path.write_text(textwrap.dedent(dag1_code))
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="a",
             dag_id="dag_name",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="path_test.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -1057,13 +1082,16 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
     )
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="templated_task",
             dag_id="basic_templated_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         bundle_info=FAKE_BUNDLE,
         dag_rel_path="",
@@ -1173,13 +1201,16 @@ def test_startup_and_run_dag_with_rtif(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="templated_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1221,13 +1252,16 @@ def test_task_run_with_user_impersonation(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="impersonation_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1269,13 +1303,16 @@ def test_task_run_with_user_impersonation_default_user(
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="impersonation_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1309,13 +1346,16 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
     instant = timezone.datetime(2024, 12, 3, 10, 0)
 
     what = StartupDetails(
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=uuid7(),
             task_id="impersonation_task",
             dag_id="basic_dag",
             run_id="c",
             try_number=1,
             dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
@@ -1482,8 +1522,16 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     task_id = "conditional_task"
 
     what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1, dag_version_id=uuid7()
+        ti=TaskInstanceDTO(
+            id=uuid7(),
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
         ),
         dag_rel_path="dag_parsing_context.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -3976,13 +4024,16 @@ class TestTaskRunnerCallsListeners:
             task_id="test_task_runner_calls_listeners", do_xcom_push=True, multiple_outputs=True
         )
         what = StartupDetails(
-            ti=TaskInstance(
+            ti=TaskInstanceDTO(
                 id=uuid7(),
                 task_id="templated_task",
                 dag_id="basic_dag",
                 run_id="c",
                 try_number=1,
                 dag_version_id=uuid7(),
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
             dag_rel_path="",
             bundle_info=FAKE_BUNDLE,

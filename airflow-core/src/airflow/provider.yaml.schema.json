@@ -624,6 +624,13 @@
                 }
             }
         },
+        "coordinators": {
+            "type": "array",
+            "description": "Runtime Coordinator class names (BaseCoordinator subclasses)",
+            "items": {
+                "type": "string"
+            }
+        },
         "source-date-epoch": {
             "type": "integer",
             "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",

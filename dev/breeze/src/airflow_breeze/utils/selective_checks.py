@@ -365,6 +365,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.GO_SDK_FILES: [
             r"^go-sdk/.*\.go$",
+            r"^airflow-e2e-tests/docker/go-sdk-coordinator\.yml$",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/go_sdk_tests/.*",
+            r"^providers/sdk/executable/.*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1093,6 +1096,7 @@ class SelectiveChecks:
             self.run_kubernetes_tests
             or self.run_helm_tests
             or self.run_task_sdk_integration_tests
+            or self.run_go_sdk_tests
             or self.run_airflow_ctl_integration_tests
             or self.run_remote_logging_s3_e2e_tests
             or self.run_remote_logging_elasticsearch_e2e_tests

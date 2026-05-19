@@ -41,6 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.dag_processing.manager import discover_dag_file_paths
 from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
@@ -91,7 +92,6 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1135,7 +1135,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=discover_dag_file_paths(settings.DAGS_FOLDER),
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))

@@ -1420,6 +1420,7 @@ option_e2e_test_mode = click.option(
             "remote_log_opensearch",
             "xcom_object_storage",
             "event_driven",
+            "go_sdk",
         ],
         case_sensitive=False,
     ),

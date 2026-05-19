@@ -189,6 +189,9 @@ labelPRBasedOnFilePath:
   provider:keycloak:
     - providers/keycloak/**
 
+  provider:sdk-java:
+    - providers/sdk/java/**
+
   provider:microsoft-azure:
     - providers/microsoft/azure/**
 
@@ -260,6 +263,9 @@ labelPRBasedOnFilePath:
 
   provider:samba:
     - providers/samba/**
+
+  provider:sdk-executable:
+    - providers/sdk/executable/**
 
   provider:segment:
     - providers/segment/**

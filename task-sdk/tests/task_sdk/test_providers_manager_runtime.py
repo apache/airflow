@@ -243,6 +243,33 @@ class TestProvidersManagerRuntime:
         with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
             pm.already_initialized_provider_configs
 
+    @patch("airflow.sdk.providers_manager_runtime.import_string")
+    def test_coordinators(self, mock_import_string):
+        class ACoordinator:
+            pass
+
+        class ZCoordinator:
+            pass
+
+        mock_import_string.side_effect = lambda path: {
+            "airflow.providers.sdk.java.coordinator.ACoordinator": ACoordinator,
+            "airflow.providers.sdk.java.coordinator.ZCoordinator": ZCoordinator,
+        }[path]
+        providers_manager = ProvidersManagerTaskRuntime()
+        providers_manager._provider_dict["apache-airflow-providers-sdk-java"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "coordinators": [
+                    "airflow.providers.sdk.java.coordinator.ZCoordinator",
+                    "airflow.providers.sdk.java.coordinator.ACoordinator",
+                    "airflow.providers.sdk.java.coordinator.ZCoordinator",
+                ]
+            },
+        )
+
+        with patch.object(providers_manager, "initialize_providers_list"):
+            assert providers_manager.coordinators == [ACoordinator, ZCoordinator]
+
     def test_initialize_provider_configs_can_reload_sdk_conf(self):
         from airflow.sdk.configuration import conf
 

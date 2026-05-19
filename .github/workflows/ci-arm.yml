@@ -856,6 +856,7 @@ jobs:
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       run-task-sdk-integration-tests: ${{ needs.build-info.outputs.run-task-sdk-integration-tests }}
+      run-go-sdk-tests: ${{ needs.build-info.outputs.run-go-sdk-tests }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       run-remote-logging-elasticsearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-elasticsearch-e2e-tests }}
       run-remote-logging-opensearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-opensearch-e2e-tests }}

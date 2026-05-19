@@ -29,10 +29,14 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// Set by `-ldflags` at build time
+// Set by `-ldflags` at build time. Override dagId to produce the same
+// example bundle under a different DAG name — e.g. build once with
+// `-X main.dagId=simple_dag` for the pure-Go scenario, and again with
+// `-X main.dagId=go_multi_lang` for the Python-stub scenario.
 var (
 	bundleName    = "example_dags"
 	bundleVersion = "0.0"
+	dagId         = "simple_dag"
 )
 
 type myBundle struct{}
@@ -45,10 +49,14 @@ func (m *myBundle) GetBundleVersion() v1.BundleInfo {
 }
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-	simpleDag := dagbag.AddDag("simple_dag")
-	simpleDag.AddTask(extract)
-	simpleDag.AddTask(transform)
-	simpleDag.AddTask(load)
+	dag := dagbag.AddDag(dagId, v1.DagSpec{
+		Schedule:    "@daily",
+		Description: "Example Go-authored Dag",
+		Tags:        []string{"example", "go-sdk"},
+	})
+	dag.AddTask(extract, v1.TaskSpec{Queue: "go-task", Retries: 2}, nil)
+	dag.AddTask(transform, v1.TaskSpec{Queue: "go-task"}, []string{"extract"})
+	dag.AddTask(load, v1.TaskSpec{Queue: "go-task"}, []string{"transform"})
 
 	return nil
 }
