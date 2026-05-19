@@ -193,13 +193,16 @@ class BaseStateBackend(ABC):
         """
         return stored
 
-    def serialize_asset_state_value(self, *, value: str, key: str, asset_name: str) -> str:
+    def serialize_asset_state_value(self, *, value: str, key: str, asset_ref: str) -> str:
         """
         Serialize an asset state value before it is sent to the Execution API for db persistence.
 
         Called by ``AssetStateAccessor.set()`` on the worker. The return value is what gets
         stored in the DB — typically a reference path rather than the actual value.
         Default: return ``value`` unchanged.
+
+        ``asset_ref`` is either the asset name or URI, depending on how the accessor was
+        constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
         """
         return value
 

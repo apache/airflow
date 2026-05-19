@@ -65,6 +65,7 @@ if TYPE_CHECKING:
         ReceiveMsgType,
         VariableResult,
     )
+    from airflow.sdk.state import BaseStateBackend
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -436,7 +437,7 @@ class VariableAccessor:
 
 
 @cache
-def _get_worker_state_backend():
+def _get_worker_state_backend() -> BaseStateBackend | None:
     """
     Return the configured worker-side state backend, instantiated once and cached.
 
@@ -590,9 +591,9 @@ class AssetStateAccessor:
         # if custom backend is configured, store the value on the custom backend, and return the reference
         # to the stored value to store in the DB
         backend = _get_worker_state_backend()
-        asset_name = self._name or self._uri or ""
+        asset_ref = self._name or self._uri or ""
         stored = (
-            backend.serialize_asset_state_value(value=value, key=key, asset_name=asset_name)
+            backend.serialize_asset_state_value(value=value, key=key, asset_ref=asset_ref)
             if backend
             else value
         )

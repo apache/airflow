@@ -1343,8 +1343,8 @@ class InMemoryStateBackend(BaseStateBackend):
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
-    def serialize_asset_state_value(self, *, value: str, key: str, asset_name: str) -> str:
-        ref = f"mem://{asset_name}/{key}"
+    def serialize_asset_state_value(self, *, value: str, key: str, asset_ref: str) -> str:
+        ref = f"mem://{asset_ref}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref

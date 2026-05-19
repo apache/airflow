@@ -5134,7 +5134,7 @@ class TestTaskInstanceStateOperations:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_backend.serialize_asset_state_value.assert_called_once_with(
-            value="2026-05-01", key="watermark", asset_name="my_asset"
+            value="2026-05-01", key="watermark", asset_ref="my_asset"
         )
         mock_supervisor_comms.send.assert_any_call(
             SetAssetStateByName(name="my_asset", key="watermark", value="mem://my_asset/watermark")
