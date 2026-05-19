@@ -5244,7 +5244,7 @@ class TestTaskInstanceStateOperations:
         )
 
     def test_task_state_set_sends_reference_via_custom_backend(
-        self, create_runtime_ti, mock_supervisor_comms
+        self, create_runtime_ti, mock_supervisor_comms, time_machine
     ):
         """When a worker backend is configured, task state set() sends a reference, not the actual value."""
 
@@ -5252,6 +5252,8 @@ class TestTaskInstanceStateOperations:
             def execute(self, context):
                 context["task_state"].set("job_id", "app_001")
 
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
         mock_supervisor_comms.send.side_effect = TestTaskInstanceStateOperations._watcher_side_effect
@@ -5268,7 +5270,11 @@ class TestTaskInstanceStateOperations:
         mock_backend.serialize_task_state_to_ref.assert_called_once_with(
             value="app_001", key="job_id", ti_id=str(runtime_ti.id)
         )
-        mock_supervisor_comms.send.assert_any_call(SetTaskState(ti_id=runtime_ti.id, key="job_id", value=ref))
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(
+                ti_id=runtime_ti.id, key="job_id", value=ref, expires_at=frozen_dt + timedelta(days=30)
+            )
+        )
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
     def test_clear_on_success_calls_clear_when_worker_backend_configured(
@@ -5285,7 +5291,7 @@ class TestTaskInstanceStateOperations:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch(
-            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 

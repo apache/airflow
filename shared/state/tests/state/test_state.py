@@ -73,8 +73,8 @@ class TestBaseStateBackend:
 
     def test_task_state_serialize_deserialize_round_trip(self, backend):
         original = "app_1234"
-        serialized = backend.serialize_task_state_value(value=original, key="job_id", ti_id="abc-123")
-        deserialized = backend.deserialize_task_state_value(serialized)
+        serialized = backend.serialize_task_state_to_ref(value=original, key="job_id", ti_id="abc-123")
+        deserialized = backend.deserialize_task_state_from_ref(serialized)
         assert deserialized == original
 
     def test_custom_backend_overrides_task_state_ser_deser(self):
@@ -106,10 +106,10 @@ class TestBaseStateBackend:
 
     def test_asset_state_serialize_deserialize_round_trip(self, backend):
         original = "2026-05-01"
-        serialized = backend.serialize_asset_state_value(
+        serialized = backend.serialize_asset_state_to_ref(
             value="2026-05-01", key="watermark", asset_ref="my_asset"
         )
-        deserialized = backend.deserialize_asset_state_value(serialized)
+        deserialized = backend.deserialize_asset_state_from_ref(serialized)
         assert deserialized == original
 
     def test_custom_backend_overrides_asset_state_ser_deser(self):

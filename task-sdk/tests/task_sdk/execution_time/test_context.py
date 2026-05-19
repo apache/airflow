@@ -1121,7 +1121,9 @@ class TestTaskStateAccessor:
         now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
         time_machine.move_to(now, tick=False)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention=timedelta(days=7))
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
+            "job_id", "app_001", retention=timedelta(days=7)
+        )
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(
@@ -1137,7 +1139,7 @@ class TestTaskStateAccessor:
 
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
-        TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001", retention=NEVER_EXPIRE)
+        TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001", retention=NEVER_EXPIRE)
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
@@ -1148,7 +1150,7 @@ class TestTaskStateAccessor:
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
 
         with conf_vars({("state_store", "default_retention_days"): "0"}):
-            TaskStateAccessor(ti_id=self.TI_ID).set("job_id", "app_001")
+            TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
 
         mock_supervisor_comms.send.assert_called_once_with(
             SetTaskState(ti_id=self.TI_ID, key="job_id", value="app_001", expires_at=None)
@@ -1436,15 +1438,20 @@ class TestTaskStateAccessorWithCustomBackend:
         ):
             yield b
 
-    def test_set_returns_reference_to_storage(self, mock_supervisor_comms, backend):
+    def test_set_returns_reference_to_storage(self, mock_supervisor_comms, backend, time_machine):
         """set() stores actual value in backend and sends mem:// reference via comms."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
         expected_ref = f"mem://{self.TI_ID}/job_id"
 
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+
         TaskStateAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
         # comms message has the mem:// reference, not the actual value
         mock_supervisor_comms.send.assert_called_once_with(
-            SetTaskState(ti_id=self.TI_ID, key="job_id", value=expected_ref)
+            SetTaskState(
+                ti_id=self.TI_ID, key="job_id", value=expected_ref, expires_at=frozen_dt + timedelta(days=30)
+            )
         )
         # actual value is stored on the backend, reference is stored for DB
         assert backend._actual_key_value_store["job_id"] == "app_001"
