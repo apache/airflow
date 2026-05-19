@@ -37,6 +37,8 @@ from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
@@ -55,20 +57,22 @@ def _start_server() -> socket.socket:
     return server
 
 
-def _calculate_classpath(app_home: pathlib.Path) -> str:
-    jars = (p.as_posix() for p in app_home.iterdir() if p.suffix == ".jar")
+def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
+    jars = (p.as_posix() for root in jars_root for p in root.iterdir() if p.suffix == ".jar")
     return os.pathsep.join(jars)
 
 
-def _find_main_class(app_home: pathlib.Path) -> str:
-    for p in app_home.iterdir():
-        if p.suffix != ".jar":
-            continue
-        with zipfile.ZipFile(p) as zf:
-            with zf.open("META-INF/MANIFEST.MF") as f:
-                if main_class := email.message_from_binary_file(f)["Main-Class"]:
-                    return main_class
-    raise FileNotFoundError(f"cannot fine main class in {app_home.resolve()}")
+def _find_main_class(jars_root: Sequence[pathlib.Path]) -> str:
+    for root in jars_root:
+        for p in root.iterdir():
+            if p.suffix != ".jar":
+                continue
+            with zipfile.ZipFile(p) as zf:
+                with zf.open("META-INF/MANIFEST.MF") as f:
+                    if main_class := email.message_from_binary_file(f)["Main-Class"]:
+                        return main_class
+    resolved_paths = os.pathsep.join(str(p.resolve()) for p in jars_root)
+    raise FileNotFoundError(f"cannot fine main class in {resolved_paths}")
 
 
 def _accept_connections(
@@ -122,7 +126,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         sentry_integration: str = "",
         java_executable: str,
         jvm_args: list[str],
-        bundles_folder: pathlib.Path,
+        jars_root: Sequence[pathlib.Path],
         **kwargs,
     ) -> Self:
         comm_server = _start_server()
@@ -138,9 +142,9 @@ class _JavaActivitySubprocess(ActivitySubprocess):
             [
                 java_executable,
                 "-classpath",
-                _calculate_classpath(bundles_folder),
+                _calculate_classpath(jars_root),
                 *jvm_args,
-                _find_main_class(bundles_folder),
+                _find_main_class(jars_root),
                 # Arguments to MainClass...
                 f"--comm={comm_host}:{comm_port}",
                 f"--logs={logs_host}:{logs_port}",
@@ -180,6 +184,16 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         return code
 
 
+def _convert_jars_root(
+    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
+) -> list[pathlib.Path]:
+    if value is None:
+        return []
+    if isinstance(value, (str, os.PathLike, pathlib.Path)):
+        return [pathlib.Path(value)]
+    return [pathlib.Path(v) for v in value]
+
+
 @attrs.define(kw_only=True)
 class JavaCoordinator(BaseCoordinator):
     """
@@ -194,21 +208,19 @@ class JavaCoordinator(BaseCoordinator):
             "kwargs": {
                 "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
                 "jvm_args": ["-Xmx1024m"],
-                "bundles_folder": "~/airflow/java-bundles",
+                "jars_root": ["~/airflow/jars"],
             },
         }
 
     :param java_executable: Path to the ``java`` binary (defaults to ``"java"``,
         which relies on ``$PATH``).
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
-    :param bundles_folder: Directory scanned for JAR bundles when a Python
-        stub DAG delegates task execution to Java.  Required for the stub-DAG
-        flow; unused for pure-Java DAGs.
+    :param jars_root: A list of directories scanned for JAR bundles.
     """
 
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
-    bundles_folder: pathlib.Path = attrs.field(converter=pathlib.Path)
+    jars_root: list[pathlib.Path] = attrs.field(converter=_convert_jars_root, factory=list)
 
     def execute_task(
         self,
@@ -232,7 +244,7 @@ class JavaCoordinator(BaseCoordinator):
             sentry_integration=sentry_integration,
             java_executable=self.java_executable,
             jvm_args=self.jvm_args,
-            bundles_folder=self.bundles_folder,
+            jars_root=self.jars_root,
         )
         exit_code = process.wait()
         return self.ExecutionResult(exit_code, process.final_state)

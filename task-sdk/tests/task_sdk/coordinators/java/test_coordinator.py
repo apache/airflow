@@ -123,14 +123,14 @@ class TestCalculateClasspath:
     def test_single_jar(self, tmp_path):
         jar = tmp_path.joinpath("app.jar")
         jar.write_bytes(b"")
-        result = _calculate_classpath(tmp_path)
+        result = _calculate_classpath([tmp_path])
         assert result == jar.as_posix()
 
     def test_multiple_jars_all_included(self, tmp_path):
         tmp_path.joinpath("a.jar").write_bytes(b"")
         tmp_path.joinpath("b.jar").write_bytes(b"")
         tmp_path.joinpath("c.jar").write_bytes(b"")
-        result = _calculate_classpath(tmp_path)
+        result = _calculate_classpath([tmp_path])
         entries = set(result.split(os.pathsep))
         assert entries == {
             tmp_path.joinpath("a.jar").as_posix(),
@@ -143,42 +143,42 @@ class TestCalculateClasspath:
         jar.write_bytes(b"")
         tmp_path.joinpath("readme.txt").write_bytes(b"")
         tmp_path.joinpath("config.yaml").write_bytes(b"")
-        result = _calculate_classpath(tmp_path)
+        result = _calculate_classpath([tmp_path])
         assert result == jar.as_posix()
 
     def test_empty_directory_returns_empty_string(self, tmp_path):
-        result = _calculate_classpath(tmp_path)
+        result = _calculate_classpath([tmp_path])
         assert result == ""
 
 
 class TestFindMainClass:
     def test_returns_main_class_from_jar(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
-        assert _find_main_class(tmp_path) == "com.example.Main"
+        assert _find_main_class([tmp_path]) == "com.example.Main"
 
     def test_no_jars_raises_file_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match=re.escape(str(tmp_path.resolve()))):
-            _find_main_class(tmp_path)
+            _find_main_class([tmp_path])
 
     def test_jar_without_main_class_not_returned(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class=None)
         with pytest.raises(FileNotFoundError):
-            _find_main_class(tmp_path)
+            _find_main_class([tmp_path])
 
     def test_non_jar_files_skipped(self, tmp_path):
         tmp_path.joinpath("readme.txt").write_bytes(b"not a jar")
         _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
-        assert _find_main_class(tmp_path) == "com.example.Main"
+        assert _find_main_class([tmp_path]) == "com.example.Main"
 
     def test_first_jar_missing_main_class_falls_through_to_second(self, tmp_path):
         # Alphabetically: a.jar (no Main-Class), b.jar (has Main-Class).
         _make_jar(tmp_path.joinpath("a.jar"), main_class=None)
         _make_jar(tmp_path.joinpath("b.jar"), main_class="com.example.Fallback")
-        assert _find_main_class(tmp_path) == "com.example.Fallback"
+        assert _find_main_class([tmp_path]) == "com.example.Fallback"
 
     def test_fully_qualified_class_name_preserved(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class="org.apache.airflow.sdk.java.TaskRunner")
-        assert _find_main_class(tmp_path) == "org.apache.airflow.sdk.java.TaskRunner"
+        assert _find_main_class([tmp_path]) == "org.apache.airflow.sdk.java.TaskRunner"
 
 
 class TestAcceptConnections:
@@ -272,24 +272,24 @@ class TestAcceptConnections:
 
 class TestJavaCoordinatorAttributes:
     def test_default_kwargs(self):
-        coordinator = JavaCoordinator(bundles_folder="/airflow/java-bundles")
+        coordinator = JavaCoordinator(jars_root="/airflow/java-bundles")
         assert coordinator.java_executable == "java"
         assert coordinator.jvm_args == []
-        assert coordinator.bundles_folder == pathlib.Path("/airflow/java-bundles")
+        assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
 
     def test_custom_kwargs(self):
         coordinator = JavaCoordinator(
             java_executable="/opt/java/bin/java",
             jvm_args=["-Xmx512m", "-Xms256m"],
-            bundles_folder="/airflow/java-bundles",
+            jars_root=["/airflow/java-bundles"],
         )
         assert coordinator.java_executable == "/opt/java/bin/java"
         assert coordinator.jvm_args == ["-Xmx512m", "-Xms256m"]
-        assert coordinator.bundles_folder == pathlib.Path("/airflow/java-bundles")
+        assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
 
 
 @pytest.fixture
-def bundle_dir(tmp_path):
+def jars_root(tmp_path):
     _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner")
     return tmp_path
 
@@ -304,7 +304,7 @@ def mock_client(make_ti_context):
 class TestJavaCoordinatorExecuteTask:
     def _captured_popen_cmd(
         self,
-        bundle_dir: pathlib.Path,
+        jars_root: pathlib.Path,
         mock_client,
         *,
         java_executable: str = "java",
@@ -315,7 +315,7 @@ class TestJavaCoordinatorExecuteTask:
         coordinator = JavaCoordinator(
             java_executable=java_executable,
             jvm_args=jvm_args or [],
-            bundles_folder=bundle_dir,
+            jars_root=jars_root,
         )
 
         mock_proc = MagicMock(spec=subprocess.Popen)
@@ -353,56 +353,56 @@ class TestJavaCoordinatorExecuteTask:
         assert popen_calls, "subprocess.Popen was not called"
         return popen_calls[0]
 
-    def test_java_executable_is_first_arg(self, bundle_dir, mock_client):
+    def test_java_executable_is_first_arg(self, jars_root, mock_client):
         cmd = self._captured_popen_cmd(
-            bundle_dir, mock_client, java_executable="/usr/lib/jvm/java-17/bin/java"
+            jars_root, mock_client, java_executable="/usr/lib/jvm/java-17/bin/java"
         )
         assert cmd[0] == "/usr/lib/jvm/java-17/bin/java"
 
-    def test_classpath_flag_and_value_present(self, bundle_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundle_dir, mock_client)
+    def test_classpath_flag_and_value_present(self, jars_root, mock_client):
+        cmd = self._captured_popen_cmd(jars_root, mock_client)
         assert "-classpath" in cmd
         cp_idx = cmd.index("-classpath")
         classpath = cmd[cp_idx + 1]
-        assert bundle_dir.joinpath("app.jar").as_posix() in classpath
+        assert jars_root.joinpath("app.jar").as_posix() in classpath
 
-    def test_main_class_present(self, bundle_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundle_dir, mock_client)
+    def test_main_class_present(self, jars_root, mock_client):
+        cmd = self._captured_popen_cmd(jars_root, mock_client)
         assert "com.example.TaskRunner" in cmd
 
-    def test_comm_and_logs_args_present(self, bundle_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundle_dir, mock_client)
+    def test_comm_and_logs_args_present(self, jars_root, mock_client):
+        cmd = self._captured_popen_cmd(jars_root, mock_client)
         comm_args = [a for a in cmd if a.startswith("--comm=")]
         logs_args = [a for a in cmd if a.startswith("--logs=")]
         assert len(comm_args) == 1
         assert len(logs_args) == 1
 
-    def test_comm_and_logs_contain_port(self, bundle_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundle_dir, mock_client)
+    def test_comm_and_logs_contain_port(self, jars_root, mock_client):
+        cmd = self._captured_popen_cmd(jars_root, mock_client)
         comm_arg = next(a for a in cmd if a.startswith("--comm="))
         logs_arg = next(a for a in cmd if a.startswith("--logs="))
         # format is host:port
         assert ":" in comm_arg.split("=", 1)[1]
         assert ":" in logs_arg.split("=", 1)[1]
 
-    def test_jvm_args_inserted_before_main_class(self, bundle_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundle_dir, mock_client, jvm_args=["-Xmx512m", "-Dsome.prop=value"])
+    def test_jvm_args_inserted_before_main_class(self, jars_root, mock_client):
+        cmd = self._captured_popen_cmd(jars_root, mock_client, jvm_args=["-Xmx512m", "-Dsome.prop=value"])
         main_idx = cmd.index("com.example.TaskRunner")
         for jvm_arg in ["-Xmx512m", "-Dsome.prop=value"]:
             assert jvm_arg in cmd
             assert cmd.index(jvm_arg) < main_idx
 
-    def test_comm_and_logs_after_main_class(self, bundle_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundle_dir, mock_client)
+    def test_comm_and_logs_after_main_class(self, jars_root, mock_client):
+        cmd = self._captured_popen_cmd(jars_root, mock_client)
         main_idx = cmd.index("com.example.TaskRunner")
         comm_idx = next(i for i, a in enumerate(cmd) if a.startswith("--comm="))
         logs_idx = next(i for i, a in enumerate(cmd) if a.startswith("--logs="))
         assert comm_idx > main_idx
         assert logs_idx > main_idx
 
-    def test_returns_execution_result(self, bundle_dir, mock_client):
+    def test_returns_execution_result(self, jars_root, mock_client):
         ti = _make_ti()
-        coordinator = JavaCoordinator(bundles_folder=bundle_dir)
+        coordinator = JavaCoordinator(jars_root=jars_root)
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 99999
@@ -443,7 +443,7 @@ class TestJavaActivitySubprocessStart:
 
     def _start_with_mocks(
         self,
-        bundle_dir: pathlib.Path,
+        jars_root: pathlib.Path,
         mock_client,
         *,
         java_executable: str = "java",
@@ -478,26 +478,26 @@ class TestJavaActivitySubprocessStart:
                 client=mock_client,
                 java_executable=java_executable,
                 jvm_args=jvm_args or [],
-                bundles_folder=bundle_dir,
+                jars_root=[jars_root],
                 subprocess_logs_to_stdout=False,
             )
 
         return proc, popen_mock
 
-    def test_stdout_write_socket_stored_for_cleanup(self, bundle_dir, mock_client):
-        proc, _ = self._start_with_mocks(bundle_dir, mock_client)
+    def test_stdout_write_socket_stored_for_cleanup(self, jars_root, mock_client):
+        proc, _ = self._start_with_mocks(jars_root, mock_client)
         # _stdout_w must be stored so wait() can close it
         assert proc._stdout_w is not None
 
-    def test_stderr_write_socket_stored_for_cleanup(self, bundle_dir, mock_client):
-        proc, _ = self._start_with_mocks(bundle_dir, mock_client)
+    def test_stderr_write_socket_stored_for_cleanup(self, jars_root, mock_client):
+        proc, _ = self._start_with_mocks(jars_root, mock_client)
         assert proc._stderr_w is not None
 
-    def test_stdout_and_stderr_write_sockets_are_distinct(self, bundle_dir, mock_client):
-        proc, _ = self._start_with_mocks(bundle_dir, mock_client)
+    def test_stdout_and_stderr_write_sockets_are_distinct(self, jars_root, mock_client):
+        proc, _ = self._start_with_mocks(jars_root, mock_client)
         assert proc._stdout_w is not proc._stderr_w
 
-    def test_stdin_is_comm_socket(self, bundle_dir, mock_client):
+    def test_stdin_is_comm_socket(self, jars_root, mock_client):
         """stdin (used by send_msg) must be the accepted comm socket."""
         ti = _make_ti()
         comm_sock = MagicMock(spec=socket.socket)
@@ -521,17 +521,17 @@ class TestJavaActivitySubprocessStart:
                 client=MagicMock(),
                 java_executable="java",
                 jvm_args=[],
-                bundles_folder=bundle_dir,
+                jars_root=[jars_root],
                 subprocess_logs_to_stdout=False,
             )
 
         assert proc.stdin is comm_sock
 
-    def test_pid_taken_from_popen(self, bundle_dir, mock_client):
-        proc, _ = self._start_with_mocks(bundle_dir, mock_client)
+    def test_pid_taken_from_popen(self, jars_root, mock_client):
+        proc, _ = self._start_with_mocks(jars_root, mock_client)
         assert proc.pid == 12345
 
-    def test_on_child_started_called(self, bundle_dir, mock_client):
+    def test_on_child_started_called(self, jars_root, mock_client):
         ti = _make_ti()
         with (
             patch("airflow.sdk.coordinators.java.coordinator.subprocess.Popen") as popen_mock,
@@ -551,7 +551,7 @@ class TestJavaActivitySubprocessStart:
                 client=mock_client,
                 java_executable="java",
                 jvm_args=[],
-                bundles_folder=bundle_dir,
+                jars_root=[jars_root],
                 subprocess_logs_to_stdout=False,
             )
 
@@ -560,7 +560,7 @@ class TestJavaActivitySubprocessStart:
         assert kwargs["ti"] is ti
         assert kwargs["dag_rel_path"] == "dags/test.jar"
 
-    def test_register_pipe_readers_called_with_four_sockets(self, bundle_dir, mock_client):
+    def test_register_pipe_readers_called_with_four_sockets(self, jars_root, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered."""
         with (
             patch("airflow.sdk.coordinators.java.coordinator.subprocess.Popen") as popen_mock,
@@ -580,7 +580,7 @@ class TestJavaActivitySubprocessStart:
                 client=mock_client,
                 java_executable="java",
                 jvm_args=[],
-                bundles_folder=bundle_dir,
+                jars_root=[jars_root],
                 subprocess_logs_to_stdout=False,
             )
 
