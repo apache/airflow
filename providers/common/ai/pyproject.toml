@@ -97,7 +97,6 @@ dependencies = [
 ]
 "langchain" = [
     "langchain>=1.0.0",
-    "langchain-openai>=0.3.0",
 ]
 
 [dependency-groups]
@@ -113,7 +112,6 @@ dev = [
     "pydantic-ai-slim[mcp]",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
-    "langchain-openai>=0.3.0",
 ]
 
 # To build docs:

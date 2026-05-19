@@ -194,7 +194,10 @@ Install the ``langchain`` extra to use this hook::
 
     pip install apache-airflow-providers-common-ai[langchain]
 
-That extra pulls in ``langchain`` itself plus ``langchain-openai``. To use
-other providers, install their LangChain integration package separately
-(``pip install langchain-anthropic``, ``langchain-groq``,
-``langchain-cohere``, ...).
+That extra installs only ``langchain`` itself, since the framework is
+vendor-agnostic. Install the LangChain integration package for whichever
+provider(s) you intend to use:
+
+- ``langchain-openai`` -- OpenAI and OpenAI-compatible endpoints (Ollama, vLLM)
+- ``langchain-anthropic`` -- Anthropic
+- ``langchain-groq``, ``langchain-mistralai``, ``langchain-deepseek``, ``langchain-ollama``, ...
