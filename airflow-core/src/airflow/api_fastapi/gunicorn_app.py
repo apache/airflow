@@ -243,6 +243,7 @@ def create_gunicorn_app(
     worker_timeout: int,
     ssl_cert: str | None = None,
     ssl_key: str | None = None,
+    ssl_ca_file: str | None = None,
     log_level: str = "info",
     proxy_headers: bool = False,
 ) -> AirflowGunicornApp:
@@ -275,6 +276,8 @@ def create_gunicorn_app(
     if ssl_cert and ssl_key:
         options["certfile"] = ssl_cert
         options["keyfile"] = ssl_key
+        if ssl_ca_file:
+            options["ca_certs"] = ssl_ca_file
 
     if proxy_headers:
         options["forwarded_allow_ips"] = "*"

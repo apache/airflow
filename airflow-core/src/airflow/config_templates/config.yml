@@ -1767,6 +1767,13 @@ api:
       type: string
       example: ~
       default: ""
+    ssl_ca_file:
+      description: |
+        Path to the SSL CA file for the api server. Defaults to None.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param

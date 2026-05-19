@@ -106,6 +106,16 @@ class TestClient:
 
         assert isinstance(err.value, FileNotFoundError)
 
+    @mock.patch("airflow.sdk.api.client.API_SSL_CA_FILE_PATH", "/capath/does/not/exist/")
+    def test_ssl_with_cafile(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(FileNotFoundError) as err:
+            make_client(httpx.MockTransport(handle_request))
+
+        assert isinstance(err.value, FileNotFoundError)
+
     @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 60.0)
     def test_timeout_configuration(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
