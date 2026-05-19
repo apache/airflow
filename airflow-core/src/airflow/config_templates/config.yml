@@ -1804,7 +1804,7 @@ api:
         configured ``access_control_allow_origins`` and do not want browsers to send credentials
         (cookies, Authorization header) with cross-origin requests.
       type: boolean
-      version_added: 3.2.0
+      version_added: 3.2.2
       example: ~
       default: "True"
     grid_view_sorting_order:

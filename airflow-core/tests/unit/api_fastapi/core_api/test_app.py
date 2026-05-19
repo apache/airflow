@@ -21,15 +21,19 @@ import inspect
 import typing
 
 import pytest
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.core_api.app import init_config
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 
 pytestmark = pytest.mark.db_test
@@ -151,13 +155,6 @@ class TestCorsMiddlewareAllowCredentials:
         [(None, True), ("True", True), ("False", False)],
     )
     def test_init_config_passes_allow_credentials(self, config_value, expected_allow_credentials):
-        from fastapi import FastAPI
-        from fastapi.middleware.cors import CORSMiddleware
-
-        from airflow.api_fastapi.core_api.app import init_config
-
-        from tests_common.test_utils.config import conf_vars
-
         config = {("api", "access_control_allow_origins"): "https://example.com"}
         if config_value is not None:
             config[("api", "access_control_allow_credentials")] = config_value
