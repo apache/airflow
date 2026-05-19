@@ -69,8 +69,8 @@ def _upgrade_postgresql(conn, batch_size):
                         d.id AS deadline_id,
                         gen_random_uuid() AS callback_id,
                         COALESCE(dr.dag_id, '') AS dag_id,
-                        d.callback::jsonb->'__data__'->>'path' AS cb_path,
-                        d.callback::jsonb->'__data__'->'kwargs' AS cb_kwargs,
+                        COALESCE(d.callback::jsonb->'__data__'->>'path', '') AS cb_path,
+                        COALESCE(NULLIF(d.callback::jsonb->'__data__'->'kwargs', 'null'::jsonb), '{}'::jsonb) AS cb_kwargs,
                         CASE
                             WHEN d.callback_state IN (:state_success, :state_failed) THEN d.callback_state
                             ELSE :state_pending
@@ -177,6 +177,7 @@ def _upgrade_mysql_sqlite(conn, batch_size):
     )
 
     batch_num = 0
+    null_callback_count = 0
     while True:
         batch_num += 1
         batch = conn.execute(
@@ -199,11 +200,23 @@ def _upgrade_mysql_sqlite(conn, batch_size):
 
         for row in batch:
             callback_id = uuid6.uuid7()
-            cb = row.callback if isinstance(row.callback, dict) else json.loads(row.callback)
-            cb_inner = cb.get("__data__", cb)
+            raw_cb = row.callback
+            if raw_cb is None:
+                null_callback_count += 1
+                cb = {}
+            elif isinstance(raw_cb, dict):
+                cb = raw_cb
+            else:
+                cb = json.loads(raw_cb)
+            cb_inner = cb.get("__data__", cb) if isinstance(cb, dict) else {}
+            if not isinstance(cb_inner, dict):
+                cb_inner = {}
+            kwargs = cb_inner.get("kwargs", {})
+            if not isinstance(kwargs, dict):
+                kwargs = {}
             cb_data = {
-                "path": cb_inner.get("path", ""),
-                "kwargs": cb_inner.get("kwargs", {}),
+                "path": cb_inner.get("path", "") or "",
+                "kwargs": kwargs,
                 "prefix": _CALLBACK_METRICS_PREFIX,
                 "dag_id": row.dag_id or "",
             }
@@ -236,6 +249,12 @@ def _upgrade_mysql_sqlite(conn, batch_size):
             deadline_updates,
         )
         print(f"Migrated {len(batch)} deadline records in batch {batch_num}")
+
+    if null_callback_count:
+        print(
+            f"WARNING: {null_callback_count} deadline rows had NULL callback "
+            "(legacy 0080 data); migrated with empty envelope."
+        )
 
 
 def upgrade():
