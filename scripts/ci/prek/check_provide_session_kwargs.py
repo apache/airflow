@@ -132,6 +132,22 @@ def _count_violations(path: Path) -> int:
     return sum(1 for _ in _iter_positional_session_in_provide_session(path))
 
 
+def _is_safe_relative(rel: str) -> bool:
+    """Whether ``rel`` is a plain relative path that stays inside ``REPO_ROOT``.
+
+    Rejects absolute paths and any entry that resolves outside the repo root so
+    callers can ``relative_to(REPO_ROOT)`` without fear of a ``ValueError``.
+    """
+    candidate = Path(rel)
+    if candidate.is_absolute():
+        return False
+    try:
+        (REPO_ROOT / candidate).resolve().relative_to(REPO_ROOT.resolve())
+    except ValueError:
+        return False
+    return True
+
+
 class AllowlistManager:
     def __init__(self, allowlist_file: Path) -> None:
         self.allowlist_file = allowlist_file
@@ -150,9 +166,17 @@ class AllowlistManager:
                 continue
 
             try:
-                result[rel_str] = int(count_str)
+                count = int(count_str)
             except ValueError:
                 continue
+
+            if not _is_safe_relative(rel_str):
+                console.print(
+                    f"[yellow]Ignoring unsafe allowlist entry (escapes repo root):[/yellow] {rel_str}"
+                )
+                continue
+
+            result[rel_str] = count
 
         return result
 
@@ -218,6 +242,20 @@ def _iter_python_files() -> list[Path]:
 def _check_provide_session_kwargs(
     files: list[Path], allowlist: dict[str, int], manager: AllowlistManager
 ) -> int:
+    allowlist_file = manager.allowlist_file.resolve()
+    if any(p.resolve() == allowlist_file for p in files) and not allowlist_file.exists():
+        console.print(
+            Panel.fit(
+                f"Allowlist file [cyan]{allowlist_file}[/cyan] is missing.\n"
+                "It was passed to the hook but cannot be read, so the check cannot proceed.\n"
+                "Restore it from git or regenerate it with:\n\n"
+                "  [cyan]uv run ./scripts/ci/prek/check_provide_session_kwargs.py --generate[/cyan]",
+                title="[red]Check failed[/red]",
+                border_style="red",
+            )
+        )
+        return 1
+
     violations: list[tuple[Path, int, int]] = []
     tightened: list[tuple[str, int, int]] = []
 

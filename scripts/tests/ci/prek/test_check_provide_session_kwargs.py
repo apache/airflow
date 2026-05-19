@@ -21,6 +21,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from ci.prek import check_provide_session_kwargs as hook
 from ci.prek.check_provide_session_kwargs import (
     AllowlistManager,
     _check_provide_session_kwargs,
@@ -46,8 +47,6 @@ def find_violations(write_python_file):
 @pytest.fixture
 def fake_repo(tmp_path, monkeypatch):
     """Create a fake repo layout and patch REPO_ROOT so paths resolve correctly."""
-    import ci.prek.check_provide_session_kwargs as hook
-
     monkeypatch.setattr(hook, "REPO_ROOT", tmp_path)
 
     def _write(rel: str, code: str) -> Path:
@@ -211,6 +210,13 @@ class TestAllowlistManager:
         path.write_text("\nvalid/file.py::3\nnocount\n::5\nbad::notanumber\n")
         assert AllowlistManager(path).load() == {"valid/file.py": 3}
 
+    def test_load_skips_unsafe_entries(self, fake_repo, tmp_path):
+        """Entries that escape REPO_ROOT (absolute paths or `..` segments) are ignored."""
+        path = tmp_path / "allowlist.txt"
+        path.write_text("airflow-core/src/airflow/safe.py::1\n../escape.py::1\n/etc/passwd::1\n")
+        # `fake_repo` patches REPO_ROOT to tmp_path so the safety check is meaningful.
+        assert AllowlistManager(path).load() == {"airflow-core/src/airflow/safe.py": 1}
+
 
 class TestCheckProvideSessionKwargs:
     def test_no_violations_in_clean_file(self, fake_repo, tmp_path):
@@ -306,6 +312,13 @@ class TestCheckProvideSessionKwargs:
         )
         manager = AllowlistManager(tmp_path / "allowlist.txt")
         assert _check_provide_session_kwargs([path], {}, manager) == 0
+
+    def test_missing_allowlist_file_fails_loudly(self, fake_repo, tmp_path):
+        """Passing the allowlist path when the file is missing must fail, not silently pass."""
+        allowlist_path = tmp_path / "allowlist.txt"
+        manager = AllowlistManager(allowlist_path)
+        assert not allowlist_path.exists()
+        assert _check_provide_session_kwargs([allowlist_path.resolve()], {}, manager) == 1
 
 
 class TestExpandForAllowlistEdits:
