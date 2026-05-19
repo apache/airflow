@@ -20,7 +20,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
-import { buildParamsDictWithConfValues, useParamStore } from "src/queries/useParamStore";
+import { hydrateParams, useParamStore } from "src/queries/useParamStore";
 
 const buildSchema = (type: ParamSchema["type"], title: string): ParamSchema => ({
   const: undefined,
@@ -60,11 +60,9 @@ const renderParamStore = () => {
   return renderHook(() => useParamStore(`use-param-store-${namespaceId}`));
 };
 
-const parseConf = (conf: string): Record<string, unknown> => JSON.parse(conf) as Record<string, unknown>;
-
-describe("buildParamsDictWithConfValues", () => {
+describe("hydrateParams", () => {
   it("hydrates provider extra fields from existing raw JSON values", () => {
-    const paramsDict = buildParamsDictWithConfValues(snowflakeExtraFields, '{"account":"1234"}');
+    const paramsDict = hydrateParams(snowflakeExtraFields, '{"account":"1234"}');
 
     expect(paramsDict.account?.value).toBe("1234");
     expect(paramsDict.insecure_mode?.value).toBe(false);
@@ -72,7 +70,7 @@ describe("buildParamsDictWithConfValues", () => {
   });
 
   it("keeps raw JSON keys that are not declared by the provider schema", () => {
-    const paramsDict = buildParamsDictWithConfValues(snowflakeExtraFields, '{"warehouse":"raw"}');
+    const paramsDict = hydrateParams(snowflakeExtraFields, '{"warehouse":"raw"}');
 
     expect(paramsDict.warehouse?.value).toBe("raw");
   });
@@ -85,7 +83,7 @@ describe("useParamStore", () => {
     act(() => result.current.setConf('{"account":"1234","warehouse":"raw"}'));
     act(() => result.current.initializeParamsDict(snowflakeExtraFields));
 
-    expect(parseConf(result.current.conf)).toStrictEqual({
+    expect(JSON.parse(result.current.conf)).toStrictEqual({
       account: "1234",
       warehouse: "raw",
     });
@@ -98,7 +96,7 @@ describe("useParamStore", () => {
     act(() => result.current.setConf('{"account":"1234"}'));
     act(() => result.current.initializeParamsDict(snowflakeExtraFields));
 
-    expect(parseConf(result.current.conf)).toStrictEqual({ account: "1234" });
+    expect(JSON.parse(result.current.conf)).toStrictEqual({ account: "1234" });
   });
 
   it("serializes an unchanged boolean default after the user touches that field", () => {
@@ -117,7 +115,7 @@ describe("useParamStore", () => {
     insecureModeParam.value = false;
     act(() => result.current.setParamsDict(paramsDict, "insecure_mode"));
 
-    expect(parseConf(result.current.conf)).toStrictEqual({
+    expect(JSON.parse(result.current.conf)).toStrictEqual({
       account: "1234",
       insecure_mode: false,
     });
@@ -139,7 +137,7 @@ describe("useParamStore", () => {
     accountParam.value = "5678";
     act(() => result.current.setParamsDict(paramsDict, "account"));
 
-    expect(parseConf(result.current.conf)).toStrictEqual({
+    expect(JSON.parse(result.current.conf)).toStrictEqual({
       account: "5678",
       warehouse: "raw",
     });
@@ -161,9 +159,47 @@ describe("useParamStore", () => {
     accountParam.value = "1234";
     act(() => result.current.setParamsDict(paramsDict, "account"));
 
-    expect(parseConf(result.current.conf)).toStrictEqual({
+    expect(JSON.parse(result.current.conf)).toStrictEqual({
       account: "1234",
       warehouse: "raw",
     });
+  });
+
+  it("rehydrates provider fields without touching them after manual raw JSON edits", () => {
+    const { result } = renderParamStore();
+
+    act(() => result.current.setConf('{"account":"1234"}'));
+    act(() => result.current.initializeParamsDict(snowflakeExtraFields));
+    act(() => result.current.setInitialParamDict(snowflakeExtraFields));
+    act(() => result.current.setConf('{"warehouse":"raw"}'));
+
+    expect(Object.keys(result.current.paramsDict)).toStrictEqual(["account", "insecure_mode", "warehouse"]);
+    expect(result.current.paramsDict.account?.value).toBeUndefined();
+    expect(result.current.paramsDict.insecure_mode?.value).toBe(false);
+    expect(result.current.paramsDict.warehouse?.value).toBe("raw");
+    expect(JSON.parse(result.current.conf)).toStrictEqual({ warehouse: "raw" });
+    expect(result.current.touchedKeys.size).toBe(0);
+  });
+
+  it("clears touched keys and conf on params reset", () => {
+    const { result } = renderParamStore();
+
+    act(() => result.current.setConf('{"account":"1234"}'));
+    act(() => result.current.initializeParamsDict(snowflakeExtraFields));
+
+    const paramsDict = structuredClone(result.current.paramsDict);
+    const accountParam = paramsDict.account;
+
+    if (accountParam === undefined) {
+      throw new Error("Expected account param");
+    }
+
+    accountParam.value = "5678";
+    act(() => result.current.setParamsDict(paramsDict, "account"));
+    act(() => result.current.setParamsDict({}));
+
+    expect(JSON.parse(result.current.conf)).toStrictEqual({});
+    expect(result.current.paramsDict).toStrictEqual({});
+    expect(result.current.touchedKeys.size).toBe(0);
   });
 });
