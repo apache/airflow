@@ -30,6 +30,7 @@ __all__ = ["TaskInstance", "TaskInstanceKey"]
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    import jinja2
     from pydantic import AwareDatetime, JsonValue
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
@@ -135,10 +136,18 @@ class RuntimeTaskInstanceProtocol(Protocol):
     start_date: AwareDatetime
     end_date: AwareDatetime | None = None
     state: TaskInstanceState | None = None
+    is_mapped: bool | None = None
+    rendered_map_index: str | None = None
+
+    @property
+    def log_url(self) -> str: ...
+
+    @property
+    def mark_success_url(self) -> str: ...
 
     def xcom_pull(
         self,
-        task_ids: str | list[str] | None = None,
+        task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = BaseXCom.XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
@@ -152,7 +161,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_template_context(self) -> Context: ...
 
-    def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
+    def render_templates(
+        self,
+        context: Context | None = None,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> BaseOperator: ...
+
+    def get_first_reschedule_date(self, context: Context) -> AwareDatetime | None: ...
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
 
