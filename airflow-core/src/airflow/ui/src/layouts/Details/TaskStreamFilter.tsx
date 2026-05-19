@@ -22,8 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiFilter, FiInfo } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { IconButton } from "src/components/ui";
-import { Tooltip } from "src/components/ui";
+import { IconButton, Tooltip } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
