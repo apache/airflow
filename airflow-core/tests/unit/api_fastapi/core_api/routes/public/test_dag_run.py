@@ -24,14 +24,18 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from fastapi.testclient import TestClient
+from sqlalchemy import func, select, update
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -2811,6 +2815,63 @@ class TestBulkDagRuns:
         assert body["update"]["success"] == []
         assert len(body["update"]["errors"]) == 1
         assert body["update"]["errors"][0]["status_code"] == 405
+
+    def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        """A user with no team access can delete runs of their accessible Dag but is rejected for restricted Dags."""
+        restricted_bundle_name = "restricted-bundle-delete"
+        restricted_team_name = "restricted-team-delete"
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        # Restrict DAG2 by attaching it to a team-scoped bundle the limited user has no access to.
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG2_ID).values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                                {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["delete"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        assert body["delete"]["errors"] == [
+            {
+                "error": f"User is not authorized to delete Dag Runs for DAG '{DAG2_ID}'",
+                "status_code": 403,
+            }
+        ]
+        session.expire_all()
+        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID)) is None
+        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG2_RUN1_ID)) is not None
 
     def test_bulk_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={"actions": []})

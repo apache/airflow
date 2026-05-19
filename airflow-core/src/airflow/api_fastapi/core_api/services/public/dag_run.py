@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import attrs
 import structlog
 from fastapi import status
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -130,7 +130,7 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
     def _check_dag_authorization(
         self,
         dag_id: str,
-        method: Literal["GET", "POST", "PUT", "DELETE"],
+        method: Literal["DELETE"],
         action_name: str,
         cache: dict[str, bool],
         results: BulkActionResponse,
@@ -164,12 +164,12 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
     ) -> tuple[dict[tuple[str, str], DagRun], set[tuple[str, str]]]:
         if not keys:
             return {}, set()
-        dag_ids = {dag_id for dag_id, _ in keys}
-        run_ids = {run_id for _, run_id in keys}
+        # Use tuple-based ``IN`` so cross-Dag bulk requests don't fan out into a Cartesian
+        # match over ``dag_id IN (...) AND run_id IN (...)`` — see ``BulkTaskInstanceService``.
         dag_runs = self.session.scalars(
-            select(DagRun).where(DagRun.dag_id.in_(dag_ids), DagRun.run_id.in_(run_ids))
+            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
         ).all()
-        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs if (dr.dag_id, dr.run_id) in keys}
+        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
         not_found = keys - dag_run_map.keys()
         return dag_run_map, not_found
 
