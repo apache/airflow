@@ -3311,7 +3311,6 @@ class TestInProcessTestSupervisor:
 
         task = FailingOperator(task_id="failing", on_failure_callback=failure_callback)
 
-        # Assign a minimal DAG to the operator so `task.dag` access succeeds
         task.dag = DAG(dag_id="test_dag")
 
         # Create a simple TaskInstance datamodel to pass to the supervisor
