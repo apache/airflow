@@ -17,8 +17,7 @@
 
 from __future__ import annotations
 
-import collections
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Iterable
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
@@ -26,11 +25,12 @@ import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import exists, select
-from sqlalchemy.orm import Session, joinedload, load_only, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -55,6 +55,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.grid import (
+    GridNodeAgg,
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
@@ -63,13 +64,11 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
-from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -307,16 +306,8 @@ def get_grid_runs(
                 DagRun.run_type,
                 DagRun.bundle_version,
             ),
-            joinedload(DagRun.dag_model).load_only(DagModel._dag_display_property_value),
             joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
-            selectinload(DagRun.task_instances)
-            .load_only(TaskInstance.dag_version_id)
-            .joinedload(TaskInstance.dag_version)
-            .joinedload(DagVersion.bundle),
-            selectinload(DagRun.task_instances_histories)
-            .load_only(TaskInstanceHistory.dag_version_id)
-            .joinedload(TaskInstanceHistory.dag_version)
-            .joinedload(DagVersion.bundle),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.dag_model),
         )
     )
 
@@ -338,43 +329,67 @@ def get_grid_runs(
         return_total_entries=False,
     )
     results = session.execute(dag_runs_select_filter).unique().all()
+    dag_runs = [run for run, _ in results]
+    attach_dag_versions_to_runs(dag_runs, session=session)
     grid_runs = []
     for run, has_missed in results:
-        run.has_missed_deadline = has_missed
-        grid_runs.append(GridRunsResponse.model_validate(run, from_attributes=True))
+        grid_runs.append(
+            GridRunsResponse.model_validate(
+                {
+                    "dag_id": run.dag_id,
+                    "run_id": run.run_id,
+                    "queued_at": run.queued_at,
+                    "start_date": run.start_date,
+                    "end_date": run.end_date,
+                    "run_after": run.run_after,
+                    "state": run.state,
+                    "run_type": run.run_type,
+                    "dag_versions": run.dag_versions,
+                    "has_missed_deadline": has_missed,
+                }
+            )
+        )
     return grid_runs
 
 
 def _build_ti_summaries(
     dag_id: str,
     run_id: str,
-    task_instances: Sequence,
+    task_instances: Iterable[Any],
     session: Session,
     *,
     dag_bag: DBDagBag,
-) -> dict:
-    ti_details: dict = collections.defaultdict(list)
+    serdag: SerializedDAG | None = None,
+    serdag_cache: dict[Any, SerializedDAG | None] | None = None,
+) -> dict[str, Any] | None:
+    ti_details: dict[str, GridNodeAgg] = {}
+    dag_version_id = None
     for ti in task_instances:
-        ti_details[ti.task_id].append(
-            {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-                "dag_version_number": getattr(ti, "version_number", None),
-            }
+        dag_version_id = dag_version_id or ti.dag_version_id
+        summary = ti_details.get(ti.task_id)
+        if summary is None:
+            summary = ti_details[ti.task_id] = GridNodeAgg()
+        summary.add_ti(
+            state=ti.state,
+            start_date=ti.start_date,
+            end_date=ti.end_date,
+            dag_version_number=getattr(ti, "version_number", None),
         )
-    serdag = _get_serdag(
-        dag_bag,
-        dag_id,
-        task_instances[0].dag_version_id,
-        session,
-    )
+    if not ti_details:
+        return None
+    if serdag is None:
+        if serdag_cache is not None:
+            if dag_version_id not in serdag_cache:
+                serdag_cache[dag_version_id] = _get_serdag(dag_bag, dag_id, dag_version_id, session)
+            serdag = serdag_cache[dag_version_id]
+        else:
+            serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
     if TYPE_CHECKING:
         assert serdag
 
-    def get_node_summaries():
+    def get_node_summaries() -> Iterable[dict[str, Any]]:
         yielded_task_ids: set[str] = set()
-        for node in _find_aggregates(
+        for node, _ in _find_aggregates(
             node=serdag.task_group,
             parent_node=None,
             ti_details=ti_details,
@@ -453,6 +468,7 @@ def get_grid_ti_summaries_stream(
     """
 
     def _generate() -> Generator[str, None, None]:
+        serdag_cache: dict[Any, SerializedDAG | None] = {}
 
         # Each iteration opens and closes its own DB session so the connection is
         # released between yields.  This prevents a slow client from holding a
@@ -473,10 +489,18 @@ def get_grid_ti_summaries_stream(
                     .where(TaskInstance.dag_id == dag_id)
                     .where(TaskInstance.run_id == run_id)
                     .order_by(TaskInstance.task_id)
-                ).all()
-                if not tis:
-                    continue
-                summary = _build_ti_summaries(dag_id, run_id, tis, session, dag_bag=dag_bag)
+                    .execution_options(yield_per=1000)
+                )
+                summary = _build_ti_summaries(
+                    dag_id,
+                    run_id,
+                    tis,
+                    session,
+                    dag_bag=dag_bag,
+                    serdag_cache=serdag_cache,
+                )
+            if summary is None:
+                continue
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")
