@@ -260,6 +260,20 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
+# MySQL flavor names exported to the container env (consumed by entrypoint_ci.sh and the
+# MariaDB-flavored compose override). The "mysql" backend can be served by either upstream
+# MySQL (default) or MariaDB — they share the wire protocol and SQLAlchemy's mysql dialect
+# detects MariaDB at runtime via server handshake (sets ``dialect.is_mariadb``). The
+# selection is driven entirely by whether --mariadb-version is set; airflow itself still
+# sees BACKEND=mysql and connects with a mysql+pymysql:// URL in either case.
+MYSQL_FLAVOR_MYSQL = "mysql"
+MYSQL_FLAVOR_MARIADB = "mariadb"
+
+# MariaDB releases tested by the compat canary workflow. 10.11 is the oldest community
+# release still receiving upstream patches; 11.4 and 11.8 are the current LTS lines.
+ALLOWED_MARIADB_VERSIONS = ["10.11", "11.4", "11.8"]
+DEFAULT_MARIADB_VERSION = ALLOWED_MARIADB_VERSIONS[-1]
+
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.1.1"

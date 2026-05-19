@@ -95,6 +95,26 @@ last selected backend and version.
   if you set ``BACKEND_VERSION`` to ``8.0`` and you are using ``--backend postgres``, the last used Postgres
   version will be used.
 
+Testing against MariaDB
+^^^^^^^^^^^^^^^^^^^^^^^
+
+MariaDB is wire-compatible with MySQL, and SQLAlchemy's mysql dialect detects MariaDB at runtime
+(``dialect.is_mariadb``). Airflow does not officially list MariaDB as a supported backend, but
+passing ``--mariadb-version`` swaps the upstream MySQL container for a MariaDB image while keeping
+the same connection URL (``mysql+pymysql://``) and ``BACKEND=mysql`` env var. The same airflow-core
+code exercises both servers. Leave ``--mariadb-version`` unset to run against MySQL with
+``--mysql-version`` as usual.
+
+.. code-block:: bash
+
+    breeze --backend mysql --mariadb-version 11.8
+
+MariaDB support is exercised on a weekly schedule by the ``mariadb-compat-canary`` GitHub Actions
+workflow (``.github/workflows/mariadb-compat-canary.yml``); it is not part of the per-PR matrix.
+You can trigger that workflow on demand from the Actions tab before merging changes that touch
+migrations, ``utils/db.py``, ``utils/sqlalchemy.py``, or any code path that uses MySQL-only SQL
+syntax (``REGEXP_REPLACE`` arity, ``DELETE...RETURNING`` in CTE/EXISTS, etc.).
+
 Breeze will inform you at startup which backend and version it is using:
 
 .. raw:: html

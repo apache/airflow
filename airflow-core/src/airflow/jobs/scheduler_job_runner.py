@@ -3115,7 +3115,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .group_by(AssetModel.id)
         )
 
-        orphan_query = asset_reference_query.having(orphaned).cte()
+        orphan_query = asset_reference_query.having(orphaned).subquery()
         activate_query = asset_reference_query.having(~orphaned).cte()
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
@@ -3123,7 +3123,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._cleanup_orphaned_asset_state(session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _orphan_unreferenced_assets(assets_query: Subquery, *, session: Session) -> None:
         deleted_orphaned_assets = session.execute(
             delete(AssetActive).where(
                 exists().where(

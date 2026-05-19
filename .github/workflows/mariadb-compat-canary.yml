@@ -1,0 +1,114 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# MariaDB compatibility canary.
+#
+# Airflow officially supports MySQL; this workflow exercises the same code
+# paths against a MariaDB server (selected via Breeze's --mariadb-version)
+# to catch divergences early.
+#
+# This workflow is decoupled from the per-PR matrix on purpose: it runs on a
+# weekly schedule and on manual dispatch, so it does not add latency or cost
+# to normal contributor PRs. Failures should be triaged into either an
+# Airflow-side fix (using is_mariadb) or a tracking issue.
+#
+# Trigger manually before merging code that touches:
+#   - airflow-core/src/airflow/migrations/versions/
+#   - airflow-core/src/airflow/utils/{db,sqlalchemy,db_cleanup}.py
+#   - any code that calls REGEXP_REPLACE or other MySQL-only SQL functions.
+---
+name: "MariaDB compatibility canary"
+
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    # Mondays at 06:00 UTC. Weekly is enough — MariaDB regressions are rare and
+    # this workflow is informational, not a PR gate.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      mariadb-versions:
+        description: >-
+          JSON array of MariaDB versions to test. Default is the current LTS only ('["11.8"]');
+        required: false
+        default: '["11.8"]'
+        type: string
+      python-version:
+        description: "Python version to run tests under."
+        required: false
+        default: "3.10"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One run at a time; cancel in-flight runs on re-trigger.
+  group: mariadb-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mariadb-canary:
+    name: "MariaDB ${{ matrix.mariadb-version }} / Py ${{ inputs.python-version || '3.10' }}"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb-version: ${{ fromJSON(inputs.mariadb-versions || '["11.8"]') }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.python-version || '3.10' }}
+      BACKEND: mysql
+      MARIADB_VERSION: ${{ matrix.mariadb-version }}
+      DEFAULT_BRANCH: ${{ github.ref_name }}
+      DB_RESET: "true"
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Build CI image"
+        shell: bash
+        run: >
+          breeze ci-image build
+          --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --platform linux/amd64
+      - name: "Run db_test marker against MariaDB ${{ matrix.mariadb-version }}"
+        shell: bash
+        # Only @pytest.mark.db_test tests run; that is the subset that actually
+        # exercises the metadata DB and where MariaDB divergence can show up.
+        # Non-DB tests are deliberately skipped — they are already covered by
+        # the per-PR matrix and would be redundant here.
+        run: >
+          breeze testing core-tests
+          --backend mysql
+          --mariadb-version "${MARIADB_VERSION}"
+          --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --run-db-tests-only
+          --run-in-parallel
+      - name: "Stop docker compose containers"
+        shell: bash
+        if: always()
+        run: breeze down --cleanup-mypy-cache --cleanup-volumes || true

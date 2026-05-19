@@ -44,6 +44,7 @@ TEST_ENVIRONMENT_DB: dict[str, str | list[str]] = {
         "--python",
         "--postgres-version",
         "--mysql-version",
+        "--mariadb-version",
         "--forward-credentials",
         "--force-sa-warnings",
     ],

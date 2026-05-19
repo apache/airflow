@@ -118,7 +118,11 @@ function environment_initialization() {
     if [[ ${BACKEND=} == "postgres" ]]; then
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Postgres: ${POSTGRES_VERSION}"
     elif [[ ${BACKEND=} == "mysql" ]]; then
-        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MySQL: ${MYSQL_VERSION}"
+        if [[ ${MYSQL_FLAVOR=} == "mariadb" ]]; then
+            echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MariaDB: ${MARIADB_VERSION} (mysql-flavored)"
+        else
+            echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MySQL: ${MYSQL_VERSION}"
+        fi
     elif [[ ${BACKEND=} == "sqlite" ]]; then
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Sqlite"
     elif [[ ${BACKEND=} == "custom" ]]; then

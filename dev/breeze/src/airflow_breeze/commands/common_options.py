@@ -28,6 +28,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_LLM_MODELS,
+    ALLOWED_MARIADB_VERSIONS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -54,6 +55,7 @@ from airflow_breeze.utils.custom_param_types import (
     DryRunOption,
     MySQLBackendVersionChoice,
     NotVerifiedBetterChoice,
+    OptionalBackendVersionChoice,
     UseAirflowVersionType,
     VerboseOption,
 )
@@ -324,6 +326,17 @@ option_mysql_version = click.option(
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     envvar="MYSQL_VERSION",
     show_default=True,
+)
+option_mariadb_version = click.option(
+    "--mariadb-version",
+    help=(
+        "Version of MariaDB to run. When set, Breeze starts a MariaDB image instead of MySQL "
+        "and --mysql-version is ignored; airflow still connects via mysql+pymysql:// and "
+        "SQLAlchemy detects MariaDB at runtime. Leave unset (default) to use MySQL."
+    ),
+    type=OptionalBackendVersionChoice(ALLOWED_MARIADB_VERSIONS),
+    default="",
+    envvar="MARIADB_VERSION",
 )
 option_no_db_cleanup = click.option(
     "--no-db-cleanup",
