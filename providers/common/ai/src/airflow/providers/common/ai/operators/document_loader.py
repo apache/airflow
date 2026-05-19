@@ -69,7 +69,6 @@ class DocumentLoaderOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "source_path",
-        "source_bytes",
         "metadata_fields",
     )
 
@@ -94,11 +93,11 @@ class DocumentLoaderOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        if source_path and source_bytes:
+        if source_path is not None and source_bytes is not None:
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
-        if not source_path and not source_bytes:
+        if source_path is None and source_bytes is None:
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
-        if source_bytes and not file_type:
+        if source_bytes is not None and file_type is None:
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
 
         self.source_path = source_path
@@ -109,11 +108,13 @@ class DocumentLoaderOperator(BaseOperator):
         self.metadata_fields = metadata_fields
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
-        if self.source_bytes:
+        if self.source_bytes is not None:
             documents = self._parse_bytes(self.source_bytes, self.file_type)
             file_count = 1
         else:
             files = self._resolve_files(self.source_path)
+            if not files:
+                raise FileNotFoundError(f"No files found matching '{self.source_path}'.")
             file_count = len(files)
             documents = []
             for file_path in files:
@@ -144,7 +145,7 @@ class DocumentLoaderOperator(BaseOperator):
         results = [p for p in candidates if p.is_file()]
 
         if self.file_extensions:
-            allowed = {ext if ext.startswith(".") else f".{ext}" for ext in self.file_extensions}
+            allowed = {(ext if ext.startswith(".") else f".{ext}").lower() for ext in self.file_extensions}
             results = [p for p in results if p.suffix.lower() in allowed]
 
         return results
@@ -155,9 +156,9 @@ class DocumentLoaderOperator(BaseOperator):
 
         if backend in ("pypdf", "python-docx"):
             with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-                tmp.write(raw)
                 tmp_path = Path(tmp.name)
             try:
+                tmp_path.write_bytes(raw)
                 return self._parse_file(tmp_path, ext)
             finally:
                 os.unlink(tmp_path)
@@ -228,7 +229,10 @@ class DocumentLoaderOperator(BaseOperator):
         data = json.loads(text)
         if isinstance(data, list):
             return [
-                {"text": json.dumps(item, ensure_ascii=False), "metadata": {"item_index": idx}}
+                {
+                    "text": item if isinstance(item, str) else json.dumps(item, ensure_ascii=False),
+                    "metadata": {"item_index": idx},
+                }
                 for idx, item in enumerate(data)
             ]
         return [{"text": json.dumps(data, ensure_ascii=False), "metadata": {}}]
@@ -236,11 +240,10 @@ class DocumentLoaderOperator(BaseOperator):
     def _parse_pdf(self, file_path: Path) -> list[dict[str, Any]]:
         try:
             from pypdf import PdfReader
-        except ImportError:
-            raise ImportError(
-                "pypdf is required for PDF parsing. "
-                "Install it with: pip install apache-airflow-providers-common-ai[pdf]"
-            )
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
 
         reader = PdfReader(str(file_path))
         documents = []
@@ -256,13 +259,19 @@ class DocumentLoaderOperator(BaseOperator):
         return documents
 
     def _parse_docx(self, file_path: Path) -> list[dict[str, Any]]:
+        """
+        Parse a DOCX file into documents.
+
+        Extracts paragraph text only. Tables, headers, footers, and footnotes
+        are not included. For comprehensive DOCX parsing, use Unstructured or
+        Docling as a custom parser backend.
+        """
         try:
             from docx import Document
-        except ImportError:
-            raise ImportError(
-                "python-docx is required for DOCX parsing. "
-                "Install it with: pip install apache-airflow-providers-common-ai[docx]"
-            )
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
 
         doc = Document(str(file_path))
         paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]

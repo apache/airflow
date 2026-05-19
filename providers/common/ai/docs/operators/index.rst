@@ -21,7 +21,7 @@ Common AI Operators
 Choosing the right operator
 ---------------------------
 
-The common-ai provider ships five operators (and matching ``@task`` decorators). Use this table
+The common-ai provider ships several operators (and matching ``@task`` decorators). Use this table
 to pick the one that fits your use case:
 
 .. list-table::
@@ -65,6 +65,10 @@ read files) to produce its answer. You configure available tools through ``tools
 
 AgentOperator *works* without toolsets — pydantic-ai supports tool-less agents for multi-turn
 reasoning — but if you don't need tools, ``LLMOperator`` is simpler and more explicit.
+
+**DocumentLoaderOperator** — framework-agnostic file parsing. Use this to convert files
+(text, CSV, JSON, PDF, DOCX) into ``list[dict(text, metadata)]`` for downstream embedding.
+No AI framework dependency.
 
 Operator guides
 ---------------

@@ -26,7 +26,7 @@ from airflow.providers.common.ai.operators.document_loader import DocumentLoader
 
 class TestDocumentLoaderInit:
     def test_template_fields(self):
-        expected = {"source_path", "source_bytes", "metadata_fields"}
+        expected = {"source_path", "metadata_fields"}
         assert set(DocumentLoaderOperator.template_fields) == expected
 
     def test_both_sources_raises(self):
@@ -40,6 +40,10 @@ class TestDocumentLoaderInit:
     def test_source_bytes_without_file_type_raises(self):
         with pytest.raises(ValueError, match="file_type"):
             DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
+
+    def test_empty_bytes_without_file_type_raises(self):
+        with pytest.raises(ValueError, match="file_type"):
+            DocumentLoaderOperator(task_id="test", source_bytes=b"")
 
 
 class TestTextParser:
@@ -110,6 +114,18 @@ class TestJsonParser:
         assert len(result) == 1
         assert "key" in result[0]["text"]
 
+    def test_json_string_primitives(self, tmp_path):
+        f = tmp_path / "strings.json"
+        f.write_text('["alpha", "beta", "gamma"]', encoding="utf-8")
+
+        op = DocumentLoaderOperator(task_id="test", source_path=str(f))
+        result = op.execute(context=MagicMock())
+
+        assert len(result) == 3
+        assert result[0]["text"] == "alpha"
+        assert result[1]["text"] == "beta"
+        assert result[2]["text"] == "gamma"
+
     def test_json_from_bytes(self):
         raw = b'[{"a": 1}, {"b": 2}]'
         op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".json")
@@ -171,13 +187,15 @@ class TestPdfParser:
 
         assert len(result) == 0
 
-    def test_pdf_missing_raises_importerror(self, tmp_path):
+    def test_pdf_missing_raises_optional_feature_exception(self, tmp_path):
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
         f = tmp_path / "doc.pdf"
         f.write_bytes(b"fake pdf")
 
         with patch.dict("sys.modules", {"pypdf": None}):
             op = DocumentLoaderOperator(task_id="test", source_path=str(f))
-            with pytest.raises(ImportError, match="apache-airflow-providers-common-ai\\[pdf\\]"):
+            with pytest.raises(AirflowOptionalProviderFeatureException):
                 op.execute(context=MagicMock())
 
 
@@ -205,13 +223,15 @@ class TestDocxParser:
         assert "First paragraph" in result[0]["text"]
         assert "Second paragraph" in result[0]["text"]
 
-    def test_docx_missing_raises_importerror(self, tmp_path):
+    def test_docx_missing_raises_optional_feature_exception(self, tmp_path):
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
         f = tmp_path / "doc.docx"
         f.write_bytes(b"fake docx")
 
         with patch.dict("sys.modules", {"docx": None}):
             op = DocumentLoaderOperator(task_id="test", source_path=str(f))
-            with pytest.raises(ImportError, match="apache-airflow-providers-common-ai\\[docx\\]"):
+            with pytest.raises(AirflowOptionalProviderFeatureException):
                 op.execute(context=MagicMock())
 
 
@@ -247,11 +267,10 @@ class TestFileDiscovery:
         assert len(result) == 1
         assert result[0]["text"] == "keep me"
 
-    def test_empty_directory_returns_empty(self, tmp_path):
+    def test_empty_directory_raises_file_not_found(self, tmp_path):
         op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path))
-        result = op.execute(context=MagicMock())
-
-        assert result == []
+        with pytest.raises(FileNotFoundError, match="No files found"):
+            op.execute(context=MagicMock())
 
     def test_unknown_extension_raises(self, tmp_path):
         f = tmp_path / "data.xyz"
@@ -260,6 +279,21 @@ class TestFileDiscovery:
         op = DocumentLoaderOperator(task_id="test", source_path=str(f))
         with pytest.raises(ValueError, match="No parser registered"):
             op.execute(context=MagicMock())
+
+    def test_nonexistent_glob_raises_file_not_found(self, tmp_path):
+        op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path / "*.nope"))
+        with pytest.raises(FileNotFoundError, match="No files found"):
+            op.execute(context=MagicMock())
+
+    def test_file_extensions_case_insensitive(self, tmp_path):
+        (tmp_path / "keep.txt").write_text("keep me", encoding="utf-8")
+        (tmp_path / "skip.md").write_text("skip me", encoding="utf-8")
+
+        op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path), file_extensions=[".TXT"])
+        result = op.execute(context=MagicMock())
+
+        assert len(result) == 1
+        assert result[0]["text"] == "keep me"
 
 
 class TestOutputShape:

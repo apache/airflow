@@ -85,6 +85,13 @@ Install the ``docx`` extra to parse Word documents via
 
 All non-empty paragraphs are concatenated into a single document per file.
 
+.. note::
+
+   DOCX extraction reads paragraph text only. Tables, headers, footers, and
+   footnotes are not included. For comprehensive DOCX parsing, use a dedicated
+   document extraction tool like Unstructured or Docling as a custom parser
+   backend.
+
 Glob patterns and filtering
 ----------------------------
 
@@ -164,16 +171,23 @@ a ``@task`` that maps fields to text and metadata is more appropriate than
 Loading from bytes
 ------------------
 
-When upstream tasks pass file content via XCom, use ``source_bytes`` with
-an explicit ``file_type``:
+When upstream tasks produce file content as bytes, pass them directly via a
+``@task`` function. Note that ``source_bytes`` is not a template field because
+Jinja stringifies ``bytes`` to their ``repr``, which breaks binary parsing:
 
 .. code-block:: python
 
-    load = DocumentLoaderOperator(
-        task_id="load",
-        source_bytes="{{ ti.xcom_pull(task_ids='fetch_file') }}",
-        file_type=".pdf",
-    )
+    from airflow.decorators import task
+    from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
+
+    @task
+    def parse_downloaded_pdf(raw_bytes: bytes) -> list[dict]:
+        op = DocumentLoaderOperator(
+            task_id="parse_pdf",
+            source_bytes=raw_bytes,
+            file_type=".pdf",
+        )
+        return op.execute(context=get_current_context())
 
 Parameters
 ----------
