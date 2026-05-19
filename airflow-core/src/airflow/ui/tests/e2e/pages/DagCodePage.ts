@@ -29,7 +29,7 @@ export class DagCodePage extends BasePage {
   public constructor(page: Page) {
     super(page);
     this.editorContainer = page.locator('[role="code"]');
-    this.lineNumbers = page.locator(".monaco-editor .line-numbers");
+    this.lineNumbers = page.locator(".monaco-editor .margin-view-overlays .line-numbers");
     this.editorScrollable = page.locator(".monaco-scrollable-element");
     this.syntaxTokens = page.locator(".monaco-editor .view-line span span");
     this.viewLines = page.locator(".monaco-editor .view-line");
