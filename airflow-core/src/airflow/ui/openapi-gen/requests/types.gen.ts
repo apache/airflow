@@ -2246,6 +2246,7 @@ export type GridNodeResponse = {
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
+    doc_md?: string | null;
 };
 
 /**

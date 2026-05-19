@@ -20,7 +20,7 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
+from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict, task_group_to_dict_grid
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -241,6 +241,24 @@ def test_task_group_to_dict_alternative_syntax():
     serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
+
+
+def test_task_group_to_dict_grid_includes_task_group_doc_md(dag_maker):
+    logical_date = pendulum.parse("20200101")
+    with dag_maker("test_task_group_to_dict_doc_md", schedule=None, start_date=logical_date) as dag:
+        with TaskGroup("group234", doc_md="### TaskGroup Documentation"):
+            EmptyOperator(task_id="task1", doc_md="### Task Documentation")
+
+    serialized_dag = create_scheduler_dag(dag)
+    group = serialized_dag.task_group_dict["group234"]
+
+    graph_node = task_group_to_dict(group)
+    assert "doc_md" not in graph_node
+    assert "doc_md" not in graph_node["children"][0]
+
+    grid_node = task_group_to_dict_grid(group)
+    assert grid_node["doc_md"] == "### TaskGroup Documentation"
+    assert "doc_md" not in grid_node["children"][0]
 
 
 def extract_node_id(node, include_label=False):
