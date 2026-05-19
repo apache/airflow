@@ -2148,10 +2148,9 @@ def main():
         finally:
             # Ensure the request socket is closed on the child side in all circumstances
             # before the process fully terminates.
-            with detail_span("close_socket"):
-                if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
-                    with suppress(Exception):
-                        SUPERVISOR_COMMS.socket.close()
+            if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
+                with suppress(Exception):
+                    SUPERVISOR_COMMS.socket.close()
 
 
 def reinit_supervisor_comms() -> None:
