@@ -55,7 +55,6 @@ def fake_repo(tmp_path, monkeypatch):
         path.write_text(textwrap.dedent(code))
         return path
 
-    _write.root = tmp_path  # type: ignore[attr-defined]
     return _write
 
 
