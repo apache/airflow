@@ -1081,11 +1081,18 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+            # TODO: make the empty parent context optional. Default should be to
+            # nest the dag run span under the currently active parent span (by
+            # omitting `context` here); only use the empty `context.Context()` to
+            # force a root span when Airflow itself initiates the run (e.g. dag
+            # triggered via API, scheduler, or backfill). Today this forces a
+            # root span unconditionally.
+            # Tracked at https://github.com/apache/airflow/issues/67210
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
-                context=context.Context(),  # maybe need to make optional!!!
+                context=context.Context(),
             )
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
