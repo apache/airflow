@@ -1257,8 +1257,8 @@ components:
       - queue
       - priority_weight
       title: TaskInstanceDTO
-      description: Schema for TaskInstance with minimal required fields needed for
-        Executors and Task SDK.
+      description: TaskInstanceDTO with executor-specific ``external_executor_id``
+        field and ``key`` property.
     TaskInstanceState:
       type: string
       enum:

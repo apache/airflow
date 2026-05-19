@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add callback support to AWS batch executor (#62984)``
+
+Misc
+~~~~
+
+* ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-26 (#65902)``
+   * ``Providers wave 2026-04-26``
+   * ``Add CeleryExecutor callback workload routing test (#66435)``
+   * ``Adjust log message header for expandable sources (#66570)``
+   * ``Fix flaky test_celery_integration with deterministic task registration (#66602)``
+   * ``Add Celery worker workload dispatch regression tests (#65849)``
+   * ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+
 3.19.0
 ......
 
