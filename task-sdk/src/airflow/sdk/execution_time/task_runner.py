@@ -2122,19 +2122,19 @@ def main():
                     Status(StatusCode.ERROR, description=f"Exception: {type(reschedule).__name__}")
                 )
                 sys.exit(0)
-            with detail_span("run"):
-                with BundleVersionLock(
-                    bundle_name=ti.bundle_instance.name,
-                    bundle_version=ti.bundle_instance.version,
-                ):
-                    state, _, error = run(ti, context, log)
-                    context["exception"] = error
-                    finalize(ti, state, context, log, error)
-                    # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
-                    # state to the supervisor, fail closed now — finalize() has
-                    # already run, so callbacks and listeners observed the state.
-                    if getattr(ti, "_terminal_state_send_failed", False):
-                        sys.exit(1)
+            with BundleVersionLock(
+                bundle_name=ti.bundle_instance.name,
+                bundle_version=ti.bundle_instance.version,
+            ):
+                state, _, error = run(ti, context, log)
+                context["exception"] = error
+                finalize(ti, state, context, log, error)
+                # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
+                # state to the supervisor, fail closed now — finalize() has
+                # already run, so callbacks and listeners observed the state.
+                if getattr(ti, "_terminal_state_send_failed", False):
+                    sys.exit(1)
+        except KeyboardInterrupt:
         except KeyboardInterrupt as e:
             log.exception("Ctrl-c hit")
             span.record_exception(e)
