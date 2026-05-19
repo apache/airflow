@@ -49,6 +49,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix 'None' Task ID state when matching states in 'ExternalTaskSensor' (#66881)``
+* ``Fix error messages in 'PythonVirtualenvOperator' when Azure Key Vault secret backend is configured (#67157)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

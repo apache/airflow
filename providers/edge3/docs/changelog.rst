@@ -47,6 +47,7 @@ Misc
 
 * ``Bump the edge-ui-package-updates group across 1 directory with 15 updates (#67002)``
 * ``Bump the edge-ui-package-updates group across 1 directory with 6 updates (#66532)``
+* ``Regenerate Edge worker OpenAPI spec after #67093 env upgrade (#67188)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

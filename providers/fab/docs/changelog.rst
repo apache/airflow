@@ -40,6 +40,7 @@ Misc
 * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#66742)``
 * ``Bump stylelint (#66528)``
 * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#66429)``
+* ``Bump stylelint (#67148)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

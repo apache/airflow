@@ -48,6 +48,7 @@ Features
 * ``Add BedrockUpdateGuardrailOperator (#66547)``
 * ``Add GlueCatalogCreatePartitionOperator (#66546)``
 * ``Add MwaaServerlessWorkflowRunSensor (#66382)``
+* ``Add 'BedrockCreateEvaluationJobOperator' (#66722)``
 
 Bug Fixes
 ~~~~~~~~~

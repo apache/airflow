@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ======================================
 ``aiofiles``                                ``>=23.2.0``
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-common-compat``  ``>=1.14.3``
 ``asgiref``                                 ``>=3.5.2; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``cryptography``                            ``>=44.0.3``

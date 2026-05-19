@@ -49,6 +49,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Make _parse_raw_log resilient to malformed or non-JSON log lines by introducing best-effort parsing with a fallback structure. Add unit tests. (#66383)``
+* ``Pin compatible-with at the transport layer to keep ES 8 servers working (#66065)``
 
 Misc
 ~~~~
