@@ -35,6 +35,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -554,6 +555,9 @@ class Connection(Base, LoggingMixin):
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
+            except AirflowSecretsBackendAccessDenied:
+                # Authoritative deny — must NOT fall through to a less-restrictive backend.
+                raise
             except Exception:
                 log.debug(
                     "Unable to retrieve connection from secrets backend (%s). "
