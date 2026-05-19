@@ -16,22 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Button,
-  ButtonGroup,
-  HStack,
-  IconButton,
-  Input,
-  Portal,
-  Separator,
-  Text,
-  VStack,
-} from "@chakra-ui/react";
+import { Button, ButtonGroup, HStack, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiFilter, FiInfo } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
+import { IconButton } from "src/components/ui";
 import { Tooltip } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 
@@ -113,15 +104,9 @@ export const TaskStreamFilter = () => {
         }`;
 
   return (
-    <Menu.Root positioning={{ placement: "bottom-end" }}>
+    <Menu.Root positioning={{ placement: "bottom-end" }} tooltipLabel={tooltipContent}>
       <Menu.Trigger asChild>
-        <IconButton
-          aria-label={tooltipContent}
-          colorPalette="brand"
-          size="md"
-          title={tooltipContent}
-          variant={hasActiveFilter ? "solid" : "ghost"}
-        >
+        <IconButton variant={hasActiveFilter ? "solid" : "ghost"}>
           <FiFilter />
         </IconButton>
       </Menu.Trigger>
@@ -183,7 +168,6 @@ export const TaskStreamFilter = () => {
                           onClick();
                         }
                       }}
-                      size="sm"
                       variant={active ? "solid" : "ghost"}
                       width="100%"
                     >
@@ -240,7 +224,7 @@ export const TaskStreamFilter = () => {
                   <FiInfo size={12} />
                 </Tooltip>
               </HStack>
-              <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" width="100%">
+              <ButtonGroup attached variant="outline" width="100%">
                 <Button
                   disabled={!hasActiveFilter}
                   flex="1"
@@ -279,7 +263,6 @@ export const TaskStreamFilter = () => {
                       upstream: false,
                     })
                   }
-                  size="sm"
                   variant="outline"
                   width="100%"
                 >
