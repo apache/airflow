@@ -1806,7 +1806,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
-            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session).all()
             dag_runs_examined = len(dag_runs)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
