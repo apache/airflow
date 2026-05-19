@@ -468,9 +468,11 @@ def ti_update_state(
             )
         )
         # Commit the TI state update now to release the task_instance row lock before
-        # running asset-event queries. Asset registration can hold the lock for seconds
-        # under high concurrency (many aliases with large event histories), causing
-        # idle-in-transaction pile-up that exhausts API server memory and triggers OOMKill.
+        # running asset-event queries. The direct-INSERT fix in AssetManager removes
+        # the O(n) lazy-load on the alias-event table, but register_asset_changes_in_db
+        # also queries scheduled dags and inserts AssetDagRunQueue rows — all of which
+        # would otherwise hold the row lock and cause idle-in-transaction pile-up that
+        # exhausts API server memory and triggers OOMKill under high concurrency.
         # The task outcome is durable from this point on.
         session.commit()
     except SQLAlchemyError as e:
@@ -504,9 +506,10 @@ def ti_update_state(
                     task_id=task_id,
                 )
 
-    # Asset registration runs outside the TI row lock. Failures here are logged and
-    # swallowed — the task state is already committed, so returning HTTP 500 would be
-    # misleading and would cause unnecessary worker retries.
+    # Asset registration runs outside the TI row lock. The exception is intentionally
+    # swallowed after logging: the TI state is already committed above, so raising HTTP 500
+    # here would be misleading (the task did succeed) and would cause the task-SDK worker
+    # to retry a state update for a task that has already completed.
     if isinstance(ti_patch_payload, TISuccessStatePayload) and ti_patch_payload.task_outlets:
         try:
             ti_for_assets = session.get(TI, task_instance_id)

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -173,8 +173,6 @@ class TestAssetManager:
         while the task_instance row lock is held in ti_update_state, causing idle-in-transaction
         pile-up that exhausts API server memory and triggers OOMKill.
         """
-        from sqlalchemy import insert as sa_insert
-
         asm = AssetModel(uri="test://asset-nolazy/", name="test_nolazy_asset", group="asset")
         session.add(asm)
         asam = AssetAliasModel(name="test_nolazy_alias", group="test")
@@ -188,7 +186,7 @@ class TestAssetManager:
         session.flush()
         for ev in existing_events:
             session.execute(
-                sa_insert(asset_alias_asset_event_association_table).values(alias_id=asam.id, event_id=ev.id)
+                insert(asset_alias_asset_event_association_table).values(alias_id=asam.id, event_id=ev.id)
             )
         session.flush()
 
