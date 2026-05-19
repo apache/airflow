@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import ast
+import os
+import subprocess
 import textwrap
 from pathlib import Path
 
@@ -29,6 +31,7 @@ from ci.prek.check_provide_session_kwargs import (
     _expand_for_allowlist_edits,
     _has_provide_session_decorator,
     _iter_positional_session_in_provide_session,
+    _previous_allowlist,
     _session_is_positional,
 )
 
@@ -56,6 +59,34 @@ def fake_repo(tmp_path, monkeypatch):
         return path
 
     return _write
+
+
+@pytest.fixture
+def git_repo(fake_repo, tmp_path):
+    """Initialise ``tmp_path`` as a git repo so ``git show HEAD:<file>`` works.
+
+    Returns a helper that commits the current working-tree contents under a given
+    message, so tests can stage a "previous" allowlist at HEAD before mutating it.
+    """
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@t",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@t",
+    }
+
+    def _run(*args: str) -> None:
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, env=env, capture_output=True)
+
+    _run("init", "-q", "-b", "main")
+    _run("config", "commit.gpgsign", "false")
+
+    def _commit(message: str) -> None:
+        _run("add", "-A")
+        _run("commit", "-q", "--allow-empty", "-m", message)
+
+    return _commit
 
 
 class TestHasProvideSessionDecorator:
@@ -362,6 +393,39 @@ class TestExpandForAllowlistEdits:
         result = _expand_for_allowlist_edits([symlink.resolve()], manager, manager.load())
 
         assert listed in result
+
+    def test_includes_previous_allowlist_entries_when_removed(self, fake_repo, git_repo, tmp_path):
+        """Removing an entry from the allowlist must still re-check the previously-listed file."""
+        rel = "airflow-core/src/airflow/dropped.py"
+        fake_repo(
+            rel,
+            """\
+            @provide_session
+            def foo(session=NEW_SESSION):
+                pass
+            """,
+        )
+        allowlist_path = tmp_path / "allowlist.txt"
+        manager = AllowlistManager(allowlist_path)
+        manager.save({rel: 1})
+        git_repo("seed allowlist at HEAD")
+
+        # Working tree: remove the entry, but the offending file still exists.
+        allowlist_path.write_text("")
+        current = manager.load()
+        assert current == {}
+
+        expanded = _expand_for_allowlist_edits([allowlist_path.resolve()], manager, current)
+        # The previously-listed file must be re-validated.
+        assert (tmp_path / rel).resolve() in expanded
+
+        # And the full check should fail because the file still has positional sessions.
+        assert _check_provide_session_kwargs(expanded, current, manager) == 1
+
+    def test_previous_allowlist_empty_when_no_git_history(self, fake_repo, tmp_path):
+        """Without a git repo the previous-allowlist lookup returns empty and does not crash."""
+        manager = AllowlistManager(tmp_path / "allowlist.txt")
+        assert _previous_allowlist(manager) == {}
 
     def test_re_validates_listed_files_so_loosening_cannot_bypass(self, fake_repo, tmp_path, capsys):
         """Editing only the allowlist must still trigger validation of listed files."""

@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import subprocess
 import typing
 from pathlib import Path
 
@@ -152,12 +153,16 @@ class AllowlistManager:
     def __init__(self, allowlist_file: Path) -> None:
         self.allowlist_file = allowlist_file
 
-    def load(self) -> dict[str, int]:
-        if not self.allowlist_file.exists():
-            return {}
+    @staticmethod
+    def parse(text: str) -> dict[str, int]:
+        """Parse allowlist *text* into a ``{rel_path: count}`` mapping.
 
+        Same validation rules as :meth:`load` so we can reuse parsing for the
+        on-disk allowlist *and* for the previous version fetched from git when
+        guarding against entry-removal bypasses.
+        """
         result: dict[str, int] = {}
-        for raw_line in self.allowlist_file.read_text().splitlines():
+        for raw_line in text.splitlines():
             if not (stripped := raw_line.strip()):
                 continue
 
@@ -179,6 +184,11 @@ class AllowlistManager:
             result[rel_str] = count
 
         return result
+
+    def load(self) -> dict[str, int]:
+        if not self.allowlist_file.exists():
+            return {}
+        return self.parse(self.allowlist_file.read_text())
 
     def save(self, counts: dict[str, int]) -> None:
         lines = [f"{rel}::{count}" for rel, count in sorted(counts.items())]
@@ -359,6 +369,33 @@ def main(argv: list[str] | None = None) -> int:
     return _check_provide_session_kwargs(paths, allowlist, manager)
 
 
+def _previous_allowlist(manager: AllowlistManager) -> dict[str, int]:
+    """Return the allowlist as recorded at ``HEAD``, or an empty dict.
+
+    Used by :func:`_expand_for_allowlist_edits` so that *removing* an entry
+    cannot silently drop coverage: the previously-listed file is still
+    re-validated against the new (post-edit) allowlist. Returns an empty mapping
+    when git is unavailable, the file does not yet exist at ``HEAD``, or the
+    allowlist sits outside ``REPO_ROOT``.
+    """
+    try:
+        rel = manager.allowlist_file.resolve().relative_to(REPO_ROOT.resolve())
+    except ValueError:
+        return {}
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "show", f"HEAD:{rel.as_posix()}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (FileNotFoundError, OSError):
+        return {}
+    if completed.returncode != 0:
+        return {}
+    return AllowlistManager.parse(completed.stdout)
+
+
 def _expand_for_allowlist_edits(
     paths: list[Path], manager: AllowlistManager, allowlist: dict[str, int]
 ) -> list[Path]:
@@ -367,7 +404,9 @@ def _expand_for_allowlist_edits(
     Without this, a contributor could raise counts in
     ``known_provide_session_positional.txt`` and the hook would do no validation
     (since only the ``.txt`` file is passed), letting the loosened allowlist
-    sail through.
+    sail through. We also union the *previous* allowlist (from ``HEAD``) so that
+    removing an entry cannot silently bypass the check for a file that still
+    has positional ``session`` arguments.
 
     Both sides of the allowlist-file comparison are resolved so the detection is
     robust to symlinks and unresolved inputs (the hook can be invoked with either).
@@ -378,7 +417,8 @@ def _expand_for_allowlist_edits(
 
     expanded = list(paths)
     seen = {p.resolve() for p in paths if p.suffix == ".py"}
-    for rel in allowlist:
+    previous = _previous_allowlist(manager)
+    for rel in {*allowlist, *previous}:
         candidate = (REPO_ROOT / rel).resolve()
         if candidate.exists() and candidate not in seen:
             seen.add(candidate)
