@@ -3434,9 +3434,10 @@ def test_downstream_placeholder_handles_upstream_post_expansion(dag_maker, sessi
     (map_index = -1) has been replaced by the first expanded task
     (map_index = 0).
 
-    This verifies that trigger rule evaluation correctly resolves relevant
-    upstream map indexes both when referencing the original placeholder
-    and when referencing the first expanded task instance.
+    This verifies that downstream mapped dependency resolution:
+    - preserves placeholder behavior before upstream expansion
+    - correctly resolves the post-expansion transition
+    - preserves normal expanded task behavior afterwards
     """
 
     with dag_maker(session=session) as dag:
@@ -3472,6 +3473,23 @@ def test_downstream_placeholder_handles_upstream_post_expansion(dag_maker, sessi
 
     dag_maker.run_ti("get_mapping_source", map_index=-1, dag_run=dr, session=session)
 
+    upstream_task = dag.get_task("mapped_task")
+    downstream_task = dag.get_task("downstream")
+
+    # Before upstream expansion occurs, mapped dependency resolution
+    # should retain the existing placeholder semantics since no concrete
+    # upstream/downstream map index pairing exists yet.
+    downstream_ti = dr.get_task_instance(task_id="downstream", map_index=-1, session=session)
+    downstream_ti.refresh_from_task(downstream_task)
+
+    result = downstream_ti.get_relevant_upstream_map_indexes(
+        upstream=upstream_task,
+        ti_count=1,
+        session=session,
+    )
+
+    assert result == -3
+
     # Force expansion of the upstream mapped task.
     upstream_task = dag.get_task("mapped_task")
     _, max_index = TaskMap.expand_mapped_task(
@@ -3479,7 +3497,7 @@ def test_downstream_placeholder_handles_upstream_post_expansion(dag_maker, sessi
         dr.run_id,
         session=session,
     )
-    expanded_ti_count = max_index + 1
+    upstream_expanded_ti_count = max_index + 1
 
     downstream_task = dag.get_task("downstream")
 
@@ -3489,7 +3507,7 @@ def test_downstream_placeholder_handles_upstream_post_expansion(dag_maker, sessi
 
     result = downstream_ti.get_relevant_upstream_map_indexes(
         upstream=upstream_task,
-        ti_count=expanded_ti_count,
+        ti_count=upstream_expanded_ti_count,
         session=session,
     )
 
@@ -3502,20 +3520,20 @@ def test_downstream_placeholder_handles_upstream_post_expansion(dag_maker, sessi
         dr.run_id,
         session=session,
     )
-    expanded_ti_count = max_index + 1
+    downstream_expanded_ti_count = max_index + 1
 
-    # Grab the first expanded downstream task. Behavior is the same for all cases where map_index >= 0.
+    # Grab the first expanded downstream task instance (map_index = 0).
     downstream_ti = dr.get_task_instance(task_id="downstream", map_index=0, session=session)
     downstream_ti.refresh_from_task(downstream_task)
 
     result = downstream_ti.get_relevant_upstream_map_indexes(
         upstream=upstream_task,
-        ti_count=expanded_ti_count,
+        ti_count=downstream_expanded_ti_count,
         session=session,
     )
 
-    # Verify behavior remains unchanged once the downstream task itself
-    # has expanded (map_index >= 0).
+    # Verify behavior remains unchanged once the downstream task
+    # itself has expanded.
     assert result == 0
 
 

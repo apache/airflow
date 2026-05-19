@@ -2383,15 +2383,19 @@ def _get_relevant_map_indexes(
     # and "ti_count == ancestor_ti_count" does not work, since the further
     # expansion may be of length 1.
     if not _is_further_mapped_inside(relative, common_ancestor):
-        placeholder_index = _resolve_placeholder_map_index(
-            task=task, relative=relative, map_index=ancestor_map_index, run_id=run_id, session=session
+        # During mapped task group expansion, upstream placeholder task instances
+        # (map_index = -1) may already have been replaced by their first expanded
+        # successor (map_index = 0) while downstream task instances are still
+        # unexpanded and continue resolving dependencies against the placeholder index.
+        resolved_map_index = (
+            0
+            if _should_use_post_expansion_placeholder(
+                task=task, relative=relative, map_index=ancestor_map_index, run_id=run_id, session=session
+            )
+            else ancestor_map_index
         )
-        # Handle cases where an upstream mapped placeholder (map_index = -1) has already
-        # been expanded and replaced by its successor (map_index = 0) at evaluation time.
-        if placeholder_index is not None:
-            return placeholder_index
 
-        return ancestor_map_index
+        return resolved_map_index
 
     # Otherwise we need a partial aggregation for values from selected task
     # instances in the ancestor's expansion context.
@@ -2465,26 +2469,23 @@ def find_relevant_relatives(
     return visited
 
 
-def _resolve_placeholder_map_index(
+def _should_use_post_expansion_placeholder(
     *,
     task: Operator,
     relative: Operator,
     map_index: int,
     run_id: str,
     session: Session,
-) -> int | None:
+) -> bool:
     """
-    Resolve the correct map_index for upstream dependency evaluation.
+    Determine whether upstream dependency resolution should use map_index = 0.
 
-    This handles the transition from map_index = -1 (pre-expansion placeholder)
-    to map_index = 0 (post-expansion placeholder successor).
-
-    Returns:
-        - 0 if the placeholder has transitioned from -1 to 0
-        - None if no override should be applied
+    Returns True when the upstream placeholder task instance
+    (map_index = -1) has already been replaced by its post-expansion
+    successor (map_index = 0).
     """
     if map_index != -1:
-        return None
+        return False
 
     rows = session.execute(
         select(TaskInstance.task_id, TaskInstance.map_index).where(
@@ -2495,22 +2496,19 @@ def _resolve_placeholder_map_index(
         )
     ).all()
 
-    task_to_map_indexes: dict[str, list[int]] = defaultdict(list)
+    task_to_map_indexes: dict[str, set[int]] = defaultdict(set)
     for task_id, mi in rows:
-        task_to_map_indexes[task_id].append(mi)
+        task_to_map_indexes[task_id].add(mi)
 
     # We only rewrite when:
     # 1) the current task is still using the placeholder (-1)
     # 2) the upstream placeholder (-1) no longer exists
     # 3) the post-expansion placeholder (0) does exist
-    if (
-        -1 in task_to_map_indexes.get(task.task_id, [])
-        and -1 not in task_to_map_indexes.get(relative.task_id, [])
-        and 0 in task_to_map_indexes.get(relative.task_id, [])
-    ):
-        return 0
-
-    return None
+    return (
+        -1 in task_to_map_indexes[task.task_id]
+        and -1 not in task_to_map_indexes[relative.task_id]
+        and 0 in task_to_map_indexes[relative.task_id]
+    )
 
 
 class TaskInstanceNote(Base):
