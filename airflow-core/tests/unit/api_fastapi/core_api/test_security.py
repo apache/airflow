@@ -469,6 +469,54 @@ class TestFastApiSecurity:
         )
         mock_get_team_name.assert_not_called()
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("bad_event_log_id", ["abc", "1.5", "1,2", ""])
+    @patch("airflow.api_fastapi.core_api.security.requires_access_dag")
+    async def test_requires_access_event_log_non_integer_id_returns_400(
+        self, mock_requires_access_dag, bad_event_log_id
+    ):
+        """Non-integer event_log_id in the path must be rejected with 400 before authz."""
+        request = Mock()
+        request.path_params = {"event_log_id": bad_event_log_id}
+        user = Mock()
+        session = Mock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await requires_access_event_log("GET")(request, user, session)
+
+        assert exc_info.value.status_code == 400
+        assert "event_log_id" in exc_info.value.detail
+        mock_requires_access_dag.assert_not_called()
+        session.scalar.assert_not_called()
+
+    @pytest.mark.db_test
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_event_log_no_path_param_uses_generic_check(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """When called on the list endpoint (no event_log_id), the generic AUDIT_LOG check applies."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+
+        session = Mock()
+        request = Mock()
+        request.path_params = {}
+        request.query_params = {}
+        user = Mock()
+
+        await requires_access_event_log("GET")(request, user, session)
+
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.AUDIT_LOG,
+            details=DagDetails(id=None, team_name=None),
+            user=user,
+        )
+        session.scalar.assert_not_called()
+        mock_get_team_name.assert_not_called()
+
     @pytest.mark.parametrize(
         ("url", "expected_is_safe"),
         [
