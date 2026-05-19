@@ -1464,7 +1464,7 @@ export const ensureUseProviderServiceGetProvidersData = (queryClient: QueryClien
   offset?: number;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
 /**
-* List Asset State
+* List Asset States
 * List all state entries for an asset.
 * @param data The data for the request.
 * @param data.assetId
@@ -1473,18 +1473,18 @@ export const ensureUseProviderServiceGetProvidersData = (queryClient: QueryClien
 * @returns AssetStateCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetStateServiceListAssetStateData = (queryClient: QueryClient, { assetId, limit, offset }: {
+export const ensureUseAssetStateServiceListAssetStatesData = (queryClient: QueryClient, { assetId, limit, offset }: {
   assetId: number;
   limit?: number;
   offset?: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStateServiceListAssetStateKeyFn({ assetId, limit, offset }), queryFn: () => AssetStateService.listAssetState({ assetId, limit, offset }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStateServiceListAssetStatesKeyFn({ assetId, limit, offset }), queryFn: () => AssetStateService.listAssetStates({ assetId, limit, offset }) });
 /**
 * Get Asset State
 * Get a single asset state entry.
 * @param data The data for the request.
 * @param data.assetId
 * @param data.key
-* @returns AssetStateEntry Successful Response
+* @returns AssetStateResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseAssetStateServiceGetAssetStateData = (queryClient: QueryClient, { assetId, key }: {
@@ -1492,7 +1492,7 @@ export const ensureUseAssetStateServiceGetAssetStateData = (queryClient: QueryCl
   key: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseAssetStateServiceGetAssetStateKeyFn({ assetId, key }), queryFn: () => AssetStateService.getAssetState({ assetId, key }) });
 /**
-* List Task State
+* List Task States
 * List all task state entries for a task instance.
 * @param data The data for the request.
 * @param data.dagId
@@ -1504,14 +1504,14 @@ export const ensureUseAssetStateServiceGetAssetStateData = (queryClient: QueryCl
 * @returns TaskStateCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskStateServiceListTaskStateData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+export const ensureUseTaskStateServiceListTaskStatesData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateServiceListTaskStateKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStateService.listTaskState({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateServiceListTaskStatesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }), queryFn: () => TaskStateService.listTaskStates({ dagId, dagRunId, limit, mapIndex, offset, taskId }) });
 /**
 * Get Task State
 * Get a single task state entry.
@@ -1521,7 +1521,7 @@ export const ensureUseTaskStateServiceListTaskStateData = (queryClient: QueryCli
 * @param data.taskId
 * @param data.key
 * @param data.mapIndex
-* @returns TaskStateEntry Successful Response
+* @returns TaskStateResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseTaskStateServiceGetTaskStateData = (queryClient: QueryClient, { dagId, dagRunId, key, mapIndex, taskId }: {

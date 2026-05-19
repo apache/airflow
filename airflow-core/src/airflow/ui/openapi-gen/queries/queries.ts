@@ -1464,7 +1464,7 @@ export const useProviderServiceGetProviders = <TData = Common.ProviderServiceGet
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
 /**
-* List Asset State
+* List Asset States
 * List all state entries for an asset.
 * @param data The data for the request.
 * @param data.assetId
@@ -1473,18 +1473,18 @@ export const useProviderServiceGetProviders = <TData = Common.ProviderServiceGet
 * @returns AssetStateCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetStateServiceListAssetState = <TData = Common.AssetStateServiceListAssetStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset }: {
+export const useAssetStateServiceListAssetStates = <TData = Common.AssetStateServiceListAssetStatesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset }: {
   assetId: number;
   limit?: number;
   offset?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateServiceListAssetStateKeyFn({ assetId, limit, offset }, queryKey), queryFn: () => AssetStateService.listAssetState({ assetId, limit, offset }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateServiceListAssetStatesKeyFn({ assetId, limit, offset }, queryKey), queryFn: () => AssetStateService.listAssetStates({ assetId, limit, offset }) as TData, ...options });
 /**
 * Get Asset State
 * Get a single asset state entry.
 * @param data The data for the request.
 * @param data.assetId
 * @param data.key
-* @returns AssetStateEntry Successful Response
+* @returns AssetStateResponse Successful Response
 * @throws ApiError
 */
 export const useAssetStateServiceGetAssetState = <TData = Common.AssetStateServiceGetAssetStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, key }: {
@@ -1492,7 +1492,7 @@ export const useAssetStateServiceGetAssetState = <TData = Common.AssetStateServi
   key: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetStateServiceGetAssetStateKeyFn({ assetId, key }, queryKey), queryFn: () => AssetStateService.getAssetState({ assetId, key }) as TData, ...options });
 /**
-* List Task State
+* List Task States
 * List all task state entries for a task instance.
 * @param data The data for the request.
 * @param data.dagId
@@ -1504,14 +1504,14 @@ export const useAssetStateServiceGetAssetState = <TData = Common.AssetStateServi
 * @returns TaskStateCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskStateServiceListTaskState = <TData = Common.TaskStateServiceListTaskStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+export const useTaskStateServiceListTaskStates = <TData = Common.TaskStateServiceListTaskStatesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateServiceListTaskStateKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }, queryKey), queryFn: () => TaskStateService.listTaskState({ dagId, dagRunId, limit, mapIndex, offset, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateServiceListTaskStatesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }, queryKey), queryFn: () => TaskStateService.listTaskStates({ dagId, dagRunId, limit, mapIndex, offset, taskId }) as TData, ...options });
 /**
 * Get Task State
 * Get a single task state entry.
@@ -1521,7 +1521,7 @@ export const useTaskStateServiceListTaskState = <TData = Common.TaskStateService
 * @param data.taskId
 * @param data.key
 * @param data.mapIndex
-* @returns TaskStateEntry Successful Response
+* @returns TaskStateResponse Successful Response
 * @throws ApiError
 */
 export const useTaskStateServiceGetTaskState = <TData = Common.TaskStateServiceGetTaskStateDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, taskId }: {

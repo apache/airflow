@@ -107,14 +107,14 @@ export type AssetStateBody = {
  * All asset state entries for an asset.
  */
 export type AssetStateCollectionResponse = {
-    asset_states: Array<AssetStateEntry>;
+    asset_states: Array<AssetStateResponse>;
     total_entries: number;
 };
 
 /**
  * A single asset state key/value pair with metadata.
  */
-export type AssetStateEntry = {
+export type AssetStateResponse = {
     key: string;
     value: string;
     updated_at: string;
@@ -1666,14 +1666,14 @@ export type TaskStateBody = {
  * All task state entries for a task instance.
  */
 export type TaskStateCollectionResponse = {
-    task_states: Array<TaskStateEntry>;
+    task_states: Array<TaskStateResponse>;
     total_entries: number;
 };
 
 /**
  * A single task state key/value pair with metadata.
  */
-export type TaskStateEntry = {
+export type TaskStateResponse = {
     key: string;
     value: string;
     updated_at: string;
@@ -3804,13 +3804,13 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
-export type ListAssetStateData = {
+export type ListAssetStatesData = {
     assetId: number;
     limit?: number;
     offset?: number;
 };
 
-export type ListAssetStateResponse = AssetStateCollectionResponse;
+export type ListAssetStatesResponse = AssetStateCollectionResponse;
 
 export type ClearAssetStateData = {
     assetId: number;
@@ -3823,7 +3823,7 @@ export type GetAssetStateData = {
     key: string;
 };
 
-export type GetAssetStateResponse = AssetStateEntry;
+export type GetAssetStateResponse = AssetStateResponse;
 
 export type SetAssetStateData = {
     assetId: number;
@@ -3840,7 +3840,7 @@ export type DeleteAssetStateData = {
 
 export type DeleteAssetStateResponse = void;
 
-export type ListTaskStateData = {
+export type ListTaskStatesData = {
     dagId: string;
     dagRunId: string;
     limit?: number;
@@ -3849,7 +3849,7 @@ export type ListTaskStateData = {
     taskId: string;
 };
 
-export type ListTaskStateResponse = TaskStateCollectionResponse;
+export type ListTaskStatesResponse = TaskStateCollectionResponse;
 
 export type ClearTaskStateData = {
     allMapIndices?: boolean;
@@ -3869,7 +3869,7 @@ export type GetTaskStateData = {
     taskId: string;
 };
 
-export type GetTaskStateResponse = TaskStateEntry;
+export type GetTaskStateResponse = TaskStateResponse;
 
 export type SetTaskStateData = {
     dagId: string;
@@ -6929,7 +6929,7 @@ export type $OpenApiTs = {
     };
     '/api/v2/assets/{asset_id}/states': {
         get: {
-            req: ListAssetStateData;
+            req: ListAssetStatesData;
             res: {
                 /**
                  * Successful Response
@@ -6986,7 +6986,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: AssetStateEntry;
+                200: AssetStateResponse;
                 /**
                  * Unauthorized
                  */
@@ -7058,7 +7058,7 @@ export type $OpenApiTs = {
     };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/states': {
         get: {
-            req: ListTaskStateData;
+            req: ListTaskStatesData;
             res: {
                 /**
                  * Successful Response
@@ -7115,7 +7115,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: TaskStateEntry;
+                200: TaskStateResponse;
                 /**
                  * Unauthorized
                  */

@@ -21,7 +21,7 @@ from datetime import datetime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
-class TaskStateEntry(BaseModel):
+class TaskStateResponse(BaseModel):
     """A single task state key/value pair with metadata."""
 
     key: str
@@ -33,7 +33,7 @@ class TaskStateEntry(BaseModel):
 class TaskStateCollectionResponse(BaseModel):
     """All task state entries for a task instance."""
 
-    task_states: list[TaskStateEntry]
+    task_states: list[TaskStateResponse]
     total_entries: int
 
 

@@ -60,7 +60,7 @@ class AssetStateBody(BaseModel):
     value: Annotated[str, Field(title="Value")]
 
 
-class AssetStateEntry(BaseModel):
+class AssetStateResponse(BaseModel):
     """
     A single asset state key/value pair with metadata.
     """
@@ -938,7 +938,7 @@ class TaskStateBody(BaseModel):
     value: Annotated[str, Field(title="Value")]
 
 
-class TaskStateEntry(BaseModel):
+class TaskStateResponse(BaseModel):
     """
     A single task state key/value pair with metadata.
     """
@@ -1184,7 +1184,7 @@ class AssetStateCollectionResponse(BaseModel):
     All asset state entries for an asset.
     """
 
-    asset_states: Annotated[list[AssetStateEntry], Field(title="Asset States")]
+    asset_states: Annotated[list[AssetStateResponse], Field(title="Asset States")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
@@ -1911,7 +1911,7 @@ class TaskStateCollectionResponse(BaseModel):
     All task state entries for a task instance.
     """
 
-    task_states: Annotated[list[TaskStateEntry], Field(title="Task States")]
+    task_states: Annotated[list[TaskStateResponse], Field(title="Task States")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

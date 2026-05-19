@@ -5533,9 +5533,9 @@ paths:
     get:
       tags:
       - Asset State
-      summary: List Asset State
+      summary: List Asset States
       description: List all state entries for an asset.
-      operationId: list_asset_state
+      operationId: list_asset_states
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5665,7 +5665,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssetStateEntry'
+                $ref: '#/components/schemas/AssetStateResponse'
         '401':
           content:
             application/json:
@@ -5798,9 +5798,9 @@ paths:
     get:
       tags:
       - Task State
-      summary: List Task State
+      summary: List Task States
       description: List all task state entries for a task instance.
-      operationId: list_task_state
+      operationId: list_task_states
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -5997,7 +5997,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskStateEntry'
+                $ref: '#/components/schemas/TaskStateResponse'
         '401':
           content:
             application/json:
@@ -11229,7 +11229,7 @@ components:
       properties:
         asset_states:
           items:
-            $ref: '#/components/schemas/AssetStateEntry'
+            $ref: '#/components/schemas/AssetStateResponse'
           type: array
           title: Asset States
         total_entries:
@@ -11241,7 +11241,7 @@ components:
       - total_entries
       title: AssetStateCollectionResponse
       description: All asset state entries for an asset.
-    AssetStateEntry:
+    AssetStateResponse:
       properties:
         key:
           type: string
@@ -11258,7 +11258,7 @@ components:
       - key
       - value
       - updated_at
-      title: AssetStateEntry
+      title: AssetStateResponse
       description: A single asset state key/value pair with metadata.
     AssetWatcherResponse:
       properties:
@@ -15553,7 +15553,7 @@ components:
       properties:
         task_states:
           items:
-            $ref: '#/components/schemas/TaskStateEntry'
+            $ref: '#/components/schemas/TaskStateResponse'
           type: array
           title: Task States
         total_entries:
@@ -15565,7 +15565,7 @@ components:
       - total_entries
       title: TaskStateCollectionResponse
       description: All task state entries for a task instance.
-    TaskStateEntry:
+    TaskStateResponse:
       properties:
         key:
           type: string
@@ -15589,7 +15589,7 @@ components:
       - value
       - updated_at
       - expires_at
-      title: TaskStateEntry
+      title: TaskStateResponse
       description: A single task state key/value pair with metadata.
     TimeDelta:
       properties:

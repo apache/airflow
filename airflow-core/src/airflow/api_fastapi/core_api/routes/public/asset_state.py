@@ -26,7 +26,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.asset_state import (
     AssetStateBody,
     AssetStateCollectionResponse,
-    AssetStateEntry,
+    AssetStateResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_asset
@@ -44,7 +44,7 @@ asset_state_router = AirflowRouter(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
-def list_asset_state(
+def list_asset_states(
     asset_id: int,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -60,7 +60,7 @@ def list_asset_state(
         statement=base, filters=[], order_by=None, offset=offset, limit=limit, session=session
     )
     rows = session.execute(paginated).all()
-    entries = [AssetStateEntry(key=r.key, value=r.value, updated_at=r.updated_at) for r in rows]
+    entries = [AssetStateResponse(key=r.key, value=r.value, updated_at=r.updated_at) for r in rows]
     return AssetStateCollectionResponse(asset_states=entries, total_entries=total_entries)
 
 
@@ -73,7 +73,7 @@ def get_asset_state(
     asset_id: int,
     key: str,
     session: SessionDep,
-) -> AssetStateEntry:
+) -> AssetStateResponse:
     """Get a single asset state entry."""
     row = session.execute(
         select(
@@ -90,7 +90,7 @@ def get_asset_state(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Asset state key {key!r} not found",
         )
-    return AssetStateEntry(key=row.key, value=row.value, updated_at=row.updated_at)
+    return AssetStateResponse(key=row.key, value=row.value, updated_at=row.updated_at)
 
 
 @asset_state_router.put(

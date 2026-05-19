@@ -29,7 +29,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_state import (
     TaskStateBody,
     TaskStateCollectionResponse,
-    TaskStateEntry,
+    TaskStateResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
@@ -51,7 +51,7 @@ def _get_scope(dag_id: str, dag_run_id: str, task_id: str, map_index: int) -> Ta
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
-def list_task_state(
+def list_task_states(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
@@ -77,7 +77,7 @@ def list_task_state(
     )
     rows = session.execute(paginated).all()
     entries = [
-        TaskStateEntry(key=r.key, value=r.value, updated_at=r.updated_at, expires_at=r.expires_at)
+        TaskStateResponse(key=r.key, value=r.value, updated_at=r.updated_at, expires_at=r.expires_at)
         for r in rows
     ]
     return TaskStateCollectionResponse(task_states=entries, total_entries=total_entries)
@@ -95,7 +95,7 @@ def get_task_state(
     key: str,
     session: SessionDep,
     map_index: Annotated[int, Query(ge=-1)] = -1,
-) -> TaskStateEntry:
+) -> TaskStateResponse:
     """Get a single task state entry."""
     row = session.execute(
         select(
@@ -116,7 +116,9 @@ def get_task_state(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task state key {key!r} not found",
         )
-    return TaskStateEntry(key=row.key, value=row.value, updated_at=row.updated_at, expires_at=row.expires_at)
+    return TaskStateResponse(
+        key=row.key, value=row.value, updated_at=row.updated_at, expires_at=row.expires_at
+    )
 
 
 @task_state_router.put(

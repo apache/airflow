@@ -399,7 +399,7 @@ export const $AssetStateCollectionResponse = {
     properties: {
         asset_states: {
             items: {
-                '$ref': '#/components/schemas/AssetStateEntry'
+                '$ref': '#/components/schemas/AssetStateResponse'
             },
             type: 'array',
             title: 'Asset States'
@@ -415,7 +415,7 @@ export const $AssetStateCollectionResponse = {
     description: 'All asset state entries for an asset.'
 } as const;
 
-export const $AssetStateEntry = {
+export const $AssetStateResponse = {
     properties: {
         key: {
             type: 'string',
@@ -433,7 +433,7 @@ export const $AssetStateEntry = {
     },
     type: 'object',
     required: ['key', 'value', 'updated_at'],
-    title: 'AssetStateEntry',
+    title: 'AssetStateResponse',
     description: 'A single asset state key/value pair with metadata.'
 } as const;
 
@@ -6812,7 +6812,7 @@ export const $TaskStateCollectionResponse = {
     properties: {
         task_states: {
             items: {
-                '$ref': '#/components/schemas/TaskStateEntry'
+                '$ref': '#/components/schemas/TaskStateResponse'
             },
             type: 'array',
             title: 'Task States'
@@ -6828,7 +6828,7 @@ export const $TaskStateCollectionResponse = {
     description: 'All task state entries for a task instance.'
 } as const;
 
-export const $TaskStateEntry = {
+export const $TaskStateResponse = {
     properties: {
         key: {
             type: 'string',
@@ -6858,7 +6858,7 @@ export const $TaskStateEntry = {
     },
     type: 'object',
     required: ['key', 'value', 'updated_at', 'expires_at'],
-    title: 'TaskStateEntry',
+    title: 'TaskStateResponse',
     description: 'A single task state key/value pair with metadata.'
 } as const;
 

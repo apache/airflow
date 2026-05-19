@@ -21,7 +21,7 @@ from datetime import datetime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
-class AssetStateEntry(BaseModel):
+class AssetStateResponse(BaseModel):
     """A single asset state key/value pair with metadata."""
 
     key: str
@@ -32,7 +32,7 @@ class AssetStateEntry(BaseModel):
 class AssetStateCollectionResponse(BaseModel):
     """All asset state entries for an asset."""
 
-    asset_states: list[AssetStateEntry]
+    asset_states: list[AssetStateResponse]
     total_entries: int
 
 
