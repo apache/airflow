@@ -471,25 +471,15 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
 
     def test_serialize_round_trips_state(self):
         trigger = self._make_trigger(max_full_run_repairs=3, repair_attempts=1, latest_repair_id=42)
+
         path, kwargs = trigger.serialize()
+        restored = DatabricksWorkflowRepairCoordinatorTrigger(**kwargs)
 
         assert (
             path
             == "airflow.providers.databricks.triggers.databricks.DatabricksWorkflowRepairCoordinatorTrigger"
         )
-        assert kwargs == {
-            "run_id": RUN_ID,
-            "databricks_conn_id": DEFAULT_CONN_ID,
-            "max_full_run_repairs": 3,
-            "repair_attempts": 1,
-            "latest_repair_id": 42,
-            "polling_period_seconds": POLLING_INTERVAL_SECONDS,
-            "retry_limit": RETRY_LIMIT,
-            "retry_delay": RETRY_DELAY,
-            "retry_args": None,
-            "run_page_url": RUN_PAGE_URL,
-            "caller": "DatabricksWorkflowRepairCoordinatorTrigger",
-        }
+        assert restored.serialize() == (path, kwargs)
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
@@ -626,22 +616,12 @@ class TestDatabricksWorkflowRepairWaitTrigger:
 
     def test_serialize_round_trips_state(self):
         trigger = self._make_trigger()
+
         path, kwargs = trigger.serialize()
+        restored = DatabricksWorkflowRepairWaitTrigger(**kwargs)
 
         assert path == "airflow.providers.databricks.triggers.databricks.DatabricksWorkflowRepairWaitTrigger"
-        assert kwargs == {
-            "run_id": self.PARENT_RUN_ID,
-            "databricks_conn_id": DEFAULT_CONN_ID,
-            "databricks_task_key": self.TASK_KEY,
-            "original_sub_run_id": self.ORIGINAL_SUB_RUN_ID,
-            "original_start_time": None,
-            "polling_period_seconds": POLLING_INTERVAL_SECONDS,
-            "retry_limit": RETRY_LIMIT,
-            "retry_delay": RETRY_DELAY,
-            "retry_args": None,
-            "run_page_url": RUN_PAGE_URL,
-            "caller": "DatabricksWorkflowRepairWaitTrigger",
-        }
+        assert restored.serialize() == (path, kwargs)
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
