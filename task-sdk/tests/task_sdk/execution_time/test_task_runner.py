@@ -5121,15 +5121,6 @@ class TestTaskInstanceMetrics:
 class TestDetailSpan:
     """Tests for the detail_span decorator / context manager."""
 
-    def _make_provider_with_detail_level(self, level: int):
-        """Return (provider, tracer, carrier) where the carrier encodes the given detail level."""
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-        t = provider.get_tracer("test")
-        carrier = new_dagrun_trace_carrier(task_span_detail_level=level)
-        return provider, t, exporter, carrier
-
     def test_level_1_no_child_span_as_context_manager(self):
         """At detail level 1, entering detail_span should not create a real recorded span."""
         exporter = InMemorySpanExporter()
