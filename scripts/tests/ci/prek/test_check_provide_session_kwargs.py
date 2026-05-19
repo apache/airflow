@@ -318,15 +318,32 @@ class TestExpandForAllowlistEdits:
         allowlist_path = tmp_path / "allowlist.txt"
         manager = AllowlistManager(allowlist_path)
         listed = fake_repo("airflow-core/src/airflow/listed.py", "pass")
-        # File in allowlist that does not exist on disk should be ignored.
+        # Pass a resolved path — matches production behavior (``main()`` resolves argv).
         result = _expand_for_allowlist_edits(
-            [allowlist_path],
+            [allowlist_path.resolve()],
             manager,
             {"airflow-core/src/airflow/listed.py": 1, "airflow-core/src/airflow/gone.py": 1},
         )
-        assert allowlist_path in result
+        assert allowlist_path.resolve() in result
         assert listed in result
+        # File in allowlist that does not exist on disk should be ignored.
         assert (tmp_path / "airflow-core/src/airflow/gone.py").resolve() not in result
+
+    def test_detection_robust_to_symlinked_allowlist(self, fake_repo, tmp_path):
+        """A symlink pointing at the allowlist file must still trigger expansion."""
+        allowlist_path = tmp_path / "allowlist.txt"
+        manager = AllowlistManager(allowlist_path)
+        listed = fake_repo("airflow-core/src/airflow/listed.py", "pass")
+        manager.save({"airflow-core/src/airflow/listed.py": 1})
+
+        symlink = tmp_path / "allowlist_link.txt"
+        symlink.symlink_to(allowlist_path)
+
+        # Production resolves argv before calling the helper — a symlinked path resolves
+        # to the real allowlist file and must be recognised as an allowlist edit.
+        result = _expand_for_allowlist_edits([symlink.resolve()], manager, manager.load())
+
+        assert listed in result
 
     def test_re_validates_listed_files_so_loosening_cannot_bypass(self, fake_repo, tmp_path, capsys):
         """Editing only the allowlist must still trigger validation of listed files."""
@@ -350,7 +367,8 @@ class TestExpandForAllowlistEdits:
         manager.save(allowlist)
 
         # Only the allowlist file is "changed"; without re-validation this would return 0.
-        paths = _expand_for_allowlist_edits([allowlist_path], manager, allowlist)
+        # Resolve the path to mirror what ``main()`` does in production.
+        paths = _expand_for_allowlist_edits([allowlist_path.resolve()], manager, allowlist)
         rc = _check_provide_session_kwargs(paths, allowlist, manager)
 
         # Tightened from 5 -> 2, so the hook exits non-zero to surface the modified allowlist.

@@ -328,12 +328,16 @@ def _expand_for_allowlist_edits(
     ``known_provide_session_positional.txt`` and the hook would do no validation
     (since only the ``.txt`` file is passed), letting the loosened allowlist
     sail through.
+
+    Both sides of the allowlist-file comparison are resolved so the detection is
+    robust to symlinks and unresolved inputs (the hook can be invoked with either).
     """
-    if not any(p == manager.allowlist_file for p in paths):
+    allowlist_file = manager.allowlist_file.resolve()
+    if not any(p.resolve() == allowlist_file for p in paths):
         return paths
 
     expanded = list(paths)
-    seen = {p for p in paths if p.suffix == ".py"}
+    seen = {p.resolve() for p in paths if p.suffix == ".py"}
     for rel in allowlist:
         candidate = (REPO_ROOT / rel).resolve()
         if candidate.exists() and candidate not in seen:
