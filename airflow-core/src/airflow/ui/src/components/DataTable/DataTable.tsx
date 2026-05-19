@@ -39,8 +39,7 @@ import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
-import { IconButton } from "src/components/ui";
-import { ProgressBar, Pagination, Toaster } from "src/components/ui";
+import { IconButton, ProgressBar, Pagination, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;

@@ -21,8 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PiNoteBold, PiNoteBlankBold } from "react-icons/pi";
 
-import { IconButton } from "src/components/ui";
-import { Dialog } from "src/components/ui";
+import { IconButton, Dialog } from "src/components/ui";
 import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import EditableMarkdownArea from "./EditableMarkdownArea";

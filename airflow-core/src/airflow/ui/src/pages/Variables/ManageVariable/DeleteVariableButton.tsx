@@ -20,8 +20,7 @@ import { Button, Code, Flex, Heading, Text, useDisclosure, VStack } from "@chakr
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
-import { Dialog } from "src/components/ui";
+import { IconButton, Dialog } from "src/components/ui";
 import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {

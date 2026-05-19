@@ -32,8 +32,7 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { IconButton } from "src/components/ui";
-import { Menu, Select } from "src/components/ui";
+import { IconButton, Menu, Select } from "src/components/ui";
 import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
