@@ -32,8 +32,8 @@ class LangChainHook(BaseHook):
     Bridge an Airflow connection to LangChain chat and embedding models.
 
     The hook resolves credentials (API key, optional base URL) from the Airflow
-    connection and returns LangChain model objects via LangChain's universal
-    initializers:
+    connection and returns LangChain model objects via two universal entry-point
+    functions:
 
     * :func:`langchain.chat_models.init_chat_model` dispatches to the right
       chat-model vendor based on the model identifier.

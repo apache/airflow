@@ -16,8 +16,8 @@
 # under the License.
 """Example DAGs demonstrating LangChainHook usage patterns.
 
-The DAGs are intentionally minimal -- each one shows a single hook pattern
-that is exampleinclude-d from ``docs/hooks/langchain.rst``. For a richer
+Each DAG covers a single pattern: chat-only, embedding-only, dual chat +
+embedding, and separate connections for chat and embeddings. For a richer
 end-to-end demo (ReAct agent, HITL review, vector retrieval), see
 ``example_langchain_tool_agent.py``.
 """

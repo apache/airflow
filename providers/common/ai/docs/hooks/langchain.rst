@@ -24,7 +24,7 @@ Use :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` to
 bridge an Airflow connection to `LangChain <https://python.langchain.com/>`__
 chat and embedding models. The hook reads credentials (API key, optional base
 URL) from the connection and returns configured LangChain model objects via
-LangChain's universal initialisers:
+two universal entry-point functions:
 
 - ``langchain.chat_models.init_chat_model`` for chat models, dispatching to
   the right vendor based on the ``provider:name`` prefix.
@@ -52,7 +52,7 @@ rest of LangChain's runnable surface
 Supported chat providers
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Anything dispatchable by
+Any model identifier accepted by
 `langchain.chat_models.init_chat_model <https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html>`__
 works out of the box. Common identifiers:
 
