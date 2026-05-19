@@ -36,7 +36,7 @@ Changelog
 ---------
 
 .. warning::
-  The Airflow variable used by ``PythonVirtualenvOperator`` to store the virtualenv cache hash
+  The Airflow variable used by ``PythonVirtualenvOperator`` to override the virtualenv cache hash
   has been renamed from ``PythonVirtualenvOperator.cache_key`` to ``python_virtualenv_operator_cache_key``.
   The old name contained a dot which is incompatible with secrets backends that restrict allowed
   characters (e.g. Azure Key Vault). Cached virtual environments will be rebuilt once due to the
