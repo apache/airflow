@@ -122,6 +122,55 @@ Starting Airflow 3.0.2 git is pre installed in the base image. However, if you a
   ENV GIT_PYTHON_REFRESH=quiet
 
 
+Dynamic Dag bundle configuration via config path
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As an alternative to listing bundles inline in :ref:`config:dag_processor__dag_bundle_config_list`,
+you can point the Dag processor at a directory of per-bundle JSON files via
+:ref:`config:dag_processor__dag_bundle_config_path`. This is useful in environments where bundle
+configurations change frequently — for example, when bundle configs are mounted from
+Kubernetes ConfigMaps — because the Dag processor reloads them in place without a restart.
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_path = /opt/airflow/dag-bundles-conf
+
+Each ``*.json`` file in the directory must contain a single bundle configuration as a dict with
+``name``, ``classpath``, and ``kwargs`` keys, mirroring one entry of ``dag_bundle_config_list``:
+
+.. code-block:: json
+
+    {
+      "name": "my_git_repo",
+      "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+      "kwargs": {"tracking_ref": "main", "git_conn_id": "my_git_conn"}
+    }
+
+Files that are not valid JSON, contain a non-dict body, have a non-string ``name``, or duplicate
+a ``name`` already loaded from the directory, are logged and skipped — the rest of the directory
+still loads.
+
+**Hot-reload semantics**
+
+On every Dag processor refresh cycle the directory is rescanned. Change detection compares each
+file's ``st_mtime_ns`` to the previous scan; any addition, removal, or modification triggers a
+reload. On reload the manager re-parses every JSON file, syncs the resulting bundle set to the
+metadata database, and cleans up the processors, file stats, and parsed Dags for any bundle that
+no longer appears. Removing all files (or removing the directory entirely) cleans up every bundle
+that was loaded from the path.
+
+**Precedence**
+
+When ``dag_bundle_config_path`` is set, it takes precedence over ``dag_bundle_config_list`` — the
+list is ignored.
+
+.. note::
+
+    The :ref:`config:core__multi_team` enforcement applies the same way as for the inline list:
+    bundles with a ``team_name`` require ``[core] multi_team = True``.
+
+
 Using DAG Bundles with User Impersonation
 -----------------------------------------
 
