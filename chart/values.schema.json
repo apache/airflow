@@ -11908,6 +11908,11 @@
                             "type": "integer",
                             "default": 1
                         },
+                        "link": {
+                            "description": "Name of the directory where git-sync will create the symlink to the checked out repository. This allows customization of the DAG mount path structure.",
+                            "type": "string",
+                            "default": "repo"
+                        },
                         "maxFailures": {
                             "description": "The number of consecutive failures allowed before aborting.",
                             "type": "integer",

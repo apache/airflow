@@ -4347,6 +4347,11 @@ dags:
     # Should be "" if dags are at repo root
     subPath: "tests/dags"
 
+    # Name of the directory where git-sync will create the symlink to the checked out repository.
+    # This allows customization of the DAG mount path structure.
+    # Default is "repo" for backward compatibility.
+    link: "repo"
+
     # If your repo needs a username/password, you can load them to a k8s secret
     #
     # credentialsSecret: git-credentials
