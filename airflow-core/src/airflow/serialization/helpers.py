@@ -106,7 +106,10 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     serialized = serialize_object(template_field)
 
     if len(str(serialized)) > max_length:
-        rendered = redact(str(serialized), name)
+        # Redact while still structured to preserve nested-key context (so values under
+        # documented sensitive keys such as `password`, `token`, `secret`, `api_key`
+        # are masked recursively); only stringify the redacted result for truncation.
+        rendered = redact(serialized, name)
         return truncate_rendered_value(str(rendered), max_length)
 
     return serialized
