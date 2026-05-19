@@ -113,12 +113,7 @@ def find_new_workflow_task_attempt(
     original_sub_run_id: int,
     original_start_time: int | None,
 ) -> dict[str, Any] | None:
-    """
-    Return the newest task entry matching ``task_key`` that is not the original sub-run.
-
-    Used by the repair-wait trigger and its sync counterpart to detect a new attempt of
-    a Databricks Workflow task after the prior sub-run reached terminal failure.
-    """
+    """Return the newest task entry matching ``task_key`` that is not the original sub-run."""
     candidates = [
         task
         for task in tasks
@@ -136,12 +131,7 @@ def build_repair_run_json(
     latest_repair_id: int | None,
     overriding_parameters: Any = None,
 ) -> dict[str, Any]:
-    """
-    Build the ``DatabricksHook.repair_run`` payload for ``rerun_all_failed_tasks`` repair.
-
-    Used by the coordinator trigger and its sync counterpart to keep the repair payload
-    shape in lock-step.
-    """
+    """Build the ``DatabricksHook.repair_run`` payload for ``rerun_all_failed_tasks`` repair."""
     repair_json: dict[str, Any] = {
         "run_id": run_id,
         "rerun_all_failed_tasks": True,

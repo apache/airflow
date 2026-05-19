@@ -312,8 +312,6 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
     :param original_sub_run_id: The sub-run id of the attempt that just failed; the trigger only
         yields ``new_attempt`` for a sub-run id different from this one.
     :param polling_period_seconds: How often to poll the parent run.
-    :param terminal_grace_polls: Consecutive terminal observations before yielding
-        ``status="parent_failed"``.
     :param retry_limit: Hook retry limit for transient Databricks API failures.
     :param retry_delay: Hook retry delay (seconds).
     :param retry_args: Optional tenacity ``Retrying`` kwargs forwarded to the hook.
@@ -329,7 +327,6 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
         original_sub_run_id: int,
         original_start_time: int | None = None,
         polling_period_seconds: int = 30,
-        terminal_grace_polls: int = 3,
         retry_limit: int = 3,
         retry_delay: int = 10,
         retry_args: dict[Any, Any] | None = None,
@@ -337,15 +334,12 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
         caller: str = "DatabricksWorkflowRepairWaitTrigger",
     ) -> None:
         super().__init__()
-        if terminal_grace_polls < 1:
-            raise ValueError(f"terminal_grace_polls must be >= 1, got {terminal_grace_polls}")
         self.run_id = run_id
         self.databricks_conn_id = databricks_conn_id
         self.databricks_task_key = databricks_task_key
         self.original_sub_run_id = original_sub_run_id
         self.original_start_time = original_start_time
         self.polling_period_seconds = polling_period_seconds
-        self.terminal_grace_polls = terminal_grace_polls
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.retry_args = retry_args
@@ -369,7 +363,6 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
                 "original_sub_run_id": self.original_sub_run_id,
                 "original_start_time": self.original_start_time,
                 "polling_period_seconds": self.polling_period_seconds,
-                "terminal_grace_polls": self.terminal_grace_polls,
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
@@ -387,6 +380,10 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
         )
 
     async def run(self):
+        # Grace polls before declaring the parent terminally failed without a new attempt:
+        # Databricks can briefly report the parent run terminal before a repair-triggered
+        # sub-run shows up in the tasks list.
+        terminal_grace_polls = 3
         terminal_observations = 0
         async with self.hook:
             while True:
@@ -423,9 +420,9 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
                         run_state.result_state,
                         self.databricks_task_key,
                         terminal_observations,
-                        self.terminal_grace_polls,
+                        terminal_grace_polls,
                     )
-                    if terminal_observations >= self.terminal_grace_polls:
+                    if terminal_observations >= terminal_grace_polls:
                         yield TriggerEvent(
                             {
                                 "status": "parent_failed",

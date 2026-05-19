@@ -27,10 +27,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
-from airflow.providers.databricks.exceptions import (
-    DatabricksWorkflowRepairBudgetExhausted,
-    DatabricksWorkflowRepairTriggerError,
-)
+from airflow.providers.databricks.exceptions import DatabricksWorkflowRepairError
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -1590,16 +1587,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.monitor_databricks_job()
 
     def _resolve_workflow_run_metadata(self, context: Context | dict | None) -> WorkflowRunMetadata:
-        """
-        Populate ``databricks_run_id`` / ``databricks_conn_id`` from ``workflow_run_metadata``.
-
-        Resolves both the standard ``execute`` path and the deferrable-resume path: when a task
-        resumes via ``execute_complete``, the operator is freshly re-instantiated, so any
-        attributes set during ``execute`` (including ``databricks_run_id``) are lost. The
-        templated ``workflow_run_metadata`` field is rendered from the upstream ``.launch``
-        task's XCom on every task-instance run, so it is the canonical source for the parent
-        workflow run id across both entry points.
-        """
+        # Called from both execute() and execute_complete(): the deferrable resume path
+        # re-instantiates the operator, so attributes set in execute() are lost and we
+        # re-resolve from the templated workflow_run_metadata field.
         if not self.workflow_run_metadata and context is not None:
             launch_task_id = next((task for task in self.upstream_task_ids if task.endswith(".launch")), None)
             ti = context.get("ti") if isinstance(context, dict) else context["ti"]
@@ -1642,14 +1632,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         original_start_time: int | None,
         tg: DatabricksWorkflowTaskGroup,
     ) -> int | None:
-        """
-        Sync equivalent of :class:`DatabricksWorkflowRepairWaitTrigger`.
-
-        Polls the parent run for a new attempt of ``self.databricks_task_key`` after a
-        sub-run reaches terminal failure, then lets the caller switch to that attempt and
-        continue polling. Returns the new sub-run id, or ``None`` if the parent run
-        terminates without producing a new attempt within the grace window.
-        """
+        """Sync mirror of DatabricksWorkflowRepairWaitTrigger. Returns the new sub-run id or None."""
         self.log.info(
             "Sub-run %s for task_key %s reached terminal failure; waiting for a repair "
             "attempt issued by the workflow coordinator.",
@@ -1739,14 +1722,14 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             )
         elif status == "parent_failed":
             parent_state = RunState.from_json(event["parent_run_state"])
-            raise DatabricksWorkflowRepairBudgetExhausted(
+            raise DatabricksWorkflowRepairError(
                 f"Databricks workflow run {event.get('parent_run_id')} reached terminal failure "
                 f"({parent_state.result_state}) without producing a new attempt for task_key "
                 f"{self.databricks_task_key!r}; repair budget is exhausted or the coordinator "
                 f"did not issue a repair."
             )
         else:
-            raise DatabricksWorkflowRepairTriggerError(
+            raise DatabricksWorkflowRepairError(
                 f"DatabricksWorkflowRepairWaitTrigger emitted unexpected status {status!r}: {event}"
             )
 

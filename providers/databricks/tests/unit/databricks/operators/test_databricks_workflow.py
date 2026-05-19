@@ -715,25 +715,3 @@ class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
         assert coordinator.repair_polling_period_seconds == 15
         assert coordinator.launch_task_id == "wf.launch"
         assert "wf.launch" in coordinator.upstream_task_ids
-
-    def test_negative_max_full_run_repairs_rejected(self):
-        with pytest.raises(ValueError, match="max_full_run_repairs must be >= 0"):
-            DatabricksWorkflowTaskGroup(
-                group_id="wf_invalid",
-                databricks_conn_id="databricks_conn",
-                max_full_run_repairs=-1,
-            )
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Repair behavior only applies on Airflow 3+")
-    def test_warns_when_user_task_has_retries_and_max_full_run_repairs_positive(self):
-        with DAG(dag_id="dwf_warn_retries", schedule=None, start_date=DEFAULT_DATE):
-            tg = DatabricksWorkflowTaskGroup(
-                group_id="wf",
-                databricks_conn_id="databricks_conn",
-                max_full_run_repairs=1,
-            )
-            tg.__enter__()
-            task = EmptyOperator(task_id="task1", retries=2)
-            task._convert_to_databricks_workflow_task = MagicMock(return_value={})
-            with pytest.warns(UserWarning, match=r"retries=2 while max_full_run_repairs=1"):
-                tg.__exit__(None, None, None)

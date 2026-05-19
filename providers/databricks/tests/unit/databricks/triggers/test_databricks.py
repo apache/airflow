@@ -598,17 +598,13 @@ class TestDatabricksWorkflowRepairWaitTrigger:
             )
         )
 
-    def _make_trigger(
-        self,
-        terminal_grace_polls: int = 3,
-    ) -> DatabricksWorkflowRepairWaitTrigger:
+    def _make_trigger(self) -> DatabricksWorkflowRepairWaitTrigger:
         return DatabricksWorkflowRepairWaitTrigger(
             run_id=self.PARENT_RUN_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
             databricks_task_key=self.TASK_KEY,
             original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
-            terminal_grace_polls=terminal_grace_polls,
             run_page_url=RUN_PAGE_URL,
         )
 
@@ -629,7 +625,7 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         }
 
     def test_serialize_round_trips_state(self):
-        trigger = self._make_trigger(terminal_grace_polls=5)
+        trigger = self._make_trigger()
         path, kwargs = trigger.serialize()
 
         assert path == "airflow.providers.databricks.triggers.databricks.DatabricksWorkflowRepairWaitTrigger"
@@ -640,7 +636,6 @@ class TestDatabricksWorkflowRepairWaitTrigger:
             "original_sub_run_id": self.ORIGINAL_SUB_RUN_ID,
             "original_start_time": None,
             "polling_period_seconds": POLLING_INTERVAL_SECONDS,
-            "terminal_grace_polls": 5,
             "retry_limit": RETRY_LIMIT,
             "retry_delay": RETRY_DELAY,
             "retry_args": None,
@@ -697,7 +692,7 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         )
         mock_get_run.return_value = terminal_payload
 
-        trigger = self._make_trigger(terminal_grace_polls=3)
+        trigger = self._make_trigger()
         events = [event async for event in trigger.run()]
 
         assert mock_get_run.call_count == 3

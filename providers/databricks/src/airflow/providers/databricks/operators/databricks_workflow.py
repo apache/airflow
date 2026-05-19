@@ -27,11 +27,7 @@ from typing import TYPE_CHECKING, Any
 from mergedeep import merge
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, TaskGroup, conf
-from airflow.providers.databricks.exceptions import (
-    DatabricksWorkflowRepairBudgetExhausted,
-    DatabricksWorkflowRepairMetadataError,
-    DatabricksWorkflowRepairTriggerError,
-)
+from airflow.providers.databricks.exceptions import DatabricksWorkflowRepairError
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
 from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairAllFailedLink,
@@ -309,20 +305,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
 
 
 class _DatabricksFullRunRepairCoordinatorOperator(BaseOperator):
-    """
-    Watch a Databricks Workflow run and issue full-run repairs after terminal failures.
-
-    :param task_id: The task id of the operator (typically ``"repair_coordinator"``).
-    :param databricks_conn_id: Connection id used by the coordinator trigger and repair calls.
-    :param launch_task_id: The workflow ``launch`` task whose XCom carries the parent run metadata.
-    :param max_full_run_repairs: Total repair attempts allowed across the run.
-    :param repair_polling_period_seconds: Poll interval used by the trigger or sync poll loop.
-    :param databricks_retry_limit: Hook retry limit for transient API failures.
-    :param databricks_retry_delay: Hook retry delay (seconds).
-    :param databricks_retry_args: Optional ``tenacity.Retrying`` kwargs forwarded to the hook.
-    :param deferrable: Whether to watch the run with
-        :class:`DatabricksWorkflowRepairCoordinatorTrigger`.
-    """
+    """Watch a Databricks Workflow run and issue full-run repairs after terminal failures."""
 
     caller = "_DatabricksFullRunRepairCoordinatorOperator"
 
@@ -385,7 +368,7 @@ class _DatabricksFullRunRepairCoordinatorOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         launch_value = context["ti"].xcom_pull(task_ids=self.launch_task_id)
         if not launch_value:
-            raise DatabricksWorkflowRepairMetadataError(
+            raise DatabricksWorkflowRepairError(
                 f"Launch task {self.launch_task_id!r} did not publish workflow run metadata; "
                 "cannot coordinate repairs."
             )
@@ -434,7 +417,7 @@ class _DatabricksFullRunRepairCoordinatorOperator(BaseOperator):
             errors = extract_failed_task_errors(self._hook, run_info, run_state)
 
             if repair_attempts >= self.max_full_run_repairs:
-                raise DatabricksWorkflowRepairBudgetExhausted(
+                raise DatabricksWorkflowRepairError(
                     f"Databricks workflow run {run_id} failed after {repair_attempts} repair "
                     f"attempt(s); repair budget exhausted (max_full_run_repairs={self.max_full_run_repairs}). "
                     f"Errors: {errors}"
@@ -500,13 +483,13 @@ class _DatabricksFullRunRepairCoordinatorOperator(BaseOperator):
 
         if status == "failed":
             errors = event.get("errors", [])
-            raise DatabricksWorkflowRepairBudgetExhausted(
+            raise DatabricksWorkflowRepairError(
                 f"Databricks workflow run {run_id} failed after {repair_attempts} repair "
                 f"attempt(s); repair budget exhausted (max_full_run_repairs={self.max_full_run_repairs}). "
                 f"Errors: {errors}"
             )
 
-        raise DatabricksWorkflowRepairTriggerError(
+        raise DatabricksWorkflowRepairError(
             f"DatabricksWorkflowRepairCoordinatorTrigger emitted unexpected status {status!r}: {event}"
         )
 
