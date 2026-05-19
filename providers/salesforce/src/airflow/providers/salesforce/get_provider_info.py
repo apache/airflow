@@ -56,7 +56,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.salesforce.hooks.salesforce.SalesforceHook",
-                "hook-name": "Salesforce",
                 "connection-type": "salesforce",
                 "conn-fields": {
                     "security_token": {

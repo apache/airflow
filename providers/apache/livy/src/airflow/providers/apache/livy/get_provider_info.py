@@ -62,7 +62,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.livy.hooks.livy.LivyHook",
-                "hook-name": "Apache Livy",
                 "connection-type": "livy",
             }
         ],

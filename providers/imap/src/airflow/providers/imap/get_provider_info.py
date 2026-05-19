@@ -47,11 +47,7 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {
-                "hook-class-name": "airflow.providers.imap.hooks.imap.ImapHook",
-                "hook-name": "IMAP",
-                "connection-type": "imap",
-            }
+            {"hook-class-name": "airflow.providers.imap.hooks.imap.ImapHook", "connection-type": "imap"}
         ],
         "config": {
             "imap": {

@@ -43,7 +43,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook",
-                "hook-name": "Elasticsearch",
                 "connection-type": "elasticsearch",
             }
         ],

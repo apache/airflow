@@ -120,7 +120,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.standard.hooks.filesystem.FSHook",
-                "hook-name": "File (path)",
                 "connection-type": "fs",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "port", "login", "password", "extra"]
@@ -129,7 +128,6 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.standard.hooks.package_index.PackageIndexHook",
-                "hook-name": "Package Index (Python)",
                 "connection-type": "package_index",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "extra"],

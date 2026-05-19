@@ -47,7 +47,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.papermill.hooks.kernel.KernelHook",
-                "hook-name": "Jupyter Kernel",
                 "connection-type": "jupyter_kernel",
             }
         ],

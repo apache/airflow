@@ -57,7 +57,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.oracle.hooks.oracle.OracleHook",
-                "hook-name": "Oracle",
                 "connection-type": "oracle",
             }
         ],

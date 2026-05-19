@@ -39,7 +39,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apprise.hooks.apprise.AppriseHook",
-                "hook-name": "Apprise",
                 "connection-type": "apprise",
                 "conn-fields": {
                     "config": {

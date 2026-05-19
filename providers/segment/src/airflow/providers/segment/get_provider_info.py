@@ -46,7 +46,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.segment.hooks.segment.SegmentHook",
-                "hook-name": "Segment",
                 "connection-type": "segment",
             }
         ],

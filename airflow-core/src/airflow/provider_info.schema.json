@@ -298,10 +298,6 @@
                     "hook-class-name": {
                         "description": "Hook class name that implements the connection type",
                         "type": "string"
-                    },
-                    "hook-name": {
-                        "description": "Display name for the connection type in the UI",
-                        "type": "string"
                     }
                 },
                 "required": [

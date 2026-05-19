@@ -47,7 +47,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.dingding.hooks.dingding.DingdingHook",
-                "hook-name": "DingTalk Custom Robot (Dingding)",
                 "connection-type": "dingding",
             }
         ],
