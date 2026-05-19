@@ -52,7 +52,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.arangodb.hooks.arangodb.ArangoDBHook",
-                "hook-name": "ArangoDB",
                 "connection-type": "arangodb",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "extra"],

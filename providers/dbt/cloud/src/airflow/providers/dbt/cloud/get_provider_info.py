@@ -50,7 +50,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook",
-                "hook-name": "dbt Cloud",
                 "connection-type": "dbt_cloud",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port"],

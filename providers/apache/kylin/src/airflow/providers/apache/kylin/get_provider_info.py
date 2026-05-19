@@ -50,7 +50,6 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.kylin.hooks.kylin.KylinHook",
-                "hook-name": "Apache Kylin",
                 "connection-type": "kylin",
             }
         ],
