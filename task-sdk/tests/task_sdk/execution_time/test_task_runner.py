@@ -3003,6 +3003,77 @@ class TestRuntimeTaskInstance:
         assert "***" in env_vars_value  # secrets are redacted before truncation
 
     @pytest.mark.enable_redact
+    def test_rendered_templates_mask_nested_keys_with_truncation(
+        self, create_runtime_ti, mock_supervisor_comms, monkeypatch
+    ):
+        """Nested sensitive-key masking applies consistently across the truncation path.
+
+        A value under a documented sensitive key (``password``, ``token``, ``secret``,
+        ``api_key``) is masked recursively by ``redact()`` when the structured value
+        is walked. The oversized branch must redact while still structured so that
+        nested-key context is preserved before stringification — otherwise the post-
+        stringify ``redact()`` call only sees the outer field name and the recursive
+        walker cannot reach the inner key.
+        """
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+        # Earlier tests in this file (e.g. test_get_connection_from_context) call
+        # mask_secret(conn.password) where the fixture's password value is the literal
+        # "password"; that registers "password" as a regex pattern in the singleton
+        # masker. Without isolation, str(redacted) gets that regex applied and the
+        # dict KEY name "password" itself becomes "***", obscuring whether the
+        # structured nested-key walk fired. Reset the regex patterns for this test
+        # (monkeypatch restores them on teardown) so the assertion can distinguish
+        # value-masking (what we are testing) from key-token replacement.
+        masker = _secrets_masker()
+        monkeypatch.setattr(masker, "patterns", set())
+        monkeypatch.setattr(masker, "replacer", None)
+        # The SDK masker starts with an empty sensitive-fields list in the test runtime
+        # (settings.py has not run); register `password` explicitly so the structured
+        # walker has something to match. Production workers get this from settings.py.
+        monkeypatch.setattr(
+            masker,
+            "sensitive_variables_fields",
+            list(masker.sensitive_variables_fields) + ["password"],
+        )
+
+        nested_value = "REGRESSION-FIXTURE-NESTED-PASSWORD-VALUE"
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("env_vars",)
+
+            def __init__(self, env_vars, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.env_vars = env_vars
+
+            def execute(self, context):
+                pass
+
+        # Nested 'password' key under enough padding to exceed default 4096-char limit.
+        env_vars = {
+            "DB": {"password": nested_value, "host": "db.internal", "zz_pad": "A" * 5000},
+        }
+
+        task = CustomOperator(task_id="test_nested_truncation_masking", env_vars=env_vars)
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_nested_truncation_masking_dag")
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        msg = next(
+            c.kwargs["msg"]
+            for c in mock_supervisor_comms.send.mock_calls
+            if c.kwargs.get("msg") and getattr(c.kwargs["msg"], "type", None) == "SetRenderedFields"
+        )
+        env_vars_value = msg.rendered_fields["env_vars"]
+
+        assert isinstance(env_vars_value, str)
+        assert env_vars_value.startswith(
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+        )
+        assert nested_value not in env_vars_value
+        assert "'password': '***'" in env_vars_value
+
+    @pytest.mark.enable_redact
     def test_rendered_templates_masks_secrets_in_complex_objects(
         self, create_runtime_ti, mock_supervisor_comms
     ):
@@ -4895,7 +4966,7 @@ def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
 class TestTaskInstanceStateOperations:
     """Tests to verify that tasks can perform state operations (task / asset) via the supervisor."""
 
-    def test_task_can_set_and_get_state(self, create_runtime_ti, mock_supervisor_comms):
+    def test_task_can_set_and_get_state(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         class MyOperator(BaseOperator):
             def execute(self, context):
                 ts = context["task_state"]
@@ -4904,13 +4975,42 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        mock_supervisor_comms.send.assert_any_call(
+            SetTaskState(
+                ti_id=runtime_ti.id,
+                key="job_id",
+                value="spark_app_001",
+                expires_at=frozen_dt + timedelta(days=30),
+            )
+        )
+        mock_supervisor_comms.send.assert_any_call(GetTaskState(ti_id=runtime_ti.id, key="job_id"))
+
+    def test_task_can_set_state_with_retention(self, create_runtime_ti, mock_supervisor_comms, time_machine):
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                context["task_state"].set("job_id", "spark_app_001", retention=timedelta(days=7))
+
+        task = MyOperator(task_id="t")
+        runtime_ti = create_runtime_ti(task=task)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         mock_supervisor_comms.send.assert_any_call(
-            SetTaskState(ti_id=runtime_ti.id, key="job_id", value="spark_app_001")
+            SetTaskState(
+                ti_id=runtime_ti.id,
+                key="job_id",
+                value="spark_app_001",
+                expires_at=frozen_dt + timedelta(days=7),
+            )
         )
-        mock_supervisor_comms.send.assert_any_call(GetTaskState(ti_id=runtime_ti.id, key="job_id"))
 
     def test_task_can_delete_state(self, create_runtime_ti, mock_supervisor_comms):
         class MyOperator(BaseOperator):

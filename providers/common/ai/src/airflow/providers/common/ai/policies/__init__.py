@@ -14,22 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from datetime import datetime
-
-from airflow.api_fastapi.core_api.base import StrictBaseModel
-
-
-class TaskStateResponse(StrictBaseModel):
-    """Task state value returned to a worker."""
-
-    value: str
-
-
-class TaskStatePutBody(StrictBaseModel):
-    """Request body for setting a task state value."""
-
-    value: str
-    expires_at: datetime | None = None
