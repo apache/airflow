@@ -174,7 +174,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
    list is explicit on purpose so maintainers see when a new provider takes on this shape of
    cost, and so the surface for "drive-by privileged code" stays small.
 
-3. **Ship a declarative manifest** at ``providers/<id>/scripts/pre_extras_install.yaml``. The
+3. **Ship a declarative manifest** at ``providers/<id>/pre_extras_install.yaml``. The
    manifest is *data, not code*: it is interpreted by
    ``scripts/in_container/run_pre_extras_install.py``, which restricts what providers can do
    to pinned-checksum HTTPS downloads, archive extraction under ``/opt`` or ``/tmp``, and
@@ -184,7 +184,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
 
    .. code:: yaml
 
-       # providers/ibm/mq/scripts/pre_extras_install.yaml
+       # providers/ibm/mq/pre_extras_install.yaml
        downloads:
          - url: https://public.dhe.ibm.com/.../9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz
            sha256: <64 lowercase hex chars>

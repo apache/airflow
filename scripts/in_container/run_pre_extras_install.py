@@ -141,7 +141,7 @@ def safe_extract(archive: Path, target: Path) -> None:
 def manifest_path_for(provider_id: str) -> Path:
     if not re.match(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$", provider_id):
         fail(f"invalid provider id: {provider_id!r}")
-    return PROVIDERS_ROOT / provider_id.replace(".", "/") / "scripts/pre_extras_install.yaml"
+    return PROVIDERS_ROOT / provider_id.replace(".", "/") / "pre_extras_install.yaml"
 
 
 def emit_env_file(env: dict, env_file: Path) -> None:

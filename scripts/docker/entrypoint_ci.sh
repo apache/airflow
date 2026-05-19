@@ -409,7 +409,7 @@ function reinstall_shared_distributions() {
 # Providers whose `uv sync --all-extras` (run below by check_force_lowest_dependencies)
 # needs additional native build prerequisites installed at test time rather than baked
 # into the base CI image. Each listed provider must ship a declarative manifest at
-# providers/<id>/scripts/pre_extras_install.yaml; the manifest is interpreted by
+# providers/<id>/pre_extras_install.yaml; the manifest is interpreted by
 # scripts/in_container/run_pre_extras_install.py, which restricts allowed operations
 # to pinned-checksum downloads, archive extraction under /opt or /tmp, and env-var
 # export. Providers cannot run arbitrary code through this hook. Maintainers should
