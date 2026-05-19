@@ -131,7 +131,6 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
     return dag_run
 
 
@@ -226,6 +225,9 @@ def patch_dag_run(
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
                 except Exception:
                     log.exception("error calling listener")
+
+            # TODO AIP-103: https://github.com/apache/airflow/issues/66755
+            # Handle clearing states for all task instances in a dagrun when cleared
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler

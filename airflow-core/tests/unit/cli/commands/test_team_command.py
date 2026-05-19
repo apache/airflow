@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -30,6 +31,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.settings import Session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dag_bundles,
@@ -362,3 +364,42 @@ class TestCliTeams:
         assert "integration-1" in team_names
         assert "integration-2" not in team_names
         assert "integration-3" in team_names
+
+    def test_team_sync(self):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+            {
+                "name": "bundletwo",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
+                "team_name": "team2",
+            },
+            {
+                "name": "bundlethree",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
+            },
+        ]
+
+        teams = self.session.scalars(select(Team)).all()
+        assert len(teams) == 0
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
+
+        teams = self.session.scalars(select(Team)).all()
+        assert len(teams) == 2
+
+        team_names = [team.name for team in teams]
+        assert "team1" in team_names
+        assert "team2" in team_names

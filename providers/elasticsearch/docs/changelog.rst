@@ -27,16 +27,32 @@
 Changelog
 ---------
 
-When the ``[elasticsearch] host`` config embeds credentials
-(``https://user:password@elk.example.com:9200``), the log-source label
-shown in task logs is now the host URL with the ``user:password@`` portion
-stripped. Previously the full URL (including credentials) could appear as
-a dictionary key in the task-log output when log-hits did not carry a
-``host`` field. The Elasticsearch client is still connected using the
-full URL, so authentication is unaffected.
+
+A new ``[elasticsearch] es_compat_with`` config option lets operators pin
+the ``compatible-with`` HTTP content-negotiation level used by the
+Elasticsearch client. Since 6.5.1 the provider depends on
+``elasticsearch>=8.10,<10``, and a default install resolves to an
+``elasticsearch>=9`` client which unconditionally negotiates
+``compatible-with=9`` on every request. Elasticsearch 8.x servers reject
+that with HTTP 400 ``media_type_header_exception`` (regression introduced
+by #64070), breaking remote task log ingestion and the SQL/Python hooks
+against ES 8 clusters. Setting ``es_compat_with = "8"`` rewrites the
+client transport so every outbound request carries
+``compatible-with=8`` (and the matching ``+x-ndjson`` form for bulk
+requests), restoring compatibility without dropping ES 9 support. When
+unset, behavior is unchanged.
 
 6.5.3
 .....
+
+.. note::
+  When the ``[elasticsearch] host`` config embeds credentials
+  (``https://user:password@elk.example.com:9200``), the log-source label
+  shown in task logs is now the host URL with the ``user:password@`` portion
+  stripped. Previously the full URL (including credentials) could appear as
+  a dictionary key in the task-log output when log-hits did not carry a
+  ``host`` field. The Elasticsearch client is still connected using the
+  full URL, so authentication is unaffected.
 
 Bug Fixes
 ~~~~~~~~~

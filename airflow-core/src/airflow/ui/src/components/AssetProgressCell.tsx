@@ -51,7 +51,7 @@ export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalReq
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
       <Popover.Trigger asChild>
-        <Button loading={isLoading} paddingInline={0} size="sm" variant="ghost">
+        <Button loading={isLoading} paddingInline={0} variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
           {`${String(totalReceived)} / ${String(totalRequired)}`}
         </Button>
