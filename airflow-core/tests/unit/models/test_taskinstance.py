@@ -30,7 +30,7 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from opentelemetry import trace as otel_trace
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
@@ -3802,12 +3802,10 @@ class TestMakeTaskCarrier:
 
         propagator = TraceContextTextMapPropagator()
         parent_trace_id = (
-            otel_trace.get_current_span(context=propagator.extract(parent_carrier))
-            .get_span_context()
-            .trace_id
+            trace.get_current_span(context=propagator.extract(parent_carrier)).get_span_context().trace_id
         )
         child_trace_id = (
-            otel_trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
+            trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
         )
         assert child_trace_id == parent_trace_id
         assert child_trace_id != 0
@@ -3896,5 +3894,5 @@ def test_clear_task_instances_preserves_detail_level(dag_maker, session):
     clear_task_instances([ti], session)
 
     new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
-    span = otel_trace.get_current_span(new_ctx)
+    span = trace.get_current_span(new_ctx)
     assert get_task_span_detail_level(span) == 2
