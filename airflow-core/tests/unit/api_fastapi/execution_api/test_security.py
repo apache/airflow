@@ -20,10 +20,11 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
-from fastapi import APIRouter, FastAPI, Request, Security
+from fastapi import APIRouter, Depends, FastAPI, Request, Security
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
+from airflow.api_fastapi.execution_api.deps import _container
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
     _jwt_bearer,
@@ -86,6 +87,42 @@ class TestExecutionAPIRoute:
                     Security(require_auth, scopes=["token:bogus"]),
                 ],
             )
+
+
+class TestJWTBearer:
+    def test_jwt_validation_failure_does_not_log_raw_token(self):
+        raw_token = "raw-secret-token-material"
+
+        class RejectingValidator:
+            async def avalidated_claims(self, token, required_claims):
+                assert token == raw_token
+                raise ValueError("bad token")
+
+        class Services:
+            async def aget(self, _):
+                return RejectingValidator()
+
+        async def get_services():
+            yield Services()
+
+        app = FastAPI()
+        app.dependency_overrides[_container] = get_services
+
+        @app.get("/needs-token")
+        async def needs_token(token=Depends(_jwt_bearer)):
+            return {"ok": True}
+
+        with patch("airflow.api_fastapi.execution_api.security.log.warning") as warning:
+            resp = TestClient(app).get("/needs-token", headers={"Authorization": f"Bearer {raw_token}"})
+
+        assert resp.status_code == 403
+        assert "Invalid auth token" in resp.json()["detail"]
+        warning.assert_called_once()
+        warning_args, warning_kwargs = warning.call_args
+        assert raw_token not in repr(warning_args)
+        assert raw_token not in repr(warning_kwargs)
+        assert "token" not in warning_kwargs
+        assert warning_kwargs["exc_info"] is True
 
 
 class TestTokenTypeScopeEnforcement:
