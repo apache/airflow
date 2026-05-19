@@ -37,7 +37,7 @@ import attrs
 import lazy_object_proxy
 import structlog
 from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import INVALID_SPAN, Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from structlog.contextvars import bind_contextvars
@@ -2150,6 +2150,7 @@ def main():
     )
 
     stack = ExitStack()
+    span = INVALID_SPAN
     with stack:
         try:
             try:
@@ -2179,7 +2180,7 @@ def main():
                     Status(StatusCode.ERROR, description=f"Exception: {type(reschedule).__name__}")
                 )
                 sys.exit(0)
-            with detail_span("run") as span:
+            with detail_span("run"):
                 with BundleVersionLock(
                     bundle_name=ti.bundle_instance.name,
                     bundle_version=ti.bundle_instance.version,
