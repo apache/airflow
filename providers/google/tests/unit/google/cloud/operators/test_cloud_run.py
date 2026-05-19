@@ -417,7 +417,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=JOB_NAME,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
         operator.execute(context=mock.MagicMock())
 
         gcp_logging_mock.Client.assert_called_once_with(
@@ -462,7 +462,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=JOB_NAME,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
         result = operator.execute(context=mock.MagicMock())
 
         assert result["name"] == JOB.name
@@ -486,7 +486,7 @@ class TestCloudRunExecuteJobOperator:
             deferrable=True,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
 
         event = {
             "status": RunJobStatus.SUCCESS.value,
@@ -535,7 +535,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=JOB_NAME,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
 
         with (
             mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep"),
@@ -580,7 +580,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=JOB_NAME,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
 
         with (
             mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep"),
@@ -628,7 +628,7 @@ class TestCloudRunExecuteJobOperator:
             job_name=JOB_NAME,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
 
         with (
             mock.patch("airflow.providers.google.cloud.operators.cloud_run.time.sleep") as sleep_mock,
@@ -668,7 +668,7 @@ class TestCloudRunExecuteJobOperator:
             deferrable=True,
             verbose=True,
         )
-        operator._cached_logger = mock.MagicMock()
+        operator._cached_logger = operator._log = mock.MagicMock()
 
         event = {
             "status": RunJobStatus.FAIL.value,
