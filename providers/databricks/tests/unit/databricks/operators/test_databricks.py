@@ -1046,6 +1046,48 @@ class TestDatabricksSubmitRunOperator:
         assert op.execute_complete(context=None, event=event) is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks._handle_deferrable_databricks_operator_execution"
+    )
+    def test_execute_complete_repair_includes_job_parameters(self, mock_handle_exec, mock_hook_class):
+        mock_hook_instance = mock_hook_class.return_value
+        mock_hook_instance.get_job_id.return_value = 42
+        mock_hook_instance.get_latest_repair_id.return_value = None
+        mock_hook_instance.repair_run.return_value = "new_repair_id"
+
+        operator = DatabricksRunNowOperator(
+            task_id="test_task",
+            job_id=42,
+            json={"job_parameters": {"key1": "value1"}},
+            repair_run=True,
+            databricks_conn_id="test_conn",
+        )
+
+        context = {}
+        event = {
+            "run_id": 12345,
+            "run_page_url": "https://databricks-instance/#job/42/run/12345",
+            "run_state": RunState(
+                life_cycle_state="TERMINATED", result_state="FAILED", state_message="Some error occurred"
+            ).to_json(),
+            "repair_run": True,
+            "errors": ["Error detail"],
+        }
+
+        operator.execute_complete(context=context, event=event)
+
+        assert mock_hook_instance.repair_run.called, "hook.repair_run should have been called"
+
+        call_args = mock_hook_instance.repair_run.call_args
+        repair_json_passed = call_args[0][0]
+
+        assert "job_parameters" in repair_json_passed
+        assert repair_json_passed["job_parameters"] == {"key1": "value1"}
+        assert repair_json_passed["run_id"] == 12345
+        assert repair_json_passed["rerun_all_failed_tasks"] is True
+        assert mock_handle_exec.called
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_complete_failure(self, db_mock_class):
         """
         Test `execute_complete` function in case the Trigger has returned a failure completion event.

@@ -103,6 +103,18 @@ and how to contribute to the providers:
   are used in Airflow.
 
 
+Developing Charts
+..................
+
+If you are working on the Airflow Helm chart, this guide explains where a
+change belongs (chart, Kustomize overlay, or out entirely) and the conventions
+that govern the chart's parameter surface:
+
+* `Developing the Helm Chart <29_helm_chart_development.rst>`__ — decision tree
+  for chart vs Kustomize routing, component reference, authoring conventions,
+  and the quality bar for overlays.
+
+
 Airflow Deep Dive
 ..................
 

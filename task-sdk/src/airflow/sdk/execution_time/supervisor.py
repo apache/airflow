@@ -793,6 +793,28 @@ class WatchedSubprocess:
                     ),
                     request_id=request.id,
                 )
+            except Exception as e:
+                # Generic exception handling so a transient network error (httpx.ConnectError /
+                # httpx.TimeoutException) or any other exception
+                # doesn't crash this generator and crash the IPC communication between supervisor and task.
+                log.exception(
+                    "Unhandled exception while handling task request",
+                    request_id=request.id,
+                    exc_info=e,
+                )
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": str(e),
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
             finally:
                 if token is not None:
                     otel_context.detach(token)
@@ -823,6 +845,7 @@ class WatchedSubprocess:
         if stuck_sockets:
             log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
 
+        self._open_sockets.clear()
         self.selector.close()
         self.stdin.close()
 
@@ -1312,6 +1335,7 @@ class ActivitySubprocess(WatchedSubprocess):
                         timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
                     )
                     self._cleanup_open_sockets()
+                    break
 
             if alive:
                 # We don't need to heartbeat if the process has shutdown, as we are just finishing of reading the
@@ -1660,7 +1684,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 else TaskStateResult.from_task_state_response(task_state)
             )
         elif isinstance(msg, SetTaskState):
-            self.client.task_state.set(msg.ti_id, msg.key, msg.value)
+            self.client.task_state.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
             resp = OKResponse(ok=True)
         elif isinstance(msg, DeleteTaskState):
             self.client.task_state.delete(msg.ti_id, msg.key)

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import status
+from fastapi import Depends, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -49,11 +49,16 @@ from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
+from airflow.api_fastapi.core_api.security import get_user
 
 public_router = AirflowRouter(prefix="/api/v2")
 
-# Router with common attributes for all routes
+# Router-level Depends(get_user) makes authentication the default for every route below.
+# Individual routes still declare their own GetUserDep / requires_access_* dependencies for
+# fine-grained authorization; the router-level dependency is the defense-in-depth backstop
+# that prevents a future route from accidentally being added without an auth check.
 authenticated_router = AirflowRouter(
+    dependencies=[Depends(get_user)],
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 

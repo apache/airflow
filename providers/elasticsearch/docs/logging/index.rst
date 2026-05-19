@@ -93,6 +93,48 @@ Additionally, in the ``elasticsearch_configs`` section, you can pass any paramet
     api_key = "SOMEAPIKEY"
     verify_certs = True
 
+Pinning the ``compatible-with`` content-negotiation level
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Since provider 6.5.1, the Elasticsearch dependency is ``elasticsearch>=8.10,<10``,
+which means a default install resolves to an ``elasticsearch>=9`` Python client.
+That client unconditionally negotiates ``compatible-with=9`` on every request,
+which Elasticsearch 8.x servers reject with HTTP 400
+``media_type_header_exception``. Both the task log writer and the
+``ElasticsearchSQLHook`` / ``ElasticsearchPythonHook`` are affected.
+
+If you need to keep a single Airflow image compatible with an
+``elasticsearch<9`` server, set ``[elasticsearch] es_compat_with`` to the server
+major version. The provider then rewrites the client transport so every outbound
+request carries ``Accept`` / ``Content-Type:
+application/vnd.elasticsearch+json; compatible-with=<major>`` (and the matching
+``+x-ndjson`` form for bulk requests):
+
+.. code-block:: ini
+
+    [elasticsearch]
+    es_compat_with = 8
+
+Only a positive integer major version is accepted (``"7"``, ``"8"``, ``"9"``);
+any other value (e.g. ``"v8"``, ``"8.0"``) fails fast with an
+``AirflowConfigException`` at client construction time so the misconfiguration
+is obvious in the worker startup log instead of producing a per-request 400
+storm.
+
+.. note::
+
+   The fix is installed at the **transport layer** (a wrapper around
+   ``client.transport.perform_request``) and therefore overrides the
+   per-API-method ``Accept`` / ``Content-Type`` headers that elasticsearch-py
+   negotiates from its own client major. Constructor-level ``headers=`` on
+   ``Elasticsearch.__init__`` and the ``elasticsearch_configs`` section do
+   **not** work for this purpose — elasticsearch-py re-applies its own
+   ``compatible-with=<client_major>`` headers right before the request goes
+   out, after any constructor headers.
+
+When the option is unset the client behaves as before (negotiating its own
+major version).
+
 .. _elasticsearch-document-schema:
 
 Expected Elasticsearch document schema
