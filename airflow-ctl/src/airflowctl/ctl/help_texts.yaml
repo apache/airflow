@@ -100,3 +100,7 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
+
+tasks:
+  clear: "Clear task instances"
+
