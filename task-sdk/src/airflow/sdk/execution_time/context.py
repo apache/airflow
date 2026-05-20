@@ -776,6 +776,13 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
+    partition_keys: set[str] = attrs.field(factory=set)
+
+    def add_partitions(self, keys: str | list[str]) -> None:
+        """Add one or more partition keys to :attr:`partition_keys`."""
+        if isinstance(keys, str):
+            keys = [keys]
+        self.partition_keys.update(keys)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""

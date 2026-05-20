@@ -42,7 +42,13 @@ if TYPE_CHECKING:
         TaskInstanceState,
     )
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAlias,
+        AssetAliasEvent,
+        AssetRef,
+        BaseAssetUniqueKey,
+    )
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.comms import DagResult
@@ -215,6 +221,7 @@ class OutletEventAccessorProtocol(Protocol):
     key: BaseAssetUniqueKey
     extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
+    partition_keys: set[str]
 
     def __init__(
         self,
@@ -222,8 +229,10 @@ class OutletEventAccessorProtocol(Protocol):
         key: BaseAssetUniqueKey,
         extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
+        partition_keys: set[str] = ...,
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
+    def add_partitions(self, keys: str | list[str]) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):
