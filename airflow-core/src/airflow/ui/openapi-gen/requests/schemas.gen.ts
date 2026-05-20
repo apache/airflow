@@ -2850,7 +2850,7 @@ export const $DAGRunPatchBody = {
         state: {
             anyOf: [
                 {
-                    '$ref': '#/components/schemas/DAGRunPatchStates'
+                    '$ref': '#/components/schemas/DagRunMutableStates'
                 },
                 {
                     type: 'null'
@@ -2874,13 +2874,6 @@ export const $DAGRunPatchBody = {
     type: 'object',
     title: 'DAGRunPatchBody',
     description: 'Dag Run Serializer for PATCH requests.'
-} as const;
-
-export const $DAGRunPatchStates = {
-    type: 'string',
-    enum: ['queued', 'success', 'failed'],
-    title: 'DAGRunPatchStates',
-    description: 'Enum for Dag Run states when updating a Dag Run.'
 } as const;
 
 export const $DAGRunResponse = {
@@ -3640,6 +3633,13 @@ export const $DagRunAssetReference = {
     required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
     title: 'DagRunAssetReference',
     description: 'DagRun serializer for asset responses.'
+} as const;
+
+export const $DagRunMutableStates = {
+    type: 'string',
+    enum: ['queued', 'success', 'failed'],
+    title: 'DagRunMutableStates',
+    description: 'Dag Run states from which the run may be mutated (patched, deleted).'
 } as const;
 
 export const $DagRunState = {

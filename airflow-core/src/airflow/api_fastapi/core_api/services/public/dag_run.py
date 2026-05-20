@@ -37,7 +37,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DagRunMutableStates
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
@@ -184,6 +184,18 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                     }
                 )
 
+        deletable_states = {s.value for s in DagRunMutableStates}
         for (dag_id, run_id), dag_run in dag_run_map.items():
+            if dag_run.state not in deletable_states:
+                results.errors.append(
+                    {
+                        "error": (
+                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` "
+                            f"cannot be deleted in {dag_run.state} state"
+                        ),
+                        "status_code": status.HTTP_409_CONFLICT,
+                    }
+                )
+                continue
             self.session.delete(dag_run)
             results.success.append(f"{dag_id}.{run_id}")

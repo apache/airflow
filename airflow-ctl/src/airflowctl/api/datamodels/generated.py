@@ -371,16 +371,6 @@ class DAGRunClearBody(BaseModel):
     ] = None
 
 
-class DAGRunPatchStates(str, Enum):
-    """
-    Enum for Dag Run states when updating a Dag Run.
-    """
-
-    QUEUED = "queued"
-    SUCCESS = "success"
-    FAILED = "failed"
-
-
 class DAGSourceResponse(BaseModel):
     """
     Dag Source serializer for responses.
@@ -429,6 +419,16 @@ class DagRunAssetReference(BaseModel):
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
+class DagRunMutableStates(str, Enum):
+    """
+    Dag Run states from which the run may be mutated (patched, deleted).
+    """
+
+    QUEUED = "queued"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class DagRunState(str, Enum):
@@ -1612,7 +1612,7 @@ class DAGRunPatchBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    state: DAGRunPatchStates | None = None
+    state: DagRunMutableStates | None = None
     note: Annotated[Note | None, Field(title="Note")] = None
 
 

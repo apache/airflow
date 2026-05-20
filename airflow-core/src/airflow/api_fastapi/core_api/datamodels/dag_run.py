@@ -35,8 +35,8 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-class DAGRunPatchStates(str, Enum):
-    """Enum for Dag Run states when updating a Dag Run."""
+class DagRunMutableStates(str, Enum):
+    """Dag Run states from which the run may be mutated (patched, deleted)."""
 
     QUEUED = DagRunState.QUEUED
     SUCCESS = DagRunState.SUCCESS
@@ -46,7 +46,7 @@ class DAGRunPatchStates(str, Enum):
 class DAGRunPatchBody(StrictBaseModel):
     """Dag Run Serializer for PATCH requests."""
 
-    state: DAGRunPatchStates | None = None
+    state: DagRunMutableStates | None = None
     note: str | None = Field(None, max_length=1000)
 
 

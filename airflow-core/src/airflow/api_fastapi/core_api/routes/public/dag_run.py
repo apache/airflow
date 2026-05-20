@@ -81,8 +81,8 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     BulkDAGRunBody,
     DAGRunClearBody,
     DAGRunCollectionResponse,
+    DagRunMutableStates,
     DAGRunPatchBody,
-    DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
     TriggerDAGRunPostBody,
@@ -154,7 +154,7 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a Dag Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
-    deletable_states = {s.value for s in DAGRunPatchStates}
+    deletable_states = {s.value for s in DagRunMutableStates}
 
     if dag_run is None:
         raise HTTPException(
@@ -222,7 +222,7 @@ def patch_dag_run(
     for attr_name, attr_value_raw in data.items():
         if attr_name == "state":
             attr_value = getattr(patch_body, "state")
-            if attr_value == DAGRunPatchStates.SUCCESS:
+            if attr_value == DagRunMutableStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 try:
                     get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
@@ -231,10 +231,10 @@ def patch_dag_run(
 
             # TODO AIP-103: https://github.com/apache/airflow/issues/66755
             # Handle clearing states for all task instances in a dagrun when cleared
-            elif attr_value == DAGRunPatchStates.QUEUED:
+            elif attr_value == DagRunMutableStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
-            elif attr_value == DAGRunPatchStates.FAILED:
+            elif attr_value == DagRunMutableStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
                 try:
                     get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")

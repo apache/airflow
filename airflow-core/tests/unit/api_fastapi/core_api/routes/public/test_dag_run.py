@@ -2677,8 +2677,8 @@ class TestBulkDagRuns:
         dr = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
         assert dr is None
 
-    def test_bulk_delete_running_state_is_allowed(self, test_client, dag_maker, session):
-        """A RUNNING Dag Run is deletable via the bulk endpoint (no state restriction)."""
+    def test_bulk_delete_rejects_running_state(self, test_client, dag_maker, session):
+        """Mirror the single-run DELETE: a RUNNING Dag Run can't be bulk-deleted (409)."""
         with dag_maker(dag_id="test_running_bulk_dag"):
             EmptyOperator(task_id="t1")
         dag_maker.create_dagrun(run_id="running_run", state=DagRunState.RUNNING)
@@ -2697,10 +2697,18 @@ class TestBulkDagRuns:
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["delete"]["success"] == ["test_running_bulk_dag.running_run"]
-        assert body["delete"]["errors"] == []
+        assert body["delete"]["success"] == []
+        assert body["delete"]["errors"] == [
+            {
+                "error": (
+                    "The DagRun with dag_id: `test_running_bulk_dag` and run_id: `running_run` "
+                    "cannot be deleted in running state"
+                ),
+                "status_code": 409,
+            }
+        ]
         session.expire_all()
-        assert session.scalar(select(DagRun).where(DagRun.run_id == "running_run")) is None
+        assert session.scalar(select(DagRun).where(DagRun.run_id == "running_run")) is not None
 
     def test_bulk_delete_not_found_fails(self, test_client, session):
         """When FAIL semantics, each missing run is reported individually and matched runs still get deleted."""

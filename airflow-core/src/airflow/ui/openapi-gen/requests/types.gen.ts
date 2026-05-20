@@ -783,14 +783,9 @@ export type DAGRunCollectionResponse = {
  * Dag Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
-    state?: DAGRunPatchStates | null;
+    state?: DagRunMutableStates | null;
     note?: string | null;
 };
-
-/**
- * Enum for Dag Run states when updating a Dag Run.
- */
-export type DAGRunPatchStates = 'queued' | 'success' | 'failed';
 
 /**
  * Dag Run serializer for responses.
@@ -920,6 +915,11 @@ export type DagRunAssetReference = {
     data_interval_end: string | null;
     partition_key: string | null;
 };
+
+/**
+ * Dag Run states from which the run may be mutated (patched, deleted).
+ */
+export type DagRunMutableStates = 'queued' | 'success' | 'failed';
 
 /**
  * All possible states that a DagRun can be in.
