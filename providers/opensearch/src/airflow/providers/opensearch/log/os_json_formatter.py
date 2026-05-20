@@ -34,6 +34,7 @@ class OpensearchJSONFormatter(JSONFormatter):
 
             dt = timezone.from_timestamp(record.created, tz="local")
         else:
+            # TODO: Remove this fallback when the minimum Airflow version is 3.3.0
             from datetime import datetime
 
             import pendulum
