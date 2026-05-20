@@ -28,6 +28,7 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
+from airflow._shared.observability.traces import cli_span
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
@@ -415,46 +416,56 @@ def task_test(args, dag: DAG | None = None) -> None:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    if dag:
-        sdk_dag = dag
-        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
-    else:
-        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
-        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
+    span_attributes: dict[str, str | int | float | bool] = {
+        "airflow.dag_id": args.dag_id,
+        "airflow.task_id": args.task_id,
+    }
+    if args.logical_date_or_run_id:
+        span_attributes["airflow.logical_date_or_run_id"] = args.logical_date_or_run_id
+    if args.map_index is not None and args.map_index >= 0:
+        span_attributes["airflow.task_instance.map_index"] = args.map_index
 
-    sdk_task = sdk_dag.get_task(args.task_id)
+    with cli_span("cli.tasks.test", attributes=span_attributes):
+        if dag:
+            sdk_dag = dag
+            scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+        else:
+            sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+            scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
 
-    # Add CLI provided task_params to task.params
-    if args.task_params:
-        passed_in_params = json.loads(args.task_params)
-        sdk_task.params.update(passed_in_params)
+        sdk_task = sdk_dag.get_task(args.task_id)
 
-    if sdk_task.params and isinstance(sdk_task.params, ParamsDict):
-        sdk_task.params.validate()
+        # Add CLI provided task_params to task.params
+        if args.task_params:
+            passed_in_params = json.loads(args.task_params)
+            sdk_task.params.update(passed_in_params)
 
-    ti, dr_created = _get_ti(
-        scheduler_dag.get_task(args.task_id),
-        args.map_index,
-        logical_date_or_run_id=args.logical_date_or_run_id,
-        create_if_necessary="db",
-    )
-    try:
-        # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
-        from airflow.sdk._shared.secrets_masker import RedactedIO
+        if sdk_task.params and isinstance(sdk_task.params, ParamsDict):
+            sdk_task.params.validate()
 
-        with redirect_stdout(RedactedIO()):
-            _run_task(ti=ti, task=sdk_task, run_triggerer=True)
-        if ti.state == State.FAILED and args.post_mortem:
-            debugger = _guess_debugger()
-            debugger.set_trace()
-    finally:
-        if not already_has_stream_handler:
-            # Make sure to reset back to normal. When run for CLI this doesn't
-            # matter, but it does for test suite
-            logging.getLogger("airflow.task").propagate = False
-        if dr_created:
-            with create_session() as session:
-                session.delete(ti.dag_run)
+        ti, dr_created = _get_ti(
+            scheduler_dag.get_task(args.task_id),
+            args.map_index,
+            logical_date_or_run_id=args.logical_date_or_run_id,
+            create_if_necessary="db",
+        )
+        try:
+            # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
+            from airflow.sdk._shared.secrets_masker import RedactedIO
+
+            with redirect_stdout(RedactedIO()):
+                _run_task(ti=ti, task=sdk_task, run_triggerer=True)
+            if ti.state == State.FAILED and args.post_mortem:
+                debugger = _guess_debugger()
+                debugger.set_trace()
+        finally:
+            if not already_has_stream_handler:
+                # Make sure to reset back to normal. When run for CLI this doesn't
+                # matter, but it does for test suite
+                logging.getLogger("airflow.task").propagate = False
+            if dr_created:
+                with create_session() as session:
+                    session.delete(ti.dag_run)
 
 
 @cli_utils.action_cli(check_db=False)
