@@ -45,12 +45,16 @@
     "buttons": {
       "resetToLatest": "Réinitialiser à la dernière version",
       "toggleGroup": "Afficher/Masquer le groupe"
-    }
+    },
+    "runTypeLegend": "Légende des types de Run"
   },
   "header": {
     "buttons": {
       "advanced": "Avancé",
       "dagDocs": "Documentation du Dag"
+    },
+    "status": {
+      "deactivated": "Désactivé"
     }
   },
   "logs": {
@@ -72,6 +76,12 @@
   "navigation": {
     "navigation": "Navigation : {{arrow}}",
     "toggleGroup": "Basculer le groupe : Espace"
+  },
+  "notFound": {
+    "back": "Retour",
+    "backToDags": "Retour aux Dags",
+    "message": "Le Dag « {{dagId}} » n'existe pas.",
+    "title": "Dag introuvable"
   },
   "overview": {
     "buttons": {
@@ -118,6 +128,35 @@
     },
     "graphDirection": {
       "label": "Orientation du graphe"
+    },
+    "showVersionIndicator": {
+      "label": "Afficher l'indicateur de version",
+      "options": {
+        "hideAll": "Tout masquer",
+        "showAll": "Tout afficher",
+        "showBundleVersion": "Afficher la version du bundle",
+        "showDagVersion": "Afficher la version du Dag"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtre actif",
+      "clearFilter": "Effacer le filtre",
+      "clickTask": "Cliquez sur une tâche pour la sélectionner comme racine du filtre",
+      "depth": "Profondeur",
+      "direction": "Direction",
+      "label": "Filtre",
+      "mode": "Mode",
+      "modeTooltip": "Le mode Statique conserve la vue actuelle lors de la navigation vers d'autres tâches, tandis que le mode Parcourir met automatiquement à jour le filtre actif vers la tâche cliquée pour faciliter la traversée du Dag.",
+      "modes": {
+        "static": "Statique",
+        "traverse": "Parcourir"
+      },
+      "options": {
+        "both": "En amont et en aval",
+        "downstream": "En aval",
+        "upstream": "En amont"
+      },
+      "selectedTask": "Tâche sélectionnée"
     }
   },
   "paramsFailed": "Échec du chargement des paramètres",
