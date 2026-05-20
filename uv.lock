@@ -97,9 +97,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
@@ -895,7 +895,7 @@ wheels = [
 
 [[package]]
 name = "apache-airflow"
-version = "3.2.1"
+version = "3.2.2"
 source = { editable = "." }
 dependencies = [
     { name = "apache-airflow-core" },
@@ -1752,7 +1752,7 @@ requires-dist = [
 
 [[package]]
 name = "apache-airflow-core"
-version = "3.2.1"
+version = "3.2.2"
 source = { editable = "airflow-core" }
 dependencies = [
     { name = "a2wsgi" },
@@ -18736,13 +18736,13 @@ wheels = [
 
 [[package]]
 name = "python-ldap"
-version = "3.4.6"
+version = "3.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyasn1" },
     { name = "pyasn1-modules" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/cb/4eb39fef5169d9c8f0cba26c854bd0ef69d5b7702a29d577898c941bcb77/python_ldap-3.4.6.tar.gz", hash = "sha256:83d6b65c7cbe627d81e556d0d03f3f450e3ac35ba9c1b6011f0097ac92effeb1", size = 389457, upload-time = "2026-05-14T12:06:19.325Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/88/8d2797decc42e1c1cdd926df4f005e938b0643d0d1219c08c2b5ee8ae0c0/python_ldap-3.4.5.tar.gz", hash = "sha256:b2f6ef1c37fe2c6a5a85212efe71311ee21847766a7d45fcb711f3b270a5f79a", size = 388482, upload-time = "2025-10-10T20:00:39.06Z" }
 
 [[package]]
 name = "python-multipart"
