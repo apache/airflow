@@ -161,6 +161,15 @@ class TestGetTaskState(TestTaskStateEndpoint):
         response = test_client.get(f"{BASE_URL}/nonexistent")
         assert response.status_code == 404
 
+    def test_key_with_slash_is_supported(self, test_client):
+        """Keys containing slashes must work — route uses {key:path}."""
+        _create_task_state(self._session, "workflow/step_1", "v", self.dag_run)
+        self._session.commit()
+
+        response = test_client.get(f"{BASE_URL}/workflow/step_1")
+        assert response.status_code == 200
+        assert response.json()["key"] == "workflow/step_1"
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(f"{BASE_URL}/job_id").status_code == 401
 
@@ -182,11 +191,25 @@ class TestSetTaskState(TestTaskStateEndpoint):
     def test_empty_body_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={}).status_code == 422
 
+    def test_oversized_value_returns_422(self, test_client):
+        assert test_client.put(f"{BASE_URL}/job_id", json={"value": "x" * 65536}).status_code == 422
+
     def test_set_nonexistent_dag_run_returns_404(self, test_client):
         """set() raises ValueError when DagRun doesn't exist — should surface as 404."""
         bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/states/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
+
+    def test_set_nonexistent_task_id_returns_404(self, test_client):
+        """set() returns 404 when task_id doesn not match any TaskInstance in the run."""
+        bad_url = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/nonexistent_task/states/job_id"
+        response = test_client.put(bad_url, json={"value": "v"})
+        assert response.status_code == 404
+
+    def test_key_with_slash_is_supported(self, test_client):
+        response = test_client.put(f"{BASE_URL}/workflow/step_1", json={"value": "v"})
+        assert response.status_code == 204
+        assert test_client.get(f"{BASE_URL}/workflow/step_1").json()["key"] == "workflow/step_1"
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.put(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401
@@ -212,6 +235,13 @@ class TestDeleteTaskState(TestTaskStateEndpoint):
 
         assert test_client.get(f"{BASE_URL}/job_id").status_code == 404
         assert test_client.get(f"{BASE_URL}/checkpoint").json()["value"] == "b"
+
+    def test_key_with_slash_is_supported(self, test_client):
+        _create_task_state(self._session, "workflow/step_1", "v", self.dag_run)
+        self._session.commit()
+
+        assert test_client.delete(f"{BASE_URL}/workflow/step_1").status_code == 204
+        assert test_client.get(f"{BASE_URL}/workflow/step_1").status_code == 404
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(f"{BASE_URL}/job_id").status_code == 401
@@ -251,6 +281,13 @@ class TestClearTaskState(TestTaskStateEndpoint):
         assert test_client.delete(f"{BASE_URL}?all_map_indices=true").status_code == 204
         assert test_client.get(f"{BASE_URL}?map_index=0").json()["total_entries"] == 0
         assert test_client.get(f"{BASE_URL}?map_index=1").json()["total_entries"] == 0
+
+    def test_key_with_slash_is_supported(self, test_client):
+        _create_task_state(self._session, "workflow/step_1", "v", self.dag_run)
+        self._session.commit()
+
+        assert test_client.delete(BASE_URL).status_code == 204
+        assert test_client.get(BASE_URL).json()["total_entries"] == 0
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(BASE_URL).status_code == 401

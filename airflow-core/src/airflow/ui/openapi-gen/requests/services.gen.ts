@@ -3552,8 +3552,8 @@ export class AssetStateService {
      * Get Asset State
      * Get a single asset state entry.
      * @param data The data for the request.
-     * @param data.assetId
      * @param data.key
+     * @param data.assetId
      * @returns AssetStateResponse Successful Response
      * @throws ApiError
      */
@@ -3562,8 +3562,8 @@ export class AssetStateService {
             method: 'GET',
             url: '/api/v2/assets/{asset_id}/states/{key}',
             path: {
-                asset_id: data.assetId,
-                key: data.key
+                key: data.key,
+                asset_id: data.assetId
             },
             errors: {
                 401: 'Unauthorized',
@@ -3578,8 +3578,8 @@ export class AssetStateService {
      * Set Asset State
      * Set an asset state value. Creates or overwrites the key.
      * @param data The data for the request.
-     * @param data.assetId
      * @param data.key
+     * @param data.assetId
      * @param data.requestBody
      * @returns void Successful Response
      * @throws ApiError
@@ -3589,8 +3589,8 @@ export class AssetStateService {
             method: 'PUT',
             url: '/api/v2/assets/{asset_id}/states/{key}',
             path: {
-                asset_id: data.assetId,
-                key: data.key
+                key: data.key,
+                asset_id: data.assetId
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3607,8 +3607,8 @@ export class AssetStateService {
      * Delete Asset State
      * Delete a single asset state key. No-op if the key does not exist.
      * @param data The data for the request.
-     * @param data.assetId
      * @param data.key
+     * @param data.assetId
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -3617,8 +3617,8 @@ export class AssetStateService {
             method: 'DELETE',
             url: '/api/v2/assets/{asset_id}/states/{key}',
             path: {
-                asset_id: data.assetId,
-                key: data.key
+                key: data.key,
+                asset_id: data.assetId
             },
             errors: {
                 401: 'Unauthorized',
@@ -3671,6 +3671,9 @@ export class TaskStateService {
     /**
      * Clear Task State
      * Delete all task state keys for a task instance.
+     *
+     * When ``all_map_indices=true``, state is cleared for every map index of the task and
+     * the ``map_index`` parameter is ignored.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId

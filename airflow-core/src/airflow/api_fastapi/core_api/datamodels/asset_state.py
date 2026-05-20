@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pydantic import Field
+
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
@@ -39,4 +41,4 @@ class AssetStateCollectionResponse(BaseModel):
 class AssetStateBody(StrictBaseModel):
     """Request body for setting an asset state value."""
 
-    value: str
+    value: str = Field(max_length=65535)

@@ -1482,8 +1482,8 @@ export const prefetchUseAssetStateServiceListAssetStates = (queryClient: QueryCl
 * Get Asset State
 * Get a single asset state entry.
 * @param data The data for the request.
-* @param data.assetId
 * @param data.key
+* @param data.assetId
 * @returns AssetStateResponse Successful Response
 * @throws ApiError
 */

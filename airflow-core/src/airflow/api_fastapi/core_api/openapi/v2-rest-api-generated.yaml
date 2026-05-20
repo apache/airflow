@@ -5647,18 +5647,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Asset Id
       - name: key
         in: path
         required: true
         schema:
           type: string
           title: Key
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -5700,18 +5700,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Asset Id
       - name: key
         in: path
         required: true
         schema:
           type: string
           title: Key
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
       requestBody:
         required: true
         content:
@@ -5755,18 +5755,18 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          title: Asset Id
       - name: key
         in: path
         required: true
         schema:
           type: string
           title: Key
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
       responses:
         '204':
           description: Successful Response
@@ -5882,7 +5882,13 @@ paths:
       tags:
       - Task State
       summary: Clear Task State
-      description: Delete all task state keys for a task instance.
+      description: 'Delete all task state keys for a task instance.
+
+
+        When ``all_map_indices=true``, state is cleared for every map index of the
+        task and
+
+        the ``map_index`` parameter is ignored.'
       operationId: clear_task_state
       security:
       - OAuth2PasswordBearer: []
@@ -11218,6 +11224,7 @@ components:
       properties:
         value:
           type: string
+          maxLength: 65535
           title: Value
       additionalProperties: false
       type: object
@@ -15542,6 +15549,7 @@ components:
       properties:
         value:
           type: string
+          maxLength: 65535
           title: Value
       additionalProperties: false
       type: object

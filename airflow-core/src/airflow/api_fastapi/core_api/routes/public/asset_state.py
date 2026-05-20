@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
@@ -30,13 +32,27 @@ from airflow.api_fastapi.core_api.datamodels.asset_state import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_asset
+from airflow.models.asset import AssetModel
 from airflow.models.asset_state import AssetStateModel
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.state import get_state_backend
 
 asset_state_router = AirflowRouter(
     tags=["Asset State"],
     prefix="/assets/{asset_id}/states",
 )
+
+
+def _get_asset_or_404(asset_id: int, session: SessionDep) -> int:
+    exists = session.scalar(select(AssetModel.id).where(AssetModel.id == asset_id))
+    if exists is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset with id {asset_id!r} not found",
+        )
+    return asset_id
+
+
+AssetIdDep = Annotated[int, Depends(_get_asset_or_404)]
 
 
 @asset_state_router.get(
@@ -45,19 +61,28 @@ asset_state_router = AirflowRouter(
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def list_asset_states(
-    asset_id: int,
+    asset_id: AssetIdDep,
     limit: QueryLimit,
     offset: QueryOffset,
     session: SessionDep,
 ) -> AssetStateCollectionResponse:
     """List all state entries for an asset."""
-    base = select(
-        AssetStateModel.key,
-        AssetStateModel.value,
-        AssetStateModel.updated_at,
-    ).where(AssetStateModel.asset_id == asset_id)
+    base = (
+        select(
+            AssetStateModel.key,
+            AssetStateModel.value,
+            AssetStateModel.updated_at,
+        )
+        .where(AssetStateModel.asset_id == asset_id)
+        .order_by(AssetStateModel.key.asc())
+    )
     paginated, total_entries = paginated_select(
-        statement=base, filters=[], order_by=None, offset=offset, limit=limit, session=session
+        statement=base,
+        filters=None,
+        order_by=None,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
     rows = session.execute(paginated).all()
     entries = [AssetStateResponse(key=r.key, value=r.value, updated_at=r.updated_at) for r in rows]
@@ -65,12 +90,12 @@ def list_asset_states(
 
 
 @asset_state_router.get(
-    "/{key}",
+    "/{key:path}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_state(
-    asset_id: int,
+    asset_id: AssetIdDep,
     key: str,
     session: SessionDep,
 ) -> AssetStateResponse:
@@ -94,34 +119,34 @@ def get_asset_state(
 
 
 @asset_state_router.put(
-    "/{key}",
+    "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="PUT"))],
 )
 def set_asset_state(
-    asset_id: int,
+    asset_id: AssetIdDep,
     key: str,
     body: AssetStateBody,
     session: SessionDep,
 ) -> None:
     """Set an asset state value. Creates or overwrites the key."""
-    MetastoreStateBackend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
+    get_state_backend().set(AssetScope(asset_id=asset_id), key, body.value, session=session)
 
 
 @asset_state_router.delete(
-    "/{key}",
+    "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="DELETE"))],
 )
 def delete_asset_state(
-    asset_id: int,
+    asset_id: AssetIdDep,
     key: str,
     session: SessionDep,
 ) -> None:
     """Delete a single asset state key. No-op if the key does not exist."""
-    MetastoreStateBackend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    get_state_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
 
 
 @asset_state_router.delete(
@@ -131,8 +156,8 @@ def delete_asset_state(
     dependencies=[Depends(requires_access_asset(method="DELETE"))],
 )
 def clear_asset_state(
-    asset_id: int,
+    asset_id: AssetIdDep,
     session: SessionDep,
 ) -> None:
     """Delete all state keys for an asset."""
-    MetastoreStateBackend().clear(AssetScope(asset_id=asset_id), session=session)
+    get_state_backend().clear(AssetScope(asset_id=asset_id), session=session)

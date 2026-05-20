@@ -385,6 +385,7 @@ export const $AssetStateBody = {
     properties: {
         value: {
             type: 'string',
+            maxLength: 65535,
             title: 'Value'
         }
     },
@@ -6798,6 +6799,7 @@ export const $TaskStateBody = {
     properties: {
         value: {
             type: 'string',
+            maxLength: 65535,
             title: 'Value'
         }
     },

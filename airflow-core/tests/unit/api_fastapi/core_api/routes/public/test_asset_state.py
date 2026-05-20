@@ -59,6 +59,25 @@ class TestAssetStateEndpoint:
         self.clear_db()
 
 
+class TestAssetNotFound(TestAssetStateEndpoint):
+    """All endpoints return 404 when asset_id does not exist."""
+
+    def test_list_unknown_asset_returns_404(self, test_client):
+        assert test_client.get("/assets/99999/states").status_code == 404
+
+    def test_get_unknown_asset_returns_404(self, test_client):
+        assert test_client.get("/assets/99999/states/key").status_code == 404
+
+    def test_set_unknown_asset_returns_404(self, test_client):
+        assert test_client.put("/assets/99999/states/key", json={"value": "v"}).status_code == 404
+
+    def test_delete_unknown_asset_returns_404(self, test_client):
+        assert test_client.delete("/assets/99999/states/key").status_code == 404
+
+    def test_clear_unknown_asset_returns_404(self, test_client):
+        assert test_client.delete("/assets/99999/states").status_code == 404
+
+
 class TestListAssetState(TestAssetStateEndpoint):
     def test_returns_empty_list_when_no_state(self, test_client):
         response = test_client.get(self._base_url)
@@ -124,6 +143,15 @@ class TestGetAssetState(TestAssetStateEndpoint):
     def test_missing_key_returns_404(self, test_client):
         assert test_client.get(f"{self._base_url}/nonexistent").status_code == 404
 
+    def test_key_with_slash_is_supported(self, test_client):
+        """Keys containing slashes must work — route uses {key:path}."""
+        _create_asset_state(self._session, self.asset.id, "partition/date", "2026-05-01")
+        self._session.commit()
+
+        response = test_client.get(f"{self._base_url}/partition/date")
+        assert response.status_code == 200
+        assert response.json()["key"] == "partition/date"
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(f"{self._base_url}/watermark").status_code == 401
 
@@ -143,6 +171,14 @@ class TestSetAssetState(TestAssetStateEndpoint):
 
     def test_empty_body_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={}).status_code == 422
+
+    def test_oversized_value_returns_422(self, test_client):
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
+
+    def test_key_with_slash_is_supported(self, test_client):
+        response = test_client.put(f"{self._base_url}/partition/date", json={"value": "2026-05-01"})
+        assert response.status_code == 204
+        assert test_client.get(f"{self._base_url}/partition/date").json()["key"] == "partition/date"
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert (
@@ -172,6 +208,13 @@ class TestDeleteAssetState(TestAssetStateEndpoint):
         assert test_client.get(f"{self._base_url}/watermark").status_code == 404
         assert test_client.get(f"{self._base_url}/file_count").json()["value"] == "b"
 
+    def test_key_with_slash_is_supported(self, test_client):
+        _create_asset_state(self._session, self.asset.id, "partition/date", "v")
+        self._session.commit()
+
+        assert test_client.delete(f"{self._base_url}/partition/date").status_code == 204
+        assert test_client.get(f"{self._base_url}/partition/date").status_code == 404
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(f"{self._base_url}/watermark").status_code == 401
 
@@ -200,6 +243,13 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
         other_url = f"/assets/{other_asset.id}/states"
         assert test_client.get(f"{other_url}/watermark").json()["value"] == "theirs"
+
+    def test_clears_slash_keyed_entries(self, test_client):
+        _create_asset_state(self._session, self.asset.id, "partition/date", "v")
+        self._session.commit()
+
+        assert test_client.delete(self._base_url).status_code == 204
+        assert test_client.get(self._base_url).json()["total_entries"] == 0
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.delete(self._base_url).status_code == 401

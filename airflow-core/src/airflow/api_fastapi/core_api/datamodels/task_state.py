@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pydantic import Field
+
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
@@ -40,4 +42,4 @@ class TaskStateCollectionResponse(BaseModel):
 class TaskStateBody(StrictBaseModel):
     """Request body for setting a task state value."""
 
-    value: str
+    value: str = Field(max_length=65535)

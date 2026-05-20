@@ -1482,8 +1482,8 @@ export const useAssetStateServiceListAssetStates = <TData = Common.AssetStateSer
 * Get Asset State
 * Get a single asset state entry.
 * @param data The data for the request.
-* @param data.assetId
 * @param data.key
+* @param data.assetId
 * @returns AssetStateResponse Successful Response
 * @throws ApiError
 */
@@ -2359,8 +2359,8 @@ export const useBackfillServiceCancelBackfill = <TData = Common.BackfillServiceC
 * Set Asset State
 * Set an asset state value. Creates or overwrites the key.
 * @param data The data for the request.
-* @param data.assetId
 * @param data.key
+* @param data.assetId
 * @param data.requestBody
 * @returns void Successful Response
 * @throws ApiError
@@ -2973,8 +2973,8 @@ export const useAssetStateServiceClearAssetState = <TData = Common.AssetStateSer
 * Delete Asset State
 * Delete a single asset state key. No-op if the key does not exist.
 * @param data The data for the request.
-* @param data.assetId
 * @param data.key
+* @param data.assetId
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -2988,6 +2988,9 @@ export const useAssetStateServiceDeleteAssetState = <TData = Common.AssetStateSe
 /**
 * Clear Task State
 * Delete all task state keys for a task instance.
+*
+* When ``all_map_indices=true``, state is cleared for every map index of the task and
+* the ``map_index`` parameter is ignored.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId

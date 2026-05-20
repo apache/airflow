@@ -57,7 +57,7 @@ class AssetStateBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str, Field(title="Value")]
+    value: Annotated[str, Field(max_length=65535, title="Value")]
 
 
 class AssetStateResponse(BaseModel):
@@ -935,7 +935,7 @@ class TaskStateBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str, Field(title="Value")]
+    value: Annotated[str, Field(max_length=65535, title="Value")]
 
 
 class TaskStateResponse(BaseModel):
