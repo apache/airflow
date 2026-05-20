@@ -636,7 +636,7 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
 
 
 class TestTriggerSupervisorAssetState:
-    """Verify the trigger supervisor handles the asset-state comms messages it now accepts."""
+    """TriggerRunnerSupervisor._handle_request dispatches all asset-state comms messages added in this PR."""
 
     asset_name: str = "my_asset"
     asset_uri: str = "s3://bucket/key"
@@ -650,6 +650,10 @@ class TestTriggerSupervisorAssetState:
         return jobless_supervisor
 
     def test_get_by_name(self, supervisor):
+        """
+        Validate that GetAssetStateByName calls client.asset_state.get(key, name=...) and respond with an
+        AssetStateResult carrying the returned value
+        """
         from airflow.sdk.api.datamodels._generated import AssetStateResponse
         from airflow.sdk.execution_time.comms import AssetStateResult, GetAssetStateByName
 
@@ -665,6 +669,7 @@ class TestTriggerSupervisorAssetState:
         assert sent.kwargs["request_id"] == 1
 
     def test_get_by_uri(self, supervisor):
+        """Validate call chain when retrieving using uri"""
         from airflow.sdk.api.datamodels._generated import AssetStateResponse
         from airflow.sdk.execution_time.comms import AssetStateResult, GetAssetStateByUri
 
@@ -676,7 +681,37 @@ class TestTriggerSupervisorAssetState:
         supervisor.client.asset_state.get.assert_called_once_with("watermark", uri=self.asset_uri)
         assert isinstance(supervisor.send_msg.call_args.args[0], AssetStateResult)
 
+    def test_get_by_name_propagates_error_response(self, supervisor):
+        """Validate that retrieving using a missing name should propagate error through call chain"""
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetStateByName
+
+        error = ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "missing_key"})
+        supervisor.client.asset_state.get.return_value = error
+
+        msg = GetAssetStateByName(name=self.asset_name, key="missing_key")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=9)
+
+        assert supervisor.send_msg.call_args.args[0] is error
+
+    def test_get_by_uri_propagates_error_response(self, supervisor):
+        """Same error-forwarding contract, but for the URI lookup variant"""
+        from airflow.sdk.exceptions import ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetStateByUri
+
+        error = ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": "missing_key"})
+        supervisor.client.asset_state.get.return_value = error
+
+        msg = GetAssetStateByUri(uri=self.asset_uri, key="missing_key")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=10)
+
+        assert supervisor.send_msg.call_args.args[0] is error
+
     def test_set_by_name(self, supervisor):
+        """
+        Validate that SetAssetStateByName calls client.asset_state.set(key, value, name=...), responds with
+        OKResponse
+        """
         from airflow.sdk.execution_time.comms import OKResponse, SetAssetStateByName
 
         msg = SetAssetStateByName(name=self.asset_name, key="watermark", value="2026-04-30")
@@ -688,6 +723,10 @@ class TestTriggerSupervisorAssetState:
         assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
 
     def test_set_by_uri(self, supervisor):
+        """
+        Validate that SetAssetStateByUri calls client.asset_state.set(key, value, uri=...), responds with
+        OKResponse
+        """
         from airflow.sdk.execution_time.comms import OKResponse, SetAssetStateByUri
 
         msg = SetAssetStateByUri(uri=self.asset_uri, key="watermark", value="2026-04-30")
@@ -699,6 +738,10 @@ class TestTriggerSupervisorAssetState:
         assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
 
     def test_delete_by_name(self, supervisor):
+        """
+        Validate that DeleteAssetStateByName calls client.asset_state.delete(key, name=...) responds with
+        OKResponse
+        """
         from airflow.sdk.execution_time.comms import DeleteAssetStateByName, OKResponse
 
         msg = DeleteAssetStateByName(name=self.asset_name, key="watermark")
@@ -708,6 +751,10 @@ class TestTriggerSupervisorAssetState:
         assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
 
     def test_delete_by_uri(self, supervisor):
+        """
+        Validate that DeleteAssetStateByUri calls client.asset_state.delete(key, uri=...) responds with
+        OKResponse
+        """
         from airflow.sdk.execution_time.comms import DeleteAssetStateByUri, OKResponse
 
         msg = DeleteAssetStateByUri(uri=self.asset_uri, key="watermark")
@@ -717,6 +764,10 @@ class TestTriggerSupervisorAssetState:
         assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
 
     def test_clear_by_name(self, supervisor):
+        """
+        Validate that ClearAssetStateByName calls client.asset_state.clear(name=...) with no key argument,
+        responds with OKResponse
+        """
         from airflow.sdk.execution_time.comms import ClearAssetStateByName, OKResponse
 
         msg = ClearAssetStateByName(name=self.asset_name)
@@ -726,6 +777,10 @@ class TestTriggerSupervisorAssetState:
         assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
 
     def test_clear_by_uri(self, supervisor):
+        """
+        Validate that ClearAssetStateByUri calls client.asset_state.clear(uri=...) with no key argument,
+        responds with OKResponse
+        """
         from airflow.sdk.execution_time.comms import ClearAssetStateByUri, OKResponse
 
         msg = ClearAssetStateByUri(uri=self.asset_uri)
