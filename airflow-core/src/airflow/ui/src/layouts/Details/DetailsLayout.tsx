@@ -210,6 +210,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const sharedGridGanttScrollRef = useRef<HTMLDivElement | null>(null);
   // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
+  const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
+  const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
 
   return (
     <HoverProvider>
@@ -258,12 +260,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               key={`${panelViewKey}-${direction}`}
               ref={panelGroupRef}
             >
-              <Panel
-                defaultSize={dagView === "graph" ? 70 : 20}
-                id="main-panel"
-                minSize={dagView === "gantt" && Boolean(runId) ? 35 : 6}
-                order={1}
-              >
+              <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
                 <Flex flexDirection="column" height="100%">
                   <PanelButtons
                     dagView={dagView}
