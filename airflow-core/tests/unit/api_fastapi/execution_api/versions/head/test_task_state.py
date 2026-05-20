@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import pendulum
 import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
@@ -94,6 +96,34 @@ class TestPutTaskState:
             )
             assert row is not None
             assert row.value == "spark_001"
+
+    def test_put_with_expires_at_creates_row(
+        self, client: TestClient, create_task_instance: CreateTaskInstance, time_machine
+    ):
+
+        ti = create_task_instance()
+        time_machine.move_to(datetime(2026, 5, 5, 12, 0, 0), tick=False)
+        response = client.put(
+            _api_url(ti.id, "job_id"),
+            json={
+                "value": "spark_001",
+                "expires_at": datetime(2026, 5, 15, 12, 0, 0, tzinfo=pendulum.UTC).isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        with create_session() as session:
+            row = session.scalar(
+                select(TaskStateModel).where(
+                    TaskStateModel.dag_id == ti.dag_id,
+                    TaskStateModel.run_id == ti.run_id,
+                    TaskStateModel.task_id == ti.task_id,
+                    TaskStateModel.key == "job_id",
+                )
+            )
+            assert row is not None
+            assert row.value == "spark_001"
+            assert row.expires_at == datetime(2026, 5, 15, 12, 0, 0, tzinfo=pendulum.UTC)
 
     def test_put_overwrites_existing(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()

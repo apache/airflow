@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+7.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Support user-assigned managed identity for Azure VM auth (#66072)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Repair action missing job parameters in 'DatabricksRunNowOperator' (#67055)``
+* ``Preserve Databricks deferrable trigger caller across triggerer restarts (#66965)``
+* ``Fix 'DatabricksWorkflowTaskGroup' leaking TaskGroupContext on internal exception (#66582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky databricks token-expiry test by freezing time_machine (#66660)``
+   * ``Enable plugin tests in test_databricks_workflow.py for Airflow 3.0+ (#66442)``
+
 7.14.0
 ......
 

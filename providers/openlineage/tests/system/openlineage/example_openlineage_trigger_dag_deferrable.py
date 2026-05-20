@@ -56,7 +56,7 @@ with DAG(
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        allow_duplicate_events_regex="openlineage_trigger_dag_deferrable.trigger_dagrun.event.start",
+        event_count_assertions={"openlineage_trigger_dag_deferrable.trigger_dagrun.event.start": ">=2"},
     )
 
     trigger_dagrun >> check_events

@@ -20,14 +20,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias
 
-from airflow.models.callback import ExecutorCallback
+from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.callback import CallbackKey
-
     # Type aliases for workload keys and states (used by executor layer)
     WorkloadKey: TypeAlias = TaskInstanceKey | CallbackKey
     WorkloadState: TypeAlias = TaskInstanceState | CallbackState
@@ -43,4 +41,6 @@ SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback
 def state_class_for_key(key: WorkloadKey) -> type[TaskInstanceState] | type[CallbackState]:
     if isinstance(key, TaskInstanceKey):
         return TaskInstanceState
-    return CallbackState
+    if isinstance(key, CallbackKey):
+        return CallbackState
+    raise TypeError(f"Unknown workload key type: {type(key)!r}")

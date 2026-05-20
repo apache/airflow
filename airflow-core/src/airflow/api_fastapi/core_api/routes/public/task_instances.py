@@ -96,6 +96,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     _get_task_group_task_instances,
@@ -834,6 +835,8 @@ def post_clear_task_instances(
     """Clear task instances."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
+    resolved_run_on_latest = resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session)
+
     reset_dag_runs = body.reset_dag_runs
     dry_run = body.dry_run
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
@@ -918,7 +921,7 @@ def post_clear_task_instances(
             task_ids=task_markers_to_clear,
             run_id=dag_run_id,
             session=session,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
         )
@@ -930,7 +933,7 @@ def post_clear_task_instances(
             start_date=body.start_date,
             end_date=body.end_date,
             session=session,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             only_failed=body.only_failed,
             only_running=body.only_running,
         )
@@ -941,7 +944,7 @@ def post_clear_task_instances(
                 task_instances,
                 session,
                 DagRunState.QUEUED if reset_dag_runs else False,
-                run_on_latest_version=body.run_on_latest_version,
+                run_on_latest_version=resolved_run_on_latest,
                 prevent_running_task=body.prevent_running_task,
             )
         except AirflowClearRunningTaskException as e:

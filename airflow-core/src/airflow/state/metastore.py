@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -44,18 +44,6 @@ if TYPE_CHECKING:
 
 
 log = structlog.get_logger(__name__)
-
-
-def _compute_expires_at(now: datetime) -> datetime | None:
-    """
-    Return the expiry timestamp for a new task state row based on config.
-
-    Returns None if default_retention_days is 0 (never expires).
-    """
-    retention_days = conf.getint("state_store", "default_retention_days")
-    if retention_days <= 0:
-        return None
-    return now + timedelta(days=retention_days)
 
 
 @asynccontextmanager
@@ -111,12 +99,20 @@ class MetastoreStateBackend(BaseStateBackend):
                 assert_never(scope)
 
     @provide_session
-    def set(self, scope: StateScope, key: str, value: str, *, session: Session | None = NEW_SESSION) -> None:
+    def set(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: Session | None = NEW_SESSION,
+    ) -> None:
         if TYPE_CHECKING:
             assert session is not None
         match scope:
             case TaskScope():
-                self._set_task_state(scope, key, value, session=session)
+                self._set_task_state(scope, key, value, expires_at=expires_at, session=session)
             case AssetScope():
                 self._set_asset_state(scope, key, value, session=session)
             case _:
@@ -163,12 +159,18 @@ class MetastoreStateBackend(BaseStateBackend):
                     assert_never(scope)
 
     async def aset(
-        self, scope: StateScope, key: str, value: str, *, session: AsyncSession | None = None
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: AsyncSession | None = None,
     ) -> None:
         async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aset_task_state(scope, key, value, session=s)
+                    await self._aset_task_state(scope, key, value, expires_at=expires_at, session=s)
                 case AssetScope():
                     await self._aset_asset_state(scope, key, value, session=s)
                 case _:
@@ -208,7 +210,15 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    def _set_task_state(self, scope: TaskScope, key: str, value: str, *, session: Session) -> None:
+    def _set_task_state(
+        self,
+        scope: TaskScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: Session,
+    ) -> None:
         dag_run_id = session.scalar(
             select(DagRun.id).where(
                 DagRun.dag_id == scope.dag_id,
@@ -218,7 +228,6 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,
@@ -354,7 +363,13 @@ class MetastoreStateBackend(BaseStateBackend):
         return row.value if row is not None else None
 
     async def _aset_task_state(
-        self, scope: TaskScope, key: str, value: str, *, session: AsyncSession
+        self,
+        scope: TaskScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: AsyncSession,
     ) -> None:
         dag_run_id = await session.scalar(
             select(DagRun.id).where(
@@ -365,7 +380,6 @@ class MetastoreStateBackend(BaseStateBackend):
         if dag_run_id is None:
             raise ValueError(f"No DagRun found for dag_id={scope.dag_id!r} run_id={scope.run_id!r}")
         now = timezone.utcnow()
-        expires_at = _compute_expires_at(now)
         values = dict(
             dag_run_id=dag_run_id,
             dag_id=scope.dag_id,

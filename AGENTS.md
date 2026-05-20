@@ -137,6 +137,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
+- Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreStateBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
 - Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 - Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
@@ -300,6 +301,30 @@ Remind the user to:
 1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
 2. Add a brief description of the changes at the top of the body.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
+
+### Golden rule: when a fix is imminent, open the PR, not an issue
+
+If you already know how to fix the problem and you (or the user) are going to
+open the PR shortly, **do not file a GitHub issue first**. Go straight to the
+PR.
+
+- Airflow does not use issues as a changelog, as a parallel bug database, or
+  as a duplicate record of in-flight work. The PR itself is the canonical
+  record — title, description, diff, discussion, and merge all live in one
+  place. An issue that gets closed by a PR a day later is double accounting
+  that carries no information the PR does not already carry.
+- Open issues attract drive-by submissions, often from other agents, that
+  haven't seen the in-flight work. That produces duplicate fixes, low-quality
+  PRs that have to be closed, and wasted reviewer time. Not opening the
+  issue avoids creating that bait in the first place.
+- If you catch yourself drafting an issue body that reads like the PR
+  description you are about to write, that is the signal — skip the issue
+  and open the PR.
+
+The one exception is the case covered by the next section: the PR ships a
+**workaround, mitigation, or partial fix** and the real follow-up work is
+genuinely deferred to a later PR. There, the issue captures work that will
+outlive the PR, so the issue is load-bearing rather than duplicate.
 
 ### Tracking issues for deferred work
 
