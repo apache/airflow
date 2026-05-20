@@ -431,12 +431,14 @@ class TestCloudUriDispatch:
 
     @patch("airflow.sdk.ObjectStoragePath")
     def test_single_object_uri_returns_one_document(self, mock_osp_cls):
+        # `str(mock_obj)` returns whatever MagicMock renders; we only assert
+        # the file_name field, not file_path, so leaving __str__ default is
+        # fine and avoids mypy's method-assign complaint.
         mock_obj = MagicMock()
         mock_obj.is_file.return_value = True
         mock_obj.suffix = ".txt"
         mock_obj.name = "report.txt"
         mock_obj.read_bytes.return_value = b"cloud content"
-        mock_obj.__str__ = lambda self: "s3://bucket/dir/report.txt"
         mock_osp_cls.return_value = mock_obj
 
         op = DocumentLoaderOperator(
@@ -460,7 +462,6 @@ class TestCloudUriDispatch:
             child.name = name
             child.suffix = "." + name.rsplit(".", 1)[-1]
             child.read_bytes.return_value = content
-            child.__str__ = lambda self: f"s3://bucket/dir/{name}"
             return child
 
         a = _mock_child("a.txt", b"alpha")
