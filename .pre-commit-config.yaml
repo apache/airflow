@@ -934,7 +934,8 @@ repos:
         exclude: |
           (?x)
           ^\.apache-steward-overrides/|
-          ^\.github/skills/setup-steward/
+          ^\.github/skills/setup-steward/|
+          ^airflow-ctl/skills/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
