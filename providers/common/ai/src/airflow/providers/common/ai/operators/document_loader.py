@@ -33,6 +33,14 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
+# Type alias for path-like inputs that the parsers can read from. ``Path`` is
+# the local filesystem; ``ObjectStoragePath`` covers ``s3://``, ``gs://``,
+# ``azure://``, ``file://``, ... via fsspec. Both expose the methods we need
+# (``read_bytes``, ``open``, ``name``, ``suffix``) so the parsers stay
+# polymorphic.
+FilePathT = Any  # Path | ObjectStoragePath
+
+
 class DocumentLoaderOperator(BaseOperator):
     """
     Parse files into ``list[dict(text, metadata)]`` for downstream embedding.
@@ -53,8 +61,19 @@ class DocumentLoaderOperator(BaseOperator):
     ``source_bytes``, ``file_type`` is required so the operator knows which
     parser to use.
 
-    :param source_path: Local file path or glob pattern (e.g.
-        ``/data/*.pdf``). ``**`` enables recursive matching.
+    The operator is intentionally a **loader**: it does not split documents
+    into fixed-size chunks. Pass the output to a downstream text-splitter or
+    embedding operator if you need chunking.
+
+    :param source_path: A local path, glob pattern, or storage URI
+        (``s3://``, ``gs://``, ``azure://``, ``file://``, ...). Cloud URIs
+        go through :class:`~airflow.sdk.ObjectStoragePath` / fsspec.
+        ``**`` enables recursive matching for local globs. Cloud URIs
+        accept a single file or a directory; cross-directory globs in a
+        cloud URI are not supported in this version.
+    :param source_conn_id: Airflow connection ID used by
+        ``ObjectStoragePath`` for cloud URIs (``aws_default``,
+        ``google_cloud_default``, ...). Ignored for local paths.
     :param source_bytes: Raw file bytes, typically from XCom.
     :param file_type: File extension hint when using ``source_bytes``
         (e.g. ``".pdf"``). Also accepted with ``source_path`` to override
@@ -85,6 +104,7 @@ class DocumentLoaderOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "source_path",
+        "source_conn_id",
         "file_type",
         "file_extensions",
         "parser",
@@ -104,6 +124,7 @@ class DocumentLoaderOperator(BaseOperator):
         self,
         *,
         source_path: str | None = None,
+        source_conn_id: str | None = None,
         source_bytes: bytes | None = None,
         file_type: str | None = None,
         parser: str = "auto",
@@ -123,6 +144,7 @@ class DocumentLoaderOperator(BaseOperator):
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
 
         self.source_path = source_path
+        self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
         self.file_type = file_type
         self.parser = parser
@@ -161,36 +183,73 @@ class DocumentLoaderOperator(BaseOperator):
         self.log.info("Parsed %d documents from %d file(s)", len(documents), file_count)
         return documents
 
-    def _resolve_files(self, source_path: str) -> list[Path]:
+    def _resolve_files(self, source_path: str) -> list[FilePathT]:
+        # A storage URI (``s3://``, ``gs://``, ``file://``, ...) goes through
+        # ObjectStoragePath / fsspec; a bare local path keeps the existing
+        # glob behaviour. The heuristic is intentionally simple: presence of
+        # ``://`` indicates a URI.
+        if "://" in source_path:
+            return self._resolve_remote_files(source_path)
+        return self._resolve_local_files(source_path)
+
+    def _resolve_local_files(self, source_path: str) -> list[Path]:
         path = Path(source_path)
         if path.is_file():
             return [path]
 
         if path.is_dir():
             candidates = sorted(p for p in path.iterdir() if not p.name.startswith("."))
+            is_directory_mode = True
         else:
             # `recursive=True` makes `**` match across directories per the docstring.
             candidates = [Path(p) for p in sorted(glob.glob(source_path, recursive=True))]
+            is_directory_mode = False
 
-        results = [p for p in candidates if p.is_file()]
+        return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=is_directory_mode)
 
+    def _resolve_remote_files(self, source_path: str) -> list[FilePathT]:
+        from airflow.sdk import ObjectStoragePath
+
+        root = ObjectStoragePath(source_path, conn_id=self.source_conn_id)
+        try:
+            if root.is_file():
+                return [root]
+        except FileNotFoundError:
+            # Some fsspec backends raise instead of returning False.
+            pass
+
+        if not root.is_dir():
+            raise FileNotFoundError(
+                f"Cloud URI '{source_path}' is neither a file nor a directory. "
+                "Cross-directory globs in cloud URIs aren't supported here; "
+                "point ``source_path`` at a single object or a directory."
+            )
+
+        candidates = sorted(
+            (p for p in root.iterdir() if not p.name.startswith(".")),
+            key=str,
+        )
+        return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=True)
+
+    def _filter_files(self, results: list[FilePathT], *, is_directory_mode: bool) -> list[FilePathT]:
         if self.file_extensions:
             allowed = {(ext if ext.startswith(".") else f".{ext}").lower() for ext in self.file_extensions}
-            results = [p for p in results if p.suffix.lower() in allowed]
-        elif path.is_dir():
-            # In directory mode with no explicit filter: skip files we don't
-            # know how to parse rather than crashing on the first .DS_Store
-            # or editor temp file. A glob pattern is treated as intentional.
+            return [p for p in results if p.suffix.lower() in allowed]
+
+        if is_directory_mode:
+            # No explicit filter in directory mode: skip files we don't know
+            # how to parse rather than crashing on the first stray file
+            # (``.DS_Store``, editor swap files, etc.). A glob is treated as
+            # intentional and parsed via the explicit ``parser`` argument.
             known = set(self.EXTENSION_BACKEND_MAP.keys())
             unknown = [p for p in results if p.suffix.lower() not in known]
             if unknown:
                 self.log.warning(
-                    "Skipping %d file(s) with unrecognised extension in '%s': %s",
+                    "Skipping %d file(s) with unrecognised extension: %s",
                     len(unknown),
-                    source_path,
                     ", ".join(sorted({p.suffix or "<no ext>" for p in unknown})),
                 )
-            results = [p for p in results if p.suffix.lower() in known]
+            return [p for p in results if p.suffix.lower() in known]
 
         return results
 

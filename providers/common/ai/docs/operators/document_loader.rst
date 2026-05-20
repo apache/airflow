@@ -140,6 +140,34 @@ the field shape is more complex than what ``json_text_field`` covers:
             for r in records
         ]
 
+No chunking
+-----------
+
+The operator parses files into documents; it does **not** split them into
+fixed-size chunks. The right chunking strategy depends on the embedding
+model and is intentionally left to a downstream text-splitter or embedding
+operator (LlamaIndex's ``EmbeddingOperator``, LangChain's text splitters,
+...).
+
+Format coverage roadmap
+-----------------------
+
+The current built-in dispatch covers ``.txt``, ``.md``, ``.csv``, ``.json``,
+``.pdf``, ``.docx``. Additional formats are deferred to follow-ups, each
+gated behind its own extra so users only install what they need:
+
+- ``.pptx`` via ``python-pptx``
+- ``.epub`` via ``ebooklib``
+- ``.xlsx`` via ``openpyxl``
+- ``.html`` / ``.htm`` via ``beautifulsoup4``
+- Image OCR (``.png`` / ``.jpg``) via ``pytesseract``
+- Audio transcription via a model call (``LLMOperator`` or ``AgentOperator``
+  is a better fit for transcription than this parser)
+
+For anything not in the dispatch map, set ``parser`` explicitly (``"text"``
+to read as plain text) or write the parser inline in a ``@task`` that calls
+``DocumentLoaderOperator`` with ``source_bytes`` for known formats.
+
 Composing with downstream embedding operators
 ---------------------------------------------
 
@@ -161,11 +189,27 @@ directly into embedding operators. With LlamaIndex's ``EmbeddingOperator``:
 
     load >> embed
 
-Composing with Airflow providers
---------------------------------
+Cloud storage URIs
+------------------
 
-Use any Airflow provider to download files, then parse them with
-``DocumentLoaderOperator``:
+``source_path`` accepts any URI that
+:class:`~airflow.sdk.ObjectStoragePath` resolves via fsspec
+(``s3://``, ``gs://``, ``azure://``, ``file://``, ...). Point it at a
+single object or a directory; cross-directory globs in cloud URIs are not
+supported in this version.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
+    :language: python
+    :start-after: [START howto_operator_document_loader_cloud_uri]
+    :end-before: [END howto_operator_document_loader_cloud_uri]
+
+Use ``source_conn_id`` to point at the Airflow connection that holds the
+cloud credentials (``aws_default``, ``google_cloud_default``, ...). For
+single-file URIs, ``source_conn_id`` works the same way.
+
+If you'd rather download the file with a dedicated provider operator
+first (e.g. to get retry semantics specific to that storage), the
+download-then-parse pattern still works:
 
 .. code-block:: python
 
@@ -214,8 +258,15 @@ Parameters
    * - Parameter
      - Description
    * - ``source_path``
-     - Local file, directory, or glob pattern. ``**`` is recursive. Mutually
-       exclusive with ``source_bytes``.
+     - Local file, directory, or glob pattern, **or** a storage URI
+       (``s3://``, ``gs://``, ``azure://``, ``file://``) resolved via
+       :class:`~airflow.sdk.ObjectStoragePath`. ``**`` is recursive for
+       local globs; cross-directory globs in cloud URIs are not supported.
+       Mutually exclusive with ``source_bytes``.
+   * - ``source_conn_id``
+     - Airflow connection ID for the cloud-storage credentials used by
+       ``ObjectStoragePath`` (``aws_default``, ``google_cloud_default``,
+       ...). Ignored for local paths.
    * - ``source_bytes``
      - Raw file bytes from XCom. Requires ``file_type``. Mutually exclusive
        with ``source_path``. Not a template field (bytes don't survive Jinja).

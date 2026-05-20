@@ -426,6 +426,69 @@ class TestFileDiscovery:
         assert result[0]["text"] == "keep me"
 
 
+class TestCloudUriDispatch:
+    """``source_path`` containing a URI scheme routes through ObjectStoragePath."""
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_single_object_uri_returns_one_document(self, mock_osp_cls):
+        mock_obj = MagicMock()
+        mock_obj.is_file.return_value = True
+        mock_obj.suffix = ".txt"
+        mock_obj.name = "report.txt"
+        mock_obj.read_bytes.return_value = b"cloud content"
+        mock_obj.__str__ = lambda self: "s3://bucket/dir/report.txt"
+        mock_osp_cls.return_value = mock_obj
+
+        op = DocumentLoaderOperator(
+            task_id="test",
+            source_path="s3://bucket/dir/report.txt",
+            source_conn_id="aws_default",
+        )
+        result = op.execute(context=MagicMock())
+
+        mock_osp_cls.assert_called_once_with("s3://bucket/dir/report.txt", conn_id="aws_default")
+        assert len(result) == 1
+        assert result[0]["text"] == "cloud content"
+        assert result[0]["metadata"]["file_name"] == "report.txt"
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_directory_uri_iterates_children(self, mock_osp_cls):
+        # Root is a directory; iterdir yields two text files.
+        def _mock_child(name: str, content: bytes):
+            child = MagicMock()
+            child.is_file.return_value = True
+            child.name = name
+            child.suffix = "." + name.rsplit(".", 1)[-1]
+            child.read_bytes.return_value = content
+            child.__str__ = lambda self: f"s3://bucket/dir/{name}"
+            return child
+
+        a = _mock_child("a.txt", b"alpha")
+        b = _mock_child("b.txt", b"beta")
+
+        root = MagicMock()
+        root.is_file.return_value = False
+        root.is_dir.return_value = True
+        root.iterdir.return_value = [a, b]
+        mock_osp_cls.return_value = root
+
+        op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket/dir/")
+        result = op.execute(context=MagicMock())
+
+        assert {doc["text"] for doc in result} == {"alpha", "beta"}
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    def test_neither_file_nor_dir_uri_raises(self, mock_osp_cls):
+        bad = MagicMock()
+        bad.is_file.return_value = False
+        bad.is_dir.return_value = False
+        mock_osp_cls.return_value = bad
+
+        op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket/missing")
+        with pytest.raises(FileNotFoundError, match="neither a file nor a directory"):
+            op.execute(context=MagicMock())
+
+
 class TestEncoding:
     def test_strict_utf8_default_raises_with_path_context(self, tmp_path):
         f = tmp_path / "latin1.csv"

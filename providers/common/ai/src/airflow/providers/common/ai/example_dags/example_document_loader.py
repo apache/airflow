@@ -123,3 +123,23 @@ def example_document_loader_json_field():
 # [END howto_operator_document_loader_json_field]
 
 example_document_loader_json_field()
+
+
+# [START howto_operator_document_loader_cloud_uri]
+@dag(schedule=None)
+def example_document_loader_cloud_uri():
+    """Read PDFs directly from S3 -- no separate download step."""
+
+    load_docs = DocumentLoaderOperator(
+        task_id="load_docs",
+        source_path="s3://my-bucket/reports/",
+        source_conn_id="aws_default",
+        file_extensions=[".pdf"],
+    )
+
+    load_docs
+
+
+# [END howto_operator_document_loader_cloud_uri]
+
+example_document_loader_cloud_uri()
