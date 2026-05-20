@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.sdk._shared.timezones.timezone import parse_timezone
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 if TYPE_CHECKING:
@@ -36,9 +37,11 @@ class _BaseTemporalMapper(PartitionMapper):
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
     ) -> None:
-        self._timezone = timezone
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
+        if isinstance(timezone, str):
+            timezone = parse_timezone(timezone)
+        self._timezone = timezone
 
 
 class StartOfHourMapper(_BaseTemporalMapper):

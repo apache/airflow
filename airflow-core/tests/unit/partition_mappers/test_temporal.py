@@ -164,7 +164,7 @@ class TestSdkTemporalMappersTimezoneSerialization:
     def test_sdk_constructor_accepts_timezone(self, sdk_mapper_name, timezone):
         sdk_cls = getattr(sdk, sdk_mapper_name)
         mapper = sdk_cls(timezone=timezone)
-        assert mapper._timezone == timezone
+        assert mapper._timezone.name == timezone
 
     @pytest.mark.parametrize("timezone", ["UTC", "America/New_York", "Asia/Taipei"])
     @pytest.mark.parametrize(
@@ -207,3 +207,23 @@ class TestSdkTemporalMappersTimezoneSerialization:
         restored = decode_partition_mapper(encode_partition_mapper(original))
 
         assert restored._timezone.name == "Asia/Taipei"
+
+    @pytest.mark.parametrize(
+        "sdk_mapper_name",
+        [
+            "StartOfHourMapper",
+            "StartOfDayMapper",
+            "StartOfWeekMapper",
+            "StartOfMonthMapper",
+            "StartOfQuarterMapper",
+            "StartOfYearMapper",
+        ],
+    )
+    def test_sdk_constructor_invalid_timezone_raises_eagerly(self, sdk_mapper_name):
+        """Passing an unknown timezone string must raise at construction time
+        (via ``parse_timezone``), not silently fall back to UTC or fail later."""
+        from pendulum.tz.exceptions import InvalidTimezone
+
+        sdk_cls = getattr(sdk, sdk_mapper_name)
+        with pytest.raises(InvalidTimezone):
+            sdk_cls(timezone="Not/A/Real/Zone")
