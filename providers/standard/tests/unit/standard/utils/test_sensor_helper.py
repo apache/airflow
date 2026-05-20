@@ -453,6 +453,39 @@ class TestSensorHelper:
             0,
             id="single_runid_with_no_success",
         ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": None},
+            },
+            ["success"],
+            0,
+            id="single_runid_with_single_none",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {},
+            },
+            ["success"],
+            0,
+            id="single_runid_with_empty",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": None, "task_id_2": None},
+            },
+            ["success"],
+            0,
+            id="single_runid_with_all_none",
+        ),
+        pytest.param(
+            {
+                "run_id_1": {"task_id_1": "success", "task_id_2": "success"},
+                "run_id_2": {"task_id_1": None, "task_id_2": None},
+            },
+            ["success"],
+            1,
+            id="single_runid_with_all_none_success",
+        ),
     ],
 )
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for AF3")

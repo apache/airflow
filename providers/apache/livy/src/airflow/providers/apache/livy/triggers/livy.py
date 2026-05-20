@@ -42,6 +42,7 @@ class LivyTrigger(BaseTrigger):
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
     :param livy_hook_async: LivyAsyncHook object
+    :param endpoint_prefix: Optional URL prefix for the Livy API endpoint.
     """
 
     def __init__(
@@ -80,6 +81,7 @@ class LivyTrigger(BaseTrigger):
                 "extra_headers": self._extra_headers,
                 "livy_hook_async": self._livy_hook_async,
                 "execution_timeout": self._execution_timeout,
+                "endpoint_prefix": self._endpoint_prefix,
             },
         )
 

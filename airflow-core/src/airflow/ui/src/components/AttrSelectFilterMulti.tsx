@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type CollectionItem, createListCollection } from "@chakra-ui/react";
-import type { SelectValueChangeDetails } from "@chakra-ui/react";
+import { createListCollection } from "@chakra-ui/react";
+import type { SelectValueChangeDetails, CollectionItem } from "@chakra-ui/react";
 
 import { Select } from "src/components/ui";
 
@@ -60,7 +60,7 @@ export const AttrSelectFilterMulti = ({
       onValueChange={handleValueChange}
       value={selectedValues}
     >
-      <Select.Trigger colorPalette="brand" dataTestId={dataTestId} minW="max-content">
+      <Select.Trigger dataTestId={dataTestId} minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
           {() => displayValue}
         </Select.ValueText>

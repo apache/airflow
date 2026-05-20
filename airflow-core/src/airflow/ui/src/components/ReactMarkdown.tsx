@@ -28,16 +28,10 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import {
-  Children,
-  isValidElement,
-  type ComponentProps,
-  type PropsWithChildren,
-  type ReactNode,
-  useEffect,
-} from "react";
-import type { Components, Options } from "react-markdown";
+import { Children, isValidElement, useEffect } from "react";
+import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 import ReactMD from "react-markdown";
+import type { Components, Options } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";

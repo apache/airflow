@@ -1165,14 +1165,12 @@ class TestWatchedSubprocess:
         assert rc == -signal_to_raise
 
     @pytest.mark.execution_timeout(3)
-    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker, time_machine):
+    def test_cleanup_sockets_after_delay(self, monkeypatch, mocker):
         """Supervisor should close sockets if EOF events are missed."""
 
         monkeypatch.setattr("airflow.sdk.execution_time.supervisor.SOCKET_CLEANUP_TIMEOUT", 1.0)
 
         mock_process = mocker.Mock(pid=12345)
-
-        time_machine.move_to(time.time(), tick=False)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1188,19 +1186,15 @@ class TestWatchedSubprocess:
 
         proc._exit_code = 0
         # Create a fake placeholder in the open socket weakref
-        proc._open_sockets[mocker.MagicMock()] = "test placeholder"
-        proc._process_exit_monotonic = time.time()
-
-        mocker.patch.object(
-            ActivitySubprocess,
-            "_cleanup_open_sockets",
-            side_effect=lambda: setattr(proc, "_open_sockets", {}),
-        )
-
-        time_machine.shift(2)
+        mock_socket = mocker.MagicMock(spec=socket.socket)
+        proc._open_sockets[mock_socket] = "test placeholder"
+        proc._process_exit_monotonic = time.monotonic() - 2
 
         proc._monitor_subprocess()
         assert len(proc._open_sockets) == 0
+        mock_socket.close.assert_called_once()
+        proc.selector.close.assert_called_once()
+        proc.stdin.close.assert_called_once()
 
 
 class TestWatchedSubprocessKill:
@@ -2722,11 +2716,33 @@ REQUEST_TEST_CASES = [
         expected_body={"value": "spark_app_001", "type": "TaskStateResult"},
     ),
     RequestTestCase(
-        message=SetTaskState(ti_id=TI_ID, key="job_id", value="spark_app_001"),
+        message=SetTaskState(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
         test_id="set_task_state",
         client_mock=ClientMock(
             method_path="task_state.set",
             args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            response=OKResponse(ok=True),
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+    ),
+    RequestTestCase(
+        message=SetTaskState(
+            ti_id=TI_ID,
+            key="job_id",
+            value="spark_app_001",
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+        ),
+        test_id="set_task_state_with_expires_at",
+        client_mock=ClientMock(
+            method_path="task_state.set",
+            args=(TI_ID, "job_id", "spark_app_001"),
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3022,6 +3038,177 @@ class TestHandleRequest:
             "message": str(error),
             "detail": error.response.json(),
         }
+
+    def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
+        """A transient network error must not crash the IPC generator.
+
+        Without the catch-all in handle_requests, an httpx.ConnectError would
+        propagate, the generator would terminate, the task subprocess would
+        get EOFError on every subsequent send, and the worker would be stuck.
+        Verify that the error is reported back to the task as an
+        API_SERVER_ERROR ErrorResponse and that the loop stays alive for the
+        next request.
+        """
+        watched_subprocess, read_socket = watched_subprocess
+
+        # First request raises a network exception, second succeeds.
+        first_call = httpx.ConnectError("connection refused")
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(side_effect=[first_call, None])
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        # First request — should produce an ErrorResponse, not crash the generator.
+        msg1 = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req1 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg1.model_dump())
+        generator.send(req1)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes_ = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes_)
+
+        assert frame.id == req1.id
+        assert frame.error is not None
+        assert frame.error["error"] == "API_SERVER_ERROR"
+        assert frame.error["detail"]["exception_type"] == "ConnectError"
+
+        # Second request — generator must still be alive and process it normally.
+        msg2 = SucceedTask(end_date=timezone.parse("2024-10-31T12:01:00Z"))
+        req2 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg2.model_dump())
+        # Should not raise StopIteration (which would mean the loop crashed).
+        generator.send(req2)
+
+    @pytest.mark.parametrize(
+        ("msg", "api_method", "expected_state"),
+        [
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "succeed",
+                TaskInstanceState.SUCCESS,
+                id="succeed",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+                id="retry",
+            ),
+            pytest.param(
+                DeferTask(
+                    next_method="execute_complete",
+                    classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+                    trigger_kwargs={},
+                ),
+                "defer",
+                TaskInstanceState.DEFERRED,
+                id="defer",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                "reschedule",
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                id="reschedule",
+            ),
+        ],
+    )
+    def test_terminal_state_not_set_when_direct_api_fails(
+        self, watched_subprocess, mocker, msg, api_method, expected_state
+    ):
+        """`_terminal_state` must NOT be set when the dedicated terminal-state
+        API raises.
+
+        The original message is captured in `_pending_terminal_state_msg`
+        BEFORE the API call so the recovery dispatcher in
+        `update_task_state_if_needed` can re-issue it on subprocess exit.
+        Covers all four terminal-state message types.
+        """
+        watched_subprocess, _ = watched_subprocess
+        setattr(
+            watched_subprocess.client.task_instances,
+            api_method,
+            mocker.Mock(side_effect=httpx.ConnectError("connection refused")),
+        )
+
+        with pytest.raises(httpx.ConnectError):
+            watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
+
+        assert watched_subprocess._terminal_state is None
+        # Pending msg preserved so the recovery dispatcher can re-issue.
+        assert watched_subprocess._pending_terminal_state_msg is msg
+
+    @pytest.mark.parametrize(
+        ("msg", "api_method", "expected_state"),
+        [
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "succeed",
+                TaskInstanceState.SUCCESS,
+                id="succeed",
+            ),
+            pytest.param(
+                RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+                id="retry",
+            ),
+            pytest.param(
+                DeferTask(
+                    next_method="execute_complete",
+                    classpath="airflow.providers.standard.triggers.external_task.WorkflowTrigger",
+                    trigger_kwargs={},
+                ),
+                "defer",
+                TaskInstanceState.DEFERRED,
+                id="defer",
+            ),
+            pytest.param(
+                RescheduleTask(
+                    reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                ),
+                "reschedule",
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                id="reschedule",
+            ),
+        ],
+    )
+    def test_update_task_state_replays_pending_terminal_state_call(
+        self, watched_subprocess, mocker, msg, api_method, expected_state
+    ):
+        """If a direct terminal-state API call was attempted and raised, the
+        recovery dispatcher must re-issue the dedicated endpoint (not
+        `finish()`, which the server-side endpoint refuses for SUCCESS /
+        DEFERRED / SERVER_TERMINATED). Covers all four message types.
+        """
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        # Simulate the failure scenario: original API call raised, msg preserved.
+        watched_subprocess._pending_terminal_state_msg = msg
+
+        watched_subprocess.update_task_state_if_needed()
+
+        # Recovery re-issues the dedicated endpoint, NOT finish().
+        getattr(watched_subprocess.client.task_instances, api_method).assert_called_once()
+        watched_subprocess.client.task_instances.finish.assert_not_called()
+        assert watched_subprocess._terminal_state == expected_state
+        assert watched_subprocess._pending_terminal_state_msg is None
+
+    def test_update_task_state_no_recovery_without_pending_msg(self, watched_subprocess, mocker):
+        """No replay when nothing was pending — preserves the original
+        STATES_SENT_DIRECTLY short-circuit for the happy path."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        watched_subprocess._terminal_state = TaskInstanceState.SUCCESS
+        watched_subprocess._pending_terminal_state_msg = None
+
+        watched_subprocess.update_task_state_if_needed()
+
+        watched_subprocess.client.task_instances.finish.assert_not_called()
+        watched_subprocess.client.task_instances.succeed.assert_not_called()
 
 
 class TestSetSupervisorComms:

@@ -61,7 +61,7 @@ export const AllDeadlinesModal = ({ alertMap, dagId, onClose, open }: AllDeadlin
   };
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
+    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside">
       <Dialog.Content backdrop p={4}>
         <Dialog.Header>
           <Heading size="sm">{translate("overview.deadlines.title")}</Heading>
