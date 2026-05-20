@@ -193,9 +193,11 @@ class TestJWTBearerLogging:
             )
 
         assert response.status_code == 403
+        assert response.json() == {"detail": "Invalid auth token"}
         validator.avalidated_claims.assert_awaited_once_with(bearer_credential, {})
         assert any(log["event"] == "Failed to validate JWT" for log in logs)
         assert bearer_credential not in repr(logs)
+        assert "invalid token" not in response.text
 
 
 class TestTiSelfScopeEnforcement:
