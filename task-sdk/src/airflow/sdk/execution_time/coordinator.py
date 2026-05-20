@@ -34,10 +34,6 @@ lifecycle:
 4. Runs a selector-based bridge that transparently forwards bytes
    between fd 0 (supervisor) and the subprocess comm socket, and
    re-emits the subprocess's log and stderr output through structlog.
-
-I/O multiplexing uses the same selector-based loop as
-:class:`~airflow.sdk.execution_time.supervisor.WatchedSubprocess`,
-driven by :func:`~airflow.sdk.execution_time.selector_loop.service_selector`.
 """
 
 from __future__ import annotations
