@@ -93,6 +93,8 @@ TEST_COMMANDS = [
     "dags update example_bash_operator --no-is-paused",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
+    # Clear task instances (dry run only; avoid changing TI state in shared compose)
+    'tasks clear --dry-run --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',

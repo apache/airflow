@@ -21,7 +21,7 @@ import datetime
 import json
 import uuid
 from math import ceil
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import httpx
@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConfigOption,
     ConfigSection,
@@ -91,6 +92,7 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -100,7 +102,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations
+from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -1138,6 +1140,90 @@ class TestDagOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
+
+
+class TestTasksOperations:
+    dag_id = "dag_id"
+
+    @pytest.mark.parametrize(
+        ("clear_body", "expected_checks"),
+        [
+            pytest.param(
+                ClearTaskInstancesBody(
+                    dag_run_id="test_run",
+                    dry_run=False,
+                    only_failed=True,
+                    only_running=False,
+                    include_upstream=False,
+                    include_downstream=False,
+                    task_ids=None,
+                ),
+                {
+                    "_no_task_ids": True,
+                    "dag_run_id": "test_run",
+                    "dry_run": False,
+                    "only_failed": True,
+                    "only_running": False,
+                    "include_upstream": False,
+                    "include_downstream": False,
+                },
+                id="defaults",
+            ),
+            pytest.param(
+                ClearTaskInstancesBody(
+                    dag_run_id="test_run",
+                    dry_run=True,
+                    only_failed=False,
+                    only_running=True,
+                    include_upstream=True,
+                    include_downstream=True,
+                    task_ids=["a", "b"],
+                ),
+                {
+                    "_no_task_ids": False,
+                    "dag_run_id": "test_run",
+                    "dry_run": True,
+                    "only_failed": False,
+                    "only_running": True,
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "task_ids": ["a", "b"],
+                },
+                id="with_flags",
+            ),
+        ],
+    )
+    def test_clear(self, clear_body: ClearTaskInstancesBody, expected_checks: dict[str, Any]):
+        body_sent: dict[str, Any] = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            body_sent.clear()
+            body_sent.update(json.loads(request.content))
+            empty = TaskInstanceCollectionResponse(task_instances=[], total_entries=0)
+            return httpx.Response(200, json=json.loads(empty.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.clear(dag_id=self.dag_id, clear_body=clear_body)
+
+        checks = dict(expected_checks)
+        no_task_ids = checks.pop("_no_task_ids")
+        if no_task_ids:
+            assert body_sent.get("task_ids") is None
+        for key, value in checks.items():
+            assert body_sent[key] == value
+        assert response.task_instances == []
+
+    def test_clear_propagates_server_response_error(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"detail": "DAG not found"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        clear_body = ClearTaskInstancesBody(dag_run_id="test_run")
+
+        with pytest.raises(ServerResponseError):
+            client.tasks.clear(dag_id=self.dag_id, clear_body=clear_body)
 
 
 class TestDagRunOperations:

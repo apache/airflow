@@ -742,6 +742,7 @@ class TestCliConfigMethods:
         [
             ("assets", "get", "Retrieve an asset by its ID"),
             ("connections", "get", "Retrieve a connection by its ID"),
+            ("tasks", "clear", "Clear task instances in a DAG run"),
         ],
     )
     def test_help_texts_used_for_auto_generated_commands(self, group_name, subcommand_name, expected_help):

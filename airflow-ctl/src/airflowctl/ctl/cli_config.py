@@ -394,7 +394,17 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -567,6 +577,13 @@ class CommandFactory:
         parameter_key: str,
     ) -> list[Arg]:
         """Create Arg for non-primitive type Pydantic."""
+        if parameter_type == "ClearTaskInstancesBody":
+            # Used only by ``TasksOperations.clear`` — see ``_cli_args_clear_task_instances_body``.
+            return self._cli_args_clear_task_instances_body(parameter_key)
+        return self._expand_nested_datamodel(parameter_type, parameter_key)
+
+    def _expand_nested_datamodel(self, parameter_type: str, parameter_key: str) -> list[Arg]:
+        """Default expansion for arbitrary nested request-body models."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
         commands = []
         if parameter_type_map not in self.datamodels_extended_map.keys():
@@ -580,7 +597,9 @@ class CommandFactory:
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
                         arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
+                        arg_action=(
+                            argparse.BooleanOptionalAction if field_type.annotation is bool else None  # type: ignore[misc]
+                        ),
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
                     )
@@ -595,12 +614,65 @@ class CommandFactory:
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
                         arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore[misc]
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
                     )
                 )
         return commands
+
+    def _cli_args_clear_task_instances_body(self, parameter_key: str) -> list[Arg]:
+        """
+        Build ``tasks clear`` flags for ``ClearTaskInstancesBody`` only.
+
+        The generic nested-model helper forces every nested ``bool`` to argparse ``False``.
+        Clear-task-instance fields follow the REST schema defaults instead, ``task_ids``
+        must accept comma-separated values, and the CLI clears for real unless ``--dry-run``.
+        """
+        from pydantic_core import PydanticUndefined
+
+        model = getattr(generated_datamodels, "ClearTaskInstancesBody")
+        key = model.__name__
+        body_bools_matching_api_defaults = frozenset(
+            {
+                "only_failed",
+                "only_running",
+                "reset_dag_runs",
+                "include_upstream",
+                "include_downstream",
+                "include_future",
+                "include_past",
+                "run_on_latest_version",
+                "prevent_running_task",
+            }
+        )
+        cmds: list[Arg] = []
+        if key not in self.datamodels_extended_map:
+            self.datamodels_extended_map[key] = []
+        for fname, finfo in model.model_fields.items():
+            if fname in self.excluded_parameters:
+                continue
+            self.datamodels_extended_map[key].append(fname)
+            flag = ("--" + self._sanitize_arg_parameter_key(fname),)
+            hh = f"{fname} for {parameter_key} operation"
+            default = None if finfo.default is PydanticUndefined else finfo.default
+
+            if fname == "dry_run":
+                cmds.append(self._create_arg(flag, bool, hh, argparse.BooleanOptionalAction, None, False))
+            elif fname == "task_ids":
+                cmds.append(self._create_arg(flag, string_list_type, hh, None, None, default))
+            elif fname in {"start_date", "end_date"}:
+                cmds.append(self._create_arg(flag, datetime.datetime, hh, None, None, default))
+            elif fname in body_bools_matching_api_defaults:
+                cmds.append(self._create_arg(flag, bool, hh, argparse.BooleanOptionalAction, None, default))
+            elif fname == "dag_run_id":
+                cmds.append(self._create_arg(flag, str, hh, None, None, default))
+            elif fname == "note":
+                cmds.append(self._create_arg(flag, str, hh, None, None, default))
+            else:
+                cmds.append(self._create_arg(flag, str, hh, None, None, default))
+
+        return cmds
 
     def _create_args_map_from_operation(self):
         """Create Arg from Operation Method checking for parameters and return types."""
