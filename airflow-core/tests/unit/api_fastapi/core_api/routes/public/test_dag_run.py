@@ -28,6 +28,7 @@ from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
@@ -2460,6 +2461,86 @@ class TestTriggerDagRun:
 
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
+
+
+class TestResolveRunOnLatestVersion:
+    @pytest.mark.parametrize("explicit_value", [True, False])
+    def test_explicit_value_takes_precedence(self, explicit_value, dag_maker, session):
+        """Explicit value always wins, regardless of DAG or global config."""
+
+        with dag_maker("test_resolver_explicit", serialized=True, session=session):
+            ...
+
+        result = resolve_run_on_latest_version(explicit_value, "test_resolver_explicit", session)
+        assert result is explicit_value
+
+    def test_dag_level_takes_precedence_over_global(self, dag_maker, session):
+        """DAG-level rerun_with_latest_version=True takes precedence over global False."""
+
+        with dag_maker("test_resolver_dag", serialized=True, session=session, rerun_with_latest_version=True):
+            ...
+
+        result = resolve_run_on_latest_version(None, "test_resolver_dag", session)
+        assert result is True
+
+    def test_global_config_used_when_dag_not_set(self, dag_maker, session):
+        """Falls back to global config when DAG doesn't set rerun_with_latest_version."""
+
+        with dag_maker("test_resolver_global", serialized=True, session=session):
+            ...
+
+        with mock.patch("airflow.configuration.conf.getboolean", return_value=True):
+            result = resolve_run_on_latest_version(None, "test_resolver_global", session)
+        assert result is True
+
+    def test_default_is_false(self, dag_maker, session):
+        """Returns False when no explicit value, no DAG config, no global config."""
+
+        with dag_maker("test_resolver_default", serialized=True, session=session):
+            ...
+
+        result = resolve_run_on_latest_version(None, "test_resolver_default", session)
+        assert result is False
+
+    def test_fallback_true_for_backfills(self, dag_maker, session):
+        """Backfill callers pass fallback=True to preserve historical default."""
+
+        with dag_maker("test_resolver_fallback_true", serialized=True, session=session):
+            ...
+
+        # With no DAG config and no global config set, the fallback kicks in
+        result = resolve_run_on_latest_version(None, "test_resolver_fallback_true", session, fallback=True)
+        assert result is True
+
+    def test_dag_level_false_overrides_fallback_true(self, dag_maker, session):
+        """DAG-level False takes precedence over a True fallback (backfill case)."""
+
+        with dag_maker(
+            "test_resolver_dag_false",
+            serialized=True,
+            session=session,
+            rerun_with_latest_version=False,
+        ):
+            ...
+
+        result = resolve_run_on_latest_version(None, "test_resolver_dag_false", session, fallback=True)
+        assert result is False
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_endpoint_invokes_resolver_when_field_omitted(self, test_client):
+        """Clearing without run_on_latest_version triggers the server-side resolver."""
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.resolve_run_on_latest_version",
+            return_value=False,
+        ) as mock_resolver:
+            response = test_client.post(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+                json={"dry_run": True},
+            )
+        assert response.status_code == 200
+        mock_resolver.assert_called_once()
+        # First positional arg should be None (omitted from request body)
+        assert mock_resolver.call_args.args[0] is None
 
 
 class TestWaitDagRun:
