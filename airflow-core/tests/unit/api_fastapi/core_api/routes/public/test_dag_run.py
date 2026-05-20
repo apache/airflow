@@ -2677,7 +2677,8 @@ class TestBulkDagRuns:
         dr = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
         assert dr is None
 
-    def test_bulk_delete_rejects_running_state(self, test_client, dag_maker, session):
+    def test_bulk_delete_running_state_is_allowed(self, test_client, dag_maker, session):
+        """A RUNNING Dag Run is deletable via the bulk endpoint (no state restriction)."""
         with dag_maker(dag_id="test_running_bulk_dag"):
             EmptyOperator(task_id="t1")
         dag_maker.create_dagrun(run_id="running_run", state=DagRunState.RUNNING)
@@ -2696,29 +2697,38 @@ class TestBulkDagRuns:
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["delete"]["success"] == []
-        assert len(body["delete"]["errors"]) == 1
-        assert body["delete"]["errors"][0]["status_code"] == 409
+        assert body["delete"]["success"] == ["test_running_bulk_dag.running_run"]
+        assert body["delete"]["errors"] == []
         session.expire_all()
-        assert session.scalar(select(DagRun).where(DagRun.run_id == "running_run")) is not None
+        assert session.scalar(select(DagRun).where(DagRun.run_id == "running_run")) is None
 
-    def test_bulk_delete_not_found_fails(self, test_client):
+    def test_bulk_delete_not_found_fails(self, test_client, session):
+        """When FAIL semantics, each missing run is reported individually and matched runs still get deleted."""
         response = test_client.patch(
             self.ENDPOINT_URL,
             json={
                 "actions": [
                     {
                         "action": "delete",
-                        "entities": ["non_existent_run"],
+                        "entities": [DAG1_RUN1_ID, "non_existent_run", "another_missing_run"],
                     }
                 ]
             },
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["delete"]["success"] == []
-        assert len(body["delete"]["errors"]) == 1
-        assert body["delete"]["errors"][0]["status_code"] == 404
+        # Matched run is still deleted even when other entities are missing.
+        assert body["delete"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
+        # One error per missing entity — success + errors == total requested entities.
+        errors = body["delete"]["errors"]
+        assert len(errors) == 2
+        assert all(err["status_code"] == 404 for err in errors)
+        assert {err["error"] for err in errors} == {
+            f"The DagRun with dag_id: `{DAG1_ID}` and run_id: `another_missing_run` was not found",
+            f"The DagRun with dag_id: `{DAG1_ID}` and run_id: `non_existent_run` was not found",
+        }
+        session.expire_all()
+        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID)) is None
 
     def test_bulk_delete_not_found_skip(self, test_client, session):
         response = test_client.patch(

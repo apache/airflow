@@ -39,7 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, DAGRunPatchStates
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.dag import DagModel
@@ -121,12 +121,6 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         self.dag_id = dag_id
         self.user = user
 
-    def _resolve_dag_id(self, entity: str | BulkDAGRunBody) -> tuple[str, str]:
-        """Resolve the (dag_id, dag_run_id) pair for an entity, falling back to the path ``dag_id``."""
-        if isinstance(entity, str):
-            return self.dag_id, entity
-        return entity.dag_id or self.dag_id, entity.dag_run_id
-
     def _check_dag_authorization(
         self,
         dag_id: str,
@@ -153,25 +147,6 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
             )
             return False
         return True
-
-    @staticmethod
-    def _result_key(dag_id: str, dag_run_id: str) -> str:
-        return f"{dag_id}.{dag_run_id}"
-
-    def _fetch_dag_runs(
-        self,
-        keys: set[tuple[str, str]],
-    ) -> tuple[dict[tuple[str, str], DagRun], set[tuple[str, str]]]:
-        if not keys:
-            return {}, set()
-        # Use tuple-based ``IN`` so cross-Dag bulk requests don't fan out into a Cartesian
-        # match over ``dag_id IN (...) AND run_id IN (...)`` — see ``BulkTaskInstanceService``.
-        dag_runs = self.session.scalars(
-            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
-        ).all()
-        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
-        not_found = keys - dag_run_map.keys()
-        return dag_run_map, not_found
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkDAGRunBody], results: BulkActionResponse
@@ -201,18 +176,28 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         keys: set[tuple[str, str]] = set()
 
         for entity in action.entities:
-            dag_id, dag_run_id = self._resolve_dag_id(entity)
-            if dag_id == "~":
+            if isinstance(entity, str):
+                dag_id, dag_run_id = self.dag_id, entity
+            else:
+                dag_id = entity.dag_id or self.dag_id
+                dag_run_id = entity.dag_run_id
+
+            if dag_id == "~" or dag_run_id == "~":
+                if isinstance(entity, str):
+                    error_msg = (
+                        "When using wildcard in path, dag_id must be specified in BulkDAGRunBody"
+                        f" object, not as string for dag_run_id: {entity}"
+                    )
+                else:
+                    error_msg = (
+                        "When using wildcard in path, dag_id must be specified in request body for"
+                        f" dag_run_id: {entity.dag_run_id}"
+                    )
                 results.errors.append(
-                    {
-                        "error": (
-                            "When using wildcard in path, dag_id must be specified "
-                            f"in the request body for dag_run_id: {dag_run_id}"
-                        ),
-                        "status_code": status.HTTP_400_BAD_REQUEST,
-                    }
+                    {"error": error_msg, "status_code": status.HTTP_400_BAD_REQUEST},
                 )
                 continue
+
             if not self._check_dag_authorization(
                 dag_id, method="DELETE", action_name="delete", cache=authorization_cache, results=results
             ):
@@ -222,30 +207,23 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         if not keys:
             return
 
-        dag_run_map, not_found = self._fetch_dag_runs(keys)
+        # Tuple-based IN — avoids the Cartesian fan-out when keys span multiple Dags.
+        dag_runs = self.session.scalars(
+            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
+        ).all()
+        dag_run_map = {(dr.dag_id, dr.run_id): dr for dr in dag_runs}
+        not_found = keys - dag_run_map.keys()
 
-        if not_found and action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-            not_found_ids = [{"dag_id": dag_id, "dag_run_id": run_id} for dag_id, run_id in sorted(not_found)]
-            results.errors.append(
-                {
-                    "error": f"The Dag Runs with these identifiers: {not_found_ids} were not found",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                }
-            )
-            return
-
-        deletable_states = {s.value for s in DAGRunPatchStates}
-        for key, dag_run in dag_run_map.items():
-            if dag_run.state not in deletable_states:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
+            # One error per missing entity so success + errors == total requested entities.
+            for dag_id, run_id in sorted(not_found):
                 results.errors.append(
                     {
-                        "error": (
-                            f"The DagRun with dag_id: `{key[0]}` and run_id: `{key[1]}` "
-                            f"cannot be deleted in {dag_run.state} state"
-                        ),
-                        "status_code": status.HTTP_409_CONFLICT,
+                        "error": (f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found"),
+                        "status_code": status.HTTP_404_NOT_FOUND,
                     }
                 )
-                continue
+
+        for (dag_id, run_id), dag_run in dag_run_map.items():
             self.session.delete(dag_run)
-            results.success.append(self._result_key(key[0], key[1]))
+            results.success.append(f"{dag_id}.{run_id}")

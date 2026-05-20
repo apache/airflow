@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -24,7 +25,7 @@ import {
   useDagRunServiceGetDagRunsKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import type { BulkResponse } from "openapi/requests/types.gen";
+import type { BulkActionResponse, BulkBody_BulkDAGRunBody_, BulkResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 type Props = {
@@ -32,66 +33,65 @@ type Props = {
   readonly onSuccessConfirm: VoidFunction;
 };
 
-export type BulkActionError = { error: string; status_code?: number };
+const handleActionResult = (
+  actionResult: BulkActionResponse,
+  setError: (error: unknown) => void,
+  onSuccess: (count: number, keys: Array<string>) => void,
+) => {
+  const { errors, success } = actionResult;
+
+  if (Array.isArray(errors) && errors.length > 0) {
+    const apiError = errors[0] as { error: string };
+
+    setError({ body: { detail: apiError.error } });
+  } else if (Array.isArray(success) && success.length > 0) {
+    onSuccess(success.length, success);
+  }
+};
 
 export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
+  const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation(["common", "dags"]);
 
   const onSuccess = async (responseData: BulkResponse) => {
-    const successKeys = responseData.delete?.success ?? [];
-    const errors = (responseData.delete?.errors ?? []) as Array<BulkActionError>;
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
+      queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetTaskInstancesKey] }),
+    ]);
 
-    // Only invalidate when something actually got deleted — a 200 with all-errors
-    // shouldn't churn the table.
-    if (successKeys.length > 0) {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
-        queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetTaskInstancesKey] }),
-      ]);
-
-      toaster.create({
-        description: translate("toaster.bulkDelete.success.description", {
-          count: successKeys.length,
-          keys: successKeys.join(", "),
-          resourceName: translate("dagRun_other"),
-        }),
-        title: translate("toaster.bulkDelete.success.title", {
-          resourceName: translate("dagRun_other"),
-        }),
-        type: "success",
+    if (responseData.delete) {
+      handleActionResult(responseData.delete, setError, (count, keys) => {
+        toaster.create({
+          description: translate("toaster.bulkDelete.success.description", {
+            count,
+            keys: keys.join(", "),
+            resourceName: translate("dagRun_other"),
+          }),
+          title: translate("toaster.bulkDelete.success.title", {
+            resourceName: translate("dagRun_other"),
+          }),
+          type: "success",
+        });
+        clearSelections();
+        onSuccessConfirm();
       });
-      clearSelections();
-    }
-
-    // Keep the dialog open if any per-entity error came back so the user can see what failed.
-    if (errors.length === 0) {
-      onSuccessConfirm();
     }
   };
 
-  const { data, error, isPending, mutate, reset } = useDagRunServiceBulkDagRuns({ onSuccess });
-
-  return {
-    actionErrors: (data?.delete?.errors ?? []) as Array<BulkActionError>,
-    bulkDelete: (dagRuns: Array<{ dag_id: string; dag_run_id: string }>) =>
-      mutate({
-        dagId: "~",
-        requestBody: {
-          actions: [
-            {
-              action: "delete" as const,
-              action_on_non_existence: "skip",
-              entities: dagRuns.map((dagRun) => ({
-                dag_id: dagRun.dag_id,
-                dag_run_id: dagRun.dag_run_id,
-              })),
-            },
-          ],
-        },
-      }),
-    error,
-    isPending,
-    reset,
+  const onError = (_error: unknown) => {
+    setError(_error);
   };
+
+  const { isPending, mutate } = useDagRunServiceBulkDagRuns({
+    onError,
+    onSuccess,
+  });
+
+  const bulkAction = (requestBody: BulkBody_BulkDAGRunBody_) => {
+    setError(undefined);
+    mutate({ dagId: "~", requestBody });
+  };
+
+  return { bulkAction, error, isPending, setError };
 };
