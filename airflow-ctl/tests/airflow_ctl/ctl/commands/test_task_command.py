@@ -22,7 +22,6 @@ from uuid import uuid4
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import TaskInstanceResponse, TaskInstanceState
 from airflowctl.ctl import cli_parser
-from airflowctl.ctl.commands import task_command
 
 
 class TestTaskCommands:
@@ -76,16 +75,13 @@ class TestTaskCommands:
             [
                 "tasks",
                 "state",
-                "--dag-id",
                 "example_bash_operator",
-                "--dag-run-id",
                 "manual__2025-01-01T00:00:00+00:00",
-                "--task-id",
                 "runme_0",
             ]
         )
 
-        task_command.state(args, api_client=api_client)
+        args.func(args, api_client=api_client)
 
         captured = capsys.readouterr()
         assert '"state": "success"' in captured.out

@@ -267,27 +267,6 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID of the Dag to pause or unpause",
 )
-ARG_DAG_ID_OPTION = Arg(
-    flags=("--dag-id",),
-    type=str,
-    dest="dag_id",
-    required=True,
-    help="The Dag ID",
-)
-ARG_DAG_RUN_ID = Arg(
-    flags=("--dag-run-id",),
-    type=str,
-    dest="dag_run_id",
-    required=True,
-    help="The Dag run ID",
-)
-ARG_TASK_ID_OPTION = Arg(
-    flags=("--task-id",),
-    type=str,
-    dest="task_id",
-    required=True,
-    help="The task ID",
-)
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
@@ -415,7 +394,17 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "state",
+        ]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -789,10 +778,14 @@ class CommandFactory:
                 # If not nested, return the object as a list which the result should be already a dict
                 return [dict_obj]
 
+            converted_output = convert_to_dict(method_output, api_operation["name"])
+            if api_operation["name"] == "state" and isinstance(converted_output, dict):
+                output_data = [converted_output]
+            else:
+                output_data = check_operation_and_collect_list_of_dict(converted_output)
+
             AirflowConsole().print_as(
-                data=check_operation_and_collect_list_of_dict(
-                    convert_to_dict(method_output, api_operation["name"])
-                ),
+                data=output_data,
                 output=args.output,
             )
 
@@ -1027,15 +1020,6 @@ VARIABLE_COMMANDS = (
     ),
 )
 
-TASK_COMMANDS = (
-    ActionCommand(
-        name="state",
-        help="Get the state of a task instance",
-        func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
-        args=(ARG_DAG_ID_OPTION, ARG_DAG_RUN_ID, ARG_TASK_ID_OPTION, ARG_OUTPUT),
-    ),
-)
-
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1066,7 +1050,7 @@ core_commands: list[CLICommand] = [
     GroupCommand(
         name="tasks",
         help="Manage Airflow task instances",
-        subcommands=TASK_COMMANDS,
+        subcommands=(),
     ),
     ActionCommand(
         name="version",

@@ -112,7 +112,7 @@ TEST_COMMANDS = [
     "pools delete test_pool",
     "pools delete test_import_pool",
     # Tasks commands
-    'tasks state --dag-id=example_bash_operator --dag-run-id="manual__{date_param}" --task-id=runme_0',
+    'tasks state example_bash_operator "manual__{date_param}" runme_0',
     # Providers commands
     "providers list",
     # Variables commands
