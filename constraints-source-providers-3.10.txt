@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-20T00:06:47.202988
+# This constraints file was automatically generated on 2026-05-20T19:37:16.357494
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -49,6 +49,7 @@ adbc-driver-sqlite==1.11.0
 adlfs==2026.5.0
 aenum==3.1.17
 aiobotocore==3.7.0
+aiofile==3.9.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -60,7 +61,7 @@ aiosignal==1.4.0
 aiosmtplib==5.1.0
 aiosqlite==0.21.0
 airbyte-api==0.53.0
-akeyless==5.0.25
+akeyless==5.0.26
 alabaster==1.0.0
 alembic==1.18.4
 alibabacloud-adb20211201==3.7.0
@@ -85,7 +86,7 @@ arro3-core==0.8.0
 asana==5.2.4
 asgiref==3.11.1
 asn1crypto==1.5.1
-ast_serialize==0.3.0
+ast_serialize==0.4.0
 astor==0.8.1
 astroid==4.1.2
 asttokens==3.0.1
@@ -118,9 +119,9 @@ azure-mgmt-resource==25.0.0
 azure-mgmt-storage==24.0.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.3
-azure-storage-blob==12.28.0
-azure-storage-file-datalake==12.23.0
-azure-storage-file-share==12.24.0
+azure-storage-blob==12.29.0
+azure-storage-file-datalake==12.24.0
+azure-storage-file-share==12.25.0
 azure-synapse-artifacts==0.22.0
 azure-synapse-spark==0.7.0
 babel==2.18.0
@@ -130,6 +131,7 @@ backports.strenum==1.3.1
 backports.tarfile==1.2.0
 backports.zstd==1.5.0
 bcrypt==5.0.0
+beartype==0.22.9
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.1
@@ -141,6 +143,7 @@ botocore==1.43.0
 cachelib==0.14.0
 cachetools==6.2.6
 cadwyn==6.2.2
+caio==0.9.25
 cassandra-driver==3.30.0
 cattrs==26.1.0
 celery==5.6.3
@@ -206,6 +209,7 @@ fastapi==0.136.1
 fastavro==1.12.2
 fastcore==1.13.0
 fastjsonschema==2.21.2
+fastmcp-slim==3.3.1
 fastuuid==0.14.0
 filelock==3.29.0
 flask-appbuilder==5.2.1
@@ -220,7 +224,7 @@ gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.4.0
-genai-prices==0.0.59
+genai-prices==0.0.60
 geomet==1.1.0
 gevent==26.4.0
 gitdb==4.0.12
@@ -230,7 +234,7 @@ google-api-core==2.30.3
 google-api-python-client==2.196.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.52.0
+google-auth==2.53.0
 google-cloud-aiplatform==1.148.1
 google-cloud-alloydb==0.9.0
 google-cloud-appengine-logging==1.9.0
@@ -309,7 +313,7 @@ httpr==0.4.8
 httptools==0.7.1
 httpx-sse==0.4.3
 httpx==0.28.1
-huggingface_hub==1.14.0
+huggingface_hub==1.15.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -339,7 +343,7 @@ isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
-jaraco.functools==4.4.0
+jaraco.functools==4.5.0
 jedi==0.20.0
 jeepney==0.9.0
 jiter==0.14.0
@@ -367,6 +371,14 @@ krb5==0.9.0
 kubernetes==35.0.0
 kubernetes_asyncio==35.0.1
 kylinpy==2.8.4
+langchain-core==1.4.0
+langchain-protocol==0.0.15
+langchain==1.3.1
+langgraph-checkpoint==4.1.0
+langgraph-prebuilt==1.1.0
+langgraph-sdk==0.3.14
+langgraph==1.2.0
+langsmith==0.8.5
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 librt==0.11.0
@@ -427,7 +439,7 @@ nh3==0.3.5
 nodeenv==1.10.0
 numpy==2.2.6
 oauthlib==3.3.1
-openai==2.36.0
+openai==2.37.0
 openapi-schema-validator==0.8.1
 openapi-spec-validator==0.8.5
 opencensus-context==0.1.3
@@ -452,6 +464,7 @@ opsgenie-sdk==2.1.5
 oracledb==4.0.0
 ordered-set==4.1.0
 orjson==3.11.9
+ormsgpack==1.12.2
 outcome==1.3.0.post0
 packaging==26.2
 pagefind==1.5.2
@@ -483,7 +496,7 @@ polars==1.40.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.6.0
-prek==0.3.13
+prek==0.4.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.25.0
@@ -496,6 +509,7 @@ psycopg2-binary==2.9.12
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
+py-key-value-aio==0.4.4
 py-partiql-parser==0.6.3
 py-spy==0.4.2
 py4j==0.10.9.9
@@ -507,9 +521,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.96.0
+pydantic-ai-slim==1.97.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.96.0
+pydantic-graph==1.97.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -575,7 +589,7 @@ requests-kerberos==0.15.0
 requests-mock==1.12.1
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
-requests==2.34.1
+requests==2.34.2
 requests_ntlm==1.3.0
 responses==0.26.0
 restructuredtext_lint==2.0.2
@@ -589,7 +603,7 @@ rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml==0.19.1
-ruff==0.15.12
+ruff==0.15.13
 s3fs==2026.4.0
 s3transfer==0.17.0
 sagemaker_studio==1.0.26
@@ -660,7 +674,7 @@ textual==6.2.1
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
-tiktoken==0.12.0
+tiktoken==0.13.0
 time-machine==3.2.0
 tinycss2==1.4.0
 tokenizers==0.23.1
@@ -707,8 +721,9 @@ uritemplate==4.2.0
 urllib3==2.7.0
 userpath==1.9.2
 uuid6==2025.0.1
+uuid_utils==0.15.0
 uv==0.11.14
-uvicorn==0.46.0
+uvicorn==0.47.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
@@ -725,6 +740,7 @@ wirerope==1.0.0
 wrapt==2.1.2
 xmlsec==1.3.17
 xmltodict==1.0.4
+xxhash==3.7.0
 yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.390.0

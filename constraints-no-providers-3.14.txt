@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-20T00:06:54.903166
+# This constraints file was automatically generated on 2026-05-20T19:37:44.392560
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -57,7 +57,7 @@ importlib_metadata==8.7.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
-jaraco.functools==4.4.0
+jaraco.functools==4.5.0
 jeepney==0.9.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
@@ -101,7 +101,7 @@ python-dotenv==1.2.2
 python-multipart==0.0.28
 python-slugify==8.0.4
 referencing==0.37.0
-requests==2.34.1
+requests==2.34.2
 rich-argparse==1.8.0
 rich-toolkit==0.19.9
 rich==13.9.4
@@ -127,7 +127,7 @@ universal_pathlib==0.3.10
 urllib3==2.7.0
 uuid6==2025.0.1
 uv==0.11.14
-uvicorn==0.46.0
+uvicorn==0.47.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0

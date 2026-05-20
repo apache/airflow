@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-20T00:10:57.472094
+# This constraints file was automatically generated on 2026-05-20T19:42:05.652546
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -189,7 +189,7 @@ bcrypt==5.0.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.1
-black==26.3.1
+black==26.5.0
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.43.0
