@@ -26,6 +26,7 @@ __all__ = [
     "AssetAll",
     "AssetAny",
     "AssetOrTimeSchedule",
+    "AssetState",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
@@ -122,6 +123,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk.definitions.asset.state import AssetState
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
@@ -184,6 +186,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
+    "AssetState": ".definitions.asset.state",
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",

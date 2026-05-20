@@ -51,6 +51,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
+from airflow.sdk.definitions.asset.state import AssetState as AssetState
 from airflow.sdk.definitions.connection import Connection as Connection
 from airflow.sdk.definitions.context import (
     Context as Context,
@@ -115,6 +116,7 @@ __all__ = [
     "AssetAll",
     "AssetAny",
     "AssetOrTimeSchedule",
+    "AssetState",
     "AssetWatcher",
     "BaseAsyncOperator",
     "BaseBranchOperator",

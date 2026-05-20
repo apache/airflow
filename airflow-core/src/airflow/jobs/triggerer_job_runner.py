@@ -59,13 +59,20 @@ from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
+    AssetStateResult,
+    ClearAssetStateByName,
+    ClearAssetStateByUri,
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
+    DeleteAssetStateByName,
+    DeleteAssetStateByUri,
     DeleteVariable,
     DeleteXCom,
     DRCount,
     ErrorResponse,
+    GetAssetStateByName,
+    GetAssetStateByUri,
     GetConnection,
     GetDagRunState,
     GetDRCount,
@@ -79,6 +86,8 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PutVariable,
+    SetAssetStateByName,
+    SetAssetStateByUri,
     SetXCom,
     TaskStatesResult,
     TICount,
@@ -303,6 +312,7 @@ class HITLDetailResponseResult(HITLDetailResponse):
 ToTriggerRunner = Annotated[
     messages.StartTriggerer
     | messages.TriggerStateSync
+    | AssetStateResult
     | ConnectionResult
     | VariableResult
     | VariableKeysResult
@@ -339,7 +349,15 @@ ToTriggerSupervisor = Annotated[
     | GetPreviousTI
     | GetHITLDetailResponse
     | UpdateHITLDetail
-    | MaskSecret,
+    | MaskSecret
+    | GetAssetStateByName
+    | GetAssetStateByUri
+    | SetAssetStateByName
+    | SetAssetStateByUri
+    | DeleteAssetStateByName
+    | DeleteAssetStateByUri
+    | ClearAssetStateByName
+    | ClearAssetStateByUri,
     Field(discriminator="type"),
 ]
 """
@@ -620,6 +638,47 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
+
+        elif isinstance(msg, GetAssetStateByName):
+            asset_state = self.client.asset_state.get(msg.key, name=msg.name)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+
+        elif isinstance(msg, GetAssetStateByUri):
+            asset_state = self.client.asset_state.get(msg.key, uri=msg.uri)
+            resp = (
+                asset_state
+                if isinstance(asset_state, ErrorResponse)
+                else AssetStateResult.from_asset_state_response(asset_state)
+            )
+
+        elif isinstance(msg, SetAssetStateByName):
+            self.client.asset_state.set(msg.key, msg.value, name=msg.name)
+            resp = OKResponse(ok=True)
+
+        elif isinstance(msg, SetAssetStateByUri):
+            self.client.asset_state.set(msg.key, msg.value, uri=msg.uri)
+            resp = OKResponse(ok=True)
+
+        elif isinstance(msg, DeleteAssetStateByName):
+            self.client.asset_state.delete(msg.key, name=msg.name)
+            resp = OKResponse(ok=True)
+
+        elif isinstance(msg, DeleteAssetStateByUri):
+            self.client.asset_state.delete(msg.key, uri=msg.uri)
+            resp = OKResponse(ok=True)
+
+        elif isinstance(msg, ClearAssetStateByName):
+            self.client.asset_state.clear(name=msg.name)
+            resp = OKResponse(ok=True)
+
+        elif isinstance(msg, ClearAssetStateByUri):
+            self.client.asset_state.clear(uri=msg.uri)
+            resp = OKResponse(ok=True)
+
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
 

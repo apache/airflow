@@ -635,6 +635,106 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     assert 42 not in jobless_supervisor.running_triggers
 
 
+class TestTriggerSupervisorAssetState:
+    """Verify the trigger supervisor handles the asset-state comms messages it now accepts."""
+
+    asset_name: str = "my_asset"
+    asset_uri: str = "s3://bucket/key"
+
+    @pytest.fixture
+    def supervisor(self, jobless_supervisor, mocker):
+        mocker.patch.object(
+            type(jobless_supervisor), "client", new_callable=mocker.PropertyMock, return_value=mocker.Mock()
+        )
+        mocker.patch.object(type(jobless_supervisor), "send_msg", mocker.Mock())
+        return jobless_supervisor
+
+    def test_get_by_name(self, supervisor):
+        from airflow.sdk.api.datamodels._generated import AssetStateResponse
+        from airflow.sdk.execution_time.comms import AssetStateResult, GetAssetStateByName
+
+        supervisor.client.asset_state.get.return_value = AssetStateResponse(value="2026-04-30")
+
+        msg = GetAssetStateByName(name=self.asset_name, key="watermark")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=1)
+
+        supervisor.client.asset_state.get.assert_called_once_with("watermark", name=self.asset_name)
+        sent = supervisor.send_msg.call_args
+        assert isinstance(sent.args[0], AssetStateResult)
+        assert sent.args[0].value == "2026-04-30"
+        assert sent.kwargs["request_id"] == 1
+
+    def test_get_by_uri(self, supervisor):
+        from airflow.sdk.api.datamodels._generated import AssetStateResponse
+        from airflow.sdk.execution_time.comms import AssetStateResult, GetAssetStateByUri
+
+        supervisor.client.asset_state.get.return_value = AssetStateResponse(value="2026-04-30")
+
+        msg = GetAssetStateByUri(uri=self.asset_uri, key="watermark")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=2)
+
+        supervisor.client.asset_state.get.assert_called_once_with("watermark", uri=self.asset_uri)
+        assert isinstance(supervisor.send_msg.call_args.args[0], AssetStateResult)
+
+    def test_set_by_name(self, supervisor):
+        from airflow.sdk.execution_time.comms import OKResponse, SetAssetStateByName
+
+        msg = SetAssetStateByName(name=self.asset_name, key="watermark", value="2026-04-30")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=3)
+
+        supervisor.client.asset_state.set.assert_called_once_with(
+            "watermark", "2026-04-30", name=self.asset_name
+        )
+        assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
+
+    def test_set_by_uri(self, supervisor):
+        from airflow.sdk.execution_time.comms import OKResponse, SetAssetStateByUri
+
+        msg = SetAssetStateByUri(uri=self.asset_uri, key="watermark", value="2026-04-30")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=4)
+
+        supervisor.client.asset_state.set.assert_called_once_with(
+            "watermark", "2026-04-30", uri=self.asset_uri
+        )
+        assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
+
+    def test_delete_by_name(self, supervisor):
+        from airflow.sdk.execution_time.comms import DeleteAssetStateByName, OKResponse
+
+        msg = DeleteAssetStateByName(name=self.asset_name, key="watermark")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=5)
+
+        supervisor.client.asset_state.delete.assert_called_once_with("watermark", name=self.asset_name)
+        assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
+
+    def test_delete_by_uri(self, supervisor):
+        from airflow.sdk.execution_time.comms import DeleteAssetStateByUri, OKResponse
+
+        msg = DeleteAssetStateByUri(uri=self.asset_uri, key="watermark")
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=6)
+
+        supervisor.client.asset_state.delete.assert_called_once_with("watermark", uri=self.asset_uri)
+        assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
+
+    def test_clear_by_name(self, supervisor):
+        from airflow.sdk.execution_time.comms import ClearAssetStateByName, OKResponse
+
+        msg = ClearAssetStateByName(name=self.asset_name)
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=7)
+
+        supervisor.client.asset_state.clear.assert_called_once_with(name=self.asset_name)
+        assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
+
+    def test_clear_by_uri(self, supervisor):
+        from airflow.sdk.execution_time.comms import ClearAssetStateByUri, OKResponse
+
+        msg = ClearAssetStateByUri(uri=self.asset_uri)
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=8)
+
+        supervisor.client.asset_state.clear.assert_called_once_with(uri=self.asset_uri)
+        assert isinstance(supervisor.send_msg.call_args.args[0], OKResponse)
+
+
 class TestTriggerRunner:
     def test_blocked_main_thread_warning_threshold_decode(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
