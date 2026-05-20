@@ -1074,12 +1074,19 @@ class KubernetesPodOperator(BaseOperator):
                         "Trigger emitted an %s event, failing the task: %s", event["status"], event["message"]
                     )
                     message = event.get("stack_trace", event["message"])
+                    # Push manually before the raise — matches the sync-path
+                    # failure-push in cleanup ("Ensure that existing XCom is
+                    # pushed even in case of failure").
+                    if self.do_xcom_push and xcom_sidecar_output:
+                        context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_sidecar_output)
                     raise AirflowException(message)
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
-            if self.do_xcom_push and xcom_sidecar_output:
-                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_sidecar_output)
+        # Return on success so the task runner's _push_xcom_if_needed handles
+        # return_value and multiple_outputs fan-out, matching execute_sync.
+        if self.do_xcom_push:
+            return xcom_sidecar_output
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:
