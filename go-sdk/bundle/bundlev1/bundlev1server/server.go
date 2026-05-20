@@ -35,9 +35,10 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution"
 )
 
-// Flags. The bundle-metadata flag is the existing ADR 0001 introspection
-// hook; --comm and --logs select the coordinator-mode protocol added by
-// ADR 0003. All three are read by Serve to choose a server mode below.
+// CLI Flags.
+// The --bundle-metadata flag is used for showing the embedded bundle info in airflow-metadata.yaml spec format.
+// The --comm and --logs select the coordinator-mode protocol
+// All three are read by Serve to choose a server mode below.
 var (
 	versionInfo = flag.Bool("bundle-metadata", false, "show the embedded bundle info")
 	commAddr    = flag.String(
@@ -72,10 +73,10 @@ type ServerConfig struct{}
 type serveMode int
 
 const (
-	modePlugin       serveMode = iota // go-plugin gRPC (existing Edge Worker path)
-	modeMetadataDump                  // --bundle-metadata: print BundleInfo JSON
-	modeCoordinator                   // --comm/--logs: msgpack-over-IPC (ADR 0003)
-	modeUsageError                    // misuse: print usage and exit non-zero
+	modePlugin                serveMode = iota // go-plugin gRPC (existing Edge Worker path)
+	modeMetadataDump                           // --bundle-metadata: print BundleInfo JSON
+	modeCoordinator                            // --comm/--logs: msgpack-over-IPC (ADR 0003)
+	modeCoordinatorUsageError                  // misuse: print usage and exit non-zero
 )
 
 // Serve is the entrypoint for your bundle, and sets it up ready for Airflow's
@@ -111,7 +112,7 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 	case modePlugin:
 		installPluginLogger()
 		return servePlugin(bundle)
-	case modeUsageError:
+	case modeCoordinatorUsageError:
 		fmt.Fprintln(os.Stderr, "error: --comm and --logs must be supplied together")
 		flag.CommandLine.SetOutput(os.Stderr)
 		flag.Usage()
@@ -130,11 +131,8 @@ func decideMode() serveMode {
 		return modeCoordinator
 	}
 	if commSet || logsSet {
-		// Partial use is a hard error per ADR 0003: both flags are
-		// required, otherwise the supervisor is misconfigured and the
-		// runtime should fail loudly rather than fall through to
-		// go-plugin (which would hang on the missing magic-cookie).
-		return modeUsageError
+		// Partial use is a hard error, both flags are required
+		return modeCoordinatorUsageError
 	}
 	return modePlugin
 }
@@ -174,5 +172,6 @@ func servePlugin(bundle bundlev1.BundleProvider) error {
 
 	// Likely never returns
 	plugin.Serve(pluginConfig)
+
 	return nil
 }
