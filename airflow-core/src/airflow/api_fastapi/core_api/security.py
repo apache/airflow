@@ -352,12 +352,14 @@ def requires_access_event_log(
         dag_id = None
 
         event_log_id_raw = request.path_params.get("event_log_id")
-        try:
-            event_log_id = int(event_log_id_raw) if event_log_id_raw is not None else None
-        except ValueError:
-            event_log_id = None
-
-        if event_log_id is not None:
+        if event_log_id_raw is not None:
+            try:
+                event_log_id = int(event_log_id_raw)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'event_log_id' must be an integer",
+                )
             dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
 
         requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
