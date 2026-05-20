@@ -587,6 +587,7 @@ environ
 envs
 EnvVar
 envvar
+envVarsSecret
 eof
 EOL
 equest
@@ -1477,6 +1478,7 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+secretKeyRef
 secretmanager
 SecretManagerClient
 SecretManagerServiceClient
