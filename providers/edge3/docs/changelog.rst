@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow using fresh interpreter besides fork() in Edge Worker (#65943)``
+* ``Support BaseExecutor.run_workload() for Airflow 3.3 in Edge Worker (#65847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make Edge resilient against log errors (#66995)``
+* ``Fix provider DB upgrades with existing tables (#66883)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 15 updates (#67002)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 6 updates (#66532)``
+* ``Regenerate Edge worker OpenAPI spec after #67093 env upgrade (#67188)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix hardcoded OS path in edge provider (#67039)``
+   * ``[main] CI: Upgrade important CI environment (#66843)``
+
 3.6.0
 .....
 

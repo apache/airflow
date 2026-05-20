@@ -1,6 +1,9 @@
  <!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/legal/release-policy.html -->
+
 # upgrade — refresh the gitignored snapshot per the committed lock
 
 The upgrade flow is **drift-driven**. It detects mismatch
@@ -226,7 +229,22 @@ silent on families). Compose the **effective family set**
 for this upgrade as:
 
 - **Opt-in families** the project recorded (`security`,
-  `pr-management`, or both).
+  `pr-management`, `issue`, or any combination).
+- **Newly-introduced opt-in families** — families the
+  framework now ships that did not exist when the lock was
+  written. Detect by enumerating the prefixes of opt-in
+  families in the snapshot (`security-*`, `pr-management-*`,
+  `issue-*`) and comparing against the lock's recorded set.
+  Any family present in the snapshot but absent from the
+  lock is auto-added to the effective set on this run, and
+  the addition is **written back to `<committed-lock>`**
+  (same fields as
+  [`adopt.md` Step 4](adopt.md#step-4--write-committed-lock-fresh-only)).
+  Surface the added family in the upgrade summary so the
+  operator sees it; do not prompt — per the framework's
+  policy each opt-in family is maintainer-grade and an
+  adopter that has already adopted the framework is in scope
+  for any opt-in family the framework grows.
 - **Always-on families** (always added — never read from
   the lock, never user-configurable, per
   [`SKILL.md` Golden rule 8](SKILL.md#golden-rules)):
@@ -238,6 +256,18 @@ Compute the always-on set fresh from the snapshot contents
 on disk — it expands automatically when the framework adds
 a new `setup-*` or `list-steward-*` skill in a release, and
 contracts on a rename / removal without code changes here.
+
+Before creating symlinks for a newly-introduced opt-in
+family, reconcile the adopter's `.gitignore` so the new
+family's snapshot symlinks are gitignored. Append the
+`.gitignore` lines from
+[`adopt.md` Step 7](adopt.md#step-7--gitignore-entries-fresh-only)
+for the new family's prefix (e.g. `/.claude/skills/issue-*`
+and the `.github/skills/` mirror when the adopter uses the
+double-symlinked convention). The append is idempotent —
+skip lines that already exist. The same idempotence covers
+adopters whose `.gitignore` already had the entries (e.g.
+from a manually-edited block or a previous adopt run).
 
 The post-upgrade state must be: *every framework skill in
 the new snapshot that belongs to the effective family set
@@ -441,7 +471,8 @@ setup-steward (bootstrap):
   ✓ in sync   OR   ↻ overwritten from snapshot (reloaded in-flight)
 
 Symlinks (main checkout):
-  Opt-in families:     <security>, <pr-management>   (from lock)
+  Opt-in families:     <security>, <pr-management>, <issue>   (from lock)
+  Newly added opt-in:  <issue>   (introduced since lock was written; lock updated)
   Always-on families:  setup-*, list-steward-*       (per Golden rule 8)
   ✓ <list of unchanged symlinks>
   + <list of newly-created symlinks (skill present in the
@@ -449,6 +480,11 @@ Symlinks (main checkout):
   ↻ <list of repaired symlinks (existed but broken / pointing
      at the wrong path)>
   - <list of removed stale symlinks>
+
+.gitignore reconcile:
+  ✓ all opt-in family prefixes already gitignored   OR
+  + <list of /.claude/skills/<prefix>-* and /.github/skills/<prefix>-*
+     lines appended for newly-introduced opt-in families>
 
 Hooks + local config:
   ✓ <list of files in sync>

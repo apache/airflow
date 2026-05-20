@@ -134,7 +134,7 @@ describe("Task log grouping", () => {
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeNull());
 
     // Test Expand All / Collapse All via settings menu
-    const settingsBtn = screen.getByRole("button", { name: /settings/iu });
+    const settingsBtn = screen.getByTestId("log-settings-button");
 
     fireEvent.click(settingsBtn);
 
