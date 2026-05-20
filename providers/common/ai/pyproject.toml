@@ -98,6 +98,8 @@ dependencies = [
 "langchain" = [
     "langchain>=1.0.0",
 ]
+"pdf" = ["pypdf>=4.0.0"]
+"docx" = ["python-docx>=1.0.0"]
 
 [dependency-groups]
 dev = [
