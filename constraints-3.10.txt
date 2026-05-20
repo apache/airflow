@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-20T19:41:55.824115
+# This constraints file was automatically generated on 2026-05-20T20:10:46.972929
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -202,7 +202,7 @@ blinker==1.9.0
 boto3==1.43.0
 botocore==1.43.0
 cachelib==0.14.0
-cachetools==7.1.1
+cachetools==7.1.2
 cadwyn==6.2.2
 cassandra-driver==3.30.0
 cattrs==26.1.0
