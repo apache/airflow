@@ -304,7 +304,7 @@ class BaseDagBundle(ABC):
         name: str,
         refresh_interval: int = conf.getint("dag_processor", "refresh_interval"),
         version: str | None = None,
-        version_data: dict | None = None,
+        version_data: dict[str, Any] | None = None,
         view_url_template: str | None = None,
     ) -> None:
         self.name = name
