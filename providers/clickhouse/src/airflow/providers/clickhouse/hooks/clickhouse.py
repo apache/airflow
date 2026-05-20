@@ -384,7 +384,7 @@ class ClickHouseHook(DbApiHook):
         table: str,
         rows: list[tuple],
         column_names: list[str],
-        commit_every: int = 5000,
+        batch_size: int | None = None,
     ) -> None:
         """
         Insert rows into a ClickHouse table using the native columnar insert.
@@ -392,10 +392,16 @@ class ClickHouseHook(DbApiHook):
         Uses ``clickhouse_connect``'s optimized insert path, which is
         significantly faster than row-by-row cursor inserts for large datasets.
 
+        By default (``batch_size=None``) all rows are sent in a single call.
+        Set ``batch_size`` to bound peak memory usage on very large inputs; an
+        insert context is created once and reused across chunks to avoid a
+        repeated ``DESCRIBE TABLE`` round-trip per batch.
+
         :param table: Target table name.
         :param rows: List of row tuples to insert.
         :param column_names: Column names matching each position in the row tuples.
-        :param commit_every: Batch size (rows per insert call). Defaults to 5000.
+        :param batch_size: Number of rows per insert chunk.  ``None`` (default)
+            sends all rows in one request.
         """
         if not rows:
             self.log.warning(
@@ -405,9 +411,12 @@ class ClickHouseHook(DbApiHook):
 
         client = self.get_client()
         try:
-            for i in range(0, len(rows), commit_every):
-                batch = rows[i : i + commit_every]
-                client.insert(table, batch, column_names=column_names)
+            if batch_size is None:
+                client.insert(table, rows, column_names=column_names)
+            else:
+                ctx = client.create_insert_context(table, column_names=column_names)
+                for i in range(0, len(rows), batch_size):
+                    client.insert(data=rows[i : i + batch_size], context=ctx)
             self.log.info("Inserted %d rows into %s", len(rows), table)
         finally:
             client.close()

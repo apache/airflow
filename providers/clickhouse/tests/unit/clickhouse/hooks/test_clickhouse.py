@@ -1291,43 +1291,46 @@ class TestClickHouseHookBulkInsert:
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_multiple_batches(self, mock_get_client, mock_get_connection):
-        """10 rows with commit_every=3 → 4 insert calls."""
+        """10 rows with batch_size=3 → context created once, 4 insert calls."""
         mock_get_connection.return_value = BASE_CONN
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
         rows = [(i,) for i in range(10)]
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
-        hook.bulk_insert_rows("t", rows, column_names=["id"], commit_every=3)
+        hook.bulk_insert_rows("t", rows, column_names=["id"], batch_size=3)
 
+        mock_client.create_insert_context.assert_called_once_with("t", column_names=["id"])
         assert mock_client.insert.call_count == 4
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
-    def test_commit_every_larger_than_rows(self, mock_get_client, mock_get_connection):
-        """commit_every > len(rows) → exactly one insert call."""
+    def test_batch_size_larger_than_rows(self, mock_get_client, mock_get_connection):
+        """batch_size > len(rows) → context created once, exactly one insert call."""
         mock_get_connection.return_value = BASE_CONN
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
         rows = [(i,) for i in range(5)]
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
-        hook.bulk_insert_rows("t", rows, column_names=["id"], commit_every=10000)
+        hook.bulk_insert_rows("t", rows, column_names=["id"], batch_size=10000)
 
+        mock_client.create_insert_context.assert_called_once_with("t", column_names=["id"])
         mock_client.insert.assert_called_once()
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
-    def test_exactly_commit_every_rows(self, mock_get_client, mock_get_connection):
-        """Rows == commit_every → exactly one insert call."""
+    def test_exactly_batch_size_rows(self, mock_get_client, mock_get_connection):
+        """Rows == batch_size → context created once, exactly one insert call."""
         mock_get_connection.return_value = BASE_CONN
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
         rows = [(i,) for i in range(5)]
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
-        hook.bulk_insert_rows("t", rows, column_names=["id"], commit_every=5)
+        hook.bulk_insert_rows("t", rows, column_names=["id"], batch_size=5)
 
+        mock_client.create_insert_context.assert_called_once_with("t", column_names=["id"])
         mock_client.insert.assert_called_once()
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
