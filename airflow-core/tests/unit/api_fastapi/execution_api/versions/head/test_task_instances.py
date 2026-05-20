@@ -857,7 +857,9 @@ class TestTIRunState:
         assert response.status_code == 409
         assert response.json() == {
             "detail": {
-                "message": "TI was not in a state where it could be marked as running",
+                "type": "about:blank",
+                "title": "Conflict",
+                "detail": "TI was not in a state where it could be marked as running",
                 "previous_state": initial_ti_state,
                 "reason": "invalid_state",
             }
@@ -1418,8 +1420,10 @@ class TestTIUpdateState:
         response = client.patch(f"/execution/task-instances/{task_instance_id}/state", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Not Found",
+            "detail": "Task Instance not found",
             "reason": "not_found",
-            "message": "Task Instance not found",
         }
 
     def test_ti_update_state_running_errors(self, client, session, create_task_instance, time_machine):
@@ -1497,7 +1501,11 @@ class TestTIUpdateState:
             mock_register_asset_changes_in_db.return_value = None
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
-            assert response.json()["detail"] == "Database error occurred"
+            assert response.json()["detail"] == {
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "detail": "Database error occurred",
+            }
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_ti_update_state_to_deferred(
@@ -2130,8 +2138,10 @@ class TestTIUpdateState:
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
         assert response.status_code == 409
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Conflict",
+            "detail": "TI was not in the running state so it cannot be updated",
             "reason": "invalid_state",
-            "message": "TI was not in the running state so it cannot be updated",
             "previous_state": State.SUCCESS,
         }
 
@@ -2186,9 +2196,11 @@ class TestTIUpdateState:
         )
         assert response.status_code == 409
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Conflict",
+            "detail": "TI was not in the running state so it cannot be updated",
             "reason": "invalid_state",
-            "message": "TI was not in the running state so it cannot be updated",
-            "previous_state": State.SUCCESS,
+            "previous_state": State.SUCCESS.value,
         }
 
         session.refresh(ti)
@@ -2539,8 +2551,10 @@ class TestTIHealthEndpoint:
                 1789,
                 409,
                 {
+                    "type": "about:blank",
+                    "title": "Conflict",
+                    "detail": "TI is already running elsewhere",
                     "reason": "running_elsewhere",
-                    "message": "TI is already running elsewhere",
                     "current_hostname": "random-hostname",
                     "current_pid": 1789,
                 },
@@ -2551,8 +2565,10 @@ class TestTIHealthEndpoint:
                 1054,
                 409,
                 {
+                    "type": "about:blank",
+                    "title": "Conflict",
+                    "detail": "TI is already running elsewhere",
                     "reason": "running_elsewhere",
-                    "message": "TI is already running elsewhere",
                     "current_hostname": "random-hostname",
                     "current_pid": 1789,
                 },
@@ -2619,8 +2635,10 @@ class TestTIHealthEndpoint:
 
         assert response.status_code == 404
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Not Found",
+            "detail": "Task Instance not found",
             "reason": "not_found",
-            "message": "Task Instance not found",
         }
 
     def test_ti_heartbeat_cleared_task_returns_410(self, client, session, create_task_instance):
@@ -2653,8 +2671,10 @@ class TestTIHealthEndpoint:
 
         assert response.status_code == 410
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Gone",
+            "detail": "Task Instance not found, it may have been moved to the Task Instance History table",
             "reason": "not_found",
-            "message": "Task Instance not found, it may have been moved to the Task Instance History table",
         }
 
     @pytest.mark.parametrize(
@@ -2680,8 +2700,10 @@ class TestTIHealthEndpoint:
 
         assert response.status_code == 409
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Conflict",
+            "detail": "TI is no longer in the running state and task should terminate",
             "reason": "not_running",
-            "message": "TI is no longer in the running state and task should terminate",
             "current_state": ti_state,
         }
 
@@ -2922,8 +2944,10 @@ class TestTIPutRTIF:
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Not Found",
+            "detail": "Task Instance not found",
             "reason": "not_found",
-            "message": "Task Instance not found",
         }
 
     def test_ti_put_rtif_archived_ti_returns_410(self, client, session, create_task_instance):
@@ -2949,8 +2973,10 @@ class TestTIPutRTIF:
 
         assert response.status_code == 410
         assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Gone",
+            "detail": "Task Instance not found, it may have been moved to the Task Instance History table",
             "reason": "not_found",
-            "message": "Task Instance not found, it may have been moved to the Task Instance History table",
         }
 
 
@@ -3205,7 +3231,9 @@ class TestGetCount:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": "Task group non_existent_group not found in DAG test_get_count_task_group_not_found",
+            "type": "about:blank",
+            "title": "Not Found",
+            "detail": "Task group non_existent_group not found in DAG test_get_count_task_group_not_found",
         }
 
     def test_get_count_dag_not_found(self, client, session):
@@ -3759,7 +3787,9 @@ class TestGetTaskStates:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": "Task group non_existent_group not found in DAG test_get_task_states_task_group_not_found",
+            "type": "about:blank",
+            "title": "Not Found",
+            "detail": "Task group non_existent_group not found in DAG test_get_task_states_task_group_not_found",
         }
 
     def test_get_task_states_dag_not_found(self, client, session):
@@ -4152,6 +4182,11 @@ class TestTIPatchRenderedMapIndex:
         )
 
         assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Not Found",
+            "detail": "Task Instance not found",
+        }
 
     def test_ti_patch_rendered_map_index_empty_string(self, client, session, create_task_instance):
         """Test that empty string is accepted (clears the rendered_map_index)."""
@@ -4168,6 +4203,11 @@ class TestTIPatchRenderedMapIndex:
         )
 
         assert response.status_code == 422
+        assert response.json()["detail"] == {
+            "type": "about:blank",
+            "title": "Unprocessable Content",
+            "detail": "rendered_map_index cannot be empty",
+        }
 
 
 @pytest.mark.usefixtures("_use_real_jwt_bearer")
