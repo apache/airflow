@@ -65,6 +65,7 @@ def get_provider_info():
                 ],
                 "tags": ["ai"],
             },
+            {"integration-name": "CrewAI", "external-doc-url": "https://docs.crewai.com/", "tags": ["ai"]},
         ],
         "hooks": [
             {
@@ -80,6 +81,7 @@ def get_provider_info():
                 "integration-name": "LlamaIndex",
                 "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
             },
+            {"integration-name": "CrewAI", "python-modules": ["airflow.providers.common.ai.hooks.crewai"]},
         ],
         "plugins": [
             {
@@ -324,6 +326,26 @@ def get_provider_info():
                         "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
                         "schema": {"type": ["string", "null"]},
                     },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.crewai.CrewAIHook",
+                "hook-name": "CrewAI",
+                "connection-type": "crewai",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                        "extra": '{"model": "openai/gpt-4o"}',
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "LiteLLM model identifier in provider/name format (e.g. openai/gpt-4o, anthropic/claude-3-5-sonnet). Note the slash separator -- this is LiteLLM convention, distinct from pydantic-ai's colon (provider:name) format.\n",
+                        "schema": {"type": ["string", "null"]},
+                    }
                 },
             },
         ],

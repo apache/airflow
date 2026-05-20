@@ -129,6 +129,7 @@ dev = [
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
+    'crewai>=1.14.5; python_version >= "3.11" and python_version < "3.14"',
 ]
 
 # To build docs:

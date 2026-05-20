@@ -47,6 +47,10 @@ Choosing a hook
        by default). For non-OpenAI vendors, pass a pre-built
        ``BaseEmbedding`` / ``LLM`` instance straight to the operator and
        bypass the hook.
+   * - :class:`~airflow.providers.common.ai.hooks.crewai.CrewAIHook`
+     - Returns a ``crewai.LLM`` for use with CrewAI ``Agent`` / ``Crew``
+       multi-agent workflows. Model identifiers use LiteLLM ``provider/name``
+       slash format. Independent of the pydantic-ai-backed operators.
 
 Hook guides
 -----------

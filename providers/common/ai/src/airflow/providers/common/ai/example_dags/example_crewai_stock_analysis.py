@@ -50,11 +50,17 @@ by a human before the DAG completes.
 
 Before running:
 
-1. Create an LLM connection named ``pydanticai_default`` (or the value
-   of ``LLM_CONN_ID``) with ``conn_type=pydanticai``.  The password
-   field should hold your API key (e.g. OpenAI API key).
-2. ``pip install apache-airflow-providers-common-ai[crewai]``
-3. Optionally ``pip install crewai-tools`` and set ``SERPER_API_KEY``
+1. Create a CrewAI connection named ``crewai_default`` (or the value of
+   ``CREWAI_CONN_ID``) with ``conn_type=crewai``. The password field should
+   hold your API key (e.g. OpenAI API key). CrewAI uses LiteLLM ``provider/name``
+   format for model identifiers (e.g. ``openai/gpt-4o``).
+2. Create a pydantic-ai connection named ``pydanticai_default`` (or the value
+   of ``PYDANTICAI_CONN_ID``) with ``conn_type=pydanticai`` for the
+   ``synthesize_portfolio`` step that runs through ``LLMOperator``. Same API
+   key is fine; the two hooks need different ``conn_type`` because they use
+   different model-string conventions (LiteLLM slash vs pydantic-ai colon).
+3. ``pip install apache-airflow-providers-common-ai[crewai]``
+4. Optionally ``pip install crewai-tools`` and set ``SERPER_API_KEY``
    to enable live web search for the research agent.
 """
 
@@ -65,17 +71,20 @@ import json
 import os
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import Param, dag, task
 from airflow.providers.standard.operators.hitl import ApprovalOperator, HITLEntryOperator
-from airflow.sdk import Param
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-LLM_CONN_ID = "pydanticai_default"
+CREWAI_CONN_ID = "crewai_default"
+PYDANTICAI_CONN_ID = "pydanticai_default"
 
-LLM_MODEL = os.environ.get("CREWAI_LLM_MODEL", "openai/gpt-4o")
+# CrewAI uses LiteLLM slash format (provider/name); pydantic-ai uses colon
+# (provider:name). Each conn type's model field documents its own convention.
+CREWAI_MODEL = os.environ.get("CREWAI_LLM_MODEL", "openai/gpt-4o")
+PYDANTICAI_MODEL = os.environ.get("PYDANTICAI_LLM_MODEL", "openai:gpt-4o")
 
 SYNTHESIS_SYSTEM_PROMPT = """\
 You are a senior portfolio strategist. Given individual stock analysis
@@ -149,14 +158,21 @@ def example_crewai_stock_analysis():
     # Each crew run is independently retryable -- if AAPL fails, MSFT
     # and GOOGL results are preserved.
     # ------------------------------------------------------------------
-    @task(retries=1, retry_delay=datetime.timedelta(seconds=30))
+    @task(
+        retries=1,
+        retry_delay=datetime.timedelta(seconds=30),
+        # Bound multi-turn agent loops -- a stuck ticker shouldn't hold the
+        # worker slot indefinitely. CrewAI's LLM call has its own per-request
+        # timeout, but the crew can chain many such calls.
+        execution_timeout=datetime.timedelta(minutes=10),
+    )
     def analyze_stock(ticker: str) -> dict:
         """Run a 3-agent investment research crew for a single ticker."""
         from crewai import Agent, Crew, Process, Task
 
         from airflow.providers.common.ai.hooks.crewai import CrewAIHook
 
-        hook = CrewAIHook(llm_conn_id=LLM_CONN_ID, llm_model=LLM_MODEL)
+        hook = CrewAIHook(llm_conn_id=CREWAI_CONN_ID, llm_model=CREWAI_MODEL)
         llm = hook.get_llm()
         tools = _get_search_tools()
 
@@ -306,7 +322,8 @@ def example_crewai_stock_analysis():
     # ------------------------------------------------------------------
     synthesize_portfolio = LLMOperator(
         task_id="synthesize_portfolio",
-        llm_conn_id=LLM_CONN_ID,
+        llm_conn_id=PYDANTICAI_CONN_ID,
+        model_id=PYDANTICAI_MODEL,
         system_prompt=SYNTHESIS_SYSTEM_PROMPT,
         prompt="""\
 Given the following individual stock analysis reports, write a

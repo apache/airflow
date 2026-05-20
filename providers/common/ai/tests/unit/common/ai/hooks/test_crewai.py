@@ -23,114 +23,159 @@ import pytest
 from airflow.providers.common.ai.hooks.crewai import CrewAIHook
 
 
+def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:
+    mock_conn = MagicMock()
+    mock_conn.password = password
+    mock_conn.host = host
+    mock_conn.extra_dejson = extra or {}
+    return mock_conn
+
+
 class TestCrewAIHookInit:
     def test_default_params(self):
         hook = CrewAIHook()
-        assert hook.llm_conn_id == "pydanticai_default"
+        assert hook.llm_conn_id == "crewai_default"
         assert hook.llm_model is None
 
-    def test_custom_params(self):
+    def test_explicit_conn_and_model(self):
         hook = CrewAIHook(llm_conn_id="my_conn", llm_model="openai/gpt-4o")
         assert hook.llm_conn_id == "my_conn"
         assert hook.llm_model == "openai/gpt-4o"
 
-    def test_conn_type_is_pydanticai(self):
-        assert CrewAIHook.conn_type == "pydanticai"
-        assert CrewAIHook.default_conn_name == "pydanticai_default"
+    def test_conn_type_is_crewai(self):
+        assert CrewAIHook.conn_type == "crewai"
+        assert CrewAIHook.default_conn_name == "crewai_default"
+        assert CrewAIHook.conn_name_attr == "llm_conn_id"
+        assert CrewAIHook.hook_name == "CrewAI"
 
 
-class TestResolveConnectionKwargs:
-    @patch.object(CrewAIHook, "get_connection")
-    def test_extracts_password_as_api_key(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test-key"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        hook = CrewAIHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_key": "sk-test-key"}
-
-    @patch.object(CrewAIHook, "get_connection")
-    def test_extracts_host_as_base_url(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = ""
-        mock_conn.host = "https://custom.api.com"
-        mock_get_conn.return_value = mock_conn
-
-        hook = CrewAIHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"base_url": "https://custom.api.com"}
-
-    @patch.object(CrewAIHook, "get_connection")
-    def test_both_password_and_host(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-key"
-        mock_conn.host = "https://api.example.com"
-        mock_get_conn.return_value = mock_conn
-
-        hook = CrewAIHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_key": "sk-key", "base_url": "https://api.example.com"}
-
-    @patch.object(CrewAIHook, "get_connection")
-    def test_empty_fields_return_empty_dict(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = ""
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        hook = CrewAIHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {}
+class TestGetUiFieldBehaviour:
+    def test_shape(self):
+        behaviour = CrewAIHook.get_ui_field_behaviour()
+        assert behaviour["hidden_fields"] == ["schema", "port", "login"]
+        assert behaviour["relabeling"] == {"password": "API Key"}
+        assert "host" in behaviour["placeholders"]
+        # Extras placeholder shows the LiteLLM slash format, not the pydantic-ai colon.
+        assert "openai/gpt-4o" in behaviour["placeholders"]["extra"]
 
 
-def _make_mock_crewai_module():
-    mock_module = MagicMock()
-    mock_cls = MagicMock()
-    mock_module.LLM = mock_cls
-    return mock_module, mock_cls
+class TestResolveModelId:
+    def test_constructor_wins_over_extra(self):
+        result = CrewAIHook._resolve_model_id(
+            {"model": "anthropic/claude-3-5-sonnet"},
+            "openai/gpt-4o",
+        )
+        assert result == "openai/gpt-4o"
+
+    def test_falls_back_to_extra(self):
+        result = CrewAIHook._resolve_model_id(
+            {"model": "anthropic/claude-3-5-sonnet"},
+            None,
+        )
+        assert result == "anthropic/claude-3-5-sonnet"
+
+    def test_raises_when_neither_set(self):
+        with pytest.raises(ValueError, match="No model identifier set"):
+            CrewAIHook._resolve_model_id({}, None)
+
+
+class TestCheckProviderSupported:
+    @pytest.mark.parametrize(
+        "model_id",
+        [
+            "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
+            "vertex_ai/gemini-2.0-flash",
+            "azure/gpt-4o",
+        ],
+    )
+    def test_raises_for_non_openai_compatible_prefixes(self, model_id):
+        with pytest.raises(NotImplementedError, match="does not yet support"):
+            CrewAIHook._check_provider_supported(model_id)
+
+    @pytest.mark.parametrize(
+        "model_id",
+        [
+            "openai/gpt-4o",
+            "anthropic/claude-3-5-sonnet",
+            "groq/llama-3.3-70b-versatile",
+            "ollama/llama3",
+            "gemini/gemini-2.0-flash",
+        ],
+    )
+    def test_passes_for_openai_compatible_providers(self, model_id):
+        # Should not raise.
+        CrewAIHook._check_provider_supported(model_id)
 
 
 class TestGetLlm:
-    def test_raises_without_llm_model(self):
-        hook = CrewAIHook()
-        with pytest.raises(ValueError, match="llm_model must be set"):
-            hook.get_llm()
-
+    @patch("crewai.LLM")
     @patch.object(CrewAIHook, "get_connection")
-    def test_returns_crewai_llm(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        mock_module, mock_cls = _make_mock_crewai_module()
+    def test_dispatches_with_api_key(self, mock_get_conn, mock_llm_cls):
+        mock_get_conn.return_value = _conn(password="sk-test")
 
         hook = CrewAIHook(llm_model="openai/gpt-4o")
-        with patch.dict("sys.modules", {"crewai": mock_module}):
-            result = hook.get_llm()
+        result = hook.get_llm()
 
-        mock_cls.assert_called_once_with(model="openai/gpt-4o", api_key="sk-test")
-        assert result == mock_cls.return_value
+        mock_get_conn.assert_called_once_with("crewai_default")
+        mock_llm_cls.assert_called_once_with(model="openai/gpt-4o", api_key="sk-test")
+        assert result is mock_llm_cls.return_value
 
+    @patch("crewai.LLM")
     @patch.object(CrewAIHook, "get_connection")
-    def test_passes_base_url(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = "https://custom.api.com"
-        mock_get_conn.return_value = mock_conn
+    def test_dispatches_with_base_url(self, mock_get_conn, mock_llm_cls):
+        mock_get_conn.return_value = _conn(password="sk-test", host="http://localhost:11434")
 
-        mock_module, mock_cls = _make_mock_crewai_module()
+        hook = CrewAIHook(llm_model="ollama/llama3")
+        hook.get_llm()
 
-        hook = CrewAIHook(llm_model="openai/gpt-4o")
-        with patch.dict("sys.modules", {"crewai": mock_module}):
-            hook.get_llm()
-
-        mock_cls.assert_called_once_with(
-            model="openai/gpt-4o", api_key="sk-test", base_url="https://custom.api.com"
+        mock_llm_cls.assert_called_once_with(
+            model="ollama/llama3",
+            api_key="sk-test",
+            base_url="http://localhost:11434",
         )
+
+    @patch("crewai.LLM")
+    @patch.object(CrewAIHook, "get_connection")
+    def test_resolves_model_from_extra(self, mock_get_conn, mock_llm_cls):
+        mock_get_conn.return_value = _conn(
+            password="sk-test",
+            extra={"model": "anthropic/claude-3-5-sonnet"},
+        )
+
+        hook = CrewAIHook()
+        hook.get_llm()
+
+        mock_llm_cls.assert_called_once_with(
+            model="anthropic/claude-3-5-sonnet",
+            api_key="sk-test",
+        )
+
+    @patch("crewai.LLM")
+    @patch.object(CrewAIHook, "get_connection")
+    def test_raises_when_no_model(self, mock_get_conn, mock_llm_cls):
+        mock_get_conn.return_value = _conn(password="sk-test")
+
+        hook = CrewAIHook()
+        with pytest.raises(ValueError, match="No model identifier set"):
+            hook.get_llm()
+        mock_llm_cls.assert_not_called()
+
+    @patch("crewai.LLM")
+    @patch.object(CrewAIHook, "get_connection")
+    def test_raises_for_bedrock_model(self, mock_get_conn, mock_llm_cls):
+        mock_get_conn.return_value = _conn(password="sk-test")
+
+        hook = CrewAIHook(llm_model="bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0")
+        with pytest.raises(NotImplementedError, match="does not yet support"):
+            hook.get_llm()
+        mock_llm_cls.assert_not_called()
+
+    @patch("crewai.LLM")
+    @patch.object(CrewAIHook, "get_connection")
+    def test_no_credentials_passes_empty_kwargs(self, mock_get_conn, mock_llm_cls):
+        mock_get_conn.return_value = _conn()
+
+        hook = CrewAIHook(llm_model="openai/gpt-4o")
+        hook.get_llm()
+
+        mock_llm_cls.assert_called_once_with(model="openai/gpt-4o")
