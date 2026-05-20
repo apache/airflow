@@ -88,7 +88,7 @@ export const Dag = () => {
 
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
-  useRefreshOnNewDagRuns(dagId, hasPendingRuns);
+  useRefreshOnNewDagRuns(dagId, hasPendingRuns, dag?.is_paused);
 
   const {
     data: latestRun,
