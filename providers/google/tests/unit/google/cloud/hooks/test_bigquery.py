@@ -2313,3 +2313,257 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
         )
 
         mock_send_lineage.assert_called_once_with(context=self.hook, job=mock_job_instance)
+
+
+@pytest.mark.db_test
+class TestBigQueryHookProxy:
+    """Tests that HTTP/HTTPS proxy settings are propagated through _authorize, get_client, and _get_pandas_df."""
+
+    def _make_hook(self, http_proxy=None, https_proxy=None):
+        class MockedBigQueryHook(BigQueryHook):
+            def get_credentials_and_project_id(self):
+                return CREDENTIALS, PROJECT_ID
+
+            def get_credentials(self):
+                return mock.MagicMock(name="credentials")
+
+        return MockedBigQueryHook(http_proxy=http_proxy, https_proxy=https_proxy)
+
+    # --- __init__ ---
+
+    def test_http_proxy_stored_from_constructor(self):
+        hook = self._make_hook(http_proxy="http://proxy.example.com:3128")
+        assert hook.http_proxy == "http://proxy.example.com:3128"
+        assert hook.https_proxy is None
+
+    def test_https_proxy_stored_from_constructor(self):
+        hook = self._make_hook(https_proxy="https://proxy.example.com:3129")
+        assert hook.http_proxy is None
+        assert hook.https_proxy == "https://proxy.example.com:3129"
+
+    def test_both_proxies_stored_from_constructor(self):
+        hook = self._make_hook(
+            http_proxy="http://proxy.example.com:3128",
+            https_proxy="https://proxy.example.com:3129",
+        )
+        assert hook.http_proxy == "http://proxy.example.com:3128"
+        assert hook.https_proxy == "https://proxy.example.com:3129"
+
+    def test_no_proxy_defaults_to_none(self):
+        hook = self._make_hook()
+        assert hook.http_proxy is None
+        assert hook.https_proxy is None
+
+    # --- _authorize ---
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._authorize")
+    def test_authorize_without_proxy_delegates_to_base(self, mock_base_authorize):
+        hook = self._make_hook()
+        result = hook._authorize()
+        mock_base_authorize.assert_called_once()
+        assert result == mock_base_authorize.return_value
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
+    @mock.patch("googleapiclient.http.set_user_agent")
+    @mock.patch("httplib2.Http")
+    @mock.patch("httplib2.ProxyInfo")
+    def test_authorize_with_http_proxy_creates_proxy_info(
+        self, mock_proxy_info, mock_http, _mock_set_user_agent, mock_authorized_http
+    ):
+        hook = self._make_hook(http_proxy="http://proxy.example.com:3128")
+        result = hook._authorize()
+
+        mock_proxy_info.assert_called_once_with(
+            proxy_type=mock.ANY,
+            proxy_host="proxy.example.com",
+            proxy_port=3128,
+            proxy_user=None,
+            proxy_pass=None,
+        )
+        mock_http.assert_called_once_with(proxy_info=mock_proxy_info.return_value)
+        mock_authorized_http.assert_called_once()
+        assert result == mock_authorized_http.return_value
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
+    @mock.patch("googleapiclient.http.set_user_agent")
+    @mock.patch("httplib2.Http")
+    @mock.patch("httplib2.ProxyInfo")
+    def test_authorize_with_https_proxy_creates_proxy_info(
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, mock_authorized_http
+    ):
+        hook = self._make_hook(https_proxy="https://proxy.example.com:3129")
+        result = hook._authorize()
+
+        mock_proxy_info.assert_called_once_with(
+            proxy_type=mock.ANY,
+            proxy_host="proxy.example.com",
+            proxy_port=3129,
+            proxy_user=None,
+            proxy_pass=None,
+        )
+        assert result == mock_authorized_http.return_value
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
+    @mock.patch("googleapiclient.http.set_user_agent")
+    @mock.patch("httplib2.Http")
+    @mock.patch("httplib2.ProxyInfo")
+    def test_authorize_proxy_with_username_and_password(
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http
+    ):
+        hook = self._make_hook(http_proxy="http://user:secret@proxy.example.com:3128")
+        hook._authorize()
+
+        mock_proxy_info.assert_called_once_with(
+            proxy_type=mock.ANY,
+            proxy_host="proxy.example.com",
+            proxy_port=3128,
+            proxy_user="user",
+            proxy_pass="secret",
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
+    @mock.patch("googleapiclient.http.set_user_agent")
+    @mock.patch("httplib2.Http")
+    @mock.patch("httplib2.ProxyInfo")
+    def test_authorize_proxy_without_port_defaults_to_80(
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http
+    ):
+        hook = self._make_hook(http_proxy="http://proxy.example.com")
+        hook._authorize()
+
+        mock_proxy_info.assert_called_once_with(
+            proxy_type=mock.ANY,
+            proxy_host="proxy.example.com",
+            proxy_port=80,
+            proxy_user=None,
+            proxy_pass=None,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
+    @mock.patch("googleapiclient.http.set_user_agent")
+    @mock.patch("httplib2.Http")
+    @mock.patch("httplib2.ProxyInfo")
+    def test_authorize_http_proxy_used_when_both_proxies_set(
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http
+    ):
+        hook = self._make_hook(
+            http_proxy="http://http-proxy.example.com:3128",
+            https_proxy="https://https-proxy.example.com:3129",
+        )
+        hook._authorize()
+
+        mock_proxy_info.assert_called_once_with(
+            proxy_type=mock.ANY,
+            proxy_host="http-proxy.example.com",
+            proxy_port=3128,
+            proxy_user=None,
+            proxy_pass=None,
+        )
+
+    # --- get_client ---
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_client_without_proxy_omits_http_kwarg(self, mock_client):
+        hook = self._make_hook()
+        hook.get_client(project_id=PROJECT_ID)
+        assert "_http" not in mock_client.call_args.kwargs
+
+    @mock.patch("google.auth.transport.requests.Request")
+    @mock.patch("google.auth.transport.requests.AuthorizedSession")
+    @mock.patch("requests.Session")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_client_with_http_proxy_sets_session_http_proxy(
+        self, mock_client, mock_session_cls, mock_authorized_session_cls, mock_request_cls
+    ):
+        hook = self._make_hook(http_proxy="http://proxy.example.com:3128")
+        hook.get_client(project_id=PROJECT_ID)
+
+        session_instance = mock_session_cls.return_value
+        assert session_instance.proxies["http"] == "http://proxy.example.com:3128"
+        assert mock_client.call_args.kwargs.get("_http") == mock_authorized_session_cls.return_value
+
+    @mock.patch("google.auth.transport.requests.Request")
+    @mock.patch("google.auth.transport.requests.AuthorizedSession")
+    @mock.patch("requests.Session")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_client_with_https_proxy_sets_session_https_proxy(
+        self, mock_client, mock_session_cls, mock_authorized_session_cls, mock_request_cls
+    ):
+        hook = self._make_hook(https_proxy="https://proxy.example.com:3129")
+        hook.get_client(project_id=PROJECT_ID)
+
+        session_instance = mock_session_cls.return_value
+        assert session_instance.proxies["https"] == "https://proxy.example.com:3129"
+        assert mock_client.call_args.kwargs.get("_http") == mock_authorized_session_cls.return_value
+
+    @mock.patch("google.auth.transport.requests.Request")
+    @mock.patch("google.auth.transport.requests.AuthorizedSession")
+    @mock.patch("requests.Session")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_client_with_both_proxies_sets_both_in_session(
+        self, mock_client, mock_session_cls, mock_authorized_session_cls, mock_request_cls
+    ):
+        hook = self._make_hook(
+            http_proxy="http://proxy.example.com:3128",
+            https_proxy="https://proxy.example.com:3129",
+        )
+        hook.get_client(project_id=PROJECT_ID)
+
+        session_instance = mock_session_cls.return_value
+        assert session_instance.proxies["http"] == "http://proxy.example.com:3128"
+        assert session_instance.proxies["https"] == "https://proxy.example.com:3129"
+
+    @mock.patch("google.auth.transport.requests.Request")
+    @mock.patch("google.auth.transport.requests.AuthorizedSession")
+    @mock.patch("requests.Session")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_client_passes_authorized_session_built_with_proxy_session(
+        self, mock_client, mock_session_cls, mock_authorized_session_cls, mock_request_cls
+    ):
+        hook = self._make_hook(http_proxy="http://proxy.example.com:3128")
+        hook.get_client(project_id=PROJECT_ID)
+
+        session_instance = mock_session_cls.return_value
+        mock_request_cls.assert_called_once_with(session=session_instance)
+        mock_authorized_session_cls.assert_called_once_with(
+            hook.get_credentials(), auth_request=mock_request_cls.return_value
+        )
+
+    # --- _get_pandas_df ---
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_get_pandas_df_with_http_proxy_uses_get_client(self, mock_get_client):
+        import pandas as pd
+
+        mock_get_client.return_value.query.return_value.to_dataframe.return_value = pd.DataFrame({"a": [1]})
+        hook = self._make_hook(http_proxy="http://proxy.example.com:3128")
+        result = hook._get_pandas_df("SELECT 1")
+
+        mock_get_client.assert_called_once()
+        mock_get_client.return_value.query.assert_called_once_with("SELECT 1", timeout=10)
+        mock_get_client.return_value.query.return_value.to_dataframe.assert_called_once_with(
+            create_bqstorage_client=False
+        )
+        assert isinstance(result, pd.DataFrame)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_get_pandas_df_with_https_proxy_uses_get_client(self, mock_get_client):
+        import pandas as pd
+
+        mock_get_client.return_value.query.return_value.to_dataframe.return_value = pd.DataFrame({"a": [1]})
+        hook = self._make_hook(https_proxy="https://proxy.example.com:3129")
+        hook._get_pandas_df("SELECT 1")
+
+        mock_get_client.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.read_gbq")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_get_pandas_df_without_proxy_uses_read_gbq(self, mock_get_client, mock_read_gbq):
+        import pandas as pd
+
+        mock_read_gbq.return_value = pd.DataFrame({"a": [1]})
+        hook = self._make_hook()
+        hook._get_pandas_df("SELECT 1")
+
+        mock_get_client.assert_not_called()
+        mock_read_gbq.assert_called_once()
