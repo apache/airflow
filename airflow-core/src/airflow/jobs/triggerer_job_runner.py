@@ -1491,7 +1491,7 @@ class TriggerRunner:
 
                 async for event in event_stream:
                     await self.log.ainfo(
-                        "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
+                        "Trigger fired event", name=self.triggers[trigger_id]["name"]
                     )
                     self.triggers[trigger_id]["events"] += 1
                     self.events.append((trigger_id, event))
