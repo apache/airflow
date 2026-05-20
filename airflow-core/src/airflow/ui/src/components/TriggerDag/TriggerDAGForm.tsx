@@ -130,7 +130,7 @@ const TriggerDAGForm = ({
     isPartitioned,
   ]);
 
-  // Automatically reset form when conf is fetched (only if no prefillConfig)
+  // Automatically reset form when conf is fetched
   useEffect(() => {
     if (conf && open && (!prefillConfig || hasAppliedPrefill)) {
       reset((prevValues) => ({ ...prevValues, conf }));
