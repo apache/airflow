@@ -28,14 +28,19 @@ from airflow.providers.common.ai.hooks.langchain import LangChainHook
 def _stub_langchain_modules():
     # langchain is an optional dep; stub sys.modules so @patch can resolve
     # langchain.* targets without it being installed.
+    # Submodule entries are derived from parent mock attributes so @patch
+    # (which resolves via getattr) and the hook's lazy imports (which read
+    # sys.modules["langchain.chat_models"]) see the same object.
+    lc = MagicMock()
+    lc_core = MagicMock()
     mocks = {
-        "langchain": MagicMock(),
-        "langchain.chat_models": MagicMock(),
-        "langchain.embeddings": MagicMock(),
-        "langchain_core": MagicMock(),
-        "langchain_core.embeddings": MagicMock(),
-        "langchain_core.language_models": MagicMock(),
-        "langchain_core.language_models.chat_models": MagicMock(),
+        "langchain": lc,
+        "langchain.chat_models": lc.chat_models,
+        "langchain.embeddings": lc.embeddings,
+        "langchain_core": lc_core,
+        "langchain_core.embeddings": lc_core.embeddings,
+        "langchain_core.language_models": lc_core.language_models,
+        "langchain_core.language_models.chat_models": lc_core.language_models.chat_models,
     }
     with patch.dict(sys.modules, mocks):
         yield
