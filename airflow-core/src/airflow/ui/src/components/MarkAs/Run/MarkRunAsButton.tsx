@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,7 @@ import { LuCheck } from "react-icons/lu";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { Menu, Tooltip } from "src/components/ui";
+import { IconButton, Menu, Tooltip } from "src/components/ui";
 
 import { allowedStates } from "../utils";
 import MarkRunAsDialog from "./MarkRunAsDialog";
@@ -58,31 +58,21 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
     { enabled: isHotkeyEnabled },
   );
 
+  const label = translate("dags:runAndTaskActions.markAs.button", {
+    type: translate("dagRun_one"),
+  });
+
   return (
     <Box>
-      <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
+      <Menu.Root positioning={{ gutter: 0, placement: "bottom" }} tooltipLabel={label}>
         <Menu.Trigger asChild>
-          <div>
-            <Tooltip
-              content={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
-            >
-              <IconButton
-                aria-label={translate("dags:runAndTaskActions.markAs.button", {
-                  type: translate("dagRun_one"),
-                })}
-                colorPalette="brand"
-                data-testid="mark-run-as-button"
-                size="md"
-                variant="ghost"
-              >
-                <HStack gap={1} mx={1}>
-                  <LuCheck />
-                  <span>/</span>
-                  <FiX />
-                </HStack>
-              </IconButton>
-            </Tooltip>
-          </div>
+          <IconButton aria-label={label} data-testid="mark-run-as-button">
+            <HStack gap={1} mx={1}>
+              <LuCheck />
+              <span>/</span>
+              <FiX />
+            </HStack>
+          </IconButton>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {

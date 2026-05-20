@@ -28,6 +28,7 @@ from elasticsearch import Elasticsearch
 
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.elasticsearch._compat import apply_compat_with
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -171,9 +172,9 @@ class ESConnection:
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
         if user and password:
-            self.es = Elasticsearch(self.url, basic_auth=(user, password), **kwargs)
+            self.es = apply_compat_with(Elasticsearch(self.url, basic_auth=(user, password), **kwargs))
         else:
-            self.es = Elasticsearch(self.url, **kwargs)
+            self.es = apply_compat_with(Elasticsearch(self.url, **kwargs))
 
     def cursor(self) -> ElasticsearchSQLCursor:
         return ElasticsearchSQLCursor(self.es, **self.kwargs)
@@ -283,7 +284,7 @@ class ElasticsearchPythonHook(BaseHook):
 
     def _get_elastic_connection(self):
         """Return the Elasticsearch client."""
-        client = Elasticsearch(self.hosts, **self.es_conn_args)
+        client = apply_compat_with(Elasticsearch(self.hosts, **self.es_conn_args))
 
         return client
 

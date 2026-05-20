@@ -338,9 +338,48 @@ def requires_access_backfill(
         if dag_id is None:
             # Not a json body, ignore
             with suppress(JSONDecodeError):
-                dag_id = (await request.json()).get("dag_id")
+                body = await request.json()
+                if isinstance(body, dict):
+                    dag_id = body.get("dag_id")
+            if dag_id is not None and not isinstance(dag_id, str):
+                # Fail closed: reject non-string dag_id before authz decision.
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'dag_id' must be a string",
+                )
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
+            request,
+            user,
+        )
+
+    return inner
+
+
+def requires_access_event_log(
+    method: ResourceMethod,
+) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
+    """Wrap ``requires_access_dag`` and extract the dag_id from the event_log_id."""
+
+    async def inner(
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        dag_id = None
+
+        event_log_id_raw = request.path_params.get("event_log_id")
+        if event_log_id_raw is not None:
+            try:
+                event_log_id = int(event_log_id_raw)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'event_log_id' must be an integer",
+                )
+            dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
+
+        requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
             request,
             user,
         )
@@ -757,14 +796,27 @@ async def _collect_teams_to_check(
     if method != "POST":
         teams.add(get_existing_team(resource_id) if resource_id else None)
     if method in ("POST", "PUT"):
-        with suppress(JSONDecodeError):
-            raw = (await request.json()).get("team_name")
-            if raw and not Team.get_name_if_exists(raw):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Team {raw!r} does not exist",
-                )
-            teams.add(raw)
+        try:
+            body = await request.json()
+        except JSONDecodeError:
+            # Fail closed: reject unparsable bodies before any authz decision.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Request body is not valid JSON",
+            )
+        raw = body.get("team_name") if isinstance(body, dict) else None
+        if raw is not None and not isinstance(raw, str):
+            # Fail closed: reject non-string team_name before authz / DB lookup.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'team_name' must be a string",
+            )
+        if raw and not Team.get_name_if_exists(raw):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Team {raw!r} does not exist",
+            )
+        teams.add(raw)
     return teams
 
 

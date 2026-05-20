@@ -48,7 +48,20 @@ class TestLivyTrigger:
             "extra_headers": None,
             "livy_hook_async": None,
             "execution_timeout": None,
+            "endpoint_prefix": None,
         }
+
+    def test_livy_trigger_serialize_round_trip_endpoint_prefix(self):
+        trigger = LivyTrigger(
+            batch_id=1,
+            spark_params={},
+            livy_conn_id=LivyHook.default_conn_name,
+            polling_interval=0,
+            endpoint_prefix="/custom",
+        )
+        _, kwargs = trigger.serialize()
+        restored = LivyTrigger(**kwargs)
+        assert restored._endpoint_prefix == "/custom"
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
