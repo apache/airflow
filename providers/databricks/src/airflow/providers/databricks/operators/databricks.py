@@ -1539,7 +1539,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                     if new_sub_run_id is None:
                         break
                     self.log.info(
-                        "Workflow coordinator produced a new attempt for task_key %s (sub-run %s).",
+                        "Repair coordinator produced a new attempt for task_key %s (sub-run %s).",
                         self.databricks_task_key,
                         new_sub_run_id,
                     )
@@ -1635,7 +1635,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Sync mirror of DatabricksWorkflowRepairWaitTrigger. Returns the new sub-run id or None."""
         self.log.info(
             "Sub-run %s for task_key %s reached terminal failure; waiting for a repair "
-            "attempt issued by the workflow coordinator.",
+            "attempt issued by the repair coordinator.",
             original_sub_run_id,
             self.databricks_task_key,
         )
@@ -1678,7 +1678,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     ) -> None:
         self.log.info(
             "Sub-run %s for task_key %s reached terminal failure; deferring to wait for a repair "
-            "attempt issued by the workflow coordinator.",
+            "attempt issued by the repair coordinator.",
             original_sub_run_id,
             self.databricks_task_key,
         )
@@ -1703,7 +1703,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if status == "new_attempt":
             new_sub_run_id = event["new_sub_run_id"]
             self.log.info(
-                "Workflow coordinator produced a new attempt for task_key %s (sub-run %s); "
+                "Repair coordinator produced a new attempt for task_key %s (sub-run %s); "
                 "deferring on a fresh DatabricksExecutionTrigger to monitor it.",
                 self.databricks_task_key,
                 new_sub_run_id,

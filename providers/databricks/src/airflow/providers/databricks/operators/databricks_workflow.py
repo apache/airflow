@@ -324,7 +324,7 @@ class _DatabricksFullRunRepairCoordinatorOperator(BaseOperator):
     ):
         if max_full_run_repairs < 1:
             raise ValueError(
-                f"max_full_run_repairs must be >= 1 for the workflow coordinator task, got {max_full_run_repairs}"
+                f"max_full_run_repairs must be >= 1 for the repair coordinator task, got {max_full_run_repairs}"
             )
         super().__init__(task_id=task_id, **kwargs)
         self.databricks_conn_id = databricks_conn_id
