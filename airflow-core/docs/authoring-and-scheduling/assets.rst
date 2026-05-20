@@ -188,6 +188,8 @@ Declaring an ``@asset`` automatically creates:
 * A ``DAG`` with *dag_id* set to the function name.
 * A task inside the ``DAG`` with *task_id* set to the function name, and *outlet* to the created ``Asset``.
 
+The parameter names ``self``, ``context``, and ``outlet_events`` are **reserved** in an ``@asset`` function: they are populated by Airflow at runtime (with the asset itself, the execution context, and the outlet event accessor respectively) and are never treated as inlet asset references.
+
 Attaching extra information to an emitting asset event
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -209,6 +209,8 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.PartitionAtRuntime
+
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
 

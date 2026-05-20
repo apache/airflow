@@ -381,6 +381,63 @@ export const $AssetResponse = {
     description: 'Asset serializer for responses.'
 } as const;
 
+export const $AssetStateBody = {
+    properties: {
+        value: {
+            type: 'string',
+            maxLength: 65535,
+            title: 'Value'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'AssetStateBody',
+    description: 'Request body for setting an asset state value.'
+} as const;
+
+export const $AssetStateCollectionResponse = {
+    properties: {
+        asset_states: {
+            items: {
+                '$ref': '#/components/schemas/AssetStateResponse'
+            },
+            type: 'array',
+            title: 'Asset States'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['asset_states', 'total_entries'],
+    title: 'AssetStateCollectionResponse',
+    description: 'All asset state entries for an asset.'
+} as const;
+
+export const $AssetStateResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            type: 'string',
+            title: 'Value'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'updated_at'],
+    title: 'AssetStateResponse',
+    description: 'A single asset state key/value pair with metadata.'
+} as const;
+
 export const $AssetWatcherResponse = {
     properties: {
         name: {
@@ -6736,6 +6793,75 @@ export const $TaskResponse = {
     required: ['task_id', 'task_display_name', 'owner', 'start_date', 'end_date', 'trigger_rule', 'depends_on_past', 'wait_for_downstream', 'retries', 'queue', 'pool', 'pool_slots', 'execution_timeout', 'retry_delay', 'retry_exponential_backoff', 'priority_weight', 'weight_rule', 'ui_color', 'ui_fgcolor', 'template_fields', 'downstream_task_ids', 'doc_md', 'operator_name', 'params', 'class_ref', 'is_mapped', 'extra_links'],
     title: 'TaskResponse',
     description: 'Task serializer for responses.'
+} as const;
+
+export const $TaskStateBody = {
+    properties: {
+        value: {
+            type: 'string',
+            maxLength: 65535,
+            title: 'Value'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStateBody',
+    description: 'Request body for setting a task state value.'
+} as const;
+
+export const $TaskStateCollectionResponse = {
+    properties: {
+        task_states: {
+            items: {
+                '$ref': '#/components/schemas/TaskStateResponse'
+            },
+            type: 'array',
+            title: 'Task States'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_states', 'total_entries'],
+    title: 'TaskStateCollectionResponse',
+    description: 'All task state entries for a task instance.'
+} as const;
+
+export const $TaskStateResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            type: 'string',
+            title: 'Value'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'updated_at', 'expires_at'],
+    title: 'TaskStateResponse',
+    description: 'A single task state key/value pair with metadata.'
 } as const;
 
 export const $TimeDelta = {

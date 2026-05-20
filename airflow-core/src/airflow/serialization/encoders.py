@@ -55,6 +55,7 @@ from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
@@ -295,6 +296,7 @@ class _Serializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
+        PartitionAtRuntime: "airflow.timetables.simple.PartitionAtRuntime",
         PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
@@ -320,7 +322,10 @@ class _Serializer:
     @serialize_timetable.register(ContinuousTimetable)
     @serialize_timetable.register(NullTimetable)
     @serialize_timetable.register(OnceTimetable)
-    def _(self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable) -> dict[str, Any]:
+    @serialize_timetable.register(PartitionAtRuntime)
+    def _(
+        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionAtRuntime
+    ) -> dict[str, Any]:
         return {}
 
     @serialize_timetable.register
