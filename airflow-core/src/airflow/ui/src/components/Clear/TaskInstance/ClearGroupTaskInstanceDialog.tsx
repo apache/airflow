@@ -126,7 +126,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   }, [open, dagVersionsDiffer]);
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -193,7 +193,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
               loading={isPending}
               onClick={() => {

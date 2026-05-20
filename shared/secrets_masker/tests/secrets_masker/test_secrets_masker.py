@@ -817,6 +817,23 @@ class TestShouldHideValueForKey:
             ("GOOGLE_API_KEY", True),
             ("GOOGLE_APIKEY", True),
             (1, False),
+            # webhook_url / bearer / dsn / auth_header / service_key in DEFAULT_SENSITIVE_FIELDS.
+            # Matching is case-insensitive substring on the lowercased key, so
+            # snake_case variants (and underscore-bearing prefixes/suffixes) are
+            # covered; PascalCase / camelCase variants without underscores are not.
+            ("webhook_url", True),
+            ("WEBHOOK_URL", True),
+            ("slack_webhook_url", True),
+            ("bearer", True),
+            ("Bearer", True),
+            ("auth_bearer", True),
+            ("dsn", True),
+            ("DSN", True),
+            ("auth_header", True),
+            ("AUTH_HEADER", True),
+            ("custom_auth_header", True),
+            ("service_key", True),
+            ("my_service_key", True),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):

@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     MaskSecret,
     OKResponse,
@@ -82,6 +83,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     TICount,
     UpdateHITLDetail,
+    VariableKeysResult,
     VariableResult,
     XComResult,
     _new_encoder,
@@ -90,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_variable,
+    handle_get_variable_keys,
     handle_mask_secret,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
@@ -302,6 +305,7 @@ ToTriggerRunner = Annotated[
     | messages.TriggerStateSync
     | ConnectionResult
     | VariableResult
+    | VariableKeysResult
     | XComResult
     | DagRunStateResult
     | DRCount
@@ -323,6 +327,7 @@ ToTriggerSupervisor = Annotated[
     | GetConnection
     | DeleteVariable
     | GetVariable
+    | GetVariableKeys
     | PutVariable
     | DeleteXCom
     | GetXCom
@@ -534,6 +539,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, DeleteXCom):

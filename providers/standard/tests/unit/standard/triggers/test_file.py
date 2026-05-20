@@ -60,11 +60,10 @@ class TestFileTrigger:
 
         p.touch()
 
-        await asyncio.sleep(0.5)
+        # Await the task directly so the assertion can't race the trigger's
+        # detect → yield cycle on slow runners (ARM, Pendulum2 special job).
+        await asyncio.wait_for(task, timeout=5.0)
         assert task.done() is True
-
-        # Prevents error when task is destroyed while in "pending" state
-        asyncio.get_event_loop().stop()
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
@@ -101,8 +100,9 @@ class TestFileDeleteTrigger:
 
         p.touch()
 
-        await asyncio.sleep(0.5)
+        # Await the task directly so the assertion can't race the trigger's
+        # detect → unlink → yield cycle on slow runners (ARM, Pendulum2
+        # special job). The trigger only yields after `await filepath.unlink()`
+        # returns, so once the task is done, the file is guaranteed gone.
+        await asyncio.wait_for(task, timeout=5.0)
         assert await anyio.Path(p).exists() is False
-
-        # Prevents error when task is destroyed while in "pending" state
-        asyncio.get_event_loop().stop()

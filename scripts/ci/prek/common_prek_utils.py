@@ -26,7 +26,7 @@ import subprocess
 import sys
 import textwrap
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
@@ -324,7 +324,7 @@ def run_command_via_breeze_shell(
     backend: str = "none",
     executor: str = "LocalExecutor",
     extra_env: dict[str, str] | None = None,
-    project_name: str = "prek",
+    project_name: str = "breeze-prek",
     skip_environment_initialization: bool = True,
     warn_image_upgrade_needed: bool = False,
     enable_pseudo_terminal: bool = False,
@@ -526,14 +526,135 @@ def get_all_provider_info_dicts() -> dict[str, dict]:
     return providers
 
 
-def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom, marker: str) -> bool:
-    """Check if the import statement has the given nocheck marker comment on any of its lines."""
+_NOQA_RE = re.compile(r"#\s*noqa\s*:\s*([^\n]*)", re.IGNORECASE)
+_NOQA_CODE_RE = re.compile(r"[A-Z]+\d+\b")
+
+
+def _parse_noqa_codes(line: str) -> set[str]:
+    """Extract codes from the leading comma-separated list in a ``# noqa: <codes>`` comment.
+
+    Each code must be terminated by a word boundary, so tokens like ``SDK002x``
+    or ``F401foo`` are not treated as the corresponding code.
+
+    Anything after the first non-code token is treated as explanatory text and
+    ignored, so ``# noqa: F401 - see SDK002 docs`` only yields ``{"F401"}``.
+    """
+    match = _NOQA_RE.search(line)
+    if not match:
+        return set()
+    codes: set[str] = set()
+    for raw in match.group(1).split(","):
+        code_match = _NOQA_CODE_RE.match(raw.strip())
+        if not code_match:
+            break
+        codes.add(code_match.group(0))
+    return codes
+
+
+def has_nocheck_marker(source_lines: list[str], node: ast.ImportFrom | ast.Import, nocheck_code: str) -> bool:
+    """
+    Check if the import statement has a ``# noqa: <codes>`` comment that lists
+    ``nocheck_code`` on any of its lines. The code may appear anywhere in the
+    comma-separated code list (e.g. ``# noqa: F401, SDK002``).
+    """
     start = node.lineno
     end = node.end_lineno or start
     for lineno in range(start, end + 1):
-        if lineno <= len(source_lines) and marker in source_lines[lineno - 1]:
+        if lineno <= len(source_lines) and nocheck_code in _parse_noqa_codes(source_lines[lineno - 1]):
             return True
     return False
+
+
+def find_import_violations(
+    file_path: Path,
+    *,
+    is_violating_module: Callable[[str], bool],
+    nocheck_code: str,
+    check_plain_imports: bool = False,
+) -> list[tuple[int, str]]:
+    """
+    Walk imports in ``file_path`` and return ``(lineno, statement)`` for each
+    that matches ``is_violating_module`` and is not suppressed by a
+    ``# noqa: <nocheck_code>`` comment.
+
+    :param check_plain_imports: also check ``import x`` statements (in addition
+        to ``from x import y``).
+    """
+    try:
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(file_path))
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        return []
+
+    source_lines = source.splitlines()
+    violations: list[tuple[int, str]] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if not node.module:
+                continue
+            if is_violating_module(node.module):
+                violating_names = [alias.name for alias in node.names]
+            else:
+                # Catch ``from airflow import settings`` style imports where the
+                # offending module is the dotted ``<module>.<name>`` path.
+                violating_names = [
+                    alias.name for alias in node.names if is_violating_module(f"{node.module}.{alias.name}")
+                ]
+            if not violating_names:
+                continue
+            if has_nocheck_marker(source_lines, node, nocheck_code):
+                continue
+            statement = f"from {node.module} import {', '.join(violating_names)}"
+            violations.append((node.lineno, statement))
+        elif check_plain_imports and isinstance(node, ast.Import):
+            for alias in node.names:
+                if is_violating_module(alias.name):
+                    if has_nocheck_marker(source_lines, node, nocheck_code):
+                        continue
+                    statement = f"import {alias.name}"
+                    if alias.asname:
+                        statement += f" as {alias.asname}"
+                    violations.append((node.lineno, statement))
+
+    return violations
+
+
+def report_import_violations(
+    files: list[str],
+    *,
+    check_func: Callable[[Path], list[tuple[int, str]]],
+    violation_label: str,
+    nocheck_code: str | None = None,
+    only_python_files: bool = False,
+) -> None:
+    """Run ``check_func`` on each file, print violations, and exit(1) if any are found.
+
+    When ``nocheck_code`` is given, a hint pointing at the ``# noqa: <code>``
+    escape hatch is printed alongside the failure summary.
+    """
+    file_paths = [Path(f) for f in files if not only_python_files or f.endswith(".py")]
+    total_violations = 0
+
+    for file_path in file_paths:
+        mismatches = check_func(file_path)
+        if mismatches:
+            console.print(f"[red]{file_path}[/red]:")
+            for line_num, statement in mismatches:
+                console.print(f"  [yellow]Line {line_num}[/yellow]: {statement}")
+            total_violations += len(mismatches)
+
+    if total_violations:
+        console.print()
+        console.print(f"[red]Found {total_violations} {violation_label}[/red]")
+        if nocheck_code:
+            console.print(
+                f"[yellow]Hint:[/yellow] if an import above is intentional, append "
+                f"`# noqa: {nocheck_code}` to the import line (single-line imports) "
+                f"or to the opening/closing paren line (multi-line imports) to "
+                f"suppress this check for that statement."
+            )
+        sys.exit(1)
 
 
 def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]:

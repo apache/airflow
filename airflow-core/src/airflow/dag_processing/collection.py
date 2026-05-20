@@ -262,6 +262,7 @@ def _serialize_dag_capturing_errors(
     bundle_name,
     session: Session,
     bundle_version: str | None,
+    version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
 ):
     """
@@ -282,6 +283,7 @@ def _serialize_dag_capturing_errors(
             dag,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
             _prefetched=_prefetched,
@@ -436,6 +438,7 @@ def update_dag_parsing_results_in_db(
     warnings: set[DagWarning],
     session: Session,
     *,
+    version_data: dict | None = None,
     warning_types: tuple[DagWarningType, ...] = (
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
@@ -493,6 +496,7 @@ def update_dag_parsing_results_in_db(
                             dag=dag,
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
+                            version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
                         )

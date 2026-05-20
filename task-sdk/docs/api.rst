@@ -209,6 +209,8 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.PartitionAtRuntime
+
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
 
@@ -260,6 +262,10 @@ It corresponds to the same context that is exposed to Jinja templates during tas
 For a complete list of available context variables (such as ``dag_run``,
 ``task_instance``, ``logical_date``, etc.), see the
 :ref:`Templates reference <templates-ref>`.
+
+.. rubric:: Task State
+
+.. autodata:: airflow.sdk.NEVER_EXPIRE
 
 .. rubric:: Logging
 
