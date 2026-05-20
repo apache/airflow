@@ -31,8 +31,8 @@ func ParseDags(bundle bundlev1.Bundle, req *DagFileParseRequest) map[string]any 
 	relativeFileloc := computeRelativeFileloc(fileloc, bundlePath)
 
 	var dags []bundlev1.DagInfo
-	if enum, ok := bundle.(bundlev1.EnumerableBundle); ok {
-		dags = enum.OrderedDags()
+	if lister, ok := bundle.(bundlev1.DagLister); ok {
+		dags = lister.ListDags()
 	}
 
 	serializedDags := make([]any, 0, len(dags))

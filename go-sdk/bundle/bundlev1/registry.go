@@ -62,11 +62,15 @@ type (
 		Tasks []TaskInfo
 	}
 
-	// EnumerableBundle exposes the dag/task identity recorded by
-	// RegisterDags. The default registry implements it; the coordinator-mode
-	// runtime relies on it for the DAG-parse one-shot.
-	EnumerableBundle interface {
-		OrderedDags() []DagInfo
+	// DagLister exposes the dag/task identity recorded by RegisterDags. The
+	// default registry implements it; the coordinator-mode runtime relies on
+	// it for the DAG-parse one-shot. It is a separate interface from Bundle
+	// so a future custom Bundle implementation can opt out of introspection.
+	DagLister interface {
+		// ListDags returns the registered dags in the order AddDag was
+		// called, each with its tasks in the order AddTask /
+		// AddTaskWithName was called.
+		ListDags() []DagInfo
 	}
 
 	registry struct {
@@ -182,10 +186,9 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 	return task, exists
 }
 
-// OrderedDags returns the registered dags in the order AddDag was called,
-// each with its tasks in the order AddTask / AddTaskWithName was called. The
-// returned slice is freshly allocated; callers may mutate it freely.
-func (r *registry) OrderedDags() []DagInfo {
+// ListDags implements DagLister. The returned slice is freshly allocated;
+// callers may mutate it freely.
+func (r *registry) ListDags() []DagInfo {
 	r.RLock()
 	defer r.RUnlock()
 
