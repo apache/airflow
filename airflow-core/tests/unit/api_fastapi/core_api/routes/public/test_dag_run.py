@@ -2717,9 +2717,7 @@ class TestBulkDagRuns:
         )
         assert response.status_code == 200
         body = response.json()
-        # Matched run is still deleted even when other entities are missing.
         assert body["delete"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
-        # One error per missing entity — success + errors == total requested entities.
         errors = body["delete"]["errors"]
         assert len(errors) == 2
         assert all(err["status_code"] == 404 for err in errors)
@@ -2827,7 +2825,7 @@ class TestBulkDagRuns:
         assert body["update"]["errors"][0]["status_code"] == 405
 
     def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
-        """A user with no team access can delete runs of their accessible Dag but is rejected for restricted Dags."""
+        """A 403 at the route level if any entity references a Dag the user can't access."""
         restricted_bundle_name = "restricted-bundle-delete"
         restricted_team_name = "restricted-team-delete"
         restricted_bundle = DagBundleModel(name=restricted_bundle_name)
@@ -2870,17 +2868,9 @@ class TestBulkDagRuns:
                 },
             )
 
-        assert response.status_code == 200
-        body = response.json()
-        assert body["delete"]["success"] == [f"{DAG1_ID}.{DAG1_RUN1_ID}"]
-        assert body["delete"]["errors"] == [
-            {
-                "error": f"User is not authorized to delete Dag Runs for DAG '{DAG2_ID}'",
-                "status_code": 403,
-            }
-        ]
+        assert response.status_code == 403
         session.expire_all()
-        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID)) is None
+        assert session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID)) is not None
         assert session.scalar(select(DagRun).where(DagRun.run_id == DAG2_RUN1_ID)) is not None
 
     def test_bulk_should_respond_401(self, unauthenticated_test_client):
@@ -2888,5 +2878,16 @@ class TestBulkDagRuns:
         assert response.status_code == 401
 
     def test_bulk_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch(self.ENDPOINT_URL, json={"actions": []})
+        """An authenticated user with no Dag permissions gets a 403 at the route level."""
+        response = unauthorized_test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [DAG1_RUN1_ID],
+                    }
+                ]
+            },
+        )
         assert response.status_code == 403

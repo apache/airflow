@@ -98,6 +98,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
+    requires_access_dag_run_bulk,
 )
 from airflow.api_fastapi.core_api.services.public.dag_run import BulkDagRunService, DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -256,19 +257,15 @@ def patch_dag_run(
 
 @dag_run_router.patch(
     "",
-    dependencies=[
-        Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.RUN)),
-        Depends(action_logging()),
-    ],
+    dependencies=[Depends(requires_access_dag_run_bulk()), Depends(action_logging())],
 )
 def bulk_dag_runs(
     request: BulkBody[BulkDAGRunBody],
     session: SessionDep,
     dag_id: str,
-    user: GetUserDep,
 ) -> BulkResponse:
     """Bulk delete Dag Runs."""
-    return BulkDagRunService(session=session, request=request, dag_id=dag_id, user=user).handle_request()
+    return BulkDagRunService(session=session, request=request, dag_id=dag_id).handle_request()
 
 
 @dag_run_router.get(

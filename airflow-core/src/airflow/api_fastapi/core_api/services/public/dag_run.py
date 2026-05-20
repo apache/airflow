@@ -21,7 +21,7 @@ import asyncio
 import itertools
 import json
 import operator
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import structlog
@@ -29,8 +29,6 @@ from fastapi import status
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionResponse,
@@ -40,9 +38,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody
-from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
-from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -115,38 +111,9 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         session: Session,
         request: BulkBody[BulkDAGRunBody],
         dag_id: str,
-        user: GetUserDep,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
-        self.user = user
-
-    def _check_dag_authorization(
-        self,
-        dag_id: str,
-        method: Literal["DELETE"],
-        action_name: str,
-        cache: dict[str, bool],
-        results: BulkActionResponse,
-    ) -> bool:
-        """Cache and enforce per-Dag authorization for a bulk action."""
-        if dag_id not in cache:
-            team_name = DagModel.get_team_name(dag_id, session=self.session)
-            cache[dag_id] = get_auth_manager().is_authorized_dag(
-                method=method,
-                access_entity=DagAccessEntity.RUN,
-                details=DagDetails(id=dag_id, team_name=team_name),
-                user=self.user,
-            )
-        if not cache[dag_id]:
-            results.errors.append(
-                {
-                    "error": f"User is not authorized to {action_name} Dag Runs for DAG '{dag_id}'",
-                    "status_code": status.HTTP_403_FORBIDDEN,
-                }
-            )
-            return False
-        return True
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkDAGRunBody], results: BulkActionResponse
@@ -172,7 +139,6 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         self, action: BulkDeleteAction[BulkDAGRunBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete Dag Runs."""
-        authorization_cache: dict[str, bool] = {}
         keys: set[tuple[str, str]] = set()
 
         for entity in action.entities:
@@ -198,16 +164,11 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                 )
                 continue
 
-            if not self._check_dag_authorization(
-                dag_id, method="DELETE", action_name="delete", cache=authorization_cache, results=results
-            ):
-                continue
             keys.add((dag_id, dag_run_id))
 
         if not keys:
             return
 
-        # Tuple-based IN — avoids the Cartesian fan-out when keys span multiple Dags.
         dag_runs = self.session.scalars(
             select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(keys)))
         ).all()
@@ -215,7 +176,6 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
         not_found = keys - dag_run_map.keys()
 
         if action.action_on_non_existence == BulkActionNotOnExistence.FAIL:
-            # One error per missing entity so success + errors == total requested entities.
             for dag_id, run_id in sorted(not_found):
                 results.errors.append(
                     {
