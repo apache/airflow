@@ -735,7 +735,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         )
         context_carrier = new_task_run_carrier(dag_run.context_carrier)
 
+        # ``id`` and ``updated_at`` are filled explicitly so the Postgres
+        # ``unnest`` bulk-insert path in ``_create_task_instances`` does not have
+        # to replicate SQLAlchemy's column-default application. The values match
+        # the column ``default=`` callables on TaskInstance.
         return {
+            "id": uuid7(),
             "dag_id": task.dag_id,
             "task_id": task.task_id,
             "run_id": run_id,
@@ -756,6 +761,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
             "context_carrier": context_carrier,
+            "updated_at": timezone.utcnow(),
         }
 
     @reconstructor

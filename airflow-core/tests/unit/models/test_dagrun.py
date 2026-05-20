@@ -3751,3 +3751,146 @@ class TestDagRunTracing:
             assert spans[0].name == f"dag_run.{dr.dag_id}"
         else:
             assert len(spans) == 0
+
+
+class TestPostgresUnnestBulkInsert:
+    """Tests for the PostgreSQL ``unnest`` bulk-insert fast path for TaskInstance creation."""
+
+    def test_build_drops_keys_that_are_not_columns(self):
+        from airflow.models.dagrun import _build_postgres_unnest_insert
+
+        # ``run_as_user`` is present in ``TaskInstance.insert_mapping`` but is not a
+        # TaskInstance column. The helper must silently drop it, mirroring the
+        # behaviour of SQLAlchemy's ``bulk_insert_mappings``.
+        keys = frozenset({"id", "task_id", "dag_id", "run_id", "map_index", "run_as_user"})
+        _stmt, attr_names = _build_postgres_unnest_insert(keys)
+        assert "run_as_user" not in attr_names
+        assert set(attr_names) == {"id", "task_id", "dag_id", "run_id", "map_index"}
+
+    def test_build_emits_array_casts_for_postgres_types(self):
+        from sqlalchemy.dialects import postgresql
+
+        from airflow.models.dagrun import _build_postgres_unnest_insert
+
+        keys = frozenset({"executor_config", "context_carrier", "updated_at", "next_method"})
+        stmt, _attr_names = _build_postgres_unnest_insert(keys)
+        # Casts are emitted by the typed bindparams when compiled for postgres.
+        sql_str = str(stmt.compile(dialect=postgresql.dialect()))
+        assert "unnest" in sql_str.lower()
+        assert "BYTEA[]" in sql_str  # ExecutorConfigType -> bytea
+        assert "JSONB[]" in sql_str  # ExtendedJSON on postgres -> jsonb
+        assert "TIMESTAMP WITH TIME ZONE[]" in sql_str  # UtcDateTime
+        assert "VARCHAR(1000)[]" in sql_str  # next_method String(1000)
+
+    def test_build_uses_sql_column_name_not_python_attr(self):
+        from airflow.models.dagrun import _build_postgres_unnest_insert
+
+        # ``_task_display_property_value`` is the Python attribute, but the SQL column
+        # is named ``task_display_name``. The INSERT must use the SQL column name.
+        keys = frozenset({"_task_display_property_value"})
+        _stmt, attr_names = _build_postgres_unnest_insert(keys)
+        sql_str = str(_stmt)
+        assert "task_display_name" in sql_str
+        # The bind param keeps the Python attr key so the caller can use the same dict shape.
+        assert "_task_display_property_value" in attr_names
+
+    def test_helper_is_noop_on_empty_input(self):
+        from airflow.models.dagrun import _bulk_insert_task_instance_dicts_postgres
+
+        session = mock.MagicMock()
+        _bulk_insert_task_instance_dicts_postgres([], session)
+        session.execute.assert_not_called()
+
+    def test_helper_emits_column_major_arrays(self):
+        from airflow.models.dagrun import _bulk_insert_task_instance_dicts_postgres
+
+        session = mock.MagicMock()
+        task_dicts = [
+            {"id": "u1", "task_id": "t1", "dag_id": "d", "run_id": "r", "map_index": -1},
+            {"id": "u2", "task_id": "t2", "dag_id": "d", "run_id": "r", "map_index": -1},
+        ]
+        _bulk_insert_task_instance_dicts_postgres(task_dicts, session)
+        session.execute.assert_called_once()
+        _stmt, params = session.execute.call_args[0]
+        assert params["id"] == ["u1", "u2"]
+        assert params["task_id"] == ["t1", "t2"]
+        assert params["map_index"] == [-1, -1]
+
+
+def test_create_task_instances_uses_unnest_path_on_postgres(dag_maker, session):
+    """When the bind dialect is postgres, ``_create_task_instances`` must dispatch
+    to the ``unnest`` helper instead of ``bulk_insert_mappings``."""
+    with dag_maker("test_pg_unnest_dispatch", session=session) as dag:
+        task = EmptyOperator(task_id="t")
+    dr = dag_maker.create_dagrun()
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+    ti_dict = TaskInstance.insert_mapping(
+        dr.run_id, task, map_index=-1, dag_version_id=dag_version_id, dag_run=dr
+    )
+
+    with (
+        mock.patch("airflow.models.dagrun.get_dialect_name", return_value="postgresql"),
+        mock.patch("airflow.models.dagrun._bulk_insert_task_instance_dicts_postgres") as mock_pg,
+        mock.patch.object(session, "bulk_insert_mappings") as mock_legacy,
+    ):
+        dr._create_task_instances(
+            dag_id=dag.dag_id,
+            tasks=iter([ti_dict]),
+            created_counts={"EmptyOperator": 1},
+            hook_is_noop=True,
+            session=session,
+        )
+    mock_pg.assert_called_once()
+    mock_legacy.assert_not_called()
+
+
+def test_create_task_instances_uses_bulk_insert_mappings_on_non_postgres(dag_maker, session):
+    """When dialect is not postgres (sqlite/mysql), the existing
+    ``bulk_insert_mappings`` path must still be used."""
+    with dag_maker("test_sqlite_dispatch", session=session) as dag:
+        task = EmptyOperator(task_id="t")
+    dr = dag_maker.create_dagrun()
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+    ti_dict = TaskInstance.insert_mapping(
+        dr.run_id, task, map_index=-1, dag_version_id=dag_version_id, dag_run=dr
+    )
+
+    with (
+        mock.patch("airflow.models.dagrun.get_dialect_name", return_value="sqlite"),
+        mock.patch("airflow.models.dagrun._bulk_insert_task_instance_dicts_postgres") as mock_pg,
+        mock.patch.object(session, "bulk_insert_mappings") as mock_legacy,
+    ):
+        dr._create_task_instances(
+            dag_id=dag.dag_id,
+            tasks=iter([ti_dict]),
+            created_counts={"EmptyOperator": 1},
+            hook_is_noop=True,
+            session=session,
+        )
+    mock_legacy.assert_called_once()
+    mock_pg.assert_not_called()
+
+
+def test_create_task_instances_mutation_hook_still_uses_bulk_save_objects(dag_maker, session):
+    """With a non-noop ``task_instance_mutation_hook`` the helper must not be used,
+    even on postgres — per-object mutation requires the ORM path."""
+    with dag_maker("test_pg_hook", session=session) as dag:
+        task = EmptyOperator(task_id="t")
+    dr = dag_maker.create_dagrun()
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+    ti = TaskInstance(task=task, run_id=dr.run_id, map_index=-1, dag_version_id=dag_version_id)
+
+    with (
+        mock.patch("airflow.models.dagrun.get_dialect_name", return_value="postgresql"),
+        mock.patch("airflow.models.dagrun._bulk_insert_task_instance_dicts_postgres") as mock_pg,
+        mock.patch.object(session, "bulk_save_objects") as mock_save,
+    ):
+        dr._create_task_instances(
+            dag_id=dag.dag_id,
+            tasks=iter([ti]),
+            created_counts={"EmptyOperator": 1},
+            hook_is_noop=False,
+            session=session,
+        )
+    mock_save.assert_called_once()
+    mock_pg.assert_not_called()
