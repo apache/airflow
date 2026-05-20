@@ -41,6 +41,4 @@ SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback
 def state_class_for_key(key: WorkloadKey) -> type[TaskInstanceState] | type[CallbackState]:
     if isinstance(key, TaskInstanceKey):
         return TaskInstanceState
-    if isinstance(key, CallbackKey):
-        return CallbackState
-    raise TypeError(f"Unknown workload key type: {type(key)!r}")
+    return CallbackState
