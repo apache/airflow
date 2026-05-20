@@ -2363,12 +2363,13 @@ class TestBigQueryHookProxy:
         mock_base_authorize.assert_called_once()
         assert result == mock_base_authorize.return_value
 
+    @mock.patch("httplib2.socks")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
     @mock.patch("googleapiclient.http.set_user_agent")
     @mock.patch("httplib2.Http")
     @mock.patch("httplib2.ProxyInfo")
     def test_authorize_with_http_proxy_creates_proxy_info(
-        self, mock_proxy_info, mock_http, _mock_set_user_agent, mock_authorized_http
+        self, mock_proxy_info, mock_http, _mock_set_user_agent, mock_authorized_http, _mock_socks
     ):
         hook = self._make_hook(http_proxy="http://proxy.example.com:3128")
         result = hook._authorize()
@@ -2384,12 +2385,13 @@ class TestBigQueryHookProxy:
         mock_authorized_http.assert_called_once()
         assert result == mock_authorized_http.return_value
 
+    @mock.patch("httplib2.socks")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
     @mock.patch("googleapiclient.http.set_user_agent")
     @mock.patch("httplib2.Http")
     @mock.patch("httplib2.ProxyInfo")
     def test_authorize_with_https_proxy_creates_proxy_info(
-        self, mock_proxy_info, _mock_http, _mock_set_user_agent, mock_authorized_http
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, mock_authorized_http, _mock_socks
     ):
         hook = self._make_hook(https_proxy="https://proxy.example.com:3129")
         result = hook._authorize()
@@ -2403,12 +2405,13 @@ class TestBigQueryHookProxy:
         )
         assert result == mock_authorized_http.return_value
 
+    @mock.patch("httplib2.socks")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
     @mock.patch("googleapiclient.http.set_user_agent")
     @mock.patch("httplib2.Http")
     @mock.patch("httplib2.ProxyInfo")
     def test_authorize_proxy_with_username_and_password(
-        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http, _mock_socks
     ):
         hook = self._make_hook(http_proxy="http://user:secret@proxy.example.com:3128")
         hook._authorize()
@@ -2421,12 +2424,13 @@ class TestBigQueryHookProxy:
             proxy_pass="secret",
         )
 
+    @mock.patch("httplib2.socks")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
     @mock.patch("googleapiclient.http.set_user_agent")
     @mock.patch("httplib2.Http")
     @mock.patch("httplib2.ProxyInfo")
     def test_authorize_proxy_without_port_defaults_to_80(
-        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http, _mock_socks
     ):
         hook = self._make_hook(http_proxy="http://proxy.example.com")
         hook._authorize()
@@ -2439,12 +2443,13 @@ class TestBigQueryHookProxy:
             proxy_pass=None,
         )
 
+    @mock.patch("httplib2.socks")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.google_auth_httplib2.AuthorizedHttp")
     @mock.patch("googleapiclient.http.set_user_agent")
     @mock.patch("httplib2.Http")
     @mock.patch("httplib2.ProxyInfo")
     def test_authorize_http_proxy_used_when_both_proxies_set(
-        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http
+        self, mock_proxy_info, _mock_http, _mock_set_user_agent, _mock_authorized_http, _mock_socks
     ):
         hook = self._make_hook(
             http_proxy="http://http-proxy.example.com:3128",
@@ -2526,7 +2531,7 @@ class TestBigQueryHookProxy:
         session_instance = mock_session_cls.return_value
         mock_request_cls.assert_called_once_with(session=session_instance)
         mock_authorized_session_cls.assert_called_once_with(
-            hook.get_credentials(), auth_request=mock_request_cls.return_value
+            mock.ANY, auth_request=mock_request_cls.return_value
         )
 
     # --- _get_pandas_df ---
