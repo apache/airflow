@@ -36,8 +36,8 @@ from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _accept_connections,
     _calculate_classpath,
-    _find_main_class,
     _JavaActivitySubprocess,
+    _MainJar,
     _start_server,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -69,11 +69,18 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "java") -> TaskInstanceDTO:
     )
 
 
-def _make_jar(path: pathlib.Path, *, main_class: str | None = "com.example.Main") -> pathlib.Path:
+def _make_jar(
+    path: pathlib.Path,
+    *,
+    main_class: str | None = "com.example.Main",
+    schema_version: str | None = None,
+) -> pathlib.Path:
     """Write a minimal JAR with (optionally) a Main-Class manifest entry."""
     lines = ["Manifest-Version: 1.0"]
     if main_class:
         lines.append(f"Main-Class: {main_class}")
+    if schema_version:
+        lines.append(f"Airflow-SDK-Supervisor-Schema-Version: {schema_version}")
     manifest = "\n".join(lines) + "\n\n"
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("META-INF/MANIFEST.MF", manifest)
@@ -151,34 +158,38 @@ class TestCalculateClasspath:
         assert result == ""
 
 
-class TestFindMainClass:
+class TestMainJar:
     def test_returns_main_class_from_jar(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
-        assert _find_main_class([tmp_path]) == "com.example.Main"
+        assert _MainJar.find([tmp_path]) == _MainJar(tmp_path.joinpath("app.jar"), "com.example.Main", None)
 
     def test_no_jars_raises_file_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match=re.escape(str(tmp_path.resolve()))):
-            _find_main_class([tmp_path])
+            _MainJar.find([tmp_path])
 
     def test_jar_without_main_class_not_returned(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class=None)
         with pytest.raises(FileNotFoundError):
-            _find_main_class([tmp_path])
+            _MainJar.find([tmp_path])
 
     def test_non_jar_files_skipped(self, tmp_path):
         tmp_path.joinpath("readme.txt").write_bytes(b"not a jar")
         _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
-        assert _find_main_class([tmp_path]) == "com.example.Main"
+        assert _MainJar.find([tmp_path]) == _MainJar(tmp_path.joinpath("app.jar"), "com.example.Main", None)
 
     def test_first_jar_missing_main_class_falls_through_to_second(self, tmp_path):
         # Alphabetically: a.jar (no Main-Class), b.jar (has Main-Class).
         _make_jar(tmp_path.joinpath("a.jar"), main_class=None)
         _make_jar(tmp_path.joinpath("b.jar"), main_class="com.example.Fallback")
-        assert _find_main_class([tmp_path]) == "com.example.Fallback"
+        assert _MainJar.find([tmp_path]) == _MainJar(tmp_path.joinpath("b.jar"), "com.example.Fallback", None)
 
     def test_fully_qualified_class_name_preserved(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class="org.apache.airflow.sdk.java.TaskRunner")
-        assert _find_main_class([tmp_path]) == "org.apache.airflow.sdk.java.TaskRunner"
+        assert _MainJar.find([tmp_path]) == _MainJar(
+            path=tmp_path.joinpath("app.jar"),
+            main_class="org.apache.airflow.sdk.java.TaskRunner",
+            schema_version=None,
+        )
 
 
 class TestAcceptConnections:

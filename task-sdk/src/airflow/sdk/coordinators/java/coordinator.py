@@ -62,17 +62,25 @@ def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
     return os.pathsep.join(jars)
 
 
-def _find_main_class(jars_root: Sequence[pathlib.Path]) -> str:
-    for root in jars_root:
-        for p in root.iterdir():
-            if p.suffix != ".jar":
-                continue
-            with zipfile.ZipFile(p) as zf:
-                with zf.open("META-INF/MANIFEST.MF") as f:
-                    if main_class := email.message_from_binary_file(f)["Main-Class"]:
-                        return main_class
-    resolved_paths = os.pathsep.join(str(p.resolve()) for p in jars_root)
-    raise FileNotFoundError(f"cannot fine main class in {resolved_paths}")
+@attrs.define
+class _MainJar:
+    path: pathlib.Path
+    main_class: str
+    schema_version: str | None
+
+    @classmethod
+    def find(cls, jars_root: Sequence[pathlib.Path]) -> Self:
+        for root in jars_root:
+            for p in root.iterdir():
+                if p.suffix != ".jar":
+                    continue
+                with zipfile.ZipFile(p) as zf:
+                    with zf.open("META-INF/MANIFEST.MF") as f:
+                        manifest = email.message_from_binary_file(f)
+                        if main_class := manifest["Main-Class"]:
+                            return cls(p, main_class, manifest.get("Airflow-SDK-Supervisor-Schema-Version"))
+        resolved_paths = os.pathsep.join(str(p.resolve()) for p in jars_root)
+        raise FileNotFoundError(f"cannot find main class in {resolved_paths}")
 
 
 def _accept_connections(
@@ -107,7 +115,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
 
     _comm_server: socket.socket
     _logs_server: socket.socket
-    _child_process: subprocess.Popen
+    _subprocess: subprocess.Popen
 
     # Keep track of channels used to pipe subprocess stdout and stderr so we can
     # close them on exit. The "read" side is handled by _register_pipe_readers
@@ -129,6 +137,8 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         jars_root: Sequence[pathlib.Path],
         **kwargs,
     ) -> Self:
+        jar = _MainJar.find(jars_root)
+
         comm_server = _start_server()
         logs_server = _start_server()
 
@@ -144,7 +154,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
                 "-classpath",
                 _calculate_classpath(jars_root),
                 *jvm_args,
-                _find_main_class(jars_root),
+                jar.main_class,
                 # Arguments to MainClass...
                 f"--comm={comm_host}:{comm_port}",
                 f"--logs={logs_host}:{logs_port}",
@@ -162,7 +172,8 @@ class _JavaActivitySubprocess(ActivitySubprocess):
             process_log=logger or structlog.get_logger(logger_name="task").bind(),
             start_time=time.monotonic(),
             stdin=socks["comm"],
-            child_process=proc,
+            subprocess=proc,
+            subprocess_schema_version=jar.schema_version,
             comm_server=comm_server,
             logs_server=logs_server,
             stdout_w=stdout_w,
