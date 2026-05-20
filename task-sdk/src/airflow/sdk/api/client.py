@@ -93,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     PreviousDagRunResult,
     PreviousTIResult,
+    RescheduleTask,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
@@ -103,8 +104,6 @@ from airflow.sdk.execution_time.comms import (
 if TYPE_CHECKING:
     from datetime import datetime
     from typing import ParamSpec
-
-    from airflow.sdk.execution_time.comms import RescheduleTask
 
     P = ParamSpec("P")
     T = TypeVar("T")

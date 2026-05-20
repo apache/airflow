@@ -58,7 +58,13 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetNameRef,
+    AssetUniqueKey,
+    AssetUriRef,
+)
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
@@ -128,6 +134,7 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.metrics import stats_utils
+from airflow.sdk.state import TaskScope
 from airflow.sdk.timezone import coerce_datetime
 
 if TYPE_CHECKING:
@@ -254,7 +261,15 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_state": TaskStateAccessor(ti_id=self.id),
+                "task_state": TaskStateAccessor(
+                    ti_id=self.id,
+                    scope=TaskScope(
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        task_id=self.task_id,
+                        map_index=self.map_index if self.map_index is not None else -1,
+                    ),
+                ),
             }
             if any(isinstance(i, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for i in self.task.inlets):
                 self._cached_template_context["asset_state"] = AssetStateAccessors(self.task.inlets)
@@ -1159,7 +1174,15 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
     # Further filtering will be done in the API server.
     for key, accessor in events._dict.items():
         if isinstance(key, AssetUniqueKey):
-            yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
+            if accessor.partition_keys:
+                for partition_key in accessor.partition_keys:
+                    yield {
+                        "dest_asset_key": attrs.asdict(key),
+                        "extra": accessor.extra,
+                        "partition_key": partition_key,
+                    }
+            else:
+                yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
         for alias_event in accessor.asset_alias_events:
             yield attrs.asdict(alias_event)
 
@@ -1477,6 +1500,8 @@ def _handle_current_task_success(
 
     if conf.getboolean("state_store", "clear_on_success"):
         log.info("Task state will be cleared by the server because clear_on_success is enabled.")
+
+        context["task_state"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,
