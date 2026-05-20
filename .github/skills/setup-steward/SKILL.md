@@ -53,7 +53,7 @@ license: Apache-2.0
 
 This skill is **the only framework artefact an adopter
 project commits**. Every other apache-steward skill (security,
-pr-management) is a gitignored symlink into the gitignored
+pr-management, issue) is a gitignored symlink into the gitignored
 snapshot at `<snapshot-dir>` that this skill manages.
 
 The adoption model is **snapshot + agentic overrides + drift-
@@ -262,7 +262,7 @@ These two families are not exposed in the `skill-families:`
 prompt and not stored as user-selectable in the lock files;
 every sub-action that wires symlinks always covers them in
 addition to the user's opt-in family picks (`security`,
-`pr-management`). Dropping them is *not* a supported
+`pr-management`, `issue`). Dropping them is *not* a supported
 configuration — the secure-setup and discovery flows the
 framework ships depend on those skills being callable.
 
@@ -332,7 +332,7 @@ first, then continue.
 |---|---|
 | `from:<git-ref>` / `from:<version>` | Adopt or upgrade from a specific framework ref or version. Used during `adopt` (overrides the user prompt) and `upgrade` (overrides the committed lock for *this run only* — does NOT update the committed lock). |
 | `method:<git-branch\|git-tag\|svn-zip>` | Pick the install method explicitly. Default during `adopt`: prompt the user. |
-| `skill-families:<list>` | Comma-separated **opt-in** families to symlink (`security`, `pr-management`). Default on `adopt`: prompt. Default on `upgrade`: read the families list from `<committed-lock>` / `<local-lock>` and **ensure every framework skill in those families has a valid symlink** — create or repair missing / broken symlinks, not just add new ones. The flag never accepts the always-on families (`setup-*` minus `setup-steward` itself, and `list-steward-*`); per [Golden rule 8](#golden-rules) those are wired up unconditionally on every run and there is no way to ask for them or opt out. |
+| `skill-families:<list>` | Comma-separated **opt-in** families to symlink (`security`, `pr-management`, `issue`). Default on `adopt`: prompt. Default on `upgrade`: read the families list from `<committed-lock>` / `<local-lock>`, **auto-include any opt-in family the framework has introduced since the lock was written** (recorded back into the lock), and **ensure every framework skill in the effective family set has a valid symlink** — create or repair missing / broken symlinks, not just add new ones. The flag never accepts the always-on families (`setup-*` minus `setup-steward` itself, and `list-steward-*`); per [Golden rule 8](#golden-rules) those are wired up unconditionally on every run and there is no way to ask for them or opt out. |
 | `--purge-overrides` | *(unadopt only)* Also `git rm -r` `.apache-steward-overrides/`. Default: preserve. |
 | `dry-run` | Show what the skill would do without writing anything. |
 
