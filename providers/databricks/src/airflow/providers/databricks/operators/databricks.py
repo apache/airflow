@@ -1622,7 +1622,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if not AIRFLOW_V_3_0_PLUS:
             return None
         tg = self._databricks_workflow_task_group
-        if tg is None or getattr(tg, "max_full_run_repairs", 0) <= 0:
+        if tg is None or getattr(tg, "workflow_repair_attempts", 0) <= 0:
             return None
         return tg
 
@@ -1639,7 +1639,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             original_sub_run_id,
             self.databricks_task_key,
         )
-        polling_period_seconds = tg.repair_polling_period_seconds
+        polling_period_seconds = tg.workflow_repair_polling_period
         terminal_grace_polls = 3
         terminal_observations = 0
         while True:
@@ -1689,7 +1689,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                 databricks_task_key=self.databricks_task_key,
                 original_sub_run_id=original_sub_run_id,
                 original_start_time=original_start_time,
-                polling_period_seconds=tg.repair_polling_period_seconds,
+                polling_period_seconds=tg.workflow_repair_polling_period,
                 retry_limit=self.databricks_retry_limit,
                 retry_delay=self.databricks_retry_delay,
                 retry_args=self.databricks_retry_args,

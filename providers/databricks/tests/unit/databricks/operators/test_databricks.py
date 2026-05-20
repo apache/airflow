@@ -3012,7 +3012,7 @@ class TestExecuteCompleteWorkflowRepair:
             "errors": [{"task_key": "tk", "run_id": sub_run_id, "error": "boom"}],
         }
 
-    def _operator_with_workflow_tg(self, max_full_run_repairs: int) -> DatabricksNotebookOperator:
+    def _operator_with_workflow_tg(self, workflow_repair_attempts: int) -> DatabricksNotebookOperator:
         # Pass workflow_run_metadata (templated field) rather than setting
         # databricks_run_id directly. Airflow re-instantiates the operator at deferrable
         # resume time, so execute_complete must rederive the parent run id from the
@@ -3033,14 +3033,14 @@ class TestExecuteCompleteWorkflowRepair:
         # Hand it a single-hop chain so it finds our mocked group directly.
         tg = MagicMock()
         tg.is_databricks = True
-        tg.max_full_run_repairs = max_full_run_repairs
-        tg.repair_polling_period_seconds = 15
+        tg.workflow_repair_attempts = workflow_repair_attempts
+        tg.workflow_repair_polling_period = 15
         tg.task_group = None
         operator.task_group = tg
         return operator
 
-    def test_execute_complete_failure_defers_on_wait_trigger_when_max_full_run_repairs_set(self):
-        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+    def test_execute_complete_failure_defers_on_wait_trigger_when_workflow_repair_attempts_set(self):
+        operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
 
         with pytest.raises(TaskDeferred) as exc:
             operator.execute_complete(
@@ -3068,8 +3068,8 @@ class TestExecuteCompleteWorkflowRepair:
         )
         tg = MagicMock()
         tg.is_databricks = True
-        tg.max_full_run_repairs = 2
-        tg.repair_polling_period_seconds = 15
+        tg.workflow_repair_attempts = 2
+        tg.workflow_repair_polling_period = 15
         tg.task_group = None
         operator.task_group = tg
         operator.upstream_task_ids = {"workflow.launch"}
@@ -3092,7 +3092,7 @@ class TestExecuteCompleteWorkflowRepair:
         assert trigger.run_id == self.PARENT_RUN_ID
 
     def test_execute_complete_after_repair_wait_new_attempt_defers_on_execution_trigger(self):
-        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+        operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
 
         with pytest.raises(TaskDeferred) as exc:
             operator.execute_complete_after_repair_wait(
@@ -3112,7 +3112,7 @@ class TestExecuteCompleteWorkflowRepair:
         assert exc.value.method_name == "execute_complete"
 
     def test_execute_complete_after_repair_wait_parent_failed_raises(self):
-        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+        operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
 
         with pytest.raises(AirflowException, match="repair budget is exhausted"):
             operator.execute_complete_after_repair_wait(
@@ -3132,7 +3132,7 @@ class TestExecuteCompleteWorkflowRepair:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
     def test_sync_wait_for_new_sub_run_attempt_returns_new_attempt(self, mock_sleep):
-        operator = self._operator_with_workflow_tg(max_full_run_repairs=2)
+        operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
         operator.databricks_run_id = self.PARENT_RUN_ID

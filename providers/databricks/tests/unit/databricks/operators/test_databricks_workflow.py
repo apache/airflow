@@ -36,7 +36,7 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
     _CreateDatabricksWorkflowOperator,
-    _DatabricksFullRunRepairCoordinatorOperator,
+    _DatabricksWorkflowRepairCoordinatorOperator,
     _flatten_node,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksWorkflowRepairCoordinatorTrigger
@@ -575,21 +575,21 @@ class TestWorkflowDependsOnWirePayload:
         self._assert_parent_depends_on(job_spec)
 
 
-class TestDatabricksFullRunRepairCoordinatorOperator:
+class TestDatabricksWorkflowRepairCoordinatorOperator:
     LAUNCH_TASK_ID = "wf.launch"
     LAUNCH_RETURN = {"conn_id": "databricks_default", "job_id": 42, "run_id": 100}
 
     def _make_operator(
         self,
-        max_full_run_repairs: int = 2,
+        workflow_repair_attempts: int = 2,
         deferrable: bool = True,
-    ) -> _DatabricksFullRunRepairCoordinatorOperator:
-        return _DatabricksFullRunRepairCoordinatorOperator(
+    ) -> _DatabricksWorkflowRepairCoordinatorOperator:
+        return _DatabricksWorkflowRepairCoordinatorOperator(
             task_id="repair_coordinator",
             databricks_conn_id="databricks_default",
             launch_task_id=self.LAUNCH_TASK_ID,
-            max_full_run_repairs=max_full_run_repairs,
-            repair_polling_period_seconds=10,
+            workflow_repair_attempts=workflow_repair_attempts,
+            workflow_repair_polling_period=10,
             deferrable=deferrable,
         )
 
@@ -602,7 +602,7 @@ class TestDatabricksFullRunRepairCoordinatorOperator:
             operator.execute(ctx)
 
     def test_execute_defers_on_coordinator_trigger(self):
-        operator = self._make_operator(max_full_run_repairs=3)
+        operator = self._make_operator(workflow_repair_attempts=3)
         ctx = {"ti": MagicMock()}
         ctx["ti"].xcom_pull.return_value = self.LAUNCH_RETURN
 
@@ -614,13 +614,13 @@ class TestDatabricksFullRunRepairCoordinatorOperator:
         trigger = exc.value.trigger
         assert isinstance(trigger, DatabricksWorkflowRepairCoordinatorTrigger)
         assert trigger.run_id == self.LAUNCH_RETURN["run_id"]
-        assert trigger.max_full_run_repairs == 3
+        assert trigger.workflow_repair_attempts == 3
         assert trigger.repair_attempts == 0
         assert trigger.latest_repair_id is None
         assert trigger.polling_period_seconds == 10
 
     def test_execute_complete_repaired_redefers_without_xcom_push(self):
-        operator = self._make_operator(max_full_run_repairs=3)
+        operator = self._make_operator(workflow_repair_attempts=3)
         ctx = {"ti": MagicMock()}
 
         with pytest.raises(TaskDeferred) as exc:
@@ -640,10 +640,10 @@ class TestDatabricksFullRunRepairCoordinatorOperator:
         assert trigger.run_id == 100
         assert trigger.repair_attempts == 1
         assert trigger.latest_repair_id == 555
-        assert trigger.max_full_run_repairs == 3
+        assert trigger.workflow_repair_attempts == 3
 
     def test_execute_complete_failed_raises_with_errors_in_message(self):
-        operator = self._make_operator(max_full_run_repairs=2)
+        operator = self._make_operator(workflow_repair_attempts=2)
         ctx = {"ti": MagicMock()}
         errors = [{"task_key": "t1", "run_id": 11, "error": "boom"}]
 
@@ -661,13 +661,13 @@ class TestDatabricksFullRunRepairCoordinatorOperator:
 
         message = str(exc.value)
         assert "100" in message
-        assert "max_full_run_repairs=2" in message
+        assert "workflow_repair_attempts=2" in message
         assert "boom" in message
         ctx["ti"].xcom_push.assert_not_called()
 
     @patch("airflow.providers.databricks.operators.databricks_workflow.time.sleep")
     def test_sync_run_repairs_failed_run_and_returns_success(self, mock_sleep):
-        operator = self._make_operator(max_full_run_repairs=2, deferrable=False)
+        operator = self._make_operator(workflow_repair_attempts=2, deferrable=False)
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
         hook.get_run_state.side_effect = [
@@ -697,21 +697,21 @@ class TestDatabricksFullRunRepairCoordinatorOperator:
 
 class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Coordinator task is only injected on Airflow 3+")
-    def test_max_full_run_repairs_positive_injects_coordinator_with_launch_upstream(self):
+    def test_workflow_repair_attempts_positive_injects_coordinator_with_launch_upstream(self):
         with DAG(dag_id="dwf_with_coord", schedule=None, start_date=DEFAULT_DATE):
             with DatabricksWorkflowTaskGroup(
                 group_id="wf",
                 databricks_conn_id="databricks_conn",
-                max_full_run_repairs=2,
-                repair_polling_period_seconds=15,
+                workflow_repair_attempts=2,
+                workflow_repair_polling_period=15,
             ) as tg:
                 task = MagicMock(task_id="task1")
                 task._convert_to_databricks_workflow_task = MagicMock(return_value={})
                 tg.add(task)
 
         coordinator = tg.children["wf.repair_coordinator"]
-        assert isinstance(coordinator, _DatabricksFullRunRepairCoordinatorOperator)
-        assert coordinator.max_full_run_repairs == 2
-        assert coordinator.repair_polling_period_seconds == 15
+        assert isinstance(coordinator, _DatabricksWorkflowRepairCoordinatorOperator)
+        assert coordinator.workflow_repair_attempts == 2
+        assert coordinator.workflow_repair_polling_period == 15
         assert coordinator.launch_task_id == "wf.launch"
         assert "wf.launch" in coordinator.upstream_task_ids

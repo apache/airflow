@@ -68,3 +68,23 @@ To minimize update conflicts, we recommend that you keep parameters in the ``not
 ``DatabricksWorkflowTaskGroup`` and not in the ``DatabricksNotebookOperator`` whenever possible.
 This is because, tasks in the ``DatabricksWorkflowTaskGroup`` are passed in on the job trigger time and
 do not modify the job definition.
+
+Automatic repair (Airflow 3+)
+-----------------------------
+
+Set ``workflow_repair_attempts=N`` to auto-repair a failed workflow run up to N times. The task
+group injects a ``repair_coordinator`` sibling that waits for the run to terminate and then calls
+Databricks ``repair_run`` with ``rerun_all_failed_tasks=True``. Default is ``0`` (off).
+
+.. code-block:: python
+
+    with DatabricksWorkflowTaskGroup(
+        group_id="example_databricks_workflow",
+        databricks_conn_id="databricks_default",
+        job_clusters=job_clusters,
+        workflow_repair_attempts=2,
+    ) as task_group:
+        ...
+
+Downstream task monitors stay in the same Airflow attempt across repairs, so size
+``execution_timeout`` for the original run plus all repairs and set ``retries=0`` on workflow tasks.

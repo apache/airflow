@@ -455,14 +455,14 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
 
     def _make_trigger(
         self,
-        max_full_run_repairs: int = 2,
+        workflow_repair_attempts: int = 2,
         repair_attempts: int = 0,
         latest_repair_id: int | None = None,
     ) -> DatabricksWorkflowRepairCoordinatorTrigger:
         return DatabricksWorkflowRepairCoordinatorTrigger(
             run_id=RUN_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
-            max_full_run_repairs=max_full_run_repairs,
+            workflow_repair_attempts=workflow_repair_attempts,
             repair_attempts=repair_attempts,
             latest_repair_id=latest_repair_id,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
@@ -470,7 +470,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         )
 
     def test_serialize_round_trips_state(self):
-        trigger = self._make_trigger(max_full_run_repairs=3, repair_attempts=1, latest_repair_id=42)
+        trigger = self._make_trigger(workflow_repair_attempts=3, repair_attempts=1, latest_repair_id=42)
 
         path, kwargs = trigger.serialize()
         restored = DatabricksWorkflowRepairCoordinatorTrigger(**kwargs)
@@ -492,7 +492,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         )
         mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED
 
-        trigger = self._make_trigger(max_full_run_repairs=2, repair_attempts=0, latest_repair_id=None)
+        trigger = self._make_trigger(workflow_repair_attempts=2, repair_attempts=0, latest_repair_id=None)
         events = [event async for event in trigger.run()]
 
         assert len(events) == 1
@@ -519,7 +519,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
         mock_repair_run.return_value = 101
 
-        trigger = self._make_trigger(max_full_run_repairs=2, repair_attempts=0, latest_repair_id=None)
+        trigger = self._make_trigger(workflow_repair_attempts=2, repair_attempts=0, latest_repair_id=None)
         events = [event async for event in trigger.run()]
 
         assert len(events) == 1
@@ -555,7 +555,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
         mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
 
-        trigger = self._make_trigger(max_full_run_repairs=2, repair_attempts=2, latest_repair_id=202)
+        trigger = self._make_trigger(workflow_repair_attempts=2, repair_attempts=2, latest_repair_id=202)
         events = [event async for event in trigger.run()]
 
         assert len(events) == 1
