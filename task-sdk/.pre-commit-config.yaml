@@ -50,6 +50,15 @@ repos:
           ^src/airflow/sdk/execution_time/task_runner\.py$|
           ^src/airflow/sdk/serde/serializers/kubernetes\.py$|
           ^src/airflow/sdk/types.py$
+      - id: check-runtime-ti-protocol-sync
+        name: Sync RuntimeTaskInstanceProtocol with RuntimeTaskInstance
+        entry: ../scripts/ci/prek/check_runtime_ti_protocol_sync.py
+        language: python
+        pass_filenames: false
+        files: >-
+          (?x)
+          ^src/airflow/sdk/execution_time/task_runner\.py$|
+          ^src/airflow/sdk/types\.py$
       - id: check-init-decorator-arguments
         name: Sync model __init__ and decorator arguments
         language: python
