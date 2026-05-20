@@ -1426,6 +1426,48 @@ class TestTIUpdateState:
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
 
+    def test_ti_update_state_terminal_does_not_lock_dag_run(self, client, session, create_task_instance):
+        """
+        Regression guard: session.get(TI, pk, with_for_update=True) must use
+        options=[lazyload(TI.dag_run)] to avoid inadvertently locking dag_run.
+
+        TaskInstance.dag_run has lazy="joined", so without the lazyload override the
+        ORM emits FOR UPDATE on both task_instance and dag_run.  The scheduler holds
+        a dag_run lock while bulk-updating task_instance rows in
+        _verify_integrity_if_dag_changed, producing a lock-order inversion deadlock.
+        """
+        from sqlalchemy.orm import lazyload
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_no_dag_run_lock",
+            state=State.RUNNING,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        captured_for_update_calls: list[dict] = []
+        real_get = Session.get
+
+        def spy_get(self, entity, ident, **kwargs):
+            if kwargs.get("with_for_update"):
+                captured_for_update_calls.append({"entity": entity, "options": kwargs.get("options") or []})
+            return real_get(self, entity, ident, **kwargs)
+
+        with mock.patch.object(Session, "get", spy_get):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={"state": State.SUCCESS, "end_date": DEFAULT_END_DATE.isoformat()},
+            )
+        assert response.status_code == 204
+
+        ti_for_update_calls = [c for c in captured_for_update_calls if c["entity"] is TaskInstance]
+        assert ti_for_update_calls, "Expected at least one session.get(TaskInstance, ..., with_for_update=True)"
+        for call in ti_for_update_calls:
+            assert any(isinstance(opt, lazyload) for opt in call["options"]), (
+                "session.get(TaskInstance, ..., with_for_update=True) must pass "
+                "options=[lazyload(TI.dag_run)] to prevent inadvertent dag_run row lock"
+            )
+
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_ti_update_state_to_deferred(
         self, client, session, create_task_instance, time_machine, queues_enabled: bool

@@ -7227,6 +7227,45 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_timeout_triggers_processes_more_than_one_batch(self, dag_maker, monkeypatch):
+        """Timed-out deferred task instances are all updated when they span multiple batches."""
+        import airflow.jobs.scheduler_job_runner as scheduler_job_runner_module
+
+        monkeypatch.setattr(scheduler_job_runner_module, "_TRIGGER_TIMEOUT_BATCH_SIZE", 2)
+
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_processes_more_than_one_batch",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            max_active_runs=5,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+
+        past = timezone.utcnow() - datetime.timedelta(seconds=60)
+        task_instances = []
+        for index in range(5):
+            dag_run = dag_maker.create_dagrun(
+                run_id=f"test_batch_{index}",
+                logical_date=DEFAULT_DATE + datetime.timedelta(seconds=index),
+            )
+            task_instance = dag_run.get_task_instance("dummy1", session)
+            task_instance.state = State.DEFERRED
+            task_instance.trigger_timeout = past
+            task_instances.append(task_instance)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        for task_instance in task_instances:
+            session.refresh(task_instance)
+            assert task_instance.state == State.SCHEDULED
+            assert task_instance.next_method == "__fail__"
+
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.

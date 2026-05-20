@@ -164,6 +164,38 @@ def test_clean_unused(session, dag_maker):
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
 
 
+def test_clean_unused_clears_trigger_ids_in_batches(session, dag_maker, monkeypatch):
+    """Non-deferred task instances have trigger references cleared when they span multiple batches."""
+    import airflow.models.trigger as trigger_module
+
+    monkeypatch.setattr(trigger_module, "_TRIGGER_ID_CLEANUP_BATCH_SIZE", 2)
+
+    triggers = [
+        Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={}) for index in range(5)
+    ]
+    session.add_all(triggers)
+    session.flush()
+
+    with dag_maker(session=session, dag_id="test_clean_unused_clears_trigger_ids_in_batches"):
+        for index in range(5):
+            EmptyOperator(task_id=f"fake{index}")
+
+    dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+    task_instances = {task_instance.task_id: task_instance for task_instance in dag_run.task_instances}
+    for index, trigger in enumerate(triggers):
+        task_instance = task_instances[f"fake{index}"]
+        task_instance.state = State.SUCCESS
+        task_instance.trigger_id = trigger.id
+    session.flush()
+
+    Trigger.clean_unused(session=session)
+
+    for task_instance in task_instances.values():
+        session.refresh(task_instance)
+        assert task_instance.trigger_id is None
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+
 @patch.object(TriggererCallback, "handle_event")
 def test_submit_event(mock_callback_handle_event, session, create_task_instance):
     """
