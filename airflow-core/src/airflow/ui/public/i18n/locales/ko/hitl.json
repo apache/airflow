@@ -22,7 +22,7 @@
     "respond": "응답하기",
     "responded_by_user_name": "(사용자 이름)에 의해 응답됨",
     "success": "{{taskId}} 응답 성공",
-    "title": "휴먼 태스크 인스턴스 - {{taskId}}"
+    "title": "휴먼 작업 인스턴스 - {{taskId}}"
   },
   "state": {
     "approvalReceived": "승인 수신됨",
