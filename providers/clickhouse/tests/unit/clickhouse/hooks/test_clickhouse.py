@@ -293,8 +293,8 @@ class TestClickHouseHookGetUri:
         assert "analytics" not in uri
 
     @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
-    def test_get_uri_secure_uses_clickhousedbs_scheme(self, mock_get_connection):
-        """secure=True in extra must produce the clickhousedbs:// (HTTPS) scheme."""
+    def test_get_uri_secure_adds_query_param(self, mock_get_connection):
+        """secure=True must produce clickhousedb://...?secure=true (not a separate scheme)."""
         conn = Connection(
             conn_id="ch_secure",
             conn_type="clickhouse",
@@ -307,7 +307,50 @@ class TestClickHouseHookGetUri:
         )
         mock_get_connection.return_value = conn
         uri = ClickHouseHook(clickhouse_conn_id="ch_secure").get_uri()
-        assert uri == "clickhousedbs://user:pass@secure-host:8443/db"
+        assert uri == "clickhousedb://user:pass@secure-host:8443/db?secure=true"
+
+    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    def test_get_uri_verify_false_adds_query_param(self, mock_get_connection):
+        """verify=False must appear as ?verify=false in the URI."""
+        conn = Connection(
+            conn_id="ch_verify",
+            conn_type="clickhouse",
+            host="host",
+            port=8443,
+            login="user",
+            password="pass",
+            schema="db",
+            extra=json.dumps({"secure": True, "verify": False}),
+        )
+        mock_get_connection.return_value = conn
+        uri = ClickHouseHook(clickhouse_conn_id="ch_verify").get_uri()
+        assert "secure=true" in uri
+        assert "verify=false" in uri
+
+    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    def test_get_uri_tuning_params_forwarded(self, mock_get_connection):
+        """connect_timeout, send_receive_timeout and compress must appear in the URI query string."""
+        conn = Connection(
+            conn_id="ch_tuning",
+            conn_type="clickhouse",
+            host="host",
+            port=8123,
+            login="user",
+            schema="db",
+            extra=json.dumps({"connect_timeout": 30, "send_receive_timeout": 600, "compress": False}),
+        )
+        mock_get_connection.return_value = conn
+        uri = ClickHouseHook(clickhouse_conn_id="ch_tuning").get_uri()
+        assert "connect_timeout=30" in uri
+        assert "send_receive_timeout=600" in uri
+        assert "compress=false" in uri
+
+    @patch("airflow.providers.clickhouse.hooks.clickhouse.ClickHouseHook.get_connection")
+    def test_get_uri_no_params_when_defaults(self, mock_get_connection):
+        """When no extra settings are present the URI must have no query string."""
+        mock_get_connection.return_value = MINIMAL_CONN
+        uri = ClickHouseHook(clickhouse_conn_id="clickhouse_minimal").get_uri()
+        assert "?" not in uri
 
 
 # ---------------------------------------------------------------------------

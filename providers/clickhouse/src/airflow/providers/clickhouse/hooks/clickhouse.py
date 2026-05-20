@@ -416,9 +416,14 @@ class ClickHouseHook(DbApiHook):
         """
         Return a SQLAlchemy-compatible URI for ``get_sqlalchemy_engine()``.
 
-        Uses the ``clickhousedb://`` scheme (HTTP) or ``clickhousedbs://`` scheme
-        (HTTPS/TLS) provided by ``clickhouse-connect``, chosen based on the
-        ``secure`` field in the connection's ``extra`` JSON.
+        Always uses the ``clickhousedb://`` scheme registered by ``clickhouse-connect``.
+        TLS and tuning parameters are forwarded as query-string arguments so that
+        SQLAlchemy-path users get the same settings as DB-API-path users:
+
+        * ``secure`` — enables HTTPS/TLS (``?secure=true``)
+        * ``verify`` — TLS certificate verification (``?verify=false`` to disable)
+        * ``connect_timeout``, ``send_receive_timeout``, ``compress`` — forwarded when
+          explicitly set in the connection's ``extra`` JSON
         """
         conn = self.get_connection(self.get_conn_id())
         extra: dict[str, Any] = conn.extra_dejson
@@ -427,8 +432,23 @@ class ClickHouseHook(DbApiHook):
         host = conn.host or "localhost"
         port = int(conn.port) if conn.port else 8123
         database = self.database or conn.schema or "default"
-        scheme = "clickhousedbs" if bool(extra.get("secure", False)) else "clickhousedb"
 
-        if password:
-            return f"{scheme}://{username}:{password}@{host}:{port}/{database}"
-        return f"{scheme}://{username}@{host}:{port}/{database}"
+        params: dict[str, str] = {}
+        if extra.get("secure", False):
+            params["secure"] = "true"
+        if "verify" in extra and not extra["verify"]:
+            params["verify"] = "false"
+        for key in _OPTIONAL_CLIENT_KWARGS:
+            if key in extra:
+                value = extra[key]
+                params[key] = str(value).lower() if isinstance(value, bool) else str(value)
+
+        base = (
+            f"clickhousedb://{username}:{password}@{host}:{port}/{database}"
+            if password
+            else f"clickhousedb://{username}@{host}:{port}/{database}"
+        )
+        if params:
+            query_string = "&".join(f"{k}={v}" for k, v in params.items())
+            return f"{base}?{query_string}"
+        return base
