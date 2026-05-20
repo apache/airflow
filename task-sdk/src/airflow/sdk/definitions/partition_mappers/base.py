@@ -23,3 +23,7 @@ class PartitionMapper:
 
     Maps keys from asset events to target dag run partitions.
     """
+
+    def validate_source_key(self, key: str) -> None:
+        """Validate that a source partition key is in a supported format."""
+        return None

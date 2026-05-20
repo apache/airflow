@@ -125,3 +125,10 @@ class TestTemporalMappers:
         # 2026-02-11T06:00:00+00:00 UTC == 2026-02-11T01:00:00-05:00 New York
         # → start-of-day in New York is 2026-02-11
         assert pm.to_downstream("2026-02-11T06:00:00+0000") == "2026-02-11"
+
+    def test_validate_source_key(self):
+        StartOfHourMapper().validate_source_key("2026-02-10T14:30:45")
+
+    def test_validate_source_key_rejects_non_canonical_input(self):
+        with pytest.raises(ValueError, match="does not round-trip"):
+            StartOfHourMapper().validate_source_key("2026-2-10T4:30:45")
