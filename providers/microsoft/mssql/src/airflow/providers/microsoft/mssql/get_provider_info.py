@@ -41,6 +41,22 @@ def get_provider_info():
                 "dialect-class-name": "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["mssql"],
+                "handler": "airflow.providers.microsoft.mssql.assets.mssql.sanitize_uri",
+                "factory": "airflow.providers.microsoft.mssql.assets.mssql.create_asset",
+                "to_openlineage_converter": "airflow.providers.microsoft.mssql.assets.mssql.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["mssql"],
+                "handler": "airflow.providers.microsoft.mssql.assets.mssql.sanitize_uri",
+                "factory": "airflow.providers.microsoft.mssql.assets.mssql.create_asset",
+                "to_openlineage_converter": "airflow.providers.microsoft.mssql.assets.mssql.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Microsoft SQL Server (MSSQL)",

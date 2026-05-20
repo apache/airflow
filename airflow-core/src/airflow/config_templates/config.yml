@@ -261,7 +261,10 @@ core:
     allowed_deserialization_classes_regexp:
       description: |
         Space-separated list of classes that may be imported during deserialization. Items are processed
-        as regex expressions. Python built-in classes (like dict) are always allowed.
+        as regex expressions and matched against the full classname (``re.fullmatch`` semantics), so a
+        pattern such as ``airflow\.models\.Variable`` does not also admit ``airflow.models.VariableXYZ``.
+        Use ``.*`` (e.g. ``airflow\.models\..*``) to allow a prefix and any suffix. Python built-in
+        classes (like dict) are always allowed.
         This is a secondary option to ``[core] allowed_deserialization_classes``.
       version_added: 2.8.2
       type: string
@@ -1794,6 +1797,16 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
+    access_control_allow_credentials:
+      description: |
+        Whether the FastAPI server includes the ``Access-Control-Allow-Credentials`` header on
+        CORS responses. Defaults to True to preserve existing behavior; set to False if you have
+        configured ``access_control_allow_origins`` and do not want browsers to send credentials
+        (cookies, Authorization header) with cross-origin requests.
+      type: boolean
+      version_added: 3.2.2
+      example: ~
+      default: "True"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -2624,6 +2637,10 @@ scheduler:
         Notably, for **CronTriggerTimetable**, the logical date is the same as the time the DAG Run will
         try to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of
         the data interval, but the DAG Run will try to schedule at the end of the data interval.
+
+        When a DAG is switched from **CronTriggerTimetable** to **CronDataIntervalTimetable** (for example,
+        by flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past
+        the most recent **CronTriggerTimetable** run to avoid colliding with its logical date.
       version_added: 2.9.0
       type: boolean
       example: ~
@@ -2685,6 +2702,26 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    runner_health_check_threshold:
+      description: |
+        If the TriggerRunner subprocess's async event loop sends no communication to the parent
+        process for more than this many seconds, the parent stops updating the triggerer's
+        heartbeat in the database. The triggerer then appears unhealthy to the scheduler, which
+        will reassign its triggers. This detects a deadlocked or hung event loop that the normal
+        process-alive check cannot catch. Set to 0 to disable the watchdog.
+      version_added: 3.2.2
+      type: float
+      example: ~
+      default: "30"
+    blocked_main_thread_warning_threshold:
+      description: |
+        Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.
+        Increase this value if your deployment can tolerate longer delays in the Triggerer's async
+        loop before logging a warning.
+      version_added: 3.2.0
+      type: float
+      example: ~
+      default: "0.2"
     max_trigger_to_select_per_loop:
       description: |
         Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``
@@ -2988,6 +3025,52 @@ dag_processor:
       example: ~
       default: "warning"
 
+state_store:
+  description: |
+    Configuration for task and asset state storage backend.
+  options:
+    backend:
+      description: |
+        Full dotted path to the class that implements state storage for tasks and assets.
+        The class must be a subclass of ``BaseStateBackend``.
+        The default implementation persists state in the Airflow metadata database.
+      version_added: 3.3.0
+      type: string
+      example: "mypackage.state.CustomStateBackend"
+      default: "airflow.state.metastore.MetastoreStateBackend"
+    clear_on_success:
+      description: |
+        If set to True, all task state keys for a task instance are automatically cleared
+        when that task instance moved to SUCCESS.
+
+        Defaults to False so that task state persists after success for observability —
+        operators and the UI can inspect what the task wrote (e.g. submitted job IDs,
+        advanced watermarks) after the run completes.
+        Consider setting to True if you do not need post-success visibility and want automatic
+        cleanup without waiting for the global retention period.
+      version_added: 3.3.0
+      type: boolean
+      example: "True"
+      default: "False"
+    default_retention_days:
+      description: |
+        Number of days to retain task state after their last update.
+        Rows older than this are removed when cleanup is triggered.
+        This config does not affect asset_state rows.
+        Set to 0 to disable time-based cleanup entirely.
+      version_added: 3.3.0
+      type: integer
+      example: "7"
+      default: "30"
+    state_cleanup_batch_size:
+      description: |
+        Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
+        Tune this on deployments with large task_state tables to improve performance per transaction.
+      version_added: 3.3.0
+      type: integer
+      example: "10000"
+      default: "0"
+
 profiling:
   description: |
     Configuration for memory profiling in Airflow component.
@@ -2997,7 +3080,7 @@ profiling:
     memray_trace_components:
       description: |
         Comma-separated list of Airflow components to profile with memray.
-        Valid components are: scheduler, api, dag_processor
+        Valid components are: scheduler, api, dag_processor, triggerer
 
         This option only takes effect when it is not set to blank (default option).
         start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
@@ -3011,3 +3094,18 @@ profiling:
       type: string
       example: "scheduler,api,dag_processor"
       default: ~
+    memray_detailed_tracing:
+      description: |
+        Whether to enable memray's ``native_traces`` and ``trace_python_allocators`` options
+        when ``memray_trace_components`` is set. Captures C/C++ stack frames for compiled
+        extensions (numpy, pandas, etc.) and small ``pymalloc`` allocations that would
+        otherwise be invisible.
+
+        This adds significant runtime overhead and produces much larger profile files, so
+        leave it disabled unless the default trace lacks the detail you need. Native symbol
+        resolution is most accurate on Linux and less precise on macOS. See
+        https://bloomberg.github.io/memray/api.html for the underlying ``Tracker`` options.
+      version_added: 3.3.0
+      type: boolean
+      example: ~
+      default: "False"

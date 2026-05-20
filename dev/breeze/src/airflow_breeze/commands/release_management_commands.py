@@ -137,6 +137,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import retrieve_github_token
 from airflow_breeze.utils.helm_chart_utils import chart_version
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
@@ -263,12 +264,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.0.1"
-AIRFLOW_UV_VERSION = "0.11.7"
+AIRFLOW_PIP_VERSION = "26.1.1"
+AIRFLOW_UV_VERSION = "0.11.14"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.47"
+GITPYTHON_VERSION = "3.1.50"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.3.10"
+PREK_VERSION = "0.3.13"
 HATCH_VERSION = "1.16.5"
 PYYAML_VERSION = "6.0.3"
 
@@ -1264,7 +1265,7 @@ def run_generate_constraints(
 ) -> tuple[int, str]:
     result = execute_command_in_shell(
         shell_params,
-        project_name=f"constraints-{shell_params.python.replace('.', '-')}",
+        project_name=f"breeze-constraints-{shell_params.python.replace('.', '-')}",
         command="/opt/airflow/scripts/in_container/run_generate_constraints.py",
         output=output,
     )
@@ -1553,7 +1554,9 @@ def _run_command_for_providers(
     output: Output | None,
 ) -> tuple[int, str]:
     shell_params.install_selected_providers = " ".join(list_of_providers)
-    result_command = execute_command_in_shell(shell_params, project_name=f"providers-{index}", output=output)
+    result_command = execute_command_in_shell(
+        shell_params, project_name=f"breeze-providers-{index}", output=output
+    )
     return result_command.returncode, f"{list_of_providers}"
 
 
@@ -1705,7 +1708,7 @@ def install_provider_distributions(
             skip_cleanup=skip_cleanup,
         )
     else:
-        result_command = execute_command_in_shell(shell_params, project_name="providers")
+        result_command = execute_command_in_shell(shell_params, project_name="breeze-providers")
         fix_ownership_using_docker()
         sys.exit(result_command.returncode)
 
@@ -1782,7 +1785,7 @@ def verify_provider_distributions(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
         shell_params,
-        project_name="providers",
+        project_name="breeze-providers",
         command="python /opt/airflow/scripts/in_container/verify_providers.py",
     )
     fix_ownership_using_docker()
@@ -2675,16 +2678,7 @@ def generate_issue_content_providers(
             all_prs.update(prs)
             provider_prs[provider_id] = filtered_prs
             all_retrieved_prs.update(provider_prs[provider_id])
-        if not github_token:
-            # Get GitHub token from gh CLI and set it in environment copy
-            gh_token_result = run_command(
-                ["gh", "auth", "token"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if gh_token_result.returncode == 0:
-                github_token = gh_token_result.stdout.strip()
+        github_token = retrieve_github_token(github_token)
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -3060,21 +3054,6 @@ def generate_issue_content_core(
     )
 
 
-def _get_github_token(github_token: str) -> str:
-    """Return github_token as-is, or fall back to ``gh auth token``."""
-    if github_token:
-        return github_token
-    result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
-    return github_token
-
-
 def _get_airflowctl_prs(
     verbose: bool,
     previous_release: str,
@@ -3285,7 +3264,7 @@ def generate_airflowctl_changelog(
     verbose = get_verbose()
 
     prs = _get_airflowctl_prs(verbose, previous_release, current_release, excluded_pr_list)
-    github_token = _get_github_token(github_token)
+    github_token = retrieve_github_token(github_token) or ""
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
@@ -3383,6 +3362,38 @@ def generate_providers_metadata(
         console_print(metadata_dict)
         return
 
+    package_ids = list(get_provider_dependencies().keys())
+
+    # Hygiene pass: every entry in `provider.yaml`'s `versions:` list except
+    # the first is supposed to be a published PyPI release. The first entry
+    # is the in-progress next release and is allowed to predate publication;
+    # the rest must be reachable on PyPI. Any older entry that PyPI does not
+    # know about is stale (e.g. a release that was prepared but never
+    # published) — drop it from `provider.yaml` so the metadata generated
+    # below reflects only versions a user can actually install.
+    from airflow_breeze.utils.packages import get_provider_distributions_metadata
+    from airflow_breeze.utils.provider_dependencies import (
+        prune_unreleased_versions_from_provider_yaml,
+    )
+
+    console_print("\n[info]Checking provider.yaml versions[1:] against PyPI for stale entries...[/]\n")
+    with Pool() as pypi_pool:
+        pruned_per_provider = pypi_pool.map(prune_unreleased_versions_from_provider_yaml, package_ids)
+    total_pruned = 0
+    for pid, pruned in zip(package_ids, pruned_per_provider):
+        if pruned:
+            console_print(f"[warning]{pid}: removed unreleased versions from provider.yaml: {pruned}[/]")
+            total_pruned += len(pruned)
+    if total_pruned:
+        console_print(
+            f"\n[warning]Removed {total_pruned} unreleased version entr"
+            f"{'y' if total_pruned == 1 else 'ies'} from provider.yaml files. "
+            "Re-reading provider metadata.[/]\n"
+        )
+        get_provider_distributions_metadata.cache_clear()
+    else:
+        console_print("[info]All provider.yaml versions[1:] are present on PyPI.[/]\n")
+
     partial_generate_providers_metadata = partial(
         generate_providers_metadata_for_provider,
         provider_version=None,
@@ -3391,7 +3402,6 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    package_ids = get_provider_dependencies().keys()
     with Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
@@ -3718,7 +3728,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.21.0"
+OPENAPI_GENERATOR_CLI_VER = "7.22.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -4418,7 +4428,7 @@ def generate_issue_content(
         excluded_prs = []
     prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
 
-    github_token = _get_github_token(github_token)
+    github_token = retrieve_github_token(github_token) or ""
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
     pull_requests: dict[int, PullRequestOrIssue] = {}

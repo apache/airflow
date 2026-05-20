@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import asdict, dataclass
 from multiprocessing import Process
 from pathlib import Path
@@ -72,17 +73,42 @@ class Job:
     """Holds all information for a task/job to be executed as bundle."""
 
     edge_job: EdgeJobFetched
-    process: Process
+    process: subprocess.Popen | Process
+    """Can be subprocess.Popen (for the spawn path) or multiprocessing.Process (for the fork path)."""
     logfile: Path
     logsize: int = 0
     """Last size of log file, point of last chunk push."""
+    stderr_file_path: Path | None = None
+    """Path to file where error details are written on failure (stderr for subprocess path, traceback text for fork path)."""
 
     @property
     def is_running(self) -> bool:
         """Check if the job is still running."""
+        if isinstance(self.process, subprocess.Popen):
+            return self.process.poll() is None
         return self.process.is_alive()
 
     @property
     def is_success(self) -> bool:
         """Check if the job was successful."""
+        if isinstance(self.process, subprocess.Popen):
+            return self.process.returncode == 0
         return self.process.exitcode == 0
+
+    def failure_details(self) -> str:
+        """Format failure details, reading error text from the error file if available."""
+        error_output = ""
+        if self.stderr_file_path and self.stderr_file_path.exists():
+            error_output = self.stderr_file_path.read_bytes().decode(errors="backslashreplace").strip()
+        if isinstance(self.process, subprocess.Popen):
+            ex_txt = f"Task subprocess exited with code {self.process.returncode}"
+        else:
+            ex_txt = f"Task fork exited with code {self.process.exitcode}"
+        if error_output:
+            ex_txt = f"{ex_txt}\n{error_output}"
+        return ex_txt
+
+    def cleanup(self) -> None:
+        """Remove transient files owned by this job."""
+        if self.stderr_file_path:
+            self.stderr_file_path.unlink(missing_ok=True)

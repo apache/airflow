@@ -50,6 +50,11 @@ def get_provider_info():
                 "external-doc-url": "https://modelcontextprotocol.io/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "LangChain",
+                "external-doc-url": "https://python.langchain.com/",
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -57,6 +62,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
+            {
+                "integration-name": "LangChain",
+                "python-modules": ["airflow.providers.common.ai.hooks.langchain"],
+            },
         ],
         "plugins": [
             {
@@ -64,6 +73,20 @@ def get_provider_info():
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
             }
         ],
+        "config": {
+            "common.ai": {
+                "description": "Options for the ``apache-airflow-providers-common-ai`` provider.\n",
+                "options": {
+                    "durable_cache_path": {
+                        "description": "ObjectStorage URI used to persist per-step caches when running\n``AgentOperator`` / ``@task.agent`` with ``durable=True``. Each task\nexecution writes a single JSON file under this path containing its\ncached model responses and tool results, so that on retry the agent\ncan replay completed steps instead of re-issuing LLM calls and tool\ninvocations. The file is deleted on successful task completion.\n\nRequired when ``durable=True`` is used. Any scheme supported by\n``airflow.sdk.ObjectStoragePath`` is accepted (``file://``, ``s3://``,\n``gs://``, ``azure://``, ...).\n",
+                        "version_added": "0.1.0",
+                        "type": "string",
+                        "example": "file:///tmp/airflow_durable_cache",
+                        "default": "",
+                    }
+                },
+            }
+        },
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook",
@@ -236,6 +259,30 @@ def get_provider_info():
                     "args": {
                         "label": "Arguments",
                         "description": 'JSON array of arguments for stdio command (e.g. ["mcp-run-python"])',
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.langchain.LangChainHook",
+                "hook-name": "LangChain",
+                "connection-type": "langchain",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Chat Model",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-3-7-sonnet).\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Embedding model in provider:name format dispatched via langchain.embeddings.init_embeddings (e.g. openai:text-embedding-3-small, cohere:embed-english-v3.0).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                 },

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
@@ -33,21 +33,48 @@ import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
+import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
-type Props = {
+// Discriminated union: callers pass either `allMapped: true` together with
+// `dagId`/`dagRunId`/`taskId` (clears every mapped TI of the task), or a full
+// `taskInstance` (clears that single TI and reads its display fields). The
+// two variants are mutually exclusive at the type level — no defensive
+// runtime fallback chains needed in the body.
+type Props = (
+  | {
+      readonly allMapped: true;
+      readonly dagId: string;
+      readonly dagRunId: string;
+      readonly taskId: string;
+    }
+  | {
+      readonly allMapped?: false;
+      readonly taskInstance: TaskInstanceResponse;
+    }
+) & {
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly taskInstance: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, taskInstance }: Props) => {
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
+// react/destructuring-assignment expects every prop access via signature
+// destructure, but TypeScript's discriminated-union narrowing needs the union
+// kept whole on the parameter — otherwise the `props.allMapped` discriminator
+// is severed from `props.dagId` / `props.taskInstance`. Disable the rule for
+// the parameter and the prop extraction; everything after uses local
+// variables.
+/* eslint-disable react/destructuring-assignment */
+const ClearTaskInstanceDialog = (props: Props) => {
+  const allMapped = props.allMapped === true;
+  const dagId = props.allMapped ? props.dagId : props.taskInstance.dag_id;
+  const dagRunId = props.allMapped ? props.dagRunId : props.taskInstance.dag_run_id;
+  const taskId = props.allMapped ? props.taskId : props.taskInstance.task_id;
+  const mapIndex: number | undefined = props.allMapped ? undefined : props.taskInstance.map_index;
+  const taskInstance: TaskInstanceResponse | undefined = props.allMapped ? undefined : props.taskInstance;
+  const onCloseDialog = props.onClose;
+  const openDialog = props.open;
+  /* eslint-enable react/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
 
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
@@ -63,13 +90,13 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
+  const userToggledRunOnLatestRef = useRef(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+  const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    mapIndex,
     taskId,
   });
 
@@ -98,7 +125,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: [[taskId, mapIndex]],
+      task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
     },
   });
 
@@ -107,29 +134,43 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     total_entries: 0,
   };
 
-  // Check if bundle versions are different
-  const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
-  const shouldShowBundleVersionOption =
-    bundleVersionsDiffer &&
-    taskInstanceDagVersionBundleVersion !== null &&
-    taskInstanceDagVersionBundleVersion !== "";
+  const { dagVersionsDiffer, shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedBundleVersion: taskInstance?.dag_version?.bundle_version,
+    selectedDagVersionNumber: taskInstance?.dag_version?.version_number,
+  });
+
+  useEffect(() => {
+    if (!openDialog) {
+      userToggledRunOnLatestRef.current = false;
+    } else if (!userToggledRunOnLatestRef.current) {
+      setRunOnLatestVersion(dagVersionsDiffer);
+    }
+  }, [openDialog, dagVersionsDiffer]);
 
   return (
     <>
-      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false} size="xl">
+      <Dialog.Root lazyMount onOpenChange={onCloseDialog} open={openDialog ? !open : false}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
               <Heading size="xl">
                 <strong>
-                  {translate("dags:runAndTaskActions.clear.title", {
-                    type: translate("taskInstance_one"),
-                  })}
+                  {allMapped
+                    ? translate("dags:runAndTaskActions.clearAllMapped.title")
+                    : translate("dags:runAndTaskActions.clear.title", {
+                        type: translate("taskInstance_one"),
+                      })}
                   :
                 </strong>{" "}
-                {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
+                {allMapped ? (
+                  taskId
+                ) : (
+                  <>
+                    {taskInstance?.task_display_name} <Time datetime={taskInstance?.start_date} />
+                  </>
+                )}
               </Heading>
             </VStack>
           </Dialog.Header>
@@ -144,12 +185,12 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 onChange={setSelectedOptions}
                 options={[
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: allMapped || taskInstance?.logical_date === null,
                     label: translate("dags:runAndTaskActions.options.past"),
                     value: "past",
                   },
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: allMapped || taskInstance?.logical_date === null,
                     label: translate("dags:runAndTaskActions.options.future"),
                     value: "future",
                   },
@@ -170,14 +211,18 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             </Flex>
             <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
             <Flex
-              {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
-              justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+              {...(shouldShowRunOnLatestOption ? { alignItems: "center" } : {})}
+              gap={3}
+              justifyContent={shouldShowRunOnLatestOption ? "space-between" : "end"}
               mt={3}
             >
-              {shouldShowBundleVersionOption ? (
+              {shouldShowRunOnLatestOption ? (
                 <Checkbox
                   checked={runOnLatestVersion}
-                  onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                  onCheckedChange={(event) => {
+                    userToggledRunOnLatestRef.current = true;
+                    setRunOnLatestVersion(Boolean(event.checked));
+                  }}
                 >
                   {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
                 </Checkbox>
@@ -190,7 +235,6 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 {translate("dags:runAndTaskActions.options.preventRunningTasks")}
               </Checkbox>
               <Button
-                colorPalette="brand"
                 disabled={affectedTasks.total_entries === 0}
                 loading={isPending || isPendingPatchDagRun}
                 onClick={onOpen}
@@ -227,15 +271,15 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 include_upstream: upstream,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
-                task_ids: [[taskId, mapIndex]],
+                task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });
-            if (note !== taskInstance.note) {
+            if (note !== (taskInstance?.note ?? null)) {
               mutatePatchTaskInstance({
                 dagId,
                 dagRunId,
-                mapIndex,
+                ...(allMapped ? {} : { mapIndex }),
                 requestBody: { note },
                 taskId,
               });

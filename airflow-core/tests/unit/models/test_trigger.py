@@ -919,3 +919,102 @@ def test_kwargs_not_encrypted():
 
     assert trigger.kwargs["param1"] == "value1"
     assert trigger.kwargs["param2"] == "value2"
+
+
+def test_asset_trigger_unassigned_included(session):
+    """Asset triggers with triggerer_id=None are returned."""
+    asset = AssetModel("test_asset")
+    trigger = Trigger(classpath="some.trigger", kwargs={})
+    session.add(trigger)
+    session.flush()  # ensure trigger.id is available
+    asset.add_trigger(trigger, "test_watcher")
+    session.add(asset)
+    session.flush()
+
+    alive_ids = [100, 200]
+    result = Trigger.get_sorted_triggers(
+        capacity=10,
+        alive_triggerer_ids=alive_ids,
+        queues=None,
+        session=session,
+    )
+    ids = [row[0] for row in result]
+
+    assert trigger.id in ids
+
+
+def test_asset_trigger_dead_triggerer_included(session):
+    """Asset triggers assigned to a dead triggerer are returned."""
+    asset = AssetModel("test_asset")
+    trigger = Trigger(classpath="some.trigger", kwargs={})
+    trigger.triggerer_id = 999  # dead
+    session.add(trigger)
+    session.flush()
+    asset.add_trigger(trigger, "test_watcher")
+    session.add(asset)
+    session.flush()
+
+    alive_ids = [100, 200]
+    result = Trigger.get_sorted_triggers(
+        capacity=10,
+        alive_triggerer_ids=alive_ids,
+        queues=None,
+        session=session,
+    )
+    ids = [row[0] for row in result]
+
+    assert trigger.id in ids
+
+
+def test_asset_trigger_alive_triggerer_excluded(session):
+    """Asset triggers assigned to a living triggerer are not returned."""
+    asset = AssetModel("test_asset")
+    trigger = Trigger(classpath="some.trigger", kwargs={})
+    trigger.triggerer_id = 100  # alive
+    session.add(trigger)
+    session.flush()
+    asset.add_trigger(trigger, "test_watcher")
+    session.add(asset)
+    session.flush()
+
+    alive_ids = [100, 200]
+    result = Trigger.get_sorted_triggers(
+        capacity=10,
+        alive_triggerer_ids=alive_ids,
+        queues=None,
+        session=session,
+    )
+    ids = [row[0] for row in result]
+
+    assert trigger.id not in ids
+
+
+def test_asset_trigger_ordering_and_capacity(session):
+    """Asset triggers are ordered by created_date (oldest first) and respect capacity."""
+    now = datetime.datetime(2025, 1, 1, tzinfo=timezone.utc)
+    asset = AssetModel("test_asset")
+    triggers = []
+    for i in range(5):
+        trigger = Trigger(
+            classpath="some.trigger",
+            kwargs={},
+            created_date=now + datetime.timedelta(hours=i),
+        )
+        trigger.triggerer_id = None  # all unassigned
+        session.add(trigger)
+        session.flush()
+        asset.add_trigger(trigger, f"watcher_{i}")
+        triggers.append(trigger)
+    session.add(asset)
+    session.flush()
+
+    result = Trigger.get_sorted_triggers(
+        capacity=3,
+        alive_triggerer_ids=[],
+        queues=None,
+        session=session,
+    )
+    ids = [row[0] for row in result]
+
+    # Only the three oldest should be returned, in order
+    assert ids == [triggers[0].id, triggers[1].id, triggers[2].id]

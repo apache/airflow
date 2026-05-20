@@ -164,7 +164,7 @@ async def await_pod_start(
     :param check_interval: Interval (in seconds) between status checks.
     :param is_async: Set to True if called in an async context; otherwise, False.
     """
-    pod_manager.log.info("::group::Waiting until %ss to get the POD scheduled...", schedule_timeout)
+    pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
     is_async = isinstance(pod_manager, AsyncPodManager)
@@ -443,6 +443,8 @@ class PodManager(LoggingMixin):
         seen_events: set[str] = set()
         while not self.stop_watching_events:
             events = self.read_pod_events(pod, resource_version)
+            if events.metadata and events.metadata.resource_version:
+                resource_version = events.metadata.resource_version
             for event in events.items:
                 log_pod_event(self, event, seen_events)
                 resource_version = event.metadata.resource_version

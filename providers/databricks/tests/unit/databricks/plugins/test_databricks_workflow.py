@@ -24,14 +24,6 @@ import pytest
 
 pytest.importorskip("airflow.providers.fab")
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    pytest.skip(
-        "``airflow/providers/databricks/plugins/databricks_workflow.py`` is only compatible with Airflow 2.X.",
-        allow_module_level=True,
-    )
-
 from flask import url_for
 
 from airflow.models.dagrun import DagRun
@@ -39,17 +31,22 @@ from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.common.compat.sdk import AirflowException, AirflowPlugin
 from airflow.providers.databricks.plugins.databricks_workflow import (
     DatabricksWorkflowPlugin,
-    RepairDatabricksTasks,
     WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
     _get_launch_task_key,
-    _repair_task,
     get_databricks_task_ids,
     get_launch_task_id,
     store_databricks_job_run_link,
 )
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.databricks.plugins.databricks_workflow import (
+        RepairDatabricksTasks,
+        _repair_task,
+    )
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"

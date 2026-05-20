@@ -20,6 +20,12 @@ import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import {
+  apiCancelAllActiveBackfills,
+  apiCancelBackfill,
+  apiWaitForBackfillComplete,
+  apiWaitForNoActiveBackfill,
+} from "tests/e2e/utils/test-helpers";
 
 export const REPROCESS_API_TO_UI = {
   completed: "All Runs",
@@ -52,10 +58,6 @@ type CreateBackfillOptions = {
 type BackfillApiResponse = {
   completed_at: string | null;
   id: number;
-};
-
-type BackfillListApiResponse = {
-  backfills: Array<BackfillApiResponse>;
 };
 
 const {
@@ -114,30 +116,15 @@ export class BackfillPage extends BasePage {
   }
 
   public async cancelAllActiveBackfillsViaApi(dagId: string): Promise<void> {
-    const response = await this.page.request.get(`${baseUrl}/api/v2/backfills?dag_id=${dagId}&limit=100`, {
-      timeout: 30_000,
-    });
-
-    expect(response.ok()).toBe(true);
-    const data = (await response.json()) as BackfillListApiResponse;
-
-    for (const backfill of data.backfills) {
-      if (backfill.completed_at === null) {
-        await this.cancelBackfillViaApi(backfill.id);
-      }
-    }
+    await apiCancelAllActiveBackfills(this.page, dagId);
   }
 
   public async cancelBackfillViaApi(backfillId: number): Promise<void> {
-    const response = await this.page.request.put(`${baseUrl}/api/v2/backfills/${backfillId}/cancel`, {
-      timeout: 30_000,
-    });
-
-    expect([200, 409]).toContain(response.status());
+    await apiCancelBackfill(this.page, backfillId);
   }
 
   public async clickCancelButton(): Promise<void> {
-    await this.cancelButton.click({ timeout: 10_000 });
+    await this.cancelButton.click();
     await expect(this.cancelButton).not.toBeVisible({ timeout: 15_000 });
   }
 
@@ -174,7 +161,7 @@ export class BackfillPage extends BasePage {
       );
     }
 
-    await expect(this.backfillRunButton).toBeEnabled({ timeout: 10_000 });
+    await expect(this.backfillRunButton).toBeEnabled();
 
     const responsePromise = this.page.waitForResponse(
       (res) =>
@@ -390,8 +377,8 @@ export class BackfillPage extends BasePage {
 
   public async openBackfillDialog(): Promise<void> {
     await this.triggerButton.click({ timeout: 15_000 });
-    await this.backfillModeRadio.click({ timeout: 10_000 });
-    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 10_000 });
+    await this.backfillModeRadio.click();
+    await expect(this.backfillFromDateInput).toBeVisible();
   }
 
   public async openFilterMenu(): Promise<void> {
@@ -434,7 +421,6 @@ export class BackfillPage extends BasePage {
           {
             intervals: [2000],
             message: `Failed to pause backfill ${backfillId}`,
-            timeout: 10_000,
           },
         )
         .toBeTruthy();
@@ -452,7 +438,7 @@ export class BackfillPage extends BasePage {
       .getByRole("radiogroup", { name: "Reprocess Behavior" })
       .locator("label")
       .filter({ hasText: label })
-      .click({ timeout: 10_000 });
+      .click();
   }
 
   public async toggleColumn(columnName: string): Promise<void> {
@@ -460,63 +446,14 @@ export class BackfillPage extends BasePage {
   }
 
   public async togglePauseState(): Promise<void> {
-    await this.pauseOrUnpauseButton.click({ timeout: 10_000 });
+    await this.pauseOrUnpauseButton.click();
   }
 
   public async waitForBackfillComplete(backfillId: number, timeout: number = 120_000): Promise<void> {
-    await expect
-      .poll(
-        async () => {
-          try {
-            const response = await this.page.request.get(`${baseUrl}/api/v2/backfills/${backfillId}`, {
-              timeout: 30_000,
-            });
-
-            if (!response.ok()) {
-              return false;
-            }
-            const data = (await response.json()) as BackfillApiResponse;
-
-            return data.completed_at !== null;
-          } catch {
-            return false;
-          }
-        },
-        {
-          intervals: [2000, 5000, 10_000],
-          message: `Backfill ${backfillId} did not complete within ${timeout}ms`,
-          timeout,
-        },
-      )
-      .toBeTruthy();
+    await apiWaitForBackfillComplete(this.page, backfillId, timeout);
   }
 
   public async waitForNoActiveBackfillViaApi(dagId: string, timeout: number = 120_000): Promise<void> {
-    await expect
-      .poll(
-        async () => {
-          try {
-            const response = await this.page.request.get(
-              `${baseUrl}/api/v2/backfills?dag_id=${dagId}&limit=100`,
-              { timeout: 30_000 },
-            );
-
-            if (!response.ok()) {
-              return false;
-            }
-            const data = (await response.json()) as BackfillListApiResponse;
-
-            return data.backfills.every((b) => b.completed_at !== null);
-          } catch {
-            return false;
-          }
-        },
-        {
-          intervals: [2000, 5000, 10_000],
-          message: `Active backfills for Dag ${dagId} did not clear within ${timeout}ms`,
-          timeout,
-        },
-      )
-      .toBeTruthy();
+    await apiWaitForNoActiveBackfill(this.page, dagId, timeout);
   }
 }

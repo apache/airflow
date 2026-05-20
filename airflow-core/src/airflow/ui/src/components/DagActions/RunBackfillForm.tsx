@@ -1,5 +1,3 @@
-/* eslint-disable max-lines -- form aggregates date range, reprocess behavior, and param controls in a single UX flow */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -190,7 +188,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               <HStack align="stretch">
                 {reprocessBehaviors.map((item) => (
                   <RadioCardItem
-                    colorPalette="brand"
                     indicatorPlacement="start"
                     key={item.value}
                     label={translate(item.label)}
@@ -224,7 +221,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           name="run_backwards"
           render={({ field }) => (
-            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange}>
+            <Checkbox checked={field.value} onChange={field.onChange}>
               {translate("backfill.backwards")}
             </Checkbox>
           )}
@@ -234,7 +231,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           name="run_on_latest_version"
           render={({ field }) => (
-            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange}>
+            <Checkbox checked={field.value} onChange={field.onChange}>
               {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
             </Checkbox>
           )}
@@ -242,22 +239,13 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Spacer />
         {dag.is_paused ? (
           <>
-            <Checkbox
-              checked={unpause}
-              colorPalette="brand"
-              onChange={() => setUnpause(!unpause)}
-              wordBreak="break-all"
-            >
+            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
               {translate("backfill.unpause", { dag_display_name: dag.dag_display_name })}
             </Checkbox>
             <Spacer />
           </>
         ) : undefined}
-        <Checkbox
-          checked={overrideParams}
-          colorPalette="brand"
-          onChange={() => setOverrideParams(!overrideParams)}
-        >
+        <Checkbox checked={overrideParams} onChange={() => setOverrideParams(!overrideParams)}>
           {translate("backfill.overrideExistingParams")}
         </Checkbox>
         <Spacer />
@@ -274,7 +262,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Spacer />
           <Button onClick={() => void handleSubmit(onCancel)()}>{translate("common:modal.cancel")}</Button>
           <Button
-            colorPalette="brand"
             disabled={
               Boolean(errors.date) || isPendingDryRun || formError || affectedTasks.total_entries === 0
             }

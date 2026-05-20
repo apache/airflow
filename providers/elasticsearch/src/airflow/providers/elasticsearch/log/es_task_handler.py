@@ -43,6 +43,7 @@ from elasticsearch.exceptions import NotFoundError
 import airflow.logging_config as alc
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
@@ -269,7 +270,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -428,10 +429,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 header = [
-                    StructuredLogMessage(
-                        event="::group::Log message source details",
-                        sources=[host for host in logs_by_host.keys()],
-                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::group::Log message source details"),
+                    *[StructuredLogMessage(event=host) for host in logs_by_host.keys()],
                     StructuredLogMessage(event="::endgroup::"),
                 ]
 
@@ -653,7 +652,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
         self.PAGE = 0
         self.MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
@@ -697,13 +696,31 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         offset = 1
         for line in logs:
             # Make sure line is not empty
-            if line.strip():
-                # construct log_id which is {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
-                # also construct the offset field (default is 'offset')
+            if not line.strip():
+                continue
+
+            try:
                 log_dict = json.loads(line)
-                log_dict.update({"log_id": log_id, self.offset_field: offset})
-                offset += 1
-                parsed_logs.append(log_dict)
+            except json.JSONDecodeError:
+                # Best-effort fallback: preserve the raw line
+                self.log.debug("Failed to parse log line as JSON", exc_info=True)
+                log_dict = {
+                    "message": line,
+                    "unparsed": True,
+                }
+
+            # Ensure minimal compatibility with Airflow log expectations
+            if "event" not in log_dict and "message" not in log_dict:
+                log_dict["message"] = str(line)
+
+            log_dict.update(
+                {
+                    "log_id": log_id,
+                    self.offset_field: offset,
+                }
+            )
+            offset += 1
+            parsed_logs.append(log_dict)
 
         return parsed_logs
 

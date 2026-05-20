@@ -21,6 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
+from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -29,6 +30,8 @@ import certifi
 import httpx
 import msgspec
 import structlog
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel
 from tenacity import (
     before_log,
@@ -44,6 +47,8 @@ from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
+    AssetStatePutBody,
+    AssetStateResponse,
     ConnectionResponse,
     DagResponse,
     DagRun,
@@ -56,6 +61,8 @@ from airflow.sdk.api.datamodels._generated import (
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
+    TaskStatePutBody,
+    TaskStateResponse,
     TaskStatesResponse,
     TerminalStateNonSuccess,
     TIDeferredStatePayload,
@@ -69,6 +76,7 @@ from airflow.sdk.api.datamodels._generated import (
     TITerminalStatePayload,
     TriggerDAGRunPayload,
     ValidationError as RemoteValidationError,
+    VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
     XComResponse,
@@ -78,6 +86,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
+    AssetsByAliasResult,
     CreateHITLDetailPayload,
     DRCount,
     ErrorResponse,
@@ -163,6 +172,9 @@ def getuser() -> str:
 
 log = structlog.get_logger(logger_name=__name__)
 
+_trace_propagator = TraceContextTextMapPropagator()
+_log_retry_warning = before_log(log, logging.WARNING)
+
 __all__ = [
     "Client",
     "ConnectionOperations",
@@ -206,6 +218,24 @@ def add_correlation_id(request: httpx.Request):
     request.headers["correlation-id"] = str(uuid7())
 
 
+def inject_trace_context(request: httpx.Request) -> None:
+    _trace_propagator.inject(request.headers)
+
+
+def _log_and_trace_retry(retry_state) -> None:
+    _log_retry_warning(retry_state)
+    span = trace.get_current_span()
+    if span.is_recording():
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        span.add_event(
+            "http.retry",
+            attributes={
+                "attempt_number": retry_state.attempt_number,
+                "error": str(exc) if exc else "",
+            },
+        )
+
+
 class TaskInstanceOperations:
     __slots__ = ("client",)
 
@@ -240,9 +270,21 @@ class TaskInstanceOperations:
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
+    def retry(
+        self,
+        id: uuid.UUID,
+        end_date: datetime,
+        rendered_map_index,
+        retry_delay_seconds: float | None = None,
+        retry_reason: str | None = None,
+    ):
         """Tell the API server that this TI has failed and reached a up_for_retry state."""
-        body = TIRetryStatePayload(end_date=end_date, rendered_map_index=rendered_map_index)
+        body = TIRetryStatePayload(
+            end_date=end_date,
+            rendered_map_index=rendered_map_index,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_reason=retry_reason,
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):
@@ -419,6 +461,21 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            if e.response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                # Surface authz failures as a distinct ErrorType so the
+                # ExecutionAPISecretsBackend can refuse to fall back to a
+                # less-restrictive backend (e.g. env vars). 401/403 must
+                # not be conflated with "not found".
+                log.debug(
+                    "Connection access denied",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.PERMISSION_DENIED,
+                    detail={"conn_id": conn_id, "status_code": e.response.status_code},
+                )
             raise
         return ConnectionResponse.model_validate_json(resp.read())
 
@@ -442,6 +499,19 @@ class VariableOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+            if e.response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                # See ConnectionOperations.get() above for rationale —
+                # authz failures must not be conflated with "not found".
+                log.debug(
+                    "Variable access denied",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.PERMISSION_DENIED,
+                    detail={"key": key, "status_code": e.response.status_code},
+                )
             raise
         return VariableResponse.model_validate_json(resp.read())
 
@@ -464,6 +534,14 @@ class VariableOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return OKResponse(ok=True)
+
+    def keys(self, prefix: str | None = None, limit: int = 1000, offset: int = 0) -> VariableKeysResponse:
+        """List variable keys from the API server, optionally filtered by key prefix."""
+        params: dict[str, str | int] = {"limit": limit, "offset": offset}
+        if prefix is not None:
+            params["prefix"] = prefix
+        resp = self.client.get("variables/keys", params=params)
+        return VariableKeysResponse.model_validate_json(resp.read())
 
 
 class XComOperations:
@@ -627,6 +705,95 @@ class XComOperations:
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
+class TaskStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, ti_id: uuid.UUID, key: str) -> TaskStateResponse | ErrorResponse:
+        """Get a task state value from the API server."""
+        try:
+            resp = self.client.get(f"state/ti/{ti_id}/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug("Task state key not found", ti_id=ti_id, key=key)
+                return ErrorResponse(error=ErrorType.TASK_STATE_NOT_FOUND, detail={"key": key})
+            raise
+        return TaskStateResponse.model_validate_json(resp.read())
+
+    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None) -> OKResponse:
+        """Set a task state value via the API server."""
+        body = TaskStatePutBody(value=value, expires_at=expires_at)
+        self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
+        return OKResponse(ok=True)
+
+    def delete(self, ti_id: uuid.UUID, key: str) -> OKResponse:
+        """Delete a single task state key via the API server."""
+        self.client.delete(f"state/ti/{ti_id}/{key}")
+        return OKResponse(ok=True)
+
+    def clear(self, ti_id: uuid.UUID, all_map_indices: bool = False) -> OKResponse:
+        """Clear all task state keys for a task instance via the API server."""
+        params = {"all_map_indices": "true"} if all_map_indices else {}
+        self.client.delete(f"state/ti/{ti_id}", params=params)
+        return OKResponse(ok=True)
+
+
+class AssetStateOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def _resolve_endpoint(
+        self, op: str, *, key: str | None = None, name: str | None = None, uri: str | None = None
+    ) -> tuple[str, dict[str, str]]:
+        if name:
+            params: dict[str, str] = {"name": name}
+            endpoint = f"state/asset/by-name/{op}"
+        elif uri:
+            params = {"uri": uri}
+            endpoint = f"state/asset/by-uri/{op}"
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+        if key is not None:
+            params["key"] = key
+        return endpoint, params
+
+    def get(
+        self, key: str, *, name: str | None = None, uri: str | None = None
+    ) -> AssetStateResponse | ErrorResponse:
+        """Get an asset state value from the API server."""
+        endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
+        try:
+            resp = self.client.get(endpoint, params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.debug("Asset state key not found", name=name, uri=uri, key=key)
+                return ErrorResponse(error=ErrorType.ASSET_STATE_NOT_FOUND, detail={"key": key})
+            raise
+        return AssetStateResponse.model_validate_json(resp.read())
+
+    def set(self, key: str, value: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+        """Set an asset state value via the API server."""
+        endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
+        self.client.put(endpoint, params=params, content=AssetStatePutBody(value=value).model_dump_json())
+        return OKResponse(ok=True)
+
+    def delete(self, key: str, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+        """Delete a single asset state key via the API server."""
+        endpoint, params = self._resolve_endpoint("value", key=key, name=name, uri=uri)
+        self.client.delete(endpoint, params=params)
+        return OKResponse(ok=True)
+
+    def clear(self, *, name: str | None = None, uri: str | None = None) -> OKResponse:
+        """Clear all state keys for an asset via the API server."""
+        endpoint, params = self._resolve_endpoint("clear", name=name, uri=uri)
+        self.client.delete(endpoint, params=params)
+        return OKResponse(ok=True)
+
+
 class AssetOperations:
     __slots__ = ("client",)
 
@@ -658,6 +825,13 @@ class AssetOperations:
             raise
 
         return AssetResponse.model_validate_json(resp.read())
+
+    def get_by_alias(self, alias_name: str) -> AssetsByAliasResult:
+        """Get all Assets resolved from an AssetAlias."""
+        resp = self.client.get("assets/by-alias", params={"alias_name": alias_name})
+        return AssetsByAliasResult.from_asset_responses(
+            [AssetResponse.model_validate(a) for a in resp.json()]
+        )
 
 
 class AssetEventOperations:
@@ -711,12 +885,17 @@ class DagRunOperations:
         run_id: str,
         conf: dict | None = None,
         logical_date: datetime | None = None,
+        run_after: datetime | None = None,
         reset_dag_run: bool = False,
         note: str | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
         body = TriggerDAGRunPayload(
-            logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run, note=note
+            logical_date=logical_date,
+            conf=conf or {},
+            reset_dag_run=reset_dag_run,
+            note=note,
+            run_after=run_after,
         )
 
         try:
@@ -963,7 +1142,10 @@ class Client(httpx.Client):
                 "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
                 "airflow-api-version": API_VERSION,
             },
-            event_hooks={"response": [self._update_auth, raise_on_4xx_5xx], "request": [add_correlation_id]},
+            event_hooks={
+                "response": [self._update_auth, raise_on_4xx_5xx],
+                "request": [add_correlation_id, inject_trace_context],
+            },
             **kwargs,
         )
 
@@ -976,7 +1158,7 @@ class Client(httpx.Client):
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
         wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=before_log(log, logging.WARNING),
+        before_sleep=_log_and_trace_retry,
         reraise=True,
     )
     def request(self, *args, **kwargs):
@@ -1034,6 +1216,18 @@ class Client(httpx.Client):
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def task_state(self) -> TaskStateOperations:
+        """Operations related to task state."""
+        return TaskStateOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def asset_state(self) -> AssetStateOperations:
+        """Operations related to asset state."""
+        return AssetStateOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

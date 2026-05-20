@@ -27,6 +27,8 @@ Package apache-airflow-providers-akeyless
 ------------------------------------------------------
 
 `Akeyless <https://www.akeyless.io/>`__ Vault Platform provider for Apache Airflow.
+Provides a Hook, Connection type, and Secrets Backend for managing static secrets,
+dynamic secrets, rotated secrets, and more.
 
 
 This is detailed commit list of changes for versions provider package: ``akeyless``.

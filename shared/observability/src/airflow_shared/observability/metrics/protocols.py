@@ -30,6 +30,8 @@ DeltaType = int | float | datetime.timedelta
 class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer."""
 
+    duration: float | None
+
     def __enter__(self) -> Self: ...
 
     def __exit__(self, exc_type, exc_value, traceback) -> None: ...
@@ -54,7 +56,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer() as t:
+        with stats.timer() as t:
             # Something to time
             frob_the_foos()
 
@@ -64,7 +66,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        timer = Stats.timer().start()
+        timer = stats.timer().start()
 
         # Something to time
         frob_the_foos()
@@ -77,7 +79,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer("foos.frob"):
+        with stats.timer("foos.frob"):
             # Something to time
             frob_the_foos()
 
@@ -85,7 +87,7 @@ class Timer(TimerProtocol):
 
     .. code-block:: python
 
-        with Stats.timer("foos.frob") as t:
+        with stats.timer("foos.frob") as t:
             # Something to time
             frob_the_foos()
 

@@ -176,6 +176,8 @@ repos:
           - "||"
           - --license-filepath
           - scripts/ci/license-templates/SHORT_LICENSE.md
+          - --detect-license-in-X-top-lines
+          - '30'
           - --fuzzy-match-generates-todo
         files:
           (?x)
@@ -186,10 +188,7 @@ repos:
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
-          ^scripts/ci/license-templates/|
-          ^\.github/instructions/|
-          ^\.github/skills/airflow-translations/SKILL\.md$|
-          ^\.github/skills/pr-triage/SKILL\.md$
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -234,6 +233,13 @@ repos:
           ^airflow-core/pyproject\.toml$|
           ^task-sdk/src/airflow/sdk/__init__\.py$|
           ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-ci-workflows-in-sync
+        name: Check ci-arm.yml and ci-amd.yml stay in sync
+        entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
+        language: python
+        files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
       - id: sync-uv-min-version-markers
@@ -287,6 +293,9 @@ repos:
         alias: blacken-docs
         additional_dependencies:
          - 'black==26.1.0'
+        exclude: >
+          (?x)
+          ^\.github/skills/aip-user-stories
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
@@ -344,7 +353,7 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -384,6 +393,7 @@ repos:
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.github/skills/airflow-translations/|
+          ^\.github/skills/setup-steward/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -398,6 +408,37 @@ repos:
         files: ^\.github/workflows/.*$|^\.github/actions/.*$
         require_serial: true
         entry: zizmor
+  - repo: https://github.com/lycheeverse/lychee
+    rev: 7e456fbd4f42a38b9caccb065289734d95778711  # frozen: nightly
+    hooks:
+      # Use the upstream `lychee-docker` variant rather than the script-based
+      # `lychee` hook because the prebuilt lychee binaries that the script
+      # downloads are linked against newer glibc than ubuntu-22.04 runners
+      # ship with (`GLIBC_2.38` / `GLIBC_2.39` not found at runtime). The
+      # docker variant runs the official `lycheeverse/lychee` image, which
+      # bundles its own libc and is portable across runners.
+      - id: lychee-docker
+        name: Check internal Markdown links with lychee (offline mode)
+        description: >-
+          Validate intra-repo links in Markdown files (relative paths, anchors,
+          and fragments) without making any HTTP requests. Auto-generated client
+          docs are excluded because they are regenerated from OpenAPI specs.
+        types: [markdown]
+        args:
+          - --offline
+          - --no-progress
+          - --root-dir
+          - .
+          - --include-fragments
+        exclude: |
+          (?x)
+          ^clients/python/|
+          ^.*/openapi-gen/|
+          ^.*/node_modules/|
+          ^\.build/|
+          ^generated/|
+          ^\.apache-steward-overrides/|
+          ^\.github/skills/setup-steward/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -461,6 +502,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
+      - id: check-task-instance-dto-sync
+        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
+        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -469,7 +516,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.11']
+        additional_dependencies: ['ruff==0.15.12']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -647,7 +694,7 @@ repos:
           .*/dist/.*|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
-          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^chart/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
@@ -884,6 +931,10 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
+        exclude: |
+          (?x)
+          ^\.apache-steward-overrides/|
+          ^\.github/skills/setup-steward/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -1013,6 +1064,12 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|airflow-ctl|task-sdk|providers|shared)/.*\.py$
+      - id: check-no-new-airflow-core-utils-modules
+        name: Check that no new modules are added under airflow-core/src/airflow/utils
+        entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/utils/[^/]+$|^scripts/ci/prek/known_airflow_core_utils_modules\.txt$|^scripts/ci/prek/check_no_new_airflow_core_utils_modules\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
@@ -1065,6 +1122,14 @@ repos:
         entry: ./scripts/ci/prek/check_shared_mypy_hooks.py
         pass_filenames: false
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
+        require_serial: true
+      - id: check-migration-patterns
+        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        entry: ./scripts/ci/prek/check_migration_patterns.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
         require_serial: true
       ## ADD MOST PREK HOOK ABOVE THAT LINE
       # The below prek hooks are those requiring CI image to be built

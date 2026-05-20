@@ -81,7 +81,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             instructions=self.system_prompt,
             **self.agent_params,
         )
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

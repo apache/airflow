@@ -243,8 +243,9 @@ def test_taskgroup_getitem_returns_child_by_label(prefix: bool):
     assert group1["subgroup"] == subgroup
     assert group1["subgroup"]["task2"] == task2
 
-    # Missing label raises KeyError
-    with pytest.raises(KeyError):
+    from airflow.sdk.exceptions import NodeNotFound
+
+    with pytest.raises(NodeNotFound):
         group1["nonexistent"]
 
 
@@ -773,8 +774,8 @@ def test_mapped_task_group_id_prefix_task_id():
     assert t1.task_id == "t1"
     assert t2.task_id == "g.t2"
 
-    dag.get_task("t1") == t1
-    dag.get_task("g.t2") == t2
+    assert dag.get_task("t1") == t1
+    assert dag.get_task("g.t2") == t2
 
 
 def test_pass_taskgroup_output_to_task():
@@ -930,3 +931,29 @@ def test_build_task_group_with_operators():
     # Testing Tasks downstream
     assert dag.task_dict["task_start"].downstream_task_ids == {"section_1.task_1"}
     assert dag.task_dict["section_1.task_3"].downstream_task_ids == {"task_end"}
+
+
+class TestTaskGroupGetItem:
+    def test_getitem_missing_raises_node_not_found(self):
+        import pendulum
+
+        from airflow.sdk.exceptions import NodeNotFound
+
+        start = pendulum.datetime(2016, 1, 1)
+        with DAG("test_dag", schedule=None, start_date=start):
+            with TaskGroup(group_id="section") as tg:
+                pass
+
+        with pytest.raises(NodeNotFound):
+            tg["nonexistent"]
+
+    def test_getitem_missing_is_key_error(self):
+        import pendulum
+
+        start = pendulum.datetime(2016, 1, 1)
+        with DAG("test_dag", schedule=None, start_date=start):
+            with TaskGroup(group_id="section") as tg:
+                pass
+
+        with pytest.raises(KeyError):
+            tg["nonexistent"]

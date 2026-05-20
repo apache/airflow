@@ -44,7 +44,7 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
   const isEmpty = isEmptyFilterValue(filter.value);
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
-  const blurTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handlePillClick = () => setIsEditing(true);
 
@@ -59,7 +59,7 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
   };
 
   const handleFocus = () => {
-    if (blurTimeoutRef.current) {
+    if (blurTimeoutRef.current !== undefined) {
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = undefined;
     }
@@ -83,7 +83,7 @@ export const FilterPill = ({ displayValue, filter, hasValue, onRemove, renderInp
 
   useEffect(
     () => () => {
-      if (blurTimeoutRef.current) {
+      if (blurTimeoutRef.current !== undefined) {
         clearTimeout(blurTimeoutRef.current);
       }
     },
