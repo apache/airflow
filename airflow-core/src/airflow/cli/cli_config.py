@@ -1001,6 +1001,10 @@ ARG_QUEUES = Arg(
     type=string_list_type,
     help="Optional comma-separated list of task queues which the triggerer should consume from.",
 )
+ARG_TRIGGERER_TEAM_NAME = Arg(
+    ("--team-name",),
+    help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
+)
 
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
@@ -2091,6 +2095,7 @@ core_commands: list[CLICommand] = [
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
             ARG_QUEUES,
+            ARG_TRIGGERER_TEAM_NAME,
         ),
     ),
     ActionCommand(
