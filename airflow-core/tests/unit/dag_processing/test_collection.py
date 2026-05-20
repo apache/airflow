@@ -145,12 +145,16 @@ class TestAssetModelOperation:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_allow_producer_teams_from_other_bundle(self, dag_maker, session):
-        """When a producer bundle (without allow_producer_teams) is synced after a consumer bundle
-        (with allow_producer_teams), the stored allow_producer_teams must not be wiped out."""
+        """When a producer bundle (without access_control) is synced after a consumer bundle
+        (with access_control), the stored allow_producer_teams must not be wiped out."""
         from airflow.models.asset import DagScheduleAssetReference
+        from airflow.sdk import AssetAccessControl
 
-        # First sync: consumer bundle sets allow_producer_teams on the asset.
-        consumer_asset = Asset("shared_asset", allow_producer_teams=["team1", "team2"])
+        # First sync: consumer bundle sets access_control on the asset.
+        consumer_asset = Asset(
+            "shared_asset",
+            access_control=AssetAccessControl(producer_teams=["team1", "team2"]),
+        )
         with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
             EmptyOperator(task_id="mytask")
 
@@ -167,7 +171,7 @@ class TestAssetModelOperation:
         )
         assert ref.allow_producer_teams == ["team1", "team2"]
 
-        # Second sync: producer bundle references the same asset WITHOUT allow_producer_teams.
+        # Second sync: producer bundle references the same asset WITHOUT access_control.
         producer_asset = Asset("shared_asset")
         with dag_maker(dag_id="producer_dag", schedule="@once") as producer_dag:
             EmptyOperator(task_id="produce", outlets=[producer_asset])
@@ -570,6 +574,7 @@ class TestUpdateDagParsingResults:
                     mock_dag,
                     bundle_name="testing",
                     bundle_version=None,
+                    version_data=None,
                     min_update_interval=mock.ANY,
                     session=mock_session,
                     _prefetched=mock.ANY,

@@ -25,8 +25,7 @@ import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton } from "src/components/ui";
-import { Menu, Tooltip } from "src/components/ui";
+import { IconButton, Menu, Tooltip } from "src/components/ui";
 
 import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";

@@ -25,7 +25,7 @@ import {
 } from "openapi/queries";
 import { createErrorToaster } from "src/utils";
 
-import { gridQueryKeys } from "./gridViewQueryKeys";
+import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskGroupDryRunKey } from "./usePatchTaskGroupDryRun";
 
@@ -59,6 +59,7 @@ export const usePatchTaskGroup = ({
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskGroupDryRunKey, dagId, dagRunId, groupId],
       [useClearTaskInstancesDryRunKey, dagId],
+      ...tiPerAttemptQueryKeys,
     ];
 
     await Promise.all([

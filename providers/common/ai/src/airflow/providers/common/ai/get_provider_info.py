@@ -50,6 +50,11 @@ def get_provider_info():
                 "external-doc-url": "https://modelcontextprotocol.io/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "LangChain",
+                "external-doc-url": "https://python.langchain.com/",
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -57,6 +62,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
+            {
+                "integration-name": "LangChain",
+                "python-modules": ["airflow.providers.common.ai.hooks.langchain"],
+            },
         ],
         "plugins": [
             {
@@ -250,6 +259,30 @@ def get_provider_info():
                     "args": {
                         "label": "Arguments",
                         "description": 'JSON array of arguments for stdio command (e.g. ["mcp-run-python"])',
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.langchain.LangChainHook",
+                "hook-name": "LangChain",
+                "connection-type": "langchain",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Chat Model",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-4o, anthropic:claude-3-7-sonnet).\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Embedding model in provider:name format dispatched via langchain.embeddings.init_embeddings (e.g. openai:text-embedding-3-small, cohere:embed-english-v3.0).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                 },
