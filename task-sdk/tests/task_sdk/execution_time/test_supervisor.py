@@ -2931,6 +2931,16 @@ class TestHandleRequest:
         req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=message.model_dump())
         generator.send(req_frame)
 
+        # SetXCom is offloaded to a thread to avoid blocking the event loop.
+        # We need to wait for the future and drain it before reading the response.
+        # Use concurrent.futures.wait() rather than shutdown() so the executor
+        # remains usable for subsequent SetXCom calls in the same test.
+        if isinstance(message, SetXCom):
+            from concurrent.futures import wait as futures_wait
+
+            futures_wait([f for f, _ in watched_subprocess._pending_requests])
+            watched_subprocess._drain_pending_requests()
+
         if mask_secret_args is not None:
             mock_mask_secret.assert_called_with(*mask_secret_args)
 

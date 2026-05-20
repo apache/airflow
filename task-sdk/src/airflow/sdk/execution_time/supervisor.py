@@ -33,6 +33,7 @@ import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -566,6 +567,16 @@ class WatchedSubprocess:
     start_time: float = attrs.field(factory=time.monotonic)
     """The start time of the child process."""
 
+    _request_thread_pool: ThreadPoolExecutor = attrs.field(
+        factory=lambda: ThreadPoolExecutor(max_workers=1, thread_name_prefix="supervisor-request"),
+        init=False,
+        repr=False,
+    )
+    """Thread pool for offloading long-running API requests (e.g. large XCom uploads)."""
+
+    _pending_requests: deque[tuple[Future, int]] = attrs.field(factory=deque, init=False, repr=False)
+    """Futures from offloaded requests, paired with their request IDs."""
+
     @classmethod
     def start(
         cls,
@@ -848,6 +859,54 @@ class WatchedSubprocess:
         self._open_sockets.clear()
         self.selector.close()
         self.stdin.close()
+        self._request_thread_pool.shutdown(wait=False)
+
+    def _drain_pending_requests(self):
+        """Send responses for any offloaded requests that have completed."""
+        remaining: deque[tuple[Future, int]] = deque()
+        while self._pending_requests:
+            future, req_id = self._pending_requests.popleft()
+            if not future.done():
+                remaining.append((future, req_id))
+                continue
+            exc = future.exception()
+            if exc is not None:
+                if isinstance(exc, ServerResponseError) and exc.response is not None:
+                    try:
+                        error_details: dict | None = exc.response.json()
+                    except Exception:
+                        error_details = None
+                    log.error(
+                        "API server error",
+                        status_code=exc.response.status_code,
+                        detail=error_details,
+                        message=str(exc),
+                    )
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={
+                                "status_code": exc.response.status_code,
+                                "message": str(exc),
+                                "detail": error_details,
+                            },
+                        ),
+                        request_id=req_id,
+                    )
+                else:
+                    log.error("Offloaded request failed", exc_info=exc)
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={"status_code": None, "message": str(exc), "detail": None},
+                        ),
+                        request_id=req_id,
+                    )
+            else:
+                self.send_msg(msg=None, request_id=req_id)
+        self._pending_requests = remaining
 
     def kill(
         self,
@@ -966,6 +1025,8 @@ class WatchedSubprocess:
                 sock: socket = key.fileobj  # type: ignore[assignment]
                 on_close(sock)
                 sock.close()
+
+        self._drain_pending_requests()
 
         # Check if the subprocess has exited
         return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
@@ -1585,7 +1646,11 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
-            self.client.xcoms.set(
+            # Offload XCom upload to a thread so that large payloads do not block the
+            # supervisor event loop and prevent heartbeats from being sent.
+            # See: https://github.com/apache/airflow/issues/64628
+            future = self._request_thread_pool.submit(
+                self.client.xcoms.set,
                 msg.dag_id,
                 msg.run_id,
                 msg.task_id,
@@ -1595,6 +1660,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_result=msg.dag_result,
                 mapped_length=msg.mapped_length,
             )
+            self._pending_requests.append((future, req_id))
+            return
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
@@ -1854,6 +1921,16 @@ class InProcessSupervisorComms:
 
         with set_supervisor_comms(None):
             self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+
+        # Some requests (e.g. SetXCom) are offloaded to the supervisor's thread pool to
+        # avoid blocking its event loop. In the in-process path there is no event loop
+        # calling _drain_pending_requests(), so we wait for any in-flight futures here
+        # and drain them so that the response is available before we try to pop it.
+        if self.supervisor._pending_requests:
+            from concurrent.futures import wait as futures_wait
+
+            futures_wait([f for f, _ in self.supervisor._pending_requests])
+            self.supervisor._drain_pending_requests()
 
         return self._get_response()
 
