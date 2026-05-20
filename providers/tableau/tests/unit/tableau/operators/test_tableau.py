@@ -33,6 +33,7 @@ class TestTableauOperator:
     def setup_method(self):
         self.mocked_workbooks = []
         self.mock_datasources = []
+        self.mock_tasks = []
 
         for i in range(3):
             mock_workbook = Mock()
@@ -44,6 +45,11 @@ class TestTableauOperator:
             mock_datasource.id = i
             mock_datasource.name = f"ds_{i}"
             self.mock_datasources.append(mock_datasource)
+
+            mock_task = Mock()
+            mock_task.id = f"task-id-{i}"
+            mock_task.name = f"task_{i}"
+            self.mock_tasks.append(mock_task)
 
         self.kwargs = {
             "site_id": "test_site",
@@ -179,6 +185,82 @@ class TestTableauOperator:
         with pytest.raises(AirflowException):
             operator.execute({})
 
+    @patch("airflow.providers.tableau.operators.tableau.JobItem")
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_tasks_run_with_id(self, mock_tableau_hook, mock_job_item):
+        """tasks.run must fetch a TaskItem via get_by_id and parse JobItem from response bytes."""
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+
+        mock_task_item = Mock()
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=mock_task_item)
+        mock_tableau_hook.server.tasks.run = Mock(return_value=b"<tsResponse/>")
+
+        mock_job = Mock()
+        mock_job.id = "job-123"
+        mock_job_item.from_response = Mock(return_value=[mock_job])
+
+        kwargs = {**self.kwargs, "method": "run", "match_with": "id"}
+        operator = TableauOperator(find="task-abc", resource="tasks", **kwargs)
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.tasks.get_by_id.assert_called_once_with("task-abc")
+        mock_tableau_hook.server.tasks.run.assert_called_once_with(mock_task_item)
+        mock_job_item.from_response.assert_called_once_with(
+            b"<tsResponse/>", mock_tableau_hook.server.namespace
+        )
+        assert job_id == "job-123"
+
+    @patch("airflow.providers.tableau.operators.tableau.JobItem")
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_tasks_run_with_match_with_name(self, mock_tableau_hook, mock_job_item):
+        """tasks.run should resolve the task id before fetching the TaskItem to run."""
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_tasks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+
+        mock_task_item = Mock()
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=mock_task_item)
+        mock_tableau_hook.server.tasks.run = Mock(return_value=b"<tsResponse/>")
+
+        mock_job = Mock()
+        mock_job.id = "job-456"
+        mock_job_item.from_response = Mock(return_value=[mock_job])
+
+        kwargs = {**self.kwargs, "method": "run"}
+        operator = TableauOperator(find="task_2", resource="tasks", **kwargs)
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.tasks.get_by_id.assert_called_once_with(self.mock_tasks[2].id)
+        mock_tableau_hook.server.tasks.run.assert_called_once_with(mock_task_item)
+        assert job_id == "job-456"
+
+    @patch("airflow.providers.tableau.operators.tableau.JobItem")
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_tasks_run_empty_job_response_raises(self, mock_tableau_hook, mock_job_item):
+        """A tasks.run response without a JobItem should raise a provider exception."""
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=Mock())
+        mock_tableau_hook.server.tasks.run = Mock(return_value=b"<tsResponse/>")
+        mock_job_item.from_response = Mock(return_value=[])
+
+        kwargs = {**self.kwargs, "method": "run", "match_with": "id"}
+        operator = TableauOperator(find="task-abc", resource="tasks", **kwargs)
+
+        with pytest.raises(ValueError, match="no JobItem"):
+            operator.execute(context={})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_missing_task(self, mock_tableau_hook):
+        """Test execute missing task."""
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_tasks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        kwargs = {**self.kwargs, "method": "run"}
+        operator = TableauOperator(find="test", resource="tasks", **kwargs)
+
+        with pytest.raises(AirflowException):
+            operator.execute({})
+
     def test_execute_unavailable_resource(self):
         """
         Test execute unavailable resource
@@ -193,5 +275,5 @@ class TestTableauOperator:
         Test get resource id
         """
         resource_id = "res_id"
-        operator = TableauOperator(resource="task", find=resource_id, method="run", task_id="t", dag=None)
-        assert operator._get_resource_id(resource_id) == resource_id
+        operator = TableauOperator(resource="tasks", find=resource_id, method="run", task_id="t", dag=None)
+        assert operator._get_resource_id(Mock()) == resource_id

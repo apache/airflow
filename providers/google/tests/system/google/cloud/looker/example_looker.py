@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that show how to use various Looker
+Example Airflow DAG that show how to use various Data Studio
 operators to submit PDT materialization job and manage it.
 """
 
@@ -38,7 +38,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "looker"],
+    tags=["example", "data-studio"],
 ) as dag:
     # [START cloud_looker_async_start_pdt_sensor]
     start_pdt_task_async = LookerStartPdtBuildOperator(

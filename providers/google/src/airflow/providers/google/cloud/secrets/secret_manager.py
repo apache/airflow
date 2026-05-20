@@ -136,6 +136,13 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         if project_id:
             self.project_id = project_id
 
+        if not self.project_id:
+            raise ValueError(
+                "Project ID could not be determined. "
+                "Please provide 'project_id' in backend configuration or ensure "
+                "your credentials include a default project."
+            )
+
     @property
     def client(self) -> _SecretManagerClient:
         """

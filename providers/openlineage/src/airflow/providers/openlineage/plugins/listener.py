@@ -855,8 +855,21 @@ class OpenLineageListener:
             if not AIRFLOW_V_3_0_PLUS:
                 configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
-            callable()
-            self.log.debug("Process with current pid finishes after %s", callable_name)
+            try:
+                callable()
+                self.log.debug("Process with current pid finishes after %s", callable_name)
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s process failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+            finally:
+                # os._exit(0) bypasses Python's atexit/stdio flush. Explicitly shut down
+                # logging so buffered records (including any warnings above) are flushed
+                # before the process exits. Without this, the final log lines are silently
+                # dropped, making failures invisible.
+                logging.shutdown()
             os._exit(0)
 
     @property

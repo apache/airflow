@@ -17,42 +17,42 @@
 
 .. _howto/connection:gcp_looker:
 
-Google Cloud Platform Looker Connection
-=======================================
+Google Cloud Platform Data Studio (Looker) Connection
+======================================================
 
-Communication between Airflow and Looker is done via `Looker API <https://docs.looker.com/reference/api-and-integration/api-reference/v4.0>`_.
-To facilitate the API communication Looker operators use `Looker SDK <https://pypi.org/project/looker-sdk/>`_ as an API client.
-Before calling API, Looker SDK needs to authenticate itself using your Looker API credentials.
+Communication between Airflow and Data Studio (Looker) is done via `Looker API <https://docs.looker.com/reference/api-and-integration/api-reference/v4.0>`_.
+To facilitate the API communication, Data Studio operators use `Looker SDK <https://pypi.org/project/looker-sdk/>`_ as an API client.
+Before calling API, Looker SDK needs to authenticate itself using your Data Studio API credentials.
 
-* Obtain your Looker API credentials using instructions in the `Looker API authentication documentation <https://docs.looker.com/reference/api-and-integration/api-auth#authentication_with_an_sdk>`_.
+* Obtain your Data Studio API credentials using instructions in the `Looker API authentication documentation <https://docs.looker.com/reference/api-and-integration/api-auth#authentication_with_an_sdk>`_.
 
-* Obtain your Looker API path and port as described in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-getting-started#looker_api_path_and_port>`_.
+* Obtain your Data Studio API path and port as described in the `Looker API documentation <https://docs.looker.com/reference/api-and-integration/api-getting-started#looker_api_path_and_port>`_.
 
-* Setup a Looker connection in Airflow.
+* Setup a Data Studio connection in Airflow.
 
-The ``HTTP`` connection type provides connection to Looker API.
+The ``HTTP`` connection type provides connection to Data Studio API.
 
 The :class:`~airflow.providers.google.cloud.hooks.looker.LookerHook` uses this connection to run
-API requests on a Looker instance issued by :class:`~airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator` and :class:`~airflow.providers.google.cloud.sensors.looker.LookerCheckPdtBuildSensor`.
+API requests on a Data Studio instance issued by :class:`~airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator` and :class:`~airflow.providers.google.cloud.sensors.looker.LookerCheckPdtBuildSensor`.
 
 
 Configuring the Connection
 --------------------------
 
 Host (required)
-    Base URL for Looker API. Do not include /api/* in the URL.
+    Base URL for Data Studio API. Do not include /api/* in the URL.
 
 Login (required)
-    Looker API client id.
+    Data Studio API client id.
 
 Password (required)
-    Looker API client secret.
+    Data Studio API client secret.
 
 Port (optional)
-    Port for Looker API. If hosted on GCP, don't specify the port leaving just the host.
+    Port for Data Studio API. If hosted on GCP, don't specify the port leaving just the host.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in Looker
+    Specify the extra parameters (as json dictionary) that can be used in Data Studio
     connection. The following parameters are supported:
 
     * ``verify_ssl`` - Set to false only if testing locally against self-signed certs. Defaults to true if not specified.
@@ -70,7 +70,7 @@ Extra (optional)
 Connection URI
 --------------
 
-A URL configuration example of a Looker connection:
+A URL configuration example of a Data Studio connection:
 
 .. code-block::
 
