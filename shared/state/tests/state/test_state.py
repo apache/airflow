@@ -18,7 +18,22 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_shared.state import BaseStateBackend, StateScope
+from airflow_shared.state import AssetScope, BaseStateBackend, StateScope
+
+
+class TestAssetScope:
+    def test_requires_at_least_one_identifier(self):
+        with pytest.raises(ValueError, match="at least one of"):
+            AssetScope()
+
+    def test_asset_id_alone_is_valid(self):
+        AssetScope(asset_id=1)
+
+    def test_name_alone_is_valid(self):
+        AssetScope(name="my_asset")
+
+    def test_uri_alone_is_valid(self):
+        AssetScope(uri="s3://bucket/key")
 
 
 class TestBaseStateBackend:
@@ -88,19 +103,18 @@ class TestBaseStateBackend:
             async def adelete(self, scope, key): ...
             async def aclear(self, scope, *, all_map_indices=False): ...
 
-            def serialize_task_state_value(self, *, value, key, ti_id):
+            def serialize_task_state_to_ref(self, *, value, key, ti_id):
                 return f"s3://bucket/{ti_id}/{key}"
 
-            def deserialize_task_state_value(self, stored):
+            def deserialize_task_state_from_ref(self, stored):
                 return f"fetched:{stored}"
 
         b = MyBackend()
-        assert (
-            b.serialize_task_state_value(value="app_1234", key="job_id", ti_id="abc-123")
-            == "s3://bucket/abc-123/job_id"
+        assert b.serialize_task_state_to_ref(value="app_1234", key="job_id", ti_id="abc-123") == (
+            "s3://bucket/abc-123/job_id"
         )
         assert (
-            b.deserialize_task_state_value("s3://bucket/abc-123/job_id")
+            b.deserialize_task_state_from_ref("s3://bucket/abc-123/job_id")
             == "fetched:s3://bucket/abc-123/job_id"
         )
 
@@ -123,18 +137,17 @@ class TestBaseStateBackend:
             async def adelete(self, scope, key): ...
             async def aclear(self, scope, *, all_map_indices=False): ...
 
-            def serialize_asset_state_value(self, *, value, key, asset_ref):
+            def serialize_asset_state_to_ref(self, *, value, key, asset_ref):
                 return f"s3://bucket/assets/{asset_ref}/{key}"
 
-            def deserialize_asset_state_value(self, stored):
+            def deserialize_asset_state_from_ref(self, stored):
                 return f"resolved:{stored}"
 
         b = MyBackend()
-        assert (
-            b.serialize_asset_state_value(value="2026-05-01", key="watermark", asset_ref="my_asset")
-            == "s3://bucket/assets/my_asset/watermark"
+        assert b.serialize_asset_state_to_ref(value="2026-05-01", key="watermark", asset_ref="my_asset") == (
+            "s3://bucket/assets/my_asset/watermark"
         )
         assert (
-            b.deserialize_asset_state_value("s3://bucket/assets/my_asset/watermark")
+            b.deserialize_asset_state_from_ref("s3://bucket/assets/my_asset/watermark")
             == "resolved:s3://bucket/assets/my_asset/watermark"
         )

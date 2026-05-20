@@ -536,10 +536,12 @@ class TaskStateAccessor:
         from airflow.sdk.execution_time.comms import DeleteTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
+        # deterministic keys are recoverable on next set().
+        SUPERVISOR_COMMS.send(DeleteTaskState(ti_id=self._ti_id, key=key))
         backend = _get_worker_state_backend()
         if backend is not None:
             backend.delete(self._scope, key)
-        SUPERVISOR_COMMS.send(DeleteTaskState(ti_id=self._ti_id, key=key))
 
     def clear(self, all_map_indices: bool = False) -> None:
         """
@@ -552,10 +554,23 @@ class TaskStateAccessor:
         from airflow.sdk.execution_time.comms import ClearTaskState
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
+        # cleanup the DB ref first, if backend cleanup fails after this, the ref is gone and
+        # deterministic keys are recoverable on next set().
+        SUPERVISOR_COMMS.send(ClearTaskState(ti_id=self._ti_id, all_map_indices=all_map_indices))
         backend = _get_worker_state_backend()
         if backend is not None:
             backend.clear(self._scope, all_map_indices=all_map_indices)
-        SUPERVISOR_COMMS.send(ClearTaskState(ti_id=self._ti_id, all_map_indices=all_map_indices))
+
+    def _clear_backend_only(self) -> None:
+        """
+        Clear external storage via the worker backend without sending a comms message.
+
+        Used by clear_on_success: the server already clears DB rows as part of SucceedTask,
+        so the comms round-trip is redundant.
+        """
+        backend = _get_worker_state_backend()
+        if backend is not None:
+            backend.clear(self._scope)
 
 
 class AssetStateAccessor:
@@ -644,18 +659,17 @@ class AssetStateAccessor:
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        backend = _get_worker_state_backend()
-        # custom backends handle external storage cleanup only;
-        # DB reference is removed by the comms call below.
-        if backend is not None:
-            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
-
         msg: ToSupervisor
         if self._name:
             msg = DeleteAssetStateByName(name=self._name, key=key)
         elif self._uri:
             msg = DeleteAssetStateByUri(uri=self._uri, key=key)
+        # DB ref first: if backend cleanup fails after this, the ref is gone and
+        # deterministic keys are recoverable on next set().
         SUPERVISOR_COMMS.send(msg)
+        backend = _get_worker_state_backend()
+        if backend is not None:
+            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
 
     def clear(self) -> None:
         """Delete all state keys for this asset."""
@@ -667,19 +681,15 @@ class AssetStateAccessor:
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        backend = _get_worker_state_backend()
-        # custom backends handle external storage cleanup only;
-        # DB references are cleared by the comms call below.
-        # DB references are cleared separately via comms below.
-        if backend is not None:
-            backend.clear(AssetScope(name=self._name, uri=self._uri))
-
         msg: ToSupervisor
         if self._name:
             msg = ClearAssetStateByName(name=self._name)
         elif self._uri:
             msg = ClearAssetStateByUri(uri=self._uri)
         SUPERVISOR_COMMS.send(msg)
+        backend = _get_worker_state_backend()
+        if backend is not None:
+            backend.clear(AssetScope(name=self._name, uri=self._uri))
 
 
 class AssetStateAccessors:

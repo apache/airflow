@@ -119,7 +119,6 @@ from airflow.sdk.execution_time.context import (
     TaskStateAccessor,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
-    _get_worker_state_backend,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -1465,9 +1464,7 @@ def _handle_current_task_success(
     if conf.getboolean("state_store", "clear_on_success"):
         log.info("Task state will be cleared by the server because clear_on_success is enabled.")
 
-        if _get_worker_state_backend() is not None:
-            # clear the task state keys for custom state backends configured on worker side
-            context["task_state"].clear()
+        context["task_state"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,

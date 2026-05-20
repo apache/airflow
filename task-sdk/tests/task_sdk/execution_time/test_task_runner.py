@@ -5277,10 +5277,10 @@ class TestTaskInstanceStateOperations:
         )
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_calls_clear_when_worker_backend_configured(
+    def test_clear_on_success_clears_backend_without_comms_roundtrip(
         self, create_runtime_ti, mock_supervisor_comms
     ):
-        """When clear_on_success=True and a worker backend is configured, clear() is called on task success."""
+        """clear_on_success calls backend.clear() directly without sending ClearTaskState comms."""
         mock_backend = mock.MagicMock()
 
         class MyOperator(BaseOperator):
@@ -5291,8 +5291,13 @@ class TestTaskInstanceStateOperations:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch(
-            "airflow.sdk.execution_time.task_runner._get_worker_state_backend", return_value=mock_backend
+            "airflow.sdk.execution_time.context._get_worker_state_backend", return_value=mock_backend
         ):
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_supervisor_comms.send.assert_any_call(ClearTaskState(ti_id=runtime_ti.id, all_map_indices=False))
+        mock_backend.clear.assert_called_once()
+        sent_types = [
+            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert ClearTaskState not in sent_types

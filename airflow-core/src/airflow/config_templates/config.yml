@@ -1891,8 +1891,9 @@ workers:
       default: ""
     state_backend:
       description: |
-        Full class name of the state backend to use on workers for direct task state access,
-        bypassing the execution API.
+        Full class name of a custom worker-side state backend. When set, task state values are
+        routed through this backend so large payloads or credentialed storage stay on worker
+        infrastructure. The Execution API still records a reference string in the database.
 
         Leave empty (default) to use the standard path through the task sdk supervisor.
       version_added: 3.3.0

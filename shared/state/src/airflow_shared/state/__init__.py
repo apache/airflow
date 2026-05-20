@@ -63,6 +63,10 @@ class AssetScope:
     name: str | None = None
     uri: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.asset_id is None and self.name is None and self.uri is None:
+            raise ValueError("AssetScope requires at least one of: asset_id, name, or uri")
+
 
 StateScope = TaskScope | AssetScope
 
