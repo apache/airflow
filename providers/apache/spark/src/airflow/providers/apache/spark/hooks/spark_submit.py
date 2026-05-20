@@ -160,6 +160,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 description="Run the command `base64 <your-keytab-path>` and use its output.",
                 validators=[Optional()],
             ),
+            "rest-scheme": StringField(
+                lazy_gettext("REST scheme"),
+                widget=BS3TextFieldWidget(),
+                description="Scheme for the Spark standalone REST API (http or https). Default: http.",
+                validators=[Optional()],
+            ),
         }
 
     def __init__(
@@ -266,6 +272,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "namespace": None,
             "principal": self._principal,
             "keytab": self._keytab,
+            # fallback if connection lookup fails; overridden by rest-scheme extra below
+            "rest_scheme": "http",
         }
 
         try:
@@ -308,6 +316,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
+            conn_data["rest_scheme"] = extra.get("rest-scheme", "http")
             if conn_data["principal"] is None:
                 conn_data["principal"] = extra.get("principal")
             if conn_data["keytab"] is None:
@@ -631,7 +640,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     "No driver id is known: something went wrong when executing the spark submit command"
                 )
         finally:
-            self._run_post_submit_commands()
+            # In cluster mode with driver tracking, the operator calls poll_until_complete
+            # after submit() returns, so post_submit_commands are deferred there to preserve
+            # the "runs after job finishes" contract. In all other modes, run them here.
+            if not self._should_track_driver_status:
+                self._run_post_submit_commands()
 
         return self._driver_id
 

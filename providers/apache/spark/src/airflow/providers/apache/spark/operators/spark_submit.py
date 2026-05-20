@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import requests
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.providers.common.compat.openlineage.utils.spark import (
@@ -233,6 +234,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         return driver_id
 
     def get_job_status(self, external_id: str) -> str:
+        # The YARN and K8s branches below (and in is_job_active, is_job_succeeded, poll_until_complete)
+        # are currently unreachable: execute_resumable is only called when _should_track_driver_status
+        # is True, which requires spark:// + cluster mode. They are scaffolding for a follow-up PR
+        # that extends ResumableJobMixin support to YARN and Kubernetes.
         if self._hook._is_yarn:
             # TODO: call YARN ResourceManager REST API
             # GET http://rm:8088/ws/v1/cluster/apps/{external_id}
@@ -240,10 +245,38 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._hook._is_kubernetes:
             # TODO: call K8s pod status API
             raise NotImplementedError("K8s job status not yet implemented")
-        host = self._hook._connection["master"].replace("spark://", "").split(":")[0]
-        response = requests.get(f"http://{host}:6066/v1/submissions/status/{external_id}", timeout=30)
+        scheme = self._hook._connection.get("rest_scheme", "http")
+        # HA master URLs can look like spark://m1:7077,m2:7077 — let us try each host in order.
+        # Port is read from the master URL; defaults to 6066 (spark.master.rest.port default).
+
+        master_urls = self._hook._connection["master"].replace("spark://", "").split(",")
+        last_exc: Exception = RuntimeError("No Spark masters to query")
+        for m in master_urls:
+            host, _, port = m.strip().partition(":")
+            rest_port = port or "6066"
+            url = f"{scheme}://{host}:{rest_port}/v1/submissions/status/{external_id}"
+            try:
+                status = self._fetch_driver_status(url, external_id)
+                return status
+            except RuntimeError:
+                raise
+            except Exception as e:
+                self.log.warning("Could not reach Spark master %s: %s", host, e)
+                last_exc = e
+        raise last_exc
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(1), reraise=True)
+    def _fetch_driver_status(self, url: str, external_id: str) -> str:
+        response = requests.get(url, timeout=30)
         response.raise_for_status()
-        status = response.json()["driverState"]
+        # "success:false" means the master does not recognise the driver ID or is in recovery.
+        # https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/master/DriverState.scala
+        data = response.json()
+        if not data.get("success"):
+            raise RuntimeError(
+                f"Spark REST API returned failure for {external_id}: {data.get('message', 'unknown error')}"
+            )
+        status = data["driverState"]
         self.log.info("Driver %s status: %s", external_id, status)
         return status
 
@@ -253,7 +286,10 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             return status in ("NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING")
         if self._hook._is_kubernetes:
             return status in ("Pending", "Running")
-        return status in ("SUBMITTED", "RUNNING")
+        # RELAUNCHING: driver is being restarted after a failure, still alive.
+        # UNKNOWN: master is in failure recovery, state is temporarily unavailable.
+        # https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/master/DriverState.scala
+        return status in ("SUBMITTED", "RUNNING", "RELAUNCHING", "UNKNOWN")
 
     def is_job_succeeded(self, status: str) -> bool:
         if self._hook._is_kubernetes:
@@ -274,6 +310,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._hook._start_driver_status_tracking()
         if self._hook._driver_status != "FINISHED":
             raise RuntimeError(f"Driver {external_id} exited with status {self._hook._driver_status}")
+        # Run post-submit commands here instead of in the hook so they fire after the job
+        # finishes, not immediately after spark-submit returns the driver ID.
+        self._hook._run_post_submit_commands()
 
     def get_job_result(self, external_id: str, context: Context) -> None:
         return None
@@ -316,3 +355,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             use_krb5ccache=self._use_krb5ccache,
             post_submit_commands=self.post_submit_commands,
         )
+
+    def _resolve_master_urls(self) -> list[str]:
+        # HA master URLs can look like: `spark://m1:7077,m2:7077`
+        return self._hook._connection["master"].replace("spark://", "").split(",")

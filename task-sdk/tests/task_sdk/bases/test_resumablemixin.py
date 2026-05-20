@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.resumablemixin import ResumableJobMixin
 
 
-class ConcreteResumableOperator(ResumableJobMixin):
+class ConcreteResumableOperator(ResumableJobMixin, BaseOperator):
     """Minimal concrete implementation for testing the mixin."""
 
     external_id_key = "test_job_id"
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.submitted_ids: list[str] = []
         self.polled_ids: list[str] = []
         self._next_id = "job-001"
@@ -74,7 +76,7 @@ def make_context(task_state: FakeTaskState | None = None) -> dict:
 
 class TestFirstSubmission:
     def test_submits_and_polls_when_no_prior_state(self):
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         task_state = FakeTaskState()
         ctx = make_context(task_state)
 
@@ -85,7 +87,7 @@ class TestFirstSubmission:
 
     def test_persists_external_id_before_polling(self):
         """The ID must be in task_state before poll_until_complete is called."""
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         task_state = FakeTaskState()
         persisted_at_poll: list[str | None] = []
 
@@ -105,7 +107,7 @@ class TestFirstSubmission:
         assert persisted_at_poll == ["job-001"], "ID must be persisted before polling starts"
 
     def test_returns_job_result(self):
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         result = op.execute_resumable(make_context(FakeTaskState()))
 
         assert result == "result-of-job-001"
@@ -113,7 +115,7 @@ class TestFirstSubmission:
 
 class TestRetryWithDifferentJobStatuses:
     def test_skips_submission_when_job_active(self):
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "RUNNING"
         task_state = FakeTaskState({"test_job_id": "job-001"})
         ctx = make_context(task_state)
@@ -124,7 +126,7 @@ class TestRetryWithDifferentJobStatuses:
         assert op.polled_ids == ["job-001"]
 
     def test_pending_status_also_skips_submission(self):
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "PENDING"
         task_state = FakeTaskState({"test_job_id": "job-001"})
 
@@ -134,7 +136,7 @@ class TestRetryWithDifferentJobStatuses:
         assert op.polled_ids == ["job-001"]
 
     def test_returns_result_immediately_without_polling(self):
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "SUCCEEDED"
         task_state = FakeTaskState({"test_job_id": "job-001"})
 
@@ -146,7 +148,7 @@ class TestRetryWithDifferentJobStatuses:
 
     @pytest.mark.parametrize("status", ["FAILED", "KILLED", "ERROR", "UNKNOWN"])
     def test_resubmits_when_prior_job_in_terminal_failure(self, status):
-        op = ConcreteResumableOperator()
+        op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = status
         op._next_id = "job-002"
         task_state = FakeTaskState({"test_job_id": "job-001"})
@@ -162,7 +164,7 @@ class TestExternalIdKey:
         class CustomKeyOp(ConcreteResumableOperator):
             external_id_key = "my_custom_key"
 
-        op = CustomKeyOp()
+        op = CustomKeyOp(task_id="test_task")
         task_state = FakeTaskState()
 
         op.execute_resumable(make_context(task_state))

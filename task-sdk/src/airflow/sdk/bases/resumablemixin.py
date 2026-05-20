@@ -18,12 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import structlog
-
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
-
-log = structlog.get_logger(__name__)
+    from airflow.sdk.types import Logger
 
 
 class ResumableJobMixin:
@@ -66,6 +63,13 @@ class ResumableJobMixin:
                 return None
     """
 
+    if TYPE_CHECKING:
+        # log comes from BaseOperator (via LoggingMixin) at runtime, but mypy cannot see
+        # that because ResumableJobMixin does not inherit from it directly.
+        log: Logger
+
+    # Key used to store and retrieve the external job ID from task_state across retries.
+    # Renaming this on a deployed operator breaks in-flight retries — the old key is already stored.
     external_id_key: str = "remote_job_id"
 
     def execute_resumable(self, context: Context) -> Any:
@@ -86,17 +90,17 @@ class ResumableJobMixin:
             if external_id:
                 status = self.get_job_status(external_id)
                 if self.is_job_active(status):
-                    log.info(
+                    self.log.info(
                         "Reconnecting to existing job identified by: %s (status: %s)", external_id, status
                     )
                     return self.poll_until_complete(external_id, context)
                 if self.is_job_succeeded(status):
-                    log.info(
+                    self.log.info(
                         "Job with identifier: %s already completed successfully, skipping resubmission",
                         external_id,
                     )
                     return self.get_job_result(external_id, context)
-                log.info(
+                self.log.info(
                     "Prior job with identifier: %s in terminal state %s, resubmitting fresh",
                     external_id,
                     status,

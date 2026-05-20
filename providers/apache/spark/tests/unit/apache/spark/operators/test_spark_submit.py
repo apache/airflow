@@ -604,3 +604,71 @@ class TestSparkSubmitOperatorResumable:
 
         assert operator.is_job_active(status) == expected_active
         assert operator.is_job_succeeded(status) == expected_succeeded
+
+    @pytest.mark.parametrize(
+        ("response_json", "expected_status", "expected_error"),
+        [
+            ({"success": True, "driverState": "RUNNING"}, "RUNNING", None),
+            ({"success": False, "message": "driver not found"}, None, "driver not found"),
+            ({"driverState": "RUNNING"}, None, "unknown error"),
+        ],
+    )
+    def test_get_job_status(self, response_json, expected_status, expected_error):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(should_track=True)
+        mock_response = MagicMock()
+        mock_response.json.return_value = response_json
+
+        with mock.patch("requests.get", return_value=mock_response):
+            if expected_error:
+                with pytest.raises(RuntimeError, match=expected_error):
+                    operator.get_job_status("driver-001")
+            else:
+                assert operator.get_job_status("driver-001") == expected_status
+
+    def test_get_job_status_ha_tries_next_master(self):
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://m1:7077,m2:7077"}
+        operator._hook = hook
+
+        good_response = MagicMock()
+        good_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+
+        def side_effect(url, timeout):
+            if "m1" in url:
+                raise ConnectionError("m1 unreachable")
+            return good_response
+
+        with mock.patch("requests.get", side_effect=side_effect):
+            assert operator.get_job_status("driver-001") == "RUNNING"
+
+    def test_get_job_status_ha_raises_when_all_masters_unreachable(self):
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://m1:7077,m2:7077"}
+        operator._hook = hook
+
+        with mock.patch("requests.get", side_effect=ConnectionError("unreachable")):
+            with pytest.raises(ConnectionError):
+                operator.get_job_status("driver-001")
+
+    def test_get_job_status_uses_rest_scheme_from_connection(self):
+        operator = self._make_operator()
+        hook = self._make_hook(should_track=True)
+        hook._connection = {"master": "spark://myhost:6066", "rest_scheme": "https"}
+        operator._hook = hook
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+        captured_urls = []
+
+        def capture(url, timeout):
+            captured_urls.append(url)
+            return mock_response
+
+        with mock.patch("requests.get", side_effect=capture):
+            operator.get_job_status("driver-001")
+
+        assert len(captured_urls) == 1
+        assert captured_urls[0].startswith("https://")
