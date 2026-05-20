@@ -22,96 +22,129 @@
 
 Use :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
 to parse files into ``list[dict(text, metadata)]`` for downstream embedding
-pipelines.  The operator bridges Airflow's connectivity layer (hooks that
+pipelines. The operator bridges Airflow's connectivity layer (hooks that
 produce bytes or local files) and the AI embedding layer (operators that
 need structured text with metadata).
 
-The operator is **framework-agnostic** — it has no dependency on LlamaIndex,
+The operator is **framework-agnostic** -- it has no dependency on LlamaIndex,
 LangChain, or any other AI framework.
 
-Built-in formats
-----------------
+Basic usage
+-----------
 
 ``.txt``, ``.md``, ``.csv``, and ``.json`` are handled with zero extra
 dependencies:
 
-.. code-block:: python
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
+    :language: python
+    :start-after: [START howto_operator_document_loader_basic]
+    :end-before: [END howto_operator_document_loader_basic]
 
-    from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
-
-    load_docs = DocumentLoaderOperator(
-        task_id="load_docs",
-        source_path="/opt/airflow/data/articles/",
-    )
-
-CSV files produce one document per row.  JSON files with a top-level array
-produce one document per element; a single JSON object produces one document.
+CSV files produce one document per row, with empty cells skipped. JSON files
+with a top-level array produce one document per element; a single JSON object
+produces one document. By default each dict is flattened into ``"key: value,
+key: value"`` text so the embedding sees content tokens rather than JSON
+syntax (see the ``json_text_field`` section below for the structured variant).
 
 PDF parsing
 -----------
 
-Install the ``pdf`` extra to parse PDF files via `pypdf <https://pypdf.readthedocs.io/>`__:
-
-.. code-block:: bash
+Install the ``pdf`` extra to parse PDF files via
+`pypdf <https://pypdf.readthedocs.io/>`__::
 
     pip install apache-airflow-providers-common-ai[pdf]
 
-.. code-block:: python
-
-    load_pdfs = DocumentLoaderOperator(
-        task_id="load_pdfs",
-        source_path="/opt/airflow/data/reports/*.pdf",
-    )
-
-Each page with extractable text becomes a separate document.  Empty pages are
-skipped.  The ``page_number`` is included in the document metadata.
+Each page with extractable text becomes a separate document. Empty pages are
+skipped. ``page_number`` is included in the document metadata.
 
 DOCX parsing
 ------------
 
 Install the ``docx`` extra to parse Word documents via
-`python-docx <https://python-docx.readthedocs.io/>`__:
-
-.. code-block:: bash
+`python-docx <https://python-docx.readthedocs.io/>`__::
 
     pip install apache-airflow-providers-common-ai[docx]
-
-.. code-block:: python
-
-    load_word = DocumentLoaderOperator(
-        task_id="load_word",
-        source_path="/opt/airflow/data/specs/*.docx",
-    )
 
 All non-empty paragraphs are concatenated into a single document per file.
 
 .. note::
 
    DOCX extraction reads paragraph text only. Tables, headers, footers, and
-   footnotes are not included. For comprehensive DOCX parsing, use a dedicated
-   document extraction tool like Unstructured or Docling as a custom parser
+   footnotes are not included. For richer DOCX parsing, use a dedicated
+   extraction tool (``Unstructured``, ``docling``) as a custom parser
    backend.
 
-Glob patterns and filtering
+Directory mode and filtering
 ----------------------------
 
-Pass a glob pattern to ``source_path`` to match multiple files.  Use
-``file_extensions`` to limit which files are processed:
+Point ``source_path`` at a directory or pass a glob pattern (``**`` enables
+recursive matching). Combine with ``file_extensions`` to scope which files
+are processed:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
+    :language: python
+    :start-after: [START howto_operator_document_loader_directory]
+    :end-before: [END howto_operator_document_loader_directory]
+
+Directory-mode behavior when ``file_extensions`` is omitted:
+
+- Files whose name starts with a ``.`` (``.DS_Store``, editor swap files,
+  ``.gitkeep``, ...) are silently ignored.
+- Files whose extension is not in the built-in dispatch map are skipped
+  with a warning rather than crashing the operator. A glob pattern that
+  matches an unknown extension is treated as intentional and parsed via
+  the explicit ``parser`` argument.
+
+Loading from bytes
+------------------
+
+When upstream tasks produce file content as bytes (S3, GCS, HTTP, etc.),
+pass them via ``source_bytes`` and tell the operator how to interpret them
+with ``file_type``. ``source_bytes`` is not a template field because Jinja
+would render ``bytes`` as their ``repr`` text, which would break binary
+parsing:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
+    :language: python
+    :start-after: [START howto_operator_document_loader_bytes]
+    :end-before: [END howto_operator_document_loader_bytes]
+
+PDF and DOCX bytes are parsed via an in-memory stream -- no temporary files
+on disk.
+
+Structured JSON ingestion
+-------------------------
+
+For arrays of records where one field is the body and the rest are metadata
+(article ingestion, ticket exports, ...), set ``json_text_field`` to the key
+that holds the text. Every other key on the same item lands in ``metadata``:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
+    :language: python
+    :start-after: [START howto_operator_document_loader_json_field]
+    :end-before: [END howto_operator_document_loader_json_field]
+
+For **arbitrary API data** (Salesforce SOQL results, database query exports),
+a ``@task`` that maps fields to text and metadata is still appropriate when
+the field shape is more complex than what ``json_text_field`` covers:
 
 .. code-block:: python
 
-    load_filtered = DocumentLoaderOperator(
-        task_id="load_filtered",
-        source_path="/opt/airflow/data/mixed/*",
-        file_extensions=[".pdf", ".txt"],
-    )
+    @task
+    def transform_cases(records: list[dict]) -> list[dict]:
+        return [
+            {
+                "text": f"{r['Subject']}\n\n{r['Description']}",
+                "metadata": {"case_id": r["Id"], "source": "salesforce"},
+            }
+            for r in records
+        ]
 
-Composing with downstream operators
-------------------------------------
+Composing with downstream embedding operators
+---------------------------------------------
 
 The output format (``list[dict(text, metadata)]``) is designed to feed
-directly into embedding operators.  For example, with the LlamaIndex
-``EmbeddingOperator``:
+directly into embedding operators. With LlamaIndex's ``EmbeddingOperator``:
 
 .. code-block:: python
 
@@ -129,7 +162,7 @@ directly into embedding operators.  For example, with the LlamaIndex
     load >> embed
 
 Composing with Airflow providers
----------------------------------
+--------------------------------
 
 Use any Airflow provider to download files, then parse them with
 ``DocumentLoaderOperator``:
@@ -152,57 +185,62 @@ Use any Airflow provider to download files, then parse them with
 
     download >> load
 
-For **structured API data** (Salesforce SOQL results, database query exports),
-a ``@task`` that maps fields to text and metadata is more appropriate than
-``DocumentLoaderOperator``, which is designed for binary file parsing:
+Non-UTF-8 inputs
+----------------
 
-.. code-block:: python
+The text parsers (``.txt`` / ``.md`` / ``.csv`` / ``.json``) and the bytes
+path default to UTF-8. To handle Windows-1252 CSVs, files with a leading
+``utf-8-sig`` byte-order mark, or any other encoding, set the ``encoding``
+parameter on the operator (and optionally ``encoding_errors="replace"`` to
+tolerate mixed-encoding sources at the cost of some character loss). A
+failed decode includes the offending file path in the error so
+directory-mode runs are easy to diagnose.
 
-    @task
-    def transform_cases(records: list[dict]) -> list[dict]:
-        return [
-            {
-                "text": f"{r['Subject']}\n\n{r['Description']}",
-                "metadata": {"case_id": r["Id"], "source": "salesforce"},
-            }
-            for r in records
-        ]
+Metadata precedence
+-------------------
 
-Loading from bytes
-------------------
-
-When upstream tasks produce file content as bytes, pass them directly via a
-``@task`` function. Note that ``source_bytes`` is not a template field because
-Jinja stringifies ``bytes`` to their ``repr``, which breaks binary parsing:
-
-.. code-block:: python
-
-    from airflow.decorators import task
-    from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
-
-    @task
-    def parse_downloaded_pdf(raw_bytes: bytes) -> list[dict]:
-        op = DocumentLoaderOperator(
-            task_id="parse_pdf",
-            source_bytes=raw_bytes,
-            file_type=".pdf",
-        )
-        return op.execute(context=get_current_context())
+Auto-extracted metadata keys -- ``file_name``, ``file_path``, ``row_index``,
+``item_index``, ``page_number`` -- take precedence over keys with the same
+name in ``metadata_fields``. ``metadata_fields`` fills gaps; it never
+overwrites the auto-extracted shape.
 
 Parameters
 ----------
 
-- ``source_path``: Local file path, directory, or glob pattern.
-  Mutually exclusive with ``source_bytes``.
-- ``source_bytes``: Raw file bytes from XCom.  Requires ``file_type``.
-  Mutually exclusive with ``source_path``.
-- ``file_type``: File extension hint (e.g. ``".pdf"``).  Required with
-  ``source_bytes``.  Optional with ``source_path`` to override
-  auto-detection.
-- ``parser``: Parsing backend.  ``"auto"`` (default) selects from the file
-  extension.  Set explicitly to force a specific backend (e.g. ``"text"``
-  to treat an unknown extension as plain text).
-- ``file_extensions``: Filter which files to process when ``source_path``
-  matches multiple files.
-- ``metadata_fields``: Extra key-value pairs merged into every document's
-  metadata dict.
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Parameter
+     - Description
+   * - ``source_path``
+     - Local file, directory, or glob pattern. ``**`` is recursive. Mutually
+       exclusive with ``source_bytes``.
+   * - ``source_bytes``
+     - Raw file bytes from XCom. Requires ``file_type``. Mutually exclusive
+       with ``source_path``. Not a template field (bytes don't survive Jinja).
+   * - ``file_type``
+     - File extension hint (e.g. ``".pdf"``). Required with ``source_bytes``;
+       optional with ``source_path`` to override auto-detection.
+   * - ``parser``
+     - Parsing backend. ``"auto"`` (default) picks from the file extension.
+       Set explicitly to force a backend (e.g. ``"text"`` to treat an
+       unknown extension as plain text).
+   * - ``file_extensions``
+     - Filter for ``source_path`` directory or glob. When omitted in
+       directory mode, files whose name starts with a ``.`` are ignored
+       and unknown-extension files are skipped with a warning.
+   * - ``metadata_fields``
+     - Extra key-value pairs merged into every document's metadata. Does
+       not override auto-extracted keys.
+   * - ``encoding``
+     - Text encoding for the bytes path and ``.txt`` / ``.md`` / ``.csv`` /
+       ``.json`` files. Defaults to ``"utf-8"``.
+   * - ``encoding_errors``
+     - How decode errors are handled (``"strict"`` / ``"replace"`` /
+       ``"ignore"``). Defaults to ``"strict"``.
+   * - ``json_text_field``
+     - When parsing JSON, treat this key as the embedding text; every other
+       key on the same item lands in ``metadata``. When unset, dicts are
+       flattened to ``"k: v, k: v"`` so the embedding sees content tokens
+       rather than JSON syntax.
