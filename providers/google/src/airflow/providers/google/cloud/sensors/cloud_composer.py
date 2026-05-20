@@ -562,16 +562,16 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         end_date: datetime,
         states: Iterable[str],
     ) -> bool:
+        found_task_instances_in_window = False
         for task_instance in task_instances:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    task_instance["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and task_instance["state"] not in states:
-                return False
-        return True
+            execution_date = parser.parse(
+                task_instance["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
+            )
+            if start_date.timestamp() < execution_date.timestamp() < end_date.timestamp():
+                found_task_instances_in_window = True
+                if task_instance["state"] not in states:
+                    return False
+        return found_task_instances_in_window
 
     def _get_composer_airflow_version(self) -> int:
         """Return Composer Airflow version."""

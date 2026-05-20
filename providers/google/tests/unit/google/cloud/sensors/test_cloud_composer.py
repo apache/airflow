@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
@@ -346,6 +346,94 @@ class TestCloudComposerExternalTaskSensor:
             composer_external_dag_id="test_dag_id",
             composer_external_task_group_id=TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID,
             allowed_states=["success"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_not_ready_when_all_task_instances_outside_window(self, mock_hook, composer_airflow_version):
+        # All returned task instances are dated 2024-05-22, which is outside the
+        # execution window derived from a 2024-06-01 logical date.
+        mock_hook.return_value.get_task_instances.return_value = TEST_GET_TASK_INSTANCES_RESULT(
+            "success",
+            "execution_date" if composer_airflow_version < 3 else "logical_date",
+            TEST_COMPOSER_EXTERNAL_TASK_ID,
+        )
+
+        task = CloudComposerExternalTaskSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_external_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": datetime(2024, 6, 1, 0, 0, 0)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_ready_when_in_window_instance_present_with_out_of_window_instances(
+        self, mock_hook, composer_airflow_version
+    ):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.get_task_instances.return_value = {
+            "task_instances": [
+                {
+                    "task_id": TEST_COMPOSER_EXTERNAL_TASK_ID,
+                    "dag_id": "test_dag_id",
+                    "state": "running",
+                    date_key: "2024-05-20T11:10:00+00:00",
+                },
+                {
+                    "task_id": TEST_COMPOSER_EXTERNAL_TASK_ID,
+                    "dag_id": "test_dag_id",
+                    "state": "success",
+                    date_key: "2024-05-22T11:10:00+00:00",
+                },
+            ],
+            "total_entries": 2,
+        }
+
+        task = CloudComposerExternalTaskSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_external_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_not_ready_when_task_instance_on_window_boundary(self, mock_hook, composer_airflow_version):
+        # The task instance is dated exactly on the window start (start of the
+        # range is exclusive), so it must not be treated as in-window.
+        mock_hook.return_value.get_task_instances.return_value = TEST_GET_TASK_INSTANCES_RESULT(
+            "success",
+            "execution_date" if composer_airflow_version < 3 else "logical_date",
+            TEST_COMPOSER_EXTERNAL_TASK_ID,
+        )
+
+        # Window start is set exactly to the task instance date; the start of the
+        # range is exclusive, so the task instance must not be treated as in-window.
+        task = CloudComposerExternalTaskSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_external_dag_id="test_dag_id",
+            allowed_states=["success"],
+            execution_range=[
+                datetime(2024, 5, 22, 11, 10, 0, tzinfo=timezone.utc),
+                datetime(2024, 5, 22, 12, 0, 0, tzinfo=timezone.utc),
+            ],
         )
         task._composer_airflow_version = composer_airflow_version
 
