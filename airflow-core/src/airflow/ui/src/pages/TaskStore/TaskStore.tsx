@@ -1,0 +1,175 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { Badge, Flex, Text } from "@chakra-ui/react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
+
+import {
+  useTaskInstanceServiceGetMappedTaskInstance,
+  useTaskStoreServiceListTaskStore,
+} from "openapi/queries";
+import type { TaskStoreResponse } from "openapi/requests";
+import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import RenderedJsonField from "src/components/RenderedJsonField";
+import Time from "src/components/Time";
+import { TruncatedText } from "src/components/TruncatedText";
+import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { AddTaskStoreButton } from "./AddTaskStoreButton";
+import { ClearAllTaskStoreButton } from "./ClearAllTaskStoreButton";
+import { DeleteTaskStoreButton } from "./DeleteTaskStoreButton";
+import { EditTaskStoreButton } from "./EditTaskStoreButton";
+
+type ColumnsProps = {
+  readonly dagId: string;
+  readonly mapIndex: number;
+  readonly runId: string;
+  readonly taskId: string;
+  readonly translate: (key: string) => string;
+};
+
+const getColumns = ({
+  dagId,
+  mapIndex,
+  runId,
+  taskId,
+  translate,
+}: ColumnsProps): Array<ColumnDef<TaskStoreResponse>> => [
+  {
+    accessorKey: "key",
+    cell: ({ row: { original } }) => <Text>{original.key}</Text>,
+    header: translate("common:key"),
+  },
+  {
+    accessorKey: "value",
+    cell: ({ row: { original } }) => {
+      const isJsonObject =
+        original.value !== null && original.value !== undefined && typeof original.value === "object";
+
+      return isJsonObject ? (
+        <RenderedJsonField collapsed content={original.value as object} enableClipboard={false} />
+      ) : (
+        <TruncatedText text={String(original.value)} />
+      );
+    },
+    enableSorting: false,
+    header: translate("common:value"),
+  },
+  {
+    accessorKey: "updated_at",
+    cell: ({ row: { original } }) => <Time datetime={original.updated_at} />,
+    header: translate("common:table.updatedAt"),
+  },
+  {
+    accessorKey: "expires_at",
+    cell: ({ row: { original } }) =>
+      Boolean(original.expires_at) ? (
+        <Time datetime={original.expires_at} />
+      ) : (
+        <Badge colorPalette="gray" variant="subtle">
+          {translate("taskStore.expiresAt.never")}
+        </Badge>
+      ),
+    header: translate("taskStore.expiresAt.column"),
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <EditTaskStoreButton
+          dagId={dagId}
+          mapIndex={mapIndex}
+          runId={runId}
+          storeKey={original.key}
+          taskId={taskId}
+        />
+        <DeleteTaskStoreButton
+          dagId={dagId}
+          mapIndex={mapIndex}
+          runId={runId}
+          storeKey={original.key}
+          taskId={taskId}
+        />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+  },
+];
+
+export const TaskStore = () => {
+  const { dagId = "", mapIndex: rawMapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const mapIndex = parseInt(rawMapIndex, 10);
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
+    dagId,
+    dagRunId: runId,
+    mapIndex,
+    taskId,
+  });
+
+  const { t: translate } = useTranslation(["dag", "common"]);
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination } = tableURLState;
+
+  const { data, error, isFetching, isLoading } = useTaskStoreServiceListTaskStore(
+    {
+      dagId,
+      dagRunId: runId,
+      limit: pagination.pageSize,
+      mapIndex,
+      offset: pagination.pageIndex * pagination.pageSize,
+      taskId,
+    },
+    undefined,
+    { refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false },
+  );
+
+  const columns = getColumns({ dagId, mapIndex, runId, taskId, translate });
+
+  return (
+    <>
+      <Flex gap={2} justifyContent="flex-end" mb={2}>
+        <AddTaskStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+        {(data?.total_entries ?? 0) > 0 ? (
+          <ClearAllTaskStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+        ) : undefined}
+      </Flex>
+
+      <ErrorAlert error={error} />
+      <DataTable
+        columns={columns}
+        data={data?.task_store ?? []}
+        displayMode="table"
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="dag:taskStore.title"
+        noRowsMessage={translate("taskStore.emptyStore")}
+        onStateChange={setTableURLState}
+        showRowCountHeading={false}
+        total={data?.total_entries ?? 0}
+      />
+    </>
+  );
+};
