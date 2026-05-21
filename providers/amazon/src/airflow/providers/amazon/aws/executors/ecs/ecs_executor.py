@@ -103,10 +103,8 @@ class AwsEcsExecutor(BaseExecutor):
     supports_multi_team: bool = True
 
     if AIRFLOW_V_3_3_PLUS:
-        from airflow.executors.workloads.base import WorkloadType as _WorkloadType
-
-        supported_workload_types: frozenset[str] = frozenset(
-            {_WorkloadType.EXECUTE_TASK, _WorkloadType.EXECUTE_CALLBACK}
+        supported_workload_types: frozenset[WorkloadType] = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
         )
 
     # AWS limits the maximum number of ARNs in the describe_tasks function.
