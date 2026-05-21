@@ -220,9 +220,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._openlineage_inject_transport_info:
             self.log.debug("Injecting OpenLineage transport information into Spark properties.")
             self.conf = inject_transport_information_into_spark_properties(self.conf, context)
-        if self._hook._should_track_driver_status:
+        if self._hook is None:
+            self._hook = self._get_hook()
+        hook = self._hook
+        if hook._should_track_driver_status:
             return self.execute_resumable(context)
-        self._hook.submit(self.application)
+        hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str:
         if self._hook is None:
@@ -325,6 +328,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         return None
 
     def on_kill(self) -> None:
+        if self._hook is None:
+            self._hook = self._get_hook()
         self._hook.on_kill()
 
     def _get_hook(self) -> SparkSubmitHook:
