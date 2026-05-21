@@ -37,6 +37,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/document_loader.rst",
                 ],
                 "tags": ["ai"],
             },
@@ -55,6 +56,15 @@ def get_provider_info():
                 "external-doc-url": "https://python.langchain.com/",
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "LlamaIndex",
+                "external-doc-url": "https://docs.llamaindex.ai/",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst",
+                ],
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -65,6 +75,10 @@ def get_provider_info():
             {
                 "integration-name": "LangChain",
                 "python-modules": ["airflow.providers.common.ai.hooks.langchain"],
+            },
+            {
+                "integration-name": "LlamaIndex",
+                "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
             },
         ],
         "plugins": [
@@ -287,6 +301,31 @@ def get_provider_info():
                     },
                 },
             },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook",
+                "hook-name": "LlamaIndex",
+                "connection-type": "llamaindex",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+                    },
+                },
+                "conn-fields": {
+                    "embed_model": {
+                        "label": "Embedding Model",
+                        "description": "Default LlamaIndex embedding model name (e.g. text-embedding-3-small). The OpenAI default; for other vendors pass a pre-built BaseEmbedding instance to the operator.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "llm_model": {
+                        "label": "LLM Model",
+                        "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "operators": [
             {
@@ -298,6 +337,9 @@ def get_provider_info():
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
                     "airflow.providers.common.ai.operators.llm_schema_compare",
+                    "airflow.providers.common.ai.operators.document_loader",
+                    "airflow.providers.common.ai.operators.llamaindex_embedding",
+                    "airflow.providers.common.ai.operators.llamaindex_retrieval",
                 ],
             }
         ],
