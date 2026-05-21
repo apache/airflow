@@ -908,7 +908,6 @@ class TestsClusterGenerator:
         cluster = generator.make()
         assert cluster == CONFIG_WITH_STOP_TTL
 
-
     def test_build_with_gpu_accelerator(self):
         generator = ClusterGenerator(
             project_id="project_id",
