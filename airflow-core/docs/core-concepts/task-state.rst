@@ -20,12 +20,9 @@ Task State
 
 .. versionadded:: 3.2
 
-Traditionally, Apache Airflow has always treated tasks as stateless, idempotent units of work.
-However, a growing class of workloads requires that a Task be able to persist a certain amount of state information and retrieve it in a subsequent execution of that same Task.
-This could be for a subsequent execution of the same task i.e. a retry of the same DAG run, or a future run of the same DAG.
+Traditionally, Apache Airflow has always treated tasks as stateless, idempotent units of work. However, a growing class of workloads requires that a Task be able to persist a certain amount of state information and retrieve it in a subsequent execution of that same Task. This could be for a subsequent execution of the same task i.e. a retry of the same DAG run, or a future run of the same DAG.
 
-"Task state" supports these operations. Task state provide a mechanism for some information to be persisted by a task and used later.
-Below is an example of how task state can be used to persist and retrieve information.
+"Task state" supports these operations. Task state provide a mechanism for some information to be persisted by a task and used later. Below is an example of how task state can be used to persist and retrieve information.
 
 .. code-block:: python
     from airflow.sdk import task
