@@ -1323,6 +1323,7 @@ def _defer_task(
 
 
 @Sentry.enrich_errors
+@detail_span("run")
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
@@ -2134,7 +2135,6 @@ def main():
                 # already run, so callbacks and listeners observed the state.
                 if getattr(ti, "_terminal_state_send_failed", False):
                     sys.exit(1)
-        except KeyboardInterrupt:
         except KeyboardInterrupt as e:
             log.exception("Ctrl-c hit")
             span.record_exception(e)
