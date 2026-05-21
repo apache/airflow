@@ -60,7 +60,7 @@ def example_llamaindex_rag_pipeline():
 
     embed = LlamaIndexEmbeddingOperator(
         task_id="embed_docs",
-        documents=load.output,  # XCom direct -- not Jinja (list[dict] doesn't survive stringification)
+        documents=load.output,
         embed_model="text-embedding-3-small",
         llm_conn_id="llamaindex_default",
         chunk_size=512,

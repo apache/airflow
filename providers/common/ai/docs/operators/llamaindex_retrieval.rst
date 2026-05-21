@@ -18,7 +18,7 @@
 .. _howto/operator:llamaindex_retrieval:
 
 LlamaIndex ``LlamaIndexRetrievalOperator``
-================================
+==========================================
 
 Load a persisted LlamaIndex index and run similarity search. Designed to
 sit between
@@ -79,10 +79,14 @@ Parameters
        Templated.
    * - ``embed_model``
      - String model name OR pre-built ``BaseEmbedding`` instance. Must
-       match the model used when the index was built.
+       match the model used when the index was built. Templated.
    * - ``llm_conn_id``
-     - Airflow connection ID used when ``embed_model`` is a string
-       (default ``llamaindex_default``).
+     - Airflow connection ID used when ``embed_model`` is a string. Falls
+       back to ``LlamaIndexHook.default_conn_name`` (``llamaindex_default``)
+       when ``None``.
+   * - ``embed_conn_id``
+     - Optional separate connection ID for the embedding provider. Falls
+       back to ``llm_conn_id`` when ``None``.
    * - ``top_k``
      - Number of top similarity results to return (default 5).
 

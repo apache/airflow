@@ -55,6 +55,23 @@ def _scored_node(text: str, score: float, metadata: dict | None = None, node_id:
     return wrapped
 
 
+def _byo_embedding():
+    """Return a duck-typed ``BaseEmbedding`` stand-in."""
+    return MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
+
+
+class TestRetrievalOperatorInit:
+    def test_template_fields(self):
+        assert set(LlamaIndexRetrievalOperator.template_fields) == {
+            "query",
+            "index_persist_dir",
+            "persist_conn_id",
+            "embed_model",
+            "llm_conn_id",
+            "embed_conn_id",
+        }
+
+
 class TestRetrievalOperatorOutput:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_chunk_shape(self, mock_get_embed, _stub_li, tmp_path):
@@ -106,9 +123,32 @@ class TestRetrievalOperatorOutput:
 
         index.as_retriever.assert_called_once_with(similarity_top_k=12)
 
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook")
+    def test_string_embed_model_forwards_embed_conn_id(self, mock_hook_cls, _stub_li, tmp_path):
+        # ``embed_conn_id`` overrides ``llm_conn_id`` for the embedding API.
+        (tmp_path / "idx").mkdir()
+        index = _stub_li["load_index_from_storage"].return_value
+        index.as_retriever.return_value.retrieve.return_value = []
+
+        op = LlamaIndexRetrievalOperator(
+            task_id="test",
+            query="q",
+            index_persist_dir=str(tmp_path / "idx"),
+            embed_model="text-embedding-3-small",
+            llm_conn_id="my_llm_conn",
+            embed_conn_id="my_embed_conn",
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.assert_called_once_with(
+            llm_conn_id="my_llm_conn",
+            embed_conn_id="my_embed_conn",
+            embed_model="text-embedding-3-small",
+        )
+
     def test_byo_embed_model_bypasses_hook(self, _stub_li, tmp_path):
         (tmp_path / "idx").mkdir()
-        byo = MagicMock(name="MyBaseEmbedding")
+        byo = _byo_embedding()
         index = _stub_li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
@@ -122,6 +162,20 @@ class TestRetrievalOperatorOutput:
 
         kwargs = _stub_li["load_index_from_storage"].call_args.kwargs
         assert kwargs["embed_model"] is byo
+
+    def test_invalid_embed_model_raises_typeerror(self, _stub_li, tmp_path):
+        # An object that's neither None/str nor duck-types as BaseEmbedding
+        # raises TypeError with a clear pointer.
+        (tmp_path / "idx").mkdir()
+
+        op = LlamaIndexRetrievalOperator(
+            task_id="test",
+            query="q",
+            index_persist_dir=str(tmp_path / "idx"),
+            embed_model=12345,  # type: ignore[arg-type]
+        )
+        with pytest.raises(TypeError, match="embed_model must be"):
+            op.execute(context=MagicMock())
 
 
 class TestRetrievalOperatorMissingIndex:
@@ -157,9 +211,13 @@ class TestRetrievalOperatorCloudURI:
     @patch("airflow.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_uri_opens_storage_with_fs(self, mock_get_embed, mock_osp_cls, _stub_li):
+        # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``
+        # when ``conn_id`` is set, which fsspec misinterprets. The operator must
+        # pass the **raw** user URI to ``persist_dir=`` and supply
+        # ``fs=target.fs`` for credentials. Asserting against the raw URI here
+        # catches a regression where ``str(target)`` is used instead.
         target = MagicMock()
         target.is_dir.return_value = True
-        target.__str__.return_value = "s3://bucket/idx/"
         target.fs = MagicMock(name="s3fs")
         mock_osp_cls.return_value = target
 

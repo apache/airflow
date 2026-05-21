@@ -59,15 +59,23 @@ def _node(text: str = "chunk text", metadata: dict | None = None, vector=None):
     return node
 
 
-class TestEmbeddingOperatorInit:
-    def test_documents_not_templated(self):
-        # ``documents`` is ``list[dict]`` -- Jinja stringification would
-        # break it. Explicitly out of template_fields.
-        assert "documents" not in LlamaIndexEmbeddingOperator.template_fields
+def _byo_embedding():
+    """Return a duck-typed ``BaseEmbedding`` stand-in (has the two methods the operator checks)."""
+    instance = MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
+    return instance
 
-    def test_templated_fields(self):
+
+class TestEmbeddingOperatorInit:
+    def test_template_fields(self):
+        # ``documents`` must be templated so ``loader.output`` (XComArg) is
+        # resolved before execute. The earlier rationale that "list[dict]
+        # doesn't survive Jinja stringification" was wrong -- Templater
+        # unwraps resolvables before Jinja runs.
         assert set(LlamaIndexEmbeddingOperator.template_fields) == {
+            "documents",
+            "embed_model",
             "llm_conn_id",
+            "embed_conn_id",
             "persist_dir",
             "persist_conn_id",
         }
@@ -95,9 +103,29 @@ class TestEmbeddingOperatorExecute:
         assert result["chunks"][0]["text"] == "chunk a"
         assert result["chunks"][0]["vector"] == [0.1, 0.2]
 
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook")
+    def test_string_embed_model_forwards_embed_conn_id(self, mock_hook_cls, _stub_li):
+        # ``embed_conn_id`` overrides ``llm_conn_id`` for the embedding API.
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
+
+        op = LlamaIndexEmbeddingOperator(
+            task_id="test",
+            documents=[{"text": "doc"}],
+            embed_model="text-embedding-3-small",
+            llm_conn_id="my_llm_conn",
+            embed_conn_id="my_embed_conn",
+        )
+        op.execute(context=MagicMock())
+
+        mock_hook_cls.assert_called_once_with(
+            llm_conn_id="my_llm_conn",
+            embed_conn_id="my_embed_conn",
+            embed_model="text-embedding-3-small",
+        )
+
     def test_byo_embed_model_bypasses_hook(self, _stub_li):
         # `embed_model` is a non-string instance -> hook is bypassed.
-        byo = MagicMock(name="MyBaseEmbedding")
+        byo = _byo_embedding()
         _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
             _node()
         ]
@@ -113,6 +141,20 @@ class TestEmbeddingOperatorExecute:
         _stub_li["VectorStoreIndex"].assert_called_once()
         kwargs = _stub_li["VectorStoreIndex"].call_args.kwargs
         assert kwargs["embed_model"] is byo
+
+    def test_invalid_embed_model_raises_typeerror(self, _stub_li):
+        # An object that's neither None/str nor duck-types as BaseEmbedding
+        # (e.g. an unresolved XComArg or random user input) raises TypeError
+        # with a clear pointer rather than a cryptic downstream error.
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
+
+        op = LlamaIndexEmbeddingOperator(
+            task_id="test",
+            documents=[{"text": "doc"}],
+            embed_model=12345,  # type: ignore[arg-type]
+        )
+        with pytest.raises(TypeError, match="embed_model must be"):
+            op.execute(context=MagicMock())
 
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_chunks_carry_text_metadata_vector(self, mock_get_embed, _stub_li):
@@ -160,8 +202,12 @@ class TestEmbeddingOperatorPersist:
     def test_cloud_uri_persist_dir_uses_object_storage_path(
         self, mock_get_embed, mock_osp_cls, _stub_li
     ):
+        # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``
+        # when ``conn_id`` is set, which fsspec misinterprets. The operator must
+        # pass the **raw** user URI to ``persist_dir=`` and supply
+        # ``fs=target.fs`` for credentials. Asserting against the raw URI here
+        # catches a regression where ``str(target)`` is used instead.
         target = MagicMock()
-        target.__str__.return_value = "s3://bucket/idx/"
         target.fs = MagicMock(name="s3fs")
         mock_osp_cls.return_value = target
 

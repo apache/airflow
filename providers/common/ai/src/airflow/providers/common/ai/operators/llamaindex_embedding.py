@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -47,21 +48,25 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
     same worker don't race on shared state.
 
     :param documents: List of dicts with ``text`` and ``metadata`` keys,
-        typically from ``DocumentLoaderOperator`` or a ``@task``. Bind via
-        ``my_loader.output`` (XCom direct), **not** via Jinja -- ``list[dict]``
-        does not survive Jinja stringification.
+        typically from ``DocumentLoaderOperator`` or a ``@task``. Templated,
+        so binding via ``my_loader.output`` (XCom direct) resolves to the
+        native ``list[dict]`` before ``execute`` runs.
     :param embed_model: Either:
 
         * a string model name (e.g. ``"text-embedding-3-small"``) -- the
           operator constructs an :class:`~.LlamaIndexHook`-backed
-          ``OpenAIEmbedding`` from ``llm_conn_id``, or
+          ``OpenAIEmbedding`` from ``llm_conn_id`` / ``embed_conn_id``, or
         * a pre-built ``BaseEmbedding`` instance -- bypass the hook
           entirely for non-OpenAI vendors (e.g.
           ``CohereEmbedding(...)``, ``BedrockEmbedding(...)``).
 
-    :param llm_conn_id: Airflow connection ID for the embedding API. Used
-        only when ``embed_model`` is a string (or omitted entirely, falling
-        back to ``extra["embed_model"]`` on the connection).
+        Templated, so it works with both literal strings and ``@task``
+        output that builds a custom embedder.
+
+    :param llm_conn_id: Airflow connection ID for the embedding API. Falls
+        back to :attr:`LlamaIndexHook.default_conn_name` when ``None``.
+    :param embed_conn_id: Optional separate Airflow connection ID for the
+        embedding provider. Falls back to ``llm_conn_id`` when ``None``.
     :param chunk_size: Chunk size for the sentence splitter.
     :param chunk_overlap: Overlap between chunks.
     :param persist_dir: Optional path to persist the index. Accepts local
@@ -72,7 +77,10 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
+        "documents",
+        "embed_model",
         "llm_conn_id",
+        "embed_conn_id",
         "persist_dir",
         "persist_conn_id",
     )
@@ -82,7 +90,8 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         *,
         documents: list[dict[str, Any]],
         embed_model: str | BaseEmbedding | None = None,
-        llm_conn_id: str = "llamaindex_default",
+        llm_conn_id: str | None = None,
+        embed_conn_id: str | None = None,
         chunk_size: int = 512,
         chunk_overlap: int = 50,
         persist_dir: str | None = None,
@@ -93,6 +102,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         self.documents = documents
         self.embed_model = embed_model
         self.llm_conn_id = llm_conn_id
+        self.embed_conn_id = embed_conn_id
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.persist_dir = persist_dir
@@ -100,7 +110,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         try:
-            from llama_index.core import Document, StorageContext, VectorStoreIndex
+            from llama_index.core import Document, VectorStoreIndex
             from llama_index.core.node_parser import SentenceSplitter
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
@@ -117,8 +127,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
 
         # ``VectorStoreIndex(...)`` populates each node's ``.embedding`` as a
         # side effect of building the index; capture the index so the
-        # variable isn't discarded (also lets future enhancements query it
-        # before persistence).
+        # variable isn't discarded.
         index = VectorStoreIndex(nodes, embed_model=embed_model, show_progress=False)
 
         if self.persist_dir:
@@ -146,21 +155,38 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         """
         Return a ready-to-use ``BaseEmbedding``.
 
-        If ``embed_model`` is a string or ``None``, build one via
-        ``LlamaIndexHook`` (OpenAI from the configured Airflow connection).
-        Anything else is treated as a pre-built ``BaseEmbedding`` instance
-        (user brought their own) and returned as-is. Avoids
-        ``isinstance(.., BaseEmbedding)`` so the check doesn't trigger an
-        otherwise-unnecessary ``llama_index`` import.
+        Three cases:
+
+        * ``None`` or ``str`` -- build an ``OpenAIEmbedding`` via
+          ``LlamaIndexHook`` (the framework's documented ``default``
+          behaviour).
+        * Has ``get_text_embedding`` / ``_get_query_embedding`` -- treat as
+          a pre-built ``BaseEmbedding`` (duck-typed to avoid forcing a
+          ``llama_index`` import here).
+        * Anything else -- ``TypeError`` with a clear pointer.
         """
         if self.embed_model is None or isinstance(self.embed_model, str):
             from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
 
             return LlamaIndexHook(
                 llm_conn_id=self.llm_conn_id,
+                embed_conn_id=self.embed_conn_id,
                 embed_model=self.embed_model,
             ).get_embedding_model()
-        return self.embed_model
+
+        # ``BaseEmbedding`` always exposes these two methods (see
+        # ``llama_index.core.base.embeddings.base``). Duck-typing avoids
+        # importing ``llama_index`` here and also catches the case where an
+        # unresolved ``XComArg`` slips through.
+        if hasattr(self.embed_model, "get_text_embedding") and hasattr(
+            self.embed_model, "_get_query_embedding"
+        ):
+            return self.embed_model
+
+        raise TypeError(
+            "embed_model must be a string model name, a LlamaIndex "
+            f"``BaseEmbedding`` instance, or None. Got {type(self.embed_model).__name__!r}."
+        )
 
     def _persist(self, index: Any) -> None:
         """Persist the index to ``persist_dir``; cloud URIs go through ObjectStoragePath."""
@@ -169,10 +195,12 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
 
             target = ObjectStoragePath(self.persist_dir, conn_id=self.persist_conn_id)
             target.mkdir(parents=True, exist_ok=True)
-            index.storage_context.persist(persist_dir=str(target), fs=target.fs)
+            # ``str(target)`` returns ``s3://<conn_id>@<bucket>/...`` when
+            # ``conn_id`` is set (see ``task-sdk/.../io/path.py``), which
+            # fsspec misinterprets. Pass the raw user URI as the path string
+            # and the authenticated filesystem separately.
+            index.storage_context.persist(persist_dir=self.persist_dir, fs=target.fs)
         else:
-            import os
-
             os.makedirs(self.persist_dir, exist_ok=True)  # type: ignore[arg-type]
             index.storage_context.persist(persist_dir=self.persist_dir)
         self.log.info("Index persisted to %s", self.persist_dir)

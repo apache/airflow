@@ -18,7 +18,7 @@
 .. _howto/operator:llamaindex_embedding:
 
 LlamaIndex ``LlamaIndexEmbeddingOperator``
-================================
+==========================================
 
 Chunk a ``list[dict]`` of documents and produce embedding vectors using
 LlamaIndex. Designed to feed the output of
@@ -38,9 +38,8 @@ Basic usage
     :start-after: [START howto_hook_llamaindex_embed]
     :end-before: [END howto_hook_llamaindex_embed]
 
-The ``documents`` parameter binds to ``loader.output`` (XCom direct), **not**
-via Jinja -- ``list[dict]`` doesn't survive Jinja stringification, so the
-parameter is intentionally not in ``template_fields``.
+``documents`` is templated, so ``loader.output`` (XCom direct) is resolved
+to a native ``list[dict]`` before ``execute`` runs.
 
 Bring-your-own embedding model
 ------------------------------
@@ -51,7 +50,7 @@ operator's ``embed_model`` parameter accepts either:
 * a string model name (e.g. ``"text-embedding-3-small"``) -- the operator
   constructs an ``OpenAIEmbedding`` via
   :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook`
-  using ``llm_conn_id``, or
+  using ``llm_conn_id`` / ``embed_conn_id``, or
 * a pre-built ``BaseEmbedding`` instance -- bypass the hook entirely. Use
   this for Cohere, Bedrock, Vertex, HuggingFace, etc.:
 
@@ -83,13 +82,18 @@ Parameters
    * - Parameter
      - Description
    * - ``documents``
-     - ``list[dict]`` with ``text`` / ``metadata`` keys. Bind via
-       ``loader.output``; **not** templated.
+     - ``list[dict]`` with ``text`` / ``metadata`` keys. Templated, so
+       binding ``loader.output`` resolves to the native list before
+       execute.
    * - ``embed_model``
      - String model name OR pre-built ``BaseEmbedding`` instance.
    * - ``llm_conn_id``
-     - Airflow connection ID used when ``embed_model`` is a string
-       (default ``llamaindex_default``).
+     - Airflow connection ID used when ``embed_model`` is a string. Falls
+       back to ``LlamaIndexHook.default_conn_name`` (``llamaindex_default``)
+       when ``None``.
+   * - ``embed_conn_id``
+     - Optional separate connection ID for the embedding provider. Falls
+       back to ``llm_conn_id`` when ``None``.
    * - ``chunk_size``
      - Sentence-splitter chunk size (default 512).
    * - ``chunk_overlap``
