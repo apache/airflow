@@ -811,7 +811,7 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_conn_id_to_team_name_mapping.return_value = {"test1": "team1"}
+        mock_get_conn_id_to_team_name_mapping.return_value = {}
 
         request = BulkBody[ConnectionBody].model_validate(
             {
@@ -844,7 +844,7 @@ class TestFastApiSecurity:
             requests=[
                 {
                     "method": "POST",
-                    "details": ConnectionDetails(conn_id="test1", team_name="team1"),
+                    "details": ConnectionDetails(conn_id="test1"),
                 },
                 {
                     "method": "POST",
@@ -865,6 +865,58 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+    @patch.object(Connection, "get_conn_id_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_connection_bulk_multi_team(
+        self, mock_get_auth_manager, mock_get_conn_id_to_team_name_mapping
+    ):
+        """Bulk connection authz checks team_name from both existing resources and request body."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_conn_id_to_team_name_mapping.return_value = {"test3": "team1", "test4": "team1"}
+
+        user = Mock()
+        with conf_vars({("core", "multi_team"): "True"}):
+            request = BulkBody[ConnectionBody].model_validate(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"connection_id": "test1", "conn_type": "test1", "team_name": "team2"},
+                                {"connection_id": "test2", "conn_type": "test2"},
+                            ],
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["test3"],
+                        },
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"connection_id": "test4", "conn_type": "test4", "team_name": "team2"},
+                            ],
+                            "action_on_existence": "overwrite",
+                        },
+                    ]
+                }
+            )
+            requires_access_connection_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_connection.assert_called_once()
+        actual_requests = auth_manager.batch_is_authorized_connection.call_args.kwargs["requests"]
+        expected_requests = [
+            {"method": "POST", "details": ConnectionDetails(conn_id="test1", team_name="team2")},
+            {"method": "POST", "details": ConnectionDetails(conn_id="test2")},
+            {"method": "DELETE", "details": ConnectionDetails(conn_id="test3", team_name="team1")},
+            {"method": "POST", "details": ConnectionDetails(conn_id="test4", team_name="team1")},
+            {"method": "POST", "details": ConnectionDetails(conn_id="test4", team_name="team2")},
+            {"method": "PUT", "details": ConnectionDetails(conn_id="test4", team_name="team1")},
+            {"method": "PUT", "details": ConnectionDetails(conn_id="test4", team_name="team2")},
+        ]
+        assert sorted(actual_requests, key=str) == sorted(expected_requests, key=str)
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -982,7 +1034,7 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_key_to_team_name_mapping.return_value = {"var1": "team1", "dummy": "team2"}
+        mock_get_key_to_team_name_mapping.return_value = {}
         request = BulkBody[VariableBody].model_validate(
             {
                 "actions": [
@@ -1014,7 +1066,7 @@ class TestFastApiSecurity:
             requests=[
                 {
                     "method": "POST",
-                    "details": VariableDetails(key="var1", team_name="team1"),
+                    "details": VariableDetails(key="var1"),
                 },
                 {
                     "method": "POST",
@@ -1035,6 +1087,57 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+    @patch.object(Variable, "get_key_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_variable_bulk_multi_team(
+        self, mock_get_auth_manager, mock_get_key_to_team_name_mapping
+    ):
+        """Bulk variable authz checks team_name from both existing resources and request body."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_variable.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_key_to_team_name_mapping.return_value = {"var3": "team1", "var4": "team1"}
+        user = Mock()
+        with conf_vars({("core", "multi_team"): "True"}):
+            request = BulkBody[VariableBody].model_validate(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"key": "var1", "value": "value1", "team_name": "team2"},
+                                {"key": "var2", "value": "value2"},
+                            ],
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["var3"],
+                        },
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"key": "var4", "value": "value4", "team_name": "team2"},
+                            ],
+                            "action_on_existence": "overwrite",
+                        },
+                    ]
+                }
+            )
+            requires_access_variable_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_variable.assert_called_once()
+        actual_requests = auth_manager.batch_is_authorized_variable.call_args.kwargs["requests"]
+        expected_requests = [
+            {"method": "POST", "details": VariableDetails(key="var1", team_name="team2")},
+            {"method": "POST", "details": VariableDetails(key="var2")},
+            {"method": "DELETE", "details": VariableDetails(key="var3", team_name="team1")},
+            {"method": "POST", "details": VariableDetails(key="var4", team_name="team1")},
+            {"method": "POST", "details": VariableDetails(key="var4", team_name="team2")},
+            {"method": "PUT", "details": VariableDetails(key="var4", team_name="team1")},
+            {"method": "PUT", "details": VariableDetails(key="var4", team_name="team2")},
+        ]
+        assert sorted(actual_requests, key=str) == sorted(expected_requests, key=str)
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -1150,7 +1253,7 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.batch_is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
-        mock_get_name_to_team_name_mapping.return_value = {"pool1": "team1"}
+        mock_get_name_to_team_name_mapping.return_value = {}
         request = BulkBody[PoolBody].model_validate(
             {
                 "actions": [
@@ -1182,7 +1285,7 @@ class TestFastApiSecurity:
             requests=[
                 {
                     "method": "POST",
-                    "details": PoolDetails(name="pool1", team_name="team1"),
+                    "details": PoolDetails(name="pool1"),
                 },
                 {
                     "method": "POST",
@@ -1203,6 +1306,57 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+    @patch.object(Pool, "get_name_to_team_name_mapping")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_pool_bulk_multi_team(
+        self, mock_get_auth_manager, mock_get_name_to_team_name_mapping
+    ):
+        """Bulk pool authz checks team_name from both existing resources and request body."""
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_pool.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_to_team_name_mapping.return_value = {"pool3": "team1", "pool4": "team1"}
+        user = Mock()
+        with conf_vars({("core", "multi_team"): "True"}):
+            request = BulkBody[PoolBody].model_validate(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"pool": "pool1", "slots": 1, "team_name": "team2"},
+                                {"pool": "pool2", "slots": 1},
+                            ],
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["pool3"],
+                        },
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"pool": "pool4", "slots": 1, "team_name": "team2"},
+                            ],
+                            "action_on_existence": "overwrite",
+                        },
+                    ]
+                }
+            )
+            requires_access_pool_bulk()(request, user)
+
+        auth_manager.batch_is_authorized_pool.assert_called_once()
+        actual_requests = auth_manager.batch_is_authorized_pool.call_args.kwargs["requests"]
+        expected_requests = [
+            {"method": "POST", "details": PoolDetails(name="pool1", team_name="team2")},
+            {"method": "POST", "details": PoolDetails(name="pool2")},
+            {"method": "DELETE", "details": PoolDetails(name="pool3", team_name="team1")},
+            {"method": "POST", "details": PoolDetails(name="pool4", team_name="team1")},
+            {"method": "POST", "details": PoolDetails(name="pool4", team_name="team2")},
+            {"method": "PUT", "details": PoolDetails(name="pool4", team_name="team1")},
+            {"method": "PUT", "details": PoolDetails(name="pool4", team_name="team2")},
+        ]
+        assert sorted(actual_requests, key=str) == sorted(expected_requests, key=str)
 
 
 class TestAuthManagerDependency:

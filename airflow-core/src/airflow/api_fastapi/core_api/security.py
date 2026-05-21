@@ -445,6 +445,7 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
             for action in request.actions
             for entity in action.entities
             if action.action != BulkAction.CREATE
+            or action.action_on_existence == BulkActionOnExistence.OVERWRITE
         ]
         # For each pool, find its associated team (if it exists)
         pool_name_to_team = Pool.get_name_to_team_name_mapping(existing_pool_names)
@@ -460,14 +461,22 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
                 # The list of `IsAuthorizedPoolRequest` will then be sent using `batch_is_authorized_pool`
                 # Each `IsAuthorizedPoolRequest` is similar to calling `is_authorized_pool`
                 for method in methods:
-                    req: IsAuthorizedPoolRequest = {
-                        "method": method,
-                        "details": PoolDetails(
-                            name=pool_name,
-                            team_name=pool_name_to_team.get(pool_name),
-                        ),
-                    }
-                    requests.append(req)
+                    teams_to_check = _collect_teams_for_bulk_entity(
+                        action=action,
+                        entity_team_name=cast("PoolBody", pool).team_name
+                        if action.action != BulkAction.DELETE
+                        else None,
+                        existing_team_name=pool_name_to_team.get(pool_name),
+                    )
+                    for team_name in teams_to_check:
+                        req: IsAuthorizedPoolRequest = {
+                            "method": method,
+                            "details": PoolDetails(
+                                name=pool_name,
+                                team_name=team_name,
+                            ),
+                        }
+                        requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_pool`, we check the user has access to all pools provided in the request
@@ -548,6 +557,7 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
             for action in request.actions
             for entity in action.entities
             if action.action != BulkAction.CREATE
+            or action.action_on_existence == BulkActionOnExistence.OVERWRITE
         ]
         # For each connection, find its associated team (if it exists)
         conn_id_to_team = Connection.get_conn_id_to_team_name_mapping(existing_connection_ids)
@@ -561,18 +571,23 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
                     if action.action == BulkAction.DELETE
                     else cast("ConnectionBody", connection).connection_id
                 )
-                # For each pool, build a `IsAuthorizedConnectionRequest`
-                # The list of `IsAuthorizedConnectionRequest` will then be sent using `batch_is_authorized_connection`
-                # Each `IsAuthorizedConnectionRequest` is similar to calling `is_authorized_connection`
                 for method in methods:
-                    req: IsAuthorizedConnectionRequest = {
-                        "method": method,
-                        "details": ConnectionDetails(
-                            conn_id=connection_id,
-                            team_name=conn_id_to_team.get(connection_id),
-                        ),
-                    }
-                    requests.append(req)
+                    teams_to_check = _collect_teams_for_bulk_entity(
+                        action=action,
+                        entity_team_name=cast("ConnectionBody", connection).team_name
+                        if action.action != BulkAction.DELETE
+                        else None,
+                        existing_team_name=conn_id_to_team.get(connection_id),
+                    )
+                    for team_name in teams_to_check:
+                        req: IsAuthorizedConnectionRequest = {
+                            "method": method,
+                            "details": ConnectionDetails(
+                                conn_id=connection_id,
+                                team_name=team_name,
+                            ),
+                        }
+                        requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_connection`, we check the user has access to all connections provided in the request
@@ -688,6 +703,7 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
             for action in request.actions
             for entity in action.entities
             if action.action != BulkAction.CREATE
+            or action.action_on_existence == BulkActionOnExistence.OVERWRITE
         ]
         # For each variable, find its associated team (if it exists)
         var_key_to_team = Variable.get_key_to_team_name_mapping(existing_variable_keys)
@@ -701,18 +717,23 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
                     if action.action == BulkAction.DELETE
                     else cast("VariableBody", variable).key
                 )
-                # For each variable, build a `IsAuthorizedVariableRequest`
-                # The list of `IsAuthorizedVariableRequest` will then be sent using `batch_is_authorized_variable`
-                # Each `IsAuthorizedVariableRequest` is similar to calling `is_authorized_variable`
                 for method in methods:
-                    req: IsAuthorizedVariableRequest = {
-                        "method": method,
-                        "details": VariableDetails(
-                            key=variable_key,
-                            team_name=var_key_to_team.get(variable_key),
-                        ),
-                    }
-                    requests.append(req)
+                    teams_to_check = _collect_teams_for_bulk_entity(
+                        action=action,
+                        entity_team_name=cast("VariableBody", variable).team_name
+                        if action.action != BulkAction.DELETE
+                        else None,
+                        existing_team_name=var_key_to_team.get(variable_key),
+                    )
+                    for team_name in teams_to_check:
+                        req: IsAuthorizedVariableRequest = {
+                            "method": method,
+                            "details": VariableDetails(
+                                key=variable_key,
+                                team_name=team_name,
+                            ),
+                        }
+                        requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
@@ -884,3 +905,34 @@ def _get_resource_methods_from_bulk_request(
     if action.action == BulkAction.CREATE and action.action_on_existence == BulkActionOnExistence.OVERWRITE:
         resource_methods.append("PUT")
     return resource_methods
+
+
+def _collect_teams_for_bulk_entity(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+    entity_team_name: str | None,
+    existing_team_name: str | None,
+) -> set[str | None]:
+    """
+    Collect the set of team names to authorize for a single entity in a bulk request.
+
+    For CREATE/UPDATE actions the caller must be authorized for the team_name specified in the
+    request body (if any). For UPDATE actions (or CREATE with overwrite) on existing resources,
+    the existing team is also checked so that a user cannot move a resource out of a team they
+    don't have access to.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return {None}
+
+    teams: set[str | None] = set()
+
+    if action.action == BulkAction.DELETE:
+        teams.add(existing_team_name)
+    elif action.action == BulkAction.UPDATE:
+        teams.add(existing_team_name)
+        teams.add(entity_team_name)
+    elif action.action == BulkAction.CREATE:
+        teams.add(entity_team_name)
+        if action.action_on_existence == BulkActionOnExistence.OVERWRITE:
+            teams.add(existing_team_name)
+
+    return teams
