@@ -17,119 +17,99 @@
 
 .. _howto/operator:llamaindex_embedding:
 
-``EmbeddingOperator``
-=====================
+LlamaIndex ``EmbeddingOperator``
+================================
 
-Use :class:`~airflow.providers.common.ai.operators.llamaindex_embedding.EmbeddingOperator`
-to chunk documents and produce embedding vectors using LlamaIndex. This operator
-bridges document loading (Airflow provider hooks returning text) and vector
-storage (pgvector, Pinecone, Weaviate ingest operators).
+Chunk a ``list[dict]`` of documents and produce embedding vectors using
+LlamaIndex. Designed to feed the output of
+:class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
+into vector storage (pgvector, Pinecone, Weaviate, ...).
 
-Basic Usage
+The operator passes the embedding model **directly** to
+``VectorStoreIndex(..., embed_model=...)`` -- it does not mutate
+LlamaIndex's global ``Settings`` singleton, so concurrent tasks in the same
+worker process don't race on shared model state.
+
+Basic usage
 -----------
 
-Provide a list of documents with ``text`` and ``metadata`` keys. The operator
-chunks the documents, embeds them, and returns the results:
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_hook.py
+    :language: python
+    :start-after: [START howto_hook_llamaindex_embed]
+    :end-before: [END howto_hook_llamaindex_embed]
 
-.. code-block:: python
+The ``documents`` parameter binds to ``loader.output`` (XCom direct), **not**
+via Jinja -- ``list[dict]`` doesn't survive Jinja stringification, so the
+parameter is intentionally not in ``template_fields``.
 
-    from airflow.providers.common.ai.operators.llamaindex_embedding import EmbeddingOperator
+Bring-your-own embedding model
+------------------------------
 
-    embed = EmbeddingOperator(
-        task_id="embed_docs",
-        documents=[
-            {"text": "Airflow is a workflow orchestration platform.", "metadata": {"source": "docs"}},
-            {"text": "LlamaIndex is a data framework for LLM applications.", "metadata": {"source": "docs"}},
-        ],
-        llm_conn_id="openai_default",
-    )
+LlamaIndex doesn't ship a universal embedding-model initializer, so the
+operator's ``embed_model`` parameter accepts either:
 
-Connection Configuration
-------------------------
+* a string model name (e.g. ``"text-embedding-3-small"``) -- the operator
+  constructs an ``OpenAIEmbedding`` via
+  :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook`
+  using ``llm_conn_id``, or
+* a pre-built ``BaseEmbedding`` instance -- bypass the hook entirely. Use
+  this for Cohere, Bedrock, Vertex, HuggingFace, etc.:
 
-The operator uses :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook`
-internally. Configure your embedding API credentials via the ``pydanticai``
-connection type.
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_hook.py
+    :language: python
+    :start-after: [START howto_hook_llamaindex_byo_embed_model]
+    :end-before: [END howto_hook_llamaindex_byo_embed_model]
 
-.. seealso::
-    :ref:`Connection configuration <howto/connection:pydanticai>`
+Persisting to cloud storage
+---------------------------
 
-Chunking Parameters
--------------------
+``persist_dir`` accepts local paths and storage URIs (``s3://``, ``gs://``,
+``azure://``, ``file://``) resolved via
+:class:`~airflow.sdk.ObjectStoragePath`. Pass ``persist_conn_id`` to
+point at the Airflow connection that holds the cloud credentials:
 
-Control how documents are split into chunks before embedding:
-
-.. code-block:: python
-
-    embed = EmbeddingOperator(
-        task_id="embed_docs",
-        documents=documents,
-        llm_conn_id="openai_default",
-        chunk_size=256,
-        chunk_overlap=25,
-    )
-
-Index Persistence
------------------
-
-Set ``persist_dir`` to save the LlamaIndex index for later retrieval via
-:class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.RetrievalOperator`:
-
-.. code-block:: python
-
-    embed = EmbeddingOperator(
-        task_id="embed_docs",
-        documents=documents,
-        llm_conn_id="openai_default",
-        persist_dir="/opt/airflow/data/my_index",
-    )
-
-Output Shape
-------------
-
-The operator returns a dict:
-
-.. code-block:: python
-
-    {
-        "document_count": 2,
-        "chunk_count": 5,
-        "persist_dir": "/opt/airflow/data/my_index",
-        "chunks": [
-            {"text": "chunk text", "metadata": {"source": "docs"}, "vector": [0.1, ...]},
-            ...
-        ],
-    }
-
-Each chunk includes ``text``, ``metadata``, and optionally ``vector`` (the
-embedding array). The ``chunks`` list is ready for downstream consumption by
-vector store ingest operators.
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_hook.py
+    :language: python
+    :start-after: [START howto_hook_llamaindex_cloud_persist]
+    :end-before: [END howto_hook_llamaindex_cloud_persist]
 
 Parameters
 ----------
 
 .. list-table::
    :header-rows: 1
-   :widths: 25 15 60
+   :widths: 25 75
 
    * - Parameter
-     - Default
      - Description
    * - ``documents``
-     - (required)
-     - List of dicts with ``text`` and ``metadata`` keys.
-   * - ``llm_conn_id``
-     - ``pydanticai_default``
-     - Airflow connection ID for the embedding API.
+     - ``list[dict]`` with ``text`` / ``metadata`` keys. Bind via
+       ``loader.output``; **not** templated.
    * - ``embed_model``
-     - ``text-embedding-3-small``
-     - Embedding model name.
+     - String model name OR pre-built ``BaseEmbedding`` instance.
+   * - ``llm_conn_id``
+     - Airflow connection ID used when ``embed_model`` is a string
+       (default ``llamaindex_default``).
    * - ``chunk_size``
-     - ``512``
-     - Chunk size for the sentence splitter.
+     - Sentence-splitter chunk size (default 512).
    * - ``chunk_overlap``
-     - ``50``
-     - Overlap between chunks.
+     - Overlap between chunks (default 50).
    * - ``persist_dir``
-     - ``None``
-     - Directory path to persist the index.
+     - Local path or storage URI to persist the LlamaIndex index.
+   * - ``persist_conn_id``
+     - Cloud credentials connection ID for ``persist_dir`` URIs.
+
+Output
+------
+
+Returns a dict with::
+
+    {
+        "document_count": int,
+        "chunk_count": int,
+        "persist_dir": str | None,
+        "chunks": [
+            {"text": str, "metadata": dict, "vector": list[float]},
+            ...
+        ],
+    }

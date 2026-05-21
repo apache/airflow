@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+)
 
 if TYPE_CHECKING:
     from llama_index.core.base.embeddings.base import BaseEmbedding
@@ -29,41 +32,108 @@ if TYPE_CHECKING:
 
 class LlamaIndexHook(BaseHook):
     """
-    Bridge Airflow connections to LlamaIndex's Settings singleton.
+    Bridge an Airflow connection to LlamaIndex chat and embedding models.
 
-    Reuses the ``pydanticai`` connection type so users configure a single
-    connection for both pydantic-ai operators and LlamaIndex operators.
+    The hook resolves credentials (API key, optional API base URL) from the
+    Airflow connection and returns native LlamaIndex objects ready to pass
+    to ``VectorStoreIndex(..., embed_model=...)``,
+    ``load_index_from_storage(..., embed_model=...)``, or
+    ``index.as_retriever(..., llm=...)``.
 
-    :param llm_conn_id: Airflow connection ID for the LLM/embedding provider.
-    :param embed_conn_id: Separate connection for embeddings. Defaults to
-        ``llm_conn_id`` when not provided.
-    :param embed_model: Embedding model name (e.g. ``text-embedding-3-small``).
-    :param llm_model: LLM model name (e.g. ``gpt-4o``). Only needed when
-        configuring ``Settings.llm``.
+    LlamaIndex does not ship a universal ``init_chat_model`` /
+    ``init_embedding_model`` equivalent (each vendor is a separate package
+    under ``llama-index-llms-*`` / ``llama-index-embeddings-*`` with its own
+    constructor kwargs). The hook therefore covers the OpenAI-compatible
+    surface that matches LlamaIndex's own ``resolve_embed_model("default")``
+    behaviour. For other vendors (Cohere, Bedrock, Vertex, HuggingFace, ...)
+    instantiate the LlamaIndex class directly in your ``@task`` and pass it
+    to the operator's ``embed_model=`` / ``llm=`` parameter -- both
+    ``EmbeddingOperator`` and ``RetrievalOperator`` accept a pre-built
+    ``BaseEmbedding`` / ``LLM`` instance and bypass the hook in that case.
+
+    .. note::
+
+        The hook deliberately does **not** mutate LlamaIndex's global
+        ``Settings`` singleton. Operators pass the resolved model directly
+        to LlamaIndex constructors so concurrent tasks in the same worker
+        don't race on shared state.
+
+    Connection fields:
+
+    * **password**: API key passed as ``api_key=``.
+    * **host**: Optional base URL passed as ``api_base=`` (custom endpoints,
+      Ollama, vLLM).
+    * **extra** JSON: ``{"embed_model": "text-embedding-3-small",
+      "llm_model": "gpt-4o"}`` -- default model identifiers stored on the
+      connection.
+
+    :param llm_conn_id: Airflow connection ID for the LLM provider. Falls
+        back to :attr:`default_conn_name` (``"llamaindex_default"``) when
+        not provided.
+    :param embed_conn_id: Optional separate Airflow connection ID for the
+        embedding provider. Falls back to ``llm_conn_id`` when not set.
+    :param embed_model: Embedding model name (e.g.
+        ``"text-embedding-3-small"``). Overrides ``extra["embed_model"]``
+        on the connection.
+    :param llm_model: LLM model name (e.g. ``"gpt-4o"``). Overrides
+        ``extra["llm_model"]`` on the connection. Required when calling
+        :meth:`get_llm`.
     """
 
     conn_name_attr = "llm_conn_id"
-    default_conn_name = "pydanticai_default"
-    conn_type = "pydanticai"
+    default_conn_name = "llamaindex_default"
+    conn_type = "llamaindex"
     hook_name = "LlamaIndex"
 
     def __init__(
         self,
-        llm_conn_id: str = "pydanticai_default",
+        llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
-        embed_model: str = "text-embedding-3-small",
+        embed_model: str | None = None,
         llm_model: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.llm_conn_id = llm_conn_id
-        self.embed_conn_id = embed_conn_id or llm_conn_id
+        # Resolve at runtime so a future per-vendor subclass with its own
+        # ``default_conn_name`` is honoured.
+        self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
+        self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
         self.embed_model = embed_model
         self.llm_model = llm_model
 
-    def _resolve_connection_kwargs(self, conn_id: str) -> dict[str, Any]:
-        """Extract API key and base URL from an Airflow connection."""
-        conn = self.get_connection(conn_id)
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Return custom field behaviour for the Airflow connection form."""
+        return {
+            "hidden_fields": ["schema", "port", "login"],
+            "relabeling": {"password": "API Key"},
+            "placeholders": {
+                "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
+            },
+        }
+
+    @staticmethod
+    def _resolve_model(
+        conn_extra: dict[str, Any],
+        *,
+        constructor_value: str | None,
+        extra_key: str,
+        kind: str,
+    ) -> str:
+        """Resolve a model identifier from the constructor arg or connection extra."""
+        model_id = constructor_value or conn_extra.get(extra_key)
+        if not model_id:
+            raise ValueError(
+                f"No {kind} model identifier set. Pass {extra_key}= to the hook "
+                f'constructor or set extra={{"{extra_key}": "model-name"}} on '
+                "the connection."
+            )
+        return model_id
+
+    @staticmethod
+    def _connection_kwargs(conn: Any) -> dict[str, Any]:
+        """Return shared OpenAI-style kwargs (api_key, api_base) from the connection."""
         kwargs: dict[str, Any] = {}
         if conn.password:
             kwargs["api_key"] = conn.password
@@ -76,35 +146,44 @@ class LlamaIndexHook(BaseHook):
         Return a LlamaIndex embedding model configured from the Airflow connection.
 
         Uses ``embed_conn_id`` (falls back to ``llm_conn_id``) for credentials.
+        Returns an ``OpenAIEmbedding`` instance; for other vendors,
+        instantiate the LlamaIndex class directly and pass it to the
+        operator's ``embed_model=`` parameter.
         """
-        from llama_index.embeddings.openai import OpenAIEmbedding
+        # Lazy: llama-index is an optional extra; importing at module level
+        # would break common.ai for users who haven't installed ``[llamaindex]``.
+        try:
+            from llama_index.embeddings.openai import OpenAIEmbedding
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
 
-        conn_kwargs = self._resolve_connection_kwargs(self.embed_conn_id)
-        return OpenAIEmbedding(model=self.embed_model, **conn_kwargs)
+        conn = self.get_connection(self.embed_conn_id)
+        model_id = self._resolve_model(
+            conn.extra_dejson,
+            constructor_value=self.embed_model,
+            extra_key="embed_model",
+            kind="embedding",
+        )
+        return OpenAIEmbedding(model=model_id, **self._connection_kwargs(conn))
 
     def get_llm(self) -> LLM:
         """
         Return a LlamaIndex LLM configured from the Airflow connection.
 
-        Requires ``llm_model`` to be set on the hook.
+        Returns an ``OpenAI`` LLM instance; for other vendors, instantiate
+        the LlamaIndex class directly and pass it to the operator's ``llm=``
+        parameter.
         """
-        if not self.llm_model:
-            raise ValueError("llm_model must be set to use get_llm()")
+        try:
+            from llama_index.llms.openai import OpenAI
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
 
-        from llama_index.llms.openai import OpenAI
-
-        conn_kwargs = self._resolve_connection_kwargs(self.llm_conn_id)
-        return OpenAI(model=self.llm_model, **conn_kwargs)
-
-    def configure_settings(self) -> None:
-        """
-        Configure LlamaIndex's global Settings with models from Airflow connections.
-
-        Sets ``Settings.embed_model`` always, and ``Settings.llm`` when
-        ``llm_model`` is provided.
-        """
-        from llama_index.core import Settings
-
-        Settings.embed_model = self.get_embedding_model()
-        if self.llm_model:
-            Settings.llm = self.get_llm()
+        conn = self.get_connection(self.llm_conn_id)
+        model_id = self._resolve_model(
+            conn.extra_dejson,
+            constructor_value=self.llm_model,
+            extra_key="llm_model",
+            kind="llm",
+        )
+        return OpenAI(model=model_id, **self._connection_kwargs(conn))

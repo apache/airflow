@@ -16,184 +16,167 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from airflow.providers.common.ai.operators.llamaindex_retrieval import RetrievalOperator
 
 
-def _make_mock_node_with_score(text="chunk text", score=0.9, metadata=None, node_id="node-1"):
+@pytest.fixture
+def _stub_li(monkeypatch):
+    """Patch the few ``llama_index`` symbols the retrieval operator imports."""
+    StorageContext = MagicMock(name="StorageContext")
+    load_index_from_storage = MagicMock(name="load_index_from_storage")
+
+    li_core = MagicMock(
+        StorageContext=StorageContext,
+        load_index_from_storage=load_index_from_storage,
+    )
+
+    monkeypatch.setitem(sys.modules, "llama_index", MagicMock())
+    monkeypatch.setitem(sys.modules, "llama_index.core", li_core)
+
+    return {
+        "StorageContext": StorageContext,
+        "load_index_from_storage": load_index_from_storage,
+    }
+
+
+def _scored_node(text: str, score: float, metadata: dict | None = None, node_id: str = "n"):
     node = MagicMock()
     node.get_content.return_value = text
     node.metadata = metadata or {}
     node.node_id = node_id
-
-    node_with_score = MagicMock()
-    node_with_score.node = node
-    node_with_score.score = score
-    return node_with_score
-
-
-def _make_mock_llamaindex_modules(retrieval_results=None):
-    """Create mock llama_index modules for sys.modules injection."""
-    if retrieval_results is None:
-        retrieval_results = [_make_mock_node_with_score()]
-
-    mock_core = MagicMock()
-    mock_index = MagicMock()
-    mock_retriever = MagicMock()
-    mock_retriever.retrieve.return_value = retrieval_results
-    mock_index.as_retriever.return_value = mock_retriever
-    mock_core.load_index_from_storage.return_value = mock_index
-
-    return (
-        {
-            "llama_index": MagicMock(),
-            "llama_index.core": mock_core,
-            "llama_index.embeddings": MagicMock(),
-            "llama_index.embeddings.openai": MagicMock(),
-        },
-        mock_core,
-        mock_index,
-        mock_retriever,
-    )
+    wrapped = MagicMock()
+    wrapped.node = node
+    wrapped.score = score
+    return wrapped
 
 
-class TestRetrievalOperator:
-    def test_template_fields(self):
-        expected = {"query", "index_persist_dir", "llm_conn_id"}
-        assert set(RetrievalOperator.template_fields) == expected
+class TestRetrievalOperatorOutput:
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_chunk_shape(self, mock_get_embed, _stub_li, tmp_path):
+        # Make the persist_dir existence check pass.
+        (tmp_path / "idx").mkdir()
 
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_execute_returns_expected_shape(self, mock_hook_cls):
-        results = [_make_mock_node_with_score(text="relevant chunk", score=0.95)]
-        mock_modules, mock_core, _, _ = _make_mock_llamaindex_modules(results)
-
-        op = RetrievalOperator(
-            task_id="test",
-            query="What is Airflow?",
-            index_persist_dir="/tmp/index",
-            llm_conn_id="my_conn",
-        )
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert "question" in result
-        assert "chunks" in result
-        assert result["question"] == "What is Airflow?"
-        assert len(result["chunks"]) == 1
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_chunks_have_required_keys(self, mock_hook_cls):
-        results = [
-            _make_mock_node_with_score(
-                text="chunk text", score=0.8, metadata={"file": "doc.txt"}, node_id="abc-123"
-            )
+        index = _stub_li["load_index_from_storage"].return_value
+        retriever = index.as_retriever.return_value
+        retriever.retrieve.return_value = [
+            _scored_node("chunk a", 0.91, {"src": "x"}, "node-a"),
+            _scored_node("chunk b", 0.85, {"src": "y"}, "node-b"),
         ]
-        mock_modules, _, _, _ = _make_mock_llamaindex_modules(results)
 
         op = RetrievalOperator(
             task_id="test",
-            query="test query",
-            index_persist_dir="/tmp/index",
-            llm_conn_id="my_conn",
+            query="what is airflow",
+            index_persist_dir=str(tmp_path / "idx"),
+            embed_model="text-embedding-3-small",
         )
+        result = op.execute(context=MagicMock())
 
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
+        assert result == {
+            "query": "what is airflow",
+            "chunks": [
+                {"text": "chunk a", "score": 0.91, "metadata": {"src": "x"}, "node_id": "node-a"},
+                {"text": "chunk b", "score": 0.85, "metadata": {"src": "y"}, "node_id": "node-b"},
+            ],
+        }
+        # The retrieval-time embedding model is passed directly (no Settings mutation).
+        _stub_li["load_index_from_storage"].assert_called_once()
+        kwargs = _stub_li["load_index_from_storage"].call_args.kwargs
+        assert "embed_model" in kwargs
+        index.as_retriever.assert_called_once_with(similarity_top_k=5)
 
-        chunk = result["chunks"][0]
-        assert chunk["text"] == "chunk text"
-        assert chunk["score"] == 0.8
-        assert chunk["metadata"] == {"file": "doc.txt"}
-        assert chunk["source"] == "abc-123"
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_top_k_forwarded_to_retriever(self, mock_hook_cls):
-        mock_modules, _, mock_index, _ = _make_mock_llamaindex_modules([])
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_top_k_forwarded(self, mock_get_embed, _stub_li, tmp_path):
+        (tmp_path / "idx").mkdir()
+        index = _stub_li["load_index_from_storage"].return_value
+        index.as_retriever.return_value.retrieve.return_value = []
 
         op = RetrievalOperator(
             task_id="test",
-            query="test",
-            index_persist_dir="/tmp/index",
-            llm_conn_id="my_conn",
-            top_k=10,
+            query="q",
+            index_persist_dir=str(tmp_path / "idx"),
+            embed_model="text-embedding-3-small",
+            top_k=12,
         )
+        op.execute(context=MagicMock())
 
-        with patch.dict("sys.modules", mock_modules):
+        index.as_retriever.assert_called_once_with(similarity_top_k=12)
+
+    def test_byo_embed_model_bypasses_hook(self, _stub_li, tmp_path):
+        (tmp_path / "idx").mkdir()
+        byo = MagicMock(name="MyBaseEmbedding")
+        index = _stub_li["load_index_from_storage"].return_value
+        index.as_retriever.return_value.retrieve.return_value = []
+
+        op = RetrievalOperator(
+            task_id="test",
+            query="q",
+            index_persist_dir=str(tmp_path / "idx"),
+            embed_model=byo,
+        )
+        op.execute(context=MagicMock())
+
+        kwargs = _stub_li["load_index_from_storage"].call_args.kwargs
+        assert kwargs["embed_model"] is byo
+
+
+class TestRetrievalOperatorMissingIndex:
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_local_missing_dir_raises_with_hint(self, mock_get_embed, _stub_li, tmp_path):
+        op = RetrievalOperator(
+            task_id="test",
+            query="q",
+            index_persist_dir=str(tmp_path / "no_such_dir"),
+            embed_model="text-embedding-3-small",
+        )
+        with pytest.raises(FileNotFoundError, match="EmbeddingOperator"):
             op.execute(context=MagicMock())
 
-        mock_index.as_retriever.assert_called_once_with(similarity_top_k=10)
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_query_value_in_output(self, mock_hook_cls):
-        mock_modules, _, _, _ = _make_mock_llamaindex_modules([])
-
-        op = RetrievalOperator(
-            task_id="test",
-            query="How does Airflow scheduling work?",
-            index_persist_dir="/tmp/index",
-            llm_conn_id="my_conn",
-        )
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert result["question"] == "How does Airflow scheduling work?"
-        assert result["chunks"] == []
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_multiple_results_returned(self, mock_hook_cls):
-        results = [
-            _make_mock_node_with_score(text=f"chunk {i}", score=0.9 - i * 0.1, node_id=f"node-{i}")
-            for i in range(3)
-        ]
-        mock_modules, _, _, _ = _make_mock_llamaindex_modules(results)
+    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_cloud_missing_uri_raises_with_hint(self, mock_get_embed, mock_osp_cls, _stub_li):
+        missing = MagicMock()
+        missing.is_dir.return_value = False
+        mock_osp_cls.return_value = missing
 
         op = RetrievalOperator(
             task_id="test",
-            query="test",
-            index_persist_dir="/tmp/index",
-            llm_conn_id="my_conn",
+            query="q",
+            index_persist_dir="s3://bucket/missing/",
+            embed_model="text-embedding-3-small",
         )
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert len(result["chunks"]) == 3
-        assert result["chunks"][0]["text"] == "chunk 0"
-        assert result["chunks"][2]["text"] == "chunk 2"
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_hook_configured_with_params(self, mock_hook_cls):
-        mock_modules, _, _, _ = _make_mock_llamaindex_modules([])
-
-        op = RetrievalOperator(
-            task_id="test",
-            query="test",
-            index_persist_dir="/tmp/index",
-            llm_conn_id="custom_conn",
-            embed_model="text-embedding-ada-002",
-        )
-
-        with patch.dict("sys.modules", mock_modules):
+        with pytest.raises(FileNotFoundError, match="EmbeddingOperator"):
             op.execute(context=MagicMock())
 
-        mock_hook_cls.assert_called_once_with(llm_conn_id="custom_conn", embed_model="text-embedding-ada-002")
-        mock_hook_cls.return_value.configure_settings.assert_called_once()
 
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_persist_dir_passed_to_storage_context(self, mock_hook_cls):
-        mock_modules, mock_core, _, _ = _make_mock_llamaindex_modules([])
+class TestRetrievalOperatorCloudURI:
+    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_cloud_uri_opens_storage_with_fs(self, mock_get_embed, mock_osp_cls, _stub_li):
+        target = MagicMock()
+        target.is_dir.return_value = True
+        target.__str__.return_value = "s3://bucket/idx/"
+        target.fs = MagicMock(name="s3fs")
+        mock_osp_cls.return_value = target
+
+        index = _stub_li["load_index_from_storage"].return_value
+        index.as_retriever.return_value.retrieve.return_value = []
 
         op = RetrievalOperator(
             task_id="test",
-            query="test",
-            index_persist_dir="/data/my_index",
-            llm_conn_id="my_conn",
+            query="q",
+            index_persist_dir="s3://bucket/idx/",
+            persist_conn_id="aws_default",
+            embed_model="text-embedding-3-small",
         )
+        op.execute(context=MagicMock())
 
-        with patch.dict("sys.modules", mock_modules):
-            op.execute(context=MagicMock())
-
-        mock_core.StorageContext.from_defaults.assert_called_once_with(persist_dir="/data/my_index")
+        mock_osp_cls.assert_called_once_with("s3://bucket/idx/", conn_id="aws_default")
+        _stub_li["StorageContext"].from_defaults.assert_called_once_with(
+            persist_dir="s3://bucket/idx/",
+            fs=target.fs,
+        )

@@ -16,187 +16,170 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from airflow.providers.common.ai.operators.llamaindex_embedding import EmbeddingOperator
 
 
-def _make_mock_node(text="chunk text", metadata=None, embedding=None):
+@pytest.fixture
+def _stub_li(monkeypatch):
+    """Patch the few ``llama_index`` symbols the operator imports."""
+    Document = MagicMock(name="Document")
+    StorageContext = MagicMock(name="StorageContext")
+    VectorStoreIndex = MagicMock(name="VectorStoreIndex")
+    SentenceSplitter = MagicMock(name="SentenceSplitter")
+
+    li_core = MagicMock(
+        Document=Document,
+        StorageContext=StorageContext,
+        VectorStoreIndex=VectorStoreIndex,
+    )
+    li_core_np = MagicMock(SentenceSplitter=SentenceSplitter)
+
+    monkeypatch.setitem(sys.modules, "llama_index", MagicMock())
+    monkeypatch.setitem(sys.modules, "llama_index.core", li_core)
+    monkeypatch.setitem(sys.modules, "llama_index.core.node_parser", li_core_np)
+
+    return {
+        "Document": Document,
+        "StorageContext": StorageContext,
+        "VectorStoreIndex": VectorStoreIndex,
+        "SentenceSplitter": SentenceSplitter,
+    }
+
+
+def _node(text: str = "chunk text", metadata: dict | None = None, vector=None):
     node = MagicMock()
     node.text = text
     node.metadata = metadata or {}
-    node.embedding = embedding
+    node.embedding = vector
     return node
 
 
-def _make_mock_llamaindex_modules(nodes=None):
-    """Create mock llama_index modules for sys.modules injection."""
-    if nodes is None:
-        nodes = [_make_mock_node()]
+class TestEmbeddingOperatorInit:
+    def test_documents_not_templated(self):
+        # ``documents`` is ``list[dict]`` -- Jinja stringification would
+        # break it. Explicitly out of template_fields.
+        assert "documents" not in EmbeddingOperator.template_fields
 
-    mock_core = MagicMock()
-    mock_core.Document = MagicMock(side_effect=lambda text, metadata: MagicMock(text=text, metadata=metadata))
-    mock_core.StorageContext.from_defaults.return_value = MagicMock()
-    mock_core.VectorStoreIndex = MagicMock()
-
-    mock_node_parser = MagicMock()
-    mock_splitter = MagicMock()
-    mock_splitter.get_nodes_from_documents.return_value = nodes
-    mock_node_parser.SentenceSplitter.return_value = mock_splitter
-
-    return (
-        {
-            "llama_index": MagicMock(),
-            "llama_index.core": mock_core,
-            "llama_index.core.node_parser": mock_node_parser,
-            "llama_index.embeddings": MagicMock(),
-            "llama_index.embeddings.openai": MagicMock(),
-        },
-        mock_core,
-        mock_splitter,
-    )
+    def test_templated_fields(self):
+        assert set(EmbeddingOperator.template_fields) == {
+            "llm_conn_id",
+            "persist_dir",
+            "persist_conn_id",
+        }
 
 
-class TestEmbeddingOperator:
-    def test_template_fields(self):
-        expected = {"documents", "llm_conn_id", "persist_dir"}
-        assert set(EmbeddingOperator.template_fields) == expected
+class TestEmbeddingOperatorExecute:
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_string_embed_model_goes_through_hook(self, mock_get_embed, _stub_li):
+        # `embed_model` as a string -> hook builds OpenAIEmbedding.
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
+            _node(text="chunk a", vector=[0.1, 0.2]),
+        ]
 
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_execute_returns_expected_shape(self, mock_hook_cls):
-        docs = [{"text": "Hello world", "metadata": {"source": "test"}}]
-        nodes = [_make_mock_node(text="Hello world", metadata={"source": "test"})]
-        mock_modules, mock_core, mock_splitter = _make_mock_llamaindex_modules(nodes)
+        op = EmbeddingOperator(
+            task_id="test",
+            documents=[{"text": "doc", "metadata": {"src": "x"}}],
+            embed_model="text-embedding-3-small",
+            llm_conn_id="my_conn",
+        )
+        result = op.execute(context=MagicMock())
 
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn")
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert "document_count" in result
-        assert "chunk_count" in result
-        assert "persist_dir" in result
-        assert "chunks" in result
+        mock_get_embed.assert_called_once()
         assert result["document_count"] == 1
         assert result["chunk_count"] == 1
+        assert result["chunks"][0]["text"] == "chunk a"
+        assert result["chunks"][0]["vector"] == [0.1, 0.2]
 
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_chunking_node_count(self, mock_hook_cls):
-        docs = [{"text": "A long document " * 100, "metadata": {}}]
-        nodes = [_make_mock_node(text=f"chunk {i}") for i in range(5)]
-        mock_modules, mock_core, mock_splitter = _make_mock_llamaindex_modules(nodes)
-
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn")
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert result["chunk_count"] == 5
-        assert len(result["chunks"]) == 5
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_persist_dir_creates_and_persists(self, mock_hook_cls, tmp_path):
-        docs = [{"text": "test", "metadata": {}}]
-        persist_dir = str(tmp_path / "index_storage")
-        mock_modules, mock_core, _ = _make_mock_llamaindex_modules()
-        mock_storage_ctx = mock_core.StorageContext.from_defaults.return_value
-
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn", persist_dir=persist_dir)
-
-        with patch.dict("sys.modules", mock_modules):
-            op.execute(context=MagicMock())
-
-        mock_storage_ctx.persist.assert_called_once_with(persist_dir=persist_dir)
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_no_persist_when_none(self, mock_hook_cls):
-        docs = [{"text": "test", "metadata": {}}]
-        mock_modules, mock_core, _ = _make_mock_llamaindex_modules()
-        mock_storage_ctx = mock_core.StorageContext.from_defaults.return_value
-
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn")
-
-        with patch.dict("sys.modules", mock_modules):
-            op.execute(context=MagicMock())
-
-        mock_storage_ctx.persist.assert_not_called()
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_chunks_have_text_and_metadata(self, mock_hook_cls):
-        docs = [{"text": "test", "metadata": {"src": "a"}}]
-        nodes = [_make_mock_node(text="chunk1", metadata={"src": "a"})]
-        mock_modules, _, _ = _make_mock_llamaindex_modules(nodes)
-
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn")
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        chunk = result["chunks"][0]
-        assert "text" in chunk
-        assert "metadata" in chunk
-        assert chunk["text"] == "chunk1"
-        assert chunk["metadata"] == {"src": "a"}
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_chunks_include_vector_when_present(self, mock_hook_cls):
-        docs = [{"text": "test", "metadata": {}}]
-        nodes = [_make_mock_node(text="chunk1", embedding=[0.1, 0.2, 0.3])]
-        mock_modules, _, _ = _make_mock_llamaindex_modules(nodes)
-
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn")
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert result["chunks"][0]["vector"] == [0.1, 0.2, 0.3]
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_chunks_omit_vector_when_not_present(self, mock_hook_cls):
-        docs = [{"text": "test", "metadata": {}}]
-        nodes = [_make_mock_node(text="chunk1", embedding=None)]
-        mock_modules, _, _ = _make_mock_llamaindex_modules(nodes)
-
-        op = EmbeddingOperator(task_id="test", documents=docs, llm_conn_id="my_conn")
-
-        with patch.dict("sys.modules", mock_modules):
-            result = op.execute(context=MagicMock())
-
-        assert "vector" not in result["chunks"][0]
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_hook_configured_with_params(self, mock_hook_cls):
-        docs = [{"text": "test", "metadata": {}}]
-        mock_modules, _, _ = _make_mock_llamaindex_modules()
+    def test_byo_embed_model_bypasses_hook(self, _stub_li):
+        # `embed_model` is a non-string instance -> hook is bypassed.
+        byo = MagicMock(name="MyBaseEmbedding")
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
+            _node()
+        ]
 
         op = EmbeddingOperator(
             task_id="test",
-            documents=docs,
-            llm_conn_id="custom_conn",
-            embed_model="text-embedding-ada-002",
+            documents=[{"text": "doc"}],
+            embed_model=byo,
         )
+        op.execute(context=MagicMock())
 
-        with patch.dict("sys.modules", mock_modules):
-            op.execute(context=MagicMock())
+        # VectorStoreIndex called with the user's instance, not anything else.
+        _stub_li["VectorStoreIndex"].assert_called_once()
+        kwargs = _stub_li["VectorStoreIndex"].call_args.kwargs
+        assert kwargs["embed_model"] is byo
 
-        mock_hook_cls.assert_called_once_with(llm_conn_id="custom_conn", embed_model="text-embedding-ada-002")
-        mock_hook_cls.return_value.configure_settings.assert_called_once()
-
-    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook", autospec=True)
-    def test_splitter_params_forwarded(self, mock_hook_cls):
-        docs = [{"text": "test", "metadata": {}}]
-        mock_modules, _, _ = _make_mock_llamaindex_modules()
-        mock_node_parser = mock_modules["llama_index.core.node_parser"]
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_chunks_carry_text_metadata_vector(self, mock_get_embed, _stub_li):
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
+            _node(text="x", metadata={"k": "v"}, vector=[1.0, 2.0]),
+            _node(text="y", metadata={"k": "v2"}, vector=[3.0, 4.0]),
+        ]
 
         op = EmbeddingOperator(
             task_id="test",
-            documents=docs,
-            llm_conn_id="my_conn",
-            chunk_size=256,
-            chunk_overlap=25,
+            documents=[{"text": "doc"}],
+            embed_model="text-embedding-3-small",
         )
+        result = op.execute(context=MagicMock())
 
-        with patch.dict("sys.modules", mock_modules):
-            op.execute(context=MagicMock())
+        assert result["chunks"] == [
+            {"text": "x", "metadata": {"k": "v"}, "vector": [1.0, 2.0]},
+            {"text": "y", "metadata": {"k": "v2"}, "vector": [3.0, 4.0]},
+        ]
 
-        mock_node_parser.SentenceSplitter.assert_called_once_with(chunk_size=256, chunk_overlap=25)
+
+class TestEmbeddingOperatorPersist:
+    @patch("os.makedirs")
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_local_persist_dir_calls_makedirs_and_storage_persist(
+        self, mock_get_embed, mock_makedirs, _stub_li, tmp_path
+    ):
+        node = _node()
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
+        index = _stub_li["VectorStoreIndex"].return_value
+
+        op = EmbeddingOperator(
+            task_id="test",
+            documents=[{"text": "doc"}],
+            embed_model="text-embedding-3-small",
+            persist_dir=str(tmp_path / "idx"),
+        )
+        op.execute(context=MagicMock())
+
+        mock_makedirs.assert_called_once_with(str(tmp_path / "idx"), exist_ok=True)
+        index.storage_context.persist.assert_called_once_with(persist_dir=str(tmp_path / "idx"))
+
+    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
+    def test_cloud_uri_persist_dir_uses_object_storage_path(
+        self, mock_get_embed, mock_osp_cls, _stub_li
+    ):
+        target = MagicMock()
+        target.__str__.return_value = "s3://bucket/idx/"
+        target.fs = MagicMock(name="s3fs")
+        mock_osp_cls.return_value = target
+
+        node = _node()
+        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
+        index = _stub_li["VectorStoreIndex"].return_value
+
+        op = EmbeddingOperator(
+            task_id="test",
+            documents=[{"text": "doc"}],
+            embed_model="text-embedding-3-small",
+            persist_dir="s3://bucket/idx/",
+            persist_conn_id="aws_default",
+        )
+        op.execute(context=MagicMock())
+
+        mock_osp_cls.assert_called_once_with("s3://bucket/idx/", conn_id="aws_default")
+        target.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        index.storage_context.persist.assert_called_once_with(
+            persist_dir="s3://bucket/idx/", fs=target.fs
+        )

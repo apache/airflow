@@ -17,92 +17,89 @@
 
 .. _howto/operator:llamaindex_retrieval:
 
-``RetrievalOperator``
-=====================
+LlamaIndex ``RetrievalOperator``
+================================
 
-Use :class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.RetrievalOperator`
-to retrieve relevant document chunks from a persisted LlamaIndex index. The
-operator performs similarity search against the provided query and returns
-results ready for downstream synthesis via ``LLMOperator``.
+Load a persisted LlamaIndex index and run similarity search. Designed to
+sit between
+:class:`~airflow.providers.common.ai.operators.llamaindex_embedding.EmbeddingOperator`
+(which builds the index) and
+:class:`~airflow.providers.common.ai.operators.llm.LLMOperator` (which
+synthesises an answer from the retrieved chunks).
 
-Basic Usage
+Passes the embedding model **directly** to
+``load_index_from_storage(..., embed_model=...)`` -- no LlamaIndex
+``Settings`` mutation. The embedding model must match the one used when
+the index was originally built.
+
+Basic usage
 -----------
 
-Provide a query string and the path to a previously persisted index:
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llamaindex_hook.py
+    :language: python
+    :start-after: [START howto_hook_llamaindex_retrieve]
+    :end-before: [END howto_hook_llamaindex_retrieve]
 
-.. code-block:: python
+``query`` is templated, so DAG-run params, XCom, and Variables all flow
+through cleanly.
 
-    from airflow.providers.common.ai.operators.llamaindex_retrieval import RetrievalOperator
+Cloud-persisted indexes
+-----------------------
 
-    retrieve = RetrievalOperator(
-        task_id="retrieve_context",
-        query="What are Airflow's key features?",
-        index_persist_dir="/opt/airflow/data/my_index",
-        llm_conn_id="openai_default",
-    )
+``index_persist_dir`` accepts the same local-path-or-URI shape as
+``EmbeddingOperator.persist_dir``. Pass ``persist_conn_id`` to point at
+the Airflow connection that holds cloud credentials. The operator raises
+``FileNotFoundError`` with a clear "did you run EmbeddingOperator first?"
+message when the path is missing.
 
-Query Templating
-----------------
+Bring-your-own embedding model
+------------------------------
 
-The ``query`` field supports Jinja templating, so it can be set dynamically
-from upstream task output or Dag run configuration:
-
-.. code-block:: python
-
-    retrieve = RetrievalOperator(
-        task_id="retrieve_context",
-        query="{{ dag_run.conf['question'] }}",
-        index_persist_dir="/opt/airflow/data/my_index",
-        llm_conn_id="openai_default",
-        top_k=10,
-    )
-
-Output Shape
-------------
-
-The operator returns a dict:
-
-.. code-block:: python
-
-    {
-        "question": "What are Airflow's key features?",
-        "chunks": [
-            {
-                "text": "Airflow provides ...",
-                "score": 0.95,
-                "metadata": {"source": "overview.txt"},
-                "source": "node-abc123",
-            },
-            ...
-        ],
-    }
-
-Each chunk includes ``text``, ``score`` (similarity), ``metadata``, and
-``source`` (the LlamaIndex node ID). This output pairs naturally with
-``LLMOperator`` for RAG synthesis using Jinja templates.
+Same shape as ``EmbeddingOperator``: ``embed_model`` accepts either a
+string model name (OpenAI via the hook) or a pre-built ``BaseEmbedding``
+instance for non-OpenAI vendors. See the BYO example in
+:doc:`llamaindex_embedding`.
 
 Parameters
 ----------
 
 .. list-table::
    :header-rows: 1
-   :widths: 25 15 60
+   :widths: 25 75
 
    * - Parameter
-     - Default
      - Description
    * - ``query``
-     - (required)
-     - The query string to search for. Supports Jinja templating.
+     - The query string. Templated.
    * - ``index_persist_dir``
-     - (required)
-     - Path to the persisted LlamaIndex index directory.
-   * - ``llm_conn_id``
-     - ``pydanticai_default``
-     - Airflow connection ID for the embedding API.
+     - Local path or storage URI pointing at the persisted index.
+       Templated.
+   * - ``persist_conn_id``
+     - Cloud credentials connection ID for ``index_persist_dir`` URIs.
+       Templated.
    * - ``embed_model``
-     - ``text-embedding-3-small``
-     - Embedding model name.
+     - String model name OR pre-built ``BaseEmbedding`` instance. Must
+       match the model used when the index was built.
+   * - ``llm_conn_id``
+     - Airflow connection ID used when ``embed_model`` is a string
+       (default ``llamaindex_default``).
    * - ``top_k``
-     - ``5``
-     - Number of top results to retrieve.
+     - Number of top similarity results to return (default 5).
+
+Output
+------
+
+Returns a dict with::
+
+    {
+        "query": str,
+        "chunks": [
+            {
+                "text": str,
+                "score": float,
+                "metadata": dict,
+                "node_id": str,
+            },
+            ...
+        ],
+    }

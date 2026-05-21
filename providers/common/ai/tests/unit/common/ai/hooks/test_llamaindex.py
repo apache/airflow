@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,174 +24,172 @@ import pytest
 from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
 
 
+@pytest.fixture(autouse=True)
+def _stub_llama_index_modules():
+    """Stub ``llama_index.*`` in sys.modules so @patch can resolve targets
+    without the real package installed (mirrors the langchain pattern from
+    apache/airflow#67237).
+    """
+    li = MagicMock()
+    mocks = {
+        "llama_index": li,
+        "llama_index.core": li.core,
+        "llama_index.core.base": li.core.base,
+        "llama_index.core.base.embeddings": li.core.base.embeddings,
+        "llama_index.core.base.embeddings.base": li.core.base.embeddings.base,
+        "llama_index.core.llms": li.core.llms,
+        "llama_index.core.llms.llm": li.core.llms.llm,
+        "llama_index.embeddings": li.embeddings,
+        "llama_index.embeddings.openai": li.embeddings.openai,
+        "llama_index.llms": li.llms,
+        "llama_index.llms.openai": li.llms.openai,
+    }
+    with patch.dict(sys.modules, mocks):
+        yield
+
+
+def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:
+    mock_conn = MagicMock()
+    mock_conn.password = password
+    mock_conn.host = host
+    mock_conn.extra_dejson = extra or {}
+    return mock_conn
+
+
 class TestLlamaIndexHookInit:
     def test_default_params(self):
         hook = LlamaIndexHook()
-        assert hook.llm_conn_id == "pydanticai_default"
-        assert hook.embed_conn_id == "pydanticai_default"
-        assert hook.embed_model == "text-embedding-3-small"
+        assert hook.llm_conn_id == "llamaindex_default"
+        assert hook.embed_conn_id == "llamaindex_default"
+        assert hook.embed_model is None
         assert hook.llm_model is None
 
-    def test_separate_embed_conn_id(self):
-        hook = LlamaIndexHook(llm_conn_id="llm_conn", embed_conn_id="embed_conn")
-        assert hook.llm_conn_id == "llm_conn"
-        assert hook.embed_conn_id == "embed_conn"
-
-    def test_embed_conn_defaults_to_llm_conn(self):
+    def test_embed_conn_falls_back_to_llm_conn(self):
         hook = LlamaIndexHook(llm_conn_id="my_conn")
         assert hook.embed_conn_id == "my_conn"
 
+    def test_explicit_separate_conns_and_models(self):
+        hook = LlamaIndexHook(
+            llm_conn_id="chat_conn",
+            embed_conn_id="embed_conn",
+            embed_model="text-embedding-3-large",
+            llm_model="gpt-4o",
+        )
+        assert hook.llm_conn_id == "chat_conn"
+        assert hook.embed_conn_id == "embed_conn"
+        assert hook.embed_model == "text-embedding-3-large"
+        assert hook.llm_model == "gpt-4o"
 
-class TestResolveConnectionKwargs:
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_extracts_password_as_api_key(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test-key"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        hook = LlamaIndexHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_key": "sk-test-key"}
-
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_extracts_host_as_api_base(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = ""
-        mock_conn.host = "https://custom.api.com"
-        mock_get_conn.return_value = mock_conn
-
-        hook = LlamaIndexHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_base": "https://custom.api.com"}
-
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_both_password_and_host(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-key"
-        mock_conn.host = "https://api.example.com"
-        mock_get_conn.return_value = mock_conn
-
-        hook = LlamaIndexHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {"api_key": "sk-key", "api_base": "https://api.example.com"}
-
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_empty_fields_return_empty_dict(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = ""
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        hook = LlamaIndexHook()
-        result = hook._resolve_connection_kwargs("test_conn")
-
-        assert result == {}
+    def test_conn_type_is_llamaindex(self):
+        assert LlamaIndexHook.conn_type == "llamaindex"
+        assert LlamaIndexHook.default_conn_name == "llamaindex_default"
+        assert LlamaIndexHook.conn_name_attr == "llm_conn_id"
+        assert LlamaIndexHook.hook_name == "LlamaIndex"
 
 
-def _make_mock_openai_embedding_module():
-    mock_module = MagicMock()
-    mock_cls = MagicMock()
-    mock_module.OpenAIEmbedding = mock_cls
-    return mock_module, mock_cls
+class TestGetUiFieldBehaviour:
+    def test_shape(self):
+        behaviour = LlamaIndexHook.get_ui_field_behaviour()
+        assert behaviour["hidden_fields"] == ["schema", "port", "login"]
+        assert behaviour["relabeling"] == {"password": "API Key"}
+        assert "host" in behaviour["placeholders"]
+        assert "embed_model" in behaviour["placeholders"]["extra"]
+        assert "llm_model" in behaviour["placeholders"]["extra"]
 
 
-def _make_mock_openai_llm_module():
-    mock_module = MagicMock()
-    mock_cls = MagicMock()
-    mock_module.OpenAI = mock_cls
-    return mock_module, mock_cls
+class TestResolveModel:
+    def test_constructor_wins_over_extra(self):
+        result = LlamaIndexHook._resolve_model(
+            {"embed_model": "old"},
+            constructor_value="new",
+            extra_key="embed_model",
+            kind="embedding",
+        )
+        assert result == "new"
+
+    def test_falls_back_to_extra(self):
+        result = LlamaIndexHook._resolve_model(
+            {"embed_model": "from-extra"},
+            constructor_value=None,
+            extra_key="embed_model",
+            kind="embedding",
+        )
+        assert result == "from-extra"
+
+    def test_raises_when_neither_set(self):
+        with pytest.raises(ValueError, match="No embedding model identifier set"):
+            LlamaIndexHook._resolve_model(
+                {},
+                constructor_value=None,
+                extra_key="embed_model",
+                kind="embedding",
+            )
 
 
 class TestGetEmbeddingModel:
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")
-    def test_returns_openai_embedding(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
+    def test_dispatches_with_api_key(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(embed_model="text-embedding-3-small")
 
-        mock_embed_module, mock_embed_cls = _make_mock_openai_embedding_module()
+        result = hook.get_embedding_model()
 
-        hook = LlamaIndexHook(embed_model="text-embedding-3-large")
-        with patch.dict("sys.modules", {"llama_index.embeddings.openai": mock_embed_module}):
-            result = hook.get_embedding_model()
+        mock_get_conn.assert_called_once_with("llamaindex_default")
+        mock_cls.assert_called_once_with(model="text-embedding-3-small", api_key="sk-test")
+        assert result is mock_cls.return_value
 
-        mock_embed_cls.assert_called_once_with(model="text-embedding-3-large", api_key="sk-test")
-        assert result == mock_embed_cls.return_value
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_dispatches_with_api_base(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test", host="http://localhost:11434/v1")
+        hook = LlamaIndexHook(embed_model="text-embedding-3-small")
 
+        hook.get_embedding_model()
 
-class TestGetLLM:
-    def test_raises_without_llm_model(self):
+        mock_cls.assert_called_once_with(
+            model="text-embedding-3-small",
+            api_key="sk-test",
+            api_base="http://localhost:11434/v1",
+        )
+
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_resolves_model_from_extra(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(
+            password="sk-test", extra={"embed_model": "text-embedding-3-large"}
+        )
         hook = LlamaIndexHook()
-        with pytest.raises(ValueError, match="llm_model must be set"):
+
+        hook.get_embedding_model()
+
+        mock_cls.assert_called_once_with(model="text-embedding-3-large", api_key="sk-test")
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_raises_when_no_model_anywhere(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook()
+
+        with pytest.raises(ValueError, match="No embedding model identifier set"):
+            hook.get_embedding_model()
+
+
+class TestGetLlm:
+    @patch("llama_index.llms.openai.OpenAI")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_dispatches_with_api_key(self, mock_get_conn, mock_cls):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(llm_model="gpt-4o")
+
+        result = hook.get_llm()
+
+        mock_cls.assert_called_once_with(model="gpt-4o", api_key="sk-test")
+        assert result is mock_cls.return_value
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_raises_when_no_llm_model(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook()
+
+        with pytest.raises(ValueError, match="No llm model identifier set"):
             hook.get_llm()
-
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_returns_openai_llm(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        mock_llm_module, mock_llm_cls = _make_mock_openai_llm_module()
-
-        hook = LlamaIndexHook(llm_model="gpt-4o")
-        with patch.dict("sys.modules", {"llama_index.llms.openai": mock_llm_module}):
-            result = hook.get_llm()
-
-        mock_llm_cls.assert_called_once_with(model="gpt-4o", api_key="sk-test")
-        assert result == mock_llm_cls.return_value
-
-
-class TestConfigureSettings:
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_sets_embed_model(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        mock_embed_module, mock_embed_cls = _make_mock_openai_embedding_module()
-        mock_settings_module = MagicMock()
-
-        hook = LlamaIndexHook()
-        with patch.dict(
-            "sys.modules",
-            {
-                "llama_index.embeddings.openai": mock_embed_module,
-                "llama_index": MagicMock(),
-                "llama_index.core": mock_settings_module,
-            },
-        ):
-            hook.configure_settings()
-
-        assert mock_settings_module.Settings.embed_model == mock_embed_cls.return_value
-
-    @patch.object(LlamaIndexHook, "get_connection")
-    def test_sets_llm_when_model_provided(self, mock_get_conn):
-        mock_conn = MagicMock()
-        mock_conn.password = "sk-test"
-        mock_conn.host = ""
-        mock_get_conn.return_value = mock_conn
-
-        mock_embed_module, _ = _make_mock_openai_embedding_module()
-        mock_llm_module, mock_llm_cls = _make_mock_openai_llm_module()
-        mock_settings_module = MagicMock()
-
-        hook = LlamaIndexHook(llm_model="gpt-4o")
-        with patch.dict(
-            "sys.modules",
-            {
-                "llama_index.embeddings.openai": mock_embed_module,
-                "llama_index.llms.openai": mock_llm_module,
-                "llama_index": MagicMock(),
-                "llama_index.core": mock_settings_module,
-            },
-        ):
-            hook.configure_settings()
-
-        assert mock_settings_module.Settings.llm == mock_llm_cls.return_value

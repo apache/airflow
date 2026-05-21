@@ -18,88 +18,122 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+)
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
+    from llama_index.core.base.embeddings.base import BaseEmbedding
 
 
 class EmbeddingOperator(BaseOperator):
     """
     Chunk documents and produce embedding vectors using LlamaIndex.
 
-    Bridges document loading (Airflow provider hooks returning text) and
-    vector storage (pgvector, Pinecone, Weaviate ingest operators). Input
-    is ``list[dict]`` with ``text`` and ``metadata`` keys; output includes
-    the embedding vectors ready for downstream storage.
+    Bridges document loading (e.g.
+    :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
+    output) and vector storage (pgvector, Pinecone, Weaviate, ...). Input is
+    ``list[dict]`` with ``text`` and ``metadata`` keys; output includes the
+    embedding vectors ready for downstream storage ingest.
+
+    The operator passes the embedding model **directly** to
+    ``VectorStoreIndex(..., embed_model=...)`` -- it does not mutate
+    LlamaIndex's global ``Settings`` singleton, so concurrent tasks in the
+    same worker don't race on shared state.
 
     :param documents: List of dicts with ``text`` and ``metadata`` keys,
-        typically from ``DocumentLoaderOperator`` or a ``@task``.
-    :param llm_conn_id: Airflow connection ID for the embedding API.
-    :param embed_model: Embedding model name (default: ``text-embedding-3-small``).
-    :param chunk_size: Chunk size for the sentence splitter (default: 512).
-    :param chunk_overlap: Overlap between chunks (default: 50).
-    :param persist_dir: Optional directory path to persist the LlamaIndex
-        index for later retrieval.
+        typically from ``DocumentLoaderOperator`` or a ``@task``. Bind via
+        ``my_loader.output`` (XCom direct), **not** via Jinja -- ``list[dict]``
+        does not survive Jinja stringification.
+    :param embed_model: Either:
+
+        * a string model name (e.g. ``"text-embedding-3-small"``) -- the
+          operator constructs an :class:`~.LlamaIndexHook`-backed
+          ``OpenAIEmbedding`` from ``llm_conn_id``, or
+        * a pre-built ``BaseEmbedding`` instance -- bypass the hook
+          entirely for non-OpenAI vendors (e.g.
+          ``CohereEmbedding(...)``, ``BedrockEmbedding(...)``).
+
+    :param llm_conn_id: Airflow connection ID for the embedding API. Used
+        only when ``embed_model`` is a string (or omitted entirely, falling
+        back to ``extra["embed_model"]`` on the connection).
+    :param chunk_size: Chunk size for the sentence splitter.
+    :param chunk_overlap: Overlap between chunks.
+    :param persist_dir: Optional path to persist the index. Accepts local
+        paths and storage URIs (``s3://``, ``gs://``, ...) resolved via
+        :class:`~airflow.sdk.ObjectStoragePath`.
+    :param persist_conn_id: Airflow connection ID for cloud-storage
+        credentials when ``persist_dir`` is a URI.
     """
 
-    template_fields: Sequence[str] = ("documents", "llm_conn_id", "persist_dir")
+    template_fields: Sequence[str] = (
+        "llm_conn_id",
+        "persist_dir",
+        "persist_conn_id",
+    )
 
     def __init__(
         self,
         *,
         documents: list[dict[str, Any]],
-        llm_conn_id: str = "pydanticai_default",
-        embed_model: str = "text-embedding-3-small",
+        embed_model: str | BaseEmbedding | None = None,
+        llm_conn_id: str = "llamaindex_default",
         chunk_size: int = 512,
         chunk_overlap: int = 50,
         persist_dir: str | None = None,
+        persist_conn_id: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.documents = documents
-        self.llm_conn_id = llm_conn_id
         self.embed_model = embed_model
+        self.llm_conn_id = llm_conn_id
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.persist_dir = persist_dir
+        self.persist_conn_id = persist_conn_id
 
     def execute(self, context: Context) -> dict[str, Any]:
-        from llama_index.core import Document, StorageContext, VectorStoreIndex
-        from llama_index.core.node_parser import SentenceSplitter
+        try:
+            from llama_index.core import Document, StorageContext, VectorStoreIndex
+            from llama_index.core.node_parser import SentenceSplitter
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
 
-        from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
+        embed_model = self._resolve_embed_model()
 
-        hook = LlamaIndexHook(llm_conn_id=self.llm_conn_id, embed_model=self.embed_model)
-        hook.configure_settings()
-
-        llama_docs = [Document(text=doc["text"], metadata=doc.get("metadata", {})) for doc in self.documents]
+        llama_docs = [
+            Document(text=doc["text"], metadata=doc.get("metadata", {})) for doc in self.documents
+        ]
 
         splitter = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
         nodes = splitter.get_nodes_from_documents(llama_docs)
         self.log.info("Split %d documents into %d chunks", len(llama_docs), len(nodes))
 
-        storage_context = StorageContext.from_defaults()
-        VectorStoreIndex(nodes, storage_context=storage_context, show_progress=False)
+        # ``VectorStoreIndex(...)`` populates each node's ``.embedding`` as a
+        # side effect of building the index; capture the index so the
+        # variable isn't discarded (also lets future enhancements query it
+        # before persistence).
+        index = VectorStoreIndex(nodes, embed_model=embed_model, show_progress=False)
 
         if self.persist_dir:
-            os.makedirs(self.persist_dir, exist_ok=True)
-            storage_context.persist(persist_dir=self.persist_dir)
-            self.log.info("Index persisted to %s", self.persist_dir)
+            self._persist(index)
 
-        chunks = []
-        for node in nodes:
-            chunk: dict[str, Any] = {
+        chunks = [
+            {
                 "text": node.text,
                 "metadata": node.metadata,
+                # ``node.embedding`` is populated by ``VectorStoreIndex`` for
+                # every node since we forced an in-memory build above.
+                "vector": node.embedding,
             }
-            if node.embedding:
-                chunk["vector"] = node.embedding
-            chunks.append(chunk)
+            for node in nodes
+        ]
 
         return {
             "document_count": len(llama_docs),
@@ -107,3 +141,38 @@ class EmbeddingOperator(BaseOperator):
             "persist_dir": self.persist_dir,
             "chunks": chunks,
         }
+
+    def _resolve_embed_model(self) -> BaseEmbedding:
+        """
+        Return a ready-to-use ``BaseEmbedding``.
+
+        If ``embed_model`` is a string or ``None``, build one via
+        ``LlamaIndexHook`` (OpenAI from the configured Airflow connection).
+        Anything else is treated as a pre-built ``BaseEmbedding`` instance
+        (user brought their own) and returned as-is. Avoids
+        ``isinstance(.., BaseEmbedding)`` so the check doesn't trigger an
+        otherwise-unnecessary ``llama_index`` import.
+        """
+        if self.embed_model is None or isinstance(self.embed_model, str):
+            from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
+
+            return LlamaIndexHook(
+                llm_conn_id=self.llm_conn_id,
+                embed_model=self.embed_model,
+            ).get_embedding_model()
+        return self.embed_model
+
+    def _persist(self, index: Any) -> None:
+        """Persist the index to ``persist_dir``; cloud URIs go through ObjectStoragePath."""
+        if "://" in self.persist_dir:  # type: ignore[operator]
+            from airflow.sdk import ObjectStoragePath
+
+            target = ObjectStoragePath(self.persist_dir, conn_id=self.persist_conn_id)
+            target.mkdir(parents=True, exist_ok=True)
+            index.storage_context.persist(persist_dir=str(target), fs=target.fs)
+        else:
+            import os
+
+            os.makedirs(self.persist_dir, exist_ok=True)  # type: ignore[arg-type]
+            index.storage_context.persist(persist_dir=self.persist_dir)
+        self.log.info("Index persisted to %s", self.persist_dir)
