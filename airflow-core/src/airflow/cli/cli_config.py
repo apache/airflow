@@ -185,21 +185,25 @@ ARG_END_DATE = Arg(
     ),
     type=parsedate,
 )
-ARG_PARTITION_START = Arg(
-    ("--partition-start",),
+ARG_PARTITION_DATE_START = Arg(
+    ("--partition-date-start",),
     help=(
-        "Inclusive lower bound of the partition window (matched against DagRun.partition_date). "
+        "Inclusive lower bound of the partition_date window (matched against DagRun.partition_date). "
         "Accepts the same datetime formats as --start-date."
     ),
     type=parsedate,
 )
-ARG_PARTITION_END = Arg(
-    ("--partition-end",),
+ARG_PARTITION_DATE_END = Arg(
+    ("--partition-date-end",),
     help=(
-        "Inclusive upper bound of the partition window (matched against DagRun.partition_date). "
+        "Inclusive upper bound of the partition_date window (matched against DagRun.partition_date). "
         "Accepts the same datetime formats as --end-date."
     ),
     type=parsedate,
+)
+ARG_PARTITION_KEY = Arg(
+    ("--partition-key",),
+    help="Clear all Dag runs whose partition_key matches this exact value.",
 )
 ARG_OUTPUT_PATH = Arg(
     (
@@ -1119,20 +1123,23 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="clear",
-        help="Clear Dag runs whose partition_date falls in a given window",
+        help="Clear Dag runs selected by run_id, partition_key, or a partition_date window",
         description=(
-            "Clear all Dag runs of the given dag_id whose partition_date falls within "
-            "[--partition-start, --partition-end] (inclusive on both ends). Resets the "
-            "matched task instances and re-queues the runs for reprocessing. Intended for "
-            "partitioned Dags, whose runs are keyed by partition_date instead of "
-            "logical_date. For traditional, non-partitioned Dags, use "
+            "Clear Dag runs of the given dag_id and re-queue them for reprocessing. Exactly one "
+            "of the following selectors must be provided: --run-id (single run); --partition-key "
+            "(every run with that exact partition_key); or a partition_date window via "
+            "--partition-date-start and/or --partition-date-end (inclusive on both ends). "
+            "Intended for partitioned Dags, whose runs are keyed by partition_date / "
+            "partition_key instead of logical_date. For traditional, non-partitioned Dags, use "
             "`airflow tasks clear --start-date / --end-date`."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_clear"),
         args=(
             ARG_DAG_ID,
-            ARG_PARTITION_START,
-            ARG_PARTITION_END,
+            ARG_RUN_ID,
+            ARG_PARTITION_KEY,
+            ARG_PARTITION_DATE_START,
+            ARG_PARTITION_DATE_END,
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,

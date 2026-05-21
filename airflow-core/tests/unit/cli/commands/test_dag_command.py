@@ -1221,9 +1221,31 @@ class TestCliDagsClear:
                 for row in session.scalars(select(DagRun).where(DagRun.dag_id == self.DAG_ID)).all()
             }
 
-    def test_requires_at_least_one_bound(self, parser):
+    def test_requires_a_selector(self, parser):
         args = parser.parse_args(["dags", "clear", self.DAG_ID, "--yes"])
-        with pytest.raises(SystemExit, match="At least one of --partition-start"):
+        with pytest.raises(SystemExit, match="One of --run-id, --partition-key"):
+            dag_command.dag_clear(args)
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [
+            pytest.param(
+                ["--run-id", "part_2026_03_10", "--partition-key", "2026-03-10T00:00:00"],
+                id="run-id+partition-key",
+            ),
+            pytest.param(
+                ["--run-id", "part_2026_03_10", "--partition-date-start", "2026-03-08T00:00:00"],
+                id="run-id+date-range",
+            ),
+            pytest.param(
+                ["--partition-key", "2026-03-10T00:00:00", "--partition-date-end", "2026-03-14T00:00:00"],
+                id="partition-key+date-range",
+            ),
+        ],
+    )
+    def test_rejects_multiple_selectors(self, parser, extra_args):
+        args = parser.parse_args(["dags", "clear", self.DAG_ID, "--yes", *extra_args])
+        with pytest.raises(SystemExit, match="mutually exclusive"):
             dag_command.dag_clear(args)
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
@@ -1233,14 +1255,14 @@ class TestCliDagsClear:
                 "dags",
                 "clear",
                 self.DAG_ID,
-                "--partition-start",
+                "--partition-date-start",
                 "2026-03-14T00:00:00",
-                "--partition-end",
+                "--partition-date-end",
                 "2026-03-08T00:00:00",
                 "--yes",
             ]
         )
-        with pytest.raises(SystemExit, match="--partition-start must be on or before"):
+        with pytest.raises(SystemExit, match="--partition-date-start must be on or before"):
             dag_command.dag_clear(args)
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
@@ -1251,9 +1273,9 @@ class TestCliDagsClear:
                 "dags",
                 "clear",
                 self.DAG_ID,
-                "--partition-start",
+                "--partition-date-start",
                 "2026-03-08T00",
-                "--partition-end",
+                "--partition-date-end",
                 "2026-03-14T23",
                 "--yes",
             ]
@@ -1275,7 +1297,7 @@ class TestCliDagsClear:
                 "dags",
                 "clear",
                 self.DAG_ID,
-                "--partition-end",
+                "--partition-date-end",
                 "2026-03-09T00:00:00",
                 "--yes",
             ]
@@ -1294,7 +1316,7 @@ class TestCliDagsClear:
                 "dags",
                 "clear",
                 self.DAG_ID,
-                "--partition-start",
+                "--partition-date-start",
                 "2026-03-13T00:00:00",
                 "--yes",
             ]
@@ -1313,9 +1335,9 @@ class TestCliDagsClear:
                 "dags",
                 "clear",
                 self.DAG_ID,
-                "--partition-start",
+                "--partition-date-start",
                 "2027-01-01T00:00:00",
-                "--partition-end",
+                "--partition-date-end",
                 "2027-12-31T00:00:00",
                 "--yes",
             ]
@@ -1333,9 +1355,9 @@ class TestCliDagsClear:
                 "dags",
                 "clear",
                 self.DAG_ID,
-                "--partition-start",
+                "--partition-date-start",
                 "2026-03-08T00:00:00",
-                "--partition-end",
+                "--partition-date-end",
                 "2026-03-14T00:00:00",
             ]
         )
@@ -1346,13 +1368,51 @@ class TestCliDagsClear:
         assert states["part_2026_03_10"] == DagRunState.FAILED
         assert states["part_2026_03_14"] == DagRunState.SUCCESS
 
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_clears_by_run_id(self, parser):
+        args = parser.parse_args(["dags", "clear", self.DAG_ID, "--run-id", "part_2026_03_10", "--yes"])
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        assert states["part_2026_03_08"] == DagRunState.SUCCESS
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        assert states["part_2026_03_14"] == DagRunState.SUCCESS
+        assert states["non_partitioned"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_clears_by_partition_key(self, parser):
+        args = parser.parse_args(
+            [
+                "dags",
+                "clear",
+                self.DAG_ID,
+                "--partition-key",
+                "2026-03-10T00:00:00",
+                "--yes",
+            ]
+        )
+        dag_command.dag_clear(args)
+
+        states = self._get_run_states()
+        assert states["part_2026_03_08"] == DagRunState.SUCCESS
+        assert states["part_2026_03_10"] == DagRunState.QUEUED
+        assert states["part_2026_03_14"] == DagRunState.SUCCESS
+        assert states["non_partitioned"] == DagRunState.SUCCESS
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    def test_run_id_not_found_is_a_no_op(self, parser, capsys):
+        args = parser.parse_args(["dags", "clear", self.DAG_ID, "--run-id", "does_not_exist", "--yes"])
+        dag_command.dag_clear(args)
+        assert "No matching Dag runs" in capsys.readouterr().out
+        assert self._get_run_states()["part_2026_03_10"] == DagRunState.FAILED
+
     def test_missing_dag_raises(self, parser):
         args = parser.parse_args(
             [
                 "dags",
                 "clear",
                 "does_not_exist",
-                "--partition-start",
+                "--partition-date-start",
                 "2026-03-08T00:00:00",
                 "--yes",
             ]
