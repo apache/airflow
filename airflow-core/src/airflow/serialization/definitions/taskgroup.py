@@ -226,15 +226,9 @@ class SerializedTaskGroup(DAGNode):
         children = self.children
         if not children:
             return []
-
         nodes = list(children.values())
-        n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
-
-        projected: list[tuple[int, ...]] = [()] * n
-        for i, child in enumerate(nodes):
-            projected[i] = self._project_child_deps(i, child, id_to_idx)
-
+        projected = [self._project_child_deps(i, c, id_to_idx) for i, c in enumerate(nodes)]
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
@@ -247,18 +241,16 @@ class SerializedTaskGroup(DAGNode):
         for edge_id in upstream_ids:
             j = id_to_idx.get(edge_id)
             if j is not None:
-                if j != child_idx:
-                    sib_deps.add(j)
+                sib_deps.add(j)
                 continue
-            edge = self.dag.get_task(edge_id)
-            tg = edge.task_group
+            tg = self.dag.get_task(edge_id).task_group
             while tg is not None:
-                anc_idx = id_to_idx.get(tg.node_id)
-                if anc_idx is not None:
-                    if anc_idx != child_idx:
-                        sib_deps.add(anc_idx)
+                j = id_to_idx.get(tg.node_id)
+                if j is not None:
+                    sib_deps.add(j)
                     break
                 tg = tg.parent_group
+        sib_deps.discard(child_idx)
         return tuple(sib_deps)
 
     def _sweep_projection(self, nodes: list[DAGNode], projected: list[tuple[int, ...]]) -> list[DAGNode]:
