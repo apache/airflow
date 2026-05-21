@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
 
+from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.utils import cli as cli_utils
@@ -39,16 +40,31 @@ DR_CHUNK_SIZE = 500
 @provide_session
 def clear(args, *, session: Session = NEW_SESSION) -> None:
     """Clear the partition_key and partition_date of matching DagRuns."""
-    has_range = args.start_date is not None or args.end_date is not None
-    if not args.run_id and not has_range:
+    has_range = args.start_date is not None or args.end_date is not None or args.date is not None
+    selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
+    if selectors_used == 0:
         raise SystemExit(
-            "Specify either --run-id for a single DagRun, or a partition_date range "
-            "via --start-date and/or --end-date."
+            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
+            "(--start-date/--end-date or --date)."
         )
-    if args.run_id and has_range:
+    if selectors_used > 1:
         raise SystemExit(
-            "--run-id cannot be combined with a partition_date range (--start-date / --end-date)."
+            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
+            "(--start-date/--end-date or --date)."
         )
+
+    if args.date is not None:
+        if args.start_date is not None or args.end_date is not None:
+            raise SystemExit("--date cannot be combined with --start-date / --end-date.")
+        raw = args.date
+        parts = raw.split("~", 1)
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            raise SystemExit("--date must be in the form 'a~b', e.g. '2026-01-01~2026-01-31'.")
+        try:
+            args.start_date = parsedate(parts[0].strip())
+            args.end_date = parsedate(parts[1].strip())
+        except ValueError:
+            raise SystemExit("--date must be in the form 'a~b', e.g. '2026-01-01~2026-01-31'.")
 
     if args.end_date is not None:
         args.end_date = args.end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -56,6 +72,8 @@ def clear(args, *, session: Session = NEW_SESSION) -> None:
     stmt = select(DagRun).where(DagRun.dag_id == args.dag_id)
     if args.run_id:
         stmt = stmt.where(DagRun.run_id == args.run_id)
+    elif args.partition_key is not None:
+        stmt = stmt.where(DagRun.partition_key == args.partition_key)
     else:
         stmt = stmt.where(or_(DagRun.partition_key.is_not(None), DagRun.partition_date.is_not(None)))
         if args.start_date is not None:

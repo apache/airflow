@@ -220,8 +220,8 @@ class TestPartitionsClear:
         with pytest.raises(SystemExit) as excinfo:
             partition_command.clear(parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID]))
         assert excinfo.value.code == (
-            "Specify either --run-id for a single DagRun, or a partition_date range "
-            "via --start-date and/or --end-date."
+            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
+            "(--start-date/--end-date or --date)."
         )
 
     def test_run_id_and_range_mutually_exclusive(self, parser):
@@ -241,7 +241,8 @@ class TestPartitionsClear:
                 )
             )
         assert excinfo.value.code == (
-            "--run-id cannot be combined with a partition_date range (--start-date / --end-date)."
+            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
+            "(--start-date/--end-date or --date)."
         )
 
     def test_prints_before_values(self, parser, capsys):
@@ -551,3 +552,184 @@ class TestPartitionsClear:
 
         clear_db_runs()
         clear_db_dags()
+
+    # ------------------------------------------------------------------
+    # --partition-key tests
+    # ------------------------------------------------------------------
+
+    def test_clear_by_partition_key(self, parser, capsys):
+        partition_command.clear(
+            parser.parse_args(
+                ["partitions", "clear", "--dag-id", DAG_ID, "--partition-key", "2026-01-02T00:00:00"]
+            )
+        )
+        captured = capsys.readouterr()
+        assert captured.out == (
+            "DagRun part_run_2: partition_key='2026-01-02T00:00:00' -> None, "
+            "partition_date=2026-01-02T00:00:00+00:00 -> None\n"
+            "Cleared partition fields on 1 DagRun(s).\n"
+        )
+
+        run_2 = _get_run("part_run_2")
+        assert run_2.partition_key is None
+        assert run_2.partition_date is None
+        # Other runs unchanged
+        run_1 = _get_run("part_run_1")
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+        assert run_1.partition_date == datetime(2026, 1, 1, tzinfo=pendulum.UTC)
+        run_3 = _get_run("part_run_3")
+        assert run_3.partition_key == "2026-01-03T00:00:00"
+        assert run_3.partition_date == datetime(2026, 1, 3, tzinfo=pendulum.UTC)
+
+    def test_clear_by_partition_key_no_match(self, parser, capsys):
+        partition_command.clear(
+            parser.parse_args(
+                ["partitions", "clear", "--dag-id", DAG_ID, "--partition-key", "nonexistent-key"]
+            )
+        )
+        captured = capsys.readouterr()
+        assert captured.out == f"No matching DagRuns found for dag_id={DAG_ID}.\n"
+
+        # All runs unchanged
+        for run_id, expected_key in [
+            ("part_run_1", "2026-01-01T00:00:00"),
+            ("part_run_2", "2026-01-02T00:00:00"),
+            ("part_run_3", "2026-01-03T00:00:00"),
+        ]:
+            run = _get_run(run_id)
+            assert run.partition_key == expected_key
+
+    def test_partition_key_mutually_exclusive_with_run_id(self, parser):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        DAG_ID,
+                        "--run-id",
+                        "part_run_1",
+                        "--partition-key",
+                        "foo",
+                    ]
+                )
+            )
+        assert excinfo.value.code == (
+            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
+            "(--start-date/--end-date or --date)."
+        )
+
+    def test_partition_key_mutually_exclusive_with_date_range(self, parser):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        DAG_ID,
+                        "--partition-key",
+                        "foo",
+                        "--start-date",
+                        "2026-01-01",
+                    ]
+                )
+            )
+        assert excinfo.value.code == (
+            "Specify exactly one of --run-id, --partition-key, or a partition_date range "
+            "(--start-date/--end-date or --date)."
+        )
+
+    # ------------------------------------------------------------------
+    # --date a~b tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "cli_args",
+        [
+            ["--start-date", "2026-01-02", "--end-date", "2026-01-03"],
+            ["--date", "2026-01-02~2026-01-03"],
+        ],
+    )
+    def test_date_range_syntax_equivalent_to_start_end(self, parser, capsys, cli_args):
+        partition_command.clear(parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, *cli_args]))
+        captured = capsys.readouterr()
+        assert captured.out == (
+            "DagRun part_run_2: partition_key='2026-01-02T00:00:00' -> None, "
+            "partition_date=2026-01-02T00:00:00+00:00 -> None\n"
+            "DagRun part_run_3: partition_key='2026-01-03T00:00:00' -> None, "
+            "partition_date=2026-01-03T00:00:00+00:00 -> None\n"
+            "Cleared partition fields on 2 DagRun(s).\n"
+        )
+
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "2026-01-01",  # no ~
+            "~2026-01-01",  # left side empty
+            "2026-01-01~",  # right side empty
+            "2026-01-01~not-a-date",  # right side parse failure
+        ],
+    )
+    def test_date_range_syntax_invalid_format(self, parser, bad_date):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, "--date", bad_date])
+            )
+        assert "--date must be in the form 'a~b'" in str(excinfo.value.code)
+
+    def test_date_range_syntax_mutually_exclusive_with_start_end(self, parser):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        DAG_ID,
+                        "--date",
+                        "2026-01-01~2026-01-02",
+                        "--start-date",
+                        "2026-01-01",
+                    ]
+                )
+            )
+        assert excinfo.value.code == "--date cannot be combined with --start-date / --end-date."
+
+    def test_date_range_end_of_day_clamp(self, parser, dag_maker):
+        """A run whose partition_date is mid-day on the --date right side must be cleared."""
+        dag_maker.create_dagrun(
+            run_id="part_run_2_midday_date",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 2, 15, 0, 0, tzinfo=pendulum.UTC),
+            partition_key="2026-01-02T15:00:00",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--date",
+                    "2026-01-02~2026-01-02",
+                ]
+            )
+        )
+
+        run_midday = _get_run("part_run_2_midday_date")
+        assert run_midday.partition_key is None
+        assert run_midday.partition_date is None
+        # Midnight run on same date (start-boundary inclusive) is also cleared.
+        run_2 = _get_run("part_run_2")
+        assert run_2.partition_key is None
+        assert run_2.partition_date is None
+        # Runs outside the range are untouched.
+        run_1 = _get_run("part_run_1")
+        assert run_1.partition_key == "2026-01-01T00:00:00"
+        run_3 = _get_run("part_run_3")
+        assert run_3.partition_key == "2026-01-03T00:00:00"

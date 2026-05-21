@@ -1069,6 +1069,19 @@ ARG_PARTITIONS_CLEAR_DRY_RUN = Arg(
     help="Show which DagRuns would be cleared without modifying the database",
     action="store_true",
 )
+ARG_PARTITIONS_CLEAR_PARTITION_KEY = Arg(
+    ("-k", "--partition-key"),
+    type=str,
+    help="Only clear DagRuns whose `partition_key` equals this exact value",
+)
+ARG_PARTITIONS_CLEAR_DATE_RANGE = Arg(
+    ("--date",),
+    type=str,
+    help=(
+        "Range expressed as `a~b` (e.g. `2026-01-01~2026-01-31`); equivalent to "
+        "`--start-date a --end-date b`. Mutually exclusive with `--start-date` / `--end-date`."
+    ),
+)
 ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(
     ("--clear-task-instances",),
     help=(
@@ -1505,8 +1518,8 @@ PARTITIONS_COMMANDS = (
         help="Clear the partition_key and partition_date of one or more DagRuns",
         description=(
             "Clear the partition_key and partition_date columns on a Dag's DagRuns.\n"
-            "Either --run-id (single run) or a partition_date range "
-            "(--start-date and/or --end-date) is required.\n"
+            "Either --run-id (single run), --partition-key (exact match), or a partition_date range "
+            "(--start-date/--end-date or --date a~b) is required.\n"
             "Pass --clear-task-instances to additionally clear the matching DagRuns' "
             "task instances so finished runs go back to QUEUED and re-execute."
         ),
@@ -1516,6 +1529,8 @@ PARTITIONS_COMMANDS = (
             ARG_RUN_ID,
             ARG_PARTITIONS_CLEAR_START_DATE,
             ARG_PARTITIONS_CLEAR_END_DATE,
+            ARG_PARTITIONS_CLEAR_PARTITION_KEY,
+            ARG_PARTITIONS_CLEAR_DATE_RANGE,
             ARG_PARTITIONS_CLEAR_TASK_INSTANCES,
             ARG_PARTITIONS_CLEAR_DRY_RUN,
             ARG_VERBOSE,
