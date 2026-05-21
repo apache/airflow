@@ -119,15 +119,21 @@ def task_instance_mutation_hook(task_instance: TaskInstance):
 
 
 # [START example_dag_bundle_policy]
+# Names of subdirectories inside the bundle root to add to sys.path.
+# Any of these that exist will be importable by DAG files in the bundle.
+_BUNDLE_SYS_PATH_SUBDIRS = ["shared", "libs", "plugins"]
+
+
 def dag_bundle_policy(bundle: BaseDagBundle):
-    """Add a ``shared`` folder inside the bundle to ``sys.path`` so DAGs can import helpers."""
+    """Add well-known subdirectories inside the bundle root to ``sys.path``."""
     import sys
 
-    shared_dir = bundle.path / "shared"
-    if shared_dir.is_dir():
-        shared_path = str(shared_dir)
-        if shared_path not in sys.path:
-            sys.path.insert(0, shared_path)
+    for subdir in _BUNDLE_SYS_PATH_SUBDIRS:
+        candidate = bundle.path / subdir
+        if candidate.is_dir():
+            candidate_str = str(candidate)
+            if candidate_str not in sys.path:
+                sys.path.insert(0, candidate_str)
 
 
 # [END example_dag_bundle_policy]

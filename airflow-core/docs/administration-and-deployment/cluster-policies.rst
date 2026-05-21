@@ -194,8 +194,9 @@ Note that since priority weight is determined dynamically using weight rules, yo
 Dag bundle policy
 ~~~~~~~~~~~~~~~~~
 
-Here's an example that makes a ``shared`` directory inside the DAG bundle importable by adding it to
-:data:`sys.path` once the bundle has been initialized:
+Here's an example that adds well-known subdirectories (``shared/``, ``libs/``,
+``plugins/``) inside the DAG bundle to :data:`sys.path` once the bundle has been
+initialized, so DAG files can import helpers from any of those locations:
 
 .. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python

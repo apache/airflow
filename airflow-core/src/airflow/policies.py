@@ -79,8 +79,9 @@ def dag_bundle_policy(bundle: BaseDagBundle) -> None:
 
     Typical use cases include:
 
-    * Appending paths inside the bundle (for example a ``shared/`` directory next to the DAGs)
-      to :data:`sys.path` so DAG files can import shared helper modules.
+    * Appending paths inside the bundle (for example a ``shared/`` directory next to the DAGs,
+      or any named subfolder such as ``libs/`` or ``plugins/``) to :data:`sys.path` so DAG files
+      can import shared helper modules located within the bundle.
     * Installing or validating bundle-local configuration files.
     * Performing custom logging or auditing whenever a bundle is initialized.
 
