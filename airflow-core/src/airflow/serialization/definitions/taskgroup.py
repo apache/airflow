@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import copy
 import functools
 import operator
 import weakref
@@ -217,35 +216,86 @@ class SerializedTaskGroup(DAGNode):
 
     def topological_sort(self) -> list[DAGNode]:
         """
-        Sorts children in topographical order.
+        Sort children topologically — a task always comes after its upstream dependencies.
 
-        A task in the result would come after any of its upstream dependencies.
+        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Cycle handling:
+        cycles are caught at deserialization time, so they should never reach this code; if
+        one does we raise ``ValueError`` rather than silently looping forever.
         """
-        # This uses a modified version of Kahn's Topological Sort algorithm to
-        # not have to pre-compute the "in-degree" of the nodes.
-        graph_unsorted = copy.copy(self.children)
-        graph_sorted: list[DAGNode] = []
-        if not self.children:
-            return graph_sorted
-        while graph_unsorted:
-            for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
-                        break
-                    # Check for task's group is a child (or grand child) of this TG,
-                    tg = edge.task_group
-                    while tg:
-                        if tg.node_id in graph_unsorted:
-                            break
-                        tg = tg.parent_group
+        children = self.children
+        if not children:
+            return []
 
-                    if tg:
-                        # We are already going to visit that TG
+        nodes = list(children.values())
+        n = len(nodes)
+        id_to_idx = {nid: i for i, nid in enumerate(children)}
+
+        projected: list[tuple[int, ...]] = [()] * n
+        for i, child in enumerate(nodes):
+            projected[i] = self._project_child_deps(i, child, id_to_idx)
+
+        return self._sweep_projection(nodes, projected)
+
+    def _project_child_deps(
+        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+    ) -> tuple[int, ...]:
+        upstream_ids = child.upstream_task_ids
+        if not upstream_ids:
+            return ()
+        sib_deps: set[int] = set()
+        for edge_id in upstream_ids:
+            j = id_to_idx.get(edge_id)
+            if j is not None:
+                if j != child_idx:
+                    sib_deps.add(j)
+                continue
+            edge = self.dag.get_task(edge_id)
+            tg = edge.task_group
+            while tg is not None:
+                anc_idx = id_to_idx.get(tg.node_id)
+                if anc_idx is not None:
+                    if anc_idx != child_idx:
+                        sib_deps.add(anc_idx)
+                    break
+                tg = tg.parent_group
+        return tuple(sib_deps)
+
+    def _sweep_projection(self, nodes: list[DAGNode], projected: list[tuple[int, ...]]) -> list[DAGNode]:
+        n = len(nodes)
+        emitted = bytearray(n)
+        order: list[DAGNode] = []
+        order_append = order.append
+        pending: list[int] = []
+        pending_append = pending.append
+        for i in range(n):
+            blocked = False
+            for d in projected[i]:
+                if not emitted[d]:
+                    blocked = True
+                    break
+            if blocked:
+                pending_append(i)
+                continue
+            emitted[i] = 1
+            order_append(nodes[i])
+        while pending:
+            next_pending: list[int] = []
+            next_pending_append = next_pending.append
+            for i in pending:
+                blocked = False
+                for d in projected[i]:
+                    if not emitted[d]:
+                        blocked = True
                         break
-                else:
-                    del graph_unsorted[node.node_id]
-                    graph_sorted.append(node)
-        return graph_sorted
+                if blocked:
+                    next_pending_append(i)
+                    continue
+                emitted[i] = 1
+                order_append(nodes[i])
+            if len(next_pending) == len(pending):
+                raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+            pending = next_pending
+        return order
 
     def add(self, node: DAGNode) -> DAGNode:
         # Set the TG first, as setting it might change the return value of node_id!

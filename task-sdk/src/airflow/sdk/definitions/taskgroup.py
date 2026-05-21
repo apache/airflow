@@ -523,57 +523,97 @@ class TaskGroup(DAGNode):
             key=lambda node: (not isinstance(node, TaskGroup), node.node_id),
         )
 
-    def topological_sort(self):
+    def topological_sort(self) -> list[DAGNode]:
         """
-        Sorts children in topographical order, such that a task comes after any of its upstream dependencies.
+        Sort children topologically — a task always comes after its upstream dependencies.
 
-        :return: list of tasks in topological order
+        Projects each child's per-task upstream IDs onto sibling-level integer indices once,
+        then runs a greedy multi-pass sweep using a bytearray-backed emission flag. Equivalent
+        in emission order to the previous modified-Kahn implementation, but moves the per-edge
+        ``upstream_list`` materialization and ``parent_group`` walks out of the sweep's inner
+        loop so they happen once per call instead of once per outer-loop pass.
         """
-        # This uses a modified version of Kahn's Topological Sort algorithm to
-        # not have to pre-compute the "in-degree" of the nodes.
-        graph_unsorted = copy.copy(self.children)
+        children = self.children
+        if not children:
+            return []
 
-        graph_sorted: list[DAGNode] = []
+        nodes = list(children.values())
+        n = len(nodes)
+        id_to_idx = {nid: i for i, nid in enumerate(children)}
 
-        # special case
-        if not self.children:
-            return graph_sorted
+        projected: list[tuple[int, ...]] = [()] * n
+        for i, child in enumerate(nodes):
+            projected[i] = self._project_child_deps(i, child, id_to_idx)
 
-        # Run until the unsorted graph is empty.
-        while graph_unsorted:
-            # Go through each of the node/edges pairs in the unsorted graph. If a set of edges doesn't contain
-            # any nodes that haven't been resolved, that is, that are still in the unsorted graph, remove the
-            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using
-            # the values() method for iterating, a copy of the unsorted graph is used, allowing us to modify
-            # the unsorted graph as we move through it.
-            #
-            # We also keep a flag for checking that graph is acyclic, which is true if any nodes are resolved
-            # during each pass through the graph. If not, we need to exit as the graph therefore can't be
-            # sorted.
-            acyclic = False
-            for node in list(graph_unsorted.values()):
-                for edge in node.upstream_list:
-                    if edge.node_id in graph_unsorted:
+        return self._sweep_projection(nodes, projected)
+
+    def _project_child_deps(
+        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+    ) -> tuple[int, ...]:
+        # Project one child's per-task upstream IDs onto sibling-level integer indices.
+        upstream_ids = child.upstream_task_ids
+        if not upstream_ids:
+            return ()
+        sib_deps: set[int] = set()
+        for edge_id in upstream_ids:
+            j = id_to_idx.get(edge_id)
+            if j is not None:
+                if j != child_idx:
+                    sib_deps.add(j)
+                continue
+            edge = self.dag.get_task(edge_id)
+            tg = edge.task_group
+            while tg is not None:
+                anc_idx = id_to_idx.get(tg.node_id)
+                if anc_idx is not None:
+                    if anc_idx != child_idx:
+                        sib_deps.add(anc_idx)
+                    break
+                tg = tg.parent_group
+        return tuple(sib_deps)
+
+    def _sweep_projection(self, nodes: list[DAGNode], projected: list[tuple[int, ...]]) -> list[DAGNode]:
+        # Greedy multi-pass sweep. emitted[i] == 1 iff nodes[i] has been emitted.
+        # Pass 1 iterates range(n) directly; only blocked nodes are recorded into
+        # ``pending`` and re-checked in subsequent passes. Avoids paying for a
+        # ``list(range(n))`` allocation on single-pass shapes (the common case) while
+        # still skipping already-emitted nodes on multi-pass shapes (e.g. a diamond's
+        # single trailing sink).
+        n = len(nodes)
+        emitted = bytearray(n)
+        order: list[DAGNode] = []
+        order_append = order.append
+        pending: list[int] = []
+        pending_append = pending.append
+        for i in range(n):
+            blocked = False
+            for d in projected[i]:
+                if not emitted[d]:
+                    blocked = True
+                    break
+            if blocked:
+                pending_append(i)
+                continue
+            emitted[i] = 1
+            order_append(nodes[i])
+        while pending:
+            next_pending: list[int] = []
+            next_pending_append = next_pending.append
+            for i in pending:
+                blocked = False
+                for d in projected[i]:
+                    if not emitted[d]:
+                        blocked = True
                         break
-                    # Check for task's group is a child (or grand child) of this TG,
-                    tg = edge.task_group
-                    while tg:
-                        if tg.node_id in graph_unsorted:
-                            break
-                        tg = tg.parent_group
-
-                    if tg:
-                        # We are already going to visit that TG
-                        break
-                else:
-                    acyclic = True
-                    del graph_unsorted[node.node_id]
-                    graph_sorted.append(node)
-
-            if not acyclic:
+                if blocked:
+                    next_pending_append(i)
+                    continue
+                emitted[i] = 1
+                order_append(nodes[i])
+            if len(next_pending) == len(pending):
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        return graph_sorted
+            pending = next_pending
+        return order
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """
