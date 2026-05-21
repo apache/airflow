@@ -633,19 +633,24 @@ class TestSparkSubmitOperatorResumable:
     def test_get_job_status_ha_tries_next_master(self):
         operator = self._make_operator()
         hook = self._make_hook(should_track=True)
+        # Master URL port (7077) is RPC — REST API must use 6066, not 7077
         hook._connection = {"master": "spark://m1:7077,m2:7077"}
         operator._hook = hook
 
         good_response = MagicMock()
         good_response.json.return_value = {"success": True, "driverState": "RUNNING"}
+        captured_urls = []
 
         def side_effect(url, timeout):
+            captured_urls.append(url)
             if "m1" in url:
                 raise ConnectionError("m1 unreachable")
             return good_response
 
         with mock.patch("requests.get", side_effect=side_effect):
             assert operator.get_job_status("driver-001") == "RUNNING"
+
+        assert all(":6066/" in url for url in captured_urls), "REST API must use port 6066, not the RPC port"
 
     def test_get_job_status_ha_raises_when_all_masters_unreachable(self):
         operator = self._make_operator()

@@ -166,6 +166,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 description="Scheme for the Spark standalone REST API (http or https). Default: http.",
                 validators=[Optional()],
             ),
+            "rest-port": StringField(
+                lazy_gettext("REST port"),
+                widget=BS3TextFieldWidget(),
+                description="Port for the Spark standalone REST API (spark.master.rest.port). Default: 6066.",
+                validators=[Optional()],
+            ),
         }
 
     def __init__(
@@ -272,8 +278,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "namespace": None,
             "principal": self._principal,
             "keytab": self._keytab,
-            # fallback if connection lookup fails; overridden by rest-scheme extra below
+            # fallback if connection lookup fails; overridden by rest-scheme/rest-port extras below
             "rest_scheme": "http",
+            "rest_port": 6066,
         }
 
         try:
@@ -317,6 +324,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
             conn_data["rest_scheme"] = extra.get("rest-scheme", "http")
+            conn_data["rest_port"] = int(extra.get("rest-port", 6066))
             if conn_data["principal"] is None:
                 conn_data["principal"] = extra.get("principal")
             if conn_data["keytab"] is None:

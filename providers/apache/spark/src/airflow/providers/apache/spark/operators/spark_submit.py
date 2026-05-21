@@ -251,13 +251,14 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             # TODO: call K8s pod status API
             raise NotImplementedError("K8s job status not yet implemented")
         scheme = self._hook._connection.get("rest_scheme", "http")
-        # HA master URLs can look like spark://m1:7077,m2:7077 — let us try each host in order.
-        # Port is read from the master URL; defaults to 6066 (spark.master.rest.port default).
+        rest_port = self._hook._connection.get("rest_port", 6066)
+        # HA master URLs can look like spark://m1:7077,m2:7077 — try each host in order.
+        # The master URL port (e.g. 7077) is the RPC port — not the REST API port.
+        # Use rest-port connection extra to override spark.master.rest.port (default 6066).
         master_urls = self._hook._connection["master"].replace("spark://", "").split(",")
         last_exc: Exception = RuntimeError("No Spark masters to query")
         for m in master_urls:
-            host, _, port = m.strip().partition(":")
-            rest_port = port or "6066"
+            host = m.strip().split(":")[0]
             url = f"{scheme}://{host}:{rest_port}/v1/submissions/status/{external_id}"
             try:
                 status = self._fetch_driver_status(url, external_id)

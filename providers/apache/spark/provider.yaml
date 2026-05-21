@@ -217,6 +217,14 @@ connection-types:
             - string
             - 'null'
           default: http
+      rest-port:
+        label: REST port
+        description: Port for the Spark standalone REST API (spark.master.rest.port). Default is 6066.
+        schema:
+          type:
+            - string
+            - 'null'
+          default: '6066'
 
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task

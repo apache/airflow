@@ -131,6 +131,11 @@ def get_provider_info():
                         "description": "Scheme for the Spark standalone REST API (http or https). Default is http.",
                         "schema": {"type": ["string", "null"], "default": "http"},
                     },
+                    "rest-port": {
+                        "label": "REST port",
+                        "description": "Port for the Spark standalone REST API (spark.master.rest.port). Default is 6066.",
+                        "schema": {"type": ["string", "null"], "default": "6066"},
+                    },
                 },
             },
         ],
