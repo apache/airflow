@@ -116,6 +116,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_FILES = auto()
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
+    JAVA_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -365,6 +366,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.GO_SDK_FILES: [
             r"^go-sdk/.*\.go$",
+        ],
+        FileGroupForCi.JAVA_SDK_FILES: [
+            r"^java-sdk/",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1008,6 +1012,10 @@ class SelectiveChecks:
     @cached_property
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
+
+    @cached_property
+    def run_java_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
     def run_airflow_ctl_tests(self) -> bool:
