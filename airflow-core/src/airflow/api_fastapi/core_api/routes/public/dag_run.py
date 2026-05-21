@@ -97,6 +97,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_asset,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
@@ -317,6 +318,8 @@ def clear_dag_run(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
+    resolved_run_on_latest = resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session)
+
     if body.dry_run:
         if body.only_new:
             # Determine "new" tasks by TI existence: a task is new when the latest Dag
@@ -363,7 +366,7 @@ def clear_dag_run(
         task_ids=None,
         only_new=body.only_new,
         only_failed=body.only_failed,
-        run_on_latest_version=body.run_on_latest_version,
+        run_on_latest_version=resolved_run_on_latest,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))

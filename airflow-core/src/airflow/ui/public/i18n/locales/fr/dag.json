@@ -40,17 +40,52 @@
     "parseDuration": "Durée d'analyse :",
     "parsedAt": "Analysé le :"
   },
+  "deadlineAlerts": {
+    "completionRule": "Doit se terminer dans un délai de {{interval}} après {{reference}}",
+    "count_many": "{{count}} échéances",
+    "count_one": "{{count}} échéance",
+    "count_other": "{{count}} échéances",
+    "referenceType": {
+      "AverageRuntimeDeadline": "durée d'exécution moyenne",
+      "DagRunLogicalDateDeadline": "date logique",
+      "DagRunQueuedAtDeadline": "heure de mise en file"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Réel",
+    "expected": "Attendu",
+    "finishedEarly": "Terminé {{duration}} avant l'échéance",
+    "finishedLate": "Terminé {{duration}} après l'échéance",
+    "label": "Échéance",
+    "met": "Respectée",
+    "missed": "Manquée",
+    "missedCount_many": "{{count}} échéances manquées",
+    "missedCount_one": "{{count}} échéance manquée",
+    "missedCount_other": "{{count}} échéances manquées",
+    "mixedCount": "{{missedCount}} manquées, {{upcomingCount}} à venir",
+    "stillRunning": "Toujours en cours",
+    "upcoming": "À venir",
+    "upcomingCount_many": "{{count}} échéances à venir",
+    "upcomingCount_one": "{{count}} échéance à venir",
+    "upcomingCount_other": "{{count}} échéances à venir"
+  },
   "extraLinks": "Liens supplémentaires",
   "grid": {
     "buttons": {
+      "newerRuns": "Runs plus récents",
+      "olderRuns": "Runs plus anciens",
       "resetToLatest": "Réinitialiser à la dernière version",
       "toggleGroup": "Afficher/Masquer le groupe"
-    }
+    },
+    "runTypeLegend": "Légende des types de Run"
   },
   "header": {
     "buttons": {
       "advanced": "Avancé",
       "dagDocs": "Documentation du Dag"
+    },
+    "status": {
+      "deactivated": "Désactivé"
     }
   },
   "logs": {
@@ -65,13 +100,25 @@
     },
     "info": "INFO",
     "noTryNumber": "Aucun essai",
+    "search": {
+      "matchCount": "{{current}} sur {{total}}",
+      "noMatches": "Aucune correspondance",
+      "placeholder": "Rechercher dans les journaux..."
+    },
     "settings": "Paramètres des journaux",
     "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})",
     "warning": "AVERTISSEMENT"
   },
   "navigation": {
     "navigation": "Navigation : {{arrow}}",
+    "openGraphFilters": "Filtres de tâches : Ctrl+Maj+F",
     "toggleGroup": "Basculer le groupe : Espace"
+  },
+  "notFound": {
+    "back": "Retour",
+    "backToDags": "Retour aux Dags",
+    "message": "Le Dag « {{dagId}} » n'existe pas.",
+    "title": "Dag introuvable"
   },
   "overview": {
     "buttons": {
@@ -89,6 +136,10 @@
       "assetEvent_many": "Événements d'actif créés",
       "assetEvent_one": "Événement d'actif créé",
       "assetEvent_other": "Événements d'actif créés"
+    },
+    "deadlines": {
+      "showAll": "Tout afficher",
+      "title": "Échéances"
     },
     "failedLogs": {
       "hideLogs": "Masquer les journaux",
@@ -118,6 +169,45 @@
     },
     "graphDirection": {
       "label": "Orientation du graphe"
+    },
+    "graphFilters": {
+      "clearFilters": "Effacer les filtres",
+      "durationGte": "Durée min. (s)",
+      "durationGteHint": "Pour les tâches mappées, mesure la durée totale sur toutes les instances",
+      "mapIndex": "Map Index min.",
+      "mapIndexHint": "Affiche les tâches mappées développées jusqu'à au moins cet index",
+      "selectStatus": "Sélectionner le statut",
+      "selectTaskGroup": "Sélectionner un groupe de tâches",
+      "title": "Filtres de tâches"
+    },
+    "showVersionIndicator": {
+      "label": "Afficher l'indicateur de version",
+      "options": {
+        "hideAll": "Tout masquer",
+        "showAll": "Tout afficher",
+        "showBundleVersion": "Afficher la version du bundle",
+        "showDagVersion": "Afficher la version du Dag"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtre actif",
+      "clearFilter": "Effacer le filtre",
+      "clickTask": "Cliquez sur une tâche pour la sélectionner comme racine du filtre",
+      "depth": "Profondeur",
+      "direction": "Direction",
+      "label": "Filtre",
+      "mode": "Mode",
+      "modeTooltip": "Le mode Statique conserve la vue actuelle lors de la navigation vers d'autres tâches, tandis que le mode Parcourir met automatiquement à jour le filtre actif vers la tâche cliquée pour faciliter la traversée du Dag.",
+      "modes": {
+        "static": "Statique",
+        "traverse": "Parcourir"
+      },
+      "options": {
+        "both": "En amont et en aval",
+        "downstream": "En aval",
+        "upstream": "En amont"
+      },
+      "selectedTask": "Tâche sélectionnée"
     }
   },
   "paramsFailed": "Échec du chargement des paramètres",

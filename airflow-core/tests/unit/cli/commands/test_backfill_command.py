@@ -90,6 +90,9 @@ class TestCliBackfill:
                     repro,
                 ]
             )
+        # When --run-on-latest-version is not passed, the resolver kicks in.
+        # With no DAG config and no global config set, the backfill fallback=True applies,
+        # preserving the historical default.
         airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
         mock_create.assert_called_once_with(

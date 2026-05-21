@@ -98,6 +98,13 @@ dependencies = [
 "langchain" = [
     "langchain>=1.0.0",
 ]
+"llamaindex" = [
+    "llama-index-core>=0.13.0",
+    "llama-index-embeddings-openai>=0.6.0",
+    "llama-index-llms-openai>=0.6.0",
+]
+"pdf" = ["pypdf>=4.0.0"]
+"docx" = ["python-docx>=1.0.0"]
 
 [dependency-groups]
 dev = [
@@ -112,6 +119,9 @@ dev = [
     "pydantic-ai-slim[mcp]",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
+    "llama-index-core>=0.13.0",
+    "llama-index-embeddings-openai>=0.6.0",
+    "llama-index-llms-openai>=0.6.0",
 ]
 
 # To build docs:
