@@ -26,13 +26,16 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+import { getDuration, useDocumentTitle } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { dagId = "", runId = "" } = useParams();
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
+
+  // Set browser tab title to include mapped task info
+  useDocumentTitle(`${dagId} › ${taskInstance.task_display_name}`);
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
     entries.push({

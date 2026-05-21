@@ -23,9 +23,13 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+import { useDocumentTitle } from "src/utils";
 
 export const Header = ({ task }: { readonly task: TaskResponse }) => {
   const { t: translate } = useTranslation();
+
+  // Set browser tab title to include task name
+  useDocumentTitle(task.task_display_name);
 
   return (
     <HeaderCard

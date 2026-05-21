@@ -21,11 +21,15 @@ import { FiDatabase } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { HeaderCard } from "src/components/HeaderCard";
+import { useDocumentTitle } from "src/utils";
 
 import { DependencyPopover } from "../AssetsList/DependencyPopover";
 
 export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { t: translate } = useTranslation("assets");
+
+  // Set browser tab title to show asset name
+  useDocumentTitle(asset?.name);
 
   const stats = [
     { label: translate("group"), value: asset?.group },

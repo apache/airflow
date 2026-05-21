@@ -35,7 +35,7 @@ import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-import { getDuration } from "src/utils";
+import { getDuration, useDocumentTitle } from "src/utils";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 
@@ -45,6 +45,9 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
+
+  // Set browser tab title to include DAG ID and run ID
+  useDocumentTitle(`${dagId} › ${dagRunId}`);
 
   const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
   const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;

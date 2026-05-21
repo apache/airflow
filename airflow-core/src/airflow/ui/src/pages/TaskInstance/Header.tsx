@@ -30,10 +30,19 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { getDuration, renderDuration } from "src/utils";
+import { getDuration, renderDuration, useDocumentTitle } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
+
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
+  const taskId = taskInstance.task_id;
+  const mapIndex = taskInstance.map_index;
+
+  // Set browser tab title to include task info
+  const taskTitle = mapIndex > -1 ? `${taskId} [${taskInstance.rendered_map_index ?? mapIndex}]` : taskId;
+  useDocumentTitle(`${dagId} › ${taskTitle}`);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -61,14 +70,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     },
   ];
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+ const [note, setNote] = useState<string | null>(taskInstance.note);
 
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
-
-  const { isPending, mutate } = usePatchTaskInstance({
+ const { isPending, mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
     mapIndex,

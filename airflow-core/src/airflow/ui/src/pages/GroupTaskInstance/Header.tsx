@@ -26,11 +26,14 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+import { getDuration, useDocumentTitle } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
+
+  // Set browser tab title to include task group name
+  useDocumentTitle(taskInstance.task_display_name);
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
     entries.push({
