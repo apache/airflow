@@ -150,9 +150,12 @@ func (r *registry) registerTaskWithName(dagId, taskId string, fn any) {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
 	}
 
-	val := reflect.ValueOf(fn)
-	fullName := runtime.FuncForPC(val.Pointer()).Name()
-	typeName, pkgPath := splitFullName(fullName)
+	// NewTaskFunction already resolved the runtime function name via
+	// reflect.ValueOf + runtime.FuncForPC; reuse the cached fullName rather
+	// than doing the same lookup a second time. The assertion is safe
+	// because NewTaskFunction is the only constructor for Task in this
+	// package and it always returns *taskFunction.
+	typeName, pkgPath := splitFullName(task.(*taskFunction).fullName)
 
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()

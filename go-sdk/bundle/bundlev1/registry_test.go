@@ -119,6 +119,30 @@ func (s *RegistrySuite) TestAddTask_ErrorReturnType() {
 	s.True(exists)
 }
 
+func (s *RegistrySuite) TestDagLister_RecordsTaskFunctionIdentity() {
+	// Verify that TypeName and PkgPath are populated for both registration
+	// paths (AddTask uses the function's runtime name; AddTaskWithName
+	// overrides the task id but still records the underlying function name
+	// in TypeName).
+	s.dag.AddTask(myTask)
+	s.dag.AddTaskWithName("explicit", errorTask)
+
+	lister := s.reg.(DagLister)
+	dags := lister.ListDags()
+	s.Require().Len(dags, 1)
+	s.Require().Len(dags[0].Tasks, 2)
+
+	const expectedPkg = "github.com/apache/airflow/go-sdk/bundle/bundlev1"
+
+	s.Equal("myTask", dags[0].Tasks[0].ID)
+	s.Equal("myTask", dags[0].Tasks[0].TypeName)
+	s.Equal(expectedPkg, dags[0].Tasks[0].PkgPath)
+
+	s.Equal("explicit", dags[0].Tasks[1].ID)
+	s.Equal("errorTask", dags[0].Tasks[1].TypeName)
+	s.Equal(expectedPkg, dags[0].Tasks[1].PkgPath)
+}
+
 func (s *RegistrySuite) TestDagLister_PreservesRegistrationOrder() {
 	// Register dags and tasks in a deliberately non-alphabetical order to
 	// catch any accidental map-iteration ordering.
