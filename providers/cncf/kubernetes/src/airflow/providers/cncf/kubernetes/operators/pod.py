@@ -1112,14 +1112,15 @@ class KubernetesPodOperator(BaseOperator):
             )
 
     def _push_xcom_with_fan_out(self, ti: Any, value: Any) -> None:
-        """Push ``return_value`` and, when ``multiple_outputs`` is set, also fan a dict out per key.
+        """
+        Push ``return_value`` and, when ``multiple_outputs`` is set, also fan a dict out per key.
 
         Mirrors the task runner's ``_push_xcom_if_needed`` so the failure-path manual pushes
         in ``cleanup`` (sync) and ``trigger_reentry`` (async) honour ``multiple_outputs`` —
         previously they pushed only ``return_value``, silently dropping per-key fan-out.
         On success both paths return the value and let the runner perform the push instead.
         """
-        if not value:
+        if value is None:
             return
         if self.multiple_outputs:
             if not isinstance(value, Mapping):
