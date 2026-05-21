@@ -17,12 +17,16 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
+import {
+  useAssetStateServiceDeleteAssetState,
+  useAssetStateServiceListAssetStatesKey,
+} from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton, toaster } from "src/components/ui";
-import { useDeleteAssetState } from "src/queries/useAssetState";
 
 type DeleteAssetStateButtonProps = {
   readonly assetId: number;
@@ -32,8 +36,9 @@ type DeleteAssetStateButtonProps = {
 const DeleteAssetStateButton = ({ assetId, stateKey }: DeleteAssetStateButtonProps) => {
   const { t: translate } = useTranslation("browse");
   const { onClose, onOpen, open } = useDisclosure();
+  const queryClient = useQueryClient();
 
-  const { isPending, mutate } = useDeleteAssetState({
+  const { isPending, mutate } = useAssetStateServiceDeleteAssetState({
     onError: () => {
       toaster.create({
         description: translate("assetState.delete.error"),
@@ -41,7 +46,8 @@ const DeleteAssetStateButton = ({ assetId, stateKey }: DeleteAssetStateButtonPro
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [useAssetStateServiceListAssetStatesKey] });
       onClose();
       toaster.create({
         description: translate("assetState.delete.success"),
@@ -50,10 +56,6 @@ const DeleteAssetStateButton = ({ assetId, stateKey }: DeleteAssetStateButtonPro
       });
     },
   });
-
-  const handleDelete = () => {
-    mutate({ assetId, key: stateKey });
-  };
 
   return (
     <>
@@ -64,7 +66,7 @@ const DeleteAssetStateButton = ({ assetId, stateKey }: DeleteAssetStateButtonPro
       <DeleteDialog
         isDeleting={isPending}
         onClose={onClose}
-        onDelete={handleDelete}
+        onDelete={() => mutate({ assetId, key: stateKey })}
         open={open}
         resourceName={stateKey}
         title={translate("assetState.delete.title")}

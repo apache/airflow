@@ -37,6 +37,7 @@ import EditTaskStateButton from "./EditTaskStateButton";
 type TaskStateTabProps = {
   readonly dagId: string;
   readonly mapIndex: number;
+  readonly refetchInterval?: number | false;
   readonly runId: string;
   readonly taskId: string;
 };
@@ -59,7 +60,7 @@ const getColumns = ({
   {
     accessorKey: "key",
     cell: ({ row: { original } }) => <Text>{original.key}</Text>,
-    header: translate("taskState.columns.key"),
+    header: translate("key"),
   },
   {
     accessorKey: "value",
@@ -80,7 +81,7 @@ const getColumns = ({
       );
     },
     enableSorting: false,
-    header: translate("taskState.columns.value"),
+    header: translate("value"),
   },
   {
     accessorKey: "updated_at",
@@ -124,19 +125,23 @@ const getColumns = ({
   },
 ];
 
-export const TaskStateTab = ({ dagId, mapIndex, runId, taskId }: TaskStateTabProps) => {
+export const TaskStateTab = ({ dagId, mapIndex, refetchInterval, runId, taskId }: TaskStateTabProps) => {
   const { t: translate } = useTranslation("browse");
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useListTaskStates({
-    dagId,
-    dagRunId: runId,
-    limit: pagination.pageSize,
-    mapIndex,
-    offset: pagination.pageIndex * pagination.pageSize,
-    taskId,
-  });
+  const { data, error, isFetching, isLoading } = useListTaskStates(
+    {
+      dagId,
+      dagRunId: runId,
+      limit: pagination.pageSize,
+      mapIndex,
+      offset: pagination.pageIndex * pagination.pageSize,
+      taskId,
+    },
+    undefined,
+    { refetchInterval },
+  );
 
   const columns = getColumns({ dagId, mapIndex, runId, taskId, translate });
 

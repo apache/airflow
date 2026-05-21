@@ -47,7 +47,7 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
   {
     accessorKey: "key",
     cell: ({ row: { original } }) => <Text>{original.key}</Text>,
-    header: translate("assetState.columns.key"),
+    header: translate("key"),
   },
   {
     accessorKey: "value",
@@ -68,7 +68,7 @@ const getColumns = ({ assetId, translate }: ColumnsProps): Array<ColumnDef<Asset
       );
     },
     enableSorting: false,
-    header: translate("assetState.columns.value"),
+    header: translate("value"),
   },
   {
     accessorKey: "updated_at",

@@ -17,12 +17,16 @@
  * under the License.
  */
 import { Button, useDisclosure } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
+import {
+  useAssetStateServiceClearAssetState,
+  useAssetStateServiceListAssetStatesKey,
+} from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
 import { toaster } from "src/components/ui";
-import { useClearAssetState } from "src/queries/useAssetState";
 
 type ClearAllAssetStateButtonProps = {
   readonly assetId: number;
@@ -31,8 +35,9 @@ type ClearAllAssetStateButtonProps = {
 const ClearAllAssetStateButton = ({ assetId }: ClearAllAssetStateButtonProps) => {
   const { t: translate } = useTranslation("browse");
   const { onClose, onOpen, open } = useDisclosure();
+  const queryClient = useQueryClient();
 
-  const { isPending, mutate } = useClearAssetState({
+  const { isPending, mutate } = useAssetStateServiceClearAssetState({
     onError: () => {
       toaster.create({
         description: translate("assetState.clearAll.error"),
@@ -40,7 +45,8 @@ const ClearAllAssetStateButton = ({ assetId }: ClearAllAssetStateButtonProps) =>
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [useAssetStateServiceListAssetStatesKey] });
       onClose();
       toaster.create({
         description: translate("assetState.clearAll.success"),
@@ -57,12 +63,12 @@ const ClearAllAssetStateButton = ({ assetId }: ClearAllAssetStateButtonProps) =>
       </Button>
 
       <DeleteDialog
-        confirmationText={translate("assetState.clearAll.confirmation")}
         deleteButtonText={translate("assetState.clearAll.confirm")}
         isDeleting={isPending}
         onClose={onClose}
         onDelete={() => mutate({ assetId })}
         open={open}
+        resourceName={translate("assetState.clearAll.resource")}
         title={translate("assetState.clearAll.title")}
         warningText={translate("assetState.clearAll.warning")}
       />

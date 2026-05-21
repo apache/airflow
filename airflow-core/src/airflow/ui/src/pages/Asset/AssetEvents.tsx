@@ -20,11 +20,11 @@ import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents } from "openapi/queries";
-import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-export const AssetEventsPanel = () => {
+export const AssetEvents = () => {
   const { assetId: assetIdParam } = useParams();
   const assetId = assetIdParam === undefined ? undefined : parseInt(assetIdParam, 10);
 
@@ -65,7 +65,7 @@ export const AssetEventsPanel = () => {
 
   return (
     <Box h="100%" overflow="auto" pt={2}>
-      <AssetEvents
+      <AssetEventsTable
         assetId={assetId}
         data={data}
         isLoading={isLoading}

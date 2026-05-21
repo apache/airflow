@@ -9,18 +9,16 @@
     },
     "clearAll": {
       "confirm": "Clear All Asset State",
-      "confirmation": "This will permanently delete all state keys for this asset.",
       "error": "Failed to clear asset state",
       "errorTitle": "Error",
+      "resource": "all asset state",
       "success": "All asset state cleared successfully",
       "successTitle": "Asset State Cleared",
       "title": "Clear All Asset State",
       "warning": "All asset state will be wiped. Tasks that use this state to coordinate work will lose their persisted memory."
     },
     "columns": {
-      "key": "Key",
-      "updatedAt": "Updated At",
-      "value": "Value"
+      "updatedAt": "Updated At"
     },
     "delete": {
       "error": "Failed to delete asset state",
@@ -38,10 +36,7 @@
       "title": "Edit Asset State"
     },
     "emptyState": "Asset state stores values scoped to an asset identity, shared across all Dag runs. Workers can write asset state via the Task SDK.",
-    "key": "Key",
-    "title": "Asset State",
-    "value": "Value",
-    "valuePlaceholder": "Enter a string value"
+    "title": "Asset State"
   },
   "auditLog": {
     "columns": {
@@ -55,6 +50,7 @@
     },
     "title": "Audit Log"
   },
+  "key": "Key",
   "taskState": {
     "add": {
       "error": "Failed to add task state",
@@ -68,9 +64,9 @@
     "checkpointTooltip": "This task has persisted checkpoint state. Click to view in the Storage tab.",
     "clearAll": {
       "confirm": "Clear All Task State",
-      "confirmation": "This will permanently delete all task state keys for this task instance.",
       "error": "Failed to clear task state",
       "errorTitle": "Error",
+      "resource": "all task state",
       "success": "All task state cleared successfully",
       "successTitle": "Task State Cleared",
       "title": "Clear All Task State",
@@ -78,10 +74,8 @@
     },
     "columns": {
       "expiresAt": "Expires At",
-      "key": "Key",
       "noExpiry": "Never",
-      "updatedAt": "Updated At",
-      "value": "Value"
+      "updatedAt": "Updated At"
     },
     "delete": {
       "error": "Failed to delete task state",
@@ -99,12 +93,11 @@
       "title": "Edit Task State"
     },
     "emptyState": "Task state stores values that persist across retries. Workers can write task state via the Task SDK.",
-    "key": "Key",
     "persistedTooltip": "Persisted across retries — task state survives clears and retries by design.",
-    "title": "Task State",
-    "value": "Value",
-    "valuePlaceholder": "Enter a string value"
+    "title": "Task State"
   },
+  "value": "Value",
+  "valuePlaceholder": "Enter a string value",
   "xcom": {
     "add": {
       "error": "Failed to add XCom",

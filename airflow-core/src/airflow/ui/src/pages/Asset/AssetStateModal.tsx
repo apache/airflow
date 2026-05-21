@@ -17,11 +17,16 @@
  * under the License.
  */
 import { Box, Button, Heading, Input, Text, Textarea, VStack } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import {
+  useAssetStateServiceGetAssetState,
+  useAssetStateServiceListAssetStatesKey,
+  useAssetStateServiceSetAssetState,
+} from "openapi/queries";
 import { Dialog, ProgressBar, toaster } from "src/components/ui";
-import { useGetAssetState, useSetAssetState } from "src/queries/useAssetState";
 
 type AssetStateModalProps = {
   readonly assetId: number;
@@ -33,14 +38,15 @@ type AssetStateModalProps = {
 
 const AssetStateModal = ({ assetId, isOpen, mode, onClose, stateKey }: AssetStateModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
+  const queryClient = useQueryClient();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const isEditMode = mode === "edit";
 
-  const { data: existingState, isLoading: isFetchingExisting } = useGetAssetState(
+  const { data: existingState, isLoading: isFetchingExisting } = useAssetStateServiceGetAssetState(
     { assetId, key: stateKey ?? "" },
     undefined,
-    { enabled: isOpen && isEditMode && stateKey !== undefined },
+    { enabled: isOpen && isEditMode && Boolean(stateKey) },
   );
 
   // Populate the form when edit-mode data arrives
@@ -58,7 +64,7 @@ const AssetStateModal = ({ assetId, isOpen, mode, onClose, stateKey }: AssetStat
     }
   }, [isOpen]);
 
-  const { isPending, mutate: setAssetState } = useSetAssetState({
+  const { isPending, mutate: setAssetState } = useAssetStateServiceSetAssetState({
     onError: () => {
       toaster.create({
         description: translate(`browse:assetState.${isEditMode ? "edit" : "add"}.error`),
@@ -66,7 +72,8 @@ const AssetStateModal = ({ assetId, isOpen, mode, onClose, stateKey }: AssetStat
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [useAssetStateServiceListAssetStatesKey] });
       onClose();
       toaster.create({
         description: translate(`browse:assetState.${isEditMode ? "edit" : "add"}.success`),
@@ -91,7 +98,7 @@ const AssetStateModal = ({ assetId, isOpen, mode, onClose, stateKey }: AssetStat
     : translate("browse:assetState.add.title");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="lg">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="lg">{title}</Heading>
@@ -104,7 +111,7 @@ const AssetStateModal = ({ assetId, isOpen, mode, onClose, stateKey }: AssetStat
             <VStack gap={4}>
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
-                  {translate("browse:assetState.key")}
+                  {translate("browse:key")}
                 </Text>
                 {isEditMode ? (
                   <Text>{stateKey}</Text>
@@ -114,12 +121,12 @@ const AssetStateModal = ({ assetId, isOpen, mode, onClose, stateKey }: AssetStat
               </Box>
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
-                  {translate("browse:assetState.value")}
+                  {translate("browse:value")}
                 </Text>
                 <Textarea
                   minH="120px"
                   onChange={(event) => setValue(event.target.value)}
-                  placeholder={translate("browse:assetState.valuePlaceholder")}
+                  placeholder={translate("browse:valuePlaceholder")}
                   resize="vertical"
                   value={value}
                 />

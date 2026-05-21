@@ -17,12 +17,16 @@
  * under the License.
  */
 import { Button, useDisclosure } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
+import {
+  useTaskStateServiceClearTaskState,
+  useTaskStateServiceListTaskStatesKey,
+} from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
 import { toaster } from "src/components/ui";
-import { useClearTaskState } from "src/queries/useTaskState";
 
 type ClearAllTaskStateButtonProps = {
   readonly dagId: string;
@@ -34,8 +38,9 @@ type ClearAllTaskStateButtonProps = {
 const ClearAllTaskStateButton = ({ dagId, mapIndex, runId, taskId }: ClearAllTaskStateButtonProps) => {
   const { t: translate } = useTranslation("browse");
   const { onClose, onOpen, open } = useDisclosure();
+  const queryClient = useQueryClient();
 
-  const { isPending, mutate } = useClearTaskState({
+  const { isPending, mutate } = useTaskStateServiceClearTaskState({
     onError: () => {
       toaster.create({
         description: translate("taskState.clearAll.error"),
@@ -43,7 +48,8 @@ const ClearAllTaskStateButton = ({ dagId, mapIndex, runId, taskId }: ClearAllTas
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [useTaskStateServiceListTaskStatesKey] });
       onClose();
       toaster.create({
         description: translate("taskState.clearAll.success"),
@@ -60,12 +66,12 @@ const ClearAllTaskStateButton = ({ dagId, mapIndex, runId, taskId }: ClearAllTas
       </Button>
 
       <DeleteDialog
-        confirmationText={translate("taskState.clearAll.confirmation")}
         deleteButtonText={translate("taskState.clearAll.confirm")}
         isDeleting={isPending}
         onClose={onClose}
         onDelete={() => mutate({ dagId, dagRunId: runId, mapIndex, taskId })}
         open={open}
+        resourceName={translate("taskState.clearAll.resource")}
         title={translate("taskState.clearAll.title")}
         warningText={translate("taskState.clearAll.warning")}
       />

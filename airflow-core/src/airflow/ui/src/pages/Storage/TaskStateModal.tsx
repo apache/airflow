@@ -17,11 +17,16 @@
  * under the License.
  */
 import { Box, Button, Heading, Input, Text, Textarea, VStack } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import {
+  useTaskStateServiceGetTaskState,
+  useTaskStateServiceListTaskStatesKey,
+  useTaskStateServiceSetTaskState,
+} from "openapi/queries";
 import { Dialog, ProgressBar, toaster } from "src/components/ui";
-import { useGetTaskState, useSetTaskState } from "src/queries/useTaskState";
 
 type TaskStateModalProps = {
   readonly dagId: string;
@@ -45,14 +50,15 @@ const TaskStateModal = ({
   taskId,
 }: TaskStateModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
+  const queryClient = useQueryClient();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const isEditMode = mode === "edit";
 
-  const { data: existingState, isLoading: isFetchingExisting } = useGetTaskState(
+  const { data: existingState, isLoading: isFetchingExisting } = useTaskStateServiceGetTaskState(
     { dagId, dagRunId: runId, key: stateKey ?? "", mapIndex, taskId },
     undefined,
-    { enabled: isOpen && isEditMode && stateKey !== undefined },
+    { enabled: isOpen && isEditMode && Boolean(stateKey) },
   );
 
   // Populate the form when edit-mode data arrives
@@ -70,7 +76,7 @@ const TaskStateModal = ({
     }
   }, [isOpen]);
 
-  const { isPending, mutate: setTaskState } = useSetTaskState({
+  const { isPending, mutate: setTaskState } = useTaskStateServiceSetTaskState({
     onError: () => {
       toaster.create({
         description: translate(`browse:taskState.${isEditMode ? "edit" : "add"}.error`),
@@ -78,7 +84,8 @@ const TaskStateModal = ({
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [useTaskStateServiceListTaskStatesKey] });
       onClose();
       toaster.create({
         description: translate(`browse:taskState.${isEditMode ? "edit" : "add"}.success`),
@@ -106,7 +113,7 @@ const TaskStateModal = ({
     : translate("browse:taskState.add.title");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="lg">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="lg">{title}</Heading>
@@ -119,7 +126,7 @@ const TaskStateModal = ({
             <VStack gap={4}>
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
-                  {translate("browse:taskState.key")}
+                  {translate("browse:key")}
                 </Text>
                 {isEditMode ? (
                   <Text>{stateKey}</Text>
@@ -129,12 +136,12 @@ const TaskStateModal = ({
               </Box>
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
-                  {translate("browse:taskState.value")}
+                  {translate("browse:value")}
                 </Text>
                 <Textarea
                   minH="120px"
                   onChange={(event) => setValue(event.target.value)}
-                  placeholder={translate("browse:taskState.valuePlaceholder")}
+                  placeholder={translate("browse:valuePlaceholder")}
                   resize="vertical"
                   value={value}
                 />

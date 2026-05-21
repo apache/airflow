@@ -17,12 +17,16 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
+import {
+  useTaskStateServiceDeleteTaskState,
+  useTaskStateServiceListTaskStatesKey,
+} from "openapi/queries";
 import DeleteDialog from "src/components/DeleteDialog";
 import { IconButton, toaster } from "src/components/ui";
-import { useDeleteTaskState } from "src/queries/useTaskState";
 
 type DeleteTaskStateButtonProps = {
   readonly dagId: string;
@@ -35,8 +39,9 @@ type DeleteTaskStateButtonProps = {
 const DeleteTaskStateButton = ({ dagId, mapIndex, runId, stateKey, taskId }: DeleteTaskStateButtonProps) => {
   const { t: translate } = useTranslation("browse");
   const { onClose, onOpen, open } = useDisclosure();
+  const queryClient = useQueryClient();
 
-  const { isPending, mutate } = useDeleteTaskState({
+  const { isPending, mutate } = useTaskStateServiceDeleteTaskState({
     onError: () => {
       toaster.create({
         description: translate("taskState.delete.error"),
@@ -44,7 +49,8 @@ const DeleteTaskStateButton = ({ dagId, mapIndex, runId, stateKey, taskId }: Del
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [useTaskStateServiceListTaskStatesKey] });
       onClose();
       toaster.create({
         description: translate("taskState.delete.success"),
@@ -53,10 +59,6 @@ const DeleteTaskStateButton = ({ dagId, mapIndex, runId, stateKey, taskId }: Del
       });
     },
   });
-
-  const handleDelete = () => {
-    mutate({ dagId, dagRunId: runId, key: stateKey, mapIndex, taskId });
-  };
 
   return (
     <>
@@ -67,7 +69,7 @@ const DeleteTaskStateButton = ({ dagId, mapIndex, runId, stateKey, taskId }: Del
       <DeleteDialog
         isDeleting={isPending}
         onClose={onClose}
-        onDelete={handleDelete}
+        onDelete={() => mutate({ dagId, dagRunId: runId, key: stateKey, mapIndex, taskId })}
         open={open}
         resourceName={stateKey}
         title={translate("taskState.delete.title")}

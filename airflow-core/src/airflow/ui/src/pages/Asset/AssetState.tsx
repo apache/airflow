@@ -16,24 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { MdOutlineStorage, MdSyncAlt } from "react-icons/md";
-import { Outlet } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { NavTabs } from "src/layouts/Details/NavTabs";
+import { AssetStateTab } from "./AssetStateTab";
 
-export const StoragePage = () => {
-  const { t: translate } = useTranslation("dag");
+export const AssetState = () => {
+  const { assetId } = useParams();
+  const parsedId = assetId === undefined ? 0 : parseInt(assetId, 10);
 
-  const tabs = [
-    { icon: <MdOutlineStorage />, label: translate("tabs.taskState"), value: "task-state" },
-    { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
-  ];
-
-  return (
-    <>
-      <NavTabs tabs={tabs} />
-      <Outlet />
-    </>
-  );
+  return <AssetStateTab assetId={parsedId} />;
 };
