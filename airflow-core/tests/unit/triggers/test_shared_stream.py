@@ -22,7 +22,12 @@ from contextlib import suppress
 import pytest
 
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-from airflow.triggers.shared_stream import SharedStreamManager, _SubscriberOverflow
+from airflow.triggers.shared_stream import (
+    SharedStreamManager,
+    _PollFailure,
+    _SharedStreamGroup,
+    _SubscriberOverflow,
+)
 
 
 class _ProgrammableSharedStreamTrigger(BaseEventTrigger):
@@ -633,3 +638,48 @@ async def test_terminal_failure_reaches_every_subscriber_even_with_full_queues()
 
     await manager.unsubscribe(1, key)
     await manager.unsubscribe(2, key)
+
+
+@pytest.mark.asyncio
+async def test_fail_overflowed_subscriber_drains_full_queue_before_putting_sentinel():
+    """``_fail_overflowed_subscriber`` must drain the backlog *before* placing the
+    failure sentinel, not after.
+
+    White-box invariant: given a queue already at capacity, calling
+    ``_fail_overflowed_subscriber`` must leave exactly one item in the queue —
+    the :class:`_PollFailure` wrapping a :class:`_SubscriberOverflow` — regardless
+    of how many stale events were sitting there beforehand.
+
+    If the drain loop were moved to *after* the ``put_nowait``, the put would
+    raise :exc:`asyncio.QueueFull` before any draining occurred and the
+    subscriber would never receive its failure sentinel.
+    """
+    import structlog
+
+    cap = 3
+    queue: asyncio.Queue = asyncio.Queue(maxsize=cap)
+    # Pre-fill the queue to capacity with stale events.
+    for i in range(cap):
+        queue.put_nowait({"stale": i})
+
+    assert queue.full(), "pre-condition: queue must be full before the call"
+
+    group = _SharedStreamGroup(
+        key="test-key",
+        trigger_class=_ProgrammableSharedStreamTrigger,
+        kwargs={},
+        on_poll_terminate=lambda g: None,
+        max_subscriber_queue=cap,
+        log=structlog.get_logger("test"),
+    )
+    trigger_id = 42
+    group._subscribers[trigger_id] = queue
+
+    group._fail_overflowed_subscriber(trigger_id, queue)
+
+    # Post-conditions that pin the drain-before-put ordering:
+    assert queue.qsize() == 1, "exactly one item must remain: the failure sentinel"
+    sentinel = queue.get_nowait()
+    assert isinstance(sentinel, _PollFailure), "sentinel must be a _PollFailure"
+    assert isinstance(sentinel.exc, _SubscriberOverflow), "the wrapped exception must be _SubscriberOverflow"
+    assert trigger_id in group._overflowed, "trigger_id must be recorded in _overflowed"
