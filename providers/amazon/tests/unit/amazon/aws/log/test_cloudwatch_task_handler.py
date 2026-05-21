@@ -242,6 +242,62 @@ class TestCloudRemoteLogIO:
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
+    def test_handler_recreates_after_shutdown(self):
+        """
+        Handler was a cached_property, once killed by logging.shutdown()
+        the dead instance was never replaced. Verify that accessing handler
+        after shutting_down=True returns a new live instance.
+        """
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            # Access handler to initialize it
+            first_handler = self.subject.handler
+            assert first_handler.shutting_down is False
+
+            # Simulate what dictConfig() does, calls logging.shutdown() on
+            # all registered handlers, setting shutting_down=True
+            first_handler.shutting_down = True
+
+            # Accessing handler now must return a new live instance, not the dead one
+            second_handler = self.subject.handler
+            assert second_handler is not first_handler
+            assert second_handler.shutting_down is False
+
+            second_handler.close()
+
+    def test_processor_uses_live_handler_after_shutdown(self):
+        """
+        Processors captured _handler in a closure, pinning the dead instance
+        even after the property recreated a new one. Verify that the processor
+        emits to the live handler after a shutdown/recreate cycle.
+        """
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            # Get the processors tuple, this eagerly initializes the handler
+            procs = self.subject.processors
+            assert len(procs) == 1
+
+            # Simulate dictConfig() killing the handler
+            first_handler = self.subject.handler
+            first_handler.shutting_down = True
+
+            # Access handler to trigger recreation
+            second_handler = self.subject.handler
+            assert second_handler is not first_handler
+
+            # The processor must now emit to the live second_handler, not the dead first_handler
+            with mock.patch.object(second_handler, "handle") as mock_handle:
+                with mock.patch.object(first_handler, "handle") as mock_dead_handle:
+                    import structlog
+
+                    log = structlog.get_logger()
+                    log.info("test after recreate", foo="baz")
+
+                    # Live handler should receive the record
+                    mock_handle.assert_called_once()
+                    # Dead handler must not receive anything
+                    mock_dead_handle.assert_not_called()
+
+            second_handler.close()
+
 
 @pytest.mark.db_test
 class TestCloudwatchTaskHandler:

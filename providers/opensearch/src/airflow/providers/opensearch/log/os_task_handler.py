@@ -983,3 +983,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
+
+    def close(self) -> None:
+        """No-op: logs are streamed in real time and require no explicit close."""
+        pass

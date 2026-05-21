@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import attrs
+import structlog
+import structlog.typing
 import watchtower
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -39,8 +41,6 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    import structlog.typing
-
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.amazon.aws.hooks.logs import CloudWatchLogEvent
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -107,8 +107,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    @cached_property
-    def handler(self) -> watchtower.CloudWatchLogHandler:
+    _handler: watchtower.CloudWatchLogHandler | None = attrs.field(default=None, init=False, repr=False)
+
+    def _create_handler(self) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
@@ -118,6 +119,25 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             json_serialize_default=_json_serialize or json_serialize_legacy,
         )
 
+    _handler_creating: bool = attrs.field(default=False, init=False, repr=False)
+
+    @property
+    def handler(self) -> watchtower.CloudWatchLogHandler:
+        if self._handler_creating:
+            # Re-entrant call during handler creation, some libraries log internally
+            # during initialization, which triggers this process again before
+            # handler is fully constructed.
+            if self._handler is not None and isinstance(self._handler, watchtower.CloudWatchLogHandler):
+                return self._handler
+            raise structlog.DropEvent()
+        if self._handler is None or self._handler.shutting_down:
+            self._handler_creating = True
+            try:
+                self._handler = self._create_handler()
+            finally:
+                self._handler_creating = False
+        return self._handler
+
     @cached_property
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
         from logging import getLogRecordFactory
@@ -125,9 +145,12 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         import structlog.stdlib
 
         logRecordFactory = getLogRecordFactory()
-        # The handler MUST be initted here, before the processor is actually used to log anything.
-        # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
-        _handler = self.handler
+        # Eagerly initialize the handler before the closure is created.
+        # Without this, the first log emission would trigger handler creation,
+        # which itself logs, causing an infinite loop.
+        self._handler
+        _self = self
+
         from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
@@ -136,7 +159,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             # We can't set the log stream name in the above init handler because
             # the log path isn't known at that stage.
             # Instead, we should always rely on the path (log stream name) provided by the logger.
-            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            _self.handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -151,7 +174,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            _handler.handle(record)
+            _self.handler.handle(record)
             return event
 
         return (proc,)

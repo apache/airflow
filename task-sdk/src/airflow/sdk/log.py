@@ -118,8 +118,14 @@ def configure_logging(
     if mask_secrets:
         extra_processors += (mask_logs,)
 
-    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-        extra_processors += remote_processors
+    # NOTE: Do NOT call getattr(remote, "processors") here.
+    # Accessing remote.processors triggers creation of, for example, the watchtower CloudWatchLogHandler
+    # via a cached_property. The configure_logging() call below runs dictConfig() internally,
+    # which calls _clearExistingHandlers() -> logging.shutdown() on ALL existing handlers —
+    # including the watchtower handler we would have just built. The handler ends up dead
+    # (shutting_down=True) before a single task log is emitted.
+    # See: https://github.com/apache/airflow/issues/66475
+    # Remote processors are injected AFTER dictConfig via a second structlog.configure() call below.
 
     configure_logging(
         json_output=json_output,
@@ -132,6 +138,15 @@ def configure_logging(
         extra_processors=extra_processors,
         callsite_parameters=callsite_params,
     )
+
+    # dictConfig has now run — safe to build the watchtower handler.
+    # We append remote processors into the already-configured structlog chain,
+    # inserting before the final renderer (last processor in the chain).
+    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+        current_processors = list(structlog.get_config()["processors"])
+        # Insert before the final renderer
+        updated_processors = current_processors[:-1] + list(remote_processors) + [current_processors[-1]]
+        structlog.configure(processors=updated_processors)
 
 
 def logger_at_level(name: str, level: int) -> Logger:

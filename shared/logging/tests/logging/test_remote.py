@@ -33,6 +33,9 @@ class DummyRemoteLogIO:
     def read(self, relative_path, ti):
         return ([], [])
 
+    def close(self) -> None:
+        pass
+
 
 class TestDiscoverRemoteLogHandler:
     def test_discovers_handler_and_conn_id(self):
@@ -159,6 +162,9 @@ class TestRemoteLogIOProtocol:
 
             def stream(self, relative_path, ti):
                 return ([], [])
+
+            def close(self) -> None:
+                pass
 
         handler = StreamHandler()
         assert isinstance(handler, RemoteLogStreamIO)
