@@ -31,12 +31,12 @@ if TYPE_CHECKING:
     from llama_index.core.base.embeddings.base import BaseEmbedding
 
 
-class RetrievalOperator(BaseOperator):
+class LlamaIndexRetrievalOperator(BaseOperator):
     """
     Retrieve relevant document chunks from a persisted LlamaIndex index.
 
     Loads a previously persisted vector store index (from
-    ``EmbeddingOperator(persist_dir=...)``) and performs similarity search
+    ``LlamaIndexEmbeddingOperator(persist_dir=...)``) and performs similarity search
     against the provided query. Output is a list of chunks with text,
     score, metadata, and node id, ready for downstream synthesis via
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
@@ -142,7 +142,7 @@ class RetrievalOperator(BaseOperator):
             if not source.is_dir():
                 raise FileNotFoundError(
                     f"Persisted LlamaIndex index not found at '{self.index_persist_dir}'. "
-                    "Did you run EmbeddingOperator with the same persist_dir first?"
+                    "Did you run LlamaIndexEmbeddingOperator with the same persist_dir first?"
                 )
             return storage_context_cls.from_defaults(
                 persist_dir=str(source),
@@ -154,6 +154,6 @@ class RetrievalOperator(BaseOperator):
         if not Path(self.index_persist_dir).is_dir():
             raise FileNotFoundError(
                 f"Persisted LlamaIndex index not found at '{self.index_persist_dir}'. "
-                "Did you run EmbeddingOperator with the same persist_dir first?"
+                "Did you run LlamaIndexEmbeddingOperator with the same persist_dir first?"
             )
         return storage_context_cls.from_defaults(persist_dir=self.index_persist_dir)

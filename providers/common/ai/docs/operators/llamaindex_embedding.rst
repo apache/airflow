@@ -17,7 +17,7 @@
 
 .. _howto/operator:llamaindex_embedding:
 
-LlamaIndex ``EmbeddingOperator``
+LlamaIndex ``LlamaIndexEmbeddingOperator``
 ================================
 
 Chunk a ``list[dict]`` of documents and produce embedding vectors using

@@ -50,10 +50,10 @@ to pick the one that fits your use case:
      - :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
      - *(no decorator)*
    * - Chunk documents and produce embedding vectors
-     - :class:`~airflow.providers.common.ai.operators.llamaindex_embedding.EmbeddingOperator`
+     - :class:`~airflow.providers.common.ai.operators.llamaindex_embedding.LlamaIndexEmbeddingOperator`
      - *(no decorator)*
    * - Retrieve relevant chunks from a vector index
-     - :class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.RetrievalOperator`
+     - :class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.LlamaIndexRetrievalOperator`
      - *(no decorator)*
 
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,

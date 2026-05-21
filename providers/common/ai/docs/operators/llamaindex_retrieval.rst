@@ -17,12 +17,12 @@
 
 .. _howto/operator:llamaindex_retrieval:
 
-LlamaIndex ``RetrievalOperator``
+LlamaIndex ``LlamaIndexRetrievalOperator``
 ================================
 
 Load a persisted LlamaIndex index and run similarity search. Designed to
 sit between
-:class:`~airflow.providers.common.ai.operators.llamaindex_embedding.EmbeddingOperator`
+:class:`~airflow.providers.common.ai.operators.llamaindex_embedding.LlamaIndexEmbeddingOperator`
 (which builds the index) and
 :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` (which
 synthesises an answer from the retrieved chunks).
@@ -47,15 +47,15 @@ Cloud-persisted indexes
 -----------------------
 
 ``index_persist_dir`` accepts the same local-path-or-URI shape as
-``EmbeddingOperator.persist_dir``. Pass ``persist_conn_id`` to point at
+``LlamaIndexEmbeddingOperator.persist_dir``. Pass ``persist_conn_id`` to point at
 the Airflow connection that holds cloud credentials. The operator raises
-``FileNotFoundError`` with a clear "did you run EmbeddingOperator first?"
+``FileNotFoundError`` with a clear "did you run LlamaIndexEmbeddingOperator first?"
 message when the path is missing.
 
 Bring-your-own embedding model
 ------------------------------
 
-Same shape as ``EmbeddingOperator``: ``embed_model`` accepts either a
+Same shape as ``LlamaIndexEmbeddingOperator``: ``embed_model`` accepts either a
 string model name (OpenAI via the hook) or a pre-built ``BaseEmbedding``
 instance for non-OpenAI vendors. See the BYO example in
 :doc:`llamaindex_embedding`.

@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.ai.operators.llamaindex_retrieval import RetrievalOperator
+from airflow.providers.common.ai.operators.llamaindex_retrieval import LlamaIndexRetrievalOperator
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ class TestRetrievalOperatorOutput:
             _scored_node("chunk b", 0.85, {"src": "y"}, "node-b"),
         ]
 
-        op = RetrievalOperator(
+        op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="what is airflow",
             index_persist_dir=str(tmp_path / "idx"),
@@ -95,7 +95,7 @@ class TestRetrievalOperatorOutput:
         index = _stub_li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
-        op = RetrievalOperator(
+        op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
@@ -112,7 +112,7 @@ class TestRetrievalOperatorOutput:
         index = _stub_li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
-        op = RetrievalOperator(
+        op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
@@ -127,13 +127,13 @@ class TestRetrievalOperatorOutput:
 class TestRetrievalOperatorMissingIndex:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_local_missing_dir_raises_with_hint(self, mock_get_embed, _stub_li, tmp_path):
-        op = RetrievalOperator(
+        op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="q",
             index_persist_dir=str(tmp_path / "no_such_dir"),
             embed_model="text-embedding-3-small",
         )
-        with pytest.raises(FileNotFoundError, match="EmbeddingOperator"):
+        with pytest.raises(FileNotFoundError, match="LlamaIndexEmbeddingOperator"):
             op.execute(context=MagicMock())
 
     @patch("airflow.sdk.ObjectStoragePath")
@@ -143,13 +143,13 @@ class TestRetrievalOperatorMissingIndex:
         missing.is_dir.return_value = False
         mock_osp_cls.return_value = missing
 
-        op = RetrievalOperator(
+        op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="q",
             index_persist_dir="s3://bucket/missing/",
             embed_model="text-embedding-3-small",
         )
-        with pytest.raises(FileNotFoundError, match="EmbeddingOperator"):
+        with pytest.raises(FileNotFoundError, match="LlamaIndexEmbeddingOperator"):
             op.execute(context=MagicMock())
 
 
@@ -166,7 +166,7 @@ class TestRetrievalOperatorCloudURI:
         index = _stub_li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
-        op = RetrievalOperator(
+        op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="q",
             index_persist_dir="s3://bucket/idx/",

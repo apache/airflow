@@ -41,7 +41,8 @@ Choosing a hook
        LangChain agent surface, or need LangChain-native chat / embedding model
        objects. Independent of the pydantic-ai-backed operators.
    * - :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook`
-     - Backs the LlamaIndex ``EmbeddingOperator`` and ``RetrievalOperator``.
+     - Backs the LlamaIndex ``LlamaIndexEmbeddingOperator`` and
+       ``LlamaIndexRetrievalOperator``.
        Returns LlamaIndex-native ``BaseEmbedding`` / ``LLM`` objects (OpenAI
        by default). For non-OpenAI vendors, pass a pre-built
        ``BaseEmbedding`` / ``LLM`` instance straight to the operator and

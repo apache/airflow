@@ -23,8 +23,8 @@ Each DAG covers a single pattern. The docs reference these via
 from __future__ import annotations
 
 from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
-from airflow.providers.common.ai.operators.llamaindex_embedding import EmbeddingOperator
-from airflow.providers.common.ai.operators.llamaindex_retrieval import RetrievalOperator
+from airflow.providers.common.ai.operators.llamaindex_embedding import LlamaIndexEmbeddingOperator
+from airflow.providers.common.ai.operators.llamaindex_retrieval import LlamaIndexRetrievalOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 
@@ -39,7 +39,7 @@ def example_llamaindex_embed():
         file_extensions=[".pdf", ".md", ".txt"],
     )
 
-    embed = EmbeddingOperator(
+    embed = LlamaIndexEmbeddingOperator(
         task_id="embed",
         documents=load.output,  # XCom direct -- never via Jinja (list[dict])
         embed_model="text-embedding-3-small",
@@ -62,7 +62,7 @@ example_llamaindex_embed()
 def example_llamaindex_retrieve():
     """Load a persisted index and run similarity search."""
 
-    retrieve = RetrievalOperator(
+    retrieve = LlamaIndexRetrievalOperator(
         task_id="retrieve",
         query="{{ params.query }}",
         index_persist_dir="/opt/airflow/data/library_index",
@@ -91,7 +91,7 @@ def example_llamaindex_cloud_persist():
         file_extensions=[".pdf"],
     )
 
-    embed = EmbeddingOperator(
+    embed = LlamaIndexEmbeddingOperator(
         task_id="embed",
         documents=load.output,
         embed_model="text-embedding-3-small",
@@ -132,7 +132,7 @@ def example_llamaindex_byo_embed_model():
     def empty_doc_list() -> list[dict]:
         return [{"text": "Cohere demo content", "metadata": {}}]
 
-    embed = EmbeddingOperator(
+    embed = LlamaIndexEmbeddingOperator(
         task_id="embed",
         documents=empty_doc_list(),
         embed_model=build_cohere_embedder(),

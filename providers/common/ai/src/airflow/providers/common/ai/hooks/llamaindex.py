@@ -48,7 +48,7 @@ class LlamaIndexHook(BaseHook):
     behaviour. For other vendors (Cohere, Bedrock, Vertex, HuggingFace, ...)
     instantiate the LlamaIndex class directly in your ``@task`` and pass it
     to the operator's ``embed_model=`` / ``llm=`` parameter -- both
-    ``EmbeddingOperator`` and ``RetrievalOperator`` accept a pre-built
+    ``LlamaIndexEmbeddingOperator`` and ``LlamaIndexRetrievalOperator`` accept a pre-built
     ``BaseEmbedding`` / ``LLM`` instance and bypass the hook in that case.
 
     .. note::

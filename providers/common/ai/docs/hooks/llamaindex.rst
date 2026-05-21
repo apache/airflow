@@ -51,9 +51,9 @@ behaviour:
 For other vendors (Cohere, Bedrock, Vertex AI, HuggingFace, ...),
 instantiate the LlamaIndex class directly in a ``@task`` and pass it to
 the operator's ``embed_model=`` / ``llm=`` parameter -- both
-:class:`~airflow.providers.common.ai.operators.llamaindex_embedding.EmbeddingOperator`
+:class:`~airflow.providers.common.ai.operators.llamaindex_embedding.LlamaIndexEmbeddingOperator`
 and
-:class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.RetrievalOperator`
+:class:`~airflow.providers.common.ai.operators.llamaindex_retrieval.LlamaIndexRetrievalOperator`
 accept a pre-built ``BaseEmbedding`` / ``LLM`` instance and bypass the
 hook:
 

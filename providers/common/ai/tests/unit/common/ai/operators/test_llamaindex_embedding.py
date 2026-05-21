@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.common.ai.operators.llamaindex_embedding import EmbeddingOperator
+from airflow.providers.common.ai.operators.llamaindex_embedding import LlamaIndexEmbeddingOperator
 
 
 @pytest.fixture
@@ -63,10 +63,10 @@ class TestEmbeddingOperatorInit:
     def test_documents_not_templated(self):
         # ``documents`` is ``list[dict]`` -- Jinja stringification would
         # break it. Explicitly out of template_fields.
-        assert "documents" not in EmbeddingOperator.template_fields
+        assert "documents" not in LlamaIndexEmbeddingOperator.template_fields
 
     def test_templated_fields(self):
-        assert set(EmbeddingOperator.template_fields) == {
+        assert set(LlamaIndexEmbeddingOperator.template_fields) == {
             "llm_conn_id",
             "persist_dir",
             "persist_conn_id",
@@ -81,7 +81,7 @@ class TestEmbeddingOperatorExecute:
             _node(text="chunk a", vector=[0.1, 0.2]),
         ]
 
-        op = EmbeddingOperator(
+        op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc", "metadata": {"src": "x"}}],
             embed_model="text-embedding-3-small",
@@ -102,7 +102,7 @@ class TestEmbeddingOperatorExecute:
             _node()
         ]
 
-        op = EmbeddingOperator(
+        op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc"}],
             embed_model=byo,
@@ -121,7 +121,7 @@ class TestEmbeddingOperatorExecute:
             _node(text="y", metadata={"k": "v2"}, vector=[3.0, 4.0]),
         ]
 
-        op = EmbeddingOperator(
+        op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc"}],
             embed_model="text-embedding-3-small",
@@ -144,7 +144,7 @@ class TestEmbeddingOperatorPersist:
         _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
         index = _stub_li["VectorStoreIndex"].return_value
 
-        op = EmbeddingOperator(
+        op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc"}],
             embed_model="text-embedding-3-small",
@@ -169,7 +169,7 @@ class TestEmbeddingOperatorPersist:
         _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
         index = _stub_li["VectorStoreIndex"].return_value
 
-        op = EmbeddingOperator(
+        op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc"}],
             embed_model="text-embedding-3-small",

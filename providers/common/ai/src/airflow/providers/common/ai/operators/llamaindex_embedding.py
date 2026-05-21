@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from llama_index.core.base.embeddings.base import BaseEmbedding
 
 
-class EmbeddingOperator(BaseOperator):
+class LlamaIndexEmbeddingOperator(BaseOperator):
     """
     Chunk documents and produce embedding vectors using LlamaIndex.
 
