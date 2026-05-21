@@ -56,12 +56,12 @@ const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances 
 
   return (
     <>
-      <Button colorPalette="danger" onClick={onOpen} size="sm" variant="outline">
+      <Button colorPalette="danger" onClick={onOpen} variant="outline">
         <FiTrash2 />
         {translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>

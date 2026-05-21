@@ -21,6 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
+from datetime import datetime
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -92,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     PreviousDagRunResult,
     PreviousTIResult,
+    RescheduleTask,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
@@ -102,8 +104,6 @@ from airflow.sdk.execution_time.comms import (
 if TYPE_CHECKING:
     from datetime import datetime
     from typing import ParamSpec
-
-    from airflow.sdk.execution_time.comms import RescheduleTask
 
     P = ParamSpec("P")
     T = TypeVar("T")
@@ -460,6 +460,21 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            if e.response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                # Surface authz failures as a distinct ErrorType so the
+                # ExecutionAPISecretsBackend can refuse to fall back to a
+                # less-restrictive backend (e.g. env vars). 401/403 must
+                # not be conflated with "not found".
+                log.debug(
+                    "Connection access denied",
+                    conn_id=conn_id,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.PERMISSION_DENIED,
+                    detail={"conn_id": conn_id, "status_code": e.response.status_code},
+                )
             raise
         return ConnectionResponse.model_validate_json(resp.read())
 
@@ -483,6 +498,19 @@ class VariableOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+            if e.response.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                # See ConnectionOperations.get() above for rationale —
+                # authz failures must not be conflated with "not found".
+                log.debug(
+                    "Variable access denied",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(
+                    error=ErrorType.PERMISSION_DENIED,
+                    detail={"key": key, "status_code": e.response.status_code},
+                )
             raise
         return VariableResponse.model_validate_json(resp.read())
 
@@ -693,9 +721,9 @@ class TaskStateOperations:
             raise
         return TaskStateResponse.model_validate_json(resp.read())
 
-    def set(self, ti_id: uuid.UUID, key: str, value: str) -> OKResponse:
+    def set(self, ti_id: uuid.UUID, key: str, value: str, expires_at: datetime | None) -> OKResponse:
         """Set a task state value via the API server."""
-        body = TaskStatePutBody(value=value)
+        body = TaskStatePutBody(value=value, expires_at=expires_at)
         self.client.put(f"state/ti/{ti_id}/{key}", content=body.model_dump_json())
         return OKResponse(ok=True)
 

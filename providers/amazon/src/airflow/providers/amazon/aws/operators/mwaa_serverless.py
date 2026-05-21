@@ -151,8 +151,12 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         except ClientError as e:
             if e.response["Error"]["Code"] == "ConflictException" and self.if_exists == "skip":
                 self.log.info("Workflow %s already exists, skipping.", self.workflow_name)
-                response = self.hook.conn.get_workflow(WorkflowArn=self.workflow_name)
-                workflow_arn = response["WorkflowArn"]
+                resource_id = e.response["ResourceId"]
+                workflow_arn = (
+                    f"arn:{self.hook.conn_partition}:airflow-serverless"
+                    f":{self.hook.conn_region_name}:{self.hook.account_id}"
+                    f":workflow/{resource_id}"
+                )
             else:
                 raise
         self.log.info("Workflow %s: %s", self.workflow_name, workflow_arn)

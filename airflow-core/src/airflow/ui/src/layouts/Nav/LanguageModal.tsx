@@ -32,7 +32,7 @@ const LanguageModal: React.FC<LanguageModalProps> = ({ isOpen, onClose }) => {
   const { t: translate } = useTranslation();
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
       <Dialog.Content backdrop>
         <Dialog.Header>{translate("selectLanguage")}</Dialog.Header>
         <Dialog.CloseTrigger />

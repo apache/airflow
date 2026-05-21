@@ -118,6 +118,7 @@ class SerializedDAG:
     allowed_run_types: list[str] | None = None
     description: str | None = None
     disable_bundle_versioning: bool = False
+    rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
     end_date: datetime.datetime | None = None
@@ -167,6 +168,7 @@ class SerializedDAG:
                 "allowed_run_types",
                 "description",
                 "disable_bundle_versioning",
+                "rerun_with_latest_version",
                 "doc_md",
                 "edge_info",
                 "end_date",

@@ -302,7 +302,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 ]
         else:
             assert mock_daemon.mock_calls == []
-            mock_setup_locations.mock_calls == []
+            assert mock_setup_locations.mock_calls == []
             mock_pid_file.assert_not_called()
             mock_open.assert_not_called()
 

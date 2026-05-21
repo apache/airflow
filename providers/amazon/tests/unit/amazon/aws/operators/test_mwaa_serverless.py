@@ -115,18 +115,27 @@ class TestMwaaServerlessCreateWorkflowOperator:
         )
         assert result == WORKFLOW_ARN
 
+    @mock.patch.object(AwsBaseHook, "account_id", new_callable=mock.PropertyMock)
+    @mock.patch.object(AwsBaseHook, "conn_region_name", new_callable=mock.PropertyMock)
+    @mock.patch.object(AwsBaseHook, "conn_partition", new_callable=mock.PropertyMock)
     @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute_skip_existing(self, mock_conn):
+    def test_execute_skip_existing(self, mock_conn, mock_partition, mock_region, mock_account):
         mock_client = mock.MagicMock()
         mock_client.create_workflow.side_effect = ClientError(
-            {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
+            {
+                "Error": {"Code": "ConflictException", "Message": "Already exists"},
+                "ResourceId": "test-workflow-aBcDeFgHiJ",
+                "ResourceType": "Workflow",
+            },
             "CreateWorkflow",
         )
-        mock_client.get_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
         mock_conn.return_value = mock_client
+        mock_partition.return_value = "aws"
+        mock_region.return_value = "us-east-1"
+        mock_account.return_value = "123456789012"
 
         result = self.operator.execute({})
-        assert result == WORKFLOW_ARN
+        assert result == "arn:aws:airflow-serverless:us-east-1:123456789012:workflow/test-workflow-aBcDeFgHiJ"
 
     @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
     def test_execute_fail_on_conflict(self, mock_conn):
@@ -144,7 +153,7 @@ class TestMwaaServerlessCreateWorkflowOperator:
         )
         mock_conn.return_value = mock_client
 
-        with pytest.raises(ClientError):
+        with pytest.raises(ClientError, match="ConflictException"):
             op.execute({})
 
     def test_template_fields(self):

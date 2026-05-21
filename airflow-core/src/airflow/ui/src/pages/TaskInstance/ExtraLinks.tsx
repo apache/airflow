@@ -77,7 +77,7 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
           const target = getTarget(safeUrl);
 
           return (
-            <Button asChild colorPalette="brand" key={key} variant="surface">
+            <Button asChild key={key} variant="surface">
               <a href={safeUrl} rel="noopener noreferrer" target={target}>
                 {key}
               </a>

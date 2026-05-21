@@ -145,12 +145,16 @@ class TestAssetModelOperation:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_allow_producer_teams_from_other_bundle(self, dag_maker, session):
-        """When a producer bundle (without allow_producer_teams) is synced after a consumer bundle
-        (with allow_producer_teams), the stored allow_producer_teams must not be wiped out."""
+        """When a producer bundle (without access_control) is synced after a consumer bundle
+        (with access_control), the stored allow_producer_teams must not be wiped out."""
         from airflow.models.asset import DagScheduleAssetReference
+        from airflow.sdk import AssetAccessControl
 
-        # First sync: consumer bundle sets allow_producer_teams on the asset.
-        consumer_asset = Asset("shared_asset", allow_producer_teams=["team1", "team2"])
+        # First sync: consumer bundle sets access_control on the asset.
+        consumer_asset = Asset(
+            "shared_asset",
+            access_control=AssetAccessControl(producer_teams=["team1", "team2"]),
+        )
         with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
             EmptyOperator(task_id="mytask")
 
@@ -167,7 +171,7 @@ class TestAssetModelOperation:
         )
         assert ref.allow_producer_teams == ["team1", "team2"]
 
-        # Second sync: producer bundle references the same asset WITHOUT allow_producer_teams.
+        # Second sync: producer bundle references the same asset WITHOUT access_control.
         producer_asset = Asset("shared_asset")
         with dag_maker(dag_id="producer_dag", schedule="@once") as producer_dag:
             EmptyOperator(task_id="produce", outlets=[producer_asset])
@@ -570,6 +574,7 @@ class TestUpdateDagParsingResults:
                     mock_dag,
                     bundle_name="testing",
                     bundle_version=None,
+                    version_data=None,
                     min_update_interval=mock.ANY,
                     session=mock_session,
                     _prefetched=mock.ANY,
@@ -1136,6 +1141,24 @@ class TestUpdateDagParsingResults:
         update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
         orm_dag = session.get(DagModel, "dag_max_runs")
         assert orm_dag.max_active_runs == 3
+
+    @pytest.mark.parametrize(
+        ("field", "cfg_key", "schema_default"),
+        [
+            ("max_active_runs", "max_active_runs_per_dag", 16),
+            ("max_active_tasks", "max_active_tasks_per_dag", 16),
+            ("max_consecutive_failed_dag_runs", "max_consecutive_failed_dag_runs_per_dag", 0),
+        ],
+    )
+    def test_config_driven_field_equal_to_schema_default_not_overridden_by_conf(
+        self, testing_dag_bundle, session, dag_maker, field, cfg_key, schema_default
+    ):
+        with conf_vars({("core", cfg_key): "1"}):
+            with dag_maker(f"dag_{field}_schema_default", schedule=None, **{field: schema_default}) as dag:
+                ...
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            orm_dag = session.get(DagModel, f"dag_{field}_schema_default")
+            assert getattr(orm_dag, field) == schema_default
 
     def test_max_active_runs_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
         with conf_vars({("core", "max_active_runs_per_dag"): "4"}):

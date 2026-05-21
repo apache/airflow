@@ -36,7 +36,13 @@ class BackfillPostBody(StrictBaseModel):
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = 10
-    run_on_latest_version: bool = True
+    run_on_latest_version: bool | None = Field(
+        default=None,
+        description="Run on the latest bundle version of the Dag for each backfilled run. "
+        "If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, "
+        "then the ``[core] rerun_with_latest_version`` config option, "
+        "and finally ``True`` (the historical default for backfills).",
+    )
 
 
 class BackfillResponse(BaseModel):

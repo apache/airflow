@@ -1,4 +1,8 @@
 {
+  "additional_data": "Données supplémentaires",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
   "consumingDags": "Dags consomatteurs",
   "consumingTasks": "Tâches consommatrices",
   "createEvent": {
@@ -28,5 +32,7 @@
   "name": "Nom",
   "producingTasks": "Tasks productrices",
   "scheduledDags": "Dags planifiés",
-  "searchPlaceholder": "Rechercher des Assets"
+  "scheduling": "Planification",
+  "searchPlaceholder": "Rechercher des Assets",
+  "taskDependencies": "Dépendances de tâches"
 }

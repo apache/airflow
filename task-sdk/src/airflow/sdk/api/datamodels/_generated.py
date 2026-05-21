@@ -376,6 +376,7 @@ class TaskStatePutBody(BaseModel):
         extra="forbid",
     )
     value: Annotated[str, Field(title="Value")]
+    expires_at: Annotated[AwareDatetime | None, Field(title="Expires At")] = None
 
 
 class TaskStateResponse(BaseModel):

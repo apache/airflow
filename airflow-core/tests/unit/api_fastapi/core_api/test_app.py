@@ -21,12 +21,19 @@ import inspect
 import typing
 
 import pytest
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.core_api.app import init_config
+from airflow.api_fastapi.core_api.routes.public import authenticated_router
+from airflow.api_fastapi.core_api.routes.ui import ui_router
+from airflow.api_fastapi.core_api.security import get_user
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 
 pytestmark = pytest.mark.db_test
@@ -116,3 +123,46 @@ class TestGzipMiddleware:
 
         # Ensure we do not reintroduce Transfer-Encoding: chunked
         assert "transfer-encoding" not in headers
+
+
+class TestRouterLevelDefaultDeny:
+    """
+    Authentication is enforced as a router-level default on the routers that
+    serve user-facing endpoints. A future route added under one of these
+    routers cannot accidentally be added without an auth dependency — the
+    router-level Depends(get_user) is the defense-in-depth backstop.
+    """
+
+    def test_authenticated_router_carries_get_user_dependency(self):
+        assert any(
+            getattr(dep, "dependency", None) is get_user for dep in authenticated_router.dependencies
+        ), (
+            "authenticated_router must declare Depends(get_user) at the router level so every "
+            "route below /api/v2 (other than the explicit no-auth carve-outs in public_router) "
+            "default-denies unauthenticated requests."
+        )
+
+    def test_ui_router_carries_get_user_dependency(self):
+        assert any(getattr(dep, "dependency", None) is get_user for dep in ui_router.dependencies), (
+            "ui_router must declare Depends(get_user) at the router level so every UI endpoint "
+            "default-denies unauthenticated requests."
+        )
+
+
+class TestCorsMiddlewareAllowCredentials:
+    @pytest.mark.parametrize(
+        ("config_value", "expected_allow_credentials"),
+        [(None, True), ("True", True), ("False", False)],
+    )
+    def test_init_config_passes_allow_credentials(self, config_value, expected_allow_credentials):
+        config = {("api", "access_control_allow_origins"): "https://example.com"}
+        if config_value is not None:
+            config[("api", "access_control_allow_credentials")] = config_value
+
+        with conf_vars(config):
+            app = FastAPI()
+            init_config(app)
+
+        cors_middlewares = [m for m in app.user_middleware if m.cls is CORSMiddleware]
+        assert len(cors_middlewares) == 1
+        assert cors_middlewares[0].kwargs["allow_credentials"] is expected_allow_credentials

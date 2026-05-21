@@ -21,6 +21,7 @@ import json
 import os
 import re
 import types
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
@@ -35,7 +36,14 @@ from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+
+def _version_str(version_result):
+    """Extract version string from either a BundleVersion (3.3+) or plain str (older)."""
+    if AIRFLOW_V_3_3_PLUS:
+        return version_result.version
+    return version_result
 
 
 @pytest.fixture(autouse=True)
@@ -54,8 +62,8 @@ CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
 
 
 @pytest.fixture
-def git_repo(tmp_path_factory):
-    directory = tmp_path_factory.mktemp("repo")
+def git_repo(tmp_path_factory) -> tuple[Path, Repo]:
+    directory: Path = tmp_path_factory.mktemp("repo")
     repo = Repo.init(directory)
     repo.git.symbolic_ref("HEAD", f"refs/heads/{GIT_DEFAULT_BRANCH}")
     file_path = directory / "test_dag.py"
@@ -144,7 +152,7 @@ class TestGitDagBundle:
 
         bundle.initialize()
 
-        assert bundle.get_current_version() == repo.head.commit.hexsha
+        assert _version_str(bundle.get_current_version()) == repo.head.commit.hexsha
 
         assert_repo_is_closed(bundle)
 
@@ -170,7 +178,7 @@ class TestGitDagBundle:
         )
         bundle.initialize()
 
-        assert bundle.get_current_version() == starting_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
@@ -201,7 +209,7 @@ class TestGitDagBundle:
             prune_dotgit_folder=False,
         )
         bundle.initialize()
-        assert bundle.get_current_version() == starting_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
@@ -221,7 +229,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
-        assert bundle.get_current_version() != starting_commit.hexsha
+        assert _version_str(bundle.get_current_version()) != starting_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
@@ -265,7 +273,7 @@ class TestGitDagBundle:
         bundle.initialize()
 
         assert (bundle.repo_path / ".git").exists()
-        assert bundle.get_current_version() == starting_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
 
         assert_repo_is_closed(bundle)
 
@@ -288,7 +296,7 @@ class TestGitDagBundle:
         )
         bundle1.initialize()
         assert not (bundle1.repo_path / ".git").exists()
-        assert bundle1.get_current_version() == version
+        assert _version_str(bundle1.get_current_version()) == version
         version_path = bundle1.repo_path
 
         # Second init: same name and version; should detect pruned worktree and skip clone
@@ -304,7 +312,7 @@ class TestGitDagBundle:
             mock_clone.assert_not_called()
 
         assert bundle2.repo_path == version_path
-        assert bundle2.get_current_version() == version
+        assert _version_str(bundle2.get_current_version()) == version
         files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
@@ -326,7 +334,7 @@ class TestGitDagBundle:
         )
         bundle1.initialize()
         assert (bundle1.repo_path / ".git").exists()
-        assert bundle1.get_current_version() == version
+        assert _version_str(bundle1.get_current_version()) == version
 
         # Should detect local repo has correct version and skip clone
         with (
@@ -370,7 +378,7 @@ class TestGitDagBundle:
             prune_dotgit_folder=False,
         )
         bundle1.initialize()
-        assert bundle1.get_current_version() == second_commit
+        assert _version_str(bundle1.get_current_version()) == second_commit
 
         # Second init with first_commit: different version means different repo_path
         bundle2 = GitDagBundle(
@@ -381,7 +389,7 @@ class TestGitDagBundle:
             prune_dotgit_folder=False,
         )
         bundle2.initialize()
-        assert bundle2.get_current_version() == first_commit
+        assert _version_str(bundle2.get_current_version()) == first_commit
         assert bundle1.repo_path != bundle2.repo_path
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
@@ -410,7 +418,7 @@ class TestGitDagBundle:
             prune_dotgit_folder=False,
         )
         bundle.initialize()
-        assert bundle.get_current_version() == second_commit
+        assert _version_str(bundle.get_current_version()) == second_commit
         assert bundle._local_repo_has_version() is True
 
         # Mutate the cloned repo's HEAD to point at first_commit so HEAD != version
@@ -439,7 +447,7 @@ class TestGitDagBundle:
             prune_dotgit_folder=False,
         )
         bundle1.initialize()
-        assert bundle1.get_current_version() == hexsha
+        assert _version_str(bundle1.get_current_version()) == hexsha
 
         # Re-initialize: should take the skip path but still resolve to hexsha
         bundle2 = GitDagBundle(
@@ -456,7 +464,7 @@ class TestGitDagBundle:
             bundle2.initialize()
             mock_bare_clone.assert_not_called()
             mock_clone.assert_not_called()
-        assert bundle2.get_current_version() == hexsha
+        assert _version_str(bundle2.get_current_version()) == hexsha
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_skip_path_cleans_dirty_working_tree(self, mock_githook, git_repo):
@@ -545,7 +553,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
 
-        assert bundle.get_current_version() == starting_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
@@ -558,7 +566,7 @@ class TestGitDagBundle:
 
         bundle.refresh()
 
-        assert bundle.get_current_version()[:6] in commit
+        assert _version_str(bundle.get_current_version())[:6] in commit
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
@@ -577,7 +585,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="test123")
         bundle.initialize()
-        assert bundle.get_current_version() == starting_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == starting_commit.hexsha
 
         # Add new file to the repo
         file_path = repo_path / "new_test.py"
@@ -591,7 +599,7 @@ class TestGitDagBundle:
 
         bundle.refresh()
 
-        assert bundle.get_current_version() == commit.hexsha
+        assert _version_str(bundle.get_current_version()) == commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
@@ -607,7 +615,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="release")
         bundle.initialize()
-        assert bundle.get_current_version() == initial_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == initial_commit.hexsha
 
         repo.git.checkout("--orphan", "new-branch")
         repo.git.rm("-rf", ".")
@@ -621,7 +629,7 @@ class TestGitDagBundle:
 
         bundle.refresh()
 
-        assert bundle.get_current_version() == unrelated_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == unrelated_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"new_file.py"} == files_in_repo
@@ -638,7 +646,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="release")
         bundle.initialize()
-        assert bundle.get_current_version() == initial_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == initial_commit.hexsha
 
         # Force-push "release" to an orphan commit
         repo.git.checkout("--orphan", "temp-orphan")
@@ -654,7 +662,7 @@ class TestGitDagBundle:
 
         bundle.refresh()
 
-        assert bundle.get_current_version() == unrelated_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == unrelated_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"branch_new.py"} == files_in_repo
@@ -670,7 +678,7 @@ class TestGitDagBundle:
 
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="moving")
         bundle.initialize()
-        assert bundle.get_current_version() == commit_a.hexsha
+        assert _version_str(bundle.get_current_version()) == commit_a.hexsha
 
         # Move tag forward to commit B
         file_b = repo_path / "file_b.py"
@@ -680,7 +688,7 @@ class TestGitDagBundle:
         repo.create_tag("moving", force=True)
 
         bundle.refresh()
-        assert bundle.get_current_version() == commit_b.hexsha
+        assert _version_str(bundle.get_current_version()) == commit_b.hexsha
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "file_b.py"} == files_in_repo
 
@@ -688,7 +696,7 @@ class TestGitDagBundle:
         repo.create_tag("moving", ref=commit_a, force=True)
 
         bundle.refresh()
-        assert bundle.get_current_version() == commit_a.hexsha
+        assert _version_str(bundle.get_current_version()) == commit_a.hexsha
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
@@ -721,7 +729,7 @@ class TestGitDagBundle:
         # Repos were reused, not recreated
         assert bare_repo_path.exists()
         assert working_repo_path.exists()
-        assert bundle.get_current_version() == unrelated_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == unrelated_commit.hexsha
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_repeated_refreshes_after_force_push_stable(self, mock_githook, git_repo):
@@ -744,13 +752,13 @@ class TestGitDagBundle:
 
         # First refresh
         bundle.refresh()
-        assert bundle.get_current_version() == new_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == new_commit.hexsha
         files_after_first = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"stable_file.py"} == files_after_first
 
         # Second refresh (no upstream changes)
         bundle.refresh()
-        assert bundle.get_current_version() == new_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == new_commit.hexsha
         files_after_second = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"stable_file.py"} == files_after_second
 
@@ -774,7 +782,7 @@ class TestGitDagBundle:
         repo.create_tag("release", force=True)
 
         bundle1.refresh()
-        assert bundle1.get_current_version() == new_commit.hexsha
+        assert _version_str(bundle1.get_current_version()) == new_commit.hexsha
 
         # Simulate DAG processor restart: new bundle object, same name
         bundle2 = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="release")
@@ -782,7 +790,7 @@ class TestGitDagBundle:
             bundle2.initialize()
             mock_clone.assert_not_called()
 
-        assert bundle2.get_current_version() == new_commit.hexsha
+        assert _version_str(bundle2.get_current_version()) == new_commit.hexsha
         files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
         assert {"reinit_file.py"} == files_in_repo
 
@@ -838,6 +846,70 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert str(bundle.path).endswith(subdir)
         assert {"some_new_file.py"} == files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_sparse_checkout(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        subdir = "some/subdir"
+        subdir_path = repo_path / subdir
+        subdir_path.mkdir(parents=True)
+        file_path = subdir_path / "some_relevant_file.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        otherdir = "other/dir"
+        otherdir_path = repo_path / otherdir
+        otherdir_path.mkdir(parents=True)
+        otherfile_path = otherdir_path / "some_other_file.py"
+        with open(otherfile_path, "w") as f:
+            f.write("hello world")
+
+        repo.index.add([file_path, otherfile_path])
+        repo.index.commit("Other commit")
+
+        bundle = GitDagBundle(
+            name="test-sparse",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            sparse_dirs=[subdir],
+        )
+        bundle.initialize()
+
+        files_in_repo = {f.name for f in bundle.path.glob("**/*.py") if f.is_file()}
+        assert "some_other_file.py" not in files_in_repo
+        assert "some_relevant_file.py" in files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_sparse_checkout_with_version_prunes_dotgit(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        subdir = "some/subdir"
+        subdir_path = repo_path / subdir
+        subdir_path.mkdir(parents=True)
+        file_path = subdir_path / "some_relevant_file.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        otherdir = "other/dir"
+        otherdir_path = repo_path / otherdir
+        otherdir_path.mkdir(parents=True)
+        otherfile_path = otherdir_path / "some_other_file.py"
+        with open(otherfile_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path, otherfile_path])
+        commit = repo.index.commit("Other commit")
+        bundle = GitDagBundle(
+            name="test-sparse-version",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            version=commit.hexsha,
+            sparse_dirs=[subdir],
+        )
+        bundle.initialize()
+        files_in_repo = {f.name for f in bundle.path.glob("**/*.py") if f.is_file()}
+        assert "some_other_file.py" not in files_in_repo
+        assert "some_relevant_file.py" in files_in_repo
+        assert not (bundle.path / ".git").exists()
 
     def test_raises_when_no_repo_url(self):
         bundle = GitDagBundle(
@@ -1338,14 +1410,14 @@ class TestGitDagBundle:
         repo.create_tag("ephemeral")
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="ephemeral")
         bundle.initialize()
-        assert bundle.get_current_version() == initial_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == initial_commit.hexsha
 
         # Delete the tag from the upstream repo
         repo.delete_tag("ephemeral")
 
         # Refresh still succeeds because git fetch refspecs don't prune deleted tags
         bundle.refresh()
-        assert bundle.get_current_version() == initial_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == initial_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
@@ -1588,7 +1660,7 @@ class TestGitDagBundle:
             submodules=True,
         )
         bundle.initialize()
-        assert bundle.get_current_version() == initial_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == initial_commit.hexsha
 
         # Verify submodule content is checked out
         sub_content = (bundle.repo_path / "mysub" / "sub_file.py").read_text()
@@ -1603,7 +1675,7 @@ class TestGitDagBundle:
 
         bundle.refresh()
 
-        assert bundle.get_current_version() == new_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == new_commit.hexsha
         files_in_repo = {f.name for f in bundle.repo_path.iterdir() if f.is_file()}
         assert "extra.py" in files_in_repo
 
@@ -1642,7 +1714,7 @@ class TestGitDagBundle:
 
         # refresh() prefers origin/ambiguous (branch) over the ambiguous tag
         bundle.refresh()
-        assert bundle.get_current_version() == branch_commit.hexsha
+        assert _version_str(bundle.get_current_version()) == branch_commit.hexsha
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert "branch_file.py" in files_in_repo

@@ -16,18 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Heading,
-  HStack,
-  Skeleton,
-  VStack,
-  Link,
-  type SelectValueChangeDetails,
-  Box,
-} from "@chakra-ui/react";
+import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -42,6 +34,7 @@ import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
+import { RouterLink } from "src/components/ui";
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
@@ -78,9 +71,9 @@ const createColumns = (
   {
     accessorKey: "dag_display_name",
     cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_display_name}</RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`}>
+        {original.dag_display_name}
+      </RouterLink>
     ),
     header: () => translate("dagId"),
   },
@@ -113,17 +106,18 @@ const createColumns = (
     accessorKey: "last_run_start_date",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
-        <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}>
-            <DagRunInfo
-              endDate={original.latest_dag_runs[0].end_date}
-              logicalDate={original.latest_dag_runs[0].logical_date}
-              runAfter={original.latest_dag_runs[0].run_after}
-              startDate={original.latest_dag_runs[0].start_date}
-              state={original.latest_dag_runs[0].state}
-            />
-          </RouterLink>
-        </Link>
+        <RouterLink
+          fontWeight="bold"
+          to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}
+        >
+          <DagRunInfo
+            endDate={original.latest_dag_runs[0].end_date}
+            logicalDate={original.latest_dag_runs[0].logical_date}
+            runAfter={original.latest_dag_runs[0].run_after}
+            startDate={original.latest_dag_runs[0].start_date}
+            state={original.latest_dag_runs[0].state}
+          />
+        </RouterLink>
       ) : undefined,
     header: () => translate("dagDetails.latestRun"),
   },
