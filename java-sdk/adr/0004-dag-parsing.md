@@ -17,15 +17,22 @@
  under the License.
  -->
 
-# ADR-0002: DAG Parsing — Language-Specific DAG File Processing
+# ADR-0004: DAG Parsing — Language-Specific DAG File Processing
 
 ## Status
 
-Accepted
+Proposed
+
+> **Note:** This ADR describes language-native DAG file parsing, which was removed from the
+> scope of [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ). Per AIP-108, Java tasks are
+> declared as `@task.stub` in ordinary Python DAG files; the Java SDK and coordinator are
+> responsible only for *task execution*, not for DAG parsing. This document is retained for
+> future reference if language-native DAG parsing is revisited in a follow-up AIP (likely after
+> [AIP-85](https://cwiki.apache.org/confluence/x/_Q7OEg) stabilises).
 
 ## Context
 
-Airflow's standard DAG file processor only understands Python files. To support DAGs defined in other languages (Java, Go, Rust, etc.), the pipeline needs an extension point where a language-specific processor can intercept the parsing request, delegate to an external runtime, and return a result in the same format the Airflow scheduler expects.
+Airflow's standard DAG file processor only understands Python files. To support DAGs defined in other languages (Java, Go, Rust, etc.), the pipeline would need an extension point where a language-specific processor can intercept the parsing request, delegate to an external runtime, and return a result in the same format the Airflow scheduler expects.
 
 This ADR details the DAG parsing side of the coordinator architecture described in [ADR-0001](0001-java-sdk-airflow-integration.md). It starts with the generic model — the abstract contracts and expected behavior that any language must implement — then walks through Java as a concrete example.
 
@@ -42,22 +49,17 @@ A single abstract base class — `BaseCoordinator` — handles both DAG parsing 
 
 ### Registration
 
-Coordinators are configured in `airflow.cfg` (see [ADR-0001 — Coordinator Registration](0001-java-sdk-airflow-integration.md#coordinator-registration)). Each entry names a coordinator instance, points at an importable class via `classpath`, and supplies per-instance `kwargs`:
+Coordinators are configured in `airflow.cfg`. See
+[ADR-0001 — Java Coordinator Configuration](0001-java-sdk-airflow-integration.md#java-coordinator-configuration)
+for a configuration example, and [ADR-0005](0005-coordinator-packaging.md) for the full
+schema. A single instance entry covers both DAG parsing and task execution — there are no
+separate registries for the two roles.
 
-```ini
-[sdk]
-coordinators = [
-    {
-        "name": "jdk-17",
-        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-        "kwargs": {"java_executable": "/usr/lib/jvm/java-17/bin/java"}
-    }
-]
-```
-
-A single instance entry covers both DAG parsing and task execution — there are no separate registries for the two roles.
-
-**Per-host opt-in.** A coordinator becomes available on a given DAG processor host only when its distribution is installed there *and* its instance appears in the host's `[sdk] coordinators`. A deployment can run a Python-only DAG processor pool and a separate Java-capable DAG processor pool by simply *not* installing `apache-airflow-coordinators-java` (or omitting the instance from config) on the Python-only hosts. The same applies to workers ([ADR-0003](0003-workload-execution.md)). There is no requirement that every parser carry a JDK; coordinators are opt-in per host by package install plus config entry.
+**Per-host opt-in.** A coordinator becomes active on a given DAG processor host only when
+its module is installed there *and* its instance appears in `[sdk] coordinators`. A deployment
+can run a Python-only DAG processor pool and a separate Java-capable pool by omitting the
+coordinator config on the Python-only hosts. There is no requirement that every parser carry
+a JDK.
 
 ### Discovery: `_resolve_processor_target()`
 
@@ -80,7 +82,7 @@ The first coordinator instance whose `can_handle_dag_file()` returns `True` wins
 A natural reviewer question is "why a custom-looking framed-msgpack protocol over `127.0.0.1:<random>`, and not Unix sockets / gRPC / HTTP REST?" Two clarifications are important:
 
 1. **The protocol is not new for the Java SDK.** Length-prefixed msgpack frames are the existing transport between the Airflow supervisor and the Python task runner (see `task-sdk/src/airflow/sdk/execution_time/supervisor.py` and `comms.py`). The coordinator bridge wires the language-runtime sockets onto that same byte stream — it does not define a new wire format. Migrating it would be a separate, pan-SDK change.
-2. **Forward-compat for IPC messages is treated as a contract**, not as a transport choice. The decoder rules that all SDKs must follow are stated in [ADR-0003 — IPC Forward-Compatibility Contract](0003-workload-execution.md#ipc-forward-compatibility-contract).
+2. **Forward-compat for IPC messages is treated as a contract**, not as a transport choice. The decoder rules that all SDKs must follow are stated in [ADR-0002 — IPC Forward-Compatibility Contract](0002-workload-execution.md#ipc-forward-compatibility-contract).
 
 #### Alternatives considered
 

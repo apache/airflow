@@ -17,19 +17,28 @@
  under the License.
  -->
 
-# ADR-0004: Pure Java DAGs — Build-Time Packaging and Code Visibility
+# ADR-0003: Pure Java DAGs — Build-Time Packaging and Code Visibility
 
 ## Status
 
-Accepted
+Proposed
+
+> **Note:** This ADR describes pure Java DAG authoring (entire DAGs written in Java without a
+> Python file), which was removed from the scope of
+> [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ). Per AIP-108, Java tasks are
+> declared as `@task.stub` in ordinary Python DAG files; pure Java DAG authoring is left to a
+> future proposal, likely after [AIP-85](https://cwiki.apache.org/confluence/x/_Q7OEg)
+> stabilises. The `BundleBuilder` interface and `Bundle`/`BundleBuilder.getDags()` mechanism
+> remain in the SDK as the internal registry that the task execution runtime uses to locate task
+> classes — they are not a public DAG-authoring surface in the current release.
 
 ## Context
 
-[ADR-0001](0001-java-sdk-airflow-integration.md) introduces two ways to integrate non-Python tasks: `@task.stub` (mixed Python+Java DAGs) and pure Java DAGs (entire DAG in Java via `BundleBuilder`). [ADR-0002](0002-dag-parsing.md) and [ADR-0003](0003-workload-execution.md) describe the coordinator infrastructure for DAG parsing and task execution respectively.
+[ADR-0001](0001-java-sdk-airflow-integration.md) originally introduced two ways to integrate non-Python tasks: `@task.stub` (mixed Python+Java DAGs) and pure Java DAGs (entire DAG in Java via `BundleBuilder`). [ADR-0004](0004-dag-parsing.md) and [ADR-0002](0002-workload-execution.md) describe the coordinator infrastructure for DAG parsing and task execution respectively.
 
-This ADR focuses on the Java-SDK-specific concerns that make pure Java DAGs work end-to-end — build-time metadata generation, source code packaging for UI visibility, and JAR manifest conventions — rather than the shared coordinator infrastructure already covered in those ADRs.
+This ADR focuses on the Java-SDK-specific concerns that would make pure Java DAGs work end-to-end — build-time metadata generation, source code packaging for UI visibility, and JAR manifest conventions — rather than the shared coordinator infrastructure already covered in those ADRs.
 
-The central challenge is that Airflow Core expects to read DAG metadata and source code from files on disk or from the metadata DB. A JAR is an opaque binary — Airflow cannot `open()` it and read Python source. The Java SDK must bridge this gap at build time by embedding machine-readable metadata and human-readable source into the JAR itself.
+The central challenge is that Airflow Core expects to read DAG metadata and source code from files on disk or from the metadata DB. A JAR is an opaque binary — Airflow cannot `open()` it and read Python source. The Java SDK would need to bridge this gap at build time by embedding machine-readable metadata and human-readable source into the JAR itself.
 
 ## Decision
 
@@ -219,7 +228,7 @@ public class ExampleBundleBuilder implements BundleBuilder {
 }
 ```
 
-The `main()` method is the JVM entry point that the coordinator launches. It wires the `BundleBuilder` to the SDK's TCP communication layer (`Server` → `CoordinatorComm`), which handles DAG parsing requests and task execution commands as described in [ADR-0002](0002-dag-parsing.md) and [ADR-0003](0003-workload-execution.md).
+The `main()` method is the JVM entry point that the coordinator launches. It wires the `BundleBuilder` to the SDK's TCP communication layer (`Server` → `CoordinatorComm`), which handles DAG parsing requests and task execution commands as described in [ADR-0004](0004-dag-parsing.md) and [ADR-0002](0002-workload-execution.md).
 
 > **Note:** The current `BundleBuilder` interface is subject to review before the SDK reaches 1.0. Subclassing `Dag` directly may be a more natural fit and is being considered for post-OSS-integration.
 
@@ -230,14 +239,14 @@ A reasonable concern about JAR-based DAGs is whether updating a bundle requires 
 The design avoids this by leaning on the same ephemerality that Python uses:
 
 - **DAG processor.** `DagFileProcessorManager` is long-lived, but each `DagFileProcessorProcess` child is one-shot and exits after returning a `DagFileParseRequest`. The Java runtime spawned underneath it (`java -classpath <bundle>/* …`) shares that lifetime — it loads the JAR fresh on every parse, then exits. Replacing the JAR on disk takes effect on the next scheduled parse with no manager restart.
-- **Workers.** Each task instance launches its own JVM ([ADR-0003 — Runtime Lifecycle and Worker Capability](0003-workload-execution.md#runtime-lifecycle-and-worker-capability)). The classloader is process-scoped; a swapped JAR is picked up the next time a task starts. There is no warm JVM pool to invalidate.
+- **Workers.** Each task instance launches its own JVM ([ADR-0002 — Runtime Lifecycle and Worker Capability](0002-workload-execution.md#runtime-lifecycle-and-worker-capability)). The classloader is process-scoped; a swapped JAR is picked up the next time a task starts. There is no warm JVM pool to invalidate.
 
 In practice, "updating a Java DAG bundle" is the same shape as "updating a Python DAG file": drop the new file (or directory of JARs) into the bundle location and let normal scheduling pick it up. The version that runs a given task instance is determined at task start, not at worker start.
 
 Two operational details worth flagging:
 
 - **Atomic swap.** Writing a JAR in place while a task happens to be loading it can yield a corrupted read. Operators should prefer the standard "write to a temp name, rename into place" pattern, which the file system handles atomically on POSIX. This is the same guidance that already applies to Python file-system bundles.
-- **Mid-run version skew.** Because the version is resolved per task launch, a long-running DAG run can in principle observe one bundle version for an upstream task and a different version for a downstream task if a swap happens between them. Bundle-version validation against `Airflow-Java-SDK-Bundle-Version` (planned — distinct from `Airflow-Java-SDK-Version`, which identifies the SDK toolkit; see [ADR-0003](0003-workload-execution.md#runtime-lifecycle-and-worker-capability)) gives operators a way to detect skew if it matters; the data-plane consequences (XCom shape changes, etc.) are the bundle author's responsibility, exactly as with Python.
+- **Mid-run version skew.** Because the version is resolved per task launch, a long-running DAG run can in principle observe one bundle version for an upstream task and a different version for a downstream task if a swap happens between them. Bundle-version validation against `Airflow-Java-SDK-Bundle-Version` (planned — distinct from `Airflow-Java-SDK-Version`, which identifies the SDK toolkit; see [ADR-0002](0002-workload-execution.md#runtime-lifecycle-and-worker-capability)) gives operators a way to detect skew if it matters; the data-plane consequences (XCom shape changes, etc.) are the bundle author's responsibility, exactly as with Python.
 
 ## Consequences
 
