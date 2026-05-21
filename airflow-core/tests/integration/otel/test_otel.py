@@ -542,7 +542,19 @@ class TestOtelIntegration:
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
         r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
         data = r.json()
-        trace = data["data"][-1]
+        # Find the trace for *this* dag run; selecting by position in the
+        # response is flaky because earlier-test traces accumulate in Jaeger.
+        matching = [
+            t
+            for t in data["data"]
+            if any(
+                tag.get("key") == "airflow.dag_run.run_id" and tag.get("value") == run_id
+                for span in t["spans"]
+                for tag in span.get("tags", [])
+            )
+        ]
+        assert len(matching) == 1, f"expected exactly one trace for run_id={run_id}, got {len(matching)}"
+        trace = matching[0]
         spans = trace["spans"]
 
         def get_span_hierarchy():
