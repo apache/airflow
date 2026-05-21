@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
@@ -30,6 +30,7 @@ from airflow.providers.common.compat.sdk import (
 if TYPE_CHECKING:
     from airflow.sdk import Context
     from llama_index.core.base.embeddings.base import BaseEmbedding
+    from llama_index.core.schema import TextNode
 
 
 class LlamaIndexEmbeddingOperator(BaseOperator):
@@ -131,17 +132,21 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
         index = VectorStoreIndex(nodes, embed_model=embed_model, show_progress=False)
 
         if self.persist_dir:
-            self._persist(index)
+            self._persist(index, self.persist_dir)
 
+        # ``SentenceSplitter`` always returns ``TextNode`` instances, but the
+        # base ``get_nodes_from_documents`` signature is typed as
+        # ``list[BaseNode]`` (which has no ``.text``). Cast so mypy doesn't
+        # flag the ``.text`` access; ``node.embedding`` is populated by
+        # ``VectorStoreIndex`` for every node above.
+        text_nodes = cast("list[TextNode]", nodes)
         chunks = [
             {
                 "text": node.text,
                 "metadata": node.metadata,
-                # ``node.embedding`` is populated by ``VectorStoreIndex`` for
-                # every node since we forced an in-memory build above.
                 "vector": node.embedding,
             }
-            for node in nodes
+            for node in text_nodes
         ]
 
         return {
@@ -188,19 +193,19 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
             f"``BaseEmbedding`` instance, or None. Got {type(self.embed_model).__name__!r}."
         )
 
-    def _persist(self, index: Any) -> None:
+    def _persist(self, index: Any, persist_dir: str) -> None:
         """Persist the index to ``persist_dir``; cloud URIs go through ObjectStoragePath."""
-        if "://" in self.persist_dir:  # type: ignore[operator]
+        if "://" in persist_dir:
             from airflow.sdk import ObjectStoragePath
 
-            target = ObjectStoragePath(self.persist_dir, conn_id=self.persist_conn_id)
+            target = ObjectStoragePath(persist_dir, conn_id=self.persist_conn_id)
             target.mkdir(parents=True, exist_ok=True)
             # ``str(target)`` returns ``s3://<conn_id>@<bucket>/...`` when
             # ``conn_id`` is set (see ``task-sdk/.../io/path.py``), which
             # fsspec misinterprets. Pass the raw user URI as the path string
             # and the authenticated filesystem separately.
-            index.storage_context.persist(persist_dir=self.persist_dir, fs=target.fs)
+            index.storage_context.persist(persist_dir=persist_dir, fs=target.fs)
         else:
-            os.makedirs(self.persist_dir, exist_ok=True)  # type: ignore[arg-type]
-            index.storage_context.persist(persist_dir=self.persist_dir)
-        self.log.info("Index persisted to %s", self.persist_dir)
+            os.makedirs(persist_dir, exist_ok=True)
+            index.storage_context.persist(persist_dir=persist_dir)
+        self.log.info("Index persisted to %s", persist_dir)
