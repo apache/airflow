@@ -204,6 +204,10 @@ def dag_policy(dag):
     return get_policy_plugin_manager().hook.dag_policy(dag=dag)
 
 
+def dag_bundle_policy(bundle):
+    return get_policy_plugin_manager().hook.dag_bundle_policy(bundle=bundle)
+
+
 def task_instance_mutation_hook(task_instance):
     return get_policy_plugin_manager().hook.task_instance_mutation_hook(task_instance=task_instance)
 

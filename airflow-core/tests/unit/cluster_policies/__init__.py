@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicy
 from airflow.sdk import BaseOperator
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
 
@@ -115,3 +116,18 @@ def task_instance_mutation_hook(task_instance: TaskInstance):
 
 
 # [END example_task_mutation_hook]
+
+
+# [START example_dag_bundle_policy]
+def dag_bundle_policy(bundle: BaseDagBundle):
+    """Add a ``shared`` folder inside the bundle to ``sys.path`` so DAGs can import helpers."""
+    import sys
+
+    shared_dir = bundle.path / "shared"
+    if shared_dir.is_dir():
+        shared_path = str(shared_dir)
+        if shared_path not in sys.path:
+            sys.path.insert(0, shared_path)
+
+
+# [END example_dag_bundle_policy]

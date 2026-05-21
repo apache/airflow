@@ -346,6 +346,12 @@ class BaseDagBundle(ABC):
                 bundle_path,
             )
 
+        # Apply the dag_bundle cluster policy. Imported lazily to avoid circular imports
+        # during the early stages of Airflow initialization.
+        from airflow import settings
+
+        settings.dag_bundle_policy(self)
+
     @property
     @abstractmethod
     def path(self) -> Path:

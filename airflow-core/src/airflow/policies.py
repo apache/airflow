@@ -27,6 +27,7 @@ hookimpl = pluggy.HookimplMarker("airflow.policy")
 __all__: list[str] = ["hookimpl"]
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -63,6 +64,28 @@ def dag_policy(dag) -> None:
     * Check if every DAG has configured tags
 
     :param dag: dag to be mutated
+    """
+
+
+@local_settings_hookspec
+def dag_bundle_policy(bundle: BaseDagBundle) -> None:
+    """
+    Allow customizing a DAG bundle after it has been initialized.
+
+    This hook is invoked from :meth:`~airflow.dag_processing.bundles.base.BaseDagBundle.initialize`
+    once the bundle's files are available on disk, and before any DAG files from the bundle
+    are parsed. It is therefore a good place to perform setup that needs to happen against
+    the on-disk contents of the bundle.
+
+    Typical use cases include:
+
+    * Appending paths inside the bundle (for example a ``shared/`` directory next to the DAGs)
+      to :data:`sys.path` so DAG files can import shared helper modules.
+    * Installing or validating bundle-local configuration files.
+    * Performing custom logging or auditing whenever a bundle is initialized.
+
+    :param bundle: the bundle that was just initialized. ``bundle.path`` points to the
+        on-disk location of the bundle contents.
     """
 
 

@@ -27,7 +27,7 @@ Common use-cases include:
 * Setting default arguments on Dags / tasks
 * Performing custom routing logic
 
-There are three main types of cluster policy:
+There are four main types of cluster policy:
 
 * ``dag_policy``: Takes a :class:`~airflow.models.dag.DAG` parameter called ``dag``. Runs at load time of the
   Dag from DagBag :class:`~airflow.models.dagbag.DagBag`.
@@ -41,6 +41,11 @@ There are three main types of cluster policy:
   relates to a particular DagRun. It is executed in a "worker", not in the Dag file processor, just before the
   task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that
   task.
+* ``dag_bundle_policy``: Takes a :class:`~airflow.dag_processing.bundles.base.BaseDagBundle` parameter called
+  ``bundle``. It is called from
+  :meth:`~airflow.dag_processing.bundles.base.BaseDagBundle.initialize` right after a DAG bundle has been
+  initialized on disk and before any DAG files from the bundle are parsed. This is the right place to perform
+  bundle-local setup such as appending bundle subdirectories to :data:`sys.path`.
 
 The Dag and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
 exception to indicate that the Dag/task they were passed is not compliant and should not be loaded.
@@ -119,7 +124,7 @@ Available Policy Functions
 
 .. autoapimodule:: airflow.policies
   :no-members:
-  :members: task_policy, dag_policy, task_instance_mutation_hook, pod_mutation_hook, get_airflow_context_vars
+  :members: task_policy, dag_policy, task_instance_mutation_hook, pod_mutation_hook, get_airflow_context_vars, dag_bundle_policy
   :member-order: bysource
 
 
@@ -186,6 +191,20 @@ Here's an example of re-routing tasks that are on their second (or greater) retr
 
 Note that since priority weight is determined dynamically using weight rules, you cannot alter the ``priority_weight`` of a task instance within the mutation hook.
 
+Dag bundle policy
+~~~~~~~~~~~~~~~~~
+
+Here's an example that makes a ``shared`` directory inside the DAG bundle importable by adding it to
+:data:`sys.path` once the bundle has been initialized:
+
+.. literalinclude:: /../tests/unit/cluster_policies/__init__.py
+        :language: python
+        :start-after: [START example_dag_bundle_policy]
+        :end-before: [END example_dag_bundle_policy]
+
+The hook is called from :meth:`~airflow.dag_processing.bundles.base.BaseDagBundle.initialize` after the
+bundle's files are available on disk and before any DAG files from the bundle are parsed, so any changes
+made here are visible to DAG file parsing.
 
 Metadata Engine Hooks
 ---------------------

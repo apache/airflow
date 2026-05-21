@@ -240,6 +240,30 @@ class FakeBundle(BaseDagBundle):
     def refresh(self) -> None: ...
 
 
+class TestDagBundlePolicy:
+    def test_initialize_invokes_dag_bundle_policy(self, monkeypatch, tmp_path):
+        """The dag_bundle_policy hook should be called when a bundle is initialized."""
+        from airflow import settings
+
+        called_with: list = []
+
+        def fake_policy(bundle):
+            called_with.append(bundle)
+
+        monkeypatch.setattr(settings, "dag_bundle_policy", fake_policy)
+
+        class _Bundle(BasicBundle):
+            @property
+            def path(self) -> Path:  # type: ignore[override]
+                return tmp_path
+
+        bundle = _Bundle(name="policy-test")
+        bundle.initialize()
+
+        assert called_with == [bundle]
+        assert bundle.is_initialized is True
+
+
 class TestBundleUsageTrackingManager:
     @pytest.mark.parametrize(
         ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),

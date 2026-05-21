@@ -69,3 +69,19 @@ def test_local_settings_misnamed_argument(plugin_manager: pluggy.PluginManager):
     plugin_manager.hook.dag_policy(dag="passed_dag_value")
 
     assert called_with == "passed_dag_value"
+
+
+def test_dag_bundle_policy_hookspec_registered(plugin_manager: pluggy.PluginManager):
+    """A dag_bundle_policy defined in local settings is registered and invoked."""
+    called_with = []
+
+    def dag_bundle_policy(bundle):
+        called_with.append(bundle)
+
+    mod = Namespace(dag_bundle_policy=dag_bundle_policy)
+
+    policies.make_plugin_from_local_settings(plugin_manager, mod, {"dag_bundle_policy"})
+
+    plugin_manager.hook.dag_bundle_policy(bundle="some-bundle")
+
+    assert called_with == ["some-bundle"]
