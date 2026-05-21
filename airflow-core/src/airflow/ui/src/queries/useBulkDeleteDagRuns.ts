@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -25,7 +25,7 @@ import {
   useDagRunServiceGetDagRunsKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import type { BulkActionResponse, BulkBody_BulkDAGRunBody_, BulkResponse } from "openapi/requests/types.gen";
+import type { BulkBody_BulkDAGRunBody_, BulkResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
@@ -35,25 +35,8 @@ type Props = {
   readonly onSuccessConfirm: VoidFunction;
 };
 
-const handleActionResult = (
-  actionResult: BulkActionResponse,
-  setError: (error: unknown) => void,
-  onSuccess: (count: number, keys: Array<string>) => void,
-) => {
-  const { errors, success } = actionResult;
-
-  if (Array.isArray(errors) && errors.length > 0) {
-    const apiError = errors[0] as { error: string };
-
-    setError({ body: { detail: apiError.error } });
-  } else if (Array.isArray(success) && success.length > 0) {
-    onSuccess(success.length, success);
-  }
-};
-
 export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<unknown>(undefined);
   const affectedDagIds = useRef<Set<string>>(new Set());
   const { t: translate } = useTranslation(["common", "dags"]);
 
@@ -67,36 +50,41 @@ export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Prop
       ),
     ]);
 
-    if (responseData.delete) {
-      handleActionResult(responseData.delete, setError, (count, keys) => {
-        toaster.create({
-          description: translate("toaster.bulkDelete.success.description", {
-            count,
-            keys: keys.join(", "),
-            resourceName: translate("dagRun_other"),
-          }),
-          title: translate("toaster.bulkDelete.success.title", {
-            resourceName: translate("dagRun_other"),
-          }),
-          type: "success",
-        });
-        clearSelections();
-        onSuccessConfirm();
+    const deleteResult = responseData.delete;
+
+    if (!deleteResult) {
+      return;
+    }
+
+    const successKeys = deleteResult.success ?? [];
+    const actionErrors = deleteResult.errors ?? [];
+
+    if (successKeys.length > 0) {
+      toaster.create({
+        description: translate("toaster.bulkDelete.success.description", {
+          count: successKeys.length,
+          keys: successKeys.join(", "),
+          resourceName: translate("dagRun_other"),
+        }),
+        title: translate("toaster.bulkDelete.success.title", {
+          resourceName: translate("dagRun_other"),
+        }),
+        type: "success",
       });
+      clearSelections();
+    }
+
+    // Per-entity failures (status 200 with items in ``errors``) keep the dialog open
+    // so the user can see what failed; the consumer renders ``data.delete.errors``.
+    if (actionErrors.length === 0) {
+      onSuccessConfirm();
     }
   };
 
-  const onError = (_error: unknown) => {
-    setError(_error);
-  };
-
-  const { isPending, mutate } = useDagRunServiceBulkDagRuns({
-    onError,
-    onSuccess,
-  });
+  const { data, error, isPending, mutate, reset } = useDagRunServiceBulkDagRuns({ onSuccess });
 
   const bulkAction = (requestBody: BulkBody_BulkDAGRunBody_) => {
-    setError(undefined);
+    reset();
     const dagIds = new Set<string>();
 
     for (const action of requestBody.actions) {
@@ -110,5 +98,5 @@ export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Prop
     mutate({ dagId: "~", requestBody });
   };
 
-  return { bulkAction, error, isPending, setError };
+  return { bulkAction, data, error, isPending, reset };
 };

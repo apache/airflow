@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Stack, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -27,7 +27,7 @@ import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Accordion, Dialog } from "src/components/ui";
+import { Accordion, Alert, Dialog } from "src/components/ui";
 import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
 
 type Props = {
@@ -61,10 +61,12 @@ const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
 const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) => {
   const { t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
-  const { bulkAction, error, isPending } = useBulkDeleteDagRuns({
+  const { bulkAction, data, error, isPending } = useBulkDeleteDagRuns({
     clearSelections,
     onSuccessConfirm: onClose,
   });
+
+  const actionErrors = (data?.delete?.errors ?? []) as Array<{ error: string; status_code?: number }>;
 
   const columns = getColumns(translate);
 
@@ -143,6 +145,14 @@ const BulkDeleteDagRunsButton = ({ clearSelections, selectedDagRuns }: Props) =>
             </Box>
 
             <ErrorAlert error={error} />
+            {actionErrors.length > 0 ? (
+              <Stack gap={2} mt={3}>
+                {actionErrors.map((actionError, index) => (
+                  // eslint-disable-next-line react/no-array-index-key -- per-entity errors have no stable id
+                  <Alert key={index} status="error" title={actionError.error} />
+                ))}
+              </Stack>
+            ) : undefined}
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"

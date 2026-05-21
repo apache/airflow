@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Button, Flex, Heading, HStack, VStack, useDisclosure } from "@chakra-ui/react";
+import { Badge, Box, Button, Flex, Heading, HStack, Stack, VStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
@@ -27,7 +27,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
-import { Dialog, Menu } from "src/components/ui";
+import { Alert, Dialog, Menu } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
@@ -43,10 +43,12 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
   const [state, setState] = useState<TaskInstanceState>("success");
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
   const [note, setNote] = useState<string | null>(null);
-  const { bulkAction, error, isPending, setError } = useBulkTaskInstances({
+  const { bulkAction, data, error, isPending, reset } = useBulkTaskInstances({
     clearSelections,
     onSuccessConfirm: onClose,
   });
+
+  const actionErrors = (data?.update?.errors ?? []) as Array<{ error: string; status_code?: number }>;
 
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
@@ -73,7 +75,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
     setState(newState);
     setSelectedOptions([]);
     setNote(null);
-    setError(undefined);
+    reset();
     onOpen();
   };
 
@@ -164,6 +166,14 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
             </Flex>
             <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
             <ErrorAlert error={error} />
+            {actionErrors.length > 0 ? (
+              <Stack gap={2} mt={3}>
+                {actionErrors.map((actionError, index) => (
+                  // eslint-disable-next-line react/no-array-index-key -- per-entity errors have no stable id
+                  <Alert key={index} status="error" title={actionError.error} />
+                ))}
+              </Stack>
+            ) : undefined}
             <Flex justifyContent="end" mt={3}>
               <Button
                 disabled={affectedTasks.total_entries === 0}
