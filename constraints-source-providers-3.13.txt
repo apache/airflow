@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-19T14:22:55.510421
+# This constraints file was automatically generated on 2026-05-21T07:03:13.090038
 # via `uv sync --resolution highest for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -544,7 +544,7 @@ python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
-python-ldap==3.4.6
+python-ldap==3.4.5
 python-multipart==0.0.28
 python-on-whales==0.81.0
 python-slugify==8.0.4
