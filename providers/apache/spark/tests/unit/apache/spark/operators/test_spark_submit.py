@@ -32,7 +32,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -493,6 +493,10 @@ class FakeTaskState:
         self._store[key] = value
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state, available in Airflow 3.3+",
+)
 class TestSparkSubmitOperatorResumable:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
