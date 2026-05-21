@@ -6719,6 +6719,48 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
             }
         ]
 
+    def test_bulk_delete_does_not_requery_each_task_instance(self, test_client, session):
+        # Regression guard for the N+1 fix in BulkTaskInstanceService.handle_bulk_delete:
+        # when deleting specific (task_id, map_index) tuples, the service must reuse the
+        # task instances already loaded by _categorize_task_instances instead of issuing
+        # a fresh SELECT for each one inside the delete loop. Each extra task instance
+        # should add exactly one query (its DELETE); the removed re-query would have
+        # added a second one per task instance.
+
+        def delete_n_task_instances(n: int) -> int:
+            self.create_task_instances(
+                session,
+                task_instances=[{"state": State.RUNNING, "map_indexes": tuple(range(n))}],
+            )
+            request_body = {
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {"task_id": self.TASK_ID, "map_index": map_index} for map_index in range(n)
+                        ],
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            }
+            with count_queries() as result:
+                response = test_client.patch(self.ENDPOINT_URL, json=request_body)
+
+            assert response.status_code == 200
+            assert len(response.json()["delete"]["success"]) == n
+            clear_db_runs()
+            return sum(result.values())
+
+        small, large = 5, 15
+        queries_small = delete_n_task_instances(small)
+        queries_large = delete_n_task_instances(large)
+
+        assert queries_large - queries_small == large - small, (
+            f"Expected {large - small} extra queries for {large - small} extra task instances, "
+            f"got {queries_large - queries_small}. A regression that re-queries each task "
+            f"instance inside the delete loop would roughly double this delta."
+        )
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 401
