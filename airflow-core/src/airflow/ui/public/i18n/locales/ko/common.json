@@ -40,14 +40,14 @@
     "description": "설명",
     "documentation": "Dag 문서",
     "fileLocation": "파일 위치",
-    "hasTaskConcurrencyLimits": "작업 동시성 제한 존재 여부",
+    "hasTaskConcurrencyLimits": "태스크 동시성 제한 존재 여부",
     "lastExpired": "마지막 만료 시점",
     "lastParseDuration": "마지막 파싱 기간",
     "lastParsed": "마지막 파싱 시점",
     "latestDagVersion": "최신 Dag 버전",
     "latestRun": "최근 실행",
     "maxActiveRuns": "최대 활성 실행 수",
-    "maxActiveTasks": "최대 활성 작업 수",
+    "maxActiveTasks": "최대 활성 태스크 수",
     "maxConsecutiveFailedDagRuns": "연속 실패한 Dag 실행 최대 횟수",
     "nextRun": "다음 실행",
     "owner": "소유자",
@@ -173,7 +173,7 @@
     "dagRun": "Dag 실행 메모",
     "label": "메모",
     "placeholder": "메모 추가...",
-    "taskInstance": "작업 인스턴스 메모"
+    "taskInstance": "태스크 인스턴스 메모"
   },
   "partitionedDagRun_one": "파티션된 Dag 실행",
   "partitionedDagRun_other": "파티션된 Dag 실행",
@@ -260,17 +260,17 @@
     "to": "종료"
   },
   "task": {
-    "documentation": "작업 문서",
+    "documentation": "태스크 문서",
     "lastInstance": "마지막 인스턴스",
     "operator": "오퍼레이터",
     "triggerRule": "트리거 규칙"
   },
-  "task_one": "작업",
-  "task_other": "작업들",
-  "taskGroup": "작업 그룹",
-  "taskGroup_one": "작업 그룹",
-  "taskGroup_other": "작업 그룹들",
-  "taskId": "작업 ID",
+  "task_one": "태스크",
+  "task_other": "태스크",
+  "taskGroup": "태스크 그룹",
+  "taskGroup_one": "태스크 그룹",
+  "taskGroup_other": "태스크 그룹",
+  "taskId": "태스크 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",
     "executor": "실행기",
@@ -294,8 +294,8 @@
     },
     "unixname": "유닉스 이름"
   },
-  "taskInstance_one": "작업 인스턴스",
-  "taskInstance_other": "작업 인스턴스들",
+  "taskInstance_one": "태스크 인스턴스",
+  "taskInstance_other": "태스크 인스턴스",
   "timeRange": {
     "last12Hours": "지난 12 시간",
     "last24Hours": "지난 24 시간",
