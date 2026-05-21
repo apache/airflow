@@ -20,7 +20,6 @@
 package org.apache.airflow.example;
 
 import java.util.Date;
-import java.util.List;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -73,9 +72,9 @@ public class InterfaceExampleBuilder {
 
   public static Dag build() {
     var dag = new Dag("java_interface_example");
-    dag.addTask("extract", Extract.class, List.of());
-    dag.addTask("transform", Transform.class, List.of("extract"));
-    dag.addTask("load", Load.class, List.of("transform"));
+    dag.addTask("extract", Extract.class);
+    dag.addTask("transform", Transform.class);
+    dag.addTask("load", Load.class);
     return dag;
   }
 }

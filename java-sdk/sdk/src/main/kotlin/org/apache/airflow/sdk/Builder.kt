@@ -60,13 +60,11 @@ class Builder internal constructor() {
    * Annotation to automate task definition in a Dag-builder pattern.
    *
    * @param id Override the task ID. If empty or not provided, the annotated function's name is used by default.
-   * @param depends List of task IDs this task depends on.
    */
   @Target(AnnotationTarget.FUNCTION)
   @MustBeDocumented
   annotation class Task(
     val id: String = "",
-    val depends: Array<String> = [],
   )
 
   /**
@@ -137,20 +135,10 @@ class BuilderProcessor : AbstractProcessor() {
       val task = buildTask(innerName, inner, el)
       builderClass.addType(task.spec)
 
-      val depends =
-        task.required
-          .map { it.taskId }
-          .plus(ann.depends)
-          .toTypedArray()
       buildMethod.addStatement(
-        if (depends.isEmpty()) {
-          $$"dag.addTask($S, $L.class)"
-        } else {
-          $$"dag.addTask($S, $L.class, new String[]{$${depends.joinToString { $$"$S" }}})"
-        },
+        $$"dag.addTask($S, $L.class)",
         ann.id.ifBlank { inner.simpleName },
         innerName,
-        *depends,
       )
     }
 
@@ -222,7 +210,7 @@ class BuilderProcessor : AbstractProcessor() {
         .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
         .addMethod(executeSpec.build())
         .build()
-    return BuildTaskResult(spec, required)
+    return BuildTaskResult(spec)
   }
 }
 
@@ -239,5 +227,4 @@ private data class RequiredXCom(
 
 private data class BuildTaskResult(
   val spec: TypeSpec,
-  val required: List<RequiredXCom>,
 )

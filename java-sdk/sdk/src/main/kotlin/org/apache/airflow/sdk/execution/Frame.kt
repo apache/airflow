@@ -29,13 +29,10 @@ import org.apache.airflow.sdk.execution.api.model.VariableResponse
 import org.apache.airflow.sdk.execution.api.model.XComResponse
 import org.msgpack.core.MessagePack
 import java.io.ByteArrayOutputStream
-import java.io.EOFException
-import java.io.InputStream
-import java.io.OutputStream
 
-typealias TaskSdkMessageDecoder = (Map<*, *>) -> Any
+typealias Decoder = (Map<*, *>) -> Any
 
-object TaskSdkFrames {
+object Frame {
   private val mapper =
     ObjectMapper().apply {
       configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -54,7 +51,7 @@ object TaskSdkFrames {
       XComResponse::class to "XComResult",
     )
 
-  private val toBundleClientTypes: Map<String, TaskSdkMessageDecoder> =
+  private val toBundleClientTypes: Map<String, Decoder> =
     mapOf(
       "ConnectionResult" to mapperDecoder(ConnectionResponse::class.java),
       "ErrorResponse" to mapperDecoder(ErrorResponse::class.java),
@@ -62,13 +59,7 @@ object TaskSdkFrames {
       "XComResult" to mapperDecoder(XComResponse::class.java),
     )
 
-  val toDagProcessorTypes: Map<String, TaskSdkMessageDecoder> =
-    toBundleClientTypes +
-      mapOf(
-        "DagFileParseRequest" to mapperDecoder(DagFileParseRequest::class.java),
-      )
-
-  val toTaskTypes: Map<String, TaskSdkMessageDecoder> =
+  val toTaskTypes: Map<String, Decoder> =
     toBundleClientTypes +
       mapOf(
         "StartupDetails" to mapperDecoder(StartupDetails::class.java),
@@ -76,64 +67,16 @@ object TaskSdkFrames {
 
   // The Java bundle process can act as either Python's DagProcessor or Task runtime, so
   // its inbound decoder is the union of both message sets.
-  val toBundleProcessTypes: Map<String, TaskSdkMessageDecoder> = toDagProcessorTypes + toTaskTypes
-
-  val toSupervisorTypes: Map<String, TaskSdkMessageDecoder> =
-    mapOf(
-      "ErrorResponse" to mapperDecoder(ErrorResponse::class.java),
-      "GetConnection" to { body -> GetConnection(id = body.string("conn_id")) },
-      "GetVariable" to { body -> GetVariable(key = body.string("key")) },
-      "GetXCom" to {
-        GetXCom(
-          key = it.string("key"),
-          dagId = it.string("dag_id"),
-          taskId = it.string("task_id"),
-          runId = it.string("run_id"),
-          mapIndex = it.intOrNull("map_index"),
-          includePriorDates = it.boolean("include_prior_dates", default = false),
-        )
-      },
-      "SetXCom" to {
-        SetXCom(
-          key = it.string("key"),
-          value = it["value"] ?: error("Missing 'value'"),
-          dagId = it.string("dag_id"),
-          taskId = it.string("task_id"),
-          runId = it.string("run_id"),
-          mapIndex = it.int("map_index"),
-        )
-      },
-      "SucceedTask" to { SucceedTask() },
-      "TaskState" to { body -> TaskState(state = body.string("state")) },
-    )
+  val toBundleProcessTypes: Map<String, Decoder> = toTaskTypes
 
   fun encodeRequest(
     id: Int,
     body: Any,
-  ): ByteArray = encodeFrame(id, body, error = null, isResponse = false)
-
-  fun encodeResponse(
-    id: Int,
-    body: Any? = null,
-    error: ErrorResponse? = null,
-  ): ByteArray = encodeFrame(id, body, error = error, isResponse = true)
-
-  fun writeRequest(
-    output: OutputStream,
-    id: Int,
-    body: Any,
-  ) = writeFrame(output, encodeRequest(id, body))
-
-  fun writeResponse(
-    output: OutputStream,
-    id: Int,
-    body: Any? = null,
-    error: ErrorResponse? = null,
-  ) = writeFrame(output, encodeResponse(id, body, error))
+  ): ByteArray = encodeFrame(id, body)
 
   fun decode(
     bytes: ByteArray,
-    bodyTypes: Map<String, TaskSdkMessageDecoder>,
+    bodyTypes: Map<String, Decoder>,
   ): IncomingFrame {
     val unpacker = MessagePack.newDefaultUnpacker(bytes)
     val headerSize = unpacker.unpackArrayHeader()
@@ -151,11 +94,6 @@ object TaskSdkFrames {
     return IncomingFrame(id, body)
   }
 
-  fun readFrame(
-    input: InputStream,
-    bodyTypes: Map<String, TaskSdkMessageDecoder>,
-  ): IncomingFrame = decode(readBytes(input, readLengthPrefix(input)), bodyTypes)
-
   fun lengthPrefix(length: Int) =
     byteArrayOf(
       (length shr 24).toByte(),
@@ -164,54 +102,27 @@ object TaskSdkFrames {
       length.toByte(),
     )
 
-  fun readLengthPrefix(input: InputStream): Int = parseLengthPrefix(readBytes(input, 4))
-
   fun parseLengthPrefix(prefix: ByteArray): Int {
     check(prefix.size == 4) { "Need 4 prefix bytes" }
     return prefix.fold(0) { acc, byte -> (acc shl 8) or (byte.toInt() and 0xff) }
   }
 
-  fun readBytes(
-    input: InputStream,
-    length: Int,
-  ): ByteArray {
-    val bytes = input.readNBytes(length)
-    if (bytes.size != length) {
-      throw EOFException("Expected $length bytes but only received ${bytes.size}")
-    }
-    return bytes
-  }
-
-  private fun writeFrame(
-    output: OutputStream,
-    payload: ByteArray,
-  ) {
-    output.write(lengthPrefix(payload.size))
-    output.write(payload)
-    output.flush()
-  }
-
   private fun encodeFrame(
     id: Int,
     body: Any?,
-    error: ErrorResponse?,
-    isResponse: Boolean,
   ): ByteArray {
     val payload = ByteArrayOutputStream()
     val packer = MessagePack.newDefaultPacker(payload)
-    packer.packArrayHeader(if (isResponse) 3 else 2)
+    packer.packArrayHeader(2)
     packer.packInt(id)
     packer.packAny(body?.let(::toBody))
-    if (isResponse) {
-      packer.packAny(error?.let(::toBody))
-    }
     packer.close()
     return payload.toByteArray()
   }
 
   private fun decodeMessage(
     raw: Any?,
-    bodyTypes: Map<String, TaskSdkMessageDecoder>,
+    bodyTypes: Map<String, Decoder>,
   ): Any? {
     val body = raw as? Map<*, *> ?: return raw
     val typeName = body["type"] as? String ?: return body
@@ -219,7 +130,7 @@ object TaskSdkFrames {
     return decoder(body)
   }
 
-  private fun mapperDecoder(targetType: Class<*>): TaskSdkMessageDecoder = { body -> mapper.convertValue(body, targetType) }
+  private fun mapperDecoder(targetType: Class<*>): Decoder = { body -> mapper.convertValue(body, targetType) }
 
   @Suppress("UNCHECKED_CAST")
   private fun toBody(value: Any): Map<String, Any?> =
@@ -229,26 +140,5 @@ object TaskSdkFrames {
         (mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>).also { body ->
           inferredTypes[value::class]?.let { typeName -> body.putIfAbsent("type", typeName) }
         }
-    }
-
-  private fun Map<*, *>.string(key: String): String = this[key] as? String ?: error("Missing '$key'")
-
-  private fun Map<*, *>.int(key: String): Int = intOrNull(key) ?: error("Missing integer '$key'")
-
-  private fun Map<*, *>.intOrNull(key: String): Int? =
-    when (val value = this[key]) {
-      null -> null
-      is Number -> value.toInt()
-      else -> error("Expected integer '$key', got ${value::class.java}")
-    }
-
-  private fun Map<*, *>.boolean(
-    key: String,
-    default: Boolean,
-  ): Boolean =
-    when (val value = this[key]) {
-      null -> default
-      is Boolean -> value
-      else -> error("Expected boolean '$key', got ${value::class.java}")
     }
 }

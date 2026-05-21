@@ -43,24 +43,7 @@ val metadataOutputDir = layout.buildDirectory.dir("airflow-metadata")
 val dagCodeSourcePath = bundleMainClass.replace('.', '/') + ".java"
 val dagCodeFileName = bundleMainClass.substringAfterLast('.') + ".java"
 
-val inspectBundle =
-    tasks.register<JavaExec>("inspectBundle") {
-        description = "Collect Dag structures by inspecting the Dag bundle"
-        dependsOn("classes")
-        classpath = sourceSets.main.get().runtimeClasspath
-        mainClass.set("org.apache.airflow.sdk.BundleInspector")
-        args =
-            listOf(
-                bundleMainClass,
-                metadataOutputDir
-                    .get()
-                    .file(metadataFileName)
-                    .asFile.absolutePath,
-            )
-    }
-
 tasks.withType<Jar> {
-    dependsOn(inspectBundle)
     from(metadataOutputDir)
     from("src/java/$dagCodeSourcePath")
     manifest {

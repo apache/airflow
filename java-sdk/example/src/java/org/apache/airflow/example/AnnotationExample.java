@@ -49,7 +49,7 @@ public class AnnotationExample {
     return new Date().getTime();
   }
 
-  @Builder.Task(id = "transform", depends = {"extract"})
+  @Builder.Task(id = "transform")
   public long transformValue(Client client, @Builder.XCom(task = "extract") long extracted) {
     logger.info("Got XCom from 'extract' {}", extracted);
 
@@ -60,7 +60,7 @@ public class AnnotationExample {
     return new Date().getTime();
   }
 
-  @Builder.Task(depends = {"transform"})
+  @Builder.Task
   public void load(@Builder.XCom(task = "transform") long transformed) {
     logger.info("Got XCom from 'transform' {}", transformed);
     throw new RuntimeException("I failed");

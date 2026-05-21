@@ -112,7 +112,7 @@ class TimestampToJavaOffsetDateTimeModule : SimpleModule() {
   }
 
   class OffsetDateTimeDeserializer : StdDeserializer<OffsetDateTime>(OffsetDateTime::class.java) {
-    val instantDeserializer =
+    val instantDeserializer: InstantDeserializer<OffsetDateTime> =
       InstantDeserializer.OFFSET_DATE_TIME.withFeatures(
         JacksonFeatureSet.fromDefaults(JavaTimeFeature.entries.toTypedArray()),
       )

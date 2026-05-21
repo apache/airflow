@@ -27,13 +27,11 @@ import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.Bundle
-import org.apache.airflow.sdk.execution.api.client.ApiClient
 import org.apache.airflow.sdk.execution.api.model.AssetProfile
 import org.apache.airflow.sdk.execution.api.model.BundleInfo
 import org.apache.airflow.sdk.execution.api.model.TIRunContext
 import org.apache.airflow.sdk.execution.api.model.TISuccessStatePayload
 import org.apache.airflow.sdk.execution.api.model.TaskInstance
-import retrofit2.Call
 import java.time.OffsetDateTime
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -55,13 +53,6 @@ class ErrorResponse {
 
   @JsonProperty("detail")
   var detail: Any? = null
-}
-
-class DagFileParseRequest {
-  var file: String = ""
-
-  @JsonProperty("bundle_path")
-  var bundlePath: String = ""
 }
 
 class StartupDetails {
@@ -150,16 +141,9 @@ class CoordinatorComm(
   internal companion object {
     private val logger = Logger(CoordinatorComm::class)
 
-    fun encode(outgoing: OutgoingFrame): ByteArray {
-      val body =
-        when (val message = outgoing.body) {
-          is DagParsingResult -> message.serialize()
-          else -> message
-        }
-      return TaskSdkFrames.encodeRequest(outgoing.id, body)
-    }
+    fun encode(outgoing: OutgoingFrame) = Frame.encodeRequest(outgoing.id, outgoing.body)
 
-    fun decode(bytes: ByteArray): IncomingFrame = TaskSdkFrames.decode(bytes, TaskSdkFrames.toBundleProcessTypes)
+    fun decode(bytes: ByteArray) = Frame.decode(bytes, Frame.toBundleProcessTypes)
   }
 
   private val nextId = AtomicInt(0)
@@ -180,7 +164,7 @@ class CoordinatorComm(
       return
     }
 
-    val payloadLength = TaskSdkFrames.parseLengthPrefix(prefix)
+    val payloadLength = Frame.parseLengthPrefix(prefix)
     val payload = reader.readByteArray(payloadLength)
     if (payload.size != payloadLength) { // Something is terribly wrong. Let's bail.
       logger.error(
@@ -201,7 +185,7 @@ class CoordinatorComm(
   ) {
     val data = encode(OutgoingFrame(id, body))
     logger.debug("Sending", mapOf("id" to id, "body" to body))
-    writer.writeByteArray(TaskSdkFrames.lengthPrefix(data.size))
+    writer.writeByteArray(Frame.lengthPrefix(data.size))
     writer.writeByteArray(data)
   }
 
@@ -212,13 +196,8 @@ class CoordinatorComm(
         println("Error!! id=${frame.id} [${request.error}] ${request.detail}") // TODO: Handle error.
         exitProcess(1)
       }
-      is DagFileParseRequest -> {
-        val body = DagParser(request.file, request.bundlePath).parse(bundle)
-        sendMessage(frame.id, body)
-        shutDownRequested = true
-      }
       is StartupDetails -> {
-        sendMessage(frame.id, TaskRunner.run(bundle, request, this))
+        sendMessage(frame.id, runTask(bundle, request, this))
         shutDownRequested = true
       }
     }
@@ -247,13 +226,4 @@ class CoordinatorComm(
       else -> throw ApiError("Unexpected response type ${response::class.java}")
     }
   }
-}
-
-internal inline fun <reified S, R> ApiClient.communicate(block: S.() -> Call<R>): R {
-  val service = createService(S::class.java)
-  val response = block(service).execute()
-  if (!response.isSuccessful) {
-    throw ApiError("[${response.message()}] $response (from $service")
-  }
-  return response.body() ?: throw ApiError("No body")
 }

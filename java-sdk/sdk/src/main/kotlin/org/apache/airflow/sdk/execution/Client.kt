@@ -20,14 +20,9 @@
 package org.apache.airflow.sdk.execution
 
 import kotlinx.coroutines.runBlocking
-import org.apache.airflow.sdk.execution.api.client.ApiClient
 import org.apache.airflow.sdk.execution.api.model.ConnectionResponse
 import org.apache.airflow.sdk.execution.api.model.VariableResponse
 import org.apache.airflow.sdk.execution.api.model.XComResponse
-import org.apache.airflow.sdk.execution.api.route.ConnectionsApi
-import org.apache.airflow.sdk.execution.api.route.VariablesApi
-import org.apache.airflow.sdk.execution.api.route.XComsApi
-import java.time.LocalDate
 
 interface Client {
   fun getConnection(id: String): ConnectionResponse
@@ -98,65 +93,5 @@ class CoordinatorClient(
         includePriorDates = includePriorDates,
       )
     return runBlocking { exec.communicate<XComResponse>(message) }
-  }
-}
-
-class HttpExecApiClient(
-  val http: ApiClient,
-) : Client {
-  companion object {
-    val version: LocalDate = LocalDate.parse(AIRFLOW_EXEC_API_VERSION)
-  }
-
-  override fun getConnection(id: String) =
-    http.communicate<ConnectionsApi, ConnectionResponse> {
-      getConnection(id, version)
-    }
-
-  override fun getVariable(key: String) =
-    http.communicate<VariablesApi, VariableResponse> {
-      getVariable(key, version)
-    }
-
-  override fun getXCom(
-    key: String,
-    dagId: String,
-    taskId: String,
-    runId: String,
-    mapIndex: Int?,
-    includePriorDates: Boolean,
-  ) = http.communicate<XComsApi, XComResponse> {
-    getXcom(
-      dagId,
-      runId,
-      taskId,
-      key,
-      mapIndex,
-      includePriorDates,
-      0,
-      version,
-    )
-  }
-
-  override fun setXCom(
-    key: String,
-    value: Any,
-    dagId: String,
-    taskId: String,
-    runId: String,
-    mapIndex: Int,
-  ) {
-    http.communicate<XComsApi, Any> {
-      setXcom(
-        dagId,
-        runId,
-        taskId,
-        key,
-        mapIndex,
-        null,
-        version,
-        value,
-      )
-    }
   }
 }

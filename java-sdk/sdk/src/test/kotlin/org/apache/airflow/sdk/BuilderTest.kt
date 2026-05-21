@@ -56,12 +56,12 @@ class BuilderTest {
           @Builder.Task
           public void t1() {}
 
-          @Builder.Task(depends = {"t1"})
+          @Builder.Task
           public int t2(Client client) {
             return (Integer) client.getXCom("t0");
           }
 
-          @Builder.Task(depends = {"t1", "t2"})
+          @Builder.Task
           public void t3(Context ctx, @Builder.XCom(task = "t2") int value) {
             System.out.println(String.format("%s %s", ctx.ti, value));
           }
@@ -88,8 +88,8 @@ class BuilderTest {
            public static Dag build() {
              var dag = new Dag("TestExample");
              dag.addTask("t1", T1.class);
-             dag.addTask("t2", T2.class, new String[]{"t1"});
-             dag.addTask("t3", T3.class, new String[]{"t2", "t1", "t2"});
+             dag.addTask("t2", T2.class);
+             dag.addTask("t3", T3.class);
              return dag;
            }
            public static final class T1 implements Task {

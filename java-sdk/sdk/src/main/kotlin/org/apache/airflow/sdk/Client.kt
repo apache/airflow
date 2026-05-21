@@ -22,6 +22,17 @@ package org.apache.airflow.sdk
 import org.apache.airflow.sdk.execution.Client
 import org.apache.airflow.sdk.execution.StartupDetails
 
+data class Connection(
+  @JvmField val id: String,
+  @JvmField val type: String?,
+  @JvmField val host: String?,
+  @JvmField val schema: String?,
+  @JvmField val login: String?,
+  @JvmField val password: String?,
+  @JvmField val port: Int?,
+  @JvmField val extra: String?,
+)
+
 class Client(
   val details: StartupDetails,
   val impl: Client,

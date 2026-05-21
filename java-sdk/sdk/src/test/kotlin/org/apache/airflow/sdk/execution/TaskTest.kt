@@ -25,6 +25,7 @@ import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.Dag
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.execution.api.model.BundleInfo
+import org.apache.airflow.sdk.execution.api.model.DagRun
 import org.apache.airflow.sdk.execution.api.model.TIRunContext
 import org.apache.airflow.sdk.execution.api.model.TaskInstance
 import org.junit.jupiter.api.Assertions
@@ -33,11 +34,11 @@ import org.junit.jupiter.api.Test
 import java.time.OffsetDateTime
 import java.util.UUID
 
-class TaskRunnerTest {
+class TaskTest {
   @Test
   @DisplayName("Should execute task and return success")
   fun shouldExecuteTaskAndReturnSuccess() {
-    val result = TaskRunner.run(bundleWith("success", SuccessTask::class.java), startupDetails(taskId = "success"), noOpClient())
+    val result = runTask(bundleWith("success", SuccessTask::class.java), startupDetails(taskId = "success"), noOpClient())
 
     Assertions.assertInstanceOf(SucceedTask::class.java, result)
   }
@@ -45,7 +46,7 @@ class TaskRunnerTest {
   @Test
   @DisplayName("Should return removed when task is missing")
   fun shouldReturnRemovedWhenTaskIsMissing() {
-    val result = TaskRunner.run(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"), noOpClient())
+    val result = runTask(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"), noOpClient())
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals("removed", (result as TaskState).state)
@@ -54,7 +55,7 @@ class TaskRunnerTest {
   @Test
   @DisplayName("Should return failed when task throws")
   fun shouldReturnFailedWhenTaskThrows() {
-    val result = TaskRunner.run(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"), noOpClient())
+    val result = runTask(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"), noOpClient())
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals("failed", (result as TaskState).state)
@@ -72,13 +73,13 @@ class TaskRunnerTest {
   private fun startupDetails(taskId: String): StartupDetails =
     StartupDetails().also {
       it.ti =
-        TaskInstance().also { taskInstance ->
-          taskInstance.id = UUID.randomUUID()
-          taskInstance.taskId = taskId
-          taskInstance.dagId = "test_dag"
-          taskInstance.runId = "manual__2026-03-31T00:00:00+00:00"
-          taskInstance.tryNumber = 1
-          taskInstance.dagVersionId = UUID.randomUUID()
+        TaskInstance().also { o ->
+          o.id = UUID.randomUUID()
+          o.taskId = taskId
+          o.dagId = "test_dag"
+          o.runId = "manual__2026-03-31T00:00:00+00:00"
+          o.tryNumber = 1
+          o.dagVersionId = UUID.randomUUID()
         }
       it.dagRelPath = "/dev/null"
       it.bundleInfo =
@@ -87,7 +88,13 @@ class TaskRunnerTest {
           info.version = "1"
         }
       it.startDate = OffsetDateTime.parse("2026-03-31T00:00:00Z")
-      it.tiContext = TIRunContext()
+      it.tiContext =
+        TIRunContext().dagRun(
+          DagRun().also { o ->
+            o.dagId = "test_dag"
+            o.runId = "manual__2026-03-31T00:00:00+00:00"
+          },
+        )
       it.sentryIntegration = ""
     }
 

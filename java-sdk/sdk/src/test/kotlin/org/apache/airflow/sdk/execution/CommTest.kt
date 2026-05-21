@@ -19,12 +19,18 @@
 
 package org.apache.airflow.sdk.execution
 
-import org.apache.airflow.sdk.byteArrayFromHexString
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+
+fun byteArrayFromHexString(hexString: String): ByteArray =
+  hexString
+    .split(' ', '\r', '\n')
+    .filter { it.isNotEmpty() }
+    .map { it.toUByte(16).toByte() }
+    .toByteArray()
 
 class CommsTest {
   @Test
@@ -76,30 +82,5 @@ class CommsTest {
       """.trimIndent().replace('\n', ' ')
 
     Assertions.assertEquals(expected, actual)
-  }
-
-  @Test
-  @DisplayName("Should decode requests to the supervisor")
-  fun shouldDecodeSupervisorRequest() {
-    val result = TaskSdkFrames.decode(TaskSdkFrames.encodeRequest(5, GetVariable("demo")), TaskSdkFrames.toSupervisorTypes)
-
-    Assertions.assertEquals(5, result.id)
-    Assertions.assertEquals(GetVariable("demo"), result.body)
-  }
-
-  @Test
-  @DisplayName("Should decode protocol errors from the response error slot")
-  fun shouldDecodeErrorResponseFromErrorSlot() {
-    val error =
-      ErrorResponse().also {
-        it.error = "generic_error"
-        it.detail = mapOf("message" to "boom")
-      }
-
-    val result = CoordinatorComm.decode(TaskSdkFrames.encodeResponse(7, error = error))
-
-    Assertions.assertEquals(7, result.id)
-    Assertions.assertInstanceOf(ErrorResponse::class.java, result.body)
-    Assertions.assertEquals("generic_error", (result.body as ErrorResponse).error)
   }
 }

@@ -23,14 +23,10 @@ import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 
-object TaskRunner {
-  fun run(
-    bundle: Bundle,
-    request: StartupDetails,
-    comm: CoordinatorComm,
-  ): Any = run(bundle, request, Client(request, CoordinatorClient(comm)))
+internal object TaskRunner {
+  val logger = Logger(TaskRunner::class)
 
-  internal fun run(
+  internal fun runTask(
     bundle: Bundle,
     request: StartupDetails,
     client: Client,
@@ -41,8 +37,21 @@ object TaskRunner {
       instance.execute(Context.from(request), client)
       SucceedTask()
     } catch (e: Exception) {
+      logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       e.printStackTrace()
       TaskState("failed")
     }
   }
 }
+
+internal fun runTask(
+  bundle: Bundle,
+  request: StartupDetails,
+  comm: CoordinatorComm,
+): Any = TaskRunner.runTask(bundle, request, Client(request, CoordinatorClient(comm)))
+
+internal fun runTask(
+  bundle: Bundle,
+  request: StartupDetails,
+  client: Client,
+) = TaskRunner.runTask(bundle, request, client)

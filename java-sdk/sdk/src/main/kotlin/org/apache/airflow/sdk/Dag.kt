@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import kotlin.Throws
+
 /**
  * Collection of tasks with directional dependencies.
  *
@@ -26,28 +28,24 @@ package org.apache.airflow.sdk
  *   dashes, dots and underscores (all ASCII).
  */
 class Dag(
-  // TODO: charset check?
-  val id: String,
+  val id: String, // TODO: charset check?
 ) {
   internal var tasks = mutableMapOf<String, Class<out Task>>()
-  internal var dependants = mutableMapOf<String, MutableSet<String>>()
 
-  @JvmOverloads
   fun addTask(
     id: String,
     definition: Class<out Task>,
-    dependsOn: Iterable<String> = emptyList(),
-  ) {
+  ): Dag {
     // TODO: Check duplicate key.
     tasks[id] = definition
-    for (parent in dependsOn) {
-      dependants.getOrPut(parent) { mutableSetOf() }.add(id)
-    }
+    return this
   }
+}
 
-  fun addTask(
-    id: String,
-    definition: Class<out Task>,
-    dependsOn: Array<String>,
-  ) = addTask(id, definition, dependsOn.toSet())
+interface Task {
+  @Throws(Exception::class)
+  fun execute(
+    context: Context,
+    client: Client,
+  )
 }
