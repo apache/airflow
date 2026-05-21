@@ -146,7 +146,7 @@ No chunking
 The operator parses files into documents; it does **not** split them into
 fixed-size chunks. The right chunking strategy depends on the embedding
 model and is intentionally left to a downstream text-splitter or embedding
-operator (LlamaIndex's ``EmbeddingOperator``, LangChain's text splitters,
+operator (LlamaIndex's ``LlamaIndexEmbeddingOperator``, LangChain's text splitters,
 ...).
 
 Format coverage roadmap
@@ -172,7 +172,7 @@ Composing with downstream embedding operators
 ---------------------------------------------
 
 The output format (``list[dict(text, metadata)]``) is designed to feed
-directly into embedding operators. With LlamaIndex's ``EmbeddingOperator``:
+directly into embedding operators. With LlamaIndex's ``LlamaIndexEmbeddingOperator``:
 
 .. code-block:: python
 
@@ -181,7 +181,7 @@ directly into embedding operators. With LlamaIndex's ``EmbeddingOperator``:
         source_path="/data/docs/*.pdf",
     )
 
-    embed = EmbeddingOperator(
+    embed = LlamaIndexEmbeddingOperator(
         task_id="embed",
         documents="{{ ti.xcom_pull(task_ids='load') }}",
         llm_conn_id="openai_default",
