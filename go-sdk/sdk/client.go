@@ -79,6 +79,13 @@ func (c *client) UnmarshalJSONVariable(ctx context.Context, key string, pointer 
 func (*client) GetConnection(ctx context.Context, connID string) (Connection, error) {
 	// TODO: Lookup connection from env var (and handle JSON + URI forms)
 
+	// TODO: register Connection.Password and sensitive-keyed entries of
+	// Connection.Extra with a SecretsMasker so they are auto-redacted from
+	// subsequent task logs, matching Python's
+	// airflow.models.connection.Connection.get behaviour. Pairs with the
+	// "TODO: mask secrets here" hook in pkg/worker/runner.go's task log
+	// handler and the matching TODO on GetVariable above.
+
 	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
 
 	resp, err := httpClient.Connections().Get(ctx, connID)

@@ -134,6 +134,13 @@ func (c *CoordinatorClient) GetConnection(
 		}
 	}
 
+	// TODO: register conn.Password and sensitive-keyed entries of conn.Extra
+	// with a SecretsMasker so they are auto-redacted from subsequent task
+	// logs, matching Python's airflow.models.connection.Connection.get
+	// behaviour. Pairs with the "TODO: mask secrets here" hook in
+	// pkg/worker/runner.go's task log handler and the matching TODO on
+	// GetVariable above.
+
 	return conn, nil
 }
 
