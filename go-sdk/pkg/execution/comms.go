@@ -43,7 +43,7 @@ import (
 type CoordinatorComm struct {
 	reader io.Reader
 	writer io.Writer
-	nextID atomic.Int32
+	nextID atomic.Int64
 	logger *slog.Logger
 
 	wmu sync.Mutex // serialises writes
