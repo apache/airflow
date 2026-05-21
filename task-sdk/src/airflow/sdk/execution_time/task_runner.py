@@ -101,6 +101,7 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetIntendedTerminalState,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
@@ -1444,6 +1445,17 @@ def run(
         stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
         if msg:
+            # Pre-announce SKIPPED intent so supervisor can recover the
+            # correct final state if the bulkier terminal-state send below
+            # fails on a broken IPC channel. Without this, exit_code 0 with
+            # no _terminal_state defaults to SUCCESS and the TI is stuck
+            # RUNNING on the server. Best-effort. If the announcement itself
+            # fails, fall through to the regular send.
+            if state == TaskInstanceState.SKIPPED:
+                try:
+                    SUPERVISOR_COMMS.send(msg=SetIntendedTerminalState(state=TaskInstanceState.SKIPPED))
+                except Exception:
+                    log.debug("Failed to pre-announce SKIPPED intent to supervisor")
             # If the supervisor rejects the terminal-state report
             # (e.g. the server already moved the TI to a terminal state and
             # returns 409 - for example due to issue fixed by #65594),

@@ -118,6 +118,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateByName,
     SetAssetStateByUri,
+    SetIntendedTerminalState,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskState,
@@ -1152,6 +1153,13 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _final_state: str | None = attrs.field(default=None, init=False)
+    # Recorded from a `SetIntendedTerminalState` announcement sent by the
+    # task subprocess before the bulkier terminal-state message. Used as a
+    # fallback in `final_state` when the terminal-state message itself fails
+    # to deliver due to subprocess-to-supervisor IPC failure. Without it the
+    # supervisor would default exit_code-0-with-no-terminal-state to SUCCESS
+    # and leave the TI stuck RUNNING on the server.
+    _last_intended_state: str | None = attrs.field(default=None, init=False)
     # The terminal-state message currently being processed by `_handle_request`,
     # captured BEFORE the dedicated API call (succeed / retry / defer /
     # reschedule). If the API call raises (network blip, server 5xx, etc.),
@@ -1507,7 +1515,15 @@ class ActivitySubprocess(WatchedSubprocess):
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TaskInstanceState.SUCCESS
+            if self._terminal_state is not None:
+                return self._terminal_state
+            # Subprocess-to-supervisor IPC failed before the terminal-state
+            # message landed but a prior SetIntendedTerminalState announcement
+            # did. Recover the intended state instead of defaulting to SUCCESS,
+            # which would leave the TI stuck RUNNING on the server.
+            if self._last_intended_state is not None:
+                return self._last_intended_state
+            return TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
 
@@ -1599,6 +1615,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
+        elif isinstance(msg, SetIntendedTerminalState):
+            self._last_intended_state = msg.state
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, SetRenderedMapIndex):

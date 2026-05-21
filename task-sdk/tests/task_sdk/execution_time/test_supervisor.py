@@ -132,6 +132,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateByName,
     SetAssetStateByUri,
+    SetIntendedTerminalState,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskState,
@@ -1798,6 +1799,10 @@ REQUEST_TEST_CASES = [
         test_id="set_rendered_map_index",
     ),
     RequestTestCase(
+        message=SetIntendedTerminalState(state=TaskInstanceState.SKIPPED),
+        test_id="set_intended_terminal_state",
+    ),
+    RequestTestCase(
         message=SucceedTask(
             end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
         ),
@@ -3209,6 +3214,61 @@ class TestHandleRequest:
 
         watched_subprocess.client.task_instances.finish.assert_not_called()
         watched_subprocess.client.task_instances.succeed.assert_not_called()
+
+    def test_handle_request_stores_intended_terminal_state(self, watched_subprocess, mocker):
+        """SetIntendedTerminalState announcement is recorded on _last_intended_state."""
+        watched_subprocess, _ = watched_subprocess
+        assert watched_subprocess._last_intended_state is None
+
+        watched_subprocess._handle_request(
+            SetIntendedTerminalState(state=TaskInstanceState.SKIPPED),
+            mocker.Mock(),
+            req_id=1,
+        )
+
+        assert watched_subprocess._last_intended_state == TaskInstanceState.SKIPPED
+
+    def test_final_state_recovers_intended_state_when_terminal_state_missing(self, watched_subprocess):
+        """Exit 0 with no _terminal_state falls back to _last_intended_state instead of SUCCESS."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        watched_subprocess._terminal_state = None
+        watched_subprocess._last_intended_state = TaskInstanceState.SKIPPED
+
+        assert watched_subprocess.final_state == TaskInstanceState.SKIPPED
+
+    def test_final_state_prefers_terminal_state_over_intended_state(self, watched_subprocess):
+        """_terminal_state takes precedence over _last_intended_state when both are set."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        watched_subprocess._terminal_state = TaskInstanceState.SUCCESS
+        watched_subprocess._last_intended_state = TaskInstanceState.SKIPPED
+
+        assert watched_subprocess.final_state == TaskInstanceState.SUCCESS
+
+    def test_final_state_ignores_intended_state_on_nonzero_exit(self, watched_subprocess):
+        """Fallback only applies on clean exit. FAILED / UP_FOR_RETRY mapping is unchanged."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 1
+        watched_subprocess._terminal_state = None
+        watched_subprocess._last_intended_state = TaskInstanceState.SKIPPED
+        watched_subprocess._should_retry = False
+
+        assert watched_subprocess.final_state == TaskInstanceState.FAILED
+
+    def test_update_task_state_calls_finish_for_recovered_skipped(self, watched_subprocess, mocker):
+        """Recovered SKIPPED falls through to the existing finish() branch."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 0
+        watched_subprocess._terminal_state = None
+        watched_subprocess._last_intended_state = TaskInstanceState.SKIPPED
+        watched_subprocess._pending_terminal_state_msg = None
+
+        watched_subprocess.update_task_state_if_needed()
+
+        watched_subprocess.client.task_instances.finish.assert_called_once()
+        called_state = watched_subprocess.client.task_instances.finish.call_args.kwargs["state"]
+        assert called_state == TaskInstanceState.SKIPPED
 
 
 class TestSetSupervisorComms:

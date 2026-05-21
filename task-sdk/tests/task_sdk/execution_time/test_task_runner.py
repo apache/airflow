@@ -125,6 +125,7 @@ from airflow.sdk.execution_time.comms import (
     RescheduleTask,
     SetAssetStateByName,
     SetAssetStateByUri,
+    SetIntendedTerminalState,
     SetRenderedFields,
     SetTaskState,
     SetXCom,
@@ -555,6 +556,85 @@ def test_run_does_not_signal_fail_closed_for_non_failed_states(
 
     assert state == state_when_send_fails
     assert getattr(runtime_ti, "_terminal_state_send_failed", False) is should_fail_closed
+
+
+def test_run_pre_announces_skipped_intent_before_terminal_state(create_runtime_ti, mock_supervisor_comms):
+    """SetIntendedTerminalState announcement is sent before the TaskState(SKIPPED) message."""
+
+    class SkippingOperator(BaseOperator):
+        def execute(self, context):
+            raise AirflowSkipException("skip me")
+
+    task = SkippingOperator(task_id="skipping")
+    runtime_ti = create_runtime_ti(task=task)
+    context = runtime_ti.get_template_context()
+    log = mock.MagicMock()
+
+    run(runtime_ti, context, log)
+
+    sent_types = [
+        type(call.kwargs.get("msg", call.args[0] if call.args else None)).__name__
+        for call in mock_supervisor_comms.send.call_args_list
+    ]
+    announce_idx = sent_types.index("SetIntendedTerminalState")
+    terminal_idx = sent_types.index("TaskState")
+    assert announce_idx < terminal_idx
+
+
+def test_run_succeeds_when_pre_announcement_fails(create_runtime_ti, mock_supervisor_comms):
+    """Announcement failure does not block the terminal-state send; SKIPPED is still recorded normally."""
+
+    class SkippingOperator(BaseOperator):
+        def execute(self, context):
+            raise AirflowSkipException("skip me")
+
+    task = SkippingOperator(task_id="skipping")
+    runtime_ti = create_runtime_ti(task=task)
+    context = runtime_ti.get_template_context()
+    log = mock.MagicMock()
+
+    def send_side_effect(msg=None, **kwargs):
+        if isinstance(msg, SetIntendedTerminalState):
+            raise BrokenPipeError("announcement IPC broken")
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = send_side_effect
+
+    state, _, _ = run(runtime_ti, context, log)
+
+    assert state == TaskInstanceState.SKIPPED
+
+
+@pytest.mark.parametrize(
+    "raised_exception",
+    [
+        pytest.param(RuntimeError("boom"), id="failed"),
+        pytest.param(None, id="success"),
+    ],
+)
+def test_run_does_not_pre_announce_for_non_skipped_states(
+    create_runtime_ti, mock_supervisor_comms, raised_exception
+):
+    """The announcement only fires for SKIPPED, not for FAILED or SUCCESS paths."""
+
+    class Op(BaseOperator):
+        def execute(self, context):
+            if raised_exception is not None:
+                raise raised_exception
+            return "ok"
+
+    task = Op(task_id="op")
+    runtime_ti = create_runtime_ti(task=task)
+    context = runtime_ti.get_template_context()
+    log = mock.MagicMock()
+
+    run(runtime_ti, context, log)
+
+    sent_types = {
+        type(call.kwargs.get("msg", call.args[0] if call.args else None)).__name__
+        for call in mock_supervisor_comms.send.call_args_list
+    }
+    assert "SetIntendedTerminalState" not in sent_types
 
 
 def test_task_span_is_child_of_dag_run_span(make_ti_context):
@@ -4276,6 +4356,47 @@ class TestTaskRunnerCallsListeners:
         state, _, _ = run(runtime_ti, context, log)
         finalize(runtime_ti, state, context, log)
 
+        assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
+
+    def test_task_runner_calls_listeners_skipped_when_terminal_send_fails(
+        self, mocked_parse, mock_supervisor_comms, listener_manager
+    ):
+        """Listeners observe SKIPPED even when the TaskState(SKIPPED) send fails on broken IPC."""
+        listener = self.CustomListener()
+        listener_manager(listener)
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowSkipException("Task intentionally skipped")
+
+        task = CustomOperator(task_id="skipping_with_broken_ipc")
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+
+        def send_side_effect(msg=None, **kwargs):
+            if isinstance(msg, TaskState):
+                raise BrokenPipeError("supervisor IPC broken")
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = send_side_effect
+
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.SKIPPED
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
 
     def test_listener_access_outlet_event_on_running_and_success(
