@@ -110,7 +110,7 @@ def mock_task(arn=ARN1, state=State.RUNNING):
 @pytest.fixture(autouse=True)
 def mock_airflow_key():
     def _key():
-        return mock.Mock(spec=tuple)
+        return mock.Mock(spec=TaskInstanceKey)
 
     return _key
 
@@ -519,7 +519,7 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
         mock_executor.ecs.run_task.side_effect = [run_task_exception, run_task_exception, run_task_success]
-        mock_executor.execute_async(mock_airflow_key, mock_cmd)
+        mock_executor.execute_async(mock.Mock(spec=TaskInstanceKey), mock_cmd)
         expected_retry_count = 2
 
         # Fail 2 times
@@ -669,7 +669,7 @@ class TestAwsEcsExecutor:
         mock_executor.ecs.run_task.call_args_list.clear()
 
         # queue new task
-        airflow_keys[1] = mock.Mock(spec=tuple)
+        airflow_keys[1] = mock.Mock(spec=TaskInstanceKey)
         airflow_commands[1] = _generate_mock_cmd()
         mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
 
@@ -710,7 +710,10 @@ class TestAwsEcsExecutor:
         Test API failure retries.
         """
         mock_executor.max_run_task_attempts = "2"
-        airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
+        airflow_keys = [
+            TaskInstanceKey("dag", "task1", "run", 1, -1),
+            TaskInstanceKey("dag", "task2", "run", 1, -1),
+        ]
         airflow_commands = [_generate_mock_cmd(), _generate_mock_cmd()]
 
         mock_executor.execute_async(airflow_keys[0], airflow_commands[0])
@@ -955,7 +958,7 @@ class TestAwsEcsExecutor:
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_failed_sync_api(self, _, success_mock, fail_mock, mock_executor, mock_cmd):
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
-        airflow_key = "test-key"
+        airflow_key = TaskInstanceKey("dag", "task", "run", 1, -1)
         mock_executor.execute_async(airflow_key, mock_cmd)
         assert len(mock_executor.pending_tasks) == 1
 
@@ -1148,7 +1151,9 @@ class TestAwsEcsExecutor:
     @staticmethod
     def _add_mock_task(executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING):
         task = mock_task(arn, state)
-        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)  # type:ignore[arg-type]
+        executor.active_workers.add_task(
+            task, mock.Mock(spec=TaskInstanceKey), mock_queue, mock_cmd, mock_config, 1
+        )  # type:ignore[arg-type]
 
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""

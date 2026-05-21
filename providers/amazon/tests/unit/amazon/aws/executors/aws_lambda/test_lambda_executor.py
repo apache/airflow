@@ -25,6 +25,7 @@ from botocore.exceptions import ClientError
 from semver import VersionInfo
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.callback import CallbackKey
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda import lambda_executor
@@ -64,7 +65,7 @@ def set_env_vars():
 @pytest.fixture
 def mock_airflow_key():
     def _key():
-        key_mock = mock.Mock()
+        key_mock = mock.Mock(spec=TaskInstanceKey)
         # Use a "random" value (memory id of the mock obj) so each key serializes uniquely
         key_mock._asdict = mock.Mock(return_value={"mock_key": id(key_mock)})
         return key_mock
@@ -181,9 +182,10 @@ class TestAwsLambdaExecutor:
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
 
-        callback_id = "callback_123"
+        callback_id = CallbackKey(id="callback_123")
 
         workload = mock.Mock(spec=ExecuteCallback)
+        workload.key = callback_id
         workload.callback = mock.Mock()
         workload.callback.key = callback_id
         workload.callback.data = {}
@@ -212,7 +214,7 @@ class TestAwsLambdaExecutor:
         mock_executor.attempt_workload_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
         payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
-        assert payload["task_key"] == callback_id
+        assert payload["task_key"] == str(callback_id)
         assert payload["command"] == [
             "python",
             "-m",
@@ -223,7 +225,7 @@ class TestAwsLambdaExecutor:
 
         # Callback is stored in running workloads.
         assert len(mock_executor.running_workloads) == 1
-        assert callback_id in mock_executor.running_workloads
+        assert str(callback_id) in mock_executor.running_workloads
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
