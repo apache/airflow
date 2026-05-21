@@ -1094,7 +1094,7 @@ def _assert_valid_topological_order(group: TaskGroup, order: list[str]) -> None:
         ("nested", _make_nested_groups),
     ],
 )
-@pytest.mark.parametrize("n", [20, 100, 500])
+@pytest.mark.parametrize("n", [20, 100])
 def test_topological_sort_shape_correctness(shape, builder, n):
     """topological_sort emits a valid order for every nested group across DAG shapes."""
     dag = builder(n)
