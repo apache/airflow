@@ -19,6 +19,7 @@ package execution
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log/slog"
 	"sync"
@@ -523,4 +524,52 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Communicate did not return")
 	}
+}
+
+// failingWriter is an io.Writer that always returns the same error. Used by
+// TestCoordinatorCommSendRequestErrorCleansPending to force SendRequest to
+// fail after a Communicate caller has already registered its waiter.
+type failingWriter struct {
+	err error
+}
+
+func (w *failingWriter) Write(_ []byte) (int, error) {
+	return 0, w.err
+}
+
+// TestCoordinatorCommSendRequestErrorCleansPending verifies that when
+// SendRequest fails (e.g. the underlying socket has died), Communicate removes
+// the waiter it registered before sending. If the cleanup path were ever
+// dropped, the entry would leak in c.pending and a stale supervisor reply
+// arriving on that id would silently land on a channel nobody is reading.
+func TestCoordinatorCommSendRequestErrorCleansPending(t *testing.T) {
+	// The reader side is a never-fed pipe; the dispatcher started by
+	// Communicate parks on readFrame until t.Cleanup closes it.
+	respR, respW := io.Pipe()
+	t.Cleanup(func() {
+		respR.Close()
+		respW.Close()
+	})
+
+	writeErr := errors.New("simulated write failure")
+	comm := NewCoordinatorComm(
+		respR,
+		&failingWriter{err: writeErr},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	_, err := comm.Communicate(map[string]any{"type": "GetVariable"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, writeErr)
+
+	comm.mu.Lock()
+	pendingLen := len(comm.pending)
+	comm.mu.Unlock()
+	assert.Equal(
+		t,
+		0,
+		pendingLen,
+		"pending map should be empty after SendRequest failure, got %d entries",
+		pendingLen,
+	)
 }
