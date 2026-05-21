@@ -1152,8 +1152,13 @@ class TestAwsEcsExecutor:
     def _add_mock_task(executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING):
         task = mock_task(arn, state)
         executor.active_workers.add_task(
-            task, mock.Mock(spec=TaskInstanceKey), mock_queue, mock_cmd, mock_config, 1
-        )  # type:ignore[arg-type]
+            task,
+            mock.Mock(spec=TaskInstanceKey),
+            mock_queue,  # type:ignore[arg-type]
+            mock_cmd,  # type:ignore[arg-type]
+            mock_config,  # type:ignore[arg-type]
+            1,
+        )
 
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""
