@@ -26,6 +26,13 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+// maxFrameSize caps the payload length a single frame may declare. A
+// malformed length prefix from a corrupted stream (or hostile peer) would
+// otherwise let readFrame allocate up to 4 GiB before the read failed.
+// 64 MiB is far above any legitimate StartupDetails or XCom payload while
+// still preventing accidental OOM.
+const maxFrameSize = 64 * 1024 * 1024
+
 // IncomingFrame represents a decoded frame received from the comm socket.
 type IncomingFrame struct {
 	ID   int
@@ -73,6 +80,13 @@ func readFrame(r io.Reader) (IncomingFrame, error) {
 		return IncomingFrame{}, fmt.Errorf("reading length prefix: %w", err)
 	}
 	payloadLen := binary.BigEndian.Uint32(prefix)
+	if payloadLen > maxFrameSize {
+		return IncomingFrame{}, fmt.Errorf(
+			"frame payload length %d exceeds max %d",
+			payloadLen,
+			maxFrameSize,
+		)
+	}
 
 	// Read the payload.
 	payload := make([]byte, payloadLen)

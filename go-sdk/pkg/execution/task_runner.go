@@ -60,7 +60,16 @@ func RunTask(
 
 	// taskFunction.sendXcom reads the workload from context to get the task
 	// instance ids; populate it the same shape the gRPC path uses.
-	tiUUID, _ := uuid.Parse(details.TI.ID)
+	tiUUID, err := uuid.Parse(details.TI.ID)
+	if err != nil {
+		logger.Error("Invalid task instance UUID from supervisor",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"ti_id", details.TI.ID,
+			"error", err,
+		)
+		return TaskStateMsg{State: TaskStateFailed, EndDate: time.Now().UTC()}.toMap()
+	}
 	mapIndex := details.TI.MapIndex
 	workload := api.ExecuteTaskWorkload{
 		TI: api.TaskInstance{

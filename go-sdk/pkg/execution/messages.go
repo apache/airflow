@@ -111,21 +111,30 @@ type TIRunContext struct {
 	DataIntervalEnd   *time.Time
 }
 
-func decodeTIRunContext(m map[string]any) TIRunContext {
+func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
 	if m == nil {
-		return TIRunContext{}
+		return TIRunContext{}, nil
 	}
 	ctx := TIRunContext{}
-	if t, err := asTime(m["logical_date"]); err == nil {
-		ctx.LogicalDate = &t
+	for _, f := range []struct {
+		key string
+		dst **time.Time
+	}{
+		{"logical_date", &ctx.LogicalDate},
+		{"data_interval_start", &ctx.DataIntervalStart},
+		{"data_interval_end", &ctx.DataIntervalEnd},
+	} {
+		raw, present := m[f.key]
+		if !present || raw == nil {
+			continue
+		}
+		t, err := asTime(raw)
+		if err != nil {
+			return TIRunContext{}, fmt.Errorf("ti_context.%s: %w", f.key, err)
+		}
+		*f.dst = &t
 	}
-	if t, err := asTime(m["data_interval_start"]); err == nil {
-		ctx.DataIntervalStart = &t
-	}
-	if t, err := asTime(m["data_interval_end"]); err == nil {
-		ctx.DataIntervalEnd = &t
-	}
-	return ctx
+	return ctx, nil
 }
 
 // StartupDetails is sent by the supervisor to initiate task execution.
@@ -149,11 +158,17 @@ func decodeStartupDetails(m map[string]any) (*StartupDetails, error) {
 	bundleInfo := decodeBundleInfo(mapMap(m, "bundle_info"))
 
 	var startDate time.Time
-	if t, err := asTime(m["start_date"]); err == nil {
-		startDate = t
+	if raw, present := m["start_date"]; present && raw != nil {
+		startDate, err = asTime(raw)
+		if err != nil {
+			return nil, fmt.Errorf("start_date: %w", err)
+		}
 	}
 
-	tiContext := decodeTIRunContext(mapMap(m, "ti_context"))
+	tiContext, err := decodeTIRunContext(mapMap(m, "ti_context"))
+	if err != nil {
+		return nil, fmt.Errorf("decoding ti_context: %w", err)
+	}
 	sentryIntegration := mapStringOr(m, "sentry_integration", "")
 
 	return &StartupDetails{

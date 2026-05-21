@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"runtime"
 	"time"
@@ -54,7 +55,9 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 }
 
 func main() {
-	bundlev1server.Serve(&myBundle{})
+	if err := bundlev1server.Serve(&myBundle{}); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {

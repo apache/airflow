@@ -79,6 +79,57 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.NotNil(t, details.TIContext.LogicalDate)
 }
 
+func TestDecodeStartupDetails_MalformedStartDate(t *testing.T) {
+	// A present-but-malformed start_date must surface as a decode error;
+	// silently leaving startDate as the zero time would let tasks run with
+	// incorrect provenance.
+	m := map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":      "550e8400-e29b-41d4-a716-446655440000",
+			"task_id": "t", "dag_id": "d", "run_id": "r",
+		},
+		"start_date": "not-a-timestamp",
+	}
+	_, err := decodeStartupDetails(m)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "start_date")
+}
+
+func TestDecodeStartupDetails_MalformedTIRunContext(t *testing.T) {
+	m := map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":      "550e8400-e29b-41d4-a716-446655440000",
+			"task_id": "t", "dag_id": "d", "run_id": "r",
+		},
+		"ti_context": map[string]any{
+			"logical_date": "garbage",
+		},
+	}
+	_, err := decodeStartupDetails(m)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "logical_date")
+}
+
+func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
+	// start_date and ti_context fields are optional; omitting them must
+	// still decode cleanly (no error, zero/nil values).
+	m := map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":      "550e8400-e29b-41d4-a716-446655440000",
+			"task_id": "t", "dag_id": "d", "run_id": "r",
+		},
+	}
+	details, err := decodeStartupDetails(m)
+	require.NoError(t, err)
+	assert.True(t, details.StartDate.IsZero())
+	assert.Nil(t, details.TIContext.LogicalDate)
+	assert.Nil(t, details.TIContext.DataIntervalStart)
+	assert.Nil(t, details.TIContext.DataIntervalEnd)
+}
+
 func TestDecodeConnectionResult(t *testing.T) {
 	m := map[string]any{
 		"type":      "ConnectionResult",

@@ -19,6 +19,7 @@ package bundlev1server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -33,6 +34,14 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
 	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/execution"
+)
+
+// ErrCoordinatorFlagsIncomplete is returned by [Serve] when exactly one of
+// --comm or --logs is supplied. Both flags select coordinator mode and must
+// be set together; callers (typically main) can check for this sentinel to
+// print usage before exiting non-zero.
+var ErrCoordinatorFlagsIncomplete = errors.New(
+	"--comm and --logs must be supplied together",
 )
 
 // CLI Flags.
@@ -82,10 +91,15 @@ const (
 // Serve is the entrypoint for your bundle, and sets it up ready for Airflow's
 // Go Worker (go-plugin) or Python supervisor (coordinator protocol) to use.
 //
-// The mode is decided from CLI flags and process environment, so user code is
-// always one line:
+// The mode is decided from CLI flags and process environment. Callers should
+// surface the returned error so misuse (e.g. only one of --comm/--logs
+// supplied) produces a non-zero exit:
 //
-//	func main() { bundlev1server.Serve(&myBundle{}) }
+//	func main() {
+//	    if err := bundlev1server.Serve(&myBundle{}); err != nil {
+//	        log.Fatal(err)
+//	    }
+//	}
 //
 // Zero or more options to configure the server may also be passed. There are
 // no options yet; the parameter exists to allow future additions without
@@ -113,10 +127,7 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 		installPluginLogger()
 		return servePlugin(bundle)
 	case modeCoordinatorUsageError:
-		fmt.Fprintln(os.Stderr, "error: --comm and --logs must be supplied together")
-		flag.CommandLine.SetOutput(os.Stderr)
-		flag.Usage()
-		os.Exit(2)
+		return ErrCoordinatorFlagsIncomplete
 	}
 	return nil
 }

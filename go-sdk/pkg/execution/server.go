@@ -34,9 +34,17 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 )
+
+// dialTimeout bounds how long execution.Serve waits to reach the supervisor's
+// comm and logs sockets. The supervisor opens the listeners before spawning
+// the bundle binary, so the dials normally succeed in milliseconds; the
+// timeout exists so an unreachable address fails fast instead of hanging the
+// runtime indefinitely.
+const dialTimeout = 30 * time.Second
 
 // Serve runs the bundle binary in coordinator mode. It dials the supervisor's
 // comm and logs sockets, installs an slog handler that writes JSON-line
@@ -62,17 +70,18 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 
 	// Connect to both sockets concurrently so the supervisor can accept them
 	// in either order.
+	dialer := &net.Dialer{Timeout: dialTimeout}
 	var commConn, logsConn net.Conn
 	var commErr, logsErr error
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		commConn, commErr = net.Dial("tcp", commAddr)
+		commConn, commErr = dialer.Dial("tcp", commAddr)
 	}()
 	go func() {
 		defer wg.Done()
-		logsConn, logsErr = net.Dial("tcp", logsAddr)
+		logsConn, logsErr = dialer.Dial("tcp", logsAddr)
 	}()
 	wg.Wait()
 
