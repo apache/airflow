@@ -287,13 +287,19 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(respR, reqW, logger)
 
-	// Drain requests so the writes do not block. The supervisor logic below
-	// drives the response order explicitly.
+	// The supervisor reads exactly two request frames and reports each id back
+	// through reqIDs. A successful readFrame is proof the caller already
+	// registered its waiter (Communicate registers before it calls
+	// SendRequest), so the test can sequence id allocation deterministically
+	// instead of relying on sleeps.
+	reqIDs := make(chan int, 2)
 	go func() {
-		for {
-			if _, err := readFrame(reqR); err != nil {
+		for i := 0; i < 2; i++ {
+			frame, err := readFrame(reqR)
+			if err != nil {
 				return
 			}
+			reqIDs <- frame.ID
 		}
 	}()
 
@@ -303,18 +309,17 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 		require.NoError(t, err)
 		results <- resp
 	}()
-	// Allow the first call's request id (0) to be allocated and registered.
-	time.Sleep(20 * time.Millisecond)
+	firstID := <-reqIDs
 	go func() {
 		resp, err := comm.Communicate(map[string]any{"type": "GetVariable", "key": "second"})
 		require.NoError(t, err)
 		results <- resp
 	}()
-	time.Sleep(20 * time.Millisecond)
+	secondID := <-reqIDs
 
-	// Reply to the SECOND caller (id 1) first. The first caller must keep
-	// waiting; only the second caller unblocks.
-	payload, err := encodeRequest(1, map[string]any{
+	// Reply to the SECOND caller first. The first caller must keep waiting;
+	// only the second caller unblocks.
+	payload, err := encodeRequest(secondID, map[string]any{
 		"type": "VariableResult",
 		"key":  "second",
 	})
@@ -336,7 +341,7 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 	}
 
 	// Now reply to the first caller.
-	payload, err = encodeRequest(0, map[string]any{
+	payload, err = encodeRequest(firstID, map[string]any{
 		"type": "VariableResult",
 		"key":  "first",
 	})
@@ -367,7 +372,14 @@ func TestCoordinatorCommCommunicateDispatcherClosed(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(respR, reqW, logger)
 
+	// registered fires once the supervisor has read the caller's request
+	// frame, which guarantees Communicate has already registered its waiter
+	// (registration precedes SendRequest).
+	registered := make(chan struct{})
 	go func() {
+		if _, err := readFrame(reqR); err == nil {
+			close(registered)
+		}
 		for {
 			if _, err := readFrame(reqR); err != nil {
 				return
@@ -381,8 +393,7 @@ func TestCoordinatorCommCommunicateDispatcherClosed(t *testing.T) {
 		errCh <- err
 	}()
 
-	// Give Communicate time to register its waiter.
-	time.Sleep(50 * time.Millisecond)
+	<-registered
 
 	// Close the response stream; the dispatcher's read returns io.EOF (or
 	// io.ErrClosedPipe) and must fan that error out to the pending waiter.
@@ -417,8 +428,14 @@ func TestCoordinatorCommReadMessageAfterDispatcherStarted(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(respR, reqW, logger)
 
-	// Drain requests so the first Communicate's write doesn't deadlock.
+	// Signal once Communicate's request has reached the wire; by then the
+	// dispatcher goroutine has been started (Communicate starts it before
+	// SendRequest under the same lock).
+	dispatcherUp := make(chan struct{})
 	go func() {
+		if _, err := readFrame(reqR); err == nil {
+			close(dispatcherUp)
+		}
 		for {
 			if _, err := readFrame(reqR); err != nil {
 				return
@@ -430,7 +447,7 @@ func TestCoordinatorCommReadMessageAfterDispatcherStarted(t *testing.T) {
 	go func() {
 		_, _ = comm.Communicate(map[string]any{"type": "GetVariable"})
 	}()
-	time.Sleep(50 * time.Millisecond)
+	<-dispatcherUp
 
 	_, err := comm.ReadMessage()
 	require.Error(t, err)
@@ -457,7 +474,14 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(respR, reqW, logger)
 
+	// Report the caller's allocated request id as soon as the supervisor sees
+	// its frame on the wire. By then Communicate has registered its waiter,
+	// so we can safely send the stray frame and then the matching response.
+	reqIDs := make(chan int, 1)
 	go func() {
+		if frame, err := readFrame(reqR); err == nil {
+			reqIDs <- frame.ID
+		}
 		for {
 			if _, err := readFrame(reqR); err != nil {
 				return
@@ -480,12 +504,11 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 		}
 		respCh <- resp
 	}()
-	// Let Communicate register its waiter (id 0), then send the stray frame.
-	time.Sleep(50 * time.Millisecond)
+	id := <-reqIDs
 	require.NoError(t, writeFrame(respW, stray))
 
 	// Now send the real response.
-	payload, err := encodeRequest(0, map[string]any{
+	payload, err := encodeRequest(id, map[string]any{
 		"type": "VariableResult",
 		"key":  "ok",
 	})
