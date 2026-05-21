@@ -744,6 +744,61 @@ def test_serde_decode_asset_condition_unknown_type():
         decode_asset_like({"__type": "UNKNOWN_TYPE"})
 
 
+def test_encode_asset_with_access_control():
+    from airflow.sdk import Asset, AssetAccessControl
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(
+        name="test",
+        uri="s3://bucket/key",
+        access_control=AssetAccessControl(producer_teams=["team_a"], allow_global=False),
+    )
+    encoded = encode_asset_like(asset)
+    assert encoded["access_control"] == {"producer_teams": ["team_a"], "allow_global": False}
+
+
+def test_encode_asset_without_access_control_omits_key():
+    from airflow.sdk import Asset
+    from airflow.serialization.encoders import encode_asset_like
+
+    asset = Asset(name="test", uri="s3://bucket/key")
+    encoded = encode_asset_like(asset)
+    assert "access_control" not in encoded
+
+
+def test_decode_asset_with_access_control():
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [],
+            "access_control": {"producer_teams": ["team_a"], "allow_global": False},
+        }
+    )
+    assert decoded.access_control == {"producer_teams": ["team_a"], "allow_global": False}
+
+
+def test_decode_asset_defaults_access_control_to_empty_dict():
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [],
+        }
+    )
+    assert decoded.access_control == {}
+
+
 def test_encode_timezone():
     from airflow.serialization.serialized_objects import encode_timezone
 

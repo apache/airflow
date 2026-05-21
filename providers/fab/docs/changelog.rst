@@ -20,6 +20,35 @@
 Changelog
 ---------
 
+3.6.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix provider DB upgrades with existing tables (#66883)``
+* ``Clean up FK associations before deleting role (#65375) (#66686)``
+* ``Fix session cookie serialization when using securecookie backend (#66565)``
+* ``Fix escape special characters in LDAP authentication filter (#66417)``
+
+Misc
+~~~~
+
+* ``Bump flask-appbuilder to 5.2.1 and mirror new auth event hooks (#66841)``
+* ``Bump terser-webpack-plugin (#66834)``
+* ``Pin pyjwt>=2.11.0 in FAB provider and stabilise JWT tests under PyJWT 2.12 (#66840)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#66742)``
+* ``Bump stylelint (#66528)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#66429)``
+* ``Bump stylelint (#67148)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove global variables in airflow.settings (#67070)" (#67099)``
+   * ``Remove global variables in airflow.settings (#67070)``
+   * ``Enable ruff B008 (function-call-in-default-argument) and fix violations (#66979)``
+   * ``[main] CI: Upgrade important CI environment (#66843)``
+
 3.6.3
 .....
 

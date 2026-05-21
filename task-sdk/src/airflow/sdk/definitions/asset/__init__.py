@@ -48,6 +48,7 @@ else:
 
 __all__ = [
     "Asset",
+    "AssetAccessControl",
     "Dataset",
     "Model",
     "AssetAlias",
@@ -60,6 +61,7 @@ __all__ = [
 ]
 
 from airflow.sdk.configuration import conf
+from airflow.sdk.definitions.asset.access_control import AssetAccessControl
 
 log = logging.getLogger(__name__)
 
@@ -240,13 +242,6 @@ class BaseAsset:
         return AssetAll(self, other)
 
 
-def _validate_allow_producer_teams(instance, attribute, value):
-    for entry in value:
-        if not isinstance(entry, str) or not entry or entry.isspace():
-            raise ValueError("Each entry in allow_producer_teams must be a non-empty string")
-    return value
-
-
 def _validate_asset_watcher_trigger(instance, attribute, value):
     from airflow.triggers.base import BaseEventTrigger
 
@@ -285,9 +280,8 @@ class Asset(os.PathLike, BaseAsset):
     watchers: list[AssetWatcher] = attrs.field(
         factory=list,
     )
-    allow_producer_teams: list[str] = attrs.field(
-        factory=list,
-        validator=[_validate_allow_producer_teams],
+    access_control: AssetAccessControl = attrs.field(
+        factory=AssetAccessControl,
     )
 
     asset_type: ClassVar[str] = "asset"
@@ -302,7 +296,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str = ...,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
-        allow_producer_teams: list[str] = ...,
+        access_control: AssetAccessControl = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
 
@@ -314,7 +308,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str = ...,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
-        allow_producer_teams: list[str] = ...,
+        access_control: AssetAccessControl = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
@@ -326,7 +320,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str = ...,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
-        allow_producer_teams: list[str] = ...,
+        access_control: AssetAccessControl = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
@@ -338,7 +332,7 @@ class Asset(os.PathLike, BaseAsset):
         group: str | None = None,
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] | None = None,
-        allow_producer_teams: list[str] | None = None,
+        access_control: AssetAccessControl | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -360,8 +354,8 @@ class Asset(os.PathLike, BaseAsset):
             kwargs["extra"] = extra
         if watchers is not None:
             kwargs["watchers"] = watchers
-        if allow_producer_teams is not None:
-            kwargs["allow_producer_teams"] = allow_producer_teams
+        if access_control is not None:
+            kwargs["access_control"] = access_control
 
         self.__attrs_init__(name=name, uri=uri, **kwargs)
 
