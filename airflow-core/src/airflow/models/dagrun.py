@@ -671,6 +671,7 @@ class DagRun(Base, LoggingMixin):
         running_drs = (
             select(
                 DagRun.dag_id,
+                DagRun.id,
                 DagRun.backfill_id,
                 func.count(DagRun.id).label("num_running"),
             )
@@ -683,11 +684,35 @@ class DagRun(Base, LoggingMixin):
             select(
                 DagRun.dag_id,
                 DagRun.id,
+                running_drs.c.num_running,
                 func.row_number()
-                .over(partition_by=[DagRun.dag_id, DagRun.backfill_id], order_by=DagRun.logical_date)
+                .over(
+                    partition_by=[DagRun.dag_id, DagRun.backfill_id],
+                    order_by=[
+                        nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
+                        nulls_first(
+                            cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session
+                        ),
+                        nulls_first(running_drs.c.num_running, session=session),
+                        DagRun.run_after,
+                    ],
+                )
                 .label("rn"),
             )
             .where(DagRun.state == DagRunState.QUEUED)
+            .join(
+                BackfillDagRun,
+                and_(
+                    BackfillDagRun.dag_run_id == DagRun.id,
+                    BackfillDagRun.backfill_id == DagRun.backfill_id,
+                ),
+                isouter=True,
+            )
+            .join(
+                running_drs,
+                and_(running_drs.c.dag_id == DagRun.dag_id, running_drs.c.id == DagRun.id),
+                isouter=True,
+            )
             .subquery()
         )
 
@@ -708,48 +733,18 @@ class DagRun(Base, LoggingMixin):
                     DagModel.is_stale == false(),
                 ),
             )
-            .join(
-                BackfillDagRun,
-                and_(
-                    BackfillDagRun.dag_run_id == DagRun.id,
-                    BackfillDagRun.backfill_id == DagRun.backfill_id,
-                ),
-                isouter=True,
-            )
             .join(Backfill, isouter=True)
-            .join(
-                running_drs,
-                and_(
-                    running_drs.c.dag_id == DagRun.dag_id,
-                    coalesce(running_drs.c.backfill_id, text("-1"))
-                    == coalesce(DagRun.backfill_id, text("-1")),
-                ),
-                isouter=True,
-            )
             .where(
-                # there are two levels of checks for num_running
-                # the one done in this query verifies that the dag is not maxed out
-                # it could return many more dag runs than runnable if there is even
-                # capacity for 1.  this could be improved.
+                # this check returns strictly only the amount of dagruns
+                # which can run according to the max active runs limit
                 available_dagruns_rn.c.rn
                 <= coalesce(
                     Backfill.max_active_runs,
                     DagModel.max_active_runs,
                 )
-                - coalesce(running_drs.c.num_running, 0),
+                - coalesce(available_dagruns_rn.c.num_running, 0),
                 # don't set paused dag runs as running
                 not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
-            )
-            .order_by(
-                # ordering by backfill sort ordinal first ensures that backfill dag runs
-                # have lower priority than all other dag run types (since sort_ordinal >= 1).
-                # additionally, sorting by sort_ordinal ensures that the backfill
-                # dag runs are created in the right order when that matters.
-                # todo: AIP-78 use row_number to avoid starvation; limit the number of returned runs per-dag
-                nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
-                nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
-                nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
-                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
