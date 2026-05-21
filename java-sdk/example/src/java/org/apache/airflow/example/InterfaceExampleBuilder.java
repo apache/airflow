@@ -26,6 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("DuplicatedCode")
 public class InterfaceExampleBuilder {
   private static final Logger logger = LoggerFactory.getLogger(InterfaceExampleBuilder.class);
 
@@ -71,7 +72,7 @@ public class InterfaceExampleBuilder {
   }
 
   public static Dag build() {
-    var dag = new Dag("java_example");
+    var dag = new Dag("java_interface_example");
     dag.addTask("extract", Extract.class, List.of());
     dag.addTask("transform", Transform.class, List.of("extract"));
     dag.addTask("load", Load.class, List.of("transform"));

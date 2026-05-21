@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 
+@SuppressWarnings("DuplicatedCode")
 @Builder.Dag(id = "java_annotation_example")
 public class AnnotationExample {
   private static final Logger logger = LoggerFactory.getLogger(AnnotationExample.class);

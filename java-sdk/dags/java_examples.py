@@ -21,31 +21,37 @@ from airflow.sdk import dag, task
 
 
 @task()
-def python_task_1(ti):
+def python_task_1():
     print("python_task_1")
     print("Push Python Task 'python_task_1' XCom:")
-    ti.xcom_push(value="value-pushed-from-python_task_1", key="return_value")
+    return "value_from_python_task_1"
 
 
-@task.stub(sdk="java")
+@task.stub(queue="java")
 def extract(): ...
 
 
-@task.stub(sdk="java")
+@task.stub(queue="java")
 def transform(): ...
 
 
 @task()
-def python_task_2(ti):
+def python_task_2(transformed):
     print("python_task_2")
     print("Pull Java Task 'transform' XCom:")
-    print(ti.xcom_pull(task_ids="transform"))
+    print(transformed)
 
 
-@dag(dag_id="java_example")
-def simple_dag():
-
+@dag(dag_id="java_interface_example")
+def java_interface_example():
     python_task_1() >> extract() >> transform() >> python_task_2()
 
 
-simple_dag()
+@dag(dag_id="java_annotation_example")
+def java_annotation_example():
+    transformed = transform()
+    python_task_1() >> extract() >> transformed >> python_task_2()
+
+
+java_interface_example()
+java_annotation_example()
