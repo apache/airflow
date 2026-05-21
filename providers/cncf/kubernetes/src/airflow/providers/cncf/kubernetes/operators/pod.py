@@ -28,7 +28,7 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Callable, Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
@@ -1074,17 +1074,12 @@ class KubernetesPodOperator(BaseOperator):
                         "Trigger emitted an %s event, failing the task: %s", event["status"], event["message"]
                     )
                     message = event.get("stack_trace", event["message"])
-                    # Push manually before the raise — matches the sync-path
-                    # failure-push in cleanup ("Ensure that existing XCom is
-                    # pushed even in case of failure").
-                    if self.do_xcom_push and xcom_sidecar_output:
-                        context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_sidecar_output)
+                    if self.do_xcom_push:
+                        self._push_xcom_with_fan_out(context["ti"], xcom_sidecar_output)
                     raise AirflowException(message)
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
-        # Return on success so the task runner's _push_xcom_if_needed handles
-        # return_value and multiple_outputs fan-out, matching execute_sync.
         if self.do_xcom_push:
             return xcom_sidecar_output
 
@@ -1115,6 +1110,31 @@ class KubernetesPodOperator(BaseOperator):
                 context=context,
                 result=result,
             )
+
+    def _push_xcom_with_fan_out(self, ti: Any, value: Any) -> None:
+        """Push ``return_value`` and, when ``multiple_outputs`` is set, also fan a dict out per key.
+
+        Mirrors the task runner's ``_push_xcom_if_needed`` so the failure-path manual pushes
+        in ``cleanup`` (sync) and ``trigger_reentry`` (async) honour ``multiple_outputs`` —
+        previously they pushed only ``return_value``, silently dropping per-key fan-out.
+        On success both paths return the value and let the runner perform the push instead.
+        """
+        if not value:
+            return
+        if self.multiple_outputs:
+            if not isinstance(value, Mapping):
+                raise TypeError(
+                    f"Returned output was type {type(value)} expected dictionary for multiple_outputs"
+                )
+            for key in value:
+                if not isinstance(key, str):
+                    raise TypeError(
+                        "Returned dictionary keys must be strings when using "
+                        f"multiple_outputs, found {key} ({type(key)}) instead"
+                    )
+            for k, v in value.items():
+                ti.xcom_push(k, v)
+        ti.xcom_push(XCOM_RETURN_KEY, value)
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
@@ -1197,9 +1217,9 @@ class KubernetesPodOperator(BaseOperator):
             failed = pod_phase != PodPhase.SUCCEEDED
 
         if failed:
-            if self.do_xcom_push and xcom_result and context:
+            if self.do_xcom_push and context:
                 # Ensure that existing XCom is pushed even in case of failure
-                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_result)
+                self._push_xcom_with_fan_out(context["ti"], xcom_result)
 
             if self.log_events_on_failure:
                 self._read_pod_container_states(pod, reraise=False)

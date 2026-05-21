@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import re
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
@@ -1883,6 +1884,33 @@ class TestKubernetesPodOperator:
 
         context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
 
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    def test_xcom_push_failed_pod_fans_out_for_multiple_outputs(
+        self, remote_pod, mock_await, mock_extract_xcom
+    ):
+        """On the sync failure path, ``multiple_outputs=True`` must fan the sidecar dict out
+        into per-key XComs in addition to the ``return_value`` push — matching the task runner
+        behaviour applied on the success path.
+        """
+        k = KubernetesPodOperator(
+            task_id="task", on_finish_action="delete_pod", do_xcom_push=True, multiple_outputs=True
+        )
+
+        remote_pod.return_value.status.phase = "Failed"
+        sidecar_output = {"export_arn": "arn:aws:dynamodb:::export/x", "s3_uri": "s3://b/p"}
+        mock_extract_xcom.return_value = json.dumps(sidecar_output)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+
+        context["ti"].xcom_push.assert_any_call("export_arn", "arn:aws:dynamodb:::export/x")
+        context["ti"].xcom_push.assert_any_call("s3_uri", "s3://b/p")
+        context["ti"].xcom_push.assert_any_call(XCOM_RETURN_KEY, sidecar_output)
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("kwargs", "actual_exit_code", "expected_exc"),
@@ -3451,12 +3479,9 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
 
-    # On the success path, ``trigger_reentry`` returns the sidecar output and
-    # leaves the XCom push to the task runner's ``_push_xcom_if_needed`` —
-    # see #67224. The operator no longer pushes ``return_value`` manually here.
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
-        assert result is mock_extract_xcom.return_value
+        assert result == mock_extract_xcom.return_value
         context["ti"].xcom_push.assert_not_called()
     else:
         mock_extract_xcom.assert_not_called()
@@ -3502,17 +3527,12 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
 
-    # On the failure path, the operator pushes ``return_value`` manually
-    # before raising so partial sidecar output is preserved even when the
-    # task runner won't see a return value (see #67224). This happens
-    # before the ``finally``-block ``_clean`` runs, so even a failing
-    # cleanup (simulated here via side_effect) doesn't suppress the push.
+    # The failure-path push happens before the ``finally``-block ``_clean`` runs,
+    # so even a failing cleanup (simulated here via side_effect) doesn't suppress it.
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
         ti_mock.xcom_push.assert_called_once_with(XCOM_RETURN_KEY, mock_extract_xcom.return_value)
     else:
-        # ``extract_xcom`` is skipped entirely when ``do_xcom_push=False``,
-        # and there's nothing to push.
         mock_extract_xcom.assert_not_called()
         ti_mock.xcom_push.assert_not_called()
 
@@ -3529,20 +3549,13 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
 def test_async_trigger_reentry_returns_sidecar_output_for_multiple_outputs(
     mocked_hook, post_complete_action, mock_extract_xcom
 ):
-    """``trigger_reentry`` must return the sidecar output so the task runner
-    runs ``_push_xcom_if_needed``, which honors ``multiple_outputs`` by fanning
-    out the returned dict into per-key XComs. Before #67224 the operator pushed
-    ``return_value`` manually inside the ``finally`` block and returned
-    ``None``, which silently bypassed the runner's fan-out — making
-    ``multiple_outputs=True`` a no-op on deferrable KPO. The sync path's
-    ``execute_sync`` already returns ``result`` (line 760 in pod.py); this
-    test pins the deferrable path to the same contract.
+    """On the success path with ``multiple_outputs=True``, ``trigger_reentry`` returns the
+    sidecar dict and does not push ``return_value`` itself — the task runner's
+    ``_push_xcom_if_needed`` handles both the ``return_value`` push and the per-key fan-out.
     """
     metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
     succeeded_state = mock.MagicMock(**metadata, **{"status.phase": "Succeeded"})
     mocked_hook.return_value.get_pod.return_value = succeeded_state
-    # ``return_value`` (not ``side_effect``) so the pod-await poll loop can
-    # call this any number of times without exhausting a fixed list.
     mocked_hook.return_value.core_v1_client.read_namespaced_pod.return_value = succeeded_state
 
     sidecar_output = {"export_arn": "arn:aws:dynamodb:::export/x", "s3_uri": "s3://b/p"}
@@ -3561,14 +3574,38 @@ def test_async_trigger_reentry_returns_sidecar_output_for_multiple_outputs(
 
     result = k.trigger_reentry(context, success_event)
 
-    # The dict is returned — this is the fix. The task runner's
-    # ``_push_xcom_if_needed`` (in ``task-sdk/.../execution_time/task_runner.py``)
-    # then handles both ``return_value`` push and the ``multiple_outputs``
-    # per-key fan-out, exercised end-to-end in ``test-sdk/`` unit tests.
-    assert result is sidecar_output
-    # The operator itself no longer pushes ``return_value`` manually on the
-    # success path — that would double-push when the runner fires.
+    assert result == sidecar_output
     context["ti"].xcom_push.assert_not_called()
+
+
+@patch(KUB_OP_PATH.format("extract_xcom"))
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+def test_async_trigger_reentry_failure_fans_out_for_multiple_outputs(
+    mocked_hook, post_complete_action, mock_extract_xcom
+):
+    """On the async failure path with ``multiple_outputs=True``, ``trigger_reentry`` must fan
+    the partial sidecar dict out into per-key XComs before raising — matching the sync failure
+    path so behaviour is consistent regardless of execution mode.
+    """
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    failed_state = mock.MagicMock(**metadata, **{"status.phase": "Failed"})
+    mocked_hook.return_value.get_pod.return_value = failed_state
+    mocked_hook.return_value.core_v1_client.read_namespaced_pod.return_value = failed_state
+
+    sidecar_output = {"export_arn": "arn:aws:dynamodb:::export/x", "s3_uri": "s3://b/p"}
+    mock_extract_xcom.return_value = sidecar_output
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=True, multiple_outputs=True)
+    ti_mock = MagicMock()
+    failure_event = {"status": "failed", "message": "error", "name": TEST_NAME, "namespace": TEST_NAMESPACE}
+
+    with pytest.raises(AirflowException):
+        k.trigger_reentry({"ti": ti_mock}, failure_event)
+
+    ti_mock.xcom_push.assert_any_call("export_arn", "arn:aws:dynamodb:::export/x")
+    ti_mock.xcom_push.assert_any_call("s3_uri", "s3://b/p")
+    ti_mock.xcom_push.assert_any_call(XCOM_RETURN_KEY, sidecar_output)
 
 
 def test_default_container_logs():
