@@ -55,7 +55,20 @@ export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "sear
   `${location.pathname}${location.search}${location.hash}`;
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
-  const subRoutes = taskInstanceRoutes.filter((route) => route.path !== undefined).map((route) => route.path);
+  const subRoutes = taskInstanceRoutes.flatMap((route) => {
+    if (route.path !== undefined) {
+      return [route.path];
+    }
+
+    // Include paths from children of pathless layout routes (e.g. StoragePage wrapping task-state and xcom)
+    if ("children" in route && Array.isArray(route.children)) {
+      return route.children
+        .filter((child) => "path" in child && typeof child.path === "string")
+        .map((child) => child.path);
+    }
+
+    return [];
+  });
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
   const mappedRegex = /\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
   const mappedMatch = mappedRegex.exec(pathname);

@@ -55,7 +55,7 @@ import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
-import { NavTabs } from "./NavTabs";
+import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
 // Separate component so useHover can be called inside HoverProvider.
@@ -88,7 +88,7 @@ const SharedScrollBox = ({
 type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
-  readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
+  readonly tabs: Array<NavTab>;
 } & PropsWithChildren;
 
 export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {

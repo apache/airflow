@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Badge, Box } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
+import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
@@ -29,11 +30,28 @@ import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { useListTaskStates } from "src/queries/useTaskState";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "browse"]);
+  const navigate = useNavigate();
+
+  const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
+  const taskId = taskInstance.task_id;
+  const mapIndex = taskInstance.map_index;
+
+  const { data: taskStateData } = useListTaskStates(
+    { dagId, dagRunId, limit: 1, mapIndex, taskId },
+    undefined,
+    { staleTime: 30_000 },
+  );
+  const taskStateCount = taskStateData?.total_entries ?? 0;
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -59,14 +77,26 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       label: translate("taskInstance.dagVersion"),
       value: <DagVersion version={taskInstance.dag_version} />,
     },
+    ...(taskStateCount > 0
+      ? [
+          {
+            label: translate("browse:taskState.checkpoint"),
+            value: (
+              <Tooltip content={translate("browse:taskState.checkpointTooltip")}>
+                <Badge
+                  colorPalette="blue"
+                  cursor="pointer"
+                  onClick={() => void navigate("task-state")}
+                  variant="subtle"
+                >
+                  {translate("browse:taskState.checkpointBadge", { count: taskStateCount })}
+                </Badge>
+              </Tooltip>
+            ),
+          },
+        ]
+      : []),
   ];
-
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
 
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,

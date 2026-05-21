@@ -1,4 +1,48 @@
 {
+  "assetState": {
+    "add": {
+      "error": "Failed to add asset state",
+      "errorTitle": "Error",
+      "success": "Asset state added successfully",
+      "successTitle": "Asset State Added",
+      "title": "Add Asset State"
+    },
+    "clearAll": {
+      "confirm": "Clear All Asset State",
+      "confirmation": "This will permanently delete all state keys for this asset.",
+      "error": "Failed to clear asset state",
+      "errorTitle": "Error",
+      "success": "All asset state cleared successfully",
+      "successTitle": "Asset State Cleared",
+      "title": "Clear All Asset State",
+      "warning": "All asset state will be wiped. Tasks that use this state to coordinate work will lose their persisted memory."
+    },
+    "columns": {
+      "key": "Key",
+      "updatedAt": "Updated At",
+      "value": "Value"
+    },
+    "delete": {
+      "error": "Failed to delete asset state",
+      "errorTitle": "Error",
+      "success": "Asset state deleted successfully",
+      "successTitle": "Asset State Deleted",
+      "title": "Delete Asset State",
+      "warning": "The asset will lose this persisted state entry."
+    },
+    "edit": {
+      "error": "Failed to update asset state",
+      "errorTitle": "Error",
+      "success": "Asset state updated successfully",
+      "successTitle": "Asset State Updated",
+      "title": "Edit Asset State"
+    },
+    "emptyState": "Asset state stores values scoped to an asset identity, shared across all Dag runs. Workers can write asset state via the Task SDK.",
+    "key": "Key",
+    "title": "Asset State",
+    "value": "Value",
+    "valuePlaceholder": "Enter a string value"
+  },
   "auditLog": {
     "columns": {
       "event": "Event",
@@ -10,6 +54,56 @@
       "eventType": "Event Type"
     },
     "title": "Audit Log"
+  },
+  "taskState": {
+    "add": {
+      "error": "Failed to add task state",
+      "errorTitle": "Error",
+      "success": "Task state added successfully",
+      "successTitle": "Task State Added",
+      "title": "Add Task State"
+    },
+    "checkpoint": "Checkpoint State",
+    "checkpointBadge": "{{count}} keys",
+    "checkpointTooltip": "This task has persisted checkpoint state. Click to view in the Storage tab.",
+    "clearAll": {
+      "confirm": "Clear All Task State",
+      "confirmation": "This will permanently delete all task state keys for this task instance.",
+      "error": "Failed to clear task state",
+      "errorTitle": "Error",
+      "success": "All task state cleared successfully",
+      "successTitle": "Task State Cleared",
+      "title": "Clear All Task State",
+      "warning": "All task state will be wiped. Tasks that use this state to track external work will not be able to resume without re-running from scratch."
+    },
+    "columns": {
+      "expiresAt": "Expires At",
+      "key": "Key",
+      "noExpiry": "Never",
+      "updatedAt": "Updated At",
+      "value": "Value"
+    },
+    "delete": {
+      "error": "Failed to delete task state",
+      "errorTitle": "Error",
+      "success": "Task state deleted successfully",
+      "successTitle": "Task State Deleted",
+      "title": "Delete Task State",
+      "warning": "The task will lose this persisted memory. If the task is using this key to track external work (e.g. an external job ID), it will not be able to resume it."
+    },
+    "edit": {
+      "error": "Failed to update task state",
+      "errorTitle": "Error",
+      "success": "Task state updated successfully",
+      "successTitle": "Task State Updated",
+      "title": "Edit Task State"
+    },
+    "emptyState": "Task state stores values that persist across retries. Workers can write task state via the Task SDK.",
+    "key": "Key",
+    "persistedTooltip": "Persisted across retries — task state survives clears and retries by design.",
+    "title": "Task State",
+    "value": "Value",
+    "valuePlaceholder": "Enter a string value"
   },
   "xcom": {
     "add": {

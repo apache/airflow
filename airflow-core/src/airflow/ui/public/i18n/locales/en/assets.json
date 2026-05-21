@@ -2,6 +2,7 @@
   "additional_data": "Additional Data",
   "asset_many": "Assets",
   "asset_one": "Asset",
+  "assetState": "Asset State",
   "consumingDags": "Consuming Dags",
   "consumingTasks": "Consuming Tasks",
   "createEvent": {
@@ -25,6 +26,7 @@
     },
     "title": "Create Asset Event for {{name}}"
   },
+  "events": "Events",
   "extra": "Extra",
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",

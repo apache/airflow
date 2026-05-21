@@ -24,17 +24,19 @@ import { FiTrash2 } from "react-icons/fi";
 import { Dialog } from "src/components/ui";
 
 type DeleteDialogProps = {
+  readonly confirmationText?: string;
   readonly deleteButtonText?: string;
   readonly isDeleting: boolean;
   readonly onClose: () => void;
   readonly onDelete: () => void;
   readonly open: boolean;
-  readonly resourceName: string;
+  readonly resourceName?: string;
   readonly title: string;
   readonly warningText: string;
 };
 
 const DeleteDialog: React.FC<DeleteDialogProps> = ({
+  confirmationText,
   deleteButtonText,
   isDeleting,
   onClose,
@@ -61,7 +63,9 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>
-          <Text>{translate("modal.delete.confirmation", { resourceName })}</Text>
+          <Text>
+            {confirmationText ?? translate("modal.delete.confirmation", { resourceName: resourceName ?? "" })}
+          </Text>
           <Text color="fg.error" fontWeight="bold" mt={4}>
             {warningText}
           </Text>

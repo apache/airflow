@@ -24,6 +24,8 @@ import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
+import { AssetEventsPanel } from "src/pages/Asset/AssetEventsPanel";
+import { AssetStatePage } from "src/pages/Asset/AssetStatePage";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
@@ -51,6 +53,8 @@ import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
+import { StoragePage } from "src/pages/Storage/StoragePage";
+import { TaskStatePage } from "src/pages/Storage/TaskStatePage";
 import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
@@ -72,7 +76,13 @@ const pluginRoute = {
 export const taskInstanceRoutes = [
   { element: <Logs />, index: true, path: undefined },
   { element: <Events />, path: "events" },
-  { element: <XCom />, path: "xcom" },
+  {
+    children: [
+      { element: <TaskStatePage />, path: "task-state" },
+      { element: <XCom />, path: "xcom" },
+    ],
+    element: <StoragePage />,
+  },
   { element: <Code />, path: "code" },
   { element: <TaskInstanceDetails />, path: "details" },
   { element: <RenderedTemplates />, path: "rendered_templates" },
@@ -122,6 +132,10 @@ export const routerConfig = [
         path: "configs",
       },
       {
+        children: [
+          { element: <AssetEventsPanel />, index: true },
+          { element: <AssetStatePage />, path: "asset-state" },
+        ],
         element: <Asset />,
         path: "assets/:assetId",
       },
