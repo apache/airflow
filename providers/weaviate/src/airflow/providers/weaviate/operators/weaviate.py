@@ -88,6 +88,7 @@ class WeaviateIngestOperator(BaseOperator):
             data=self.input_data,
             vector_col=self.vector_col,
             uuid_col=self.uuid_column,
+            tenant=self.tenant,
         )
 
 
@@ -118,7 +119,7 @@ class WeaviateDocumentIngestOperator(BaseOperator):
     :param document_column: Column in DataFrame that identifying source document.
     :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
     :param vector_column: Column with embedding vectors for pre-embedded data.
-    :param tenant: The tenant to which the object will be added.
+    :param tenant: The tenant to which objects will be added.
     :param verbose: Flag to enable verbose output during the ingestion process.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
@@ -172,5 +173,6 @@ class WeaviateDocumentIngestOperator(BaseOperator):
             uuid_column=self.uuid_column,
             vector_column=self.vector_col,
             verbose=self.verbose,
+            tenant=self.tenant,
         )
         return batch_delete_error

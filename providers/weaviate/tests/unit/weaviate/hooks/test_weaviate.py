@@ -601,6 +601,24 @@ def test_batch_data(data, expected_length, weaviate_hook):
     assert mock_batch_context.add_object.call_count == expected_length
 
 
+def test_batch_data_uses_tenant_collection(weaviate_hook):
+    mock_collection = MagicMock()
+    mock_tenant_collection = MagicMock()
+    mock_collection.with_tenant.return_value = mock_tenant_collection
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    weaviate_hook.batch_data("TestCollection", [{"name": "John"}], tenant="tenant-a")
+
+    mock_collection.with_tenant.assert_called_once_with("tenant-a")
+    mock_collection.batch.dynamic.assert_not_called()
+    mock_tenant_collection.batch.dynamic.return_value.__enter__.return_value.add_object.assert_called_once_with(
+        properties={"name": "John"},
+        references=None,
+        uuid=None,
+        vector=None,
+    )
+
+
 def test_batch_data_retry(weaviate_hook):
     """Test to ensure retrying working as expected"""
     # Mock the Weaviate Collection
@@ -819,6 +837,32 @@ def test__delete_objects(delete_object, weaviate_hook):
     assert delete_object.call_count == 5
 
 
+def test_delete_object_uses_tenant_collection(weaviate_hook):
+    mock_collection = MagicMock()
+    mock_tenant_collection = MagicMock()
+    mock_collection.with_tenant.return_value = mock_tenant_collection
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    weaviate_hook.delete_object(collection_name="test", uuid="1", tenant="tenant-a")
+
+    mock_collection.with_tenant.assert_called_once_with("tenant-a")
+    mock_tenant_collection.data.delete_by_id.assert_called_once_with(uuid="1")
+    mock_collection.data.delete_by_id.assert_not_called()
+
+
+def test__delete_objects_passes_tenant_to_delete_object(weaviate_hook):
+    weaviate_hook.delete_object = MagicMock()
+
+    weaviate_hook._delete_objects(uuids=["1", "2"], collection_name="test", tenant="tenant-a")
+
+    weaviate_hook.delete_object.assert_has_calls(
+        [
+            mock.call(uuid="1", collection_name="test", tenant="tenant-a"),
+            mock.call(uuid="2", collection_name="test", tenant="tenant-a"),
+        ]
+    )
+
+
 def test__prepare_document_to_uuid_map(weaviate_hook):
     input_data = [
         {"id": "1", "name": "ross", "age": "12", "gender": "m"},
@@ -858,6 +902,46 @@ def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_documen
     assert changed_documents == {"abc.doc"}
     assert unchanged_docs == {"xyz.doc"}
     assert new_documents == {"hjk.doc"}
+
+
+def test__get_documents_to_uuid_map_uses_tenant_collection(weaviate_hook):
+    mock_collection = MagicMock()
+    mock_tenant_collection = MagicMock()
+    mock_collection.with_tenant.return_value = mock_tenant_collection
+    mock_tenant_collection.query.fetch_objects.return_value.objects = []
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    weaviate_hook._get_documents_to_uuid_map(
+        data=pd.DataFrame.from_dict({"doc": ["abc.xml"]}),
+        document_column="doc",
+        uuid_column="id",
+        collection_name="test",
+        tenant="tenant-a",
+    )
+
+    mock_collection.with_tenant.assert_called_once_with("tenant-a")
+    mock_tenant_collection.query.fetch_objects.assert_called_once()
+    mock_collection.query.fetch_objects.assert_not_called()
+
+
+def test__delete_all_documents_objects_uses_tenant_collection(weaviate_hook):
+    mock_collection = MagicMock()
+    mock_tenant_collection = MagicMock()
+    mock_collection.with_tenant.return_value = mock_tenant_collection
+    mock_tenant_collection.data.delete_many.return_value.matches = 1
+    mock_tenant_collection.data.delete_many.return_value.failed = 0
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
+    weaviate_hook._delete_all_documents_objects(
+        document_keys=["abc.xml"],
+        document_column="doc",
+        collection_name="test",
+        tenant="tenant-a",
+    )
+
+    mock_collection.with_tenant.assert_called_once_with("tenant-a")
+    mock_tenant_collection.data.delete_many.assert_called_once()
+    mock_collection.data.delete_many.assert_not_called()
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
@@ -922,6 +1006,7 @@ def test_skip_option_of_create_or_replace_document_objects(
     pd.testing.assert_frame_equal(
         batch_data.call_args_list[0].kwargs["data"], df[df["doc"].isin(new_documents)]
     )
+    assert batch_data.call_args_list[0].kwargs["tenant"] is None
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects")
@@ -966,11 +1051,54 @@ def test_replace_option_of_create_or_replace_document_objects(
         collection_name="test",
         batch_delete_error=[],
         verbose=False,
+        tenant=None,
     )
     pd.testing.assert_frame_equal(
         batch_data.call_args_list[0].kwargs["data"],
         df[df["doc"].isin(changed_documents.union(new_documents))],
     )
+    assert batch_data.call_args_list[0].kwargs["tenant"] is None
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._delete_all_documents_objects")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.batch_data")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._get_segregated_documents")
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook._generate_uuids")
+def test_create_or_replace_document_objects_passes_tenant_to_helpers(
+    _generate_uuids, _get_segregated_documents, batch_data, _delete_all_documents_objects, weaviate_hook
+):
+    df = pd.DataFrame.from_dict(
+        {
+            "id": ["1", "2", "3"],
+            "name": ["ross", "bob", "joy"],
+            "doc": ["abc.xml", "zyx.html", "zyx.html"],
+        }
+    )
+    documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
+        {"abc.xml": {"uuid"}},
+        {"abc.xml"},
+        {},
+        {"zyx.html"},
+    )
+    _generate_uuids.return_value = (df, "id")
+    _get_segregated_documents.return_value = (
+        documents_to_uuid_map,
+        changed_documents,
+        unchanged_documents,
+        new_documents,
+    )
+
+    weaviate_hook.create_or_replace_document_objects(
+        data=df,
+        collection_name="test",
+        existing="replace",
+        document_column="doc",
+        tenant="tenant-a",
+    )
+
+    assert _get_segregated_documents.call_args_list[0].kwargs["tenant"] == "tenant-a"
+    assert _delete_all_documents_objects.call_args_list[0].kwargs["tenant"] == "tenant-a"
+    assert batch_data.call_args_list[0].kwargs["tenant"] == "tenant-a"
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
