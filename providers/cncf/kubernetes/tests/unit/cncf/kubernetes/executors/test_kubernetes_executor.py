@@ -808,7 +808,12 @@ class TestKubernetesExecutor:
         try:
             assert executor.event_buffer == {}
             executor.execute_async(
-                key=("dag", "task", timezone.utcnow(), 1),
+                key=TaskInstanceKey(
+                    dag_id="dag",
+                    task_id="task",
+                    run_id="run",
+                    try_number=1,
+                ),
                 queue=None,
                 command=["airflow", "tasks", "run", "true", "some_parameter"],
                 executor_config=k8s.V1Pod(
