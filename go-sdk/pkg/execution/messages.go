@@ -337,16 +337,29 @@ func (m SucceedTaskMsg) toMap() map[string]any {
 	}
 }
 
+// TaskState is the terminal non-success state reported via TaskStateMsg.
+// The wire values match Python's TaskInstanceState enum (and the generated
+// api.TerminalStateNonSuccess); we define a local typed string so call
+// sites get compile-time checking and don't have to import pkg/api just
+// for the constants.
+type TaskState string
+
+const (
+	TaskStateFailed  TaskState = "failed"
+	TaskStateRemoved TaskState = "removed"
+	TaskStateSkipped TaskState = "skipped"
+)
+
 // TaskStateMsg is sent as a terminal message for failed/removed/skipped tasks.
 type TaskStateMsg struct {
-	State   string // "failed", "removed", "skipped"
+	State   TaskState
 	EndDate time.Time
 }
 
 func (m TaskStateMsg) toMap() map[string]any {
 	return map[string]any{
 		"type":     "TaskState",
-		"state":    m.State,
+		"state":    string(m.State),
 		"end_date": m.EndDate.UTC().Format(time.RFC3339),
 	}
 }

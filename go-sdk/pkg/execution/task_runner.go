@@ -53,7 +53,7 @@ func RunTask(
 			"dag_id", details.TI.DagID,
 			"task_id", details.TI.TaskID,
 		)
-		return TaskStateMsg{State: "removed", EndDate: time.Now().UTC()}.toMap()
+		return TaskStateMsg{State: TaskStateRemoved, EndDate: time.Now().UTC()}.toMap()
 	}
 
 	client := NewCoordinatorClient(comm, details)
@@ -97,7 +97,7 @@ func executeTask(
 				"stack", string(debug.Stack()),
 			)
 			result = TaskStateMsg{
-				State:   "failed",
+				State:   TaskStateFailed,
 				EndDate: time.Now().UTC(),
 			}.toMap()
 		}
@@ -106,7 +106,7 @@ func executeTask(
 	if err := task.Execute(ctx, logger); err != nil {
 		logger.Error("Task failed", "error", fmt.Sprintf("%v", err))
 		return TaskStateMsg{
-			State:   "failed",
+			State:   TaskStateFailed,
 			EndDate: time.Now().UTC(),
 		}.toMap()
 	}

@@ -196,10 +196,26 @@ func TestSucceedTaskMsgToMap(t *testing.T) {
 
 func TestTaskStateMsgToMap(t *testing.T) {
 	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-	msg := TaskStateMsg{State: "failed", EndDate: endDate}
+	msg := TaskStateMsg{State: TaskStateFailed, EndDate: endDate}
 	m := msg.toMap()
 	assert.Equal(t, "TaskState", m["type"])
 	assert.Equal(t, "failed", m["state"])
+}
+
+func TestTaskStateConstants_WireValues(t *testing.T) {
+	// Pin each enum constant to the exact wire string Python's
+	// TaskInstanceState expects. Renaming these constants is fine;
+	// changing the wire value would silently break the protocol.
+	cases := map[TaskState]string{
+		TaskStateFailed:  "failed",
+		TaskStateRemoved: "removed",
+		TaskStateSkipped: "skipped",
+	}
+	for state, wire := range cases {
+		assert.Equal(t, wire, string(state))
+		m := TaskStateMsg{State: state}.toMap()
+		assert.Equal(t, wire, m["state"], "wire value for %s", state)
+	}
 }
 
 func TestDecodeIncomingBodyDispatch(t *testing.T) {
