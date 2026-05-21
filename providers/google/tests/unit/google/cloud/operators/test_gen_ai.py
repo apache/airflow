@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
 from unittest import mock
 
 import pytest
@@ -61,23 +60,21 @@ CACHED_SYSTEM_INSTRUCTION = """
 You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
 Now look at these research papers, and answer the following questions.
 """
-_CACHED_CONTENTS: Sequence[Content] = [
-    Content(
-        role="user",
-        parts=[
-            Part.from_uri(
-                file_uri="gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
-                mime_type="application/pdf",
-            ),
-            Part.from_uri(
-                file_uri="gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
-                mime_type="application/pdf",
-            ),
-        ],
-    )
-]
+_CACHED_CONTENT = Content(
+    role="user",
+    parts=[
+        Part.from_uri(
+            file_uri="gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
+            mime_type="application/pdf",
+        ),
+        Part.from_uri(
+            file_uri="gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
+            mime_type="application/pdf",
+        ),
+    ],
+)
 CACHED_CONTENT_CONFIG = CreateCachedContentConfig(
-    contents=_CACHED_CONTENTS,
+    contents=_CACHED_CONTENT,
     system_instruction=CACHED_SYSTEM_INSTRUCTION,
     display_name="test-cache",
     ttl="3600s",
