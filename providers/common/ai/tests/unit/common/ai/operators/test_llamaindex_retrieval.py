@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,19 +24,18 @@ from airflow.providers.common.ai.operators.llamaindex_retrieval import LlamaInde
 
 
 @pytest.fixture
-def _stub_li(monkeypatch):
-    """Patch the few ``llama_index`` symbols the retrieval operator imports."""
+def _li(monkeypatch):
+    """Patch the two LlamaIndex symbols the retrieval operator uses inside execute().
+
+    ``llama_index`` (core + openai embeddings) is a real test dependency
+    declared in ``providers/common/ai/pyproject.toml``'s dev group, so
+    ``monkeypatch.setattr("llama_index.core.X", ...)`` resolves against the
+    real module.
+    """
     StorageContext = MagicMock(name="StorageContext")
     load_index_from_storage = MagicMock(name="load_index_from_storage")
-
-    li_core = MagicMock(
-        StorageContext=StorageContext,
-        load_index_from_storage=load_index_from_storage,
-    )
-
-    monkeypatch.setitem(sys.modules, "llama_index", MagicMock())
-    monkeypatch.setitem(sys.modules, "llama_index.core", li_core)
-
+    monkeypatch.setattr("llama_index.core.StorageContext", StorageContext)
+    monkeypatch.setattr("llama_index.core.load_index_from_storage", load_index_from_storage)
     return {
         "StorageContext": StorageContext,
         "load_index_from_storage": load_index_from_storage,
@@ -74,11 +72,11 @@ class TestRetrievalOperatorInit:
 
 class TestRetrievalOperatorOutput:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_chunk_shape(self, mock_get_embed, _stub_li, tmp_path):
+    def test_chunk_shape(self, mock_get_embed, _li, tmp_path):
         # Make the persist_dir existence check pass.
         (tmp_path / "idx").mkdir()
 
-        index = _stub_li["load_index_from_storage"].return_value
+        index = _li["load_index_from_storage"].return_value
         retriever = index.as_retriever.return_value
         retriever.retrieve.return_value = [
             _scored_node("chunk a", 0.91, {"src": "x"}, "node-a"),
@@ -101,15 +99,15 @@ class TestRetrievalOperatorOutput:
             ],
         }
         # The retrieval-time embedding model is passed directly (no Settings mutation).
-        _stub_li["load_index_from_storage"].assert_called_once()
-        kwargs = _stub_li["load_index_from_storage"].call_args.kwargs
+        _li["load_index_from_storage"].assert_called_once()
+        kwargs = _li["load_index_from_storage"].call_args.kwargs
         assert "embed_model" in kwargs
         index.as_retriever.assert_called_once_with(similarity_top_k=5)
 
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_top_k_forwarded(self, mock_get_embed, _stub_li, tmp_path):
+    def test_top_k_forwarded(self, mock_get_embed, _li, tmp_path):
         (tmp_path / "idx").mkdir()
-        index = _stub_li["load_index_from_storage"].return_value
+        index = _li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
         op = LlamaIndexRetrievalOperator(
@@ -124,10 +122,10 @@ class TestRetrievalOperatorOutput:
         index.as_retriever.assert_called_once_with(similarity_top_k=12)
 
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook")
-    def test_string_embed_model_forwards_embed_conn_id(self, mock_hook_cls, _stub_li, tmp_path):
+    def test_string_embed_model_forwards_embed_conn_id(self, mock_hook_cls, _li, tmp_path):
         # ``embed_conn_id`` overrides ``llm_conn_id`` for the embedding API.
         (tmp_path / "idx").mkdir()
-        index = _stub_li["load_index_from_storage"].return_value
+        index = _li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
         op = LlamaIndexRetrievalOperator(
@@ -146,10 +144,10 @@ class TestRetrievalOperatorOutput:
             embed_model="text-embedding-3-small",
         )
 
-    def test_byo_embed_model_bypasses_hook(self, _stub_li, tmp_path):
+    def test_byo_embed_model_bypasses_hook(self, _li, tmp_path):
         (tmp_path / "idx").mkdir()
         byo = _byo_embedding()
-        index = _stub_li["load_index_from_storage"].return_value
+        index = _li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
         op = LlamaIndexRetrievalOperator(
@@ -160,10 +158,10 @@ class TestRetrievalOperatorOutput:
         )
         op.execute(context=MagicMock())
 
-        kwargs = _stub_li["load_index_from_storage"].call_args.kwargs
+        kwargs = _li["load_index_from_storage"].call_args.kwargs
         assert kwargs["embed_model"] is byo
 
-    def test_invalid_embed_model_raises_typeerror(self, _stub_li, tmp_path):
+    def test_invalid_embed_model_raises_typeerror(self, _li, tmp_path):
         # An object that's neither None/str nor duck-types as BaseEmbedding
         # raises TypeError with a clear pointer.
         (tmp_path / "idx").mkdir()
@@ -180,7 +178,7 @@ class TestRetrievalOperatorOutput:
 
 class TestRetrievalOperatorMissingIndex:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_local_missing_dir_raises_with_hint(self, mock_get_embed, _stub_li, tmp_path):
+    def test_local_missing_dir_raises_with_hint(self, mock_get_embed, _li, tmp_path):
         op = LlamaIndexRetrievalOperator(
             task_id="test",
             query="q",
@@ -192,7 +190,7 @@ class TestRetrievalOperatorMissingIndex:
 
     @patch("airflow.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_cloud_missing_uri_raises_with_hint(self, mock_get_embed, mock_osp_cls, _stub_li):
+    def test_cloud_missing_uri_raises_with_hint(self, mock_get_embed, mock_osp_cls, _li):
         missing = MagicMock()
         missing.is_dir.return_value = False
         mock_osp_cls.return_value = missing
@@ -210,7 +208,7 @@ class TestRetrievalOperatorMissingIndex:
 class TestRetrievalOperatorCloudURI:
     @patch("airflow.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_cloud_uri_opens_storage_with_fs(self, mock_get_embed, mock_osp_cls, _stub_li):
+    def test_cloud_uri_opens_storage_with_fs(self, mock_get_embed, mock_osp_cls, _li):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``
         # when ``conn_id`` is set, which fsspec misinterprets. The operator must
         # pass the **raw** user URI to ``persist_dir=`` and supply
@@ -221,7 +219,7 @@ class TestRetrievalOperatorCloudURI:
         target.fs = MagicMock(name="s3fs")
         mock_osp_cls.return_value = target
 
-        index = _stub_li["load_index_from_storage"].return_value
+        index = _li["load_index_from_storage"].return_value
         index.as_retriever.return_value.retrieve.return_value = []
 
         op = LlamaIndexRetrievalOperator(
@@ -234,7 +232,7 @@ class TestRetrievalOperatorCloudURI:
         op.execute(context=MagicMock())
 
         mock_osp_cls.assert_called_once_with("s3://bucket/idx/", conn_id="aws_default")
-        _stub_li["StorageContext"].from_defaults.assert_called_once_with(
+        _li["StorageContext"].from_defaults.assert_called_once_with(
             persist_dir="s3://bucket/idx/",
             fs=target.fs,
         )

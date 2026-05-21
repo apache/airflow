@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,30 +24,18 @@ from airflow.providers.common.ai.operators.llamaindex_embedding import LlamaInde
 
 
 @pytest.fixture
-def _stub_li(monkeypatch):
-    """Patch the few ``llama_index`` symbols the operator imports."""
-    Document = MagicMock(name="Document")
-    StorageContext = MagicMock(name="StorageContext")
+def _li(monkeypatch):
+    """Patch the two LlamaIndex constructors the operator uses inside execute().
+
+    ``llama_index`` (core + openai embeddings) is a real test dependency
+    declared in ``providers/common/ai/pyproject.toml``'s dev group, so
+    ``@patch("llama_index.core.X")`` resolves against the real module.
+    """
     VectorStoreIndex = MagicMock(name="VectorStoreIndex")
     SentenceSplitter = MagicMock(name="SentenceSplitter")
-
-    li_core = MagicMock(
-        Document=Document,
-        StorageContext=StorageContext,
-        VectorStoreIndex=VectorStoreIndex,
-    )
-    li_core_np = MagicMock(SentenceSplitter=SentenceSplitter)
-
-    monkeypatch.setitem(sys.modules, "llama_index", MagicMock())
-    monkeypatch.setitem(sys.modules, "llama_index.core", li_core)
-    monkeypatch.setitem(sys.modules, "llama_index.core.node_parser", li_core_np)
-
-    return {
-        "Document": Document,
-        "StorageContext": StorageContext,
-        "VectorStoreIndex": VectorStoreIndex,
-        "SentenceSplitter": SentenceSplitter,
-    }
+    monkeypatch.setattr("llama_index.core.VectorStoreIndex", VectorStoreIndex)
+    monkeypatch.setattr("llama_index.core.node_parser.SentenceSplitter", SentenceSplitter)
+    return {"VectorStoreIndex": VectorStoreIndex, "SentenceSplitter": SentenceSplitter}
 
 
 def _node(text: str = "chunk text", metadata: dict | None = None, vector=None):
@@ -61,8 +48,7 @@ def _node(text: str = "chunk text", metadata: dict | None = None, vector=None):
 
 def _byo_embedding():
     """Return a duck-typed ``BaseEmbedding`` stand-in (has the two methods the operator checks)."""
-    instance = MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
-    return instance
+    return MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
 
 
 class TestEmbeddingOperatorInit:
@@ -83,9 +69,9 @@ class TestEmbeddingOperatorInit:
 
 class TestEmbeddingOperatorExecute:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_string_embed_model_goes_through_hook(self, mock_get_embed, _stub_li):
+    def test_string_embed_model_goes_through_hook(self, mock_get_embed, _li):
         # `embed_model` as a string -> hook builds OpenAIEmbedding.
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
             _node(text="chunk a", vector=[0.1, 0.2]),
         ]
 
@@ -104,9 +90,9 @@ class TestEmbeddingOperatorExecute:
         assert result["chunks"][0]["vector"] == [0.1, 0.2]
 
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook")
-    def test_string_embed_model_forwards_embed_conn_id(self, mock_hook_cls, _stub_li):
+    def test_string_embed_model_forwards_embed_conn_id(self, mock_hook_cls, _li):
         # ``embed_conn_id`` overrides ``llm_conn_id`` for the embedding API.
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
 
         op = LlamaIndexEmbeddingOperator(
             task_id="test",
@@ -123,12 +109,10 @@ class TestEmbeddingOperatorExecute:
             embed_model="text-embedding-3-small",
         )
 
-    def test_byo_embed_model_bypasses_hook(self, _stub_li):
+    def test_byo_embed_model_bypasses_hook(self, _li):
         # `embed_model` is a non-string instance -> hook is bypassed.
         byo = _byo_embedding()
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
-            _node()
-        ]
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
 
         op = LlamaIndexEmbeddingOperator(
             task_id="test",
@@ -138,15 +122,15 @@ class TestEmbeddingOperatorExecute:
         op.execute(context=MagicMock())
 
         # VectorStoreIndex called with the user's instance, not anything else.
-        _stub_li["VectorStoreIndex"].assert_called_once()
-        kwargs = _stub_li["VectorStoreIndex"].call_args.kwargs
+        _li["VectorStoreIndex"].assert_called_once()
+        kwargs = _li["VectorStoreIndex"].call_args.kwargs
         assert kwargs["embed_model"] is byo
 
-    def test_invalid_embed_model_raises_typeerror(self, _stub_li):
+    def test_invalid_embed_model_raises_typeerror(self, _li):
         # An object that's neither None/str nor duck-types as BaseEmbedding
         # (e.g. an unresolved XComArg or random user input) raises TypeError
         # with a clear pointer rather than a cryptic downstream error.
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [_node()]
 
         op = LlamaIndexEmbeddingOperator(
             task_id="test",
@@ -157,8 +141,8 @@ class TestEmbeddingOperatorExecute:
             op.execute(context=MagicMock())
 
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_chunks_carry_text_metadata_vector(self, mock_get_embed, _stub_li):
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
+    def test_chunks_carry_text_metadata_vector(self, mock_get_embed, _li):
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [
             _node(text="x", metadata={"k": "v"}, vector=[1.0, 2.0]),
             _node(text="y", metadata={"k": "v2"}, vector=[3.0, 4.0]),
         ]
@@ -180,11 +164,11 @@ class TestEmbeddingOperatorPersist:
     @patch("os.makedirs")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_local_persist_dir_calls_makedirs_and_storage_persist(
-        self, mock_get_embed, mock_makedirs, _stub_li, tmp_path
+        self, mock_get_embed, mock_makedirs, _li, tmp_path
     ):
         node = _node()
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
-        index = _stub_li["VectorStoreIndex"].return_value
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
+        index = _li["VectorStoreIndex"].return_value
 
         op = LlamaIndexEmbeddingOperator(
             task_id="test",
@@ -200,7 +184,7 @@ class TestEmbeddingOperatorPersist:
     @patch("airflow.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_uri_persist_dir_uses_object_storage_path(
-        self, mock_get_embed, mock_osp_cls, _stub_li
+        self, mock_get_embed, mock_osp_cls, _li
     ):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``
         # when ``conn_id`` is set, which fsspec misinterprets. The operator must
@@ -212,8 +196,8 @@ class TestEmbeddingOperatorPersist:
         mock_osp_cls.return_value = target
 
         node = _node()
-        _stub_li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
-        index = _stub_li["VectorStoreIndex"].return_value
+        _li["SentenceSplitter"].return_value.get_nodes_from_documents.return_value = [node]
+        index = _li["VectorStoreIndex"].return_value
 
         op = LlamaIndexEmbeddingOperator(
             task_id="test",

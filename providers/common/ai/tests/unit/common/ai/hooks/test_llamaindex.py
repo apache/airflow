@@ -16,36 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
-
-
-@pytest.fixture(autouse=True)
-def _stub_llama_index_modules():
-    """Stub ``llama_index.*`` in sys.modules so @patch can resolve targets
-    without the real package installed (mirrors the langchain pattern from
-    apache/airflow#67237).
-    """
-    li = MagicMock()
-    mocks = {
-        "llama_index": li,
-        "llama_index.core": li.core,
-        "llama_index.core.base": li.core.base,
-        "llama_index.core.base.embeddings": li.core.base.embeddings,
-        "llama_index.core.base.embeddings.base": li.core.base.embeddings.base,
-        "llama_index.core.llms": li.core.llms,
-        "llama_index.core.llms.llm": li.core.llms.llm,
-        "llama_index.embeddings": li.embeddings,
-        "llama_index.embeddings.openai": li.embeddings.openai,
-        "llama_index.llms": li.llms,
-        "llama_index.llms.openai": li.llms.openai,
-    }
-    with patch.dict(sys.modules, mocks):
-        yield
 
 
 def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:
