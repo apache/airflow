@@ -288,11 +288,12 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     def is_job_active(self, status: str) -> bool:
         if self._hook is None:
             self._hook = self._get_hook()
+        status = status.upper()
         if self._hook._is_yarn:
             # https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html
             return status in ("NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING")
         if self._hook._is_kubernetes:
-            return status in ("Pending", "Running")
+            return status in ("PENDING", "RUNNING")
         # RELAUNCHING: driver is being restarted after a failure, still alive.
         # UNKNOWN: master is in failure recovery, state is temporarily unavailable.
         # https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/master/DriverState.scala
@@ -301,8 +302,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     def is_job_succeeded(self, status: str) -> bool:
         if self._hook is None:
             self._hook = self._get_hook()
+        status = status.upper()
         if self._hook._is_kubernetes:
-            return status == "Succeeded"
+            return status == "SUCCEEDED"
         # standalone and YARN both use FINISHED
         return status == "FINISHED"
 
