@@ -123,6 +123,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     RescheduleTask,
+    RetryTask,
     SetAssetStateByName,
     SetAssetStateByUri,
     SetRenderedFields,
@@ -4750,6 +4751,56 @@ class TestTaskRunnerCallsCallbacks:
         for index, calls in extra_exceptions:
             expected_exception_logs.insert(index, calls)
         assert log.exception.mock_calls == expected_exception_logs
+
+    def test_airflow_fail_exception_in_on_retry_callback_fails_task(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        def _execute_failure(context):
+            raise RuntimeError("transient")
+
+        retry_callback_calls = []
+        failure_callback_calls = []
+
+        def retry_callback(context):
+            retry_callback_calls.append(context["ti"].state)
+            raise AirflowFailException("give up")
+
+        def failure_callback(context):
+            failure_callback_calls.append(context["ti"].state)
+
+        class CustomOperator(BaseOperator):
+            execute = staticmethod(_execute_failure)
+
+        task = CustomOperator(
+            task_id="task",
+            on_retry_callback=retry_callback,
+            on_failure_callback=failure_callback,
+        )
+        # ``should_retry=True`` puts the task on the retry path; AirflowFailException raised in
+        # on_retry_callback must override that decision.
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=True)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, msg, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error, msg=msg)
+
+        assert runtime_ti.state == TaskInstanceState.FAILED
+        # Retry callback fires while the task is UP_FOR_RETRY; once it raises
+        # AirflowFailException the state is promoted to FAILED, and the failure
+        # callback fires under that state.
+        assert retry_callback_calls == [TaskInstanceState.UP_FOR_RETRY]
+        assert failure_callback_calls == [TaskInstanceState.FAILED]
+
+        # Supervisor should have received exactly one terminal-state message and it should be
+        # TaskState(FAILED), not RetryTask.
+        terminal_messages = []
+        for send_call in mock_supervisor_comms.send.mock_calls:
+            sent = send_call.kwargs.get("msg") or (send_call.args[0] if send_call.args else None)
+            if isinstance(sent, (TaskState, RetryTask)):
+                terminal_messages.append(sent)
+        assert len(terminal_messages) == 1
+        assert isinstance(terminal_messages[0], TaskState)
+        assert terminal_messages[0].state == TaskInstanceState.FAILED
 
 
 class TestTriggerDagRunOperator:
