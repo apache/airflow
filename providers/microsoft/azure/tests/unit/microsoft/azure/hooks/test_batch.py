@@ -166,10 +166,115 @@ class TestAzureBatchHook:
         hook.create_pool(pool=pool)
         mock_instance.assert_called_once_with(pool)
 
+    @mock.patch(f"{MODULE}.time.sleep", return_value=None)
     @mock.patch(f"{MODULE}.BatchServiceClient")
-    def test_wait_for_all_nodes(self, mock_batch):
-        # TODO: Add test
-        pass
+    def test_wait_for_all_nodes_success_immediately(self, _mock_batch, mock_sleep):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
+
+        pool = mock.Mock()
+        pool.id = "mypool"
+        pool.target_dedicated_nodes = 2
+        pool.resize_errors = None
+
+        node_idle_1 = mock.Mock(state=batch_models.ComputeNodeState.idle)
+        node_idle_2 = mock.Mock(state=batch_models.ComputeNodeState.idle)
+
+        hook.connection.pool.get.return_value = pool
+        hook.connection.compute_node.list.return_value = [node_idle_1, node_idle_2]
+
+        nodes = hook.wait_for_all_node_state(
+            pool_id="mypool",
+            node_state={batch_models.ComputeNodeState.idle},
+        )
+
+        assert nodes == [node_idle_1, node_idle_2]
+        hook.connection.pool.get.assert_called_once_with("mypool")
+        hook.connection.compute_node.list.assert_called_once_with("mypool")
+        assert mock_sleep.call_count == 0
+
+    @mock.patch(f"{MODULE}.time.sleep", return_value=None)
+    @mock.patch(f"{MODULE}.BatchServiceClient")
+    def test_wait_for_all_nodes_waits_for_node_count(self, _mock_batch, mock_sleep):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
+
+        pool = mock.Mock()
+        pool.id = "mypool"
+        pool.target_dedicated_nodes = 2
+        pool.resize_errors = None
+
+        node_idle_1 = mock.Mock(state=batch_models.ComputeNodeState.idle)
+        node_idle_2 = mock.Mock(state=batch_models.ComputeNodeState.idle)
+
+        hook.connection.pool.get.return_value = pool
+
+        # First call must return only 1 node.
+        # Second call must return 2 nodes.
+        hook.connection.compute_node.list.side_effect = [
+            [node_idle_1],
+            [node_idle_1, node_idle_2],
+        ]
+
+        nodes = hook.wait_for_all_node_state(
+            pool_id="mypool",
+            node_state={batch_models.ComputeNodeState.idle},
+        )
+
+        assert nodes == [node_idle_1, node_idle_2]
+        assert hook.connection.compute_node.list.call_count == 2
+        assert mock_sleep.call_count == 1
+
+    @mock.patch(f"{MODULE}.time.sleep", return_value=None)
+    @mock.patch(f"{MODULE}.BatchServiceClient")
+    def test_wait_for_all_nodes_retries_until_ready(self, _mock_batch, mock_sleep):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
+
+        pool = mock.Mock()
+        pool.id = "mypool"
+        pool.target_dedicated_nodes = 2
+        pool.resize_errors = None
+
+        node_starting_1 = mock.Mock(state=batch_models.ComputeNodeState.starting)
+        node_starting_2 = mock.Mock(state=batch_models.ComputeNodeState.starting)
+
+        node_idle_1 = mock.Mock(state=batch_models.ComputeNodeState.idle)
+        node_idle_2 = mock.Mock(state=batch_models.ComputeNodeState.idle)
+
+        hook.connection.pool.get.return_value = pool
+
+        # Nodes are not ready in the first poll.
+        # Nodes are ready in the second poll.
+        hook.connection.compute_node.list.side_effect = [
+            [node_starting_1, node_starting_2],
+            [node_idle_1, node_idle_2],
+        ]
+
+        nodes = hook.wait_for_all_node_state(
+            pool_id="mypool",
+            node_state={batch_models.ComputeNodeState.idle},
+        )
+
+        assert nodes == [node_idle_1, node_idle_2]
+        assert hook.connection.compute_node.list.call_count == 2
+        assert mock_sleep.call_count == 1
+
+    @mock.patch(f"{MODULE}.time.sleep", return_value=None)
+    @mock.patch(f"{MODULE}.BatchServiceClient")
+    def test_wait_for_all_nodes_resize_error(self, _mock_batch, mock_sleep):
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
+
+        pool = mock.Mock()
+        pool.id = "mypool"
+        pool.target_dedicated_nodes = 2
+        pool.resize_errors = ["resize failed"]
+
+        hook.connection.pool.get.return_value = pool
+
+        with pytest.raises(RuntimeError, match="resize error encountered"):
+            hook.wait_for_all_node_state(
+                pool_id="mypool",
+                node_state={batch_models.ComputeNodeState.idle},
+            )
+        assert mock_sleep.call_count == 0
 
     @mock.patch(f"{MODULE}.BatchServiceClient")
     def test_job_configuration_and_create_job(self, mock_batch):

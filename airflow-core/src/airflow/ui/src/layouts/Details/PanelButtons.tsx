@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -22,7 +20,6 @@ import {
   Box,
   createListCollection,
   Flex,
-  IconButton,
   Popover,
   Portal,
   Select,
@@ -42,11 +39,12 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
-import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
-import { Tooltip } from "src/components/ui";
+import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
+import { GraphTaskFilters } from "src/components/GraphTaskFilters";
+import { IconButton, Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
-import { dependenciesKey, directionKey } from "src/constants/localStorage";
+import { dependenciesKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
@@ -117,7 +115,6 @@ export const PanelButtons = ({
     dependenciesKey(dagId),
     "tasks",
   );
-  const [direction, setDirection] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -144,14 +141,6 @@ export const PanelButtons = ({
       removeDependencies();
     } else {
       setDependencies(event.value[0]);
-    }
-  };
-
-  const handleDirectionUpdate = (
-    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
-  ) => {
-    if (event.value[0] !== undefined) {
-      setDirection(event.value[0] as Direction);
     }
   };
 
@@ -217,16 +206,11 @@ export const PanelButtons = ({
         <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
           <TaskStreamFilter />
+          {dagView === "graph" && <GraphTaskFilters />}
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <IconButton
-                aria-label={translate("dag:panel.buttons.options")}
-                colorPalette="brand"
-                size="md"
-                title={translate("dag:panel.buttons.options")}
-                variant="ghost"
-              >
+              <IconButton label={translate("dag:panel.buttons.options")}>
                 <MdSettings />
               </IconButton>
             </Popover.Trigger>
@@ -277,34 +261,7 @@ export const PanelButtons = ({
                           </Select.Positioner>
                         </Select.Root>
 
-                        <Select.Root
-                          // @ts-expect-error The expected option type is incorrect
-                          collection={directionOptions(translate)}
-                          onValueChange={handleDirectionUpdate}
-                          size="sm"
-                          value={[direction]}
-                        >
-                          <Select.Label fontSize="xs">
-                            {translate("dag:panel.graphDirection.label")}
-                          </Select.Label>
-                          <Select.Control>
-                            <Select.Trigger>
-                              <Select.ValueText />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Select.Positioner>
-                            <Select.Content>
-                              {directionOptions(translate).items.map((option) => (
-                                <Select.Item item={option} key={option.value}>
-                                  {option.label}
-                                </Select.Item>
-                              ))}
-                            </Select.Content>
-                          </Select.Positioner>
-                        </Select.Root>
+                        <DirectionDropdown graphId={dagId} />
                       </>
                     ) : (
                       <>
@@ -351,7 +308,15 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView !== "graph" && (
+      {dagView === "graph" ? (
+        <Flex justifyContent="flex-end" mt={1}>
+          <Flex color="fg.muted" gap={2}>
+            <Tooltip content={<Text>{translate("dag:navigation.openGraphFilters")}</Text>} portalled>
+              <LuKeyboard />
+            </Tooltip>
+          </Flex>
+        </Flex>
+      ) : (
         <Flex justifyContent="space-between" mt={1}>
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>

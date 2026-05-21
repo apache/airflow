@@ -188,6 +188,8 @@ Declaring an ``@asset`` automatically creates:
 * A ``DAG`` with *dag_id* set to the function name.
 * A task inside the ``DAG`` with *task_id* set to the function name, and *outlet* to the created ``Asset``.
 
+The parameter names ``self``, ``context``, and ``outlet_events`` are **reserved** in an ``@asset`` function: they are populated by Airflow at runtime (with the asset itself, the execution context, and the outlet event accessor respectively) and are never treated as inlet asset references.
+
 Attaching extra information to an emitting asset event
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -401,6 +403,53 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
         def consume_asset_alias_events(*, inlet_events):
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
+
+.. _asset_allow_producer_teams:
+
+Cross-team asset event filtering with ``allow_producer_teams``
+--------------------------------------------------------------
+
+.. versionadded:: 3.3.0
+
+When :doc:`Multi-Team mode </core-concepts/multi-team>` is enabled, asset events are filtered by team
+membership. By default, a consuming Dag only receives asset events produced by Dags within the same team
+or by global (teamless) Dags. This prevents unintended cross-team triggers.
+
+To allow specific other teams to produce events that trigger your Dag, use the ``allow_producer_teams`` parameter
+on the ``Asset`` definition:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset
+
+    shared_data = Asset(
+        name="my_data",
+        uri="s3://bucket/shared/data.csv",
+        allow_producer_teams=["team_analytics", "team_ml"],
+    )
+
+In this example, asset events produced by Dags belonging to ``team_analytics`` or ``team_ml`` will be
+accepted by any consuming Dag that schedules on ``shared_data``, in addition to events from the consuming
+Dag's own team.
+
+Default behavior
+~~~~~~~~~~~~~~~~
+
+When ``allow_producer_teams`` is not specified (or set to an empty list), the default same-team filtering applies.
+The rules depend on whether the producer and consumer have a team association:
+
+- **Both have the same team**: The event is always delivered.
+- **Producer has a team, consumer has a different team**: The event is blocked (unless the
+  producer's team is in the asset's ``allow_producer_teams``).
+- **Producer has no team (global Dag)**: The event is delivered to all consumers, regardless of
+  the consumer's team. Global Dags act as shared infrastructure that any team can depend on.
+- **Consumer has no team (global Dag)**: The consumer accepts events from any source,
+  regardless of the producer's team. Teamless consumers act as shared infrastructure that any
+  team can feed into.
+- **Neither has a team**: The event is delivered (both are global).
+
+When Multi-Team mode is disabled, ``allow_producer_teams`` is ignored and all asset events are delivered to all
+consuming Dags, preserving backward compatibility.
 
 Asset partitions
 ----------------

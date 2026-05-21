@@ -219,19 +219,25 @@ class TestLocalExecutor:
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch("airflow.executors.base_executor.stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = LocalExecutor()
         executor.heartbeat()
         calls = [
             mock.call(
-                "executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "LocalExecutor"}
+                "executor.open_slots",
+                value=mock.ANY,
+                tags={"status": "open", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "LocalExecutor"}
+                "executor.queued_tasks",
+                value=mock.ANY,
+                tags={"status": "queued", "executor_class_name": "LocalExecutor"},
             ),
             mock.call(
-                "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "LocalExecutor"}
+                "executor.running_tasks",
+                value=mock.ANY,
+                tags={"status": "running", "executor_class_name": "LocalExecutor"},
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
@@ -394,6 +400,8 @@ class TestLocalExecutor:
 
 class TestLocalExecutorCallbackSupport:
     CALLBACK_UUID = "12345678-1234-5678-1234-567812345678"
+    TEST_TOKEN = "test_token"
+    TEST_SERVER = "http://localhost:8080/execution/"
 
     def test_supports_callbacks_flag_is_true(self):
         executor = LocalExecutor()
@@ -419,7 +427,7 @@ class TestLocalExecutorCallbackSupport:
         executor.start()
 
         try:
-            executor.queued_callbacks[callback_data.id] = callback_workload
+            executor.queued_callbacks[callback_workload.key] = callback_workload
             executor._process_workloads([callback_workload])
             assert len(executor.queued_callbacks) == 0
             # We can't easily verify worker execution without running the worker,
@@ -451,6 +459,8 @@ class TestLocalExecutorCallbackSupport:
             callback_kwargs={"arg1": "val1"},
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
+            server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
 
     @mock.patch(

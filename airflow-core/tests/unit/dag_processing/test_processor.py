@@ -67,11 +67,13 @@ from airflow.dag_processing.processor import (
 from airflow.models import DagRun
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import DagRunState
+from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
+    GetConnection,
     GetTaskStates,
     GetTICount,
+    GetVariable,
     GetXCom,
     GetXComSequenceSlice,
     TaskStatesResult,
@@ -660,7 +662,6 @@ def test_callback_processing_does_not_update_timestamps():
         finish_time=timezone.utcnow(),
         run_count=5,
         bundle_name="test",
-        bundle_version=None,
         parsing_result=None,
         is_callback_only=True,
     )
@@ -678,7 +679,6 @@ def test_normal_parsing_updates_timestamps():
         finish_time=finish_time,
         run_count=3,
         bundle_name="test-bundle",
-        bundle_version="v1",
         parsing_result=DagFileParsingResult(fileloc="test.py", serialized_dags=[]),
         is_callback_only=False,
     )
@@ -697,7 +697,6 @@ def test_import_error_updates_timestamps():
         finish_time=finish_time,
         run_count=2,
         bundle_name="test-bundle",
-        bundle_version="v1",
         parsing_result=None,
         is_callback_only=False,
     )
@@ -726,6 +725,7 @@ def test_persist_parsing_result_calls_update_db():
             manager,
             bundle_name="test-bundle",
             bundle_version="v1",
+            version_data=None,
             parsing_result=parsing_result,
             run_duration=1.5,
             relative_fileloc="dags/test.py",
@@ -1948,6 +1948,7 @@ class TestDagProcessingMessageTypes:
             "DeleteXCom",
             "GetAssetByName",
             "GetAssetByUri",
+            "GetAssetsByAlias",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
             "GetDagRun",
@@ -1972,10 +1973,24 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
+            # AIP-103 task/asset state — Dag processor has no task execution context.
+            "GetTaskState",
+            "SetTaskState",
+            "DeleteTaskState",
+            "ClearTaskState",
+            "GetAssetStateByName",
+            "GetAssetStateByUri",
+            "SetAssetStateByName",
+            "SetAssetStateByUri",
+            "DeleteAssetStateByName",
+            "DeleteAssetStateByUri",
+            "ClearAssetStateByName",
+            "ClearAssetStateByUri",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
             "AssetResult",
+            "AssetsByAliasResult",
             "AssetEventsResult",
             "DagResult",
             "DagRunResult",
@@ -1990,6 +2005,9 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            # AIP-103 task/asset state results — worker-only responses to the above messages.
+            "TaskStateResult",
+            "AssetStateResult",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager
@@ -2059,3 +2077,74 @@ class TestDagFileProcessorProcess:
         with patch.object(WatchedSubprocess, "_create_log_forwarder") as mock_base:
             proc._create_log_forwarder((), "task.stdout")
         mock_base.assert_called_once_with((), "dag_processor.stdout", logging.INFO)
+
+    def test_handle_request_get_connection_masks_password_and_extra(self, proc):
+        proc.client.connections.get.return_value = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="mysql",
+            password="super-secret-password",
+            extra='{"api_key":"super-secret-extra"}',
+        )
+
+        with (
+            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
+        ):
+            proc._handle_request(
+                GetConnection(conn_id="test_conn"),
+                structlog.get_logger(),
+                req_id=123,
+            )
+
+        proc.client.connections.get.assert_called_once_with("test_conn")
+        mock_mask_secret.assert_any_call("super-secret-password")
+        mock_mask_secret.assert_any_call('{"api_key":"super-secret-extra"}')
+        assert mock_mask_secret.call_count == 2
+
+        mock_send_msg.assert_called_once()
+        _, args, kwargs = mock_send_msg.mock_calls[0]
+        assert args[0] is proc
+        msg = args[1]
+        assert kwargs["request_id"] == 123
+        assert kwargs["error"] is None
+        assert kwargs["exclude_unset"] is True
+        assert kwargs["by_alias"] is True
+        assert msg.model_dump(by_alias=True, exclude_unset=True) == {
+            "conn_id": "test_conn",
+            "conn_type": "mysql",
+            "password": "super-secret-password",
+            "extra": '{"api_key":"super-secret-extra"}',
+            "type": "ConnectionResult",
+        }
+
+    def test_handle_request_get_variable_masks_value_with_key(self, proc):
+        proc.client.variables.get.return_value = VariableResponse(
+            key="test_key",
+            value="super-secret-value",
+        )
+
+        with (
+            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
+        ):
+            proc._handle_request(
+                GetVariable(key="test_key"),
+                structlog.get_logger(),
+                req_id=456,
+            )
+
+        proc.client.variables.get.assert_called_once_with("test_key")
+        mock_mask_secret.assert_called_once_with("super-secret-value", "test_key")
+
+        mock_send_msg.assert_called_once()
+        _, args, kwargs = mock_send_msg.mock_calls[0]
+        assert args[0] is proc
+        msg = args[1]
+        assert kwargs["request_id"] == 456
+        assert kwargs["error"] is None
+        assert kwargs["exclude_unset"] is True
+        assert msg.model_dump(exclude_unset=True) == {
+            "key": "test_key",
+            "value": "super-secret-value",
+            "type": "VariableResult",
+        }

@@ -28,6 +28,35 @@
 Changelog
 ---------
 
+4.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add to list dbt Cloud job runs with support for filtering by status, ordering, and job_definition_id, and optionally returning only the most recent run via latest_only. (#66150)``
+
+Misc
+~~~~
+
+* ``Refactor deferrable execution in DbtCloudRunJobOperator. Simplify trigger polling/control flow and propagate execution_timeout via defer. (#66449)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor DbtCloudRunJobOperator.execute() by extracting job ID (#64393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 4.8.1
 .....
 

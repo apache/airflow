@@ -66,11 +66,11 @@ from sqlalchemy.orm import (
     synonym,
     validates,
 )
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, override_ids
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
@@ -1174,10 +1174,9 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with DualStatsManager.timer(
+        with stats.timer(
             "dagrun.dependency-check",
-            tags={},
-            extra_tags=self.stats_tags,
+            tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1472,7 +1471,7 @@ class DagRun(Base, LoggingMixin):
                 callback(context)
             except Exception:
                 self.log.exception("Callback failed for %s", dag.dag_id)
-                Stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
+                stats.incr("dag.callback_exceptions", tags={"dag_id": dag.dag_id})
 
     def _get_ready_tis(
         self,
@@ -1639,10 +1638,14 @@ class DagRun(Base, LoggingMixin):
             else:
                 true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
-                    Stats.timing(
+                    stats.timing(
                         f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
                     )
-                    Stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
+                    stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
+                if self.queued_at is not None:
+                    start_delay = first_start_date - self.queued_at
+                    if start_delay.total_seconds() > 0:
+                        stats.timing("dagrun.first_task_start_delay", start_delay, tags=self.stats_tags)
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -1657,11 +1660,10 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        DualStatsManager.timing(
+        stats.timing(
             f"dagrun.duration.{self.state}",
             dt=duration,
-            tags=self.stats_tags,
-            extra_tags={"dag_id": self.dag_id},
+            tags={**self.stats_tags, "dag_id": self.dag_id},
         )
 
     @provide_session
@@ -1738,10 +1740,9 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    DualStatsManager.incr(
+                    stats.incr(
                         "task_restored_to_dag",
-                        tags=self.stats_tags,
-                        extra_tags={"dag_id": dag.dag_id},
+                        tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = None
             except AirflowException:
@@ -1749,10 +1750,9 @@ class DagRun(Base, LoggingMixin):
                     pass  # ti has already been removed, just ignore it
                 elif self.state != DagRunState.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    DualStatsManager.incr(
+                    stats.incr(
                         "task_removed_from_dag",
-                        tags=self.stats_tags,
-                        extra_tags={"dag_id": dag.dag_id},
+                        tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = TaskInstanceState.REMOVED
                 continue
@@ -1920,21 +1920,23 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                DualStatsManager.incr(
+                stats.incr(
                     "task_instance_created",
                     count,
-                    tags=self.stats_tags,
-                    extra_tags={"task_type": task_type},
+                    tags={**self.stats_tags, "task_type": task_type},
                 )
             session.flush()
-        except IntegrityError:
+        except (IntegrityError, StaleDataError) as exc:
             self.log.info(
-                "Hit IntegrityError while creating the TIs for %s- %s",
+                "Hit %s while creating the TIs for %s- %s",
+                type(exc).__name__,
                 dag_id,
                 run_id,
                 exc_info=True,
             )
             self.log.info("Doing session rollback.")
+            # Catching StaleDataError and rolling back is sufficient here because
+            # the next scheduler loop will re-read the latest state from the DB.
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 

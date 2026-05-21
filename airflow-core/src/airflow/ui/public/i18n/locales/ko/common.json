@@ -61,6 +61,11 @@
     "dagVersions": "Dag 버전",
     "dataIntervalEnd": "데이터 구간 종료",
     "dataIntervalStart": "데이터 구간 시작",
+    "durationStats": {
+      "mean": "평균",
+      "mode": "최빈값"
+    },
+    "expectedDuration": "예상 소요 시간",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
     "mappedPartitionKey": "매핑된 파티션 키",
     "partitionKey": "파티션 키",
@@ -193,6 +198,12 @@
     },
     "tooltip": "{{hotkey}}를 눌러 {{direction}}로 스크롤"
   },
+  "search": {
+    "advanced": {
+      "description": "값의 어느 위치에서든 일치하는 항목을 찾습니다(부분 문자열 검색). 기본 B-트리 인덱스를 사용할 수 없어 대규모 배포 환경에서는 속도가 느릴 수 있습니다. 자세한 내용은 문서의 커스텀 메타데이터 인덱스 섹션을 참고하세요.",
+      "title": "부분 일치"
+    }
+  },
   "security": {
     "actions": "작업",
     "permissions": "권한",
@@ -257,6 +268,8 @@
   "task_one": "작업",
   "task_other": "작업들",
   "taskGroup": "작업 그룹",
+  "taskGroup_one": "작업 그룹",
+  "taskGroup_other": "작업 그룹들",
   "taskId": "작업 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",

@@ -170,28 +170,6 @@ Optimal configuration for ``KubernetesExecutor`` with security focus:
    rbac:
      create: true
 
-CeleryKubernetesExecutor Configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Configuration for hybrid executor that launches both Celery workers and Kubernetes task pods:
-
-.. code-block:: yaml
-   :caption: values.yaml
-
-   executor: CeleryKubernetesExecutor
-
-   scheduler:
-     serviceAccount:
-       automountServiceAccountToken: false
-       serviceAccountTokenVolume:
-         enabled: true
-         expirationSeconds: 5400  # 1.5 hours for longer-running tasks
-         volumeName: hybrid-executor-token
-
-   # Redis configuration for Celery
-   redis:
-     enabled: true
-
 Multi-Environment Examples
 --------------------------
 

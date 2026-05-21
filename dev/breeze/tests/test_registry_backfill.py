@@ -24,11 +24,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow_breeze.commands.registry_commands import (
+    AIRFLOW_ROOT_PATH,
+    DEV_REGISTRY_DIR,
     _build_pip_spec,
     _create_isolated_providers_json,
     _find_provider_yaml,
     _read_provider_yaml_info,
     _run_extract_script,
+    _run_extract_versions,
 )
 
 
@@ -204,3 +207,61 @@ class TestRunExtractScript:
 
         assert rc == 1
         assert mock_run.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# _run_extract_versions
+# ---------------------------------------------------------------------------
+class TestRunExtractVersions:
+    def test_success(self):
+        ok_result = MagicMock(returncode=0)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command", return_value=ok_result
+        ) as mock_run:
+            rc = _run_extract_versions("amazon", "9.24.0")
+
+        assert rc == 0
+        mock_run.assert_called_once()
+
+    def test_passes_provider_and_version_args(self):
+        ok_result = MagicMock(returncode=0)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command", return_value=ok_result
+        ) as mock_run:
+            _run_extract_versions("google", "21.0.0")
+
+        cmd = mock_run.call_args[0][0]
+        assert "--provider" in cmd
+        assert "google" in cmd
+        assert "--version" in cmd
+        assert "21.0.0" in cmd
+
+    def test_invokes_uv_with_dev_registry_project(self):
+        """Regression test: uv must resolve deps from dev/registry/pyproject.toml,
+        not the airflow workspace, otherwise providers like samba pull in gssapi
+        and fail to build on runners without libkrb5-dev.
+        """
+        ok_result = MagicMock(returncode=0)
+        with patch(
+            "airflow_breeze.commands.registry_commands.run_command", return_value=ok_result
+        ) as mock_run:
+            _run_extract_versions("amazon", "9.24.0")
+
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "uv"
+        assert cmd[1] == "run"
+        assert "--project" in cmd
+        project_idx = cmd.index("--project")
+        assert cmd[project_idx + 1] == str(DEV_REGISTRY_DIR)
+        # The --project flag must come before "python" so uv applies it.
+        assert project_idx < cmd.index("python")
+        # cwd stays at the airflow root so the script's relative path resolves
+        # the same way as the registry-backfill.yml workflow runs it.
+        assert mock_run.call_args.kwargs["cwd"] == str(AIRFLOW_ROOT_PATH)
+
+    def test_returns_failure_code(self):
+        fail_result = MagicMock(returncode=1)
+        with patch("airflow_breeze.commands.registry_commands.run_command", return_value=fail_result):
+            rc = _run_extract_versions("amazon", "9.24.0")
+
+        assert rc == 1

@@ -59,6 +59,57 @@ An example usage of the SQLExecuteQueryOperator to connect to Snowflake is as fo
   Parameters that can be passed onto the operator will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
 
+.. _howto/operator:SnowflakeCheckOperator:
+
+SnowflakeCheckOperator
+^^^^^^^^^^^^^^^^^^^^^^
+
+To perform checks against Snowflake you can use
+:class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeCheckOperator`
+
+This operator expects a SQL query that will return a single row. Each value on
+that first row is evaluated using Python ``bool`` casting. If any of the values
+return ``False`` the check fails and errors out.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_snowflake_check]
+    :end-before: [END howto_operator_snowflake_check]
+
+.. _howto/operator:SnowflakeValueCheckOperator:
+
+SnowflakeValueCheckOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To perform a simple value check using SQL code you can use
+:class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeValueCheckOperator`
+
+This operator expects a SQL query that will return a single row. That value is
+evaluated against ``pass_value``, which can be either a string or numeric value.
+If numeric, you can also specify ``tolerance``.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_snowflake_value_check]
+    :end-before: [END howto_operator_snowflake_value_check]
+
+.. _howto/operator:SnowflakeIntervalCheckOperator:
+
+SnowflakeIntervalCheckOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To check that the values of metrics given as SQL expressions are within a certain
+tolerance of the ones from ``days_back`` before you can use
+:class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeIntervalCheckOperator`
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_snowflake_interval_check]
+    :end-before: [END howto_operator_snowflake_interval_check]
+
 
 SnowflakeSqlApiOperator
 =======================

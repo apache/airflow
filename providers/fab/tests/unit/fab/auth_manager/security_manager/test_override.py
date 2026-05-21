@@ -32,7 +32,10 @@ from airflow.providers.fab.auth_manager.models import (
     Role,
     User,
 )
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import (
+    FabAirflowSecurityManagerOverride,
+    FabException,
+)
 
 
 class EmptySecurityManager(FabAirflowSecurityManagerOverride):
@@ -43,6 +46,41 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class TestFabAirflowSecurityManagerOverride:
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_delete_role_cleans_up_associations_before_delete(self, mock_log):
+        """delete_role must remove association rows before the role row itself."""
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=42, name="TestRole")
+
+        mock_session = Mock(spec=Session)
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = role
+        mock_session.scalars.return_value = mock_scalars
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.delete_role("TestRole")
+
+        # 4 deletes: permission-role, user-role, group-role, then the role itself
+        assert mock_session.execute.call_count == 4
+        mock_session.commit.assert_called_once()
+        mock_log.info.assert_called_once_with("Deleting role '%s'", "TestRole")
+
+    def test_delete_role_raises_for_missing_role(self):
+        """delete_role must raise FabException when the role does not exist."""
+        sm = EmptySecurityManager()
+
+        mock_session = Mock(spec=Session)
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = None
+        mock_session.scalars.return_value = mock_scalars
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            with pytest.raises(FabException, match="Role named 'NoSuchRole' does not exist"):
+                sm.delete_role("NoSuchRole")
+
+        mock_session.execute.assert_not_called()
+        mock_session.commit.assert_not_called()
+
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
         sm = EmptySecurityManager()

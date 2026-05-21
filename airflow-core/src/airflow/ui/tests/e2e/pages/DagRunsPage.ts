@@ -32,13 +32,13 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Navigate to DAG Runs page and wait for data to load
+   * Navigate to Dag Runs page and wait for data to load
    */
   public async navigate(): Promise<void> {
     await expect(async () => {
       await this.navigateTo(DagRunsPage.dagRunsUrl);
       await this.page.waitForURL(/.*dag_runs/, { timeout: 15_000 });
-      await expect(this.dagRunsTable).toBeVisible({ timeout: 10_000 });
+      await expect(this.dagRunsTable).toBeVisible();
 
       const dataLink = this.dagRunsTable.locator("a[href*='/dags/']").first();
       const noDataMessage = this.page.getByText("No Dag Runs found");
@@ -48,7 +48,7 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Verify DAG ID filtering via URL parameters
+   * Verify Dag ID filtering via URL parameters
    */
   public async verifyDagIdFiltering(dagIdPattern: string): Promise<void> {
     await expect(async () => {
@@ -75,7 +75,7 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Verify that the table contains DAG run data
+   * Verify that the table contains Dag run data
    */
   public async verifyDagRunsExist(): Promise<void> {
     const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
@@ -90,7 +90,7 @@ export class DagRunsPage extends BasePage {
   public async verifyRunDetailsDisplay(): Promise<void> {
     const firstRow = this.dagRunsTable.locator("tbody tr").first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 

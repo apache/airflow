@@ -125,7 +125,14 @@ class WorkerQueuesBase(BaseModel):
         str | None,
         Field(
             None,
-            description="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+            description=(
+                "Team name for the experimental ``[core] multi_team`` feature. "
+                "This is a UI/REST API-level hint; the Execution API does not "
+                "currently enforce team-based access boundaries -- see "
+                "``airflow-core/docs/security/workload.rst`` (section: "
+                "'No team-level isolation in Execution API'). Workers without "
+                "team_name behave as default-team workers."
+            ),
         ),
     ] = None
 
@@ -192,6 +199,14 @@ class WorkerRegistrationReturn(BaseModel):
     """The return class for the worker registration."""
 
     last_update: Annotated[datetime, Field(description="Time of the last update of the worker.")]
+    versions_match: Annotated[
+        bool,
+        Field(
+            description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
+            "If False, the worker version is not matching and might need to be upgraded. But version is still "
+            "compatible enough to work. If True, worker and server versions match.",
+        ),
+    ] = False  # If not explicitly given assume it is not compatible
 
 
 class WorkerSetStateReturn(BaseModel):
@@ -215,3 +230,11 @@ class WorkerSetStateReturn(BaseModel):
             "None means no remote override; the worker uses its startup value.",
         ),
     ] = None
+    versions_match: Annotated[
+        bool,
+        Field(
+            description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
+            "If False, the worker version is not matching and might need to be upgraded. But version is still "
+            "compatible enough to work. If True, worker and server versions match.",
+        ),
+    ] = False  # If not explicitly given assume it is not compatible

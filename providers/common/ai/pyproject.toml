@@ -22,17 +22,17 @@
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.1",
-    "pathspec==1.0.4",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.5.7.17",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.1.0"
+version = "0.3.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -95,6 +95,16 @@ dependencies = [
 "common.sql" = [
     "apache-airflow-providers-common-sql"
 ]
+"langchain" = [
+    "langchain>=1.0.0",
+]
+"llamaindex" = [
+    "llama-index-core>=0.13.0",
+    "llama-index-embeddings-openai>=0.6.0",
+    "llama-index-llms-openai>=0.6.0",
+]
+"pdf" = ["pypdf>=4.0.0"]
+"docx" = ["python-docx>=1.0.0"]
 
 [dependency-groups]
 dev = [
@@ -107,7 +117,11 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
-    "apache-airflow-providers-common-sql[datafusion]"
+    "apache-airflow-providers-common-sql[datafusion]",
+    "langchain>=1.0.0",
+    "llama-index-core>=0.13.0",
+    "llama-index-embeddings-openai>=0.6.0",
+    "llama-index-llms-openai>=0.6.0",
 ]
 
 # To build docs:
@@ -136,8 +150,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.3.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.3.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

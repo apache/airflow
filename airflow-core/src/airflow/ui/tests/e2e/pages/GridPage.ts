@@ -39,7 +39,7 @@ export class GridPage extends BasePage {
     await expect(firstCell).toBeVisible();
     await firstCell.click();
     await expect(this.page).toHaveURL(/.*\/tasks\/.*/, { timeout: 15_000 });
-    await expect(this.page.getByTestId("virtualized-list")).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.getByTestId("virtualized-list")).toBeVisible();
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
@@ -51,7 +51,7 @@ export class GridPage extends BasePage {
   }
 
   public async switchToGridView(): Promise<void> {
-    await expect(this.gridViewButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.gridViewButton).toBeVisible();
     await this.gridViewButton.click();
     await this.waitForGridToLoad();
   }
@@ -63,7 +63,7 @@ export class GridPage extends BasePage {
   }
 
   public async verifyGridViewIsActive(): Promise<void> {
-    await expect(this.gridViewButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.gridViewButton).toBeVisible();
     await expect(this.gridCells.first()).toBeVisible({ timeout: 15_000 });
     await expect(this.taskNameRows.first()).toBeVisible({ timeout: 20_000 });
   }
@@ -98,6 +98,6 @@ export class GridPage extends BasePage {
 
   public async waitForGridToLoad(): Promise<void> {
     await expect(this.gridCells.first()).toBeVisible({ timeout: 20_000 });
-    await expect(this.taskNameRows.first()).toBeVisible({ timeout: 10_000 });
+    await expect(this.taskNameRows.first()).toBeVisible();
   }
 }

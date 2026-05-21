@@ -145,7 +145,7 @@ def _skip_due_to_rate(rate: float) -> bool:
 
 class _OtelTimer(Timer):
     """
-    An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+    An implementation of stats.Timer() which records the result in the OTel Metrics Map.
 
     OpenTelemetry does not have a native timer; values are stored as a Histogram so that
     all observations (count, sum, bucket distribution) are preserved across multiple recordings.
@@ -175,13 +175,13 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        metrics_validator: ListValidator = PatternAllowListValidator(),
+        metrics_validator: ListValidator | None = None,
         stat_name_handler: Callable[[str], str] | None = None,
         statsd_influxdb_enabled: bool = False,
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
-        self.metrics_validator = metrics_validator
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
         self.stat_name_handler = stat_name_handler

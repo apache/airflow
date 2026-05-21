@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import ELK, { type ElkNode } from "elkjs";
 // ?raw imports the file content as a plain string without any transformation.
@@ -26,10 +25,10 @@ import ELK, { type ElkNode } from "elkjs";
 // URL-based worker approaches (?worker, ?worker&inline, new URL()) resolve to
 // the Vite origin which browsers reject for Workers.
 import ElkWorkerSource from "elkjs/lib/elk-worker.min.js?raw";
-import type { TFunction } from "i18next";
 
 import type { NodeResponse, StructureDataResponse } from "openapi/requests/types.gen";
 
+import type { Direction } from "./DirectionDropdown";
 import { generateElkGraph } from "./elkGraphUtils";
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
@@ -42,17 +41,6 @@ const elkWorkerBlobUrl = URL.createObjectURL(new Blob([ElkWorkerSource], { type:
 const elk = new ELK({
   workerFactory: () => new Worker(elkWorkerBlobUrl, { type: "classic" }),
 });
-
-export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
-export const directionOptions = (translate: TFunction) =>
-  createListCollection({
-    items: [
-      { label: translate("graph.directionRight"), value: "RIGHT" as Direction },
-      { label: translate("graph.directionLeft"), value: "LEFT" as Direction },
-      { label: translate("graph.directionUp"), value: "UP" as Direction },
-      { label: translate("graph.directionDown"), value: "DOWN" as Direction },
-    ],
-  });
 
 export type LayoutNode = ElkNode & NodeResponse;
 

@@ -381,6 +381,63 @@ export const $AssetResponse = {
     description: 'Asset serializer for responses.'
 } as const;
 
+export const $AssetStateBody = {
+    properties: {
+        value: {
+            type: 'string',
+            maxLength: 65535,
+            title: 'Value'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'AssetStateBody',
+    description: 'Request body for setting an asset state value.'
+} as const;
+
+export const $AssetStateCollectionResponse = {
+    properties: {
+        asset_states: {
+            items: {
+                '$ref': '#/components/schemas/AssetStateResponse'
+            },
+            type: 'array',
+            title: 'Asset States'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['asset_states', 'total_entries'],
+    title: 'AssetStateCollectionResponse',
+    description: 'All asset state entries for an asset.'
+} as const;
+
+export const $AssetStateResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            type: 'string',
+            title: 'Value'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'updated_at'],
+    title: 'AssetStateResponse',
+    description: 'A single asset state key/value pair with metadata.'
+} as const;
+
 export const $AssetWatcherResponse = {
     properties: {
         name: {
@@ -466,9 +523,16 @@ export const $BackfillPostBody = {
             default: 10
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            default: true
+            description: 'Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).'
         }
     },
     additionalProperties: false,
@@ -1407,10 +1471,16 @@ export const $ClearTaskInstancesBody = {
             default: false
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
-            default: false
+            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
         },
         prevent_running_task: {
             type: 'boolean',
@@ -1807,7 +1877,7 @@ export const $DAGCollectionResponse = {
     type: 'object',
     required: ['dags', 'total_entries'],
     title: 'DAGCollectionResponse',
-    description: 'DAG Collection serializer for responses.'
+    description: 'Dag Collection serializer for responses.'
 } as const;
 
 export const $DAGDetailsResponse = {
@@ -2183,6 +2253,17 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Default Args'
         },
+        rerun_with_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Rerun With Latest Version'
+        },
         owner_links: {
             anyOf: [
                 {
@@ -2210,7 +2291,7 @@ export const $DAGDetailsResponse = {
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
-            description: "Whether this DAG's schedule supports backfilling.",
+            description: "Whether this Dag's schedule supports backfilling.",
             readOnly: true
         },
         file_token: {
@@ -2244,7 +2325,7 @@ Deprecated: Use max_active_tasks instead.`,
     type: 'object',
     required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'catchup', 'dag_run_timeout', 'asset_expression', 'doc_md', 'start_date', 'end_date', 'is_paused_upon_creation', 'params', 'render_template_as_native_obj', 'template_search_path', 'timezone', 'last_parsed', 'default_args', 'is_backfillable', 'file_token', 'concurrency', 'latest_dag_version'],
     title: 'DAGDetailsResponse',
-    description: 'Specific serializer for DAG Details responses.'
+    description: 'Specific serializer for Dag Details responses.'
 } as const;
 
 export const $DAGPatchBody = {
@@ -2498,7 +2579,7 @@ export const $DAGResponse = {
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
-            description: "Whether this DAG's schedule supports backfilling.",
+            description: "Whether this Dag's schedule supports backfilling.",
             readOnly: true
         },
         file_token: {
@@ -2511,7 +2592,7 @@ export const $DAGResponse = {
     type: 'object',
     required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'is_backfillable', 'file_token'],
     title: 'DAGResponse',
-    description: 'DAG serializer for responses.'
+    description: 'Dag serializer for responses.'
 } as const;
 
 export const $DAGRunClearBody = {
@@ -2529,20 +2610,26 @@ export const $DAGRunClearBody = {
         only_new: {
             type: 'boolean',
             title: 'Only New',
-            description: 'Only queue newly added tasks in the latest DAG version without clearing existing tasks.',
+            description: 'Only queue newly added tasks in the latest Dag version without clearing existing tasks.',
             default: false
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.',
-            default: false
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False`` (the historical default for clear/rerun).'
         }
     },
     additionalProperties: false,
     type: 'object',
     title: 'DAGRunClearBody',
-    description: 'DAG Run serializer for clear endpoint body.'
+    description: 'Dag Run serializer for clear endpoint body.'
 } as const;
 
 export const $DAGRunCollectionResponse = {
@@ -2555,14 +2642,53 @@ export const $DAGRunCollectionResponse = {
             title: 'Dag Runs'
         },
         total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries',
+            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+        },
+        next_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Next Cursor',
+            description: 'Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.'
+        },
+        previous_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Previous Cursor',
+            description: 'Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.'
         }
     },
     type: 'object',
-    required: ['dag_runs', 'total_entries'],
+    required: ['dag_runs'],
     title: 'DAGRunCollectionResponse',
-    description: 'DAG Run Collection serializer for responses.'
+    description: `Dag Run collection response supporting both offset and cursor pagination.
+
+A single flat model is used instead of a discriminated union
+(\`\`Annotated[Offset | Cursor, Field(discriminator=...)]\`\`) because
+the OpenAPI \`\`oneOf\`\` + \`\`discriminator\`\` construct is not handled
+correctly by \`\`@hey-api/openapi-ts\`\` / \`\`@7nohe/openapi-react-query-codegen\`\`:
+return types degrade to \`\`unknown\`\` in JSDoc and can produce
+incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).`
 } as const;
 
 export const $DAGRunPatchBody = {
@@ -2593,14 +2719,14 @@ export const $DAGRunPatchBody = {
     additionalProperties: false,
     type: 'object',
     title: 'DAGRunPatchBody',
-    description: 'DAG Run Serializer for PATCH requests.'
+    description: 'Dag Run Serializer for PATCH requests.'
 } as const;
 
 export const $DAGRunPatchStates = {
     type: 'string',
     enum: ['queued', 'success', 'failed'],
     title: 'DAGRunPatchStates',
-    description: 'Enum for DAG Run states when updating a DAG Run.'
+    description: 'Enum for Dag Run states when updating a Dag Run.'
 } as const;
 
 export const $DAGRunResponse = {
@@ -2800,7 +2926,7 @@ export const $DAGRunResponse = {
     type: 'object',
     required: ['dag_run_id', 'dag_id', 'logical_date', 'queued_at', 'start_date', 'end_date', 'duration', 'data_interval_start', 'data_interval_end', 'run_after', 'last_scheduling_decision', 'run_type', 'state', 'triggered_by', 'triggering_user_name', 'conf', 'note', 'dag_versions', 'bundle_version', 'dag_display_name', 'partition_key'],
     title: 'DAGRunResponse',
-    description: 'DAG Run serializer for responses.'
+    description: 'Dag Run serializer for responses.'
 } as const;
 
 export const $DAGRunsBatchBody = {
@@ -3114,7 +3240,7 @@ export const $DAGRunsBatchBody = {
     additionalProperties: false,
     type: 'object',
     title: 'DAGRunsBatchBody',
-    description: 'List DAG Runs body for batch endpoint.'
+    description: 'List Dag Runs body for batch endpoint.'
 } as const;
 
 export const $DAGSourceResponse = {
@@ -3153,7 +3279,7 @@ export const $DAGSourceResponse = {
     type: 'object',
     required: ['content', 'dag_id', 'version_number', 'dag_display_name'],
     title: 'DAGSourceResponse',
-    description: 'DAG Source serializer for responses.'
+    description: 'Dag Source serializer for responses.'
 } as const;
 
 export const $DAGTagCollectionResponse = {
@@ -3173,7 +3299,7 @@ export const $DAGTagCollectionResponse = {
     type: 'object',
     required: ['tags', 'total_entries'],
     title: 'DAGTagCollectionResponse',
-    description: 'DAG Tags Collection serializer for responses.'
+    description: 'Dag Tags Collection serializer for responses.'
 } as const;
 
 export const $DAGVersionCollectionResponse = {
@@ -3193,7 +3319,7 @@ export const $DAGVersionCollectionResponse = {
     type: 'object',
     required: ['dag_versions', 'total_entries'],
     title: 'DAGVersionCollectionResponse',
-    description: 'DAG Version Collection serializer for responses.'
+    description: 'Dag Version Collection serializer for responses.'
 } as const;
 
 export const $DAGWarningCollectionResponse = {
@@ -3213,7 +3339,7 @@ export const $DAGWarningCollectionResponse = {
     type: 'object',
     required: ['dag_warnings', 'total_entries'],
     title: 'DAGWarningCollectionResponse',
-    description: 'DAG warning collection serializer for responses.'
+    description: 'Dag warning collection serializer for responses.'
 } as const;
 
 export const $DAGWarningResponse = {
@@ -3242,7 +3368,7 @@ export const $DAGWarningResponse = {
     type: 'object',
     required: ['dag_id', 'warning_type', 'message', 'timestamp', 'dag_display_name'],
     title: 'DAGWarningResponse',
-    description: 'DAG Warning serializer for responses.'
+    description: 'Dag Warning serializer for responses.'
 } as const;
 
 export const $DagProcessorInfoResponse = {
@@ -3408,7 +3534,7 @@ export const $DagScheduleAssetReference = {
     type: 'object',
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
-    description: 'DAG schedule reference serializer for assets.'
+    description: 'Dag schedule reference serializer for assets.'
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -3428,7 +3554,7 @@ export const $DagStatsCollectionResponse = {
     type: 'object',
     required: ['dags', 'total_entries'],
     title: 'DagStatsCollectionResponse',
-    description: 'DAG Stats Collection serializer for responses.'
+    description: 'Dag Stats Collection serializer for responses.'
 } as const;
 
 export const $DagStatsResponse = {
@@ -3452,7 +3578,7 @@ export const $DagStatsResponse = {
     type: 'object',
     required: ['dag_id', 'dag_display_name', 'stats'],
     title: 'DagStatsResponse',
-    description: 'DAG Stats serializer for responses.'
+    description: 'Dag Stats serializer for responses.'
 } as const;
 
 export const $DagStatsStateResponse = {
@@ -3489,7 +3615,7 @@ export const $DagTagResponse = {
     type: 'object',
     required: ['name', 'dag_id', 'dag_display_name'],
     title: 'DagTagResponse',
-    description: 'DAG Tag serializer for responses.'
+    description: 'Dag Tag serializer for responses.'
 } as const;
 
 export const $DagVersionResponse = {
@@ -4699,7 +4825,7 @@ export const $PatchTaskInstanceBody = {
     additionalProperties: false,
     type: 'object',
     title: 'PatchTaskInstanceBody',
-    description: 'Request body for Clear Task Instances endpoint.'
+    description: 'Request body for patching task instance state.'
 } as const;
 
 export const $PluginCollectionResponse = {
@@ -6699,6 +6825,75 @@ export const $TaskResponse = {
     description: 'Task serializer for responses.'
 } as const;
 
+export const $TaskStateBody = {
+    properties: {
+        value: {
+            type: 'string',
+            maxLength: 65535,
+            title: 'Value'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStateBody',
+    description: 'Request body for setting a task state value.'
+} as const;
+
+export const $TaskStateCollectionResponse = {
+    properties: {
+        task_states: {
+            items: {
+                '$ref': '#/components/schemas/TaskStateResponse'
+            },
+            type: 'array',
+            title: 'Task States'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_states', 'total_entries'],
+    title: 'TaskStateCollectionResponse',
+    description: 'All task state entries for a task instance.'
+} as const;
+
+export const $TaskStateResponse = {
+    properties: {
+        key: {
+            type: 'string',
+            title: 'Key'
+        },
+        value: {
+            type: 'string',
+            title: 'Value'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At'
+        }
+    },
+    type: 'object',
+    required: ['key', 'value', 'updated_at', 'expires_at'],
+    title: 'TaskStateResponse',
+    description: 'A single task state key/value pair with metadata.'
+} as const;
+
 export const $TimeDelta = {
     properties: {
         __type: {
@@ -6825,7 +7020,7 @@ export const $TriggerDAGRunPostBody = {
     type: 'object',
     required: ['logical_date'],
     title: 'TriggerDAGRunPostBody',
-    description: 'Trigger DAG Run Serializer for POST body.'
+    description: 'Trigger Dag Run Serializer for POST body.'
 } as const;
 
 export const $TriggerResponse = {
@@ -7536,6 +7731,17 @@ export const $ConfigResponse = {
         multi_team: {
             type: 'boolean',
             title: 'Multi Team'
+        },
+        rerun_with_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Rerun With Latest Version'
         }
     },
     type: 'object',
@@ -8042,7 +8248,7 @@ export const $DAGWithLatestDagRunsResponse = {
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
-            description: "Whether this DAG's schedule supports backfilling.",
+            description: "Whether this Dag's schedule supports backfilling.",
             readOnly: true
         },
         file_token: {
@@ -8056,6 +8262,25 @@ export const $DAGWithLatestDagRunsResponse = {
     required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
+} as const;
+
+export const $DagRunStatsResponse = {
+    properties: {
+        duration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DurationStats'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['duration'],
+    title: 'DagRunStatsResponse',
+    description: 'DAG Run statistics serializer for responses.'
 } as const;
 
 export const $DashboardDagStatsResponse = {
@@ -8219,6 +8444,46 @@ export const $DeadlineResponse = {
     required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
+} as const;
+
+export const $DurationStats = {
+    properties: {
+        mean: {
+            type: 'number',
+            title: 'Mean'
+        },
+        mode: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Mode'
+        },
+        p50: {
+            type: 'number',
+            title: 'P50'
+        },
+        p90: {
+            type: 'number',
+            title: 'P90'
+        },
+        p95: {
+            type: 'number',
+            title: 'P95'
+        },
+        p99: {
+            type: 'number',
+            title: 'P99'
+        }
+    },
+    type: 'object',
+    required: ['mean', 'mode', 'p50', 'p90', 'p95', 'p99'],
+    title: 'DurationStats',
+    description: 'Duration statistics for a DAG across historical runs.'
 } as const;
 
 export const $EdgeResponse = {

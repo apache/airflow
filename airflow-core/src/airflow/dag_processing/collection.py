@@ -262,6 +262,7 @@ def _serialize_dag_capturing_errors(
     bundle_name,
     session: Session,
     bundle_version: str | None,
+    version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
 ):
     """
@@ -282,6 +283,7 @@ def _serialize_dag_capturing_errors(
             dag,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
             _prefetched=_prefetched,
@@ -436,6 +438,7 @@ def update_dag_parsing_results_in_db(
     warnings: set[DagWarning],
     session: Session,
     *,
+    version_data: dict | None = None,
     warning_types: tuple[DagWarningType, ...] = (
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
@@ -493,6 +496,7 @@ def update_dag_parsing_results_in_db(
                             dag=dag,
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
+                            version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
                         )
@@ -891,15 +895,25 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_references = []
                 continue
-            referenced_asset_ids = {asset.id for asset in (assets[r.name, r.uri] for r in references)}
+            referenced_assets = {
+                assets[r.name, r.uri]: r.access_control.get("producer_teams", []) for r in references
+            }
+            referenced_asset_ids = {a.id for a in referenced_assets}
             orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
                 if asset_id not in referenced_asset_ids:
                     session.delete(ref)
+            for asset_model, teams in referenced_assets.items():
+                if asset_model.id in orm_refs:
+                    orm_refs[asset_model.id].allow_producer_teams = teams
             session.bulk_save_objects(
-                DagScheduleAssetReference(asset_id=asset_id, dag_id=dag_id)
-                for asset_id in referenced_asset_ids
-                if asset_id not in orm_refs
+                DagScheduleAssetReference(
+                    asset_id=asset_model.id,
+                    dag_id=dag_id,
+                    allow_producer_teams=teams,
+                )
+                for asset_model, teams in referenced_assets.items()
+                if asset_model.id not in orm_refs
             )
 
     def add_dag_asset_alias_references(

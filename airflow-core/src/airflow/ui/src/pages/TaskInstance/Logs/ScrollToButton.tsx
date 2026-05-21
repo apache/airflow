@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
-import { Tooltip } from "src/components/ui";
+import { IconButton } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
 export const ScrollToButton = ({
@@ -33,28 +32,22 @@ export const ScrollToButton = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <Tooltip
-      closeDelay={100}
-      content={translate("scroll.tooltip", {
+    <IconButton
+      _ltr={{ left: "auto", right: 4 }}
+      _rtl={{ left: 4, right: "auto" }}
+      bg="bg.panel"
+      bottom={direction === "bottom" ? 4 : 14}
+      label={translate("scroll.tooltip", {
         direction: translate(`scroll.direction.${direction}`),
         hotkey: `${getMetaKey()}+${direction === "bottom" ? "↓" : "↑"}`,
       })}
-      openDelay={100}
+      onClick={onClick}
+      position="absolute"
+      rounded="full"
+      size="xs"
+      variant="outline"
     >
-      <IconButton
-        _ltr={{ left: "auto", right: 4 }}
-        _rtl={{ left: 4, right: "auto" }}
-        aria-label={translate(`scroll.direction.${direction}`)}
-        bg="bg.panel"
-        bottom={direction === "bottom" ? 4 : 14}
-        onClick={onClick}
-        position="absolute"
-        rounded="full"
-        size="xs"
-        variant="outline"
-      >
-        {direction === "bottom" ? <FiChevronDown /> : <FiChevronUp />}
-      </IconButton>
-    </Tooltip>
+      {direction === "bottom" ? <FiChevronDown /> : <FiChevronUp />}
+    </IconButton>
   );
 };

@@ -173,7 +173,7 @@ class TestOtelIntegration:
     - start breeze with '--integration otel'
     - run on the shell 'export use_otel=true'
     - run the test
-    - check 'http://localhost:36686/'
+    - check 'http://localhost:26686/'
 
     To get a db dump on the stdout, run 'export log_level=debug'.
     """
@@ -382,6 +382,7 @@ class TestOtelIntegration:
             )
         return ti
 
+    @pytest.mark.execution_timeout(90)
     @pytest.mark.parametrize(
         ("legacy_names_on_bool", "legacy_names_exported"),
         [
@@ -417,6 +418,7 @@ class TestOtelIntegration:
             if legacy_names_exported:
                 assert set(legacy_metric_names).issubset(metrics_dict.keys())
 
+    @pytest.mark.execution_timeout(90)
     def test_export_metrics_during_process_shutdown(self, capfd):
         out, dag = self.dag_execution_for_testing_metrics(capfd)
 
