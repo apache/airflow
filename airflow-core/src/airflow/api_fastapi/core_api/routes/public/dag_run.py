@@ -100,6 +100,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
     requires_access_dag_run_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.dag_run import BulkDagRunService, DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
