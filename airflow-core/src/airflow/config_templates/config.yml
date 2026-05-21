@@ -2570,13 +2570,15 @@ scheduler:
       see_also: ":ref:`scheduler:ha:tunables`"
     max_new_dagruns_per_loop_to_schedule:
       description: |
-        How many NEW dagruns should be scheduled and examined (and locked) when scheduling
-        and queuing tasks.
-        If set, select `max_dagruns_per_loop_to_schedule` old dagruns (that have been
-        examined before)
-        And `max_new_dagruns_per_loop_to_schedule` new dagruns (that have not yet been examined).
+        When set > 0, the scheduler runs a second query per loop that fetches up to this
+        many dagruns that have never been examined (``last_scheduling_decision IS NULL``),
+        in addition to the ``max_dagruns_per_loop_to_schedule`` already-examined ones.
+
+        This prevents starvation of older dagruns when large batches of new dagruns are
+        created at once (for example, via ``TriggerDagRunOperator``). Note that the total
+        number of dagruns locked and scheduled per loop becomes the sum of both limits.
       example: ~
-      version_added: 3.2.2
+      version_added: 3.3.0
       type: integer
       default: "0"
     use_job_schedule:

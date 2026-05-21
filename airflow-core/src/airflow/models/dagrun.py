@@ -631,9 +631,9 @@ class DagRun(Base, LoggingMixin):
     @retry_db_transaction
     def get_running_dag_runs_to_examine(cls, session: Session) -> Sequence[DagRun]:
         """
-        Return the next DagRuns that the scheduler should attempt to schedule.
+        Return the next DagRuns (as a list) that the scheduler should attempt to schedule.
 
-        This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
+        This will return zero or more DagRuns that are row-level-locked with a "SELECT ... FOR UPDATE"
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
 
@@ -671,16 +671,16 @@ class DagRun(Base, LoggingMixin):
         new_dagruns_to_examine = max(cls.DEFAULT_NEW_DAGRUNS_TO_EXAMINE, 0)
         dagruns_to_examine = cls.DEFAULT_DAGRUNS_TO_EXAMINE
 
-        query = _get_dagrun_query(
-            filters=filters
-            if new_dagruns_to_examine == 0
-            else [*filters, DagRun.last_scheduling_decision.is_not(None)],
-            order_by=order,
-            limit=dagruns_to_examine,
+        old_filters = (
+            [*filters, DagRun.last_scheduling_decision.is_not(None)]
+            if new_dagruns_to_examine > 0
+            else filters
         )
+        query = _get_dagrun_query(filters=old_filters, order_by=order, limit=dagruns_to_examine)
 
-        result: Sequence[DagRun] = (
-            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique().all()
+        result: list[DagRun] = cast(
+            "list[DagRun]",
+            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique().all(),
         )
 
         if new_dagruns_to_examine > 0:
@@ -695,7 +695,7 @@ class DagRun(Base, LoggingMixin):
                 .all()
             )
 
-            result = [*result, *new_dagruns]
+            result.extend(new_dagruns)
 
         return result
 

@@ -993,11 +993,25 @@ class TestDagRun:
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
+    @pytest.mark.parametrize(
+        "new_dagruns_to_examine",
+        [
+            0,
+            -1,
+        ],
+    )
     def test_get_running_dag_runs_ignores_new_dagruns_to_examine_when_smaller_than_0(
-        self, session, dag_maker, monkeypatch
+        self,
+        session,
+        dag_maker,
+        monkeypatch,
+        new_dagruns_to_examine,
     ):
-
-        monkeypatch.setattr(DagRun, "DEFAULT_NEW_DAGRUNS_TO_EXAMINE", 0)
+        monkeypatch.setattr(
+            DagRun,
+            "DEFAULT_NEW_DAGRUNS_TO_EXAMINE",
+            new_dagruns_to_examine,
+        )
 
         def create_dagruns(
             last_scheduling_decision: datetime.datetime | None = None,
@@ -1050,7 +1064,6 @@ class TestDagRun:
         assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None]) == 10
 
     def test_get_running_dag_runs_with_max_new_dagruns_to_examine(self, session, dag_maker, monkeypatch):
-
         monkeypatch.setattr(DagRun, "DEFAULT_NEW_DAGRUNS_TO_EXAMINE", 10)
 
         def create_dagruns(
