@@ -63,7 +63,11 @@ func (c *CoordinatorClient) GetVariable(_ context.Context, key string) (string, 
 	case string:
 		return v, nil
 	default:
-		// If the value is not a string, marshal it to JSON.
+		// Airflow Variables are stored as strings, but the supervisor
+		// decodes msgpack into native Go types — a supervisor that
+		// returns a list/map/number means the caller stored JSON.
+		// Re-encode it so UnmarshalJSONVariable still works uniformly
+		// across HTTP and coordinator modes.
 		b, err := json.Marshal(v)
 		if err != nil {
 			return "", fmt.Errorf("marshaling variable value: %w", err)
