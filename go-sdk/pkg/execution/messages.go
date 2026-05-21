@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// --- Inbound messages (Supervisor -> Runtime) ---
+// Inbound messages (Supervisor -> Runtime).
 
 // DagFileParseRequest is sent by the supervisor to request DAG parsing.
 type DagFileParseRequest struct {
@@ -166,7 +166,7 @@ func decodeStartupDetails(m map[string]any) (*StartupDetails, error) {
 	}, nil
 }
 
-// --- Response types (for runtime-initiated requests) ---
+// Response types (for runtime-initiated requests).
 
 // ConnectionResult is the response to GetConnection.
 type ConnectionResult struct {
@@ -235,7 +235,7 @@ func decodeErrorResponse(m map[string]any) *ErrorResponse {
 	}
 }
 
-// --- Outbound messages (Runtime -> Supervisor) ---
+// Outbound messages (Runtime -> Supervisor).
 
 // GetConnectionMsg is sent to request a connection from the supervisor.
 type GetConnectionMsg struct {
@@ -351,7 +351,7 @@ func (m TaskStateMsg) toMap() map[string]any {
 	}
 }
 
-// --- Message dispatch ---
+// Message dispatch.
 
 // decodeIncomingBody dispatches decoding of a body map based on its "type" field.
 func decodeIncomingBody(m map[string]any) (any, error) {
