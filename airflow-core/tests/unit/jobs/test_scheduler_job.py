@@ -2460,7 +2460,10 @@ class TestSchedulerJob:
         dag_id = "SchedulerJobTest.test_max_active_tis_per_dagrun_deferred"
         with dag_maker(dag_id=dag_id, max_active_tasks=16, session=session):
             task_a = EmptyOperator.partial(task_id="task_a", max_active_tis_per_dagrun=1).expand_kwargs(
-                [{"inputs": 1}, {"inputs": 2}]
+                [
+                    {"inputs": 1},
+                    {"inputs": 2},
+                ]
             )
             EmptyOperator(task_id="task_b")
 
@@ -6427,7 +6430,7 @@ class TestSchedulerJob:
         assert total_running == 20
         assert session.scalar(select(func.count()).select_from(DagRun)) == 66
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
-        # now we finish all lower priority backfill tasks, and observe new higher priority tasks are started
+        # now we finish all lower priority scheduled runs, and observe new higher priority tasks are started
         session.execute(
             update(DagRun)
             .where(DagRun.dag_id == "test_dag2", DagRun.state == DagRunState.RUNNING)
