@@ -51,7 +51,7 @@ Supported providers
 
 The hook forwards ``conn.password`` as ``api_key`` and ``conn.host`` as
 ``base_url`` to ``crewai.LLM``. The combinations that work out of the box
-with just the ``crewai`` extra installed:
+with just ``crewai`` installed:
 
 - ``openai/gpt-4o``, ``openai/gpt-4o-mini``
 - ``openai/...`` against an OpenAI-compatible endpoint, with ``host`` pointing
@@ -107,16 +107,27 @@ Parameters
 Dependencies
 ------------
 
-Install the ``crewai`` extra to use this hook::
+Install ``crewai`` separately into your venv after installing the
+``common-ai`` provider::
 
-    pip install apache-airflow-providers-common-ai[crewai]
+    pip install apache-airflow-providers-common-ai
+    pip install "crewai>=1.14.5"
 
-That extra installs ``crewai`` itself (which depends on ``openai`` and
-``anthropic`` at runtime). For other providers, install CrewAI's own
-``litellm`` extra plus the vendor SDK separately, e.g.::
+There is intentionally **no** ``[crewai]`` extra on this provider.
+``crewai`` 1.14.x ships tight conservative pins (``click~=8.1.7``,
+``tomli~=2.0.2``, plus a ``crewai-cli`` co-dependency that pulls
+``textual>=7.5`` → ``rich>=14.2``) that conflict with Airflow's own
+resolved ``click>=8.3``, ``tomli>=2.4``, and FAB's transitive
+``rich<14``. uv can resolve the mismatch via ``override-dependencies``,
+but the CI image build runs ``pip check`` afterwards and treats the
+metadata conflict as fatal. The cleanest answer is to keep ``crewai``
+out of Airflow's lock entirely; users who accept the pin cascade
+install ``crewai`` themselves.
 
-    pip install "crewai[litellm]" langchain-mistralai
+For non-OpenAI / non-Anthropic providers, install CrewAI's own
+``litellm`` extra plus the vendor SDK::
 
-The ``crewai`` extra is currently gated on ``python_version < "3.14"`` because
-CrewAI 1.14.x publishes only ``<3.14,>=3.10`` wheels. Newer Python envs will
-silently skip the extra.
+    pip install "crewai[litellm]>=1.14.5" langchain-mistralai
+
+CrewAI 1.14.x publishes wheels for Python 3.10-3.13; 3.14 isn't supported
+upstream yet.

@@ -16,11 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.providers.common.ai.hooks.crewai import CrewAIHook
+
+
+@pytest.fixture(autouse=True)
+def _stub_crewai_module():
+    """Stub ``crewai`` in sys.modules so @patch can resolve targets without
+    the real package installed.
+
+    crewai is intentionally NOT in the provider's dev group (see
+    ``providers/common/ai/pyproject.toml`` for the rationale -- crewai's
+    pins conflict with Airflow's resolved click/tomli/rich and break the
+    CI image build's ``pip check``). Tests have to stub it explicitly.
+    """
+    crewai_mod = MagicMock()
+    with patch.dict(sys.modules, {"crewai": crewai_mod}):
+        yield
 
 
 def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:
