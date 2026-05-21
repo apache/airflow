@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, or_, select
+from sqlalchemy import exc, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -40,6 +40,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.log import Log
 from airflow.utils.helpers import is_container
@@ -314,18 +315,22 @@ class AssetManager(LoggingMixin):
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
-            asset_alias_models: Iterable[AssetAliasModel] = session.scalars(
+            asset_alias_models: list[AssetAliasModel] = session.scalars(
                 select(AssetAliasModel)
                 .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
                     joinedload(AssetAliasModel.scheduled_dags).joinedload(DagScheduleAssetAliasReference.dag)
                 )
-            ).unique()
+            ).unique().all()
+
+            if asset_alias_models:
+                session.execute(
+                    insert(asset_alias_asset_event_association_table).values(
+                        [{"alias_id": aam.id, "event_id": asset_event.id} for aam in asset_alias_models]
+                    )
+                )
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.asset_events.append(asset_event)
-                session.add(asset_alias_model)
-
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.scheduled_dags

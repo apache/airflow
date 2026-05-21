@@ -459,11 +459,26 @@ def ti_update_state(
                 extra=json.dumps({"host_name": hostname}) if hostname else None,
             )
         )
+        session.commit()
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+    if isinstance(ti_patch_payload, TISuccessStatePayload):
+        try:
+            ti = session.get(TI, task_instance_id)
+            if ti is not None:
+                TI.register_asset_changes_in_db(
+                    ti,
+                    ti_patch_payload.task_outlets,
+                    ti_patch_payload.outlet_events,
+                    session,
+                )
+                session.commit()
+        except Exception:
+            log.exception("Error registering asset changes. The task state is already saved as SUCCESS.")
 
     if updated_state == TaskInstanceState.SUCCESS:
         if conf.getboolean("state_store", "clear_on_success"):
@@ -577,14 +592,6 @@ def _create_ti_state_update_query_and_update_state(
                 retry_delay_override=ti_patch_payload.retry_delay_seconds,
                 retry_reason=(ti_patch_payload.retry_reason[:500] if ti_patch_payload.retry_reason else None),
             )
-        elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            if ti is not None:
-                TI.register_asset_changes_in_db(
-                    ti,
-                    ti_patch_payload.task_outlets,
-                    ti_patch_payload.outlet_events,
-                    session,
-                )
         _emit_task_span(ti, state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
