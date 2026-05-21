@@ -57,6 +57,12 @@ func (*client) GetVariable(ctx context.Context, key string) (string, error) {
 		}
 		return "", err
 	}
+	// TODO: register secret-named variables with a SecretsMasker so the
+	// returned value is automatically redacted from subsequent task logs,
+	// matching Python's airflow.models.variable.Variable.get behaviour.
+	// Pairs with the "TODO: mask secrets here" hook in
+	// pkg/worker/runner.go's task log handler — both halves are needed
+	// before secret masking actually works end-to-end.
 	return *resp.Value, nil
 }
 
