@@ -25,7 +25,6 @@ from botocore.exceptions import ClientError
 from semver import VersionInfo
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.callback import CallbackKey
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda import lambda_executor
@@ -181,8 +180,9 @@ class TestAwsLambdaExecutor:
     def test_task_sdk_callback(self, mock_executor):
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
+        from airflow.models.callback import CallbackKey
 
-        callback_id = CallbackKey(id="callback_123")
+        callback_id = CallbackKey("callback_123")
 
         workload = mock.Mock(spec=ExecuteCallback)
         workload.key = callback_id
