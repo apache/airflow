@@ -30,6 +30,28 @@ from airflow.providers.common.compat.sdk import AirflowException
 if TYPE_CHECKING:
     from botocore.waiter import Waiter
 
+# Standard throttling and transient error codes to retry on
+# https://docs.aws.amazon.com/general/latest/gr/api-retries.html
+# and https://github.com/boto/botocore/blob/develop/botocore/retryhandler.py
+RETRIABLE_ERROR_CODES = {
+    "ThrottlingException",
+    "Throttling",
+    "RequestLimitExceeded",
+    "ProvisionedThroughputExceededException",
+    "LimitExceededException",
+    "RequestThrottled",
+    "RequestThrottledException",
+    "TooManyRequestsException",
+    "ServerException",
+    "InternalServerError",
+    "InternalFailure",
+    "ServiceUnavailable",
+    "BadGateway",
+    "GatewayTimeout",
+    "RequestTimeout",
+    "RequestTimeoutException",
+}
+
 
 def wait(
     waiter: Waiter,
@@ -87,7 +109,11 @@ def wait(
                 and isinstance(last_response.get("Error"), dict)
                 and "Code" in last_response.get("Error")
             ):
-                raise AirflowException(f"{failure_message}: {error}")
+                error_code = last_response["Error"]["Code"]
+                if error_code not in RETRIABLE_ERROR_CODES:
+                    raise AirflowException(f"{failure_message}: {error}")
+
+                log.info("Waiter encountered retriable error: %s. Retrying...", error_code)
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, last_response))
         else:
@@ -104,7 +130,7 @@ async def async_wait(
     failure_message: str,
     status_message: str,
     status_args: list[str],
-):
+) -> None:
     """
     Use an async boto waiter to poll an AWS service for the specified state.
 
@@ -153,7 +179,11 @@ async def async_wait(
                 and isinstance(last_response.get("Error"), dict)
                 and "Code" in last_response.get("Error")
             ):
-                raise AirflowException(f"{failure_message}\n{last_response}\n{error}")
+                error_code = last_response["Error"]["Code"]
+                if error_code not in RETRIABLE_ERROR_CODES:
+                    raise AirflowException(f"{failure_message}\n{last_response}\n{error}")
+
+                log.info("Waiter encountered retriable error: %s. Retrying...", error_code)
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, last_response))
         else:
