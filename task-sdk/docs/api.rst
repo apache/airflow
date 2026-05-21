@@ -99,6 +99,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.SkipMixin
 
+.. autoapiclass:: airflow.sdk.ResumableJobMixin
+
 .. autoapiclass:: airflow.sdk.BaseHook
 
 Callbacks
