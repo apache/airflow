@@ -2085,11 +2085,13 @@ class TestEcsExecutorCallbackSupport:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_collection_mixed_key_types(self):
-        """Test that EcsTaskCollection works with both TaskInstanceKey and callback string keys."""
+        """Test that EcsTaskCollection works with both TaskInstanceKey and CallbackKey workload keys."""
+        from airflow.models.callback import CallbackKey
+
         collection = EcsTaskCollection()
         mock_cmd = _generate_mock_cmd()
-        task_key = mock.Mock(spec=tuple)
-        callback_key = "12345678-1234-5678-1234-567812345678"
+        task_key = mock.Mock(spec=TaskInstanceKey)
+        callback_key = CallbackKey("12345678-1234-5678-1234-567812345678")
 
         collection.add_task(mock_task(ARN1), task_key, "default", mock_cmd, {}, 1)
         collection.add_task(mock_task(ARN2), callback_key, None, mock_cmd, {}, 1)
