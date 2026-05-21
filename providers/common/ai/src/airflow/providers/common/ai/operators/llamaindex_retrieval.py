@@ -28,8 +28,9 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
-    from airflow.sdk import Context
     from llama_index.core.base.embeddings.base import BaseEmbedding
+
+    from airflow.sdk import Context
 
 
 class LlamaIndexRetrievalOperator(BaseOperator):

@@ -28,9 +28,10 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
-    from airflow.sdk import Context
     from llama_index.core.base.embeddings.base import BaseEmbedding
     from llama_index.core.schema import TextNode
+
+    from airflow.sdk import Context
 
 
 class LlamaIndexEmbeddingOperator(BaseOperator):
@@ -118,9 +119,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
 
         embed_model = self._resolve_embed_model()
 
-        llama_docs = [
-            Document(text=doc["text"], metadata=doc.get("metadata", {})) for doc in self.documents
-        ]
+        llama_docs = [Document(text=doc["text"], metadata=doc.get("metadata", {})) for doc in self.documents]
 
         splitter = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
         nodes = splitter.get_nodes_from_documents(llama_docs)

@@ -183,9 +183,7 @@ class TestEmbeddingOperatorPersist:
 
     @patch("airflow.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
-    def test_cloud_uri_persist_dir_uses_object_storage_path(
-        self, mock_get_embed, mock_osp_cls, _li
-    ):
+    def test_cloud_uri_persist_dir_uses_object_storage_path(self, mock_get_embed, mock_osp_cls, _li):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``
         # when ``conn_id`` is set, which fsspec misinterprets. The operator must
         # pass the **raw** user URI to ``persist_dir=`` and supply
@@ -210,6 +208,4 @@ class TestEmbeddingOperatorPersist:
 
         mock_osp_cls.assert_called_once_with("s3://bucket/idx/", conn_id="aws_default")
         target.mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        index.storage_context.persist.assert_called_once_with(
-            persist_dir="s3://bucket/idx/", fs=target.fs
-        )
+        index.storage_context.persist.assert_called_once_with(persist_dir="s3://bucket/idx/", fs=target.fs)
