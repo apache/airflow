@@ -4126,6 +4126,18 @@ export const $ExternalViewResponse = {
             ],
             title: 'Category'
         },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
+        },
         href: {
             type: 'string',
             title: 'Href'
@@ -5494,6 +5506,18 @@ export const $ReactAppResponse = {
                 }
             ],
             title: 'Category'
+        },
+        nav_top_level: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Nav Top Level',
+            default: false
         },
         bundle_url: {
             type: 'string',
