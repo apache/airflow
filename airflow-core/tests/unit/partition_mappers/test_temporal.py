@@ -116,6 +116,30 @@ class TestTemporalMappers:
         assert pm.output_format == "customized-format"
         assert pm._timezone.name == expected_tz_name
 
+    @pytest.mark.parametrize(
+        "mapper_cls",
+        [
+            StartOfHourMapper,
+            StartOfDayMapper,
+            StartOfWeekMapper,
+            StartOfMonthMapper,
+            StartOfQuarterMapper,
+            StartOfYearMapper,
+        ],
+    )
+    def test_deserialize_legacy_payload_without_timezone(self, mapper_cls):
+        """Payloads written by ``task-sdk`` 1.2.1 omit ``timezone`` from the
+        SDK-mapper wire format; the core decoder must default it to UTC so
+        those serialized Dags can still be loaded."""
+        pm = mapper_cls.deserialize(
+            {
+                "input_format": "%Y-%m-%dT%H:%M:%S",
+                "output_format": "customized-format",
+            }
+        )
+        assert isinstance(pm, mapper_cls)
+        assert pm._timezone.name == "UTC"
+
     def test_to_downstream_timezone_aware(self):
         """Input is interpreted as local time in the given timezone."""
         pm = StartOfDayMapper(timezone="America/New_York")

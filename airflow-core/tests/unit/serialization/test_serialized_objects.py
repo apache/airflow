@@ -957,6 +957,7 @@ def test_encode_product_mapper():
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
+                        "timezone": "UTC",
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
                     },
@@ -995,6 +996,7 @@ def test_encode_chain_mapper():
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
+                        "timezone": "UTC",
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
                     },
@@ -1002,6 +1004,7 @@ def test_encode_chain_mapper():
                 {
                     Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
                     Encoding.VAR: {
+                        "timezone": "UTC",
                         "input_format": "%Y-%m-%dT%H",
                         "output_format": "%Y-%m-%d",
                     },
