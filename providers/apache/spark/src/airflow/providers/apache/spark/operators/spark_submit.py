@@ -220,13 +220,13 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         if self._openlineage_inject_transport_info:
             self.log.debug("Injecting OpenLineage transport information into Spark properties.")
             self.conf = inject_transport_information_into_spark_properties(self.conf, context)
-        if self._hook is None:
-            self._hook = self._get_hook()
         if self._hook._should_track_driver_status:
             return self.execute_resumable(context)
         self._hook.submit(self.application)
 
     def submit_job(self, context: Context) -> str:
+        if self._hook is None:
+            self._hook = self._get_hook()
         driver_id = self._hook.submit(self.application)
         if not driver_id:
             raise RuntimeError("spark-submit did not return a driver ID")
@@ -234,6 +234,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         return driver_id
 
     def get_job_status(self, external_id: str) -> str:
+        if self._hook is None:
+            self._hook = self._get_hook()
         # The YARN and K8s branches below (and in is_job_active, is_job_succeeded, poll_until_complete)
         # are currently unreachable: execute_resumable is only called when _should_track_driver_status
         # is True, which requires spark:// + cluster mode. They are scaffolding for a follow-up PR
@@ -248,7 +250,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         scheme = self._hook._connection.get("rest_scheme", "http")
         # HA master URLs can look like spark://m1:7077,m2:7077 — let us try each host in order.
         # Port is read from the master URL; defaults to 6066 (spark.master.rest.port default).
-
         master_urls = self._hook._connection["master"].replace("spark://", "").split(",")
         last_exc: Exception = RuntimeError("No Spark masters to query")
         for m in master_urls:
@@ -281,6 +282,8 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         return status
 
     def is_job_active(self, status: str) -> bool:
+        if self._hook is None:
+            self._hook = self._get_hook()
         if self._hook._is_yarn:
             # https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html
             return status in ("NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING")
@@ -292,12 +295,16 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         return status in ("SUBMITTED", "RUNNING", "RELAUNCHING", "UNKNOWN")
 
     def is_job_succeeded(self, status: str) -> bool:
+        if self._hook is None:
+            self._hook = self._get_hook()
         if self._hook._is_kubernetes:
             return status == "Succeeded"
         # standalone and YARN both use FINISHED
         return status == "FINISHED"
 
     def poll_until_complete(self, external_id: str, context: Context) -> None:
+        if self._hook is None:
+            self._hook = self._get_hook()
         if self._hook._is_yarn:
             # TODO: poll YARN ResourceManager until app reaches terminal state
             raise NotImplementedError("YARN poll not yet implemented")
@@ -318,8 +325,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         return None
 
     def on_kill(self) -> None:
-        if self._hook is None:
-            self._hook = self._get_hook()
         self._hook.on_kill()
 
     def _get_hook(self) -> SparkSubmitHook:
@@ -355,7 +360,3 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             use_krb5ccache=self._use_krb5ccache,
             post_submit_commands=self.post_submit_commands,
         )
-
-    def _resolve_master_urls(self) -> list[str]:
-        # HA master URLs can look like: `spark://m1:7077,m2:7077`
-        return self._hook._connection["master"].replace("spark://", "").split(",")
