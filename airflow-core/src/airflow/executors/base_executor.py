@@ -38,7 +38,6 @@ from airflow.executors.workloads.connection_test import TestConnection
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
-from airflow.models.callback import CallbackKey
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.callback import CallbackKey
     from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
 
