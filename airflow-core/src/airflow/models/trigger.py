@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -99,6 +99,9 @@ class Trigger(Base):
     created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    team_name: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     triggerer_job = relationship(
         "Job",
@@ -122,12 +125,14 @@ class Trigger(Base):
         kwargs: dict[str, Any],
         created_date: datetime.datetime | None = None,
         queue: str | None = None,
+        team_name: str | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
         self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
         self.queue = queue
+        self.team_name = team_name
 
     @property
     def kwargs(self) -> dict[str, Any]:

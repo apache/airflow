@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``a1b2c3d4e5f6`` (head) | ``a7f3b2c1d4e5`` | ``3.3.0``         | Add version_data to dag_version.                             |
+| ``acc215baed80`` (head) | ``a1b2c3d4e5f6`` | ``3.3.0``         | Add team_name to trigger table.                              |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``a1b2c3d4e5f6``        | ``a7f3b2c1d4e5`` | ``3.3.0``         | Add version_data to dag_version.                             |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``a7f3b2c1d4e5``        | ``b8f3e4a1d2c9`` | ``3.3.0``         | Add allow_producer_teams column to                           |
 |                         |                  |                   | dag_schedule_asset_reference table.                          |
