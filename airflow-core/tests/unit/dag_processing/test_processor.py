@@ -1961,6 +1961,7 @@ class TestDagProcessingMessageTypes:
             "GetTaskStates",
             "RescheduleTask",
             "RetryTask",
+            "SetIntendedTerminalState",
             "SetRenderedFields",
             "SetXCom",
             "SkipDownstreamTasks",
