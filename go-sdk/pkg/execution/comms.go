@@ -18,6 +18,7 @@
 package execution
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,8 +26,20 @@ import (
 	"sync/atomic"
 )
 
-// CoordinatorComm manages bidirectional communication with the Airflow supervisor
-// over a length-prefixed msgpack socket connection.
+// CoordinatorComm manages bidirectional communication with the Airflow
+// supervisor over a length-prefixed msgpack socket connection.
+//
+// Reads are multiplexed by frame ID. A single background reader goroutine,
+// lazily started on the first Communicate call, consumes inbound frames and
+// dispatches each one to the Communicate caller whose request used that ID.
+// This lets multiple goroutines call Communicate concurrently without
+// serialising the full send-then-read round trip behind a single mutex, and
+// guarantees the response a caller receives matches the request it sent.
+//
+// The supervisor's initial frame (DagFileParseRequest or StartupDetails)
+// arrives unsolicited, before any client request is in flight, and is read
+// synchronously via ReadMessage; ReadMessage must not be called after the
+// dispatcher has been started.
 type CoordinatorComm struct {
 	reader io.Reader
 	writer io.Writer
@@ -34,23 +47,49 @@ type CoordinatorComm struct {
 	logger *slog.Logger
 
 	wmu sync.Mutex // serialises writes
-	rmu sync.Mutex // serialises reads
+
+	// Multiplexer state. mu protects every field below.
+	mu      sync.Mutex
+	pending map[int]chan frameResult
+	started bool
+	readErr error
 }
+
+// frameResult is the value the dispatcher delivers to a Communicate caller.
+type frameResult struct {
+	frame IncomingFrame
+	err   error
+}
+
+// ErrDispatcherClosed is wrapped into the error Communicate returns once the
+// background reader goroutine has exited — typically because the supervisor
+// closed the comm socket.
+var ErrDispatcherClosed = errors.New("coordinator comm: dispatcher closed")
 
 // NewCoordinatorComm creates a new communication channel.
 func NewCoordinatorComm(reader io.Reader, writer io.Writer, logger *slog.Logger) *CoordinatorComm {
 	return &CoordinatorComm{
-		reader: reader,
-		writer: writer,
-		logger: logger,
+		reader:  reader,
+		writer:  writer,
+		logger:  logger,
+		pending: make(map[int]chan frameResult),
 	}
 }
 
-// ReadMessage reads and decodes one frame from the comm socket.
-// It returns the raw IncomingFrame with decoded map bodies.
+// ReadMessage reads and decodes one frame directly from the comm socket.
+// It is used to read the supervisor's initial frame before any request/response
+// traffic begins. Calling it after the dispatcher has started would race the
+// reader goroutine for input bytes, so it returns an error in that case.
 func (c *CoordinatorComm) ReadMessage() (IncomingFrame, error) {
-	c.rmu.Lock()
-	defer c.rmu.Unlock()
+	c.mu.Lock()
+	started := c.started
+	c.mu.Unlock()
+	if started {
+		return IncomingFrame{}, errors.New(
+			"coordinator comm: ReadMessage cannot be used after the dispatcher has started",
+		)
+	}
+
 	frame, err := readFrame(c.reader)
 	if err != nil {
 		return IncomingFrame{}, fmt.Errorf("reading frame: %w", err)
@@ -59,7 +98,8 @@ func (c *CoordinatorComm) ReadMessage() (IncomingFrame, error) {
 	return frame, nil
 }
 
-// SendRequest sends a request frame (2-element: [id, body]) to the supervisor.
+// SendRequest writes a request frame (2-element [id, body]) to the supervisor.
+// Concurrent calls are serialised so frames are never interleaved on the wire.
 func (c *CoordinatorComm) SendRequest(id int, body map[string]any) error {
 	payload, err := encodeRequest(id, body)
 	if err != nil {
@@ -71,25 +111,48 @@ func (c *CoordinatorComm) SendRequest(id int, body map[string]any) error {
 	return writeFrame(c.writer, payload)
 }
 
-// Communicate sends a request and waits for the corresponding response.
-// This is a synchronous request-response: the caller sends a request and blocks
-// until the next frame arrives. The protocol is single-threaded on the comm socket.
+// Communicate sends a request and blocks until the supervisor's response with
+// the matching frame ID is delivered by the dispatcher. Safe to call
+// concurrently from multiple goroutines.
 //
-// If the response contains an error element, it is returned as an ApiError.
-// Otherwise, the response body map is returned.
+// If the response carries an error (either as the third element of a 3-tuple
+// frame or as a body whose "type" is "ErrorResponse") it is returned as an
+// *ApiError. If the dispatcher's read loop has terminated, the underlying read
+// error is returned wrapped in ErrDispatcherClosed.
 func (c *CoordinatorComm) Communicate(body map[string]any) (map[string]any, error) {
 	id := int(c.nextID.Add(1) - 1)
+	ch := make(chan frameResult, 1)
+
+	// Register the waiter under the same lock the dispatcher uses, and before
+	// sending the request, so the dispatcher can never deliver the response
+	// (or a terminal read error) before this caller is ready to receive it.
+	c.mu.Lock()
+	if !c.started {
+		c.started = true
+		go c.readLoop()
+	}
+	if c.readErr != nil {
+		err := c.readErr
+		c.mu.Unlock()
+		return nil, fmt.Errorf("%w: %w", ErrDispatcherClosed, err)
+	}
+	c.pending[id] = ch
+	c.mu.Unlock()
 
 	if err := c.SendRequest(id, body); err != nil {
+		c.mu.Lock()
+		delete(c.pending, id)
+		c.mu.Unlock()
 		return nil, err
 	}
 
-	frame, err := c.ReadMessage()
-	if err != nil {
-		return nil, err
+	result := <-ch
+	if result.err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrDispatcherClosed, result.err)
 	}
+	frame := result.frame
 
-	// Check for error in the response.
+	// Check for error in the third element of a response frame.
 	if frame.Err != nil {
 		errResp := decodeErrorResponse(frame.Err)
 		if errResp != nil {
@@ -112,6 +175,41 @@ func (c *CoordinatorComm) Communicate(body map[string]any) (map[string]any, erro
 	}
 
 	return frame.Body, nil
+}
+
+// readLoop is the dispatcher: it reads frames from the comm socket and routes
+// each one to the channel registered by the matching Communicate caller. When
+// readFrame returns an error (typically io.EOF on supervisor shutdown), it
+// fans the error out to every pending waiter and exits; any subsequent
+// Communicate call sees the error via readErr and returns immediately.
+func (c *CoordinatorComm) readLoop() {
+	for {
+		frame, err := readFrame(c.reader)
+		if err != nil {
+			c.mu.Lock()
+			c.readErr = err
+			pending := c.pending
+			c.pending = nil
+			c.mu.Unlock()
+			for _, ch := range pending {
+				ch <- frameResult{err: err}
+			}
+			return
+		}
+		c.logger.Debug("Received frame", "id", frame.ID)
+
+		c.mu.Lock()
+		ch, ok := c.pending[frame.ID]
+		if ok {
+			delete(c.pending, frame.ID)
+		}
+		c.mu.Unlock()
+		if !ok {
+			c.logger.Warn("Discarding frame with no matching waiter", "id", frame.ID)
+			continue
+		}
+		ch <- frameResult{frame: frame}
+	}
 }
 
 // ApiError represents an error returned by the supervisor over the comm socket.
