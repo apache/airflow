@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -27,6 +27,8 @@ import {
 } from "openapi/queries";
 import type { BulkActionResponse, BulkBody_BulkDAGRunBody_, BulkResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+
+import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 
 type Props = {
   readonly clearSelections: VoidFunction;
@@ -52,12 +54,17 @@ const handleActionResult = (
 export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
+  const affectedDagIds = useRef<Set<string>>(new Set());
   const { t: translate } = useTranslation(["common", "dags"]);
 
   const onSuccess = async (responseData: BulkResponse) => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
       queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetTaskInstancesKey] }),
+      ...tiPerAttemptQueryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...[...affectedDagIds.current].flatMap((dagId) =>
+        gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ),
     ]);
 
     if (responseData.delete) {
@@ -90,6 +97,16 @@ export const useBulkDeleteDagRuns = ({ clearSelections, onSuccessConfirm }: Prop
 
   const bulkAction = (requestBody: BulkBody_BulkDAGRunBody_) => {
     setError(undefined);
+    const dagIds = new Set<string>();
+
+    for (const action of requestBody.actions) {
+      for (const entity of action.entities) {
+        if (typeof entity !== "string" && entity.dag_id !== null && entity.dag_id !== undefined) {
+          dagIds.add(entity.dag_id);
+        }
+      }
+    }
+    affectedDagIds.current = dagIds;
     mutate({ dagId: "~", requestBody });
   };
 
