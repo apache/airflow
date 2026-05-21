@@ -964,7 +964,7 @@ class TestTaskGroupGetItem:
 # Mirrors the shapes covered by the benchmark gist referenced from PR #67288
 # (https://gist.github.com/shahar1/9c61dc9f34f7e77cd29cfb9d67af7ceb).
 # Wall-clock timing is intentionally not asserted here — CI runners are too
-# variable for ms thresholds to be meaningful. Run dev/bench_topological_sort
+# variable for ms thresholds to be meaningful. The gist above can be run
 # manually to gauge performance.
 
 
@@ -1007,7 +1007,7 @@ def _make_independent(n: int) -> DAG:
 def _make_layered(n: int, layers: int = 4) -> DAG:
     per_layer = max(n // layers, 1)
     with DAG(f"layered_{n}", schedule=None, start_date=DEFAULT_DATE) as dag:
-        prev_layer: list = []
+        prev_layer: list[EmptyOperator] = []
         for layer in range(layers):
             cur = [EmptyOperator(task_id=f"L{layer}_t{i}") for i in range(per_layer)]
             if prev_layer:
