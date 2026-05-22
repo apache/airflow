@@ -26,8 +26,7 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
@@ -53,15 +52,49 @@ private class Args(
   }
 }
 
+/**
+ * Thrown when an Airflow API call returns an error response.
+ *
+ * <p>Extends [IllegalStateException] so callers can handle it without checked-exception
+ * machinery.
+ */
 class ApiError(
   message: String,
 ) : IllegalStateException(message)
 
+/**
+ * Connects this JVM process to the Airflow coordinator and dispatches task-execution
+ * requests to the registered [Bundle].
+ *
+ * <p>The typical entry point is:
+ * <pre>{@code
+ * public static void main(String[] args) {
+ *     Server.create(args).serve(new MyBundleBuilder().build());
+ * }
+ * }</pre>
+ *
+ * <p>The process exits when the coordinator closes the connection (normally after
+ * one task-instance execution).
+ */
 class Server(
   private val comm: InetSocketAddress,
   private val logs: InetSocketAddress,
 ) {
   companion object {
+    /**
+     * Parses coordinator addresses from command-line arguments and returns a
+     * ready-to-use [Server].
+     *
+     * <p>The arguments are supplied automatically by Airflow and are not intended
+     * to be constructed by hand:
+     * <ul>
+     *   <li>{@code --comm host:port} — address for task-execution messages.</li>
+     *   <li>{@code --logs host:port} — address for log forwarding.</li>
+     * </ul>
+     *
+     * @param args Command-line arguments as received by {@code main}.
+     * @return A configured [Server] ready to call [serve].
+     */
     @JvmStatic
     fun create(args: Array<String>): Server {
       val args = ArgParser(args).parseInto(::Args)
@@ -71,28 +104,56 @@ class Server(
 
   private val logger = Logger(Server::class)
 
+  /**
+   * Blocking entry point: connects to the coordinator and serves task-execution
+   * requests from the given [bundle].
+   *
+   * <p>This is a convenience wrapper around [serveAsync] for use from a plain
+   * {@code main} method. Prefer [serveAsync] when calling from an existing coroutine.
+   * The call returns when the coordinator closes the connection (normally after
+   * one task-instance execution).
+   *
+   * @param bundle Bundle containing all Dags this process can execute.
+   *
+   * @see [serveAsync]
+   */
   fun serve(bundle: Bundle) {
-    runBlocking {
+    runBlocking { launch { serveAsync(bundle) } }
+  }
+
+  /**
+   * Suspending entry point: connects to the coordinator and serves task-execution
+   * requests from the given [bundle].
+   *
+   * <p>Opens both the task-execution channel ({@code --comm}) and the log-forwarding
+   * channel ({@code --logs}) concurrently, then processes incoming requests until the
+   * coordinator closes the connection (normally after one task-instance execution).
+   * The coroutine returns once both channels have been closed.
+   *
+   * <p>Use this variant when calling from an existing coroutine scope; use the
+   * blocking [serve] from a plain {@code main} method.
+   *
+   * @param bundle Bundle containing all Dags this process can execute.
+   *
+   * @see [serve]
+   */
+  suspend fun serveAsync(bundle: Bundle) =
+    coroutineScope {
       launch {
-        awaitAll(
-          async {
-            aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
-              logger.debug("Connected comm", mapOf("addr" to comm))
-              CoordinatorComm(
-                bundle,
-                socket.openReadChannel(),
-                socket.openWriteChannel(autoFlush = true),
-              ).startProcessing()
-            }
-          },
-          async {
-            aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
-              logger.debug("Connected logs", mapOf("addr" to logs))
-              LogSender.configure(socket.openWriteChannel(autoFlush = true))
-            }
-          },
-        )
+        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
+          logger.debug("Connected comm", mapOf("addr" to comm))
+          CoordinatorComm(
+            bundle,
+            socket.openReadChannel(),
+            socket.openWriteChannel(autoFlush = true),
+          ).startProcessing()
+        }
+      }
+      launch {
+        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
+          logger.debug("Connected logs", mapOf("addr" to logs))
+          LogSender.configure(socket.openWriteChannel(autoFlush = true))
+        }
       }
     }
-  }
 }

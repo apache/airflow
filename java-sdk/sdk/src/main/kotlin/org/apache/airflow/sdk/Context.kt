@@ -21,11 +21,26 @@ package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.execution.StartupDetails
 
+/**
+ * Identifies the Dag run that the current task instance belongs to.
+ *
+ * @property dagId ID of the Dag being run.
+ * @property runId Unique identifier for this Dag run.
+ */
 data class DagRun(
   @JvmField val dagId: String,
   @JvmField val runId: String,
 )
 
+/**
+ * Identifies the task instance that is currently executing.
+ *
+ * @property dagId ID of the parent Dag.
+ * @property runId ID of the Dag run that triggered this instance.
+ * @property taskId ID of the task within the Dag.
+ * @property mapIndex Index within a mapped task group, if this is a mapped task instance.
+ * @property tryNumber How many times this task instance has been attempted (1-based).
+ */
 data class TaskInstance(
   @JvmField val dagId: String,
   @JvmField val runId: String,
@@ -34,6 +49,15 @@ data class TaskInstance(
   @JvmField val tryNumber: Int,
 )
 
+/**
+ * Runtime context passed to the task execution.
+ *
+ * <p>Provides metadata about the current Dag run and task instance.
+ * Use [Client] to interact with Airflow at runtime (connections, variables, XComs).
+ *
+ * @property dagRun Dag run the currently executing task instance belongs to.
+ * @property ti Currently executing task instance.
+ */
 data class Context(
   @JvmField val dagRun: DagRun,
   @JvmField val ti: TaskInstance,

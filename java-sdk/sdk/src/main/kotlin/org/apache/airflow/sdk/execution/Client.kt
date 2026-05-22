@@ -24,6 +24,19 @@ import org.apache.airflow.sdk.execution.api.model.ConnectionResponse
 import org.apache.airflow.sdk.execution.api.model.VariableResponse
 import org.apache.airflow.sdk.execution.api.model.XComResponse
 
+/**
+ * @suppress
+ *
+ * Transport contract between [org.apache.airflow.sdk.Client] and the coordinator.
+ *
+ * Implementations translate each SDK method call into the appropriate
+ * message and unwrap the raw response model into the value expected by the public
+ * SDK layer.
+ *
+ * Currently, the only production implementation is [CoordinatorClient]. A test
+ * double can be supplied via the internal [org.apache.airflow.sdk.Client]
+ * constructor to exercise task logic without a live coordinator.
+ */
 interface Client {
   fun getConnection(id: String): ConnectionResponse
 
@@ -48,6 +61,17 @@ interface Client {
   )
 }
 
+/**
+ * @suppress
+ *
+ * Production [Client] implementation backed by a live comm.
+ *
+ * Each method serializes the request into the appropriate message type (e.g.
+ * [GetConnection], [GetXCom]), sends it over the comm, and returns the
+ * unwrapped response model. All calls block the calling thread because task
+ * [execute][org.apache.airflow.sdk.Task.execute] runs on a plain thread, not
+ * inside a coroutine.
+ */
 class CoordinatorClient(
   val exec: CoordinatorComm,
 ) : Client {

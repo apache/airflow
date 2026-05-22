@@ -39,6 +39,30 @@ import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
 
+/**
+ * Container for the annotation-based Dag-authoring API.
+ *
+ * <p>This class is not instantiated directly. Its nested annotations drive the
+ * [BuilderProcessor] annotation processor, which generates a {@code *Builder} class
+ * for each class annotated with [Dag].
+ *
+ * <p>Example:
+ * <pre>{@code
+ * @Builder.Dag(id = "my_pipeline")
+ * public class MyPipeline {
+ *
+ *     @Builder.Task(id = "extract")
+ *     public long extract(Client client) { ... }
+ *
+ *     @Builder.Task(id = "transform")
+ *     public long transform(Client client,
+ *                           @Builder.XCom(task = "extract") long extracted) { ... }
+ * }
+ * }</pre>
+ *
+ * <p>The processor generates {@code MyPipelineBuilder.build()}, which returns a
+ * fully-wired [Dag] ready to add to a [Bundle].
+ */
 class Builder internal constructor() {
   /**
    * Annotation to automate a Dag-builder pattern.
@@ -81,6 +105,25 @@ class Builder internal constructor() {
   )
 }
 
+/**
+ * @suppress
+ *
+ * Annotation processor for [Builder.Dag]. Registered as a standard javac processor via
+ * {@code META-INF/services/javax.annotation.processing.Processor}; not intended to be
+ * instantiated or referenced directly.
+ *
+ * <p>For each class annotated with [Builder.Dag], generates a {@code *Builder} class
+ * containing:
+ * <ul>
+ *   <li>One inner class per [Builder.Task]-annotated method, implementing [Task].</li>
+ *   <li>A static {@code build()} method that constructs the [Dag] and registers those
+ *       inner classes as tasks.</li>
+ * </ul>
+ *
+ * <p>[Builder.XCom]-annotated parameters are resolved via {@code client.getXCom} in the
+ * generated {@code execute} body, with the result cast to the parameter's declared type.
+ * Non-{@code void} return values are forwarded to {@code client.setXCom}.
+ */
 @SupportedAnnotationTypes("org.apache.airflow.sdk.Builder.Dag")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 class BuilderProcessor : AbstractProcessor() {
