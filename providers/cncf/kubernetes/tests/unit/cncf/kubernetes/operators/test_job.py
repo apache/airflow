@@ -885,11 +885,11 @@ class TestKubernetesJobOperator:
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
-    def test_execute_complete_pod_api_error_reraises(self, mock_hook, mocked_write_logs):
-        """Non-404 ApiExceptions should still be raised."""
+    def test_execute_complete_pod_api_error_skips_logs(self, mock_hook, mocked_write_logs):
+        """Non-404 pod lookup errors should not fail execute_complete."""
         from kubernetes.client.rest import ApiException
 
-        mock_ti = mock.MagicMock()
+        mock_ti = mock.create_autospec(TaskInstance, instance=True)
         context = {"ti": mock_ti}
         mock_job = mock.MagicMock()
         event = {
@@ -902,10 +902,65 @@ class TestKubernetesJobOperator:
 
         mock_hook.get_pod.side_effect = ApiException(status=403, reason="Forbidden")
 
-        with pytest.raises(ApiException):
-            KubernetesJobOperator(task_id="test_task_id", get_logs=True, do_xcom_push=False).execute_complete(
-                context=context, event=event
-            )
+        KubernetesJobOperator(task_id="test_task_id", get_logs=True, do_xcom_push=False).execute_complete(
+            context=context, event=event
+        )
+        mock_hook.get_pod.assert_called_once_with(POD_NAME, POD_NAMESPACE)
+        mocked_write_logs.assert_not_called()
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_pod_api_error_still_attempts_cleanup(self, mock_hook, mock_pod_manager_prop):
+        from kubernetes.client.rest import ApiException
+
+        mock_ti = mock.create_autospec(TaskInstance, instance=True)
+        context = {"ti": mock_ti}
+        mock_job = mock.MagicMock()
+        event = {
+            "job": mock_job,
+            "status": "success",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+            "xcom_result": None,
+        }
+        mock_hook.get_pod.side_effect = ApiException(status=403, reason="Forbidden")
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+
+        KubernetesJobOperator(task_id="test_task_id", get_logs=False, do_xcom_push=False).execute_complete(
+            context=context, event=event
+        )
+
+        mock_hook.get_pod.assert_called_once_with(POD_NAME, POD_NAMESPACE)
+        mock_pod_manager.delete_pod.assert_called_once()
+        assert mock_pod_manager.delete_pod.call_args.args[0].metadata.name == POD_NAME
+        assert mock_pod_manager.delete_pod.call_args.args[0].metadata.namespace == POD_NAMESPACE
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_uses_event_namespace_fallback(self, mock_hook, mocked_write_logs):
+        mock_ti = mock.create_autospec(TaskInstance, instance=True)
+        context = {"ti": mock_ti}
+        mock_job = {"metadata": {"name": JOB_NAME, "namespace": JOB_NAMESPACE}}
+        pod = mock.create_autospec(k8s.V1Pod, instance=True)
+        event = {
+            "job": mock_job,
+            "namespace": JOB_NAMESPACE,
+            "status": "success",
+            "pod_names": [POD_NAME],
+            "xcom_result": None,
+        }
+
+        mock_hook.get_pod.return_value = pod
+
+        KubernetesJobOperator(task_id="test_task_id", get_logs=True, do_xcom_push=False).execute_complete(
+            context=context, event=event
+        )
+
+        mock_hook.get_pod.assert_called_once_with(POD_NAME, JOB_NAMESPACE)
+        mocked_write_logs.assert_called_once_with(pod)
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
@@ -944,7 +999,7 @@ class TestKubernetesJobOperator:
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
     def test_on_kill(self, mock_client):
-        mock_job = mock.MagicMock()
+        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = JOB_NAMESPACE
 
@@ -952,6 +1007,7 @@ class TestKubernetesJobOperator:
         op.job = mock_job
         op.on_kill()
 
+        assert op._killed is True
         mock_client.delete_namespaced_job.assert_called_once_with(
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
@@ -961,7 +1017,7 @@ class TestKubernetesJobOperator:
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
     def test_on_kill_termination_grace_period(self, mock_client):
-        mock_job = mock.MagicMock()
+        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = JOB_NAMESPACE
         mock_termination_grace_period = mock.MagicMock()
@@ -990,6 +1046,26 @@ class TestKubernetesJobOperator:
 
         mock_client.delete_namespaced_job.assert_not_called()
         mock_serialize.assert_not_called()
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_kill_respects_keep_pod_action(self, mock_client, mock_pod_manager_prop):
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+        pod = mock.create_autospec(k8s.V1Pod, instance=True)
+
+        op = KubernetesJobOperator(task_id="test_task_id", on_kill_action="keep_pod")
+        op.job = mock_job
+        op.pods = [pod]
+        op.on_kill()
+
+        assert op._killed is True
+        mock_client.delete_namespaced_job.assert_called_once()
+        mock_pod_manager.delete_pod.assert_not_called()
 
     @pytest.mark.parametrize("parallelism", [1, 2])
     @pytest.mark.parametrize("do_xcom_push", [True, False])
@@ -1192,6 +1268,235 @@ class TestKubernetesJobOperator:
         mock_build_job_request_obj.assert_not_called()
         mock_hook.return_value.create_job.assert_not_called()
         mock_get_pods.assert_not_called()
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.post_complete_action"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_calls_post_complete_action_on_success(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_find_pod,
+        mock_post_complete_action,
+    ):
+        mock_hook.return_value.is_job_failed.return_value = False
+        mock_pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_pod_2 = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_get_pods.return_value = [mock_pod_1, mock_pod_2]
+        mock_find_pod.side_effect = (
+            lambda namespace, context: mock.create_autospec(k8s.V1Pod, instance=True)
+        )
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id", wait_until_job_complete=True, parallelism=2
+        )
+        op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        assert mock_post_complete_action.call_count == 2
+        called_pods = [call.kwargs["pod"] for call in mock_post_complete_action.call_args_list]
+        assert called_pods == [mock_pod_1, mock_pod_2]
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.post_complete_action"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_calls_post_complete_action_on_failure(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_find_pod,
+        mock_post_complete_action,
+    ):
+        mock_hook.return_value.is_job_failed.return_value = "Error"
+        mock_pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_get_pods.return_value = [mock_pod_1]
+        mock_find_pod.return_value = mock_pod_1
+
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True)
+        with pytest.raises(AirflowException, match="is failed with error"):
+            op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        # Cleanup still ran in spite of the job-level failure.
+        mock_post_complete_action.assert_called_once()
+        assert mock_post_complete_action.call_args.kwargs["pod"] is mock_pod_1
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_respects_keep_pod(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_pod_manager_prop,
+    ):
+        """When on_finish_action=keep_pod, no monitoring pod should be deleted."""
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+        mock_hook.return_value.is_job_failed.return_value = False
+        # Return a pod with SUCCEEDED phase so cleanup() doesn't raise.
+        remote_pod = mock.create_autospec(k8s.V1Pod, instance=True)
+        remote_pod.status.phase = "Succeeded"
+        remote_pod.status.container_statuses = []
+        mock_pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_get_pods.return_value = [mock_pod_1]
+        mock_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            on_finish_action="keep_pod",
+        )
+        op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        mock_pod_manager.delete_pod.assert_not_called()
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute_deletes_pod_default(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_pod_manager_prop,
+    ):
+        """With the default on_finish_action=delete_pod the monitoring pod is deleted."""
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+        mock_hook.return_value.is_job_failed.return_value = False
+        remote_pod = mock.create_autospec(k8s.V1Pod, instance=True)
+        remote_pod.status.phase = "Succeeded"
+        remote_pod.status.container_statuses = []
+        mock_pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_get_pods.return_value = [mock_pod_1]
+        mock_hook.return_value.get_pod.return_value = remote_pod
+
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True)
+        op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        mock_pod_manager.delete_pod.assert_called_once_with(remote_pod)
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.post_complete_action"))
+    @patch(HOOK_CLASS)
+    def test_execute_complete_deletes_pod(self, mock_hook, mock_post_complete_action):
+        """The deferrable resume path cleans up monitoring pods too."""
+        pod = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_hook.return_value.get_pod.return_value = pod
+        event = {
+            "status": "success",
+            "message": "ok",
+            "job": {"metadata": {"name": JOB_NAME, "namespace": JOB_NAMESPACE}},
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+            "xcom_result": [],
+        }
+
+        KubernetesJobOperator(task_id="test_task_id").execute_complete(
+            context=dict(ti=mock.create_autospec(TaskInstance, instance=True)), event=event
+        )
+
+        mock_hook.return_value.get_pod.assert_called_with(POD_NAME, POD_NAMESPACE)
+        mock_post_complete_action.assert_called_once()
+        assert mock_post_complete_action.call_args.kwargs["pod"] is pod
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.post_complete_action"))
+    @patch(HOOK_CLASS)
+    def test_execute_complete_cleans_up_pods_when_get_logs_false(self, mock_hook, mock_post_complete_action):
+        """Monitoring pods are cleaned up in execute_complete even when get_logs=False."""
+        pod = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_hook.return_value.get_pod.return_value = pod
+        # Simulate an event emitted by the trigger when get_logs=False:
+        # pod_names and pod_namespace are now always present in the event.
+        event = {
+            "status": "success",
+            "message": "ok",
+            "job": {"metadata": {"name": JOB_NAME, "namespace": JOB_NAMESPACE}},
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+            "xcom_result": None,
+        }
+
+        KubernetesJobOperator(task_id="test_task_id", get_logs=False).execute_complete(
+            context=dict(ti=mock.create_autospec(TaskInstance, instance=True)), event=event
+        )
+
+        mock_hook.return_value.get_pod.assert_called_with(POD_NAME, POD_NAMESPACE)
+        mock_post_complete_action.assert_called_once()
+        assert mock_post_complete_action.call_args.kwargs["pod"] is pod
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.pod_manager"), new_callable=mock.PropertyMock)
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_kill_deletes_monitoring_pods(self, mock_client, mock_pod_manager_prop):
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager_prop.return_value = mock_pod_manager
+
+        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+        pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
+        pod_2 = mock.create_autospec(k8s.V1Pod, instance=True)
+
+        op = KubernetesJobOperator(task_id="test_task_id")
+        op.job = mock_job
+        op.pods = [pod_1, pod_2]
+        op.on_kill()
+
+        mock_client.delete_namespaced_job.assert_called_once()
+        assert mock_pod_manager.delete_pod.call_count == 2
+        mock_pod_manager.delete_pod.assert_has_calls(
+            [mock.call(pod_1), mock.call(pod_2)], any_order=True
+        )
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.post_complete_action"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.find_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_cleanup_error_does_not_mask_job_failure(
+        self,
+        mock_hook,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_find_pod,
+        mock_post_complete_action,
+    ):
+        mock_hook.return_value.is_job_failed.return_value = "Error"
+        mock_pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
+        mock_get_pods.return_value = [mock_pod_1]
+        mock_find_pod.return_value = mock_pod_1
+        mock_post_complete_action.side_effect = AirflowException("cleanup boom")
+
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True)
+        with pytest.raises(AirflowException, match="is failed with error"):
+            op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
+
+        mock_post_complete_action.assert_called_once()
 
 
 @pytest.mark.db_test
