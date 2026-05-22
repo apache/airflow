@@ -1530,6 +1530,17 @@ apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
 
+# Manual overrides (kept outside the auto-generated block above so the
+# update_airflow_pyproject_toml.py script doesn't clobber them).
+# Starlette 1.0.1 carries a Host-header parsing fix that prevents
+# `request.url.path` from diverging from `scope["path"]` when the Host header
+# contains characters invalid per RFC 9110 §7.2. The fix landed too recently
+# to be admitted by the global 4-day cooldown; this override lets the floor
+# bump in `airflow-core/pyproject.toml` resolve.
+# REMOVE BY 2026-05-26 — once 1.0.1 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+starlette = "6 hours"
+
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1668,6 +1679,11 @@ apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
+
+# Manual overrides — see the matching block under
+# `[tool.uv.exclude-newer-package]` above for rationale.
+# REMOVE BY 2026-05-26 along with the matching entry above.
+starlette = "6 hours"
 
 
 [tool.uv.sources]
