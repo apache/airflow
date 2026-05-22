@@ -202,26 +202,6 @@ class AddDagEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)
 
 
-class AddBundleVersionField(VersionChange):
-    """Add the `bundle_version` field to DagRun model."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("bundle_version").didnt_exist,)
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_bundle_version_from_ti_run_context(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Remove the `bundle_version` field from the dag_run object when converting to the previous version."""
-        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
-            response.body["dag_run"].pop("bundle_version", None)
-
-    @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
-    def remove_bundle_version_from_dag_run_response(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Remove the `bundle_version` field from direct DagRun responses for previous API versions."""
-        if isinstance(response.body, dict):
-            response.body.pop("bundle_version", None)
-
-
 class AddRunAfterField(VersionChange):
     """Add run_after parameter to TriggerDAGRunPayload Model."""
 

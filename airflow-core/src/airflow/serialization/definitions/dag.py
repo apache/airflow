@@ -33,7 +33,13 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, DagVersionNotFound, NodeNotFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowException,
+    DagVersionNotFound,
+    NodeNotFound,
+    TaskNotFound,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -1318,7 +1324,9 @@ def _create_orm_dagrun(
     if dag_version is not None:
         resolved_bundle_version = bundle_version
         use_resolved_dag = True
-    elif bundle_version is not None and not dag.disable_bundle_versioning:
+    elif bundle_version is not None:
+        if dag.disable_bundle_versioning:
+            raise AirflowBadRequest(f"DAG with dag_id: '{dag.dag_id}' does not support bundle versioning")
         resolved_bundle_version = bundle_version
         dag_version = DagVersion.get_latest_version(
             dag.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session

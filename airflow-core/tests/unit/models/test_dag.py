@@ -4057,6 +4057,8 @@ def test_create_dagrun_callbacks_copied_to_resolved_bundle_version(dag_maker, se
 
     dag_v2.on_failure_callback = some_callable
     dag_v2.on_success_callback = some_callable
+    dag_v2.on_retry_callback = some_callable
+    dag_v2.sla_miss_callback = some_callable
     dag_v2.has_on_failure_callback = True
     dag_v2.has_on_success_callback = True
 
@@ -4073,6 +4075,8 @@ def test_create_dagrun_callbacks_copied_to_resolved_bundle_version(dag_maker, se
     assert dr.dag.has_on_success_callback is True
     assert dr.dag.on_failure_callback is some_callable
     assert dr.dag.on_success_callback is some_callable
+    assert dr.dag.on_retry_callback is some_callable
+    assert dr.dag.sla_miss_callback is some_callable
 
 
 def test_create_dagrun_without_bundle_version_uses_live_dag(dag_maker, session, clear_dags):

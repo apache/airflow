@@ -100,7 +100,7 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowException, AirflowNotFoundException, ParamValidationError
+from airflow.exceptions import AirflowBadRequest, DagVersionNotFound, ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
@@ -605,24 +605,6 @@ def trigger_dag_run(
 
     try:
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
-        resolved_dag_version = None
-        if body.bundle_version is not None:
-            if dag.disable_bundle_versioning:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
-                )
-            resolved_dag_version = DagVersion.get_latest_version(
-                dag.dag_id, bundle_version=body.bundle_version, load_serialized_dag=True, session=session
-            )
-            if resolved_dag_version is None:
-                raise HTTPException(
-                    status.HTTP_404_NOT_FOUND,
-                    f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version '{body.bundle_version}'",
-                )
-            dag = resolved_dag_version.serialized_dag.dag
-
         params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
@@ -637,7 +619,6 @@ def trigger_dag_run(
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             bundle_version=body.bundle_version,
-            dag_version=resolved_dag_version,
             session=session,
         )
 
@@ -649,12 +630,10 @@ def trigger_dag_run(
 
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
-    except AirflowNotFoundException as e:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
-    except AirflowException as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
-    except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    except DagVersionNotFound as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+    except AirflowBadRequest as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
 
 @dag_run_router.get(
