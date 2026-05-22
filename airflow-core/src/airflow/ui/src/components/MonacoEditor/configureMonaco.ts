@@ -17,6 +17,7 @@
  * under the License.
  */
 import { loader } from "@monaco-editor/react";
+import codiconFontUrl from "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.ttf?url";
 
 type MonacoEnvironment = {
   readonly getWorker: (_moduleId: string, label: string) => Worker;
@@ -24,15 +25,52 @@ type MonacoEnvironment = {
 
 let configurationPromise: Promise<void> | undefined;
 
+// Inject the codicon @font-face + base class rule with an absolute font URL. Monaco's own
+// `codiconStyles` module imports `codicon.css` which references the font as `url(./codicon.ttf)`;
+// when the project's `vite-plugin-css-injected-by-js` inlines that CSS into a `<style>` tag the
+// relative URL ends up resolved against the page origin instead of the asset directory. Resolving
+// the font URL through Vite's `?url` import sidesteps that — and avoids the phantom CSS-chunk
+// preload the plugin leaves behind, which otherwise rejects the configureMonaco promise in
+// production builds. Monaco still registers the per-icon `::before { content: ... }` rules at
+// runtime via its theme service, so we only need the @font-face + base class here.
+const injectCodiconStyles = () => {
+  if (document.querySelector('style[data-airflow="codicon-font"]') !== null) {
+    return;
+  }
+  const style = document.createElement("style");
+
+  style.dataset.airflow = "codicon-font";
+  style.textContent = `
+    @font-face {
+      font-family: "codicon";
+      font-display: block;
+      src: url("${codiconFontUrl}") format("truetype");
+    }
+    .codicon[class*="codicon-"] {
+      font: normal normal normal 16px/1 codicon;
+      display: inline-block;
+      text-decoration: none;
+      text-rendering: auto;
+      text-align: center;
+      text-transform: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  `;
+  document.head.append(style);
+};
+
 const loadMonacoModules = async () => {
+  injectCodiconStyles();
+
   // `editor.api` is API-only — also load the folding contribution so `editor.foldAll` /
-  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered, and the
-  // codicon styles so the gutter glyph (the `>` arrow) renders instead of an empty box.
-  // The CDN bundle used to pull these in transitively; the local ESM `editor.api` does not.
+  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered. The CDN
+  // bundle used to pull this in transitively; the local ESM `editor.api` does not.
   const monacoApi = Promise.all([
     import("monaco-editor/esm/vs/editor/editor.api"),
     import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
-    import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
   ]).then(([api]) => api);
 
   const workerConstructors = Promise.all([
