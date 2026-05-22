@@ -34,13 +34,29 @@ def neptune_hook() -> Generator[NeptuneAnalyticsHook, None, None]:
 
 
 class TestNeptuneAnalyticsHook:
-    graph_id = "abc123"
-
     def test_get_conn_returns_a_boto3_connection(self):
         hook = NeptuneAnalyticsHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
 
-    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
-    def test_wait_for_graph_availability(self, mock_get_waiter, neptune_hook: NeptuneAnalyticsHook):
-        waiter = mock_get_waiter("graph_available")
-        assert waiter is not None
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_get_graph_endpoint_id(self, mock_conn):
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": "vpce-12345",
+        }
+
+        hook = NeptuneAnalyticsHook(aws_conn_id="aws_default")
+        result = hook._get_graph_endpoint_id(graph_id="g-abc123", vpc_id="vpc-99999")
+
+        mock_conn.get_private_graph_endpoint.assert_called_once_with(
+            graphIdentifier="g-abc123", vpcId="vpc-99999"
+        )
+        assert result == "vpce-12345"
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_get_graph_endpoint_id_missing_key(self, mock_conn):
+        mock_conn.get_private_graph_endpoint.return_value = {}
+
+        hook = NeptuneAnalyticsHook(aws_conn_id="aws_default")
+        result = hook._get_graph_endpoint_id(graph_id="g-abc123", vpc_id="vpc-99999")
+
+        assert result is None
