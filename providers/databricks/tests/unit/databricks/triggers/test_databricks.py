@@ -458,7 +458,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         workflow_repair_attempts: int = 2,
         repair_attempts: int = 0,
         latest_repair_id: int | None = None,
-        workflow_repair_reflection_timeout: int = 300,
+        workflow_repair_timeout: int = 300,
     ) -> DatabricksWorkflowRepairCoordinatorTrigger:
         return DatabricksWorkflowRepairCoordinatorTrigger(
             run_id=RUN_ID,
@@ -467,7 +467,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
             repair_attempts=repair_attempts,
             latest_repair_id=latest_repair_id,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
-            workflow_repair_reflection_timeout=workflow_repair_reflection_timeout,
+            workflow_repair_timeout=workflow_repair_timeout,
             run_page_url=RUN_PAGE_URL,
         )
 
@@ -569,7 +569,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
     ):
         # First call: terminal+failed → trigger issues repair.
         # Reflection poll: still terminal → wall-clock deadline trips → yield repair_not_reflected.
-        # workflow_repair_reflection_timeout=0 means the deadline is "now"; the first elapsed
+        # workflow_repair_timeout=0 means the deadline is "now"; the first elapsed
         # ``time.monotonic()`` call after the no-op sleep is past it, so the loop bails out.
         mock_get_run_state.side_effect = [
             RunState(
@@ -591,7 +591,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
             workflow_repair_attempts=2,
             repair_attempts=0,
             latest_repair_id=None,
-            workflow_repair_reflection_timeout=0,
+            workflow_repair_timeout=0,
         )
         events = [event async for event in trigger.run()]
 

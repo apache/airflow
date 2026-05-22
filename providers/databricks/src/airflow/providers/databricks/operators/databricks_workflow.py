@@ -318,7 +318,7 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
         launch_task_id: str,
         workflow_repair_attempts: int,
         workflow_repair_polling_period: int = 30,
-        workflow_repair_reflection_timeout: int = 300,
+        workflow_repair_timeout: int = 300,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 10,
         databricks_retry_args: dict[Any, Any] | None = None,
@@ -334,7 +334,7 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
         self.launch_task_id = launch_task_id
         self.workflow_repair_attempts = workflow_repair_attempts
         self.workflow_repair_polling_period = workflow_repair_polling_period
-        self.workflow_repair_reflection_timeout = workflow_repair_reflection_timeout
+        self.workflow_repair_timeout = workflow_repair_timeout
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
@@ -363,7 +363,7 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
             repair_attempts=repair_attempts,
             latest_repair_id=latest_repair_id,
             polling_period_seconds=self.workflow_repair_polling_period,
-            workflow_repair_reflection_timeout=self.workflow_repair_reflection_timeout,
+            workflow_repair_timeout=self.workflow_repair_timeout,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
@@ -455,7 +455,7 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
             # looping. Without this, the next get_run_state can return stale terminal
             # state and trigger a second repair_run. Bound the wait so a stuck DBX
             # doesn't pin a worker forever.
-            deadline = time.monotonic() + self.workflow_repair_reflection_timeout
+            deadline = time.monotonic() + self.workflow_repair_timeout
             while True:
                 time.sleep(self.workflow_repair_polling_period)
                 post_repair_state = self._hook.get_run_state(run_id)
@@ -464,8 +464,8 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
                 if time.monotonic() >= deadline:
                     raise DatabricksWorkflowRepairError(
                         f"Databricks did not reflect repair_id={latest_repair_id} for run {run_id} "
-                        f"within {self.workflow_repair_reflection_timeout}s "
-                        f"(workflow_repair_reflection_timeout); aborting to avoid issuing a "
+                        f"within {self.workflow_repair_timeout}s "
+                        f"(workflow_repair_timeout); aborting to avoid issuing a "
                         f"duplicate repair_run against stale terminal state."
                     )
 
@@ -516,8 +516,8 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
         if status == "repair_not_reflected":
             raise DatabricksWorkflowRepairError(
                 f"Databricks did not reflect repair_id={latest_repair_id} for run {run_id} "
-                f"within {self.workflow_repair_reflection_timeout}s "
-                f"(workflow_repair_reflection_timeout); aborting to avoid issuing a "
+                f"within {self.workflow_repair_timeout}s "
+                f"(workflow_repair_timeout); aborting to avoid issuing a "
                 f"duplicate repair_run against stale terminal state."
             )
 
@@ -570,7 +570,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         effect on Airflow 3+; ignored on Airflow 2.x. Defaults to ``0``.
     :param workflow_repair_polling_period: How often the repair coordinator polls the
         Databricks run state. Only used when ``workflow_repair_attempts > 0``.
-    :param workflow_repair_reflection_timeout: Seconds the coordinator waits after a
+    :param workflow_repair_timeout: Seconds the coordinator waits after a
         ``repair_run`` is accepted for the parent run to leave its terminal state before
         giving up and failing. Covers Databricks-side eventual consistency on a slow
         cluster. Defaults to 300 seconds (5 minutes). Only used when
@@ -594,7 +594,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         spark_submit_params: list | None = None,
         workflow_repair_attempts: int = 0,
         workflow_repair_polling_period: int = 30,
-        workflow_repair_reflection_timeout: int = 300,
+        workflow_repair_timeout: int = 300,
         **kwargs,
     ):
         if workflow_repair_attempts < 0:
@@ -612,7 +612,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         self.spark_submit_params = spark_submit_params or []
         self.workflow_repair_attempts = workflow_repair_attempts
         self.workflow_repair_polling_period = workflow_repair_polling_period
-        self.workflow_repair_reflection_timeout = workflow_repair_reflection_timeout
+        self.workflow_repair_timeout = workflow_repair_timeout
         super().__init__(**kwargs)
 
     def __exit__(
@@ -679,7 +679,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
                     launch_task_id=create_databricks_workflow_task.task_id,
                     workflow_repair_attempts=self.workflow_repair_attempts,
                     workflow_repair_polling_period=self.workflow_repair_polling_period,
-                    workflow_repair_reflection_timeout=self.workflow_repair_reflection_timeout,
+                    workflow_repair_timeout=self.workflow_repair_timeout,
                     # Retrying the coordinator would re-enter execute() with repair_attempts=0
                     # and start the budget over.
                     retries=0,

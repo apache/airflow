@@ -702,12 +702,12 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
     @patch("airflow.providers.databricks.operators.databricks_workflow.time.sleep")
     def test_sync_run_raises_when_repair_not_reflected_within_timeout(self, mock_sleep):
         operator = self._make_operator(workflow_repair_attempts=2, deferrable=False)
-        operator.workflow_repair_reflection_timeout = 0
+        operator.workflow_repair_timeout = 0
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
         # 1. outer loop: terminal+failed → repair_run
         # 2. reflection poll: still terminal → wall-clock deadline trips → raise (no second repair_run).
-        # workflow_repair_reflection_timeout=0 means the first elapsed ``time.monotonic()`` call
+        # workflow_repair_timeout=0 means the first elapsed ``time.monotonic()`` call
         # after the no-op sleep is past the deadline, so the loop bails out.
         hook.get_run_state.side_effect = [
             RunState("TERMINATED", "FAILED", ""),
@@ -726,7 +726,7 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
         message = str(exc.value)
         assert "did not reflect repair_id=555" in message
         assert "run 100" in message
-        assert "workflow_repair_reflection_timeout" in message
+        assert "workflow_repair_timeout" in message
         # Only the original repair_run — the raise must prevent a duplicate.
         hook.repair_run.assert_called_once()
         # One reflection-loop sleep fired before the deadline check tripped.
@@ -742,7 +742,7 @@ class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
                 databricks_conn_id="databricks_conn",
                 workflow_repair_attempts=2,
                 workflow_repair_polling_period=15,
-                workflow_repair_reflection_timeout=120,
+                workflow_repair_timeout=120,
             ) as tg:
                 task = MagicMock(task_id="task1")
                 task._convert_to_databricks_workflow_task = MagicMock(return_value={})
@@ -752,6 +752,6 @@ class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
         assert isinstance(coordinator, _DatabricksWorkflowRepairCoordinatorOperator)
         assert coordinator.workflow_repair_attempts == 2
         assert coordinator.workflow_repair_polling_period == 15
-        assert coordinator.workflow_repair_reflection_timeout == 120
+        assert coordinator.workflow_repair_timeout == 120
         assert coordinator.launch_task_id == "wf.launch"
         assert "wf.launch" in coordinator.upstream_task_ids

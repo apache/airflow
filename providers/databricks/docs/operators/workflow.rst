@@ -83,12 +83,12 @@ Databricks ``repair_run`` with ``rerun_all_failed_tasks=True``. Default is ``0``
         databricks_conn_id="databricks_default",
         workflow_repair_attempts=2,
         workflow_repair_polling_period=15,
-        workflow_repair_reflection_timeout=300,
+        workflow_repair_timeout=300,
     )
 
 After ``repair_run`` is accepted, Databricks needs a moment to drop the parent run out of its
 terminal state. The coordinator polls every ``workflow_repair_polling_period`` seconds and gives
-Databricks up to ``workflow_repair_reflection_timeout`` seconds (default 300s / 5 minutes) to
+Databricks up to ``workflow_repair_timeout`` seconds (default 300s / 5 minutes) to
 reflect the repair before it fails the coordinator. Raise the timeout if your workspace is slow
 to surface repaired runs.
 
