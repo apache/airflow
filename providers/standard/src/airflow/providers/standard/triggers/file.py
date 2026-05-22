@@ -184,11 +184,16 @@ class DirectoryFileDeleteTrigger(BaseEventTrigger):
         Drive one directory-listing loop and broadcast each snapshot.
 
         Missing directories yield an empty snapshot so subscribers keep
-        polling for the file to appear. Other ``OSError`` cases (permission
-        denied, transient I/O errors) are logged and the snapshot is skipped
-        for this cadence — failing the shared poll outright would
-        cascade-fail every sibling watcher on the same directory for what
-        may be a transient blip.
+        polling for the file to appear. Configuration-class failures
+        (``PermissionError``, ``NotADirectoryError``, ``IsADirectoryError``)
+        propagate — these are almost always permanent (wrong mount, wrong
+        mode, path points at a file), so silently retrying just hides the
+        misconfiguration from the operator; surfacing them as a
+        ``_PollFailure`` makes the trigger visibly fail in the UI, where it
+        can be diagnosed and restarted after the operator corrects the
+        config. Other ``OSError`` subclasses (transient I/O blips, NFS
+        hiccups, etc.) are logged at warning and the snapshot is skipped for
+        this cadence, since those may self-heal.
         """
         directory = anyio.Path(kwargs["directory"])
         poke_interval: float = kwargs["poke_interval"]
@@ -197,6 +202,8 @@ class DirectoryFileDeleteTrigger(BaseEventTrigger):
                 names = {p.name async for p in directory.iterdir()}
             except FileNotFoundError:
                 names = set()
+            except (PermissionError, NotADirectoryError, IsADirectoryError):
+                raise
             except OSError:
                 log.warning(
                     "Failed to list %s; retrying after %ss",

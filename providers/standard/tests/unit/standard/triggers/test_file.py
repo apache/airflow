@@ -247,43 +247,56 @@ class TestDirectoryFileDeleteTrigger:
 
         assert all(s["names"] == set() for s in snapshots)
 
+    @pytest.mark.parametrize(
+        "exc_cls",
+        [PermissionError, NotADirectoryError, IsADirectoryError],
+    )
     @pytest.mark.asyncio
-    async def test_open_shared_stream_logs_and_retries_on_permission_error(self, tmp_path, mocker):
-        """A transient ``PermissionError`` from ``iterdir`` must not cascade-fail every sibling
-        watcher. The shared poll logs at warning level, sleeps for one poke, and tries again on
-        the next cadence so a brief perms blip is recoverable.
-        """
-        # Two failures, then succeed -- proves the poll keeps retrying instead
-        # of propagating to subscribers.
-        states: list[set[str]] = [set(), {"us.flag"}]
+    async def test_open_shared_stream_raises_on_config_bug_oserror(self, mocker, tmp_path, exc_cls):
+        """PermissionError, NotADirectoryError, and IsADirectoryError must propagate rather than spin."""
 
         async def _iterdir(self):
-            if not states:
-                if False:
-                    yield  # pragma: no cover - sentinel for async generator typing
-                return
-            state = states.pop(0)
-            if state == set():
-                raise PermissionError("denied")
-            for name in state:
-                yield anyio.Path("/tmp") / name
+            raise exc_cls("config bug")
+            if False:
+                yield  # pragma: no cover - sentinel for async generator typing
 
         mocker.patch.object(anyio.Path, "iterdir", _iterdir)
-        warning = mocker.patch("airflow.providers.standard.triggers.file.log.warning")
 
         directory = tmp_path / "flags"
-        snapshots = []
+        gen = DirectoryFileDeleteTrigger.open_shared_stream(
+            {"directory": str(directory), "poke_interval": 0.01}
+        )
+        with pytest.raises(exc_cls):
+            await gen.__anext__()
 
-        async def consume():
-            it = DirectoryFileDeleteTrigger.open_shared_stream(
-                {"directory": str(directory), "poke_interval": 0.01}
-            ).__aiter__()
-            snapshots.append(await it.__anext__())
+    @pytest.mark.asyncio
+    async def test_open_shared_stream_swallows_transient_oserror(self, tmp_path, mocker):
+        """A generic OSError is logged and retried; the snapshot from the next call is yielded."""
+        call_count = 0
 
-        await asyncio.wait_for(consume(), timeout=2.0)
+        async def _iterdir(self):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise OSError("transient blip")
+            if False:
+                yield  # pragma: no cover - sentinel for async generator typing
 
-        assert snapshots == [{"directory": str(directory), "names": {"us.flag"}}]
-        assert warning.called, "PermissionError must produce a warning, not be silently swallowed"
+        mocker.patch.object(anyio.Path, "iterdir", _iterdir)
+
+        async def _noop_sleep(_duration):
+            pass
+
+        mocker.patch("asyncio.sleep", side_effect=_noop_sleep)
+
+        directory = tmp_path / "flags"
+        gen = DirectoryFileDeleteTrigger.open_shared_stream(
+            {"directory": str(directory), "poke_interval": 0.01}
+        )
+        snapshot = await gen.__anext__()
+
+        assert snapshot == {"directory": str(directory), "names": set()}
+        assert call_count == 2
 
     @pytest.mark.asyncio
     async def test_run_standalone_fallback_polls_until_filename_appears(self, tmp_path):
