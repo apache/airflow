@@ -914,7 +914,7 @@ class TestDataflowJobMetricsOperatorExecuteSync:
         }
 
         with pytest.raises(
-            AirflowException,
+            RuntimeError,
             match=f"Job with id '{JOB_ID}' is already in terminal state: {DataflowJobStatus.JOB_STATE_DONE}",
         ):
             operator.execute(mock.MagicMock())
@@ -966,7 +966,7 @@ class TestDataflowJobMetricsOperatorExecuteComplete:
 
     def test_execute_complete_raises_on_error_status(self, sync_operator):
         """Test that execute_complete raises RuntimeError on error status."""
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             sync_operator.execute_complete(
                 context=mock.MagicMock(),
                 event={"status": "error", "message": "test error message"},
