@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timezone
 from unittest import mock
 from unittest.mock import create_autospec
 
@@ -581,6 +582,101 @@ class TestWasbHook:
         hook.download(container_name="mycontainer", blob_name="myblob", offset=2, length=4)
         blob_client.assert_called_once_with(container="mycontainer", blob="myblob")
         blob_client.return_value.download_blob.assert_called_once_with(offset=2, length=4)
+
+    def test_sync_to_local_dir_behaviour(self, mocked_blob_service_client, tmp_path):
+        def get_logs_string(call_args_list):
+            return "".join([args[0][0] % args[0][1:] for args in call_args_list])
+
+        def make_blob(name, size=9, last_modified=None):
+            blob = mock.MagicMock(name=f"BLOB:{name}")
+            blob.name = name
+            blob.size = size
+            blob.last_modified = last_modified or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            return blob
+
+        container_name = "test_container"
+        mock_container = create_autospec(ContainerClient, instance=True)
+        mocked_blob_service_client.return_value.get_container_client.return_value = mock_container
+
+        blobs = [
+            make_blob("dag_01.py"),
+            make_blob("dag_02.py"),
+            make_blob("subproject1/dag_a.py"),
+            make_blob("subproject1/dag_b.py"),
+        ]
+        mock_container.list_blobs.return_value = blobs
+
+        sync_local_dir = tmp_path / "wasb_sync_dir"
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook.log.debug = mock.MagicMock()
+        hook.get_file = mock.MagicMock()
+
+        hook.sync_to_local_dir(
+            container_name=container_name, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Downloading data from wasb://{container_name}/ to {sync_local_dir}" in logs_string
+        assert f"Local file {sync_local_dir}/dag_01.py does not exist." in logs_string
+        assert f"Downloaded dag_01.py to {sync_local_dir.as_posix()}/dag_01.py" in logs_string
+        assert f"Local file {sync_local_dir}/subproject1/dag_a.py does not exist." in logs_string
+        assert (
+            f"Downloaded subproject1/dag_a.py to {sync_local_dir.as_posix()}/subproject1/dag_a.py"
+            in logs_string
+        )
+        assert hook.get_file.call_count == 4
+
+        for blob in blobs:
+            p = sync_local_dir / blob.name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("test data")
+            os.utime(p, (blob.last_modified.timestamp(), blob.last_modified.timestamp()))
+
+        hook.log.debug = mock.MagicMock()
+        hook.get_file.reset_mock()
+        new_blob = make_blob("dag_03.py")
+        mock_container.list_blobs.return_value = blobs + [new_blob]
+        hook.sync_to_local_dir(
+            container_name=container_name, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert (
+            f"Local file {(sync_local_dir / 'subproject1' / 'dag_b.py').as_posix()} is up-to-date "
+            "with blob subproject1/dag_b.py. Skipping download."
+        ) in logs_string
+        assert f"Local file {sync_local_dir}/dag_03.py does not exist." in logs_string
+        assert f"Downloaded dag_03.py to {sync_local_dir.as_posix()}/dag_03.py" in logs_string
+        hook.get_file.assert_called_once()
+        (sync_local_dir / "dag_03.py").write_text("test data")
+        os.utime(
+            sync_local_dir / "dag_03.py",
+            (new_blob.last_modified.timestamp(), new_blob.last_modified.timestamp()),
+        )
+
+        local_file_that_should_be_deleted = sync_local_dir / "file_that_should_be_deleted.py"
+        local_file_that_should_be_deleted.write_text("test dag")
+        local_folder_should_be_deleted = sync_local_dir / "local_folder_should_be_deleted"
+        local_folder_should_be_deleted.mkdir(exist_ok=True)
+        hook.log.debug = mock.MagicMock()
+        hook.get_file.reset_mock()
+        hook.sync_to_local_dir(
+            container_name=container_name, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert not hook.get_file.called
+
+        hook.log.debug = mock.MagicMock()
+        hook.get_file.reset_mock()
+        updated_blob = make_blob("dag_03.py", size=15)
+        mock_container.list_blobs.return_value = blobs + [updated_blob]
+        hook.sync_to_local_dir(
+            container_name=container_name, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "Blob size (15) and local file size (9) differ." in logs_string
+        assert f"Downloaded dag_03.py to {sync_local_dir.as_posix()}/dag_03.py" in logs_string
+        hook.get_file.assert_called_once()
 
     def test_get_container_client(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
