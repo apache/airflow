@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pendulum
+from weaviate.classes.config import Configure
 
 try:
     from airflow.sdk import dag, setup, task, teardown
@@ -59,7 +60,7 @@ def example_weaviate_cohere():
 
         weaviate_hook = WeaviateHook()
         # Collection definition object. Weaviate's autoschema feature will infer properties when importing.
-        weaviate_hook.create_collection(name=COLLECTION_NAME, vectorizer_config=None)
+        weaviate_hook.create_collection(name=COLLECTION_NAME, vector_config=Configure.Vectors.self_provided())
 
     @setup
     @task

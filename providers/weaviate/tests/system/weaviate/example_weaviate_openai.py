@@ -21,6 +21,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pendulum
+from weaviate.classes.config import Configure
 
 try:
     from airflow.sdk import dag, setup, task, teardown
@@ -60,7 +61,7 @@ def example_weaviate_openai():
         """
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
-        weaviate_hook.create_collection(COLLECTION_NAME)
+        weaviate_hook.create_collection(COLLECTION_NAME, vector_config=Configure.Vectors.self_provided())
 
     @setup
     @task
