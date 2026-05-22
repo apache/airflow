@@ -335,7 +335,7 @@ class BaseEventTrigger(BaseTrigger):
 
            This method is called **before** :meth:`render_template_fields`,
            so any templated attribute (for example a ``directory`` derived
-           from a Jinja expression) is still in its unrendered form here.
+           from a Jinja expression) is still its raw template string here.
            Keying on such an attribute means two sibling triggers that
            render to the same path will not share their poll. Either base
            the key only on already-resolved attributes, or render the
