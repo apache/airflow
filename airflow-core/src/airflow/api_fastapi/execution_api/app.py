@@ -262,18 +262,6 @@ def create_task_execution_api_app() -> FastAPI:
 
     app.generate_and_include_versioned_routers(execution_api_router)
 
-    # Same translation as the public API: DB-rejected payloads become 4xx with an
-    # actionable hint instead of being swallowed by the generic 500 handler below.
-    # The narrower ``Callable[[Request, DataError], ...]`` signature is widened to
-    # ``Callable[[Request, Exception], ...]`` by Starlette at registration time;
-    # the same variance pattern is masked by type erasure in
-    # ``core_api/app.py``'s ``ERROR_HANDLERS`` loop.
-    from sqlalchemy.exc import DataError
-
-    from airflow.api_fastapi.common.exceptions import _DataErrorHandler
-
-    app.add_exception_handler(DataError, _DataErrorHandler().exception_handler)  # type: ignore[arg-type]
-
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
     @app.exception_handler(Exception)
     def handle_exceptions(request: Request, exc: Exception):
