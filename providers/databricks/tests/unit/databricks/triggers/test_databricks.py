@@ -503,18 +503,28 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         assert events[0].payload["errors"] == []
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
     async def test_first_failure_within_budget_calls_repair_and_emits_repaired(
-        self, mock_get_run_state, mock_get_run, mock_get_run_output, mock_repair_run
+        self, mock_get_run_state, mock_get_run, mock_get_run_output, mock_repair_run, mock_sleep
     ):
-        mock_get_run_state.return_value = RunState(
-            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
-            state_message="",
-            result_state="FAILED",
-        )
+        # First call: terminal+failed → trigger issues repair.
+        # Second call: post-repair grace poll → non-terminal → grace loop breaks.
+        mock_get_run_state.side_effect = [
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="FAILED",
+            ),
+            RunState(
+                life_cycle_state="RUNNING",
+                state_message="",
+                result_state="",
+            ),
+        ]
         mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
         mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
         mock_repair_run.return_value = 101
@@ -538,6 +548,8 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         assert repair_json["rerun_all_failed_tasks"] is True
         # First repair: latest_repair_id was None, so the field must be omitted from the payload
         assert "latest_repair_id" not in repair_json
+        # Grace loop slept once before observing non-terminal state.
+        assert mock_sleep.call_count == 1
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run")
@@ -603,6 +615,7 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         result_state: str | None,
         life_cycle_state: str = LIFE_CYCLE_STATE_TERMINATED,
         tasks: list[dict] | None = None,
+        repair_history: list[dict] | None = None,
     ) -> dict:
         return {
             "run_page_url": RUN_PAGE_URL,
@@ -612,6 +625,7 @@ class TestDatabricksWorkflowRepairWaitTrigger:
                 "result_state": result_state,
             },
             "tasks": tasks or [],
+            "repair_history": repair_history or [],
         }
 
     def test_serialize_round_trips_state(self):
@@ -683,3 +697,48 @@ class TestDatabricksWorkflowRepairWaitTrigger:
         assert payload["parent_run_id"] == self.PARENT_RUN_ID
         assert payload["databricks_task_key"] == self.TASK_KEY
         assert RunState.from_json(payload["parent_run_state"]).result_state == "FAILED"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    async def test_repair_history_growth_resets_grace_counter(self, mock_get_run, mock_sleep):
+        original_task = {
+            "run_id": self.ORIGINAL_SUB_RUN_ID,
+            "task_key": self.TASK_KEY,
+            "start_time": 1000,
+        }
+        # Sequence: terminal twice, then a repair lands (history grows) — counter resets;
+        # then 3 more terminal polls with no further repair → parent_failed.
+        mock_get_run.side_effect = [
+            self._run_payload(result_state="FAILED", tasks=[original_task], repair_history=[]),
+            self._run_payload(result_state="FAILED", tasks=[original_task], repair_history=[]),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+            self._run_payload(
+                result_state="FAILED",
+                tasks=[original_task],
+                repair_history=[{"id": 1, "type": "REPAIR"}],
+            ),
+        ]
+
+        trigger = self._make_trigger()
+        events = [event async for event in trigger.run()]
+
+        # Without the reset, parent_failed would fire on the 3rd poll. The reset on poll 3
+        # delays it until 3 more terminal polls have accumulated (poll 6).
+        assert mock_get_run.call_count == 6
+        assert len(events) == 1
+        assert events[0].payload["status"] == "parent_failed"

@@ -3172,3 +3172,53 @@ class TestExecuteCompleteWorkflowRepair:
 
         assert result == self.NEW_SUB_RUN_ID
         mock_sleep.assert_called_once_with(15)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
+    def test_sync_wait_for_new_sub_run_attempt_repair_history_growth_resets_grace(self, mock_sleep):
+        operator = self._operator_with_workflow_tg(workflow_repair_attempts=2)
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        operator.databricks_run_id = self.PARENT_RUN_ID
+        original_task = {
+            "run_id": self.ORIGINAL_SUB_RUN_ID,
+            "task_key": operator.databricks_task_key,
+            "start_time": 1000,
+        }
+        terminal_state = {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": None}
+        # Two terminal polls, then a repair lands (history grows) — counter resets;
+        # then 3 more terminal polls with no further repair → returns None.
+        hook.get_run.side_effect = [
+            {"state": terminal_state, "tasks": [original_task], "repair_history": []},
+            {"state": terminal_state, "tasks": [original_task], "repair_history": []},
+            {
+                "state": terminal_state,
+                "tasks": [original_task],
+                "repair_history": [{"id": 1, "type": "REPAIR"}],
+            },
+            {
+                "state": terminal_state,
+                "tasks": [original_task],
+                "repair_history": [{"id": 1, "type": "REPAIR"}],
+            },
+            {
+                "state": terminal_state,
+                "tasks": [original_task],
+                "repair_history": [{"id": 1, "type": "REPAIR"}],
+            },
+            {
+                "state": terminal_state,
+                "tasks": [original_task],
+                "repair_history": [{"id": 1, "type": "REPAIR"}],
+            },
+        ]
+
+        result = operator._sync_wait_for_new_sub_run_attempt(
+            original_sub_run_id=self.ORIGINAL_SUB_RUN_ID,
+            original_start_time=1000,
+            tg=operator.task_group,
+        )
+
+        # Without the reset, this would return after 3 polls. The reset on poll 3 delays the
+        # decision until 3 more terminal polls without further repair_history growth (poll 6).
+        assert result is None
+        assert hook.get_run.call_count == 6

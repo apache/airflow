@@ -670,8 +670,12 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
         operator = self._make_operator(workflow_repair_attempts=2, deferrable=False)
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
+        # 1. top of outer loop: terminal+failed → repair_run
+        # 2. post-repair grace poll: non-terminal → break grace loop
+        # 3. top of outer loop: terminal+success → return
         hook.get_run_state.side_effect = [
             RunState("TERMINATED", "FAILED", ""),
+            RunState("RUNNING", "", ""),
             RunState("TERMINATED", "SUCCESS", ""),
         ]
         hook.get_run.return_value = {
@@ -692,7 +696,8 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
             }
         )
         assert result == {"run_id": 100, "repair_attempts": 1, "latest_repair_id": 555}
-        mock_sleep.assert_not_called()
+        # Grace loop slept once before observing non-terminal state.
+        assert mock_sleep.call_count == 1
 
 
 class TestDatabricksWorkflowTaskGroupCoordinatorInjection:

@@ -43,6 +43,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     store_databricks_job_run_link,
 )
 from airflow.providers.databricks.triggers.databricks import (
+    WORKFLOW_REPAIR_GRACE_POLLS,
     DatabricksExecutionTrigger,
     DatabricksWorkflowRepairWaitTrigger,
 )
@@ -1640,12 +1641,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.databricks_task_key,
         )
         polling_period_seconds = tg.workflow_repair_polling_period
-        terminal_grace_polls = 3
         terminal_observations = 0
+        last_repair_history_count: int | None = None
         while True:
             run_info = self._hook.get_run(self.databricks_run_id)  # type: ignore[arg-type]
             parent_run_state = RunState(**run_info["state"])
             tasks = run_info.get("tasks", [])
+            repair_history_count = len(run_info.get("repair_history", []))
+            if last_repair_history_count is None:
+                last_repair_history_count = repair_history_count
             new_attempt = find_new_workflow_task_attempt(
                 tasks=tasks,
                 task_key=self.databricks_task_key,
@@ -1654,16 +1658,27 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             )
             if new_attempt is not None:
                 return new_attempt["run_id"]
-            if parent_run_state.is_terminal:
+            if repair_history_count > last_repair_history_count:
+                self.log.info(
+                    "Parent run %s repair_history grew (was %s, now %s); resetting grace counter "
+                    "while waiting for a new attempt for task_key %s.",
+                    self.databricks_run_id,
+                    last_repair_history_count,
+                    repair_history_count,
+                    self.databricks_task_key,
+                )
+                last_repair_history_count = repair_history_count
+                terminal_observations = 0
+            elif parent_run_state.is_terminal:
                 terminal_observations += 1
-                if terminal_observations >= terminal_grace_polls:
+                if terminal_observations >= WORKFLOW_REPAIR_GRACE_POLLS:
                     self.log.info(
                         "Parent run %s reached terminal state %s without a new attempt for "
                         "task_key %s after %s grace polls.",
                         self.databricks_run_id,
                         parent_run_state.result_state,
                         self.databricks_task_key,
-                        terminal_grace_polls,
+                        WORKFLOW_REPAIR_GRACE_POLLS,
                     )
                     return None
             else:

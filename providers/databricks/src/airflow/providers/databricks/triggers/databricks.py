@@ -30,6 +30,16 @@ from airflow.providers.databricks.utils.databricks import (
 from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+# Tolerate this many consecutive polls of stale Databricks state during the workflow-repair
+# flow before drawing a conclusion. Covers two near-identical eventual-consistency windows:
+# (1) after ``repair_run`` is accepted, ``runs/get`` can briefly continue to report the parent
+# as TERMINATED before the repair transitions it to a non-terminal state — the coordinator
+# polls up to this many times before declaring the repair issued; (2) when a sub-run reports
+# terminal failure, a repair-triggered new sub-run can take a moment to appear in the parent's
+# tasks list — the waiter polls up to this many times before declaring the parent terminally
+# failed without a new attempt.
+WORKFLOW_REPAIR_GRACE_POLLS = 3
+
 
 class DatabricksExecutionTrigger(BaseTrigger):
     """
@@ -288,6 +298,23 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
                     new_repair_id,
                 )
 
+                # Wait for Databricks to reflect the repair (leave terminal state) before
+                # yielding. Without this, the next trigger cycle can observe stale terminal
+                # state and issue a second repair_run.
+                for _ in range(WORKFLOW_REPAIR_GRACE_POLLS):
+                    await asyncio.sleep(2)
+                    post_repair_state = await self.hook.a_get_run_state(self.run_id)
+                    if not post_repair_state.is_terminal:
+                        break
+                else:
+                    self.log.warning(
+                        "Databricks run %s still reports terminal state after %s grace polls "
+                        "following repair_id=%s; proceeding anyway.",
+                        self.run_id,
+                        WORKFLOW_REPAIR_GRACE_POLLS,
+                        new_repair_id,
+                    )
+
                 yield TriggerEvent(
                     {
                         "status": "repaired",
@@ -380,16 +407,16 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
         )
 
     async def run(self):
-        # Grace polls before declaring the parent terminally failed without a new attempt:
-        # Databricks can briefly report the parent run terminal before a repair-triggered
-        # sub-run shows up in the tasks list.
-        terminal_grace_polls = 3
         terminal_observations = 0
+        last_repair_history_count: int | None = None
         async with self.hook:
             while True:
                 run_info = await self.hook.a_get_run(self.run_id)
                 run_state = RunState(**run_info["state"])
                 tasks = run_info.get("tasks", [])
+                repair_history_count = len(run_info.get("repair_history", []))
+                if last_repair_history_count is None:
+                    last_repair_history_count = repair_history_count
 
                 new_attempt = self._find_new_attempt(tasks)
                 if new_attempt is not None:
@@ -411,7 +438,18 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
                     )
                     return
 
-                if run_state.is_terminal and not run_state.is_successful:
+                if repair_history_count > last_repair_history_count:
+                    self.log.info(
+                        "Databricks workflow run %s repair_history grew (was %s, now %s); "
+                        "resetting grace counter while waiting for a new attempt for task_key %s.",
+                        self.run_id,
+                        last_repair_history_count,
+                        repair_history_count,
+                        self.databricks_task_key,
+                    )
+                    last_repair_history_count = repair_history_count
+                    terminal_observations = 0
+                elif run_state.is_terminal and not run_state.is_successful:
                     terminal_observations += 1
                     self.log.info(
                         "Databricks workflow run %s is in terminal failure state %s with no new "
@@ -420,9 +458,9 @@ class DatabricksWorkflowRepairWaitTrigger(BaseTrigger):
                         run_state.result_state,
                         self.databricks_task_key,
                         terminal_observations,
-                        terminal_grace_polls,
+                        WORKFLOW_REPAIR_GRACE_POLLS,
                     )
-                    if terminal_observations >= terminal_grace_polls:
+                    if terminal_observations >= WORKFLOW_REPAIR_GRACE_POLLS:
                         yield TriggerEvent(
                             {
                                 "status": "parent_failed",

@@ -34,7 +34,10 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRunLink,
     store_databricks_job_run_link,
 )
-from airflow.providers.databricks.triggers.databricks import DatabricksWorkflowRepairCoordinatorTrigger
+from airflow.providers.databricks.triggers.databricks import (
+    WORKFLOW_REPAIR_GRACE_POLLS,
+    DatabricksWorkflowRepairCoordinatorTrigger,
+)
 from airflow.providers.databricks.utils.databricks import build_repair_run_json, extract_failed_task_errors
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -445,6 +448,23 @@ class _DatabricksWorkflowRepairCoordinatorOperator(BaseOperator):
                 run_id,
                 latest_repair_id,
             )
+
+            # Wait for Databricks to reflect the repair (leave terminal state) before
+            # looping. Without this, the next get_run_state can return stale terminal
+            # state and trigger a second repair_run.
+            for _ in range(WORKFLOW_REPAIR_GRACE_POLLS):
+                time.sleep(2)
+                post_repair_state = self._hook.get_run_state(run_id)
+                if not post_repair_state.is_terminal:
+                    break
+            else:
+                self.log.warning(
+                    "Databricks run %s still reports terminal state after %s grace polls "
+                    "following repair_id=%s; proceeding anyway.",
+                    run_id,
+                    WORKFLOW_REPAIR_GRACE_POLLS,
+                    latest_repair_id,
+                )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         status = event.get("status")
