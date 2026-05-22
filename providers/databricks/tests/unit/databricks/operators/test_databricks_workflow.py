@@ -671,7 +671,7 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
         hook = MagicMock()
         operator.__dict__["_hook"] = hook
         # 1. top of outer loop: terminal+failed → repair_run
-        # 2. post-repair grace poll: non-terminal → break grace loop
+        # 2. reflection poll: non-terminal → break reflection loop
         # 3. top of outer loop: terminal+success → return
         hook.get_run_state.side_effect = [
             RunState("TERMINATED", "FAILED", ""),
@@ -699,6 +699,39 @@ class TestDatabricksWorkflowRepairCoordinatorOperator:
         # Grace loop slept once before observing non-terminal state.
         assert mock_sleep.call_count == 1
 
+    @patch("airflow.providers.databricks.operators.databricks_workflow.time.sleep")
+    def test_sync_run_raises_when_repair_not_reflected_within_timeout(self, mock_sleep):
+        operator = self._make_operator(workflow_repair_attempts=2, deferrable=False)
+        operator.workflow_repair_reflection_timeout = 0
+        hook = MagicMock()
+        operator.__dict__["_hook"] = hook
+        # 1. outer loop: terminal+failed → repair_run
+        # 2. reflection poll: still terminal → wall-clock deadline trips → raise (no second repair_run).
+        # workflow_repair_reflection_timeout=0 means the first elapsed ``time.monotonic()`` call
+        # after the no-op sleep is past the deadline, so the loop bails out.
+        hook.get_run_state.side_effect = [
+            RunState("TERMINATED", "FAILED", ""),
+            RunState("TERMINATED", "FAILED", ""),
+        ]
+        hook.get_run.return_value = {
+            "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED", "state_message": ""},
+            "tasks": [],
+            "overriding_parameters": {},
+        }
+        hook.repair_run.return_value = 555
+
+        with pytest.raises(AirflowException) as exc:
+            operator._run_sync(run_id=100)
+
+        message = str(exc.value)
+        assert "did not reflect repair_id=555" in message
+        assert "run 100" in message
+        assert "workflow_repair_reflection_timeout" in message
+        # Only the original repair_run — the raise must prevent a duplicate.
+        hook.repair_run.assert_called_once()
+        # One reflection-loop sleep fired before the deadline check tripped.
+        assert mock_sleep.call_count == 1
+
 
 class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Coordinator task is only injected on Airflow 3+")
@@ -709,6 +742,7 @@ class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
                 databricks_conn_id="databricks_conn",
                 workflow_repair_attempts=2,
                 workflow_repair_polling_period=15,
+                workflow_repair_reflection_timeout=120,
             ) as tg:
                 task = MagicMock(task_id="task1")
                 task._convert_to_databricks_workflow_task = MagicMock(return_value={})
@@ -718,5 +752,6 @@ class TestDatabricksWorkflowTaskGroupCoordinatorInjection:
         assert isinstance(coordinator, _DatabricksWorkflowRepairCoordinatorOperator)
         assert coordinator.workflow_repair_attempts == 2
         assert coordinator.workflow_repair_polling_period == 15
+        assert coordinator.workflow_repair_reflection_timeout == 120
         assert coordinator.launch_task_id == "wf.launch"
         assert "wf.launch" in coordinator.upstream_task_ids

@@ -458,6 +458,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         workflow_repair_attempts: int = 2,
         repair_attempts: int = 0,
         latest_repair_id: int | None = None,
+        workflow_repair_reflection_timeout: int = 300,
     ) -> DatabricksWorkflowRepairCoordinatorTrigger:
         return DatabricksWorkflowRepairCoordinatorTrigger(
             run_id=RUN_ID,
@@ -466,6 +467,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
             repair_attempts=repair_attempts,
             latest_repair_id=latest_repair_id,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            workflow_repair_reflection_timeout=workflow_repair_reflection_timeout,
             run_page_url=RUN_PAGE_URL,
         )
 
@@ -512,7 +514,7 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         self, mock_get_run_state, mock_get_run, mock_get_run_output, mock_repair_run, mock_sleep
     ):
         # First call: terminal+failed → trigger issues repair.
-        # Second call: post-repair grace poll → non-terminal → grace loop breaks.
+        # Second call: reflection poll → non-terminal → reflection loop breaks.
         mock_get_run_state.side_effect = [
             RunState(
                 life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
@@ -549,6 +551,58 @@ class TestDatabricksWorkflowRepairCoordinatorTrigger:
         # First repair: latest_repair_id was None, so the field must be omitted from the payload
         assert "latest_repair_id" not in repair_json
         # Grace loop slept once before observing non-terminal state.
+        assert mock_sleep.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.repair_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_emits_repair_not_reflected_when_reflection_timeout_elapses(
+        self,
+        mock_get_run_state,
+        mock_get_run,
+        mock_get_run_output,
+        mock_repair_run,
+        mock_sleep,
+    ):
+        # First call: terminal+failed → trigger issues repair.
+        # Reflection poll: still terminal → wall-clock deadline trips → yield repair_not_reflected.
+        # workflow_repair_reflection_timeout=0 means the deadline is "now"; the first elapsed
+        # ``time.monotonic()`` call after the no-op sleep is past it, so the loop bails out.
+        mock_get_run_state.side_effect = [
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="FAILED",
+            ),
+            RunState(
+                life_cycle_state=LIFE_CYCLE_STATE_TERMINATED,
+                state_message="",
+                result_state="FAILED",
+            ),
+        ]
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+        mock_repair_run.return_value = 101
+
+        trigger = self._make_trigger(
+            workflow_repair_attempts=2,
+            repair_attempts=0,
+            latest_repair_id=None,
+            workflow_repair_reflection_timeout=0,
+        )
+        events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "repair_not_reflected"
+        assert events[0].payload["run_id"] == RUN_ID
+        assert events[0].payload["repair_attempts"] == 1
+        assert events[0].payload["latest_repair_id"] == 101
+        # Only the original repair_run — yielding must prevent a duplicate next cycle.
+        mock_repair_run.assert_called_once()
+        # One reflection-loop sleep fired before the deadline check tripped.
         assert mock_sleep.call_count == 1
 
     @pytest.mark.asyncio

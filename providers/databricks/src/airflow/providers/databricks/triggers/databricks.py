@@ -30,14 +30,13 @@ from airflow.providers.databricks.utils.databricks import (
 from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
-# Tolerate this many consecutive polls of stale Databricks state during the workflow-repair
-# flow before drawing a conclusion. Covers two near-identical eventual-consistency windows:
-# (1) after ``repair_run`` is accepted, ``runs/get`` can briefly continue to report the parent
-# as TERMINATED before the repair transitions it to a non-terminal state — the coordinator
-# polls up to this many times before declaring the repair issued; (2) when a sub-run reports
-# terminal failure, a repair-triggered new sub-run can take a moment to appear in the parent's
-# tasks list — the waiter polls up to this many times before declaring the parent terminally
-# failed without a new attempt.
+# Tolerate this many consecutive polls of stale Databricks state in
+# ``DatabricksWorkflowRepairWaitTrigger``: when a sub-run reports terminal failure, a
+# repair-triggered new sub-run can take a moment to appear in the parent's tasks list — the
+# waiter polls up to this many times before declaring the parent terminally failed without a
+# new attempt. The coordinator uses a configurable wall-clock timeout instead (see
+# ``workflow_repair_reflection_timeout``), since the post-``repair_run`` eventual-consistency
+# window can stretch into minutes when Databricks is slow.
 WORKFLOW_REPAIR_GRACE_POLLS = 3
 
 
@@ -153,6 +152,9 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
     :param repair_attempts: Repair attempts already performed.
     :param latest_repair_id: Repair id of the most recent repair attempt.
     :param polling_period_seconds: How often to poll the run state.
+    :param workflow_repair_reflection_timeout: Seconds to wait after ``repair_run`` is accepted
+        for the parent run to leave its terminal state before giving up and failing the
+        coordinator. Defaults to 5 minutes.
     :param retry_limit: Hook retry limit for transient Databricks API failures.
     :param retry_delay: Hook retry delay (seconds).
     :param retry_args: Optional tenacity ``Retrying`` kwargs forwarded to the hook.
@@ -168,6 +170,7 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
         repair_attempts: int = 0,
         latest_repair_id: int | None = None,
         polling_period_seconds: int = 30,
+        workflow_repair_reflection_timeout: int = 300,
         retry_limit: int = 3,
         retry_delay: int = 10,
         retry_args: dict[Any, Any] | None = None,
@@ -181,6 +184,7 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
         self.repair_attempts = repair_attempts
         self.latest_repair_id = latest_repair_id
         self.polling_period_seconds = polling_period_seconds
+        self.workflow_repair_reflection_timeout = workflow_repair_reflection_timeout
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.retry_args = retry_args
@@ -204,6 +208,7 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
                 "repair_attempts": self.repair_attempts,
                 "latest_repair_id": self.latest_repair_id,
                 "polling_period_seconds": self.polling_period_seconds,
+                "workflow_repair_reflection_timeout": self.workflow_repair_reflection_timeout,
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
@@ -300,20 +305,27 @@ class DatabricksWorkflowRepairCoordinatorTrigger(BaseTrigger):
 
                 # Wait for Databricks to reflect the repair (leave terminal state) before
                 # yielding. Without this, the next trigger cycle can observe stale terminal
-                # state and issue a second repair_run.
-                for _ in range(WORKFLOW_REPAIR_GRACE_POLLS):
-                    await asyncio.sleep(2)
+                # state and issue a second repair_run. Bound the wait so a stuck DBX doesn't
+                # pin the trigger forever.
+                deadline = time.monotonic() + self.workflow_repair_reflection_timeout
+                while True:
+                    await asyncio.sleep(self.polling_period_seconds)
                     post_repair_state = await self.hook.a_get_run_state(self.run_id)
                     if not post_repair_state.is_terminal:
                         break
-                else:
-                    self.log.warning(
-                        "Databricks run %s still reports terminal state after %s grace polls "
-                        "following repair_id=%s; proceeding anyway.",
-                        self.run_id,
-                        WORKFLOW_REPAIR_GRACE_POLLS,
-                        new_repair_id,
-                    )
+                    if time.monotonic() >= deadline:
+                        yield TriggerEvent(
+                            {
+                                "status": "repair_not_reflected",
+                                "run_id": self.run_id,
+                                "run_page_url": self.run_page_url,
+                                "run_state": run_state.to_json(),
+                                "repair_attempts": self.repair_attempts + 1,
+                                "latest_repair_id": new_repair_id,
+                                "errors": errors,
+                            }
+                        )
+                        return
 
                 yield TriggerEvent(
                     {
