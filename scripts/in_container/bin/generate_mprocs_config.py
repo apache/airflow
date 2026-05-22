@@ -66,12 +66,22 @@ def generate_mprocs_config() -> str:
     use_airflow_version = get_env("USE_AIRFLOW_VERSION", "")
     if not use_airflow_version.startswith("2."):
         # API Server (Airflow 3.x+)
+        # Bind dual-stack (IPv6 + IPv4) so http://localhost:28080 works from browsers that
+        # resolve `localhost` to ::1 first (e.g. Chrome/Safari on macOS with OrbStack, which
+        # forwards both IPv4 and IPv6 host ports into the container). The default `0.0.0.0`
+        # binds IPv4 only, causing the IPv6 attempt to land inside the container with no
+        # listener and TCP RST → opaque chrome-error://chromewebdata/ page.
+        api_host_arg = "--host '::'"
         if get_env_bool("BREEZE_DEBUG_APISERVER"):
             port = get_env("BREEZE_DEBUG_APISERVER_PORT", "5679")
-            api_cmd = f"debugpy --listen 0.0.0.0:{port} --wait-for-client -m airflow api-server -d"
+            api_cmd = (
+                f"debugpy --listen 0.0.0.0:{port} --wait-for-client -m airflow api-server {api_host_arg} -d"
+            )
         else:
             dev_mode = get_env_bool("DEV_MODE")
-            api_cmd = "airflow api-server -d" if dev_mode else "airflow api-server"
+            api_cmd = (
+                f"airflow api-server {api_host_arg} -d" if dev_mode else f"airflow api-server {api_host_arg}"
+            )
         procs["api_server"] = {"shell": api_cmd, "restart": "always", "scrollback": 100000}
     else:
         # Webserver (Airflow 2.x)
