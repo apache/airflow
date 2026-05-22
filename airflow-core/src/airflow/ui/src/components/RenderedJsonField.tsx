@@ -54,16 +54,12 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
       });
 
       if (collapsed) {
-        const action = editorInstance.getAction("editor.foldAll");
-
-        if (action) {
-          void action.run().then(() => {
-            setIsReady(true);
-          });
-        } else {
-          setIsReady(true);
-        }
+        // `editor.foldAll`'s promise awaits the FoldingModel, which can stay pending
+        // when the JSON syntax range provider's worker is unavailable. Fire the action
+        // but unblock visibility on the next tick so we don't leave the editor hidden.
+        void editorInstance.getAction("editor.foldAll")?.run();
       }
+      setIsReady(true);
     },
     [collapsed],
   );
