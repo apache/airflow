@@ -31,9 +31,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import DAG
+from airflow.sdk import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.dataflow import DataflowJobMetricsOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -52,7 +52,7 @@ def process_metrics_callback(metrics):
 def consume_metrics_from_xcom(**context):
     """Consume and display metrics count from XCom."""
     task_instance = context["task_instance"]
-    metrics = task_instance.xcom_pull(task_ids="collect_metrics_no_callback", key="metrics")
+    metrics = task_instance.xcom_pull(task_ids="collect_metrics_no_callback", key="return_value")
     metric_list = metrics if isinstance(metrics, list) else []
     print(f"Metrics count from XCom: {len(metric_list)}")
 
