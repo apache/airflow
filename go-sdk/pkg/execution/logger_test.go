@@ -20,6 +20,7 @@ package execution
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -131,4 +132,43 @@ func TestSocketLogHandlerKeyMapping(t *testing.T) {
 	assert.False(t, hasMsg)
 	_, hasTime := entry["time"]
 	assert.False(t, hasTime)
+}
+
+// TestSocketLogHandlerStringifiesErrorAttr verifies that an attribute whose
+// value is a stock `error` is rendered as its .Error() string. Without value
+// resolution the underlying struct's unexported fields would be marshaled as
+// "{}", silently dropping the message.
+func TestSocketLogHandlerStringifiesErrorAttr(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler)
+
+	logger.Error("task failed", "error", errors.New("boom"))
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "boom", entry["error"])
+}
+
+// logValuerAttr is an slog.LogValuer that resolves to a string. Used to
+// confirm Resolve() is called before JSON marshaling.
+type logValuerAttr string
+
+func (l logValuerAttr) LogValue() slog.Value {
+	return slog.StringValue(string(l) + ":resolved")
+}
+
+// TestSocketLogHandlerResolvesLogValuer verifies that an attribute whose
+// value implements slog.LogValuer has Resolve() called before marshaling,
+// matching the behaviour of slog.NewJSONHandler.
+func TestSocketLogHandlerResolvesLogValuer(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewSocketLogHandler(&buf, slog.LevelDebug)
+	logger := slog.New(handler)
+
+	logger.Info("with valuer", "field", logValuerAttr("hello"))
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry))
+	assert.Equal(t, "hello:resolved", entry["field"])
 }

@@ -100,13 +100,13 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 	// Apply pre-configured attrs.
 	for _, a := range h.attrs {
 		key := h.prefixedKey(a.Key)
-		entry[key] = a.Value.Any()
+		entry[key] = resolveAttrValue(a.Value)
 	}
 
 	// Apply record attrs.
 	r.Attrs(func(a slog.Attr) bool {
 		key := h.prefixedKey(a.Key)
-		entry[key] = a.Value.Any()
+		entry[key] = resolveAttrValue(a.Value)
 		return true
 	})
 
@@ -155,4 +155,16 @@ func (h *SocketLogHandler) prefixedKey(key string) string {
 		return key
 	}
 	return strings.Join(h.groups, ".") + "." + key
+}
+
+// resolveAttrValue returns the JSON-friendly representation of a slog.Value.
+// It dereferences slog.LogValuer via Resolve() and then stringifies an error
+// (whose unexported fields would otherwise marshal as "{}"), matching the
+// behaviour of slog.NewJSONHandler. Non-error values pass through unchanged.
+func resolveAttrValue(v slog.Value) any {
+	resolved := v.Resolve().Any()
+	if err, ok := resolved.(error); ok {
+		return err.Error()
+	}
+	return resolved
 }
