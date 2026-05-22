@@ -217,19 +217,9 @@ class _SharedStreamGroup:
                 self._on_poll_terminate(self)
                 failure = _PollFailure(terminal_exc)
                 for queue in self._subscribers.values():
-                    # A subscriber whose queue is already at capacity (slow
-                    # consumer, or an unread ``_SubscriberOverflow`` sentinel)
-                    # would raise ``QueueFull`` here and abort the broadcast,
-                    # leaving later subscribers without the terminal sentinel.
-                    # Drain whatever stale events are queued — they become
-                    # irrelevant once the poll is terminating — and then put
-                    # the failure so every subscriber wakes up.
-                    while not queue.empty():
-                        try:
-                            queue.get_nowait()
-                        except asyncio.QueueEmpty:
-                            break
-                    queue.put_nowait(failure)
+                    # Drain stale events then put the failure sentinel so every
+                    # subscriber wakes up even if its queue was at capacity.
+                    self._drain_and_offer_failure(queue, failure)
 
     def subscribe(self, trigger_id: int) -> AsyncIterator[Any]:
         """Register ``trigger_id`` as a subscriber and return its raw event stream."""
@@ -264,22 +254,31 @@ class _SharedStreamGroup:
             trigger_id=trigger_id,
             queue_maxsize=queue.maxsize,
         )
-        # Discard the unread backlog so the subscriber jumps straight to the
-        # failure on its next get() instead of chewing through stale events.
-        while not queue.empty():
-            try:
-                queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-        queue.put_nowait(
+        self._drain_and_offer_failure(
+            queue,
             _PollFailure(
                 _SubscriberOverflow(
                     f"shared stream {self.key!r} fell behind for trigger {trigger_id}: "
                     f"subscriber queue exceeded maxsize={queue.maxsize}"
                 )
-            )
+            ),
         )
         self._overflowed.add(trigger_id)
+
+    def _drain_and_offer_failure(self, queue: asyncio.Queue, failure: _PollFailure) -> None:
+        """
+        Drain ``queue`` and put ``failure`` so the subscriber wakes on the failure.
+
+        The drain releases capacity so the subsequent ``put_nowait`` cannot raise
+        ``QueueFull``; this is the single point that both the terminal-broadcast
+        and the per-subscriber overflow path go through.
+        """
+        while not queue.empty():
+            try:
+                queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+        queue.put_nowait(failure)
 
     def is_empty(self) -> bool:
         return not self._subscribers

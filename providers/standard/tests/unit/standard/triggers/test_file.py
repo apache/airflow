@@ -152,6 +152,35 @@ class TestDirectoryFileDeleteTrigger:
         b = DirectoryFileDeleteTrigger(directory=second, filename="us.flag", poke_interval=1.0)
         assert a.shared_stream_key() == b.shared_stream_key()
 
+    def test_shared_stream_key_realpath_trailing_slash(self, tmp_path):
+        """Trailing slash variant keys to the same group as the plain path."""
+        real_dir = str(tmp_path / "flags")
+        a = DirectoryFileDeleteTrigger(directory=real_dir, filename="f", poke_interval=1.0)
+        b = DirectoryFileDeleteTrigger(directory=real_dir + "/", filename="f", poke_interval=1.0)
+        assert a.shared_stream_key() == b.shared_stream_key()
+
+    def test_shared_stream_key_realpath_relative_vs_absolute(self, tmp_path, monkeypatch):
+        """A relative path resolves to the same key as its absolute equivalent."""
+        monkeypatch.chdir(tmp_path)
+        a = DirectoryFileDeleteTrigger(directory=".", filename="f", poke_interval=1.0)
+        b = DirectoryFileDeleteTrigger(directory=str(tmp_path), filename="f", poke_interval=1.0)
+        assert a.shared_stream_key() == b.shared_stream_key()
+
+    @pytest.mark.skipif(
+        not hasattr(__import__("os"), "symlink"),
+        reason="symlinks not supported on this platform",
+    )
+    def test_shared_stream_key_realpath_symlink_vs_target(self, tmp_path):
+        """A symlink and its target resolve to the same key."""
+
+        real_dir = tmp_path / "real"
+        real_dir.mkdir()
+        link_dir = tmp_path / "link"
+        link_dir.symlink_to(real_dir)
+        a = DirectoryFileDeleteTrigger(directory=str(real_dir), filename="f", poke_interval=1.0)
+        b = DirectoryFileDeleteTrigger(directory=str(link_dir), filename="f", poke_interval=1.0)
+        assert a.shared_stream_key() == b.shared_stream_key()
+
     @pytest.mark.asyncio
     async def test_filter_shared_stream_fires_only_for_own_filename(self, tmp_path):
         directory = tmp_path / "flags"

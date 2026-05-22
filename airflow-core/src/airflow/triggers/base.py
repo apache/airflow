@@ -331,15 +331,13 @@ class BaseEventTrigger(BaseTrigger):
         of sibling triggers, ensure every trigger in the set returns the
         same key from the outset.
 
-        .. warning::
+        .. note::
 
-           This method is called **before** :meth:`render_template_fields`,
+           This method is called **after** :meth:`render_template_fields`,
            so any templated attribute (for example a ``directory`` derived
-           from a Jinja expression) is still its raw template string here.
-           Keying on such an attribute means two sibling triggers that
-           render to the same path will not share their poll. Either base
-           the key only on already-resolved attributes, or render the
-           relevant fields yourself before constructing the key.
+           from a Jinja expression) is already resolved when the key is
+           constructed. Two sibling triggers that render to the same path
+           will correctly share their poll.
         """
         return None
 

@@ -1453,24 +1453,28 @@ class TriggerRunner:
         # (BaseEventTrigger.shared_stream_key returns non-None) consume a
         # broadcast stream produced by SharedStreamManager and convert it
         # via filter_shared_stream(). Everything else stays on the original
-        # standalone-run() path.
-        shared_key: Hashable | None = None
+        # standalone-run() path.  The key is computed after
+        # render_template_fields so any templated attributes are already
+        # resolved when the key is constructed.
         event_trigger: BaseEventTrigger | None = None
         if isinstance(trigger, BaseEventTrigger):
             event_trigger = trigger
-            try:
-                shared_key = event_trigger.shared_stream_key()
-            except Exception:
-                self.log.exception(
-                    "shared_stream_key() raised; falling back to standalone run",
-                    trigger_id=trigger_id,
-                )
-                shared_key = None
+        shared_key: Hashable | None = None
 
         with _make_trigger_span(ti=trigger.task_instance, trigger_id=trigger_id, name=name) as span:
             try:
                 if context is not None:
                     trigger.render_template_fields(context=context)
+
+                if event_trigger is not None:
+                    try:
+                        shared_key = event_trigger.shared_stream_key()
+                    except Exception:
+                        self.log.exception(
+                            "shared_stream_key() raised; falling back to standalone run",
+                            trigger_id=trigger_id,
+                        )
+                        shared_key = None
 
                 if shared_key is not None and event_trigger is not None:
                     shared_stream = self._shared_streams.subscribe(

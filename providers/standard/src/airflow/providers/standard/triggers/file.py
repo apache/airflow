@@ -172,10 +172,11 @@ class DirectoryFileDeleteTrigger(BaseEventTrigger):
 
     def shared_stream_key(self) -> Hashable | None:
         """All triggers on the same directory + cadence share one scan."""
-        # Normalise so trivial path variants (``/tmp/flags`` vs ``/tmp/flags/``,
-        # or ``./flags`` vs an absolute equivalent in the same cwd) key to the
-        # same group instead of silently running N independent scans.
-        return ("directory-scan", os.path.normpath(self.directory), self.poke_interval)
+        # Use realpath so trivial path variants all resolve to the same canonical
+        # path: trailing slashes (``/tmp/flags`` vs ``/tmp/flags/``), relative vs
+        # absolute paths (``./flags`` vs ``/tmp/flags``), and symlinks vs their
+        # targets all key to the same group instead of running N independent scans.
+        return ("directory-scan", os.path.realpath(self.directory), self.poke_interval)
 
     @classmethod
     async def open_shared_stream(cls, kwargs: dict[str, Any]) -> AsyncIterator[Any]:
