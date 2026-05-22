@@ -1212,7 +1212,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
         3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
-           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
+           and tasks moved to ``scheduled`` or ``queued`` after a trigger fired so a stale executor success from the
            pre-deferral worker exit does not fail the task instance
         4. **Callback processing**: Sends task callback requests to DAG Processor for execution
         5. **Email notifications**: Sends email notification requests to DAG Processor
@@ -1370,8 +1370,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # - in this case we should mark it as failed here.
             # 2) the TI has been requeued after getting deferred - in this case either our executor has it
             # or the TI is queued by another job. Either ways we should not fail it.
-            # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
-            # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 3) the trigger already put the TI back to scheduled/queued (resume after defer) but the executor
+            # success from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1386,9 +1386,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
+                    # Resume-after-defer: trigger moved TI to scheduled/queued (next_method set) before we saw the
                     # executor success from the defer exit for the same try_number.
-                    ti.state == TaskInstanceState.SCHEDULED
+                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
                 )
