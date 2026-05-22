@@ -950,6 +950,34 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     assert sorted(tis) == [("t3", -1)]
 
 
+def test_upstream_in_mapped_group_when_mapped_tasks_list_is_empty(dag_maker, session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(x):
+            t1 = t.override(task_id="t1")(x=x)
+            return t.override(task_id="t2")(x=t1)
+
+        t2 = tg.expand(x=[])
+        t.override(task_id="t3")(x=t2)
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    # should return an empty dict
+    tis = _one_scheduling_decision_iteration()
+    assert tis == {}
+
+
 def test_mapped_task_check_before_expand(dag_maker, session):
     with dag_maker(session=session):
 
