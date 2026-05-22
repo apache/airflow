@@ -99,6 +99,12 @@ class Trigger(Base):
     created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    # Denormalized from dag_bundle_team to keep the triggerer's ~1s polling queries join-free,
+    # especially since it's eventually consistent and trigger rows are ephemeral.
+    # Without this, filtering by team requires 2-3 joins depending on trigger type.
+    # Performance testing confirmed the denormalized column avoids measurable overhead in the
+    # triggerer loop under load.
     team_name: Mapped[str | None] = mapped_column(
         String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True, index=True
     )
