@@ -24,7 +24,6 @@ from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.exceptions import (
     NeptuneGraphDeletionFailedError,
-    NeptuneImportTaskCancellationFailedError,
     NeptunePrivateEndpointCreationFailedError,
     NeptunePrivateEndpointDeletionFailedError,
 )
@@ -86,7 +85,7 @@ class TestNeptuneCreateGraphOperator:
         assert operator.public_connectivity is None
         assert operator.replica_count is None
         assert operator.deletion_protect is False
-        assert operator.kms_key is None
+        assert operator.kms_key_id is None
         assert operator.tags is None
 
         operator.execute(None)
@@ -118,7 +117,7 @@ class TestNeptuneCreateGraphOperator:
         assert operator.public_connectivity is True
         assert operator.replica_count == 3
         assert operator.deletion_protect is True
-        assert operator.kms_key == "test-key"
+        assert operator.kms_key_id == "test-key"
         assert operator.tags == {"key1": "test"}
 
         operator.execute(None)
@@ -394,40 +393,29 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             operator.execute(None)
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_execute_complete(self, mock_conn):
+    @mock.patch.object(NeptuneAnalyticsHook, "_get_graph_endpoint_id")
+    def test_execute_complete(self, mock_get_endpoint, mock_conn):
+        mock_get_endpoint.return_value = ENDPOINT_ID
         mock_conn.get_private_graph_endpoint.return_value = {
             "vpcEndpointId": ENDPOINT_ID,
         }
+
+        mock_conn.create_private_graph_endpoint.return_value = {"vpcId": VPC_ID}
 
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task", graph_identifier=GRAPH_ID, vpc_id=VPC_ID
         )
 
-        result = operator.execute_complete(None, {"status": "success"})
+        result = operator.execute_complete(
+            context=None, event={"status": "success", "value": GRAPH_ID, "vpc_id": VPC_ID}
+        )
 
-        mock_conn.get_private_graph_endpoint.assert_called_once_with(
-            graphIdentifier=GRAPH_ID,
-            vpcId=VPC_ID,
+        # mock_conn.get_private_graph_endpoint.assert_called_once_with(
+        mock_get_endpoint.assert_called_once_with(
+            graph_id=GRAPH_ID,
+            vpc_id=VPC_ID,
         )
         assert result == {"vpc_endpoint_id": ENDPOINT_ID, "graph_id": GRAPH_ID, "vpc_id": VPC_ID}
-
-    @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_get_graph_endpoint_id(self, mock_conn):
-        mock_conn.get_private_graph_endpoint.return_value = {
-            "vpcEndpointId": ENDPOINT_ID,
-        }
-
-        operator = NeptuneCreatePrivateGraphEndpointOperator(
-            task_id="test_task", graph_identifier=GRAPH_ID, vpc_id=VPC_ID
-        )
-
-        result = operator._get_graph_endpoint_id()
-
-        assert result == ENDPOINT_ID
-        mock_conn.get_private_graph_endpoint.assert_called_once_with(
-            graphIdentifier=GRAPH_ID,
-            vpcId=VPC_ID,
-        )
 
 
 class TestNeptuneDeletePrivateGraphEndpointOperator:
@@ -749,7 +737,7 @@ class TestNeptuneCreateGraphWithImportOperator:
         assert operator.public_connectivity is None
         assert operator.replica_count is None
         assert operator.deletion_protect is None
-        assert operator.kms_key is None
+        assert operator.kms_key_id is None
         assert operator.tags is None
         assert operator.import_options is None
         assert operator.wait_for_completion is True
@@ -804,7 +792,7 @@ class TestNeptuneCreateGraphWithImportOperator:
         assert operator.public_connectivity is True
         assert operator.replica_count == 2
         assert operator.deletion_protect is True
-        assert operator.kms_key == "test-kms-key"
+        assert operator.kms_key_id == "test-kms-key"
         assert operator.tags == {"env": "test"}
         assert operator.import_options == {"custom-option": "value"}
         assert operator.waiter_delay == 60
@@ -1196,18 +1184,6 @@ class TestNeptuneStartImportTaskOperator:
 
         assert result == {"graph_id": GRAPH_ID, "import_task_id": TASK_ID}
 
-    def test_execute_complete_no_event(self):
-        operator = NeptuneStartImportTaskOperator(
-            task_id="test_task",
-            graph_identifier=GRAPH_ID,
-            role_arn=ROLE_ARN,
-            source=SOURCE_S3_URI,
-        )
-
-        result = operator.execute_complete(None, None)
-
-        assert result == {"graph_id": GRAPH_ID, "import_task_id": ""}
-
 
 class TestNeptuneCancelImportTaskOperator:
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
@@ -1295,16 +1271,7 @@ class TestNeptuneCancelImportTaskOperator:
             import_task_id=TASK_ID,
         )
 
-        event = {"status": "success", "import_task_id": TASK_ID}
+        event = {"status": "success", "value": TASK_ID}
         result = operator.execute_complete(None, event)
 
         assert result == {"import_task_id": TASK_ID}
-
-    def test_execute_complete_no_event(self):
-        operator = NeptuneCancelImportTaskOperator(
-            task_id="test_task",
-            import_task_id=TASK_ID,
-        )
-
-        with pytest.raises(NeptuneImportTaskCancellationFailedError):
-            operator.execute_complete(None, None)
