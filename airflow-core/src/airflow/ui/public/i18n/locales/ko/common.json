@@ -73,6 +73,7 @@
     "runAfter": "다음 실행",
     "runType": "실행 유형",
     "sourceAssetEvent": "소스 에셋 이벤트",
+    "targetDate": "Target Date",
     "triggeredBy": "실행 주체",
     "triggeringUser": "트리거한 사용자 이름"
   },

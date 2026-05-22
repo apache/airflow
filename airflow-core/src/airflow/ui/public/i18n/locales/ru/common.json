@@ -72,6 +72,7 @@
     "runAfter": "Запустить после",
     "runType": "Тип запуска",
     "sourceAssetEvent": "Источник события актива",
+    "targetDate": "Target Date",
     "triggeredBy": "Инициировано",
     "triggeringUser": "Инициатор запуска"
   },

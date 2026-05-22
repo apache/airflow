@@ -73,6 +73,7 @@
     "runAfter": "Run na",
     "runType": "Run type",
     "sourceAssetEvent": "Bron Asset Event",
+    "targetDate": "Target Date",
     "triggeredBy": "Geactiveerd door",
     "triggeringUser": "Activerende gebruikersnaam"
   },

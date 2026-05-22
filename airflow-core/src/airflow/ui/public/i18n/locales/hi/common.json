@@ -72,6 +72,7 @@
     "runAfter": "के बाद चलाएं",
     "runType": "रन प्रकार",
     "sourceAssetEvent": "स्रोत एसेट इवेंट",
+    "targetDate": "Target Date",
     "triggeredBy": "द्वारा ट्रिगर",
     "triggeringUser": "ट्रिगर करने वाला उपयोगकर्ता"
   },

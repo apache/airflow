@@ -90,6 +90,7 @@
     "runAfter": "تشغيل بعد",
     "runType": "نوع التشغيل",
     "sourceAssetEvent": "واقعة أصل مصدر",
+    "targetDate": "Target Date",
     "triggeredBy": "تم إطلاقه بواسطة",
     "triggeringUser": "المستخدم صاحب الاطلاق"
   },

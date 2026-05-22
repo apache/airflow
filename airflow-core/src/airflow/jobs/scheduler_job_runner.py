@@ -258,6 +258,34 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+def _evaluate_dag_target_date(
+    serialized_dag: Any,
+    logical_date: datetime | None,
+    data_interval: Any,
+) -> date | None:
+    """
+    Compute the ``target_date`` value to store on a new ``DagRun``.
+
+    :param serialized_dag: The serialized DAG being scheduled.
+    :param logical_date: The logical date for the new run.
+    :param data_interval: The data interval for the new run.
+    :returns: A resolved :class:`datetime.date`, or ``None`` when not configured.
+    """
+    dag_target_date = getattr(serialized_dag, "target_date", None)
+    if dag_target_date is None:
+        return None
+    if callable(dag_target_date):
+        data_interval_start = data_interval.start if data_interval else None
+        data_interval_end = data_interval.end if data_interval else None
+        result = dag_target_date(logical_date, data_interval_start, data_interval_end)
+        if isinstance(result, datetime):
+            return result.date()
+        return result
+    if isinstance(dag_target_date, datetime):
+        return dag_target_date.date()
+    return dag_target_date
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -2090,6 +2118,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 logical_date = next_info.logical_date
                 partition_key = next_info.partition_key
                 run_after = next_info.run_after
+                target_date = _evaluate_dag_target_date(serdag, logical_date, data_interval)
                 created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
@@ -2107,6 +2136,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     partition_key=partition_key,
                     partition_date=next_info.partition_date,
+                    target_date=target_date,
                 )
                 active_runs_of_dags[dag_model.dag_id] += 1
                 dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
@@ -2220,6 +2250,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 triggered_by=DagRunTriggeredByType.ASSET,
                 state=DagRunState.QUEUED,
                 creating_job_id=self.job.id,
+                target_date=_evaluate_dag_target_date(dag, None, None),
                 session=session,
             )
             stats.incr("asset.triggered_dagruns")

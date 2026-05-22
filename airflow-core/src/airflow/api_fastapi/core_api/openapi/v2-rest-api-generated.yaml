@@ -13084,6 +13084,12 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+        target_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Target Date
       additionalProperties: false
       type: object
       title: DAGRunPatchBody
@@ -13189,6 +13195,12 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        target_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Target Date
       type: object
       required:
       - dag_run_id
@@ -14431,6 +14443,12 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        target_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Target Date
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
@@ -15930,6 +15948,12 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        target_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Target Date
       additionalProperties: false
       type: object
       required:

@@ -69,6 +69,7 @@
     "runAfter": "ทำงานหลังจาก",
     "runType": "ประเภทการทำงาน",
     "sourceAssetEvent": "อีเวนต์ของ Asset ต้นทาง",
+    "targetDate": "Target Date",
     "triggeredBy": "ทริกเกอร์โดย",
     "triggeringUser": "ชื่อผู้ใช้ที่ทริกเกอร์"
   },

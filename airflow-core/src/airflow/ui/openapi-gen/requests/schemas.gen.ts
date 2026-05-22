@@ -2868,6 +2868,18 @@ export const $DAGRunPatchBody = {
                 }
             ],
             title: 'Note'
+        },
+        target_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Target Date'
         }
     },
     additionalProperties: false,
@@ -3068,6 +3080,18 @@ export const $DAGRunResponse = {
                 }
             ],
             title: 'Partition Key'
+        },
+        target_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Target Date'
         }
     },
     type: 'object',
@@ -4906,6 +4930,18 @@ export const $MaterializeAssetBody = {
                 }
             ],
             title: 'Partition Key'
+        },
+        target_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Target Date'
         }
     },
     additionalProperties: false,
@@ -7168,6 +7204,18 @@ export const $TriggerDAGRunPostBody = {
                 }
             ],
             title: 'Partition Key'
+        },
+        target_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Target Date'
         }
     },
     additionalProperties: false,

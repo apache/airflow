@@ -175,6 +175,12 @@ export const Details = () => {
             <RenderedJsonField content={dagRun.conf ?? {}} />
           </Table.Cell>
         </Table.Row>
+        {dagRun.target_date !== null && dagRun.target_date !== undefined && (
+          <Table.Row>
+            <Table.Cell>{translate("dagRun.targetDate")}</Table.Cell>
+            <Table.Cell>{dagRun.target_date}</Table.Cell>
+          </Table.Row>
+        )}
       </Table.Body>
     </Table.Root>
   );

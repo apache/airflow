@@ -70,6 +70,7 @@
     "runAfter": "最早実行可能時間",
     "runType": "実行タイプ",
     "sourceAssetEvent": "元アセットのイベント",
+    "targetDate": "Target Date",
     "triggeredBy": "実行トリガー",
     "triggeringUser": "トリガーユーザ"
   },

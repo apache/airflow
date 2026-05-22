@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import os
 from collections.abc import MutableMapping
+from datetime import date
 from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
 
 from typing_extensions import NotRequired
@@ -85,6 +86,7 @@ class Context(TypedDict, total=False):
     # triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     triggering_asset_events: Any
     try_number: NotRequired[int | None]
+    target_date: date | None
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

@@ -83,6 +83,7 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
+    "targetDate": "Target Date",
     "triggeredBy": "Uruchomiony jako",
     "triggeringUser": "Użytkownik który uruchomił"
   },

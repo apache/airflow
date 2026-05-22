@@ -29,7 +29,7 @@ from asyncio import AbstractEventLoop
 from collections.abc import Callable, Collection, Generator, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from enum import Enum
 from functools import total_ordering, wraps
 from types import FunctionType
@@ -994,6 +994,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
 
+    target_date: Callable[..., date] | None = None
+
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (
         "user_defined_macros",
@@ -1077,6 +1079,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
         render_template_as_native_obj: bool | None = None,
+        target_date: Callable[..., date] | None = None,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
@@ -1206,6 +1209,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.allow_nested_operators = allow_nested_operators
 
         self.render_template_as_native_obj = render_template_as_native_obj
+
+        self.target_date = target_date
 
         self._logger_name = logger_name
 

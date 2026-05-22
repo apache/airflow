@@ -73,6 +73,7 @@
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
     "sourceAssetEvent": "Ursprung des Datenset (Asset) Ereignisses",
+    "targetDate": "Target Date",
     "triggeredBy": "Ausgelöst durch",
     "triggeringUser": "Benutzer der ausgelöst hat"
   },

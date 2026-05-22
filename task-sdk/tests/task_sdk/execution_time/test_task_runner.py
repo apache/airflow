@@ -24,7 +24,7 @@ import os
 import textwrap
 import time
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -5601,3 +5601,110 @@ class TestTaskInstanceStateOperations:
             for call in mock_supervisor_comms.send.call_args_list
         ]
         assert ClearTaskState not in sent_types
+
+
+class TestTargetDateInTemplateContext:
+    """Tests that target_date is resolved correctly in get_template_context()."""
+
+    def test_dag_level_target_date_in_context(self, mocked_parse, make_ti_context, mock_supervisor_comms):
+        """When dag_run.target_date is set and the task has no target_date callable,
+        context["target_date"] should equal the dag-level target_date."""
+        task = BaseOperator(task_id="op")
+        dag_id = "test_dag_target_date"
+        get_inline_dag(dag_id=dag_id, task=task)
+
+        ti_context = make_ti_context(dag_id=dag_id)
+        ti_context.dag_run.target_date = date(2025, 3, 31)
+
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="op",
+                dag_id=dag_id,
+                run_id="test_run",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            bundle_info=FAKE_BUNDLE,
+            dag_rel_path="",
+            ti_context=ti_context,
+            start_date=timezone.utcnow(),
+            sentry_integration="",
+        )
+        ti = mocked_parse(what, dag_id, task)
+        context = ti.get_template_context()
+
+        assert context["target_date"] == date(2025, 3, 31)
+
+    def test_task_level_callable_overrides_dag_level(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms
+    ):
+        """When dag_run.target_date is set and the task has a target_date callable,
+        the callable's return value should be used as context["target_date"]."""
+
+        def _first_of_month(ctx):
+            """Return the 1st of the month of the dag-level target_date."""
+            dag_td = ctx.get("target_date")
+            if dag_td is None:
+                return date(2025, 3, 1)
+            return dag_td.replace(day=1)
+
+        task = BaseOperator(task_id="op_with_target_date", target_date=_first_of_month)
+        dag_id = "test_dag_task_callable_target_date"
+        get_inline_dag(dag_id=dag_id, task=task)
+
+        ti_context = make_ti_context(dag_id=dag_id)
+        ti_context.dag_run.target_date = date(2025, 3, 31)
+
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="op_with_target_date",
+                dag_id=dag_id,
+                run_id="test_run",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            bundle_info=FAKE_BUNDLE,
+            dag_rel_path="",
+            ti_context=ti_context,
+            start_date=timezone.utcnow(),
+            sentry_integration="",
+        )
+        ti = mocked_parse(what, dag_id, task)
+        context = ti.get_template_context()
+
+        assert context["target_date"] == date(2025, 3, 1)
+
+    def test_fallback_to_logical_date_when_no_target_date(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms
+    ):
+        """When dag_run.target_date is None and the task has no target_date callable,
+        context["target_date"] should fall back to logical_date.date()."""
+        task = BaseOperator(task_id="op_no_target_date")
+        dag_id = "test_dag_fallback_target_date"
+        get_inline_dag(dag_id=dag_id, task=task)
+
+        # logical_date defaults to "2024-12-01T01:00:00Z" in make_ti_context; target_date is not set
+        ti_context = make_ti_context(dag_id=dag_id)
+
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="op_no_target_date",
+                dag_id=dag_id,
+                run_id="test_run",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            bundle_info=FAKE_BUNDLE,
+            dag_rel_path="",
+            ti_context=ti_context,
+            start_date=timezone.utcnow(),
+            sentry_integration="",
+        )
+        ti = mocked_parse(what, dag_id, task)
+        context = ti.get_template_context()
+
+        # logical_date is "2024-12-01T01:00:00Z" so its .date() is 2024-12-01
+        assert context["target_date"] == date(2024, 12, 1)

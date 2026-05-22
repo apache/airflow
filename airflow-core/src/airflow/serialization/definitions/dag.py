@@ -512,6 +512,7 @@ class SerializedDAG:
         partition_key: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
+        target_date: datetime.date | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -599,6 +600,7 @@ class SerializedDAG:
             partition_key=partition_key,
             partition_date=partition_date,
             note=note,
+            target_date=target_date,
             session=session,
         )
 
@@ -1290,6 +1292,7 @@ def _create_orm_dagrun(
     partition_key: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
+    target_date: datetime.date | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -1319,6 +1322,7 @@ def _create_orm_dagrun(
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,
+        target_date=target_date,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))

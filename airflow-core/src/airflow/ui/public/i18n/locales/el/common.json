@@ -69,6 +69,7 @@
     "runAfter": "Εκτέλεση Μετά",
     "runType": "Τύπος Εκτέλεσης",
     "sourceAssetEvent": "Συμβάν Πηγής Οντότητας",
+    "targetDate": "Target Date",
     "triggeredBy": "Ενεργοποιήθηκε Από",
     "triggeringUser": "Όνομα Χρήστη Ενεργοποίησης"
   },

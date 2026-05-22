@@ -82,6 +82,7 @@
     "runAfter": "Executar Depois",
     "runType": "Tipo de Execução",
     "sourceAssetEvent": "Evento de Asset de Origem",
+    "targetDate": "Target Date",
     "triggeredBy": "Acionado por",
     "triggeringUser": "Nome do Usuário que Disparou"
   },

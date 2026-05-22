@@ -79,6 +79,7 @@
     "runAfter": "Esegui dopo",
     "runType": "Tipo di Run",
     "sourceAssetEvent": "Evento Asset di Origine",
+    "targetDate": "Target Date",
     "triggeredBy": "Triggered da",
     "triggeringUser": "Nome Utente che ha Attivato"
   },

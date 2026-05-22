@@ -73,6 +73,7 @@
     "runAfter": "Executar després de",
     "runType": "Tipus d'execució",
     "sourceAssetEvent": "Esdeveniment d'Asset d'origen",
+    "targetDate": "Target Date",
     "triggeredBy": "Executat per",
     "triggeringUser": "Nom de l'usuari que executa"
   },

@@ -72,6 +72,7 @@
     "runAfter": "Sonra Çalıştır",
     "runType": "Çalıştırma Tipi",
     "sourceAssetEvent": "Kaynak Varlık Etkinliği",
+    "targetDate": "Target Date",
     "triggeredBy": "Tetikleyen",
     "triggeringUser": "Çalıştıran Kullanıcı"
   },

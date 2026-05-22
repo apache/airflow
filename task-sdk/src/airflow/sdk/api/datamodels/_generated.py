@@ -20,14 +20,14 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 from enum import Enum
 from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-30"
+API_VERSION: Final[str] = "2026-07-01"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -716,6 +716,7 @@ class DagRun(BaseModel):
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    target_date: Annotated[date | None, Field(title="Target Date")] = None
 
 
 class TIRunContext(BaseModel):

@@ -1720,6 +1720,16 @@ class DagSerialization(BaseSerialization):
             else:
                 serialized_dag["allowed_run_types"] = None
 
+            if callable(dag.target_date):
+                import inspect
+
+                serialized_dag["target_date_callable"] = inspect.getsource(dag.target_date)
+                serialized_dag.pop("target_date", None)
+            elif dag.target_date is not None:
+                serialized_dag["target_date"] = dag.target_date.isoformat()
+            else:
+                serialized_dag.pop("target_date", None)
+
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
             serialized_dag["params"] = cls._serialize_params_dict(dag.params)
@@ -1800,6 +1810,28 @@ class DagSerialization(BaseSerialization):
                 v = cls._deserialize_timezone(v)
             elif k == "dagrun_timeout":
                 v = cls._deserialize_timedelta(v)
+            elif k == "target_date":
+                # target_date is stored as an ISO date string (YYYY-MM-DD), not datetime
+                from datetime import date as _date
+
+                v = _date.fromisoformat(v) if v else None
+            elif k == "target_date_callable":
+                # Reconstruct callable from stored source code.
+                # Provide common datetime names so typical callables work without
+                # needing additional imports at module level.
+                import datetime as _dt
+
+                _td_ns: dict = {
+                    "__builtins__": __builtins__,
+                    "date": _dt.date,
+                    "datetime": _dt.datetime,
+                    "timedelta": _dt.timedelta,
+                    "timezone": _dt.timezone,
+                }
+                exec(compile(v, "<target_date_callable>", "exec"), _td_ns)
+                fn = next(obj for obj in _td_ns.values() if callable(obj) and not isinstance(obj, type))
+                object.__setattr__(dag, "target_date", fn)
+                continue
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "edge_info":
