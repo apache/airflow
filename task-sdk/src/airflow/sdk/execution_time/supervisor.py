@@ -1695,7 +1695,6 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, DeleteXCom):
             resp, dump_opts = handle_delete_xcom(self.client, msg)
-            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, BulkDeleteXCom):
             resp = self.client.xcoms.delete_all(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
