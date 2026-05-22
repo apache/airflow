@@ -59,15 +59,21 @@ func encodeRequest(id int, body map[string]any) ([]byte, error) {
 }
 
 // writeFrame writes a length-prefixed msgpack payload to the writer.
-// Format: [4-byte big-endian length][payload bytes]
+// Format: [4-byte big-endian length][payload bytes].
+//
+// The prefix and payload are concatenated into a single buffer and written
+// in one Write call so we never leave a half-framed message on the wire if
+// an io.Writer implementation does a short write between the two halves.
 func writeFrame(w io.Writer, payload []byte) error {
-	prefix := make([]byte, 4)
-	binary.BigEndian.PutUint32(prefix, uint32(len(payload)))
-	if _, err := w.Write(prefix); err != nil {
-		return fmt.Errorf("writing length prefix: %w", err)
+	buf := make([]byte, 4+len(payload))
+	binary.BigEndian.PutUint32(buf[:4], uint32(len(payload)))
+	copy(buf[4:], payload)
+	n, err := w.Write(buf)
+	if err != nil {
+		return fmt.Errorf("writing frame: %w", err)
 	}
-	if _, err := w.Write(payload); err != nil {
-		return fmt.Errorf("writing payload: %w", err)
+	if n < len(buf) {
+		return fmt.Errorf("writing frame: %w", io.ErrShortWrite)
 	}
 	return nil
 }
@@ -88,8 +94,10 @@ func readFrame(r io.Reader) (IncomingFrame, error) {
 		)
 	}
 
-	// Read the payload.
-	payload := make([]byte, payloadLen)
+	// Read the payload. The maxFrameSize guard above keeps the value well
+	// within int range on every supported platform, so the conversion is
+	// safe.
+	payload := make([]byte, int(payloadLen))
 	if _, err := io.ReadFull(r, payload); err != nil {
 		return IncomingFrame{}, fmt.Errorf("reading payload (%d bytes): %w", payloadLen, err)
 	}

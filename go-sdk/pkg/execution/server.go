@@ -85,13 +85,19 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	}()
 	wg.Wait()
 
+	// Either dial may succeed while the other fails; close any orphaned
+	// connection before returning so we don't leak an open TCP socket.
 	if commErr != nil {
+		if logsConn != nil {
+			logsConn.Close()
+		}
 		return fmt.Errorf("connecting to comm socket %s: %w", commAddr, commErr)
 	}
-	defer commConn.Close()
 	if logsErr != nil {
+		commConn.Close()
 		return fmt.Errorf("connecting to logs socket %s: %w", logsAddr, logsErr)
 	}
+	defer commConn.Close()
 	defer logsConn.Close()
 
 	logHandler.Connect(logsConn)
