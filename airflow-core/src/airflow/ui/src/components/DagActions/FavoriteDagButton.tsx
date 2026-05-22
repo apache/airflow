@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiStar } from "react-icons/fi";
+import { MdStar, MdStarOutline } from "react-icons/md";
 
-import { Tooltip } from "src/components/ui";
+import { IconButton } from "src/components/ui";
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
 
 type FavoriteDagButtonProps = {
@@ -35,22 +34,8 @@ export const FavoriteDagButton = ({ dagId, isFavorite = false }: FavoriteDagButt
   const label = isFavorite ? translate("unfavoriteDag") : translate("favoriteDag");
 
   return (
-    <Tooltip content={label}>
-      <IconButton
-        aria-label={label}
-        colorPalette="brand"
-        loading={isLoading}
-        onClick={() => toggleFavorite(isFavorite)}
-        size="md"
-        variant="ghost"
-      >
-        <FiStar
-          style={{
-            fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
-            stroke: "var(--chakra-colors-brand-solid)",
-          }}
-        />
-      </IconButton>
-    </Tooltip>
+    <IconButton label={label} loading={isLoading} onClick={() => toggleFavorite(isFavorite)}>
+      {isFavorite ? <MdStar /> : <MdStarOutline />}
+    </IconButton>
   );
 };

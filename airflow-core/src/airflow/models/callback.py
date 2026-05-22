@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -38,7 +39,16 @@ from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
-CallbackKey = str  # Callback keys are str(UUID)
+
+@dataclass(frozen=True, slots=True)
+class CallbackKey:
+    """Distinct key type for callbacks, preventing any bare string from passing isinstance checks."""
+
+    id: str
+
+    def __str__(self) -> str:
+        return self.id
+
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

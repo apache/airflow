@@ -61,6 +61,69 @@ class EdgeDBManager(BaseDBManager):
     supports_table_dropping = True
     revision_heads_map = _REVISION_HEADS_MAP
 
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def _has_existing_manager_tables(self) -> bool:
+        """Return whether any table managed by this DB manager already exists."""
+        inspector = inspect(self.session.get_bind())
+        table_names_by_schema: dict[str | None, set[str]] = {}
+        for table in self.metadata.tables.values():
+            table_names_by_schema.setdefault(table.schema, set()).add(table.name)
+
+        for schema, table_names in table_names_by_schema.items():
+            existing_table_names = set(inspector.get_table_names(schema=schema))
+            if table_names.intersection(existing_table_names):
+                return True
+        return False
+
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def _get_base_revision(self, config=None) -> str:
+        """Return the first/base Alembic revision for this DB manager."""
+        script = self.get_script_object(config)
+        for revision in script.walk_revisions():
+            if revision.down_revision is None:
+                return revision.revision
+        raise RuntimeError(f"No base revision found for {self.__class__.__name__}")
+
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def _stamp_base_revision(self, config) -> None:
+        """Stamp the database to this DB manager's base Alembic revision."""
+        from alembic import command
+
+        base_revision = self._get_base_revision(config)
+        self.log.info(
+            "%s tables already exist without an Alembic version; stamping base revision %s before upgrade",
+            self.__class__.__name__,
+            base_revision,
+        )
+        command.stamp(config, base_revision)
+
+    # Compatibility override for Airflow < 3.3; remove when provider minimum is 3.3.
+    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False, use_migration_files=False):
+        """Upgrade the database, handling pre-alembic installations on older Airflow versions."""
+        self.log.info("Upgrading the %s database", self.__class__.__name__)
+
+        release_metadata_locks = getattr(self, "_release_metadata_locks_if_needed", None)
+        if callable(release_metadata_locks):
+            release_metadata_locks()
+        current_revision = self.get_current_revision()
+        if callable(release_metadata_locks):
+            release_metadata_locks()
+
+        if not current_revision and not to_revision and not use_migration_files and not show_sql_only:
+            if self._has_existing_manager_tables():
+                config = self.get_alembic_config()
+                self._stamp_base_revision(config)
+            else:
+                self.create_db_from_orm()
+                return
+        else:
+            config = self.get_alembic_config()
+
+        from alembic import command
+
+        command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
+        self.log.info("Migrated the %s database", self.__class__.__name__)
+
     def initdb(self, use_migration_files: bool = False):
         """
         Initialize the database, handling pre-alembic installations.

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Dataproc batch operators.
+Example Airflow DAG for Managed Spark batch operators.
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc", "batch", "persistent"],
+    tags=["example", "managed-spark", "batch", "persistent"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID

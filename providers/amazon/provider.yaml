@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1777990018
+source-date-epoch: 1779136996
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.29.0
   - 9.28.0
   - 9.27.0
   - 9.26.0
@@ -620,6 +621,10 @@ asset-uris:
     handler: airflow.providers.amazon.aws.assets.s3.sanitize_uri
     to_openlineage_converter: airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage
     factory: airflow.providers.amazon.aws.assets.s3.create_asset
+  - schemes: [redshift]
+    handler: airflow.providers.amazon.aws.assets.redshift.sanitize_uri
+    factory: airflow.providers.amazon.aws.assets.redshift.create_asset
+    to_openlineage_converter: airflow.providers.amazon.aws.assets.redshift.convert_asset_to_openlineage
 
 # dataset has been renamed to asset in Airflow 3.0
 # This is kept for backward compatibility.
@@ -628,6 +633,10 @@ dataset-uris:
     handler: airflow.providers.amazon.aws.assets.s3.sanitize_uri
     to_openlineage_converter: airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage
     factory: airflow.providers.amazon.aws.assets.s3.create_asset
+  - schemes: [redshift]
+    handler: airflow.providers.amazon.aws.assets.redshift.sanitize_uri
+    factory: airflow.providers.amazon.aws.assets.redshift.create_asset
+    to_openlineage_converter: airflow.providers.amazon.aws.assets.redshift.convert_asset_to_openlineage
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3

@@ -1,0 +1,1 @@
+Fix scheduler crashing with ``StaleDataError`` when a task instance is completed or removed by another session between ``verify_integrity`` loading task instances and ``session.flush()`` persisting them. Now caught and rolled back like the existing ``IntegrityError`` path.

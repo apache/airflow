@@ -593,10 +593,10 @@ def explain_package_upgrade(
     additional_args = []
     if airflow_constraints_mode == "constraints-source-providers":
         # In case of source constraints we also need to add all development dependencies
-        # to reflect exactly what is installed in the CI image by default
-        additional_args.extend(
-            ["--group", "dev", "--group", "docs", "--group", "docs-gen", "--group", "leveldb"]
-        )
+        # to reflect exactly what is installed in the CI image by default. The ``ci-image``
+        # group aggregates dev/docs/docs-gen plus any hard-to-install provider extras
+        # (see root pyproject.toml).
+        additional_args.extend(["--group", "ci-image"])
     with (
         preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
         preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
@@ -609,7 +609,7 @@ def explain_package_upgrade(
         output_before = Output(title="output_before", file_name=get_temp_file_name())
         execute_command_in_shell(
             shell_params,
-            project_name="constraints",
+            project_name="breeze-constraints",
             command=shlex.join(
                 [
                     "uv",
@@ -635,7 +635,7 @@ def explain_package_upgrade(
         output_after = Output(title="output_after", file_name=get_temp_file_name())
         after_result = execute_command_in_shell(
             shell_params,
-            project_name="constraints",
+            project_name="breeze-constraints",
             command=shlex.join(
                 [
                     "uv",

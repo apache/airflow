@@ -91,7 +91,6 @@ export const SearchBar = ({
           {Boolean(value) ? (
             <CloseButton
               aria-label={translate("search.clear")}
-              colorPalette="brand"
               data-testid="clear-search"
               onClick={clearSearch}
               size="xs"
@@ -123,7 +122,7 @@ export const SearchBar = ({
   }
 
   return (
-    <HStack alignItems="center" gap={2} w="100%">
+    <HStack alignItems="center" gap={2}>
       {inputGroup}
       <AdvancedSearchToggle {...advancedSearch} />
     </HStack>
