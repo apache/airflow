@@ -20,6 +20,7 @@ package execution
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -27,6 +28,31 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
+
+// Supervisor-side error codes carried in the "error" field of an
+// ErrorResponse frame. The Python source of truth is
+// airflow.sdk.exceptions.ErrorType.
+const (
+	errCodeVariableNotFound   = "VARIABLE_NOT_FOUND"
+	errCodeConnectionNotFound = "CONNECTION_NOT_FOUND"
+	errCodeXComNotFound       = "XCOM_NOT_FOUND"
+)
+
+// translateApiError converts a supervisor *ApiError whose Err field matches
+// code into a sentinel-wrapped error (matching the formatting the HTTP-backed
+// sdk.client uses for the same condition). Any other error - including a
+// *ApiError with a different code - is returned unchanged so callers can keep
+// distinguishing transport / server errors from "thing not found".
+func translateApiError(err error, code string, sentinel error, key string) error {
+	if err == nil {
+		return nil
+	}
+	var apiErr *ApiError
+	if errors.As(err, &apiErr) && apiErr.Err == code {
+		return fmt.Errorf("%w: %q", sentinel, key)
+	}
+	return err
+}
 
 // CoordinatorClient implements sdk.Client by communicating with the Airflow supervisor
 // over the comm socket using msgpack-framed IPC instead of HTTP.
@@ -57,7 +83,7 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 
 	resp, err := c.comm.Communicate(ctx, GetVariableMsg{Key: key}.toMap())
 	if err != nil {
-		return "", err
+		return "", translateApiError(err, errCodeVariableNotFound, sdk.VariableNotFound, key)
 	}
 
 	result, err := decodeVariableResult(resp)
@@ -113,7 +139,9 @@ func (c *CoordinatorClient) GetConnection(
 ) (sdk.Connection, error) {
 	resp, err := c.comm.Communicate(ctx, GetConnectionMsg{ConnID: connID}.toMap())
 	if err != nil {
-		return sdk.Connection{}, err
+		return sdk.Connection{}, translateApiError(
+			err, errCodeConnectionNotFound, sdk.ConnectionNotFound, connID,
+		)
 	}
 
 	result, err := decodeConnectionResult(resp)
@@ -174,7 +202,7 @@ func (c *CoordinatorClient) GetXCom(
 
 	resp, err := c.comm.Communicate(ctx, msg.toMap())
 	if err != nil {
-		return nil, err
+		return nil, translateApiError(err, errCodeXComNotFound, sdk.XComNotFound, key)
 	}
 
 	result, err := decodeXComResult(resp)
