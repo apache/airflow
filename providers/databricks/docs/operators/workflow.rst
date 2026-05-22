@@ -78,13 +78,12 @@ Databricks ``repair_run`` with ``rerun_all_failed_tasks=True``. Default is ``0``
 
 .. code-block:: python
 
-    with DatabricksWorkflowTaskGroup(
-        group_id="example_databricks_workflow",
+    task_group = DatabricksWorkflowTaskGroup(
+        group_id="Example Workflow",
         databricks_conn_id="databricks_default",
-        job_clusters=job_clusters,
         workflow_repair_attempts=2,
-    ) as task_group:
-        ...
+        workflow_repair_polling_period=15,
+    )
 
 Downstream task monitors stay in the same Airflow attempt across repairs, so size
 ``execution_timeout`` for the original run plus all repairs and set ``retries=0`` on workflow tasks.
