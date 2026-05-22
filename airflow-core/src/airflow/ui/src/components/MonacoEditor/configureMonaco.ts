@@ -26,11 +26,13 @@ let configurationPromise: Promise<void> | undefined;
 
 const loadMonacoModules = async () => {
   // `editor.api` is API-only — also load the folding contribution so `editor.foldAll` /
-  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered. The CDN
-  // bundle used to pull this in transitively; the local ESM `editor.api` does not.
+  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered, and the
+  // codicon styles so the gutter glyph (the `>` arrow) renders instead of an empty box.
+  // The CDN bundle used to pull these in transitively; the local ESM `editor.api` does not.
   const monacoApi = Promise.all([
     import("monaco-editor/esm/vs/editor/editor.api"),
     import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
+    import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
   ]).then(([api]) => api);
 
   const workerConstructors = Promise.all([
