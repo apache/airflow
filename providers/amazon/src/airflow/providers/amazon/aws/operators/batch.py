@@ -220,7 +220,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         if self.deferrable:
             if not self.job_id:
-                raise ValueError("AWS Batch job - job_id was not found")
+                raise AirflowException("AWS Batch job - job_id was not found")
 
             # Persist operator links before deferring so they're available in the UI
             # Reuse job description to reduce API calls
