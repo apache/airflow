@@ -53,6 +53,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
       }
     };
 
+    updateHtml(i18n.language);
     i18n.on("languageChanged", updateHtml);
 
     return () => {
