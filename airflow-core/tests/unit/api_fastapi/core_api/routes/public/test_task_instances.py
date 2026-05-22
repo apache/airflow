@@ -3460,6 +3460,59 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
         assert all(ti.state == "running" for ti in tis)
 
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_include_downstream_dags_sets_include_dependent_dags(self, mock_clear, test_client, session):
+        """include_downstream_dags=True must be forwarded to dag.clear() as include_dependent_dags=True."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False, "include_downstream_dags": True},
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_include_downstream_sets_include_dependent_dags(self, mock_clear, test_client, session):
+        """include_downstream=True must also set include_dependent_dags=True (restoring Airflow 2 behavior)."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False, "include_downstream": True},
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_default_does_not_set_include_dependent_dags(self, mock_clear, test_client, session):
+        """Without downstream flags, include_dependent_dags must default to False."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False},
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is False
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_run_id_path_sets_include_dependent_dags(self, mock_clear, test_client, session):
+        """dag_run_id code path: include_downstream_dags=True → include_dependent_dags=True."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "include_downstream_dags": True,
+            },
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
     def test_should_respond_200_with_reset_dag_run(self, test_client, session):
         dag_id = "example_python_operator"
         payload = {

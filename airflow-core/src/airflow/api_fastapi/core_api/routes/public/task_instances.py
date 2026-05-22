@@ -913,9 +913,8 @@ def post_clear_task_instances(
             *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
         ]
 
-    # Follow ExternalTaskMarker connections when explicitly requested via
-    # include_downstream_dags, or automatically whenever downstream clearing
-    # is selected (restoring Airflow 2 behaviour).
+    # Follow ExternalTaskMarker connections when explicitly requested via include_downstream_dags, or
+    # automatically whenever downstream clearing is selected (restoring Airflow 2 behavior)
     include_dependent_dags = body.include_downstream_dags or downstream
 
     task_instances: Sequence[TI]

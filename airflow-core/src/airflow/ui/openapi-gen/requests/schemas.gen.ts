@@ -1652,6 +1652,12 @@ export const $ClearTaskInstancesBody = {
                 }
             ],
             title: 'Note'
+        },
+        include_downstream_dags: {
+            type: 'boolean',
+            title: 'Include Downstream Dags',
+            description: 'If True, also clear tasks in downstream DAGs that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.',
+            default: false
         }
     },
     additionalProperties: false,
