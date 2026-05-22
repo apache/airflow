@@ -39,7 +39,16 @@ export default defineConfig({
       transformIndexHtml: (html) =>
         html.replace(`src="./assets/`, `src="./static/assets/`).replace(`href="/`, `href="./`),
     },
-    cssInjectedByJsPlugin(),
+    // Keep Monaco's codicon CSS as a real CSS file (rather than inlined into JS).
+    // The codicon stylesheet references `codicon.ttf` with a CSS-relative URL — when
+    // it gets inlined into a `<style>` tag the URL resolves against the page origin
+    // (the api-server) instead of the asset directory and the font fails to load.
+    // Keeping the CSS as an emitted file lets the browser resolve the URL relative
+    // to the stylesheet's own location (`/static/assets/`). Vite still chunks it so
+    // it only loads on the routes that pull Monaco in.
+    cssInjectedByJsPlugin({
+      cssAssetsFilterFunction: (asset: { fileName: string }) => !asset.fileName.includes("codicon"),
+    }),
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   server: {
