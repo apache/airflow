@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -45,6 +47,14 @@ func NewCoordinatorClient(comm *CoordinatorComm, details *StartupDetails) *Coord
 
 // GetVariable requests a variable value from the supervisor.
 func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string, error) {
+	// TODO: this duplicates variableFromEnv in sdk/client.go. The env-first
+	// precedence is part of the SDK contract, so both clients should share a
+	// single helper (e.g. an exported sdk.VariableFromEnv) instead of two
+	// independent copies that can drift.
+	if env, ok := os.LookupEnv(sdk.VariableEnvPrefix + strings.ToUpper(key)); ok {
+		return env, nil
+	}
+
 	resp, err := c.comm.Communicate(ctx, GetVariableMsg{Key: key}.toMap())
 	if err != nil {
 		return "", err
