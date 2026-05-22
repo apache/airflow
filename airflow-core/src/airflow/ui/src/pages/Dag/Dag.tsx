@@ -28,6 +28,7 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { ApiError } from "openapi/requests/core/ApiError";
 import { TaskIcon } from "src/assets/TaskIcon";
+import { useDocumentTitle } from "src/hooks/useDocumentTitle";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -135,6 +136,8 @@ export const Dag = () => {
 
     return true;
   });
+
+  useDocumentTitle(dag?.dag_display_name ?? dagId);
 
   // Handle 404 error when Dag is not found
   if (error instanceof ApiError && error.status === 404) {
