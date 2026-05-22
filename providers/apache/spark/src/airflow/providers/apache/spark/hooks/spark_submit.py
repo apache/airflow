@@ -330,8 +330,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if conn_data["keytab"] is None:
                 base64_keytab = extra.get("keytab")
                 if base64_keytab is not None:
+                    principal: str | None = conn_data["principal"]
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
-                        base64_keytab, conn_data["principal"]
+                        base64_keytab, principal
                     )
         except AirflowException:
             self.log.info(
