@@ -22,6 +22,7 @@ type (
 	apiClientContextKey struct{}
 	workerContextKey    struct{}
 	runtimeTIContextKey struct{}
+	sdkClientContextKey struct{}
 )
 
 var (
@@ -32,4 +33,11 @@ var (
 	RuntimeTIContextKey = runtimeTIContextKey{}
 	ApiClientContextKey = apiClientContextKey{}
 	WorkerContextKey    = workerContextKey{}
+
+	// SdkClientContextKey, when present, holds an sdk.Client implementation
+	// that should be injected into task functions instead of constructing a
+	// default HTTP-backed client. The coordinator-mode runtime uses this to
+	// route task SDK calls (GetVariable, GetConnection, ...) over the
+	// supervisor comm socket rather than to the Execution API.
+	SdkClientContextKey = sdkClientContextKey{}
 )
