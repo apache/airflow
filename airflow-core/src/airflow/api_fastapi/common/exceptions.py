@@ -108,41 +108,33 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         return False
 
 
-class _DataErrorHandler(BaseErrorHandler[DataError]):
+class DataErrorHandler(BaseErrorHandler[DataError]):
     """
-    Translate ``sqlalchemy.exc.DataError`` into an actionable HTTP response.
+    Translate ``sqlalchemy.exc.DataError`` into a 422 response.
 
     ``DataError`` wraps the database rejecting an INSERT/UPDATE because a value
     exceeds the column's declared type (MySQL ``1406 Data too long``, Postgres
     ``value too long for type``) or is out of range (MySQL ``1264 Out of range
     value``, Postgres ``numeric field overflow``). The wrapped value came from
     request input that passed Pydantic validation, so the failure is always a
-    client problem — translate to a 4xx with an actionable hint rather than
-    surfacing as a generic 500.
+    client problem — translate to a 422 with the underlying database error
+    surfaced via ``orig_error`` rather than a generic 500.
     """
-
-    _TOO_LARGE_MARKERS: tuple[str, ...] = ("too long", "too large", "too big")
 
     def __init__(self):
         super().__init__(DataError)
 
     def exception_handler(self, request: Request, exc: DataError):
-        orig_error = str(exc.orig)
-        if any(marker in orig_error.lower() for marker in self._TOO_LARGE_MARKERS):
-            status_code = status.HTTP_413_CONTENT_TOO_LARGE
-            reason = "Payload exceeded database column limit"
-        else:
-            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-            reason = "Value rejected by database"
         raise HTTPException(
-            status_code=status_code,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
-                "reason": reason,
-                "orig_error": orig_error,
+                "reason": "Value rejected by database",
+                "statement": str(exc.statement),
+                "orig_error": str(exc.orig),
                 "message": (
                     "Database rejected the payload. Reduce the field size, or "
-                    "your operator may widen the column type (e.g. MEDIUMTEXT / "
-                    "LONGTEXT on MySQL)."
+                    "ask an operator to widen the column type on MySQL "
+                    "(e.g. MEDIUMTEXT / LONGTEXT)."
                 ),
             },
         )
@@ -164,6 +156,6 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
 
 ERROR_HANDLERS: list[BaseErrorHandler] = [
     _UniqueConstraintErrorHandler(),
-    _DataErrorHandler(),
+    DataErrorHandler(),
     DagErrorHandler(),
 ]
