@@ -19,7 +19,7 @@ airflow-core/src/airflow/models/dagrun.py::15
 airflow-core/src/airflow/models/dagwarning.py::1
 airflow-core/src/airflow/models/deadline.py::1
 airflow-core/src/airflow/models/deadline_alert.py::1
-airflow-core/src/airflow/models/pool.py::13
+airflow-core/src/airflow/models/pool.py::11
 airflow-core/src/airflow/models/renderedtifields.py::4
 airflow-core/src/airflow/models/revoked_token.py::2
 airflow-core/src/airflow/models/serialized_dag.py::6
