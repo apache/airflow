@@ -44,6 +44,11 @@ export default defineConfig({
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   server: {
     cors: true, // Only used by the dev server.
+    // The dev SPA shell is served by the airflow api-server (a different origin), so
+    // Vite must emit fully-qualified URLs — otherwise asset paths (notably worker
+    // module URLs) resolve against the api-server origin and 404. The `dev` script
+    // pins this port via --strictPort.
+    origin: "http://localhost:5173",
     proxy: {
       "/hitl-review": {
         changeOrigin: true,
