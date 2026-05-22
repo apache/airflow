@@ -111,6 +111,7 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
+``pandas``                                  ``>=3.0.0; python_version >= "3.11"``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
 ``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
