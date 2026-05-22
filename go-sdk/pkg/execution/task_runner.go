@@ -19,7 +19,6 @@ package execution
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"runtime/debug"
 	"time"
@@ -113,7 +112,7 @@ func executeTask(
 	}()
 
 	if err := task.Execute(ctx, logger); err != nil {
-		logger.Error("Task failed", "error", fmt.Sprintf("%v", err))
+		logger.ErrorContext(ctx, "Task failed", "error", err)
 		return TaskStateMsg{
 			State:   TaskStateFailed,
 			EndDate: time.Now().UTC(),

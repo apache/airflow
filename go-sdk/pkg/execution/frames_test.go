@@ -126,6 +126,38 @@ func TestDecodeResponseFrameWithError(t *testing.T) {
 	assert.Equal(t, "not_found", frame.Err["error"])
 }
 
+func TestDecodeFrameRejectsNonMapBody(t *testing.T) {
+	// A non-nil, non-map body element is a protocol violation; the decoder
+	// must surface it instead of silently turning the body into nil.
+	var buf bytes.Buffer
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseCompactInts(true)
+
+	require.NoError(t, enc.EncodeArrayLen(2))
+	require.NoError(t, enc.EncodeInt(1))
+	require.NoError(t, enc.EncodeString("not a map"))
+
+	_, err := decodeFrame(buf.Bytes())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "body element: expected map")
+}
+
+func TestDecodeFrameRejectsNonMapError(t *testing.T) {
+	// Same rule applies to the error element of a 3-tuple response frame.
+	var buf bytes.Buffer
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseCompactInts(true)
+
+	require.NoError(t, enc.EncodeArrayLen(3))
+	require.NoError(t, enc.EncodeInt(2))
+	require.NoError(t, enc.Encode(nil))
+	require.NoError(t, enc.EncodeString("not a map"))
+
+	_, err := decodeFrame(buf.Bytes())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error element: expected map")
+}
+
 func TestReadFrameRejectsOversizedPayload(t *testing.T) {
 	// Craft a length prefix that claims more bytes than maxFrameSize so a
 	// malformed/hostile peer cannot trigger a huge allocation before the

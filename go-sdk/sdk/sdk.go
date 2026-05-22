@@ -53,9 +53,10 @@ type VariableClient interface {
 	//		}
 	GetVariable(ctx context.Context, key string) (string, error)
 
-	// UnmarshalJSONVariable fetches a variable and json.Unmarshal's its value
-	// into pointer. Use this when the variable was stored as a JSON object,
-	// array, or number; for plain string variables call GetVariable directly.
+	// UnmarshalJSONVariable fetches a variable and unmarshals its value into
+	// pointer via json.Unmarshal. Use this when the variable was stored as a
+	// JSON object, array, or number; for plain string variables call
+	// GetVariable directly.
 	//
 	// pointer must be a non-nil pointer, as required by encoding/json.
 	UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error

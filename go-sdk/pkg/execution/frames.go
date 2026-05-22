@@ -119,7 +119,10 @@ func decodeFrame(data []byte) (IncomingFrame, error) {
 	if err != nil {
 		return IncomingFrame{}, fmt.Errorf("decoding body: %w", err)
 	}
-	body, _ := toStringMap(bodyRaw)
+	body, ok := toStringMap(bodyRaw)
+	if bodyRaw != nil && !ok {
+		return IncomingFrame{}, fmt.Errorf("body element: expected map, got %T", bodyRaw)
+	}
 
 	// For response frames (3-element), decode the error element.
 	var errMap map[string]any
@@ -128,7 +131,10 @@ func decodeFrame(data []byte) (IncomingFrame, error) {
 		if err != nil {
 			return IncomingFrame{}, fmt.Errorf("decoding error element: %w", err)
 		}
-		errMap, _ = toStringMap(errRaw)
+		errMap, ok = toStringMap(errRaw)
+		if errRaw != nil && !ok {
+			return IncomingFrame{}, fmt.Errorf("error element: expected map, got %T", errRaw)
+		}
 	}
 
 	return IncomingFrame{
