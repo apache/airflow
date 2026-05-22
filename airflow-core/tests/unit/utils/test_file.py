@@ -212,6 +212,39 @@ class TestListPyFilesPath:
             f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
         )
 
+    def test_list_py_file_paths_safe_mode_default_argument(self, tmp_path):
+        """
+        Test that list_py_file_paths safe_mode default argument respects config.
+
+        When a Python file doesn't contain 'airflow' and 'dag'/'asset' keywords,
+        it's skipped when safe_mode=True. The default argument should read from
+        config at call time, not at module load time.
+        """
+        # Create a Python file without relevant keywords
+        test_file = tmp_path / "no_keywords.py"
+        test_file.write_text("# empty file")
+
+        # Verify no keywords
+        content = test_file.read_text().lower()
+        assert "airflow" not in content
+        assert "dag" not in content
+
+        # safe_mode=True explicitly: file should be skipped
+        result_safe = list_py_file_paths(str(tmp_path), safe_mode=True)
+        assert len(result_safe) == 0
+
+        # safe_mode=False explicitly: file should be found
+        result_unsafe = list_py_file_paths(str(tmp_path), safe_mode=False)
+        assert len(result_unsafe) == 1
+
+        # Test default argument respects config
+        with conf_vars({("core", "dag_discovery_safe_mode"): "False"}):
+            result = list_py_file_paths(str(tmp_path))
+            assert len(result) == 1, (
+                f"Expected 1 file with DAG_DISCOVERY_SAFE_MODE=False, got {len(result)}. "
+                f"The default argument should read config at call time."
+            )
+
 
 @pytest.mark.parametrize(
     ("edge_filename", "expected_modification"),

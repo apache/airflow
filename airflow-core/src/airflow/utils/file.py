@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import overload
 
 from airflow.configuration import conf
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ def open_maybe_zipped(fileloc, mode="r"):
 
 def list_py_file_paths(
     directory: str | os.PathLike[str] | None,
-    safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
+    safe_mode: bool | ArgNotSet = NOTSET,
 ) -> list[str]:
     """
     Traverse a directory and look for Python files.
@@ -88,6 +89,8 @@ def list_py_file_paths(
         to safe.
     :return: a list of paths to Python files in the specified directory
     """
+    if not is_arg_set(safe_mode):
+        safe_mode = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True)
     file_paths: list[str] = []
     if directory is None:
         file_paths = []
