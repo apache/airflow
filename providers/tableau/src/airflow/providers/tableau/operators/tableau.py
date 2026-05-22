@@ -62,6 +62,8 @@ class TableauOperator(BaseOperator):
     :param blocking_refresh: By default will be blocking means it will wait until it has finished.
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
+    :param incremental_refresh: Whether to perform an incremental refresh instead of a full refresh.
+        Only applies to datasource and workbook refresh operations. Defaults to False (full refresh).
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
     """
@@ -81,6 +83,7 @@ class TableauOperator(BaseOperator):
         site_id: str | None = None,
         blocking_refresh: bool = True,
         check_interval: float = 20,
+        incremental_refresh: bool = False,
         tableau_conn_id: str = "tableau_default",
         **kwargs,
     ) -> None:
@@ -92,6 +95,7 @@ class TableauOperator(BaseOperator):
         self.check_interval = check_interval
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
+        self.incremental_refresh = incremental_refresh
         self.tableau_conn_id = tableau_conn_id
 
     def execute(self, context: Context) -> str:
@@ -124,6 +128,10 @@ class TableauOperator(BaseOperator):
                 if not job_items:
                     raise ValueError("Tableau tasks.run returned no JobItem in response")
                 job_id = job_items[0].id
+            elif self.method == "refresh":
+                # For refresh operations, pass incremental_refresh parameter
+                response = method(resource_id, incremental=self.incremental_refresh)
+                job_id = response.id
             else:
                 response = method(resource_id)
                 job_id = response.id

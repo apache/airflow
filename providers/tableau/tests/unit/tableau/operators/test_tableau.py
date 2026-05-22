@@ -70,7 +70,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -106,7 +106,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
@@ -135,7 +135,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -167,7 +167,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
@@ -277,3 +277,122 @@ class TestTableauOperator:
         resource_id = "res_id"
         operator = TableauOperator(resource="tasks", find=resource_id, method="run", task_id="t", dag=None)
         assert operator._get_resource_id(Mock()) == resource_id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_datasources_incremental_refresh(self, mock_tableau_hook):
+        """
+        Test execute datasources with incremental refresh
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(
+            blocking_refresh=False,
+            find="ds_2",
+            resource="datasources",
+            incremental_refresh=True,
+            **self.kwargs,
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=True)
+        assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_datasources_full_refresh(self, mock_tableau_hook):
+        """
+        Test execute datasources with full refresh (default behavior)
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(
+            blocking_refresh=False,
+            find="ds_2",
+            resource="datasources",
+            incremental_refresh=False,
+            **self.kwargs,
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
+        assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_workbooks_incremental_refresh(self, mock_tableau_hook):
+        """
+        Test execute workbooks with incremental refresh
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(
+            blocking_refresh=False,
+            find="wb_2",
+            resource="workbooks",
+            incremental_refresh=True,
+            **self.kwargs,
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=True)
+        assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_workbooks_full_refresh(self, mock_tableau_hook):
+        """
+        Test execute workbooks with full refresh (default behavior)
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(
+            blocking_refresh=False,
+            find="wb_2",
+            resource="workbooks",
+            incremental_refresh=False,
+            **self.kwargs,
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
+        assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_datasources_incremental_refresh_blocking(self, mock_tableau_hook):
+        """
+        Test execute datasources with incremental refresh blocking
+        """
+        mock_signed_in = [False]
+
+        def mock_hook_enter():
+            mock_signed_in[0] = True
+            return mock_tableau_hook
+
+        def mock_hook_exit(exc_type, exc_val, exc_tb):
+            mock_signed_in[0] = False
+
+        def mock_wait_for_state(job_id, target_state, check_interval):
+            if not mock_signed_in[0]:
+                raise Exception("Not signed in")
+            return True
+
+        mock_tableau_hook.return_value.__enter__ = Mock(side_effect=mock_hook_enter)
+        mock_tableau_hook.return_value.__exit__ = Mock(side_effect=mock_hook_exit)
+        mock_tableau_hook.wait_for_state = Mock(side_effect=mock_wait_for_state)
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            incremental_refresh=True,
+            **self.kwargs,
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=True)
+        assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
+        mock_tableau_hook.wait_for_state.assert_called_once_with(
+            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
+        )
