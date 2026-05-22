@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import Field
+from pydantic import AwareDatetime, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -40,6 +41,21 @@ class TaskStateCollectionResponse(BaseModel):
 
 
 class TaskStateBody(StrictBaseModel):
-    """Request body for setting a task state value."""
+    """
+    Request body for setting a task state value.
+
+    ``expires_at`` controls expiry:
+
+    - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+    - ``null``: never expire.
+    - aware datetime: expire at that time.
+    """
+
+    value: str = Field(max_length=65535)
+    expires_at: AwareDatetime | None | Literal["default"] = "default"
+
+
+class TaskStatePatchBody(StrictBaseModel):
+    """Request body for patching only the value of an existing task state key."""
 
     value: str = Field(max_length=65535)

@@ -6985,13 +6985,36 @@ export const $TaskStateBody = {
             type: 'string',
             maxLength: 65535,
             title: 'Value'
+        },
+        expires_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'string',
+                    const: 'default'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expires At',
+            default: 'default'
         }
     },
     additionalProperties: false,
     type: 'object',
     required: ['value'],
     title: 'TaskStateBody',
-    description: 'Request body for setting a task state value.'
+    description: `Request body for setting a task state value.
+
+\`\`expires_at\`\` controls expiry:
+
+- \`\`"default"\`\`: apply the configured \`\`[state_store] default_retention_days\`\`.
+- \`\`null\`\`: never expire.
+- aware datetime: expire at that time.`
 } as const;
 
 export const $TaskStateCollectionResponse = {
@@ -7012,6 +7035,21 @@ export const $TaskStateCollectionResponse = {
     required: ['task_states', 'total_entries'],
     title: 'TaskStateCollectionResponse',
     description: 'All task state entries for a task instance.'
+} as const;
+
+export const $TaskStatePatchBody = {
+    properties: {
+        value: {
+            type: 'string',
+            maxLength: 65535,
+            title: 'Value'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['value'],
+    title: 'TaskStatePatchBody',
+    description: 'Request body for patching only the value of an existing task state key.'
 } as const;
 
 export const $TaskStateResponse = {

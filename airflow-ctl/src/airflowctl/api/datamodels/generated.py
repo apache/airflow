@@ -976,6 +976,24 @@ class TaskOutletAssetReference(BaseModel):
 class TaskStateBody(BaseModel):
     """
     Request body for setting a task state value.
+
+    ``expires_at`` controls expiry:
+
+    - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+    - ``null``: never expire.
+    - aware datetime: expire at that time.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: Annotated[str, Field(max_length=65535, title="Value")]
+    expires_at: Annotated[datetime | str | None, Field(title="Expires At")] = "default"
+
+
+class TaskStatePatchBody(BaseModel):
+    """
+    Request body for patching only the value of an existing task state key.
     """
 
     model_config = ConfigDict(
