@@ -312,6 +312,13 @@ class TriggerDagRunOperator(BaseOperator):
         if parsed_run_after and "run_after" in parameters:
             kwargs_accepted["run_after"] = parsed_run_after
 
+        from airflow.utils.helpers import build_airflow_dagrun_url
+
+        context["task_instance"].xcom_push(
+            key=TriggerDagRunLink().xcom_key,
+            value=build_airflow_dagrun_url(dag_id=self.trigger_dag_id, run_id=run_id),
+        )
+
         raise DagRunTriggerException(**kwargs_accepted)
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
