@@ -35,3 +35,8 @@ class NeptuneAnalyticsHook(AwsBaseHook):
     def __init__(self, *args, **kwargs):
         kwargs["client_type"] = "neptune-graph"
         super().__init__(*args, **kwargs)
+
+    def _get_graph_endpoint_id(self, graph_id: str, vpc_id: str):
+        """Return the vpc endpoint id for this graph."""
+        result = self.conn.get_private_graph_endpoint(graphIdentifier=graph_id, vpcId=vpc_id)
+        return result.get("vpcEndpointId")

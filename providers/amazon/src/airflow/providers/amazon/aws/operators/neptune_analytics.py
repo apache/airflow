@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneImportTaskCancelledTrigger,
     NeptuneImportTaskCompleteTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import conf
 
@@ -44,6 +45,7 @@ from airflow.providers.amazon.aws.exceptions import (
     NeptuneGraphCreationFailedError,
     NeptuneGraphDeletionFailedError,
     NeptuneImportTaskCancellationFailedError,
+    NeptuneImportTaskFailedError,
     NeptunePrivateEndpointCreationFailedError,
     NeptunePrivateEndpointDeletionFailedError,
 )
@@ -119,7 +121,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         self.provisioned_memory = provisioned_memory
         self.public_connectivity = public_connectivity
         self.deletion_protect = deletion_protection
-        self.kms_key = kms_key_id
+        self.kms_key_id = kms_key_id
         self.tags = tags
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
@@ -139,7 +141,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                     "replicaCount": self.replica_count,
                     "publicConnectivity": self.public_connectivity,
                     "deletionProtection": self.deletion_protect,
-                    "kmsKeyIdentifier": self.kms_key,
+                    "kmsKeyIdentifier": self.kms_key_id,
                     "tags": self.tags,
                 }.items()
                 if v is not None
@@ -188,16 +190,14 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         return {"graph_id": self.graph_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        if event is None:
-            raise NeptuneGraphCreationFailedError(
-                "No event received while waiting for Neptune graph creation to complete."
-            )
 
-        if event.get("status") != "success":
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event.get("status") != "success":
             raise NeptuneGraphCreationFailedError(
-                event.get(
+                validated_event.get(
                     "message",
-                    f"Neptune graph {self.graph_id} creation did not complete successfully: {event}",
+                    f"Neptune graph {validated_event.get('return_key')} creation did not complete successfully",
                 )
             )
 
@@ -293,28 +293,8 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         # if VPC not provided, use the one that is returned, which is the default VPC. Required for the waiter
         self.vpc_id = result.get("vpcId", self.vpc_id)
 
-        if self.deferrable:
-            self.log.info("Deferring until endpoint is available")
-            self.defer(
-                trigger=NeptuneGraphPrivateEndpointAvailableTrigger(
-                    aws_conn_id=self.aws_conn_id,
-                    graph_id=self.graph_identifier,
-                    vpc_id=self.vpc_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                ),
-                method_name="execute_complete",
-            )
-
-        if self.wait_for_completion:
-            self.log.info("Waiting until endpoint is available")
-            self.hook.get_waiter("private_graph_endpoint_available").wait(
-                graphIdentifier=self.graph_identifier,
-                vpcId=self.vpc_id,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-            )
-
-        endpoint_id = self._get_graph_endpoint_id()
+        # get the vpce id since it may not be returned immediately
+        endpoint_id = self.hook._get_graph_endpoint_id(graph_id=self.graph_identifier, vpc_id=self.vpc_id)
 
         endpoint_url = VpcEndpointLink.format_str.format(
             endpoint_id=endpoint_id,
@@ -331,23 +311,42 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         )
         self.log.info("You can view this private endpoint at : %s", endpoint_url)
 
+        if self.deferrable:
+            self.log.info("Deferring until endpoint is available")
+            self.defer(
+                trigger=NeptuneGraphPrivateEndpointAvailableTrigger(
+                    aws_conn_id=self.aws_conn_id,
+                    graph_id=self.graph_identifier,
+                    vpc_id=self.vpc_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                kwargs={"vpc_id": self.vpc_id},
+            )
+
+        if self.wait_for_completion:
+            self.log.info("Waiting until endpoint is available")
+            self.hook.get_waiter("private_graph_endpoint_available").wait(
+                graphIdentifier=self.graph_identifier,
+                vpcId=self.vpc_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
         return {"vpc_endpoint_id": endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
-    def _get_graph_endpoint_id(self):
-        """Return the vpc endpoint id for this graph."""
-        result = self.hook.conn.get_private_graph_endpoint(
-            graphIdentifier=self.graph_identifier, vpcId=self.vpc_id
-        )
-        return result.get("vpcEndpointId")
-
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        vpc_endpoint_id = self._get_graph_endpoint_id()
-        if event:
-            status = event["status"]
-            if status.lower() != "success":
-                raise NeptunePrivateEndpointCreationFailedError("Endpoint failed to create")
+        validated_event = validate_execute_complete_event(event)
 
-        return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
+        if validated_event.get("status") != "success":
+            raise NeptunePrivateEndpointCreationFailedError(
+                validated_event.get("message", "Endpoint failed to create")
+            )
+
+        graph_id = validated_event.get("value")
+        vpc_id = validated_event.get("vpc_id")
+        vpc_endpoint_id = self.hook._get_graph_endpoint_id(graph_id=graph_id, vpc_id=vpc_id)
+        return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": graph_id, "vpc_id": vpc_id}
 
 
 class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -437,14 +436,15 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
             self.log.info("Endpoint %s deleted", endpoint_id)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        vpc_endpoint_id = ""
+        validated_event = validate_execute_complete_event(event)
 
-        if event and (event.get("status") or "").lower() == "success":
-            vpc_endpoint_id = event.get("endpoint_id", "Unknown")
+        if validated_event.get("status") != "success":
+            raise NeptunePrivateEndpointDeletionFailedError(
+                validated_event.get("message", "Endpoint failed to delete.")
+            )
 
-            self.log.info("Endpoint id %s deleted", vpc_endpoint_id)
-        else:
-            raise NeptunePrivateEndpointDeletionFailedError("Endpoint failed to delete.")
+        vpc_endpoint_id = validated_event.get("endpoint_id", "Unknown")
+        self.log.info("Endpoint id %s deleted", vpc_endpoint_id)
 
 
 class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -530,10 +530,14 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None):
-        if event:
-            graph_id = event.get("graph_id", "Unknown")
+        validated_event = validate_execute_complete_event(event)
+        graph_id = validated_event.get("graph_id")
+        if validated_event.get("status") != "success":
+            raise NeptuneGraphDeletionFailedError(
+                validated_event.get("message", f"Neptune graph {graph_id} deletion failed")
+            )
 
-            self.log.info("Neptune graph %s deleted", graph_id)
+        self.log.info("Neptune graph %s deleted", validated_event.get("graph_id", graph_id))
 
 
 class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -583,7 +587,7 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
 
     aws_hook_class = NeptuneAnalyticsHook
     template_fields: Sequence[str] = aws_template_fields(
-        "graph_name", "vector_search_config", "source", "role_arn", "kms_key"
+        "graph_name", "vector_search_config", "source", "role_arn"
     )
 
     template_fields_renderers = {
@@ -633,7 +637,7 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         self.public_connectivity = public_connectivity
         self.replica_count = replica_count
         self.deletion_protect = deletion_protection
-        self.kms_key = kms_key_id
+        self.kms_key_id = kms_key_id
         self.tags = tags
         self.import_options = import_options
         self.wait_for_completion = wait_for_completion
@@ -672,7 +676,7 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
                     "replicaCount": self.replica_count,
                     "publicConnectivity": self.public_connectivity,
                     "deletionProtection": self.deletion_protect,
-                    "kmsKeyIdentifier": self.kms_key,
+                    "kmsKeyIdentifier": self.kms_key_id,
                     "tags": self.tags,
                     "importOptions": import_options if import_options else None,
                 }.items()
@@ -751,6 +755,14 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         self, context: Context, event: dict[str, Any] | None = None, import_task_id: str | None = None
     ) -> None:
         """Defers for import task completion."""
+        validated_event = validate_execute_complete_event(event)
+        graph_id = validated_event.get("value")
+
+        if validated_event.get("status") != "success":
+            raise NeptuneGraphCreationFailedError(
+                validated_event.get("message", f"Neptune graph {graph_id} did not become available")
+            )
+
         if import_task_id:
             self.log.info("Deferring for import task %s completion", import_task_id)
             self.defer(
@@ -761,16 +773,23 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                kwargs={"graph_id": graph_id},
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        if event is None or event.get("status") != "success":
-            message = (event or {}).get(
-                "message", f"Neptune graph {self.graph_id} import did not complete successfully"
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None, graph_id: str | None = None
+    ) -> dict[str, Any]:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event.get("status") != "success":
+            raise NeptuneGraphCreationFailedError(
+                validated_event.get(
+                    "message", f"Neptune graph {graph_id} import did not complete successfully"
+                )
             )
-            raise NeptuneGraphCreationFailedError(message)
-        self.log.info("Import complete for graph %s", self.graph_id)
-        return {"graph_id": self.graph_id}
+
+        self.log.info("Import complete for graph %s", graph_id)
+        return {"graph_id": graph_id}
 
 
 class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -907,10 +926,15 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         return {"import_task_id": import_task_id, "graph_id": self.graph_identifier}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        task_id = ""
-        if event:
-            task_id = event.get("import_task_id", "")
+        validated_event = validate_execute_complete_event(event)
 
+        if validated_event.get("status") != "success":
+            raise NeptuneImportTaskFailedError(
+                validated_event.get("message", "Import task did not complete successfully")
+            )
+
+        task_id = validated_event.get("import_task_id", "")
+        self.log.info("Import task %s completed", task_id)
         return {"graph_id": self.graph_identifier, "import_task_id": task_id}
 
 
@@ -989,18 +1013,13 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         return {"import_task_id": self.import_task_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        if event is None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event.get("status") != "success":
             raise NeptuneImportTaskCancellationFailedError(
-                "No event received while waiting for Neptune import task cancellation."
+                validated_event.get("message", "Error while waiting for Neptune import task cancellation")
             )
 
-        status = str(event.get("status", "")).lower()
-        if status not in {"success", "cancelled", "canceled"}:
-            message = event.get("message") or event.get("error") or f"Unexpected trigger status: {status!r}"
-            raise NeptuneImportTaskCancellationFailedError(
-                f"Error while waiting for Neptune import task cancellation: {message}"
-            )
-
-        task_id = event.get("import_task_id", "")
+        task_id = validated_event.get("value", "")
         self.log.info("Import task %s cancelled", task_id)
         return {"import_task_id": task_id}

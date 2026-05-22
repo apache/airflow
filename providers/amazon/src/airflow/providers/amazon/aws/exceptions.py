@@ -70,3 +70,7 @@ class NeptuneGraphDeletionFailedError(AirflowException):
 
 class NeptuneImportTaskCancellationFailedError(AirflowException):
     """Raised when a Neptune Analytics import task cancellation fails or returns an unexpected status."""
+
+
+class NeptuneImportTaskFailedError(AirflowException):
+    """Raised when a Neptune Analytics import task fails to complete successfully."""

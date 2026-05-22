@@ -50,9 +50,7 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_neptune_analytics"
 
-ROLE_ARN_KEY = "ROLE_ARN"
-
-sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
+sys_test_context_task = SystemTestContextBuilder().build()
 
 # Minimal OpenCypher CSV data for import testing.
 NODES_CSV = """~id,~label,name:String
@@ -114,6 +112,7 @@ def delete_neptune_import_role(role_name: str) -> None:
     iam_client = boto3.client("iam")
     with contextlib.suppress(iam_client.exceptions.NoSuchEntityException):
         iam_client.delete_role_policy(RoleName=role_name, PolicyName="NeptuneAnalyticsS3Access")
+        iam_client.delete_role(RoleName=role_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -127,8 +126,20 @@ def delete_graph_if_exists(graph_name: str) -> None:
             for graph in page.get("graphs", []):
                 if graph.get("name") == graph_name:
                     graph_id = graph["id"]
-                    # Disable deletion protection if enabled
 
+                    # Delete any attached private graph endpoints before deleting the graph
+                    endpoints_paginator = hook.conn.get_paginator("list_private_graph_endpoints")
+                    for ep_page in endpoints_paginator.paginate(graphIdentifier=graph_id):
+                        for endpoint in ep_page.get("privateGraphEndpoints", []):
+                            vpc_id = endpoint["vpcId"]
+                            hook.conn.delete_private_graph_endpoint(graphIdentifier=graph_id, vpcId=vpc_id)
+                            hook.conn.get_waiter("private_graph_endpoint_deleted").wait(
+                                graphIdentifier=graph_id,
+                                vpcId=vpc_id,
+                                WaiterConfig={"Delay": 30, "MaxAttempts": 60},
+                            )
+
+                    # Disable deletion protection if enabled
                     hook.conn.update_graph(graphIdentifier=graph_id, deletionProtection=False)
 
                     hook.conn.delete_graph(graphIdentifier=graph_id, skipSnapshot=True)
@@ -225,7 +236,7 @@ with DAG(
         source=f"s3://{bucket_name}/data/",
         format="CSV",
         fail_on_error=True,
-        wait_for_completion=True,
+        wait_for_completion=False,
         deferrable=False,
         waiter_delay=30,
         waiter_max_attempts=60,
@@ -298,8 +309,8 @@ with DAG(
 
     delete_role = delete_neptune_import_role(import_role_name)
 
-    cleanup_graph = delete_graph_if_exists(graph_name)
-    cleanup_import_graph = delete_graph_if_exists(import_graph_name)
+    cleanup_graph = delete_graph_if_exists.override(task_id="cleanup_graph")(graph_name)
+    cleanup_import_graph = delete_graph_if_exists.override(task_id="cleanup_import_graph")(import_graph_name)
 
     chain(
         # TEST SETUP
