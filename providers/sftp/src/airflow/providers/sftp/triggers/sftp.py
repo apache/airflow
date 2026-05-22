@@ -185,7 +185,7 @@ class SFTPOperatorTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger for storage in the database."""
         return (
-            "airflow.providers.sftp.triggers.sftp.SFTPOperatorTrigger",
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "ssh_conn_id": self.ssh_conn_id,
                 "local_filepath": self.local_filepath,

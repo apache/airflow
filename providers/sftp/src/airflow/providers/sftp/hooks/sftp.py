@@ -706,6 +706,75 @@ class SFTPHook(SSHHook):
 
         return matched_files
 
+    def transfer(
+        self,
+        operation: str,
+        local_filepath: str | list[str] | None,
+        remote_filepath: str | list[str],
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
+        concurrency: int = 1,
+        prefetch: bool = True,
+    ) -> None:
+        """
+        Perform a synchronous SFTP transfer operation (GET, PUT, or DELETE).
+
+        Centralises transfer logic so both the operator and the trigger
+        can delegate to the hook, in line with the DRY principle.
+
+        :param operation: The SFTP operation - put, get, or delete.
+        :param local_filepath: Local file path(s).
+        :param remote_filepath: Remote file path(s).
+        :param confirm: Whether to confirm file size after PUT (default: True).
+        :param create_intermediate_dirs: Create missing intermediate directories (default: False).
+        :param concurrency: Number of threads for directory transfers (default: 1).
+        :param prefetch: Whether to prefetch during GET (default: True).
+        """
+        from airflow.providers.sftp.constants import SFTPOperation
+
+        if isinstance(local_filepath, str):
+            local_filepath_array = [local_filepath] if local_filepath else []
+        else:
+            local_filepath_array = local_filepath or []
+
+        if isinstance(remote_filepath, str):
+            remote_filepath_array = [remote_filepath]
+        else:
+            remote_filepath_array = list(remote_filepath)
+
+        if operation.lower() == SFTPOperation.GET:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if create_intermediate_dirs:
+                    Path(os.path.dirname(local)).mkdir(parents=True, exist_ok=True)
+                if self.isdir(remote):
+                    if concurrency > 1:
+                        self.retrieve_directory_concurrently(
+                            remote, local, workers=concurrency, prefetch=prefetch
+                        )
+                    else:
+                        self.retrieve_directory(remote, local)
+                else:
+                    self.retrieve_file(remote, local, prefetch=prefetch)
+        elif operation.lower() == SFTPOperation.PUT:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if create_intermediate_dirs:
+                    self.create_directory(os.path.dirname(remote))
+                if os.path.isdir(local):
+                    if concurrency > 1:
+                        self.store_directory_concurrently(
+                            remote, local, confirm=confirm, workers=concurrency
+                        )
+                    else:
+                        self.store_directory(remote, local, confirm=confirm)
+                else:
+                    self.store_file(remote, local, confirm=confirm)
+        elif operation.lower() == SFTPOperation.DELETE:
+            for remote in remote_filepath_array:
+                if self.isdir(remote):
+                    self.delete_directory(remote, include_files=True)
+                else:
+                    self.delete_file(remote)
+
 
 class SFTPHookAsync(BaseHook):
     """
@@ -1040,3 +1109,46 @@ class SFTPHookAsync(BaseHook):
                     return mod_time
                 except asyncssh.SFTPNoSuchFile:
                     raise AirflowException("No files matching")
+
+    async def transfer(
+        self,
+        operation: str,
+        local_filepath: str | list[str] | None,
+        remote_filepath: str | list[str],
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
+        concurrency: int = 1,
+        prefetch: bool = True,
+    ) -> None:
+        """
+        Perform an SFTP transfer operation (GET, PUT, or DELETE) via a thread executor.
+
+        Delegates to :meth:`SFTPHook.transfer` so that both the operator and the
+        trigger share identical transfer logic, in line with the DRY principle.
+        Using a thread executor keeps the async event loop unblocked while the
+        synchronous paramiko transfer runs in a worker thread.
+
+        :param operation: The SFTP operation - put, get, or delete.
+        :param local_filepath: Local file path(s).
+        :param remote_filepath: Remote file path(s).
+        :param confirm: Whether to confirm file size after PUT (default: True).
+        :param create_intermediate_dirs: Create missing intermediate directories (default: False).
+        :param concurrency: Number of threads for directory transfers (default: 1).
+        :param prefetch: Whether to prefetch during GET (default: True).
+        """
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        sync_hook = SFTPHook(ssh_conn_id=self.sftp_conn_id)
+        await loop.run_in_executor(
+            None,
+            lambda: sync_hook.transfer(
+                operation=operation,
+                local_filepath=local_filepath,
+                remote_filepath=remote_filepath,
+                confirm=confirm,
+                create_intermediate_dirs=create_intermediate_dirs,
+                concurrency=concurrency,
+                prefetch=prefetch,
+            ),
+        )
