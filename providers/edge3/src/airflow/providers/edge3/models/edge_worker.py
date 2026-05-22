@@ -34,6 +34,11 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
