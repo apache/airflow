@@ -50,8 +50,12 @@ from airflow.providers.google.cloud.operators.gen_ai import (
 from airflow.providers.google.common.utils.get_secret import get_secret
 
 
-def _get_actual_model(key) -> str:
+def _get_actual_model(key, use_hardcoded_model=True) -> str:
     source_model: str | None = None
+    if use_hardcoded_model:
+        print("Use hardcoded model")
+        source_model = "gemini-2.5-flash-lite"
+        return source_model
     try:
         response = requests.get("https://generativelanguage.googleapis.com/v1/models", {"key": key})
         response.raise_for_status()
