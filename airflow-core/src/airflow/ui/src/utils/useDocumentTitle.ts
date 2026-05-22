@@ -16,13 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect } from "react";
 
-export { capitalize } from "./capitalize";
-export { getDuration, renderDuration } from "./datetimeUtils";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { useConfig } from "src/queries/useConfig";
+
+export const useDocumentTitle = (pageTitle?: string | null) => {
+  const instanceConfig = useConfig("instance_name");
+  const instanceName = typeof instanceConfig === "string" ? instanceConfig : "Airflow";
+
+  useEffect(() => {
+    const previousTitle = document.title;
+
+    if (typeof pageTitle === "string" && pageTitle.length > 0) {
+      document.title = `${pageTitle} - ${instanceName}`;
+    }
+
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [pageTitle, instanceName]);
+};
