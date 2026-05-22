@@ -24,3 +24,7 @@
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// monaco-editor ships .d.ts only for `editor.api`; contribution side-effect imports have
+// no typings of their own.
+declare module "monaco-editor/esm/vs/editor/contrib/folding/browser/folding";

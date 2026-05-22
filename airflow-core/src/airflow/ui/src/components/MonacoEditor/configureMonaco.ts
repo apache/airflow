@@ -25,7 +25,13 @@ type MonacoEnvironment = {
 let configurationPromise: Promise<void> | undefined;
 
 const loadMonacoModules = async () => {
-  const monacoApi = import("monaco-editor/esm/vs/editor/editor.api");
+  // `editor.api` is API-only — also load the folding contribution so `editor.foldAll` /
+  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered. The CDN
+  // bundle used to pull this in transitively; the local ESM `editor.api` does not.
+  const monacoApi = Promise.all([
+    import("monaco-editor/esm/vs/editor/editor.api"),
+    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
+  ]).then(([api]) => api);
 
   const workerConstructors = Promise.all([
     import("monaco-editor/esm/vs/editor/editor.worker?worker").then((module) => module.default),
