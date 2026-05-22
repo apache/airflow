@@ -21,11 +21,12 @@ import json
 from collections.abc import Iterable, Mapping
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow._shared.secrets_masker import redact, should_hide_value_for_key
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
+from airflow.configuration import conf
 
 
 # Response Models
@@ -198,6 +199,14 @@ class ConnectionBody(StrictBaseModel):
                 "but encountered non-JSON in `extra` field"
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_team_name(self) -> ConnectionBody:
+        if self.team_name is not None and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            )
+        return self
 
 
 ConnectionBodyPartial = make_partial_model(ConnectionBody)

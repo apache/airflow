@@ -83,6 +83,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
+  | SearchParamsKeys.RENDERED_MAP_INDEX
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_RANGE
@@ -145,6 +146,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
   const handleFiltersChange = (filters: Record<string, FilterValue>) => {
     setTableURLState({
+      cursor: undefined,
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
@@ -167,6 +169,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
       });
 
       newParams.delete(SearchParamsKeys.OFFSET);
+      newParams.delete(SearchParamsKeys.CURSOR);
 
       return newParams;
     });

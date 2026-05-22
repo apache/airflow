@@ -57,21 +57,22 @@ Connect your project to Gitpod
 Installing Breeze
 ---------------
 
-Gitpod's default image includes the required packages. You can install Breeze using either uv or pipx:
-
-Using uv (recommended):
+Gitpod's default image includes the required packages. The recommended way to install Breeze is
+the shim installer, which works the same in Gitpod as on a local machine:
 
 .. code-block:: bash
 
    pip install uv
-   uv tool install -e ./dev/breeze
+   ./scripts/tools/setup_breeze
 
-Using pipx (alternative):
+This installs ``~/.local/bin/breeze`` as a small shim that runs Breeze via ``uvx`` from the
+current git worktree's ``dev/breeze`` folder. See
+`ADR 0017 <../../dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md>`_ for the
+rationale.
 
-.. code-block:: bash
-
-   pip install pipx
-   pipx install -e ./dev/breeze
+The legacy global install path (``uv tool install -e ./dev/breeze`` or
+``pipx install -e ./dev/breeze``) still works for users who explicitly want a single shared
+install, but is no longer recommended.
 
 Initializing the Database
 -----------------------

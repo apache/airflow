@@ -21,7 +21,7 @@ Extending the Chart
 The Airflow Helm Chart can be easily extended by creating a custom chart which will depend on the Airflow chart.
 That can be useful in cases where there is a need for custom templates deployment (e.g. maintenance CronJobs),
 which are not directly related to the Airflow Helm Chart and should not be added to it in the source repository.
-During installation of custom chart, the Airflow chart will also be installed too.
+During installation of custom chart, the Airflow chart will also be installed.
 
 You can extend the official Airflow chart by applying the following steps.
 
@@ -55,17 +55,19 @@ This will give you the ability to add your custom templates without the need to 
 In order to add the Airflow chart as a dependency (often called ``subcharts``) to your chart,
 add the following lines to your ``Chart.yaml`` file:
 
-.. code-block:: yaml
-   :caption: Chart.yaml
+.. jinja:: global_ctx
 
-   dependencies:
-     - name: airflow
-       version: 1.11.0
-       repository: https://airflow.apache.org
+   .. code-block:: yaml
+      :caption: Chart.yaml
+
+      dependencies:
+        - name: airflow
+          version: {{ package_version }}
+          repository: https://airflow.apache.org
 
 .. note::
 
-   Make sure you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
+   Make sure that you have already added the Airflow repo locally by running: ``helm repo add apache-airflow https://airflow.apache.org``.
 
 .. tip::
 
@@ -76,14 +78,16 @@ Adding the Airflow chart as a dependency means that it will be deployed together
 You can disable the installation of Airflow by adding the ``condition`` field to the ``dependencies`` section
 like in the example below:
 
-.. code-block:: yaml
-   :caption: Chart.yaml
+.. jinja:: global_ctx
 
-   dependencies:
-     - name: airflow
-       version: 1.11.0
-       repository: https://airflow.apache.org
-       condition: airflow.enabled
+   .. code-block:: yaml
+      :caption: Chart.yaml
+
+      dependencies:
+        - name: airflow
+          version: {{ package_version }}
+          repository: https://airflow.apache.org
+          condition: airflow.enabled
 
 This will check if the value of ``airflow.enabled`` inside your ``values.yaml`` is ``true``.
 If it is, the Airflow chart will be deployed together with your custom chart.
@@ -101,7 +105,7 @@ you can download it by running the following command:
 
 .. note::
 
-   Make sure you are inside the directory which contains the ``Chart.yaml`` file.
+   Make sure that you are inside the directory which contains the ``Chart.yaml`` file.
 
 The chart will be downloaded and saved inside the ``charts/`` directory.
 

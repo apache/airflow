@@ -19,32 +19,29 @@ Customizing Workers
 ===================
 
 Both ``CeleryExecutor`` and ``KubernetesExecutor`` workers can be highly customized with the :ref:`workers parameters <parameters:workers>`.
-For example, to set resources on workers:
+For example, to set resources on workers for CeleryExecutor:
 
 .. code-block:: yaml
    :caption: values.yaml
 
    workers:
-     resources:
-       requests:
-         cpu: 1
-       limits:
-         cpu: 1
-
-One notable exception for ``KubernetesExecutor`` is that the default anti-affinity applied to ``CeleryExecutor`` workers to spread them across nodes
-is not applied to ``KubernetesExecutor`` workers, as there is no reason to spread out per-task workers.
+     celery:
+       resources:
+         requests:
+           cpu: 1
+         limits:
+           cpu: 1
 
 Custom ``pod_template_file``
 ----------------------------
 
-With ``KubernetesExecutor`` or ``CeleryKubernetesExecutor`` you can also provide a complete ``pod_template_file``
+With ``KubernetesExecutor`` you can also provide a complete ``pod_template_file``
 to fully override default Kubernetes workers configuration. This may be useful if you need different configuration between
-worker types for ``CeleryKubernetesExecutor`` or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
+worker types for ``KubernetesExecutor`` or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
 
 .. note::
 
-   Some configuration options between Celery and Kubernetes workers can be overwritten by new ``workers.celery`` and ``workers.kubernetes`` sections.
-   Implementation of ``workers.celery`` and ``workers.kubernetes`` is not yet fully completed.
+   Configuration options between Celery and Kubernetes workers can be overwritten by ``workers.celery`` and ``workers.kubernetes`` sections.
 
 As an example, let's say you want to set ``priorityClassName`` on your workers:
 
@@ -71,3 +68,12 @@ As an example, let's say you want to set ``priorityClassName`` on your workers:
        priorityClassName: high-priority
        containers:
          - name: base
+
+The same can be achieved with default `pod_template_file`_ by overriding the ``priorityClassName`` option for KubernetesExecutor like:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   workers:
+     kubernetes:
+       priorityClassName: high-priority

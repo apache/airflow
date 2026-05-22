@@ -71,7 +71,7 @@ export const useRequiredActionTabs = (
       dagId,
       dagRunId: dagRunId ?? "~",
       taskId,
-      taskIdPattern,
+      taskIdPrefixPattern: taskIdPattern,
     },
     undefined,
     {

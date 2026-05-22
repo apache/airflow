@@ -111,7 +111,7 @@ class TestLLMSQLQueryOperator:
         result = op.execute(context=MagicMock())
 
         assert result == "SELECT id, name FROM users WHERE active = true"
-        mock_agent.run_sync.assert_called_once_with("Get active users")
+        mock_agent.run_sync.assert_called_once_with("Get active users", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_validation_blocks_unsafe_sql(self, mock_hook_cls):

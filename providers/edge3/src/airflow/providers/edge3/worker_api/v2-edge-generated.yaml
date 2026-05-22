@@ -1257,8 +1257,8 @@ components:
       - queue
       - priority_weight
       title: TaskInstanceDTO
-      description: Schema for TaskInstance with minimal required fields needed for
-        Executors and Task SDK.
+      description: TaskInstanceDTO with executor-specific ``external_executor_id``
+        field and ``key`` property.
     TaskInstanceState:
       type: string
       enum:
@@ -1321,8 +1321,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-          description: Team name for multi-team setups. If not provided, worker operates
-            without team isolation.
+          description: 'Team name for the experimental ``[core] multi_team`` feature.
+            This is a UI/REST API-level hint; the Execution API does not currently
+            enforce team-based access boundaries -- see ``airflow-core/docs/security/workload.rst``
+            (section: ''No team-level isolation in Execution API''). Workers without
+            team_name behave as default-team workers.'
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1336,6 +1339,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1344,6 +1350,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string
@@ -1431,8 +1438,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-          description: Team name for multi-team setups. If not provided, worker operates
-            without team isolation.
+          description: 'Team name for the experimental ``[core] multi_team`` feature.
+            This is a UI/REST API-level hint; the Execution API does not currently
+            enforce team-based access boundaries -- see ``airflow-core/docs/security/workload.rst``
+            (section: ''No team-level isolation in Execution API''). Workers without
+            team_name behave as default-team workers.'
         free_concurrency:
           type: integer
           title: Free Concurrency
@@ -1449,6 +1459,14 @@ components:
           format: date-time
           title: Last Update
           description: Time of the last update of the worker.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - last_update
@@ -1481,6 +1499,14 @@ components:
           title: Concurrency
           description: Desired concurrency for the worker set by an administrator.
             None means no remote override; the worker uses its startup value.
+        versions_match:
+          type: boolean
+          title: Versions Match
+          description: Whether the worker and the server have matching versions of
+            Airflow and the Edge Provider. If False, the worker version is not matching
+            and might need to be upgraded. But version is still compatible enough
+            to work. If True, worker and server versions match.
+          default: false
       type: object
       required:
       - state
@@ -1503,8 +1529,11 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
-          description: Team name for multi-team setups. If not provided, worker operates
-            without team isolation.
+          description: 'Team name for the experimental ``[core] multi_team`` feature.
+            This is a UI/REST API-level hint; the Execution API does not currently
+            enforce team-based access boundaries -- see ``airflow-core/docs/security/workload.rst``
+            (section: ''No team-level isolation in Execution API''). Workers without
+            team_name behave as default-team workers.'
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1518,6 +1547,9 @@ components:
             anyOf:
             - type: string
             - type: integer
+            - type: number
+            - type: string
+              format: date-time
           type: object
           title: Sysinfo
           description: System information of the worker.
@@ -1526,6 +1558,7 @@ components:
             concurrency: 4
             edge_provider_version: 1.0.0
             free_concurrency: 3
+            status: 20
         maintenance_comments:
           anyOf:
           - type: string

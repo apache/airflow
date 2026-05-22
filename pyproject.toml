@@ -18,11 +18,11 @@
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.0",
-    "pathspec==1.0.4",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.5.7.17",
 ]
 build-backend = "hatchling.build"
 
@@ -56,11 +56,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.2.0"
+version = "3.3.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
-    "apache-airflow-core==3.2.0",
+    "apache-airflow-task-sdk<1.4.0,>=1.3.0",
+    "apache-airflow-core==3.3.0",
 ]
 
 packages = []
@@ -100,6 +100,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
+]
+"akeyless" = [
+    "apache-airflow-providers-akeyless>=0.1.0"
 ]
 "alibaba" = [
     "apache-airflow-providers-alibaba>=3.0.0"
@@ -177,7 +180,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0"
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-common-ai>=0.1.0"
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
@@ -219,7 +222,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=2.2.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.6.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -381,7 +384,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0"
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -399,6 +402,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,gunicorn,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
+    "apache-airflow-providers-akeyless>=0.1.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
@@ -424,7 +428,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
-    "apache-airflow-providers-common-ai>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -438,7 +442,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.5.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=2.2.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -492,7 +496,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-vespa>=0.1.0",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
@@ -547,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.3",
+    "uv>=0.11.14",
 ]
 
 [project.urls]
@@ -586,6 +590,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
+external = ["MIG"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -596,6 +601,7 @@ extend-select = [
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
+    "B015", # Useless comparison: bare `a == b` is a no-op; prepend `assert` or remove
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
@@ -623,6 +629,7 @@ extend-select = [
     "PLW2101", # Threading lock directly created in with statement has no effect
     "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
     "PLW3301", # Nested {func} calls can be flattened
+    "PLE1205", # Logging format string has too many arguments (extra args are silently dropped)
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -648,6 +655,7 @@ extend-select = [
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
+    "B008", # Do not perform function call in argument defaults (use extend-immutable-calls for FastAPI DI)
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
@@ -657,6 +665,8 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
+    "PTH206", # Checks for uses of .split(os.sep)
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -688,13 +698,23 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
-    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
-    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
     # In addition, it can't do anything with invalid typing annotations, protected by mypy.
     "PT022",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection uses function calls in argument defaults intentionally.
+# SHA256 is a stateless algorithm descriptor (cryptography library).
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Security",
+    "cryptography.hazmat.primitives.hashes.SHA256",
 ]
 
 [tool.ruff.format]
@@ -790,7 +810,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
-"helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"chart/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
@@ -843,7 +863,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "devel-common/src/sphinx_exts/exampleinclude.py" = ["E402", 'F401', ]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
-"helm-tests/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+"chart/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 # While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
 # mechanism and whole .pyi is really "type-checking" only
@@ -1024,8 +1044,8 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = false
 plugins = [
-    "dev/airflow_mypy/plugin/decorators.py",
-    "dev/airflow_mypy/plugin/outputs.py",
+    "airflow_mypy.plugins.decorators",
+    "airflow_mypy.plugins.outputs",
 ]
 pretty = true
 show_error_codes = true
@@ -1049,13 +1069,15 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
-    "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/chart/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/akeyless/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
@@ -1304,7 +1326,7 @@ dev = [
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
-    "apache-airflow-helm-tests",
+    "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
@@ -1320,6 +1342,7 @@ dev = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
+    "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
@@ -1348,8 +1371,26 @@ leveldb = [
     "plyvel>=1.5.1"
 ]
 
+# Aggregate of every group the CI image installs by default. Single source of
+# truth referenced from the Dockerfiles, the image install script, and the
+# breeze constraints checker. When a provider needs to register a
+# hard-to-install extra (proprietary client, needs system libs, etc.), add a
+# dedicated [dependency-groups] entry above and include it here — no Dockerfile
+# or breeze edits required. See contributing-docs/12_provider_distributions.rst.
+ci-image = [
+    {include-group = "dev"},
+    {include-group = "docs"},
+    {include-group = "docs-gen"},
+    {include-group = "leveldb"},
+]
+
 [tool.uv]
-required-version = ">=0.9.17"
+# Bump this only when the project actually relies on a newer uv feature/fix. It is a
+# minimum contributors must install, NOT the uv CI pins to — keeping it in lockstep
+# with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
+# breeze/prek uv version checks read this value dynamically and tolerate a stale
+# floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
+required-version = ">=0.11.8"
 no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1365,10 +1406,12 @@ apache-airflow-dev = false
 apache-airflow-devel-common = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
-apache-airflow-helm-tests = false
+apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1479,12 +1522,25 @@ apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
+
+# Manual overrides (kept outside the auto-generated block above so the
+# update_airflow_pyproject_toml.py script doesn't clobber them).
+# uv 0.11.8 lifted the timestamp from `uv.lock` for relative `exclude-newer`
+# (https://github.com/astral-sh/uv/issues/18708, fixed in
+# https://github.com/astral-sh/uv/pull/19022) — we want that fix, but the
+# global 4-day cooldown above would otherwise block a freshly-published uv
+# from being adopted as the floor. Drop uv's cooldown to 12 hours so the
+# pinned `required-version` floor isn't gated by the project-wide window.
+# REMOVE BY 2026-05-01 — once 0.11.8 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+uv = "12 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1501,10 +1557,12 @@ apache-airflow-dev = false
 apache-airflow-devel-common = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
-apache-airflow-helm-tests = false
+apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
+apache-airflow-mypy = false
 apache-airflow-providers = false
 apache-airflow-providers-airbyte = false
+apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-apache-cassandra = false
@@ -1615,12 +1673,18 @@ apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
+
+# Manual overrides — see the matching block under
+# `[tool.uv.exclude-newer-package]` above for rationale.
+# REMOVE BY 2026-05-01 along with the matching entry above.
+uv = "12 hours"
 
 
 [tool.uv.sources]
@@ -1629,6 +1693,7 @@ apache-aurflow-docker-stack = false
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
+apache-airflow-mypy = {workspace = true}
 apache-airflow-scripts = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
@@ -1638,7 +1703,7 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-integration-tests = { workspace = true }
-apache-airflow-helm-tests = { workspace = true }
+apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
@@ -1653,10 +1718,12 @@ apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-serialization = { workspace = true }
+apache-airflow-shared-state = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
+apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
@@ -1763,6 +1830,7 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/mypy",
     "dev/registry",
     "airflow-ctl",
     "airflow-ctl-tests",
@@ -1771,7 +1839,7 @@ members = [
     "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
-    "helm-tests",
+    "chart",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
@@ -1787,10 +1855,12 @@ members = [
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/serialization",
+    "shared/state",
     "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
+    "providers/akeyless",
     "providers/alibaba",
     "providers/amazon",
     "providers/apache/cassandra",

@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
     QueryHITLDetailDagIdPatternSearch,
+    QueryHITLDetailDagIdPrefixPatternSearch,
     QueryHITLDetailMapIndexFilter,
     QueryHITLDetailRespondedUserIdFilter,
     QueryHITLDetailRespondedUserNameFilter,
@@ -36,6 +37,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailSubjectSearch,
     QueryHITLDetailTaskIdFilter,
     QueryHITLDetailTaskIdPatternSearch,
+    QueryHITLDetailTaskIdPrefixPatternSearch,
     QueryLimit,
     QueryOffset,
     QueryTIStateFilter,
@@ -285,8 +287,10 @@ def get_hitl_details(
     readable_ti_filter: ReadableTIFilterDep,
     # ti related filter
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
+    dag_id_prefix_pattern: QueryHITLDetailDagIdPrefixPatternSearch,
     task_id: QueryHITLDetailTaskIdFilter,
     task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
+    task_id_prefix_pattern: QueryHITLDetailTaskIdPrefixPatternSearch,
     map_index: QueryHITLDetailMapIndexFilter,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
@@ -322,8 +326,10 @@ def get_hitl_details(
             readable_ti_filter,
             # ti related filter
             dag_id_pattern,
+            dag_id_prefix_pattern,
             task_id,
             task_id_pattern,
+            task_id_prefix_pattern,
             map_index,
             ti_state,
             # hitl detail related filter

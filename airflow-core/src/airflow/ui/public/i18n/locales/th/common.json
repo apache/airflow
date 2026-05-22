@@ -59,6 +59,11 @@
     "dagVersions": "เวอร์ชันของ Dag",
     "dataIntervalEnd": "สิ้นสุดช่วงข้อมูล",
     "dataIntervalStart": "เริ่มต้นช่วงข้อมูล",
+    "durationStats": {
+      "mean": "ค่าเฉลี่ย",
+      "mode": "ฐานนิยม"
+    },
+    "expectedDuration": "ระยะเวลาที่คาดหวัง",
     "lastSchedulingDecision": "การตัดสินใจกำหนดเวลาล่าสุด",
     "queuedAt": "เข้าคิวเมื่อ",
     "runAfter": "ทำงานหลังจาก",

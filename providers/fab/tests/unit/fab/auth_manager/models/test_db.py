@@ -120,14 +120,53 @@ try:
 
         @mock.patch("alembic.command.upgrade")
         @mock.patch.object(FABDBManager, "create_db_from_orm")
+        @mock.patch.object(FABDBManager, "_has_existing_manager_tables", return_value=False)
         @mock.patch.object(FABDBManager, "get_current_revision", return_value=None)
         def test_upgradedb_empty_db_without_migration_files_uses_create_db_from_orm(
-            self, mock_get_current_revision, mock_create_db_from_orm, mock_upgrade, session
+            self,
+            mock_get_current_revision,
+            mock_has_existing_manager_tables,
+            mock_create_db_from_orm,
+            mock_upgrade,
+            session,
         ):
             FABDBManager(session).upgradedb()
 
+            mock_has_existing_manager_tables.assert_called_once()
             mock_create_db_from_orm.assert_called_once()
             mock_upgrade.assert_not_called()
+            mock_get_current_revision.assert_called_once()
+
+        @mock.patch("alembic.command.upgrade")
+        @mock.patch("alembic.command.stamp")
+        @mock.patch.object(FABDBManager, "get_script_object")
+        @mock.patch.object(FABDBManager, "get_alembic_config", return_value=object())
+        @mock.patch.object(FABDBManager, "create_db_from_orm")
+        @mock.patch.object(FABDBManager, "_has_existing_manager_tables", return_value=True)
+        @mock.patch.object(FABDBManager, "get_current_revision", return_value=None)
+        def test_upgradedb_existing_tables_without_version_stamps_base_then_runs_migrations(
+            self,
+            mock_get_current_revision,
+            mock_has_existing_manager_tables,
+            mock_create_db_from_orm,
+            mock_get_alembic_config,
+            mock_get_script_object,
+            mock_stamp,
+            mock_upgrade,
+            session,
+        ):
+            base_revision = mock.Mock(revision="base-revision", down_revision=None)
+            mock_get_script_object.return_value.walk_revisions.return_value = [
+                mock.Mock(revision="head-revision", down_revision="base-revision"),
+                base_revision,
+            ]
+
+            FABDBManager(session).upgradedb()
+
+            mock_has_existing_manager_tables.assert_called_once()
+            mock_create_db_from_orm.assert_not_called()
+            mock_stamp.assert_called_once_with(mock_get_alembic_config.return_value, "base-revision")
+            mock_upgrade.assert_called_once_with(mock_get_alembic_config.return_value, revision="heads")
             mock_get_current_revision.assert_called_once()
 
         @mock.patch("alembic.command.upgrade")
@@ -189,6 +228,65 @@ try:
 
                 assert "idx_permission_view_id" in index_names
                 assert "idx_role_id" in index_names
+            finally:
+                current_revision = manager.get_current_revision()
+                if original_revision and current_revision != original_revision:
+                    manager.upgradedb(to_revision=original_revision)
+
+        @pytest.mark.backend("mysql")
+        def test_upgradedb_mysql_succeeds_with_implicit_fk_names(self, session):
+            # Legacy MySQL DBs carry FKs auto-named like ``<table>_ibfk_N`` rather than the
+            # naming-convention names ``batch_op.f()`` produces. The upgrade must resolve the
+            # live FK names via introspection so the drops issue the correct identifiers.
+            manager = FABDBManager(session=session)
+            original_revision = manager.get_current_revision()
+
+            try:
+                manager.downgrade(to_revision="6709f7a774b9")
+
+                replacements = {
+                    "ab_permission_view_role": [
+                        ("permission_view_id", "ab_permission_view", "id"),
+                        ("role_id", "ab_role", "id"),
+                    ],
+                    "ab_user_role": [
+                        ("user_id", "ab_user", "id"),
+                        ("role_id", "ab_role", "id"),
+                    ],
+                }
+                with engine.begin() as conn:
+                    for table_name, fks in replacements.items():
+                        for fk in sa.inspect(conn).get_foreign_keys(table_name):
+                            if fk["name"]:
+                                conn.execute(
+                                    sa.text(f"ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk['name']}`")
+                                )
+                        for column, ref_table, ref_column in fks:
+                            conn.execute(
+                                sa.text(
+                                    f"ALTER TABLE `{table_name}` "
+                                    f"ADD FOREIGN KEY (`{column}`) "
+                                    f"REFERENCES `{ref_table}` (`{ref_column}`) ON DELETE CASCADE"
+                                )
+                            )
+
+                implicit_fk_names = {
+                    fk["name"] for fk in sa.inspect(engine).get_foreign_keys("ab_permission_view_role")
+                }
+                assert any(name and "_ibfk_" in name for name in implicit_fk_names)
+
+                manager.upgradedb(to_revision="02ca36b0235b")
+
+                pvr_fk_names = {
+                    fk["name"] for fk in sa.inspect(engine).get_foreign_keys("ab_permission_view_role")
+                }
+                user_role_fk_names = {
+                    fk["name"] for fk in sa.inspect(engine).get_foreign_keys("ab_user_role")
+                }
+                assert "ab_permission_view_role_role_id_fkey" in pvr_fk_names
+                assert "ab_permission_view_role_permission_view_id_fkey" in pvr_fk_names
+                assert "ab_user_role_role_id_fkey" in user_role_fk_names
+                assert "ab_user_role_user_id_fkey" in user_role_fk_names
             finally:
                 current_revision = manager.get_current_revision()
                 if original_revision and current_revision != original_revision:

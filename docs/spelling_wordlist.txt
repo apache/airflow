@@ -37,6 +37,8 @@ airflowctl
 AirflowException
 airflowignore
 ajax
+Akeyless
+akeyless
 aks
 AlertApi
 alertPolicies
@@ -113,6 +115,7 @@ attr
 attrs
 au
 auditability
+auditable
 Auth
 auth
 authenticator
@@ -207,6 +210,7 @@ camelCase
 Cancelled
 cancelled
 Cancelling
+cancelling
 cas
 Cassandra
 cassandra
@@ -538,6 +542,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -655,6 +660,7 @@ formatter
 formatters
 forwardability
 forwardable
+fpr
 fqdn
 frontend
 fs
@@ -779,6 +785,7 @@ hyperparameters
 IaC
 iam
 ibmcloudant
+IdC
 ideation
 idempotence
 idempotency
@@ -809,7 +816,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -820,6 +829,7 @@ InstanceGroupConfig
 InstanceSelection
 instanceTemplates
 InstanceType
+instanceType
 instantiation
 integrations
 ints
@@ -920,6 +930,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
@@ -1023,6 +1034,7 @@ milli
 millis
 milton
 minikube
+misconfiguration
 misconfigured
 Mixin
 mixin
@@ -1113,6 +1125,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
@@ -1297,6 +1310,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
@@ -1355,6 +1369,7 @@ responder
 reStructuredText
 resultset
 resumable
+retryable
 Reusability
 rfc
 rmse
@@ -1382,6 +1397,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runTimeoutInMinutes
 runtimes
 SaaS
 sade
@@ -1591,6 +1607,7 @@ sur
 svg
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath
@@ -1626,6 +1643,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1736,6 +1754,7 @@ unpaused
 unpausing
 unpredicted
 unsanitized
+unscoped
 untestable
 untransformed
 untrusted

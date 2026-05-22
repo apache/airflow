@@ -77,7 +77,6 @@ jobs:
     name: "Build Info"
     runs-on: ["ubuntu-24.04"]
     env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
       REF: ${{ inputs.ref }}
       INCLUDE_DOCS: ${{ inputs.include-docs }}
@@ -98,7 +97,8 @@ jobs:
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
       default-python-version: "3.10"
-      registry-providers: ${{ steps.parameters.outputs.registry-providers }}
+      registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
+      registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -115,6 +115,51 @@ jobs:
       "vatsrahul1001",
       ]'), github.event.sender.login)
     steps:
+      - name: "Checkout for wave provider derivation"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+          fetch-tags: true
+          fetch-depth: 0
+      - name: "Derive registry trigger inputs"
+        id: derive_registry_inputs
+        env:
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+          REF: ${{ inputs.ref }}
+        shell: bash
+        # The registry rebuild is provider-targeted. For non-provider
+        # distributions (apache-airflow, airflow-ctl, helm-chart, etc.) the
+        # update-registry job below is a no-op anyway, so skip the derive
+        # step — that lets release tags cut before
+        # `dev/registry/derive_wave_providers.py` was added (#66100) still
+        # publish docs without the workflow tripping on the missing file.
+        # Tracked at #66436.
+        run: |
+          # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
+          # dev/registry/derive_wave_providers.py.
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "task-sdk" "helm-chart" "docker-stack")
+          has_provider=false
+          for token in $INCLUDE_DOCS; do
+            is_non_provider=false
+            for np in "${NON_PROVIDER_TOKENS[@]}"; do
+              if [[ "$token" == "$np" ]]; then
+                is_non_provider=true
+                break
+              fi
+            done
+            if ! $is_non_provider; then
+              has_provider=true
+              break
+            fi
+          done
+          if ! $has_provider; then
+            echo "Non-provider distribution(s) only ('${INCLUDE_DOCS}') — skipping registry-derive."
+            echo "registry-providers=" >> "${GITHUB_OUTPUT}"
+            echo "registry-full-build=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          python3 dev/registry/derive_wave_providers.py
       - name: "Input parameters summary"
         shell: bash
         id: parameters
@@ -166,27 +211,6 @@ jobs:
              echo "airflow-version=no-airflow" >> ${GITHUB_OUTPUT}
              echo "airflow-base-version=no-airflow" >> ${GITHUB_OUTPUT}
           fi
-          # Extract provider IDs for registry update
-          # include-docs contains short names like "amazon", "common.ai", "openlineage"
-          # or full package names like "apache-airflow-providers-amazon"
-          REGISTRY_PROVIDERS=""
-          for pkg in ${INCLUDE_DOCS}; do
-            case "${pkg}" in
-              apache-airflow-providers-*)
-                PROVIDER_ID="${pkg#apache-airflow-providers-}"
-                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
-                ;;
-              apache-airflow|all-providers|apache-airflow-providers|helm-chart|docker-stack)
-                # Not a provider package, skip
-                ;;
-              *)
-                # Short name like "amazon" or "common.ai" -- convert dots to hyphens
-                PROVIDER_ID="${pkg//./-}"
-                REGISTRY_PROVIDERS="${REGISTRY_PROVIDERS:+${REGISTRY_PROVIDERS} }${PROVIDER_ID}"
-                ;;
-            esac
-          done
-          echo "registry-providers=${REGISTRY_PROVIDERS}" >> ${GITHUB_OUTPUT}
 
   build-docs:
     needs: [build-info]
@@ -279,7 +303,7 @@ jobs:
           -t "ghcr.io/apache/airflow/main/ci/python${PYTHON_MAJOR_MINOR_VERSION}:latest" --target main .
           -f Dockerfile.ci --platform linux/amd64
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -292,7 +316,7 @@ jobs:
         run: >
           breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
         if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
         with:
           path: ./generated/_inventory_cache/
@@ -313,7 +337,7 @@ jobs:
             exit 1
           fi
       - name: "Upload build docs"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: airflow-docs
           path: /mnt/_build
@@ -417,7 +441,7 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6.1.0
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6.1.1
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -435,7 +459,7 @@ jobs:
 
   update-registry:
     needs: [publish-docs-to-s3, build-info]
-    if: needs.build-info.outputs.registry-providers != ''
+    if: needs.build-info.outputs.registry-providers != '' || needs.build-info.outputs.registry-full-build == 'true'
     name: "Update Provider Registry"
     permissions:
       contents: read

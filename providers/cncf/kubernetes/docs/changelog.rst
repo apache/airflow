@@ -27,6 +27,80 @@
 Changelog
 ---------
 
+10.17.1
+.......
+
+.. note::
+   **Default xcom-sidecar image is now pinned to** ``alpine:3.23``.
+   The default container image for the xcom sidecar (used by ``KubernetesPodOperator``
+   when ``do_xcom_push=True``) has changed from the unpinned ``alpine`` (which resolves
+   to ``alpine:latest``) to the pinned ``alpine:3.23``. The pin makes the kubelet's
+   default ``imagePullPolicy`` ``IfNotPresent`` instead of ``Always``, so a node with
+   the image cached does not re-pull on every task — protecting deployments and CI
+   from Docker Hub anonymous-pull rate limits.
+
+   Deployments that override the image via ``xcom_sidecar_container_image`` (or the
+   ``[kubernetes] xcom_sidecar_container_image`` config) are unaffected. Deployments
+   that relied on the unpinned default will now be pinned to ``alpine:3.23`` until
+   the next Airflow upgrade. Set ``xcom_sidecar_container_image`` explicitly if you
+   need a different alpine version, a private mirror, or another base image.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable KubernetesPodOperator trigger_reentry crash when pod is GC'd before re-entry (#66716)``
+* ``Fix: Add latency + status metrics around pod API calls (#66806)``
+* ``Fix misleading pod scheduling log message ("Waiting until" → "Waiting up to") (#66164)``
+* ``Re-defer task when Kubernetes pod is not completed (#66705)``
+* ``Fix KubernetesPodTrigger pod terminal state handling (#66650)``
+* ``Fix race condition in AsyncKubernetesHook corrupting global kubernetes_asyncio config (#65566)``
+* ``Respecting unwrap_single for non-deferrable execution (#66596)``
+* ``Fix kubernetes cleanup-pods ignoring --verbose (#65955)``
+* ``Preserve event resource version after empty sync polls (#66471)``
+* ``Fix SparkKubernetesOperator with deferrable=True falling through to KubernetesPodOperator.execute() creating a spurious pod (#66448)``
+* ``KubernetesExecutor: scope periodic completed-pod adoption to dead schedulers (#66400)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix hardcoded OS path in K8s provider (#67040)``
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``[main] CI: Upgrade important CI environment (#66600)``
+   * ``Pin Docker Hub test images against K8s system-test rate-limit flakes (#66423)``
+
+10.17.0
+.......
+
+Features
+~~~~~~~~
+* ``Move KubernetesPodTrigger pod cleanup from cleanup() to on_kill() (#65741)``
+* ``Add multi-team lookup to Kubernetes secrets backend (#65694)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Remove the DualStatsManager and the Stats interfaces (#63932)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+10.16.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Treat registry 5xx errors as transient during KubernetesPodOperator pod startup (#65490)``
+* ``Fix KubernetesPodOperator to forward pod log levels to Airflow task logs (#64829)``
+* ``Catch TypeError for non-datetime since_time in _write_logs (#65232)``
+* ``Do not cache kubeconfig for exec based auth in AsyncKubernetesHook (#65212)``
+* ``Consider XCOM sidecar container during pod cleanup (#64962)``
+* ``Handle unknown pod phase in KubernetesPodOperator (#65202)``
+* ``Allow string conversion to datetime for since_time in KPO logs (#65498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 10.16.0
 .......
 

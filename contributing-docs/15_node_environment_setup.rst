@@ -266,6 +266,60 @@ Choose the right state management for your use case:
     // Calculate during render:
     const fullName = `${firstName} ${lastName}`;
 
+**Menu component**
+
+When ``Menu.Trigger`` wraps a concrete element such as ``IconButton`` or ``Button``,
+always pass ``asChild`` so Chakra merges its trigger behaviour onto that element
+instead of rendering a redundant extra ``<button>``:
+
+.. code-block:: typescript
+
+    // ✅ Good
+    <Menu.Trigger asChild>
+      <IconButton>
+        <LuSettings />
+      </IconButton>
+    </Menu.Trigger>
+
+    // ❌ Bad – produces nested <button> elements
+    <Menu.Trigger>
+      <IconButton>
+        <LuSettings />
+      </IconButton>
+    </Menu.Trigger>
+
+When a trigger needs a tooltip, pass ``tooltipLabel`` to ``Menu.Root``.
+Our ``Menu.Root`` and ``Menu.Trigger`` wire up the required Chakra ID syncing
+automatically. Do **not** manage IDs manually or add a standalone ``<Tooltip>``
+wrapper around ``Menu.Trigger``. When ``tooltipLabel`` is set, omit the ``label``
+prop from the inner ``IconButton`` — the tooltip covers accessibility labelling.
+
+.. code-block:: typescript
+
+    // ✅ Good
+    <Menu.Root tooltipLabel={translate("nav.settings")}>
+      <Menu.Trigger asChild>
+        <IconButton>
+          <LuSettings />
+        </IconButton>
+      </Menu.Trigger>
+      ...
+    </Menu.Root>
+
+    // ❌ Bad – manual ID juggling, standalone Tooltip wrapper
+    const triggerId = useId();
+    <Menu.Root ids={{ trigger: triggerId }}>
+      <Tooltip content={translate("nav.settings")} ids={{ trigger: triggerId }}>
+        <Menu.Trigger asChild>
+          <IconButton>
+            <LuSettings />
+          </IconButton>
+        </Menu.Trigger>
+      </Tooltip>
+      ...
+    </Menu.Root>
+
+
 **Error and Loading States**
 
 Always handle all states from async operations:

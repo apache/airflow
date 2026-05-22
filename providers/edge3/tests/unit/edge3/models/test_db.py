@@ -20,6 +20,7 @@ import warnings
 from unittest import mock
 
 import pytest
+import sqlalchemy as sa
 
 from airflow.utils.db_manager import RunDBManager
 
@@ -240,6 +241,18 @@ class TestEdgeDBManager:
                 mc = MigrationContext.configure(conn, opts={"render_as_batch": True})
                 ops = Operations(mc)
                 ops.drop_column("edge_worker", "concurrency")
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_failed", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_taken", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_success", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
 
         # initdb() should detect tables exist, stamp to base, then upgrade
         manager.initdb()
@@ -248,7 +261,52 @@ class TestEdgeDBManager:
             version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
             columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
 
-        assert version == "a09c3ee8e1d3"
+        assert version == "c6b3c3d093fd"
+        assert "concurrency" in columns
+        assert "team_name" in columns
+
+    def test_upgradedb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
+        """Test upgradedb runs incremental migrations when tables exist but alembic version table does not."""
+        from sqlalchemy import inspect, text
+
+        from airflow import settings
+        from airflow.providers.edge3.models.db import EdgeDBManager
+
+        manager = EdgeDBManager(session)
+
+        # Simulate pre-alembic state: tables exist but no version table and no concurrency column
+        with settings.engine.begin() as conn:
+            inspector = inspect(conn)
+            if inspector.has_table("alembic_version_edge3"):
+                conn.execute(text("DELETE FROM alembic_version_edge3"))
+            if "concurrency" in {col["name"] for col in inspector.get_columns("edge_worker")}:
+                from alembic.migration import MigrationContext
+                from alembic.operations import Operations
+
+                mc = MigrationContext.configure(conn, opts={"render_as_batch": True})
+                ops = Operations(mc)
+                ops.drop_column("edge_worker", "concurrency")
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_failed", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_taken", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_success", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+
+        # upgradedb() should detect tables exist, stamp to base, then upgrade
+        manager.upgradedb()
+
+        with settings.engine.connect() as conn:
+            version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
+            columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
+
+        assert version in manager.get_script_object().get_heads()
         assert "concurrency" in columns
         assert "team_name" in columns
 
@@ -273,6 +331,18 @@ class TestEdgeDBManager:
                 mc = MigrationContext.configure(conn, opts={"render_as_batch": True})
                 ops = Operations(mc)
                 ops.drop_column("edge_worker", "concurrency")
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_failed", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_taken", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
+                ops.add_column(
+                    "edge_worker",
+                    sa.Column("jobs_success", sa.INTEGER(), autoincrement=False, default=0, nullable=False),
+                )
 
         # Stamp to old revision (pre-concurrency) using alembic's own connection
         command.stamp(config, "9d34dfc2de06")

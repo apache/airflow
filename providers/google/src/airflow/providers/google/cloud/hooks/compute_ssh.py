@@ -76,6 +76,20 @@ class ComputeEngineSSHHook(SSHHook):
     """
     Hook to connect to a remote instance in compute engine.
 
+    This hook supports two SSH key-management flows:
+
+    * Cloud OS Login when ``use_oslogin=True``
+    * instance metadata SSH keys when ``use_oslogin=False``
+
+    In Sovereign Cloud from Google environments, the recommended setup is to use instance metadata SSH keys:
+
+    * ``use_oslogin=False`` and ``use_iap_tunnel=False`` for direct SSH
+    * ``use_oslogin=False`` and ``use_iap_tunnel=True`` for SSH over IAP
+
+    In a tested Sovereign Cloud from Google environment, the OS Login SSH flow was not available for this hook. Since this hook uses
+    OS Login SSH-key management when ``use_oslogin=True``, that setting should be avoided there unless the
+    target environment explicitly supports OS Login SSH.
+
     :param instance_name: The name of the Compute Engine instance
     :param zone: The zone of the Compute Engine instance
     :param user: The name of the user on which the login attempt will be made
@@ -83,10 +97,14 @@ class ComputeEngineSSHHook(SSHHook):
     :param gcp_conn_id: The connection id to use when fetching connection info
     :param hostname: The hostname of the target instance. If it is not passed, it will be detected
         automatically.
-    :param use_iap_tunnel: Whether to connect through IAP tunnel
+    :param use_iap_tunnel: Whether to connect through IAP tunnel. In Sovereign Cloud from Google environments this can work with
+        metadata-managed SSH keys, but it requires the IAM permissions needed to open an IAP tunnel. In
+        Google Cloud deployments, this is typically the ``IAP-secured Tunnel User`` role
+        (``roles/iap.tunnelResourceAccessor``).
     :param use_internal_ip: Whether to connect using internal IP
     :param use_oslogin: Whether to manage keys using OsLogin API. If false,
-        keys are managed using instance metadata
+        keys are managed using instance metadata. In tested Sovereign Cloud from Google environments, set this to ``False`` and use
+        metadata-managed SSH keys instead.
     :param expire_time: The maximum amount of time in seconds before the private key expires
     :param gcp_conn_id: The connection id to use when fetching connection information
     :param max_retries: Maximum number of retries the process will try to establish connection to instance.
@@ -94,6 +112,13 @@ class ComputeEngineSSHHook(SSHHook):
     :param impersonation_chain: Optional. The service account email to impersonate using short-term
         credentials. The provided service account must grant the originating account
         the Service Account Token Creator IAM role and have the sufficient rights to perform the request
+    :param host_key_policy: Policy used by the underlying ``paramiko.SSHClient`` for unknown host keys.
+        Accepts the string aliases ``"auto_add"`` (default, historical behaviour — adds unknown keys
+        without prompting), ``"reject"`` (refuse to connect to hosts whose key is not in ``known_hosts``)
+        and ``"warning"`` (log a warning but still connect). Alternatively, pass an instance of
+        ``paramiko.MissingHostKeyPolicy`` (or a subclass) to plug in a custom policy — for example one
+        that loads pinned host keys from GCE guest attributes. Any other value raises ``ValueError``
+        when the connection is opened.
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -123,6 +148,7 @@ class ComputeEngineSSHHook(SSHHook):
         cmd_timeout: int | ArgNotSet = NOTSET,
         max_retries: int = 10,
         impersonation_chain: str | None = None,
+        host_key_policy: str | paramiko.MissingHostKeyPolicy = "auto_add",
         **kwargs,
     ) -> None:
         # Ignore original constructor
@@ -140,7 +166,46 @@ class ComputeEngineSSHHook(SSHHook):
         self.cmd_timeout = cmd_timeout
         self.max_retries = max_retries
         self.impersonation_chain = impersonation_chain
+        self.host_key_policy = host_key_policy
         self._conn: Any | None = None
+
+    def _resolve_host_key_policy(self) -> paramiko.MissingHostKeyPolicy:
+        """
+        Resolve ``self.host_key_policy`` to a concrete paramiko policy instance.
+
+        Accepts:
+
+        - the string aliases ``"auto_add"``, ``"reject"`` or ``"warning"`` —
+          mapped to the matching ``paramiko`` policy class;
+        - an instance of ``paramiko.MissingHostKeyPolicy`` — used as-is, so
+          callers can plug in a custom policy (e.g. one that loads pinned
+          host keys from GCE guest attributes).
+
+        Any other value raises :class:`ValueError`.
+
+        The default value (``"auto_add"``) preserves the historical behaviour
+        of this hook. Callers that want the remote SSH server authenticated
+        before the session opens should pass ``"reject"`` together with a
+        populated ``known_hosts`` file, or supply a custom policy that
+        looks the remote host's key up from an out-of-band source.
+        """
+        if not isinstance(self.host_key_policy, str):
+            # Trust the caller: an explicit paramiko.MissingHostKeyPolicy
+            # instance, or a subclass instance with custom behaviour.
+            return self.host_key_policy
+        builtins = {
+            "auto_add": paramiko.AutoAddPolicy,
+            "reject": paramiko.RejectPolicy,
+            "warning": paramiko.WarningPolicy,
+        }
+        try:
+            return builtins[self.host_key_policy]()
+        except KeyError:
+            raise ValueError(
+                f"Unknown host_key_policy {self.host_key_policy!r}. "
+                "Expected one of 'auto_add', 'reject', 'warning', "
+                "or an instance of paramiko.MissingHostKeyPolicy."
+            ) from None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
@@ -292,9 +357,12 @@ class ComputeEngineSSHHook(SSHHook):
         for time_to_wait in range(max_time_to_wait + 1):
             try:
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
-                # Default is RejectPolicy
-                # No known host checking since we are not storing privatekey
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
+                # Apply the policy configured via the `host_key_policy` constructor
+                # argument; default is `"auto_add"` (paramiko.AutoAddPolicy), which
+                # preserves the historical behaviour of this hook. Callers that need
+                # the remote host authenticated should pass `"reject"` with a
+                # populated known_hosts file or a custom MissingHostKeyPolicy.
+                client.set_missing_host_key_policy(self._resolve_host_key_policy())  # nosec B507
                 client.connect(
                     hostname=hostname,
                     username=user,

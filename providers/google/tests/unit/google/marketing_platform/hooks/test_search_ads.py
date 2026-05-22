@@ -43,16 +43,20 @@ class TestGoogleSearchAdsReportingHook:
             self.hook = GoogleSearchAdsReportingHook(gcp_conn_id=GCP_CONN_ID)
 
     @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.get_client_options"
+    )
+    @mock.patch(
         "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.get_credentials"
     )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
-    def test_gen_conn(self, mock_build, mock_get_credentials):
+    def test_gen_conn(self, mock_build, mock_get_credentials, mock_get_client_options):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "searchads360",
             API_VERSION,
             credentials=mock_get_credentials.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result
 
@@ -182,14 +186,18 @@ class TestSearchAdsHook:
         ):
             self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)
 
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_client_options"
+    )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook._authorize")
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
-    def test_gen_conn(self, mock_build, mock_authorize):
+    def test_gen_conn(self, mock_build, mock_authorize, mock_get_client_options):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "doubleclicksearch",
             "v2",
             http=mock_authorize.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_build.return_value == result

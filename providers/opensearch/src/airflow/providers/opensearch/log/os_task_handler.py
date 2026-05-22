@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
@@ -38,6 +39,7 @@ from opensearchpy.exceptions import NotFoundError
 from sqlalchemy import select
 
 import airflow.logging_config as alc
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, conf
@@ -195,6 +197,28 @@ def _create_opensearch_client(
         http_auth=(username, password),
         **os_kwargs,
     )
+
+
+def _strip_userinfo(url: str) -> str:
+    """
+    Return ``url`` with any ``user:password@`` userinfo removed.
+
+    The OpenSearch ``[opensearch] host`` config commonly embeds
+    credentials (``https://user:password@opensearch.example.com:9200``).
+    This value is reused as a display label for log-source grouping, so
+    the credentials would otherwise end up in task logs. Anything that
+    is not a valid URL is returned unchanged.
+    """
+    try:
+        parsed = urlparse(url)
+    except (TypeError, ValueError):
+        return url
+    if not parsed.hostname or (not parsed.username and not parsed.password):
+        return url
+    netloc = parsed.hostname
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return parsed._replace(netloc=netloc).geturl()
 
 
 def _render_log_id(
@@ -358,8 +382,31 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    # stacklevel=1 keeps the warning attributed to this airflow.providers
+                    # module so module-based deprecation filters still match; dictConfig
+                    # is in stdlib and would otherwise hide the warning at stacklevel=2.
+                    warnings.warn(
+                        "Implicit REMOTE_TASK_LOG registration by OpensearchTaskHandler during "
+                        "dictConfig is deprecated and will be removed in a future provider "
+                        "release. Set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at "
+                        "module scope in your ``[logging] logging_config_class`` module. See "
+                        "the OpenSearch provider logging documentation for the updated "
+                        "override example.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=1,
+                    )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                warnings.warn(
+                    "Implicit REMOTE_TASK_LOG registration by OpensearchTaskHandler during "
+                    "dictConfig is deprecated and will be removed in a future provider "
+                    "release. Set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at "
+                    "module scope in your ``[logging] logging_config_class`` module. See "
+                    "the OpenSearch provider logging documentation for the updated "
+                    "override example.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
@@ -571,10 +618,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 header = [
-                    StructuredLogMessage(
-                        event="::group::Log message source details",
-                        sources=[host for host in logs_by_host.keys()],
-                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::group::Log message source details"),
+                    *[StructuredLogMessage(event=host) for host in logs_by_host.keys()],
                     StructuredLogMessage(event="::endgroup::"),
                 ]
 
@@ -713,8 +758,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -937,8 +983,9 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def _group_logs_by_host(self, response: OpensearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
+        host_fallback = _strip_userinfo(self.host)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or self.host
+            key = getattr_nested(hit, self.host_field, None) or host_fallback
             grouped_logs[key].append(hit)
         return grouped_logs
 

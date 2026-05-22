@@ -45,6 +45,7 @@ from airflow.sdk import (
     PartitionMapper,
     ProductMapper,
     StartOfDayMapper,
+    StartOfHourMapper,
     StartOfMonthMapper,
     StartOfQuarterMapper,
     StartOfWeekMapper,
@@ -52,9 +53,9 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
@@ -190,6 +191,18 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
             d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
+            ac = a.access_control
+            if isinstance(ac, dict):
+                # SerializedAsset stores access_control as a plain dict.
+                if ac:
+                    d["access_control"] = ac
+            else:
+                # Asset stores access_control as an AssetAccessControl instance.
+                if ac.producer_teams or not ac.allow_global:
+                    d["access_control"] = {
+                        "producer_teams": ac.producer_teams,
+                        "allow_global": ac.allow_global,
+                    }
             return d
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
@@ -211,6 +224,7 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
     from airflow.sdk.serde import serialize
 
     return {
+        "name": d.name,
         "reference": encode_deadline_reference(d.reference),
         "interval": d.interval.total_seconds(),
         "callback": serialize(d.callback),
@@ -292,6 +306,7 @@ class _Serializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
+        PartitionAtRuntime: "airflow.timetables.simple.PartitionAtRuntime",
         PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
@@ -317,7 +332,10 @@ class _Serializer:
     @serialize_timetable.register(ContinuousTimetable)
     @serialize_timetable.register(NullTimetable)
     @serialize_timetable.register(OnceTimetable)
-    def _(self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable) -> dict[str, Any]:
+    @serialize_timetable.register(PartitionAtRuntime)
+    def _(
+        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionAtRuntime
+    ) -> dict[str, Any]:
         return {}
 
     @serialize_timetable.register
@@ -445,6 +463,7 @@ class _Serializer:
         | StartOfYearMapper,
     ) -> dict[str, Any]:
         return {
+            "timezone": encode_timezone(partition_mapper._timezone),
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }

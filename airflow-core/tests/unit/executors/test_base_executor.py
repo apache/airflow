@@ -35,12 +35,13 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads.base import BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, execute_callback_workload
-from airflow.models.callback import CallbackFetchMethod
+from airflow.executors.workloads.callback import CallbackDTO
+from airflow.models.callback import CallbackFetchMethod, CallbackKey
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
+from airflow.sdk.execution_time.callback_supervisor import execute_callback
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import CallbackState, State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -99,6 +100,53 @@ def test_get_event_buffer():
     assert len(executor.event_buffer) == 0
 
 
+def test_get_event_buffer_always_includes_callback_keys():
+    """CallbackKey events are always returned regardless of the dag_ids filter."""
+    executor = BaseExecutor()
+
+    date = timezone.utcnow()
+    ti_key = TaskInstanceKey("my_dag1", "my_task1", date, 1)
+    callback_key = CallbackKey(id="00000000-0000-0000-0000-000000000042")
+
+    executor.event_buffer[ti_key] = State.SUCCESS, None
+    executor.event_buffer[callback_key] = CallbackState.SUCCESS, None
+
+    # Filter for a dag that doesn't match the TI key. Callback should still be included
+    result = executor.get_event_buffer(("other_dag",))
+    assert callback_key in result
+    assert ti_key not in result
+
+
+def test_log_task_event_branches_on_key_type():
+    executor = BaseExecutor()
+    ti_key = TaskInstanceKey("my_dag", "my_task", timezone.utcnow(), 1)
+
+    executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
+    assert len(executor._task_event_logs) == 1
+
+    callback_key = CallbackKey(id=str(UUID("00000000-0000-0000-0000-000000000001")))
+    executor.log_task_event(event="callback_event", extra="extra", ti_key=callback_key)
+    assert len(executor._task_event_logs) == 1
+
+
+@pytest.mark.parametrize(
+    ("method_name", "expected_state"),
+    [
+        ("fail", CallbackState.FAILED),
+        ("success", CallbackState.SUCCESS),
+        ("queued", CallbackState.QUEUED),
+        ("running_state", CallbackState.RUNNING),
+    ],
+)
+def test_state_methods_pick_callback_state_for_callback_key(method_name, expected_state):
+    executor = BaseExecutor()
+    callback_key = CallbackKey(id=str(UUID("00000000-0000-0000-0000-000000000002")))
+
+    getattr(executor, method_name)(callback_key)
+
+    assert executor.event_buffer[callback_key] == (expected_state, None)
+
+
 def test_fail_and_success():
     executor = BaseExecutor()
 
@@ -120,15 +168,25 @@ def test_fail_and_success():
 
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-@mock.patch("airflow.executors.base_executor.Stats.gauge")
+@mock.patch("airflow.executors.base_executor.stats.gauge")
 def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
-        mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
-        mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
         mock.call(
-            "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+            "executor.open_slots",
+            value=mock.ANY,
+            tags={"status": "open", "executor_class_name": "BaseExecutor"},
+        ),
+        mock.call(
+            "executor.queued_tasks",
+            value=mock.ANY,
+            tags={"status": "queued", "executor_class_name": "BaseExecutor"},
+        ),
+        mock.call(
+            "executor.running_tasks",
+            value=mock.ANY,
+            tags={"status": "running", "executor_class_name": "BaseExecutor"},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
@@ -140,7 +198,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-@mock.patch("airflow.executors.base_executor.Stats.gauge")
+@mock.patch("airflow.executors.base_executor.stats.gauge")
 @mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
 def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,
@@ -160,17 +218,17 @@ def test_gauge_executor_metrics_with_multiple_executors(
         mock.call(
             f"executor.open_slots.{executor_name}",
             value=mock.ANY,
-            tags={"status": "open", "name": executor_name},
+            tags={"status": "open", "executor_class_name": executor_name},
         ),
         mock.call(
             f"executor.queued_tasks.{executor_name}",
             value=mock.ANY,
-            tags={"status": "queued", "name": executor_name},
+            tags={"status": "queued", "executor_class_name": executor_name},
         ),
         mock.call(
             f"executor.running_tasks.{executor_name}",
             value=mock.ANY,
-            tags={"status": "running", "name": executor_name},
+            tags={"status": "running", "executor_class_name": executor_name},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
@@ -586,7 +644,7 @@ class TestCallbackSupport:
         executor.queue_workload(callback_workload, session)
 
         assert len(executor.queued_callbacks) == 1
-        assert callback_data.id in executor.queued_callbacks
+        assert callback_workload.key in executor.queued_callbacks
 
     @pytest.mark.db_test
     def test_get_workloads_prioritizes_callbacks(self, dag_maker, session):
@@ -619,64 +677,21 @@ class TestCallbackSupport:
 
 
 class TestExecuteCallbackWorkload:
-    def test_execute_function_callback_success(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.dict",
-                "kwargs": {"a": 1, "b": 2, "c": 3},
-            },
-        )
+    @pytest.mark.parametrize(
+        ("path", "kwargs", "expect_success", "error_contains"),
+        [
+            pytest.param("builtins.dict", {"a": 1, "b": 2, "c": 3}, True, None, id="function_success"),
+            pytest.param("", {}, False, "Callback path not found", id="missing_path"),
+            pytest.param("nonexistent.module.function", {}, False, "ModuleNotFoundError", id="import_error"),
+            pytest.param("builtins.len", {}, False, "TypeError", id="execution_error"),
+        ],
+    )
+    def test_execute_callback(self, path, kwargs, expect_success, error_contains):
         log = structlog.get_logger()
+        success, error = execute_callback(path, kwargs, log)
 
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is True
-        assert error is None
-
-    def test_execute_callback_missing_path(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={"kwargs": {}},  # Missing 'path'
-        )
-        log = structlog.get_logger()
-
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is False
-        assert "Callback path not found" in error
-
-    def test_execute_callback_import_error(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "nonexistent.module.function",
-                "kwargs": {},
-            },
-        )
-        log = structlog.get_logger()
-
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is False
-        assert "ModuleNotFoundError" in error
-
-    def test_execute_callback_execution_error(self):
-        # Use a function that will raise an error; len() requires an argument
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.len",
-                "kwargs": {},
-            },
-        )
-        log = structlog.get_logger()
-
-        success, error = execute_callback_workload(callback_data, log)
-
-        assert success is False
-        assert "TypeError" in error
+        assert success is expect_success
+        if error_contains:
+            assert error_contains in error
+        else:
+            assert error is None

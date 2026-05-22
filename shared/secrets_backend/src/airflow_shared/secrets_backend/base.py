@@ -84,7 +84,7 @@ class BaseSecretsBackend(ABC):
     def _deserialize_connection_value(conn_class: type, conn_id: str, value: str):
         value = value.strip()
         if value[0] == "{":
-            return conn_class.from_json(value=value, conn_id=conn_id)
+            return conn_class.from_json(value=value, conn_id=conn_id)  # type: ignore[attr-defined]
 
         # TODO: Only sdk has from_uri defined on it. Is it worthwhile developing the core path or not?
         if hasattr(conn_class, "from_uri"):

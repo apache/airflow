@@ -123,13 +123,64 @@ class TestJWTRefreshMiddleware:
         call_next = AsyncMock(return_value=Response())
         response = await middleware.dispatch(mock_request, call_next)
 
+        from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
         assert mock_request.state.user == refreshed_user
+        # JWTRefreshMiddleware must stamp the trust sentinel so `get_user()` accepts
+        # the cached user. Without the marker, the auth dependency falls through
+        # to a fresh JWT validation, defeating the refresh.
+        assert mock_request.state.user_authenticated_via is USER_INJECTED_BY_TRUSTED_MIDDLEWARE
         call_next.assert_called_once_with(mock_request)
         mock_resolve_user_from_token.assert_called_once_with("valid_token")
         mock_auth_manager.refresh_user.assert_called_once_with(user=mock_user)
         mock_auth_manager.generate_jwt.assert_called_once_with(refreshed_user)
         set_cookie_headers = response.headers.get("set-cookie", "")
         assert f"{COOKIE_NAME_JWT_TOKEN}=new_token" in set_cookie_headers
+
+    @pytest.mark.parametrize(
+        ("scheme", "ssl_cert", "expected_secure"),
+        [
+            pytest.param("https", "", True, id="https-no-local-ssl-cert"),
+            pytest.param("http", "/etc/ssl/cert.pem", True, id="http-with-local-ssl-cert"),
+            pytest.param("https", "/etc/ssl/cert.pem", True, id="https-with-local-ssl-cert"),
+            pytest.param("http", "", False, id="http-no-local-ssl-cert"),
+        ],
+    )
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
+    @pytest.mark.asyncio
+    async def test_dispatch_cookie_secure_flag(
+        self,
+        mock_conf,
+        mock_resolve_user_from_token,
+        mock_get_auth_manager,
+        middleware,
+        mock_request,
+        mock_user,
+        scheme,
+        ssl_cert,
+        expected_secure,
+    ):
+        """The cookie Secure flag must follow the request scheme as well as the local ssl_cert."""
+        refreshed_user = MagicMock(spec=BaseUser)
+        mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "valid_token"}
+        mock_request.base_url = MagicMock(scheme=scheme)
+        mock_resolve_user_from_token.return_value = mock_user
+        mock_auth_manager = MagicMock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.refresh_user.return_value = refreshed_user
+        mock_auth_manager.generate_jwt.return_value = "new_token"
+        mock_conf.get.return_value = ssl_cert
+
+        call_next = AsyncMock(return_value=Response())
+        response = await middleware.dispatch(mock_request, call_next)
+
+        set_cookie_headers = response.headers.get("set-cookie", "")
+        if expected_secure:
+            assert "Secure" in set_cookie_headers
+        else:
+            assert "Secure" not in set_cookie_headers
 
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_cookie_path", return_value="/team-a/")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
