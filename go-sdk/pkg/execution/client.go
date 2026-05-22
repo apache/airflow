@@ -44,8 +44,8 @@ func NewCoordinatorClient(comm *CoordinatorComm, details *StartupDetails) *Coord
 }
 
 // GetVariable requests a variable value from the supervisor.
-func (c *CoordinatorClient) GetVariable(_ context.Context, key string) (string, error) {
-	resp, err := c.comm.Communicate(GetVariableMsg{Key: key}.toMap())
+func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string, error) {
+	resp, err := c.comm.Communicate(ctx, GetVariableMsg{Key: key}.toMap())
 	if err != nil {
 		return "", err
 	}
@@ -98,10 +98,10 @@ func (c *CoordinatorClient) UnmarshalJSONVariable(
 
 // GetConnection requests a connection from the supervisor.
 func (c *CoordinatorClient) GetConnection(
-	_ context.Context,
+	ctx context.Context,
 	connID string,
 ) (sdk.Connection, error) {
-	resp, err := c.comm.Communicate(GetConnectionMsg{ConnID: connID}.toMap())
+	resp, err := c.comm.Communicate(ctx, GetConnectionMsg{ConnID: connID}.toMap())
 	if err != nil {
 		return sdk.Connection{}, err
 	}
@@ -146,7 +146,7 @@ func (c *CoordinatorClient) GetConnection(
 
 // GetXCom requests an XCom value from the supervisor.
 func (c *CoordinatorClient) GetXCom(
-	_ context.Context,
+	ctx context.Context,
 	dagId, runId, taskId string,
 	mapIndex *int,
 	key string,
@@ -162,7 +162,7 @@ func (c *CoordinatorClient) GetXCom(
 		msg.MapIndex = mapIndex
 	}
 
-	resp, err := c.comm.Communicate(msg.toMap())
+	resp, err := c.comm.Communicate(ctx, msg.toMap())
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (c *CoordinatorClient) GetXCom(
 
 // PushXCom sends an XCom value to the supervisor.
 func (c *CoordinatorClient) PushXCom(
-	_ context.Context,
+	ctx context.Context,
 	ti api.TaskInstance,
 	key string,
 	value any,
@@ -196,6 +196,6 @@ func (c *CoordinatorClient) PushXCom(
 		MapIndex: mapIndex,
 	}
 
-	_, err := c.comm.Communicate(msg.toMap())
+	_, err := c.comm.Communicate(ctx, msg.toMap())
 	return err
 }

@@ -18,6 +18,7 @@
 package execution
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -112,14 +113,21 @@ func (c *CoordinatorComm) SendRequest(id int, body map[string]any) error {
 }
 
 // Communicate sends a request and blocks until the supervisor's response with
-// the matching frame ID is delivered by the dispatcher. Safe to call
-// concurrently from multiple goroutines.
+// the matching frame ID is delivered by the dispatcher, ctx is cancelled, or
+// its deadline expires. Safe to call concurrently from multiple goroutines.
 //
 // If the response carries an error (either as the third element of a 3-tuple
 // frame or as a body whose "type" is "ErrorResponse") it is returned as an
 // *ApiError. If the dispatcher's read loop has terminated, the underlying read
 // error is returned wrapped in ErrDispatcherClosed.
-func (c *CoordinatorComm) Communicate(body map[string]any) (map[string]any, error) {
+func (c *CoordinatorComm) Communicate(
+	ctx context.Context,
+	body map[string]any,
+) (map[string]any, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	id := int(c.nextID.Add(1) - 1)
 	ch := make(chan frameResult, 1)
 
@@ -146,7 +154,20 @@ func (c *CoordinatorComm) Communicate(body map[string]any) (map[string]any, erro
 		return nil, err
 	}
 
-	result := <-ch
+	var result frameResult
+	select {
+	case result = <-ch:
+	case <-ctx.Done():
+		// Drop the waiter so a late supervisor reply is logged-and-discarded
+		// by the dispatcher rather than piling up in c.pending. The dispatcher
+		// may have already delivered the response into the buffered channel
+		// between the select and this delete; that delivery is harmless (the
+		// channel is buffered to 1 and the caller has already given up).
+		c.mu.Lock()
+		delete(c.pending, id)
+		c.mu.Unlock()
+		return nil, ctx.Err()
+	}
 	if result.err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrDispatcherClosed, result.err)
 	}

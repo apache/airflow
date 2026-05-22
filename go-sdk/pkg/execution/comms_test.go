@@ -19,6 +19,7 @@ package execution
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -87,7 +88,7 @@ func TestCoordinatorCommCommunicate(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 
-	result, err := comm.Communicate(GetVariableMsg{Key: "my_var"}.toMap())
+	result, err := comm.Communicate(context.Background(), GetVariableMsg{Key: "my_var"}.toMap())
 	require.NoError(t, err)
 	assert.Equal(t, "VariableResult", result["type"])
 	assert.Equal(t, "my_value", result["value"])
@@ -113,7 +114,7 @@ func TestCoordinatorCommCommunicateError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 
-	_, err := comm.Communicate(GetVariableMsg{Key: "missing"}.toMap())
+	_, err := comm.Communicate(context.Background(), GetVariableMsg{Key: "missing"}.toMap())
 	require.Error(t, err)
 
 	apiErr, ok := err.(*ApiError)
@@ -138,7 +139,7 @@ func TestCoordinatorCommCommunicateBodyError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 
-	_, err = comm.Communicate(GetVariableMsg{Key: "test"}.toMap())
+	_, err = comm.Communicate(context.Background(), GetVariableMsg{Key: "test"}.toMap())
 	require.Error(t, err)
 
 	apiErr, ok := err.(*ApiError)
@@ -227,7 +228,10 @@ func TestCoordinatorCommCommunicateConcurrentOutOfOrder(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			resp, err := comm.Communicate(map[string]any{"type": "GetVariable"})
+			resp, err := comm.Communicate(
+				context.Background(),
+				map[string]any{"type": "GetVariable"},
+			)
 			if err != nil {
 				errCh <- err
 				return
@@ -306,13 +310,19 @@ func TestCoordinatorCommCommunicateResponseIDMatch(t *testing.T) {
 
 	results := make(chan map[string]any, 2)
 	go func() {
-		resp, err := comm.Communicate(map[string]any{"type": "GetVariable", "key": "first"})
+		resp, err := comm.Communicate(
+			context.Background(),
+			map[string]any{"type": "GetVariable", "key": "first"},
+		)
 		require.NoError(t, err)
 		results <- resp
 	}()
 	firstID := <-reqIDs
 	go func() {
-		resp, err := comm.Communicate(map[string]any{"type": "GetVariable", "key": "second"})
+		resp, err := comm.Communicate(
+			context.Background(),
+			map[string]any{"type": "GetVariable", "key": "second"},
+		)
 		require.NoError(t, err)
 		results <- resp
 	}()
@@ -390,7 +400,7 @@ func TestCoordinatorCommCommunicateDispatcherClosed(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		_, err := comm.Communicate(map[string]any{"type": "GetVariable"})
+		_, err := comm.Communicate(context.Background(), map[string]any{"type": "GetVariable"})
 		errCh <- err
 	}()
 
@@ -409,7 +419,7 @@ func TestCoordinatorCommCommunicateDispatcherClosed(t *testing.T) {
 	}
 
 	// A subsequent Communicate must short-circuit on the cached read error.
-	_, err := comm.Communicate(map[string]any{"type": "GetVariable"})
+	_, err := comm.Communicate(context.Background(), map[string]any{"type": "GetVariable"})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrDispatcherClosed)
 }
@@ -446,7 +456,7 @@ func TestCoordinatorCommReadMessageAfterDispatcherStarted(t *testing.T) {
 
 	// First Communicate starts the dispatcher (lazily).
 	go func() {
-		_, _ = comm.Communicate(map[string]any{"type": "GetVariable"})
+		_, _ = comm.Communicate(context.Background(), map[string]any{"type": "GetVariable"})
 	}()
 	<-dispatcherUp
 
@@ -498,7 +508,7 @@ func TestCoordinatorCommUnknownIDDiscarded(t *testing.T) {
 	errCh := make(chan error, 1)
 	respCh := make(chan map[string]any, 1)
 	go func() {
-		resp, err := comm.Communicate(map[string]any{"type": "GetVariable"})
+		resp, err := comm.Communicate(context.Background(), map[string]any{"type": "GetVariable"})
 		if err != nil {
 			errCh <- err
 			return
@@ -558,7 +568,7 @@ func TestCoordinatorCommSendRequestErrorCleansPending(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 
-	_, err := comm.Communicate(map[string]any{"type": "GetVariable"})
+	_, err := comm.Communicate(context.Background(), map[string]any{"type": "GetVariable"})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, writeErr)
 
@@ -572,4 +582,84 @@ func TestCoordinatorCommSendRequestErrorCleansPending(t *testing.T) {
 		"pending map should be empty after SendRequest failure, got %d entries",
 		pendingLen,
 	)
+}
+
+// TestCoordinatorCommCommunicateContextCancelled verifies that a Communicate
+// caller whose context is cancelled while waiting for a response returns
+// promptly with the context error and removes its entry from c.pending so a
+// late supervisor reply lands in the dispatcher's "no matching waiter" path
+// instead of leaking memory.
+func TestCoordinatorCommCommunicateContextCancelled(t *testing.T) {
+	reqR, reqW := io.Pipe()
+	respR, respW := io.Pipe()
+	t.Cleanup(func() {
+		reqR.Close()
+		reqW.Close()
+		respR.Close()
+		respW.Close()
+	})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(respR, reqW, logger)
+
+	// Drain the request side so SendRequest does not block; signal once the
+	// caller's request frame has reached the wire so we know its waiter is
+	// registered before we cancel ctx.
+	registered := make(chan struct{})
+	go func() {
+		if _, err := readFrame(reqR); err == nil {
+			close(registered)
+		}
+		for {
+			if _, err := readFrame(reqR); err != nil {
+				return
+			}
+		}
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := comm.Communicate(ctx, map[string]any{"type": "GetVariable"})
+		errCh <- err
+	}()
+
+	<-registered
+	cancel()
+
+	select {
+	case err := <-errCh:
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("Communicate did not return after ctx was cancelled")
+	}
+
+	comm.mu.Lock()
+	pendingLen := len(comm.pending)
+	comm.mu.Unlock()
+	assert.Equal(
+		t,
+		0,
+		pendingLen,
+		"pending map should be empty after ctx cancellation, got %d entries",
+		pendingLen,
+	)
+}
+
+// TestCoordinatorCommCommunicateContextAlreadyDone verifies that a Communicate
+// call whose context is already cancelled returns immediately without sending
+// a request frame or starting the dispatcher.
+func TestCoordinatorCommCommunicateContextAlreadyDone(t *testing.T) {
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), &requestBuf, logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := comm.Communicate(ctx, map[string]any{"type": "GetVariable"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 0, requestBuf.Len(), "no request frame should have been sent")
 }
