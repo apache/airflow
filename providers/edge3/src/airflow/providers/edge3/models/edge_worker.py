@@ -33,6 +33,11 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
+try:
+    from airflow.sdk.observability.stats import DualStatsManager
+except ImportError:
+    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -179,21 +184,71 @@ def set_metrics(
         "free_concurrency",
     }
 
-    Stats.gauge(
-        "edge_worker.status",
-        sysinfo.get("status", logging.NOTSET),  # type: ignore
-        tags={"worker_name": worker_name},
-    )
-    Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
-    Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
-    Stats.gauge(
-        "edge_worker.num_queues",
-        len(queues),
-        tags={"worker_name": worker_name, "queues": ",".join(queues)},
-    )
+    if DualStatsManager is not None:
+        DualStatsManager.gauge(
+            "edge_worker.status",
+            sysinfo.get("status", logging.NOTSET),  # type: ignore
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
+
+        DualStatsManager.gauge(
+            "edge_worker.connected",
+            int(connected),
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
+
+        DualStatsManager.gauge(
+            "edge_worker.maintenance",
+            int(maintenance),
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
+
+        DualStatsManager.gauge(
+            "edge_worker.jobs_active",
+            jobs_active,
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
+
+        DualStatsManager.gauge(
+            "edge_worker.concurrency",
+            concurrency,
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
+
+        DualStatsManager.gauge(
+            "edge_worker.free_concurrency",
+            free_concurrency,
+            tags={},
+            extra_tags={"worker_name": worker_name},
+        )
+
+        DualStatsManager.gauge(
+            "edge_worker.num_queues",
+            len(queues),
+            tags={},
+            extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        )
+    else:
+        Stats.gauge(
+            "edge_worker.status",
+            sysinfo.get("status", logging.NOTSET),  # type: ignore
+            tags={"worker_name": worker_name},
+        )
+        Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
+        Stats.gauge("edge_worker.maintenance", int(maintenance), tags={"worker_name": worker_name})
+        Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+        Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+        Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
+        Stats.gauge(
+            "edge_worker.num_queues",
+            len(queues),
+            tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        )
 
     for key in additional_keys:
         value = sysinfo.get(key)
