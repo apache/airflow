@@ -37,21 +37,10 @@ application {
     mainClass = "org.apache.airflow.example.ExampleBundleBuilder"
 }
 
-val bundleMainClass = application.mainClass.get()
-val metadataFileName = "airflow-metadata.yaml"
-val metadataOutputDir = layout.buildDirectory.dir("airflow-metadata")
-val dagCodeSourcePath = bundleMainClass.replace('.', '/') + ".java"
-val dagCodeFileName = bundleMainClass.substringAfterLast('.') + ".java"
-
 tasks.withType<Jar> {
-    from(metadataOutputDir)
-    from("src/java/$dagCodeSourcePath")
     manifest {
         attributes(
-            "Main-Class" to bundleMainClass,
-            "Airflow-Java-SDK-Version" to project.version,
-            "Airflow-Java-SDK-Metadata" to metadataFileName,
-            "Airflow-Java-SDK-Dag-Code" to dagCodeFileName,
+            "Main-Class" to application.mainClass.get(),
             "Implementation-Title" to "Example Java bundle",
             "Implementation-Version" to "1",
         )
