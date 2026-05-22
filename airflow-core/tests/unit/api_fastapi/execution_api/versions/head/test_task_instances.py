@@ -826,7 +826,6 @@ class TestTIRunState:
             "detail": {
                 "type": "about:blank",
                 "title": "Invalid State",
-                "status": 409,
                 "detail": "TI was not in a state where it could be marked as running",
                 "previous_state": initial_ti_state,
                 "reason": "invalid_state",
@@ -1350,7 +1349,6 @@ class TestTIUpdateState:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Task Instance Not Found",
-            "status": 404,
             "detail": "Task Instance not found",
             "reason": "not_found",
         }
@@ -1433,7 +1431,6 @@ class TestTIUpdateState:
             assert response.json()["detail"] == {
                 "type": "about:blank",
                 "title": "Internal Server Error",
-                "status": 500,
                 "detail": "Database error occurred",
             }
 
@@ -1833,7 +1830,6 @@ class TestTIUpdateState:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Invalid State",
-            "status": 409,
             "detail": "TI was not in the running state so it cannot be updated",
             "reason": "invalid_state",
             "previous_state": State.SUCCESS,
@@ -2126,7 +2122,6 @@ class TestTIHealthEndpoint:
                 {
                     "type": "about:blank",
                     "title": "Conflict",
-                    "status": 409,
                     "detail": "TI is already running elsewhere",
                     "reason": "running_elsewhere",
                     "current_hostname": "random-hostname",
@@ -2141,7 +2136,6 @@ class TestTIHealthEndpoint:
                 {
                     "type": "about:blank",
                     "title": "Conflict",
-                    "status": 409,
                     "detail": "TI is already running elsewhere",
                     "reason": "running_elsewhere",
                     "current_hostname": "random-hostname",
@@ -2212,7 +2206,6 @@ class TestTIHealthEndpoint:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Task Instance Not Found",
-            "status": 404,
             "detail": "Task Instance not found",
             "reason": "not_found",
         }
@@ -2249,7 +2242,6 @@ class TestTIHealthEndpoint:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Task Instance Not Found",
-            "status": 410,
             "detail": "Task Instance not found, it may have been moved to the Task Instance History table",
             "reason": "not_found",
         }
@@ -2279,7 +2271,6 @@ class TestTIHealthEndpoint:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Conflict",
-            "status": 409,
             "detail": "TI is no longer in the running state and task should terminate",
             "reason": "not_running",
             "current_state": ti_state,
@@ -2524,7 +2515,6 @@ class TestTIPutRTIF:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Task Instance Not Found",
-            "status": 404,
             "detail": "Task Instance not found",
         }
 
@@ -2782,7 +2772,6 @@ class TestGetCount:
             "reason": "not_found",
             "type": "about:blank",
             "title": "Not Found",
-            "status": 404,
             "detail": "Task group non_existent_group not found in DAG test_get_count_task_group_not_found",
         }
 
@@ -3339,7 +3328,6 @@ class TestGetTaskStates:
             "reason": "not_found",
             "type": "about:blank",
             "title": "Not Found",
-            "status": 404,
             "detail": "Task group non_existent_group not found in DAG test_get_task_states_task_group_not_found",
         }
 
@@ -3736,7 +3724,6 @@ class TestTIPatchRenderedMapIndex:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Task Instance Not Found",
-            "status": 404,
             "detail": "Task Instance not found",
         }
 
@@ -3758,7 +3745,6 @@ class TestTIPatchRenderedMapIndex:
         assert response.json()["detail"] == {
             "type": "about:blank",
             "title": "Unprocessable Content",
-            "status": 422,
             "detail": "rendered_map_index cannot be empty",
         }
 

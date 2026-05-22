@@ -173,7 +173,6 @@ def ti_run(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
                 "reason": "not_found",
             },
@@ -210,7 +209,6 @@ def ti_run(
             detail={
                 "type": "about:blank",
                 "title": "Invalid State",
-                "status": status.HTTP_409_CONFLICT,
                 "detail": "TI was not in a state where it could be marked as running",
                 "reason": "invalid_state",
                 "previous_state": previous_state,
@@ -313,7 +311,6 @@ def ti_run(
             detail={
                 "type": "about:blank",
                 "title": "Internal Server Error",
-                "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "detail": "Database error occurred",
             },
         )
@@ -396,7 +393,6 @@ def ti_update_state(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
                 "reason": "not_found",
             },
@@ -412,7 +408,6 @@ def ti_update_state(
             detail={
                 "type": "about:blank",
                 "title": "Invalid State",
-                "status": status.HTTP_409_CONFLICT,
                 "detail": "TI was not in the running state so it cannot be updated",
                 "reason": "invalid_state",
                 "previous_state": previous_state,
@@ -479,7 +474,6 @@ def ti_update_state(
             detail={
                 "type": "about:blank",
                 "title": "Internal Server Error",
-                "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "detail": "Database error occurred",
             },
         )
@@ -717,7 +711,6 @@ def ti_skip_downstream(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
                 "reason": "not_found",
             },
@@ -826,7 +819,6 @@ def ti_heartbeat(
                 detail={
                     "type": "about:blank",
                     "title": "Task Instance Not Found",
-                    "status": status.HTTP_410_GONE,
                     "detail": "Task Instance not found, it may have been moved to the Task Instance History table",
                     "reason": "not_found",
                 },
@@ -837,7 +829,6 @@ def ti_heartbeat(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
                 "reason": "not_found",
             },
@@ -856,7 +847,6 @@ def ti_heartbeat(
             detail={
                 "type": "about:blank",
                 "title": "Conflict",
-                "status": status.HTTP_409_CONFLICT,
                 "detail": "TI is already running elsewhere",
                 "reason": "running_elsewhere",
                 "current_hostname": hostname,
@@ -871,7 +861,6 @@ def ti_heartbeat(
             detail={
                 "type": "about:blank",
                 "title": "Conflict",
-                "status": status.HTTP_409_CONFLICT,
                 "detail": "TI is no longer in the running state and task should terminate",
                 "reason": "not_running",
                 "current_state": previous_state,
@@ -915,7 +904,6 @@ def ti_put_rtif(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
             },
         )
@@ -948,7 +936,6 @@ def ti_patch_rendered_map_index(
             detail={
                 "type": "about:blank",
                 "title": "Unprocessable Content",
-                "status": HTTP_422_UNPROCESSABLE_CONTENT,
                 "detail": "rendered_map_index cannot be empty",
             },
         )
@@ -966,7 +953,6 @@ def ti_patch_rendered_map_index(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
             },
         )
@@ -1221,7 +1207,6 @@ def _get_group_tasks(
             detail={
                 "type": "about:blank",
                 "title": "Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": f"Task group {task_group_id} not found in DAG {dag_id}",
                 "reason": "not_found",
             },
@@ -1264,7 +1249,6 @@ def validate_inlets_and_outlets(
             detail={
                 "type": "about:blank",
                 "title": "Task Instance Not Found",
-                "status": status.HTTP_404_NOT_FOUND,
                 "detail": "Task Instance not found",
                 "reason": "not_found",
             },
