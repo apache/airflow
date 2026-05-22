@@ -25,6 +25,7 @@ from airflow.sdk import (
     Asset,
     CronPartitionTimetable,
     IdentityMapper,
+    PartitionAtRuntime,
     PartitionedAssetTimetable,
     ProductMapper,
     StartOfDayMapper,
@@ -225,3 +226,55 @@ def regional_stats_breakdown():
     keys belong to a fixed set of allowed values (``us``, ``eu``, ``apac``) rather than time-based partitions.
     """
     pass
+
+
+@asset(
+    uri="file://incoming/player-stats/live-region.csv",
+    schedule=PartitionAtRuntime(),
+    tags=["player-stats", "runtime"],
+)
+def live_region_player_stats(self, outlet_events):
+    """
+    Produce a single region partition whose key is decided at runtime.
+
+    This asset demonstrates PartitionAtRuntime, which records the partition key on the
+    emitted event with ``add_partitions`` while the task runs rather than from a timetable.
+    """
+    outlet_events[self].add_partitions("us")
+
+
+with DAG(
+    dag_id="summarize_live_region_stats",
+    schedule=PartitionedAssetTimetable(assets=Asset.ref(name="live_region_player_stats")),
+    catchup=False,
+    tags=["player-stats", "runtime"],
+):
+    """
+    Summarize the live region statistics for each runtime-emitted partition.
+
+    Triggered once per partition key recorded upstream at runtime.
+    """
+
+    @task
+    def summarize_live_region(dag_run=None):
+        """Summarize stats for the matched runtime partition."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    summarize_live_region()
+
+
+@asset(
+    uri="file://incoming/player-stats/multi-region.csv",
+    schedule=PartitionAtRuntime(),
+    tags=["player-stats", "runtime"],
+)
+def multi_region_player_stats(self, outlet_events):
+    """
+    Produce several region partitions from a single run.
+
+    This asset demonstrates runtime fan-out, where each key emits its own asset event
+    and duplicate keys collapse to a single event.
+    """
+    outlet_events[self].add_partitions(["us", "eu", "apac"])
