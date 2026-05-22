@@ -38,6 +38,7 @@ from airflow.models.dagrun import DagRun, get_or_create_dagrun
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization
@@ -428,6 +429,36 @@ def task_test(args, dag: DAG | None = None) -> None:
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         sdk_task.params.update(passed_in_params)
+
+        if isinstance(sdk_task, MappedOperator):
+            from airflow.sdk.definitions._internal.expandinput import (
+                DictOfListsExpandInput,
+                ListOfDictsExpandInput,
+            )
+
+            expand_input = sdk_task._get_specified_expand_input()
+
+            expand_input_attr = sdk_task._expand_input_attr
+            if isinstance(expand_input, DictOfListsExpandInput):
+                new_expand_input_dict = dict(expand_input.value)
+                for k in expand_input.value:
+                    if k in passed_in_params:
+                        new_param = passed_in_params[k]
+                        new_expand_input_dict[k] = [new_param] * (args.map_index + 1)
+                setattr(sdk_task, expand_input_attr, DictOfListsExpandInput(new_expand_input_dict))
+
+            if isinstance(expand_input, ListOfDictsExpandInput):
+                new_expand_input_list = expand_input.value
+                if not isinstance(new_expand_input_list, list):
+                    new_expand_input_list = [passed_in_params] * (args.map_index + 1)
+
+                current_mapping = new_expand_input_list[args.map_index]
+                if isinstance(current_mapping, dict):
+                    new_expand_input_list[args.map_index] = {**current_mapping, **passed_in_params}
+                else:
+                    new_expand_input_list[args.map_index] = passed_in_params
+
+                setattr(sdk_task, expand_input_attr, ListOfDictsExpandInput(new_expand_input_list))
 
     if sdk_task.params and isinstance(sdk_task.params, ParamsDict):
         sdk_task.params.validate()
