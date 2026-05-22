@@ -27,8 +27,18 @@ class ResumableJobMixin:
     """
     Mixin for operators that submit one long-running job to an external system and poll for completion.
 
-    On retry, reads the persisted external ID from task_state and reconnects to the existing job
-    instead of resubmitting from scratch. Reconnect can mean different for different kind of jobs.
+    **Purpose:** This mixin makes the synchronous operator path crash-safe. It is not a replacement
+    for deferrable operators — deferrable remains the recommended approach for long-running tasks when
+    a Triggerer is available and the async model fits the team. This mixin is for teams already running
+    synchronous operators who want worker crashes to reconnect to the existing job rather than
+    resubmitting a duplicate.
+
+    **How it works:** On the first run, after submitting the job, the external ID (driver ID, YARN
+    application ID, etc.) is persisted to ``task_state`` before polling starts. On retry, the mixin
+    reads that ID back and reconnects to the already-running job instead of starting a new one.
+
+    **What it does not do:** It does not free the worker slot during polling (use deferrable for that),
+    and it does not stream logs from the remote system (the operator controls that separately).
 
     Usage: call ``execute_resumable(context)`` from the operator's ``execute()`` when reconnection
     is supported.
