@@ -213,12 +213,12 @@ class TestSetTaskState(TestTaskStateEndpoint):
         assert test_client.get(f"{BASE_URL}/workflow/step_1").json()["key"] == "workflow/step_1"
 
     def test_new_key_default_retention_applies_config(self, test_client, time_machine):
-        time_machine.travel("2026-01-01T00:00:00+00:00", tick=False)
+        time_machine.move_to("2026-01-01T00:00:00+00:00", tick=False)
         with conf_vars({("state_store", "default_retention_days"): "7"}):
-            test_client.put(f"{BASE_URL}/job_id", json={"value": "v"})
+            test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": "default"})
 
         resp = test_client.get(f"{BASE_URL}/job_id").json()
-        assert resp["expires_at"] == "2026-01-08T00:00:00+00:00"
+        assert resp["expires_at"] == "2026-01-08T00:00:00Z"
 
     def test_new_key_never_expiry(self, test_client):
         """PUT with expires_at=null stores a key that never expires."""
@@ -227,15 +227,15 @@ class TestSetTaskState(TestTaskStateEndpoint):
 
     def test_new_key_explicit_expiry(self, test_client, time_machine):
         """PUT with an explicit datetime uses that as expires_at."""
-        time_machine.travel("2026-01-01T00:00:00+00:00", tick=False)
-        target = "2026-01-31T00:00:00+00:00"
+        time_machine.move_to("2026-01-01T00:00:00+00:00", tick=False)
+        target = "2026-01-31T00:00:00Z"
         test_client.put(f"{BASE_URL}/job_id", json={"value": "v", "expires_at": target})
         assert test_client.get(f"{BASE_URL}/job_id").json()["expires_at"] == target
 
     def test_put_overwrites_expiry_on_existing_key(self, test_client, time_machine):
         """PUT on an existing key replaces expires_at with whatever the body specifies."""
-        time_machine.travel("2026-01-01T00:00:00+00:00", tick=False)
-        test_client.put(f"{BASE_URL}/job_id", json={"value": "v1", "expires_at": "2026-01-31T00:00:00+00:00"})
+        time_machine.move_to("2026-01-01T00:00:00+00:00", tick=False)
+        test_client.put(f"{BASE_URL}/job_id", json={"value": "v1", "expires_at": "2026-01-31T00:00:00Z"})
 
         # second request but with null expires_at
         test_client.put(f"{BASE_URL}/job_id", json={"value": "v2", "expires_at": None})
