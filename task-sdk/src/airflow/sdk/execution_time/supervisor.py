@@ -55,8 +55,6 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TaskInstance,
     TaskInstanceState,
-    TaskStatesResponse,
-    XComSequenceIndexResponse,
 )
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
@@ -72,7 +70,6 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DagResult,
     DagRunResult,
-    DagRunStateResult,
     DeferTask,
     DeleteAssetStateByName,
     DeleteAssetStateByUri,
@@ -110,7 +107,6 @@ from airflow.sdk.execution_time.comms import (
     InactiveAssetsResult,
     MaskSecret,
     OKResponse,
-    PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     ResendLoggingFD,
@@ -128,21 +124,32 @@ from airflow.sdk.execution_time.comms import (
     TaskBreadcrumbsResult,
     TaskState,
     TaskStateResult,
-    TaskStatesResult,
     ToSupervisor,
     TriggerDagRun,
     ValidateInletsAndOutlets,
-    XComResult,
-    XComSequenceIndexResult,
-    XComSequenceSliceResult,
     _RequestFrame,
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
+    handle_delete_xcom,
     handle_get_connection,
+    handle_get_dag_run_state,
+    handle_get_dr_count,
+    handle_get_prev_successful_dag_run,
+    handle_get_previous_dag_run,
+    handle_get_previous_ti,
+    handle_get_task_states,
+    handle_get_ti_count,
     handle_get_variable,
     handle_get_variable_keys,
+    handle_get_xcom,
+    handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
     handle_mask_secret,
+    handle_put_variable,
+    handle_set_xcom,
 )
 
 try:
@@ -1550,33 +1557,11 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetVariableKeys):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
-            )
-            xcom_result = XComResult.from_xcom_response(xcom)
-            resp = xcom_result
-        elif isinstance(msg, GetXComCount):
-            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
-            )
-            if isinstance(xcom, XComSequenceIndexResponse):
-                resp = XComSequenceIndexResult.from_response(xcom)
-            else:
-                resp = xcom
+            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
-            xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.start,
-                msg.stop,
-                msg.step,
-                msg.include_prior_dates,
-            )
-            resp = XComSequenceSliceResult.from_response(xcoms)
+            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
         elif isinstance(msg, DeferTask):
             self._rendered_map_index = msg.rendered_map_index
             self._send_terminal_state_msg(msg)
@@ -1585,20 +1570,11 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
-            self.client.xcoms.set(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.value,
-                msg.map_index,
-                dag_result=msg.dag_result,
-                mapped_length=msg.mapped_length,
-            )
+            resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, DeleteXCom):
-            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+            resp, dump_opts = handle_delete_xcom(self.client, msg)
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, SetRenderedMapIndex):
@@ -1645,10 +1621,9 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetPrevSuccessfulDagRun):
-            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
-            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
-            resp = dagrun_result
-            dump_opts = {"exclude_unset": True}
+            resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
+        elif isinstance(msg, GetXComCount):
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
                 msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.run_after, msg.reset_dag_run, msg.note
@@ -1656,60 +1631,25 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
             resp = DagRunResult.from_api_response(dr_resp)
-        elif isinstance(msg, GetDagRunState):
-            dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
-            resp = DagRunStateResult.from_api_response(dr_resp)
         elif isinstance(msg, GetTaskRescheduleStartDate):
             resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
         elif isinstance(msg, GetTICount):
-            resp = self.client.task_instances.get_count(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
         elif isinstance(msg, GetTaskStates):
-            task_states_map = self.client.task_instances.get_task_states(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-            )
-            if isinstance(task_states_map, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(task_states_map)
-            else:
-                resp = task_states_map
+            resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetTaskBreadcrumbs):
             api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
             resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         elif isinstance(msg, GetDRCount):
-            resp = self.client.dag_runs.get_count(
-                dag_id=msg.dag_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_dr_count(self.client, msg)
+        elif isinstance(msg, GetDagRunState):
+            resp, dump_opts = handle_get_dag_run_state(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
-            resp = self.client.dag_runs.get_previous(
-                dag_id=msg.dag_id,
-                logical_date=msg.logical_date,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
-            resp = self.client.task_instances.get_previous(
-                dag_id=msg.dag_id,
-                task_id=msg.task_id,
-                logical_date=msg.logical_date,
-                map_index=msg.map_index,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_ti(self.client, msg)
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, ValidateInletsAndOutlets):
             inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
             resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)

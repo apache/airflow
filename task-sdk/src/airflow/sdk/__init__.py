@@ -22,6 +22,7 @@ __all__ = [
     "__version__",
     "AllowedKeyMapper",
     "Asset",
+    "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
@@ -122,6 +123,7 @@ if TYPE_CHECKING:
     from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import (
         Asset,
+        AssetAccessControl,
         AssetAlias,
         AssetAll,
         AssetAny,
@@ -188,6 +190,7 @@ if TYPE_CHECKING:
 __lazy_imports: dict[str, str] = {
     "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
+    "AssetAccessControl": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",

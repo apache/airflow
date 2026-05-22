@@ -138,7 +138,7 @@ jobs:
         run: |
           # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
           # dev/registry/derive_wave_providers.py.
-          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "apache-airflow-task-sdk" "helm-chart" "docker-stack")
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "task-sdk" "helm-chart" "docker-stack")
           has_provider=false
           for token in $INCLUDE_DOCS; do
             is_non_provider=false

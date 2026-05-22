@@ -16,11 +16,34 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.providers.common.ai.hooks.langchain import LangChainHook
+
+
+@pytest.fixture(autouse=True)
+def _stub_langchain_modules():
+    # langchain is an optional dep; stub sys.modules so @patch can resolve
+    # langchain.* targets without it being installed.
+    # Submodule entries are derived from parent mock attributes so @patch
+    # (which resolves via getattr) and the hook's lazy imports (which read
+    # sys.modules["langchain.chat_models"]) see the same object.
+    lc = MagicMock()
+    lc_core = MagicMock()
+    mocks = {
+        "langchain": lc,
+        "langchain.chat_models": lc.chat_models,
+        "langchain.embeddings": lc.embeddings,
+        "langchain_core": lc_core,
+        "langchain_core.embeddings": lc_core.embeddings,
+        "langchain_core.language_models": lc_core.language_models,
+        "langchain_core.language_models.chat_models": lc_core.language_models.chat_models,
+    }
+    with patch.dict(sys.modules, mocks):
+        yield
 
 
 def _conn(password: str = "", host: str = "", extra: dict | None = None) -> MagicMock:

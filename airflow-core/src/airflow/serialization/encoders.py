@@ -45,6 +45,7 @@ from airflow.sdk import (
     PartitionMapper,
     ProductMapper,
     StartOfDayMapper,
+    StartOfHourMapper,
     StartOfMonthMapper,
     StartOfQuarterMapper,
     StartOfWeekMapper,
@@ -52,7 +53,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionAtRuntime,
@@ -191,8 +191,18 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
             d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
-            if a.allow_producer_teams:
-                d["allow_producer_teams"] = a.allow_producer_teams
+            ac = a.access_control
+            if isinstance(ac, dict):
+                # SerializedAsset stores access_control as a plain dict.
+                if ac:
+                    d["access_control"] = ac
+            else:
+                # Asset stores access_control as an AssetAccessControl instance.
+                if ac.producer_teams or not ac.allow_global:
+                    d["access_control"] = {
+                        "producer_teams": ac.producer_teams,
+                        "allow_global": ac.allow_global,
+                    }
             return d
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
@@ -453,6 +463,7 @@ class _Serializer:
         | StartOfYearMapper,
     ) -> dict[str, Any]:
         return {
+            "timezone": encode_timezone(partition_mapper._timezone),
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }
