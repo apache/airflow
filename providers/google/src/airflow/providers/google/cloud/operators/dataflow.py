@@ -1226,7 +1226,7 @@ class DataflowJobMetricsOperator(GoogleCloudBaseOperator):
         *,
         job_id: str,
         callback: Callable | None = None,
-        fail_on_terminal_state: bool = True,
+        fail_on_terminal_state: bool = False,
         project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
