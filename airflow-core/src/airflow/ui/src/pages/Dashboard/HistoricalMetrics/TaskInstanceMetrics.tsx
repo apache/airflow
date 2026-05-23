@@ -54,6 +54,7 @@ export const TaskInstanceMetrics = ({
 }: TaskInstanceMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(taskInstanceStates).reduce((sum, count) => sum + count, 0);
+  const hasCappedState = Object.values(taskInstanceStates).some((count) => count >= stateCountLimit);
 
   return (
     <Box borderRadius={5} borderWidth={1} mt={2} p={4}>
@@ -73,6 +74,7 @@ export const TaskInstanceMetrics = ({
               key={state}
               kind="task_instances"
               runs={taskInstanceStates[state]}
+              showPercentages={!hasCappedState}
               startDate={startDate}
               state={state as TaskInstanceState}
               total={total}

@@ -35,6 +35,7 @@ const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success"
 export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimit }: DagRunMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(dagRunStates).reduce((sum, count) => sum + count, 0);
+  const hasCappedState = Object.values(dagRunStates).some((count) => count >= stateCountLimit);
 
   return (
     <Box borderRadius={5} borderWidth={1} p={4}>
@@ -51,6 +52,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimi
             key={state}
             kind="dag_runs"
             runs={dagRunStates[state]}
+            showPercentages={!hasCappedState}
             startDate={startDate}
             state={state}
             total={total}

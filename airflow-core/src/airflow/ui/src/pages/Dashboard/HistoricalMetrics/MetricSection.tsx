@@ -32,6 +32,7 @@ type MetricSectionProps = {
   readonly endDate?: string;
   readonly kind: string;
   readonly runs: number;
+  readonly showPercentages?: boolean;
   readonly startDate: string;
   readonly state: keyof TaskInstanceStateCount;
   readonly total: number;
@@ -42,13 +43,15 @@ export const MetricSection = ({
   endDate,
   kind,
   runs,
+  showPercentages = true,
   startDate,
   state,
   total,
 }: MetricSectionProps) => {
   const stateWidth = capped ? BAR_WIDTH : total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
-  const statePercent = capped ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
+  const statePercent =
+    showPercentages && !capped && total !== 0 ? ((runs / total) * 100).toFixed(2) : undefined;
 
   const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
   const searchParams = new URLSearchParams(
@@ -74,23 +77,25 @@ export const MetricSection = ({
         </HStack>
         {statePercent === undefined ? undefined : <Text color="fg.muted"> {statePercent}% </Text>}
       </Flex>
-      <HStack gap={0} mt={2}>
-        <Box
-          bg={`${state === "no_status" ? "none" : state}.solid`}
-          borderLeftRadius={5}
-          height={`${BAR_HEIGHT}px`}
-          minHeight={2}
-          width={`${stateWidth}%`}
-        />
-        <Box
-          bg="bg.emphasized"
-          borderLeftRadius={runs === 0 ? 5 : 0} // When there are no states then have left radius too since this is the only bar displayed
-          borderRightRadius={5}
-          height={`${BAR_HEIGHT}px`}
-          minHeight={2}
-          width={`${remainingWidth}%`}
-        />
-      </HStack>
+      {showPercentages ? (
+        <HStack gap={0} mt={2}>
+          <Box
+            bg={`${state === "no_status" ? "none" : state}.solid`}
+            borderLeftRadius={5}
+            height={`${BAR_HEIGHT}px`}
+            minHeight={2}
+            width={`${stateWidth}%`}
+          />
+          <Box
+            bg="bg.emphasized"
+            borderLeftRadius={runs === 0 ? 5 : 0} // When there are no states then have left radius too since this is the only bar displayed
+            borderRightRadius={5}
+            height={`${BAR_HEIGHT}px`}
+            minHeight={2}
+            width={`${remainingWidth}%`}
+          />
+        </HStack>
+      ) : undefined}
     </VStack>
   );
 };
