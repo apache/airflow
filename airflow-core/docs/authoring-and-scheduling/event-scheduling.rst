@@ -194,7 +194,7 @@ produces events faster than a subscriber's ``filter_shared_stream`` can consume 
 queue fills and that trigger is failed with ``_SubscriberOverflow`` — a deliberate fail-fast
 rather than unbounded memory growth.
 
-If subscribers repeatedly overflow, there are two mitigations:
+If subscribers repeatedly overflow, there are two ways to address this:
 
 * Raise ``[triggerer] shared_stream_subscriber_queue_size`` to give the
   filter more slack before the overflow threshold is reached.
