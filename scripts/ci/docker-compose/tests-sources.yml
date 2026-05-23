@@ -40,6 +40,7 @@ services:
       - ../../../core-airflow/tests/:/opt/airflow/core-airflow/tests:cached
       # START automatically generated volumes by generate-volumes-for-sources prek hook
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
+      - ../../../providers/akeyless/tests:/opt/airflow/providers/akeyless/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/amazon/tests:/opt/airflow/providers/amazon/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests

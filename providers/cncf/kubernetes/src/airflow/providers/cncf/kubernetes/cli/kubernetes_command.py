@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
@@ -61,7 +61,7 @@ def generate_pod_yaml(args):
         dag = get_bagged_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)
     else:
         dag = get_bagged_dag(subdir=args.subdir, dag_id=args.dag_id)
-    yaml_output_path = args.output_path
+    yaml_output_path = Path(args.output_path) / "airflow_yaml_output"
 
     dm = DagModel(dag_id=dag.dag_id)
 
@@ -112,11 +112,11 @@ def generate_pod_yaml(args):
         api_client = ApiClient()
         date_string = pod_generator.datetime_to_label_safe_datestring(logical_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
-        os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
-        with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:
+        yaml_output_path.mkdir(parents=True, exist_ok=True)
+        with open(yaml_output_path / yaml_file_name, "w") as output:
             sanitized_pod = api_client.sanitize_for_serialization(pod)
             output.write(yaml.dump(sanitized_pod))
-    print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
+    print(f"YAML output can be found at {yaml_output_path}")
 
 
 @cli_utils.action_cli(check_db=False)
@@ -149,10 +149,11 @@ def cleanup_pods(args):
     # * OnFailure: Restart Container; Pod phase stays Running.
     # * Never: Pod phase becomes Failed.
     pod_restart_policy_never = "never"
-
-    print("Loading Kubernetes configuration")
+    if args.verbose:
+        print("Loading Kubernetes configuration")
     kube_client = get_kube_client()
-    print(f"Listing pods in namespace {namespace}")
+    if args.verbose:
+        print(f"Listing pods in namespace {namespace}")
     airflow_pod_labels = [
         "dag_id",
         "task_id",
@@ -165,7 +166,8 @@ def cleanup_pods(args):
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
-            print(f"Inspecting pod {pod_name}")
+            if args.verbose:
+                print(f"Inspecting pod {pod_name}")
             pod_phase = pod.status.phase.lower()
             pod_reason = pod.status.reason.lower() if pod.status.reason else ""
             pod_restart_policy = pod.spec.restart_policy.lower()
@@ -190,7 +192,8 @@ def cleanup_pods(args):
                 except ApiException as e:
                     print(f"Can't remove POD: {e}", file=sys.stderr)
             else:
-                print(f"No action taken on pod {pod_name}")
+                if args.verbose:
+                    print(f"No action taken on pod {pod_name}")
         continue_token = pod_list.metadata._continue
         if not continue_token:
             break

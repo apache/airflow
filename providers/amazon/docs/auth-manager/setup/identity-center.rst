@@ -30,7 +30,7 @@ Create resources
 ================
 
 The AWS auth manager needs two resources in AWS IAM Identity Center: an instance and an application.
-You can must create them manually.
+You must create them manually.
 
 Create the instance
 -------------------

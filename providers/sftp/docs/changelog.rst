@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+5.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP: add async retrieve_file / store_file / mkdir to SFTPHookAsync and introduce SFTPClientPool (#64465)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Some nits in asset normalization (#66710)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add uri sanitizers and asset factories for new schemes (#66426)``
+   * ``Fix SFTPHookAsync test fixture to return async context managers (#66678)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+5.7.5
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP: add async retrieve_file / store_file / mkdir to SFTPHookAsync and introduce SFTPClientPool``
+
+5.7.4
+.....
+
+Misc
+~~~~
+
+* ``Bump paramiko lower bound to >=3.5.1 due to adding Vespa provider (#63988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 5.7.3
 .....
 

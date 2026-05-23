@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1775592857
+source-date-epoch: 1779138497
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.12.0
   - 4.11.3
   - 4.11.2
   - 4.11.1
@@ -80,7 +81,31 @@ connection-types:
       hidden-fields:
         - schema
         - port
-        - extra
       relabeling:
         host: Zendesk domain
         login: Zendesk email
+        password: Password / API token
+    conn-fields:
+      use_token:
+        label: Use Token
+        schema:
+          type:
+            - boolean
+            - 'null'
+        description: If enabled, the password field is treated as an API token.
+      token:
+        label: API Token
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+        description: Zendesk API token (alternative to password field).
+      oauth_token:
+        label: OAuth Token
+        schema:
+          type:
+            - string
+            - 'null'
+          format: password
+        description: Zendesk OAuth token.

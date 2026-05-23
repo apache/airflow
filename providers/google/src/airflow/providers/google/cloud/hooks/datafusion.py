@@ -179,7 +179,7 @@ class DataFusionHook(GoogleBaseHook):
         if not response:
             raise RequestException(
                 "Invalid / Empty response received. Please, check for possible root "
-                "causes of this behavior either in DAG code or on Cloud DataFusion side"
+                "causes of this behavior either in Dag code or on Cloud DataFusion side"
             )
         if response.status == 404:
             raise HTTPError(message)
@@ -190,7 +190,7 @@ class DataFusionHook(GoogleBaseHook):
         if response.data is None:
             raise ValueError(
                 "Empty response received. Please, check for possible root "
-                "causes of this behavior either in DAG code or on Cloud DataFusion side"
+                "causes of this behavior either in Dag code or on Cloud DataFusion side"
             )
 
     def get_conn(self) -> Resource:
@@ -202,6 +202,7 @@ class DataFusionHook(GoogleBaseHook):
                 self.api_version,
                 http=http_authorized,
                 cache_discovery=False,
+                client_options=self.get_client_options(),
             )
         return self._conn
 

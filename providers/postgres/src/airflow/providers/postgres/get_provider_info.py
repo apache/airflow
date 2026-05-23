@@ -59,12 +59,16 @@ def get_provider_info():
             {
                 "schemes": ["postgres", "postgresql"],
                 "handler": "airflow.providers.postgres.assets.postgres.sanitize_uri",
+                "factory": "airflow.providers.postgres.assets.postgres.create_asset",
+                "to_openlineage_converter": "airflow.providers.postgres.assets.postgres.convert_asset_to_openlineage",
             }
         ],
         "dataset-uris": [
             {
                 "schemes": ["postgres", "postgresql"],
                 "handler": "airflow.providers.postgres.assets.postgres.sanitize_uri",
+                "factory": "airflow.providers.postgres.assets.postgres.create_asset",
+                "to_openlineage_converter": "airflow.providers.postgres.assets.postgres.convert_asset_to_openlineage",
             }
         ],
         "config": {

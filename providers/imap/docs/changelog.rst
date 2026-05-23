@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+3.11.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Neutralize path separator in IMAP (#66951)``
+* ``Handle mixed plaintext and RFC 2047 encoded attachment filenames in ImapHook. Add unit test covering mixed plaintext and encoded filename decoding. (#66672)``
+* ``Fix RFC 2047 filename decoding (#65875)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
 3.11.2
 ......
 

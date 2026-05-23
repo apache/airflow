@@ -64,6 +64,99 @@ To output task logs to ElasticSearch, the following config could be used: (set `
     write_to_es = True
     target_index = [name of the index to store logs]
 
+.. _elasticsearch-airflow-3-0-to-3-1-local-settings:
+
+Enabling the Elasticsearch task handler on Airflow 3.0.0 – 3.1.7
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+This section is **only about reading task logs back into the Airflow UI**. Tasks running
+on workers will write logs as usual (to local files, stdout, or — with appropriate log
+shipping — to Elasticsearch) regardless of the override below. Without the override on
+Airflow 3.0.0 – 3.1.7, logs reach Elasticsearch fine but the **UI cannot render them**
+because no handler is registered to fetch them back.
+
+The wiring that registers ``ElasticsearchTaskHandler`` inside the stock
+``airflow_local_settings.py`` (the file that builds ``DEFAULT_LOGGING_CONFIG``) landed in
+Airflow **3.2.0** (`apache/airflow#62121
+<https://github.com/apache/airflow/pull/62121>`_) and was backported to Airflow **3.1.8**
+(`apache/airflow#62940 <https://github.com/apache/airflow/pull/62940>`_). On Airflow
+**3.0.0 – 3.1.7** installing the provider is not enough: to make the UI's log viewer
+fetch logs from Elasticsearch you must ship a custom logging config that swaps the
+``task`` handler **and** sets ``REMOTE_TASK_LOG`` at module scope. The override requires
+``apache-airflow-providers-elasticsearch`` **6.5.0+** (`apache/airflow#53821
+<https://github.com/apache/airflow/pull/53821>`_), which is where
+``ElasticsearchRemoteLogIO`` was introduced.
+
+Create a module on the Python path — for example ``config/airflow_local_settings.py`` —
+and point Airflow at it via ``[logging] logging_config_class``:
+
+.. code-block:: python
+
+    from airflow.config_templates.airflow_local_settings import (
+        BASE_LOG_FOLDER,
+        DEFAULT_LOGGING_CONFIG,
+    )
+    from airflow.providers.common.compat.sdk import conf
+    from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
+
+    ELASTICSEARCH_HOST = conf.get("elasticsearch", "host", fallback=None)
+
+    REMOTE_TASK_LOG = None
+    DEFAULT_REMOTE_CONN_ID = None
+
+    if ELASTICSEARCH_HOST:
+        DEFAULT_LOGGING_CONFIG["handlers"]["task"] = {
+            "class": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler",
+            "formatter": "airflow",
+            "base_log_folder": str(BASE_LOG_FOLDER),
+            "end_of_log_mark": conf.get("elasticsearch", "end_of_log_mark", fallback="end_of_log"),
+            "host": ELASTICSEARCH_HOST,
+            "frontend": conf.get("elasticsearch", "frontend", fallback=""),
+            "write_stdout": conf.getboolean("elasticsearch", "write_stdout"),
+            "write_to_es": conf.getboolean("elasticsearch", "write_to_es", fallback=False),
+            "json_format": conf.getboolean("elasticsearch", "json_format"),
+            "json_fields": conf.get("elasticsearch", "json_fields"),
+            "host_field": conf.get("elasticsearch", "host_field", fallback="host"),
+            "offset_field": conf.get("elasticsearch", "offset_field", fallback="offset"),
+        }
+        REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(
+            host=ELASTICSEARCH_HOST,
+            target_index=conf.get("elasticsearch", "target_index", fallback="airflow-logs"),
+            write_stdout=conf.getboolean("elasticsearch", "write_stdout"),
+            write_to_es=conf.getboolean("elasticsearch", "write_to_es", fallback=False),
+            offset_field=conf.get("elasticsearch", "offset_field", fallback="offset"),
+            host_field=conf.get("elasticsearch", "host_field", fallback="host"),
+            base_log_folder=str(BASE_LOG_FOLDER),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            json_format=conf.getboolean("elasticsearch", "json_format"),
+            log_id_template=conf.get(
+                "elasticsearch",
+                "log_id_template",
+                fallback="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+            ),
+        )
+
+Then, in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    logging_config_class = config.airflow_local_settings.DEFAULT_LOGGING_CONFIG
+
+.. note::
+
+   Earlier versions of this guide relied on ``ElasticsearchTaskHandler`` self-registering
+   ``REMOTE_TASK_LOG`` from inside ``__init__`` when ``dictConfig`` instantiated it.
+   That implicit registration is now deprecated (``AirflowProviderDeprecationWarning``)
+   and will be removed in a future provider release; define ``REMOTE_TASK_LOG`` at
+   module scope as shown above. See :ref:`write-logs-advanced` for the full
+   ``logging_config_class`` contract.
+
+On Airflow **3.1.8+** or **3.2.0+** this override is unnecessary — the stock
+``airflow_local_settings.py`` already contains an ``elif ELASTICSEARCH_HOST:`` branch, so
+configuring the ``[elasticsearch]`` section in ``airflow.cfg`` is sufficient.
+
 .. _write-logs-elasticsearch-tls:
 
 Writing logs to Elasticsearch over TLS
@@ -92,6 +185,48 @@ Additionally, in the ``elasticsearch_configs`` section, you can pass any paramet
     ca_certs = /root/ca.pem
     api_key = "SOMEAPIKEY"
     verify_certs = True
+
+Pinning the ``compatible-with`` content-negotiation level
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Since provider 6.5.1, the Elasticsearch dependency is ``elasticsearch>=8.10,<10``,
+which means a default install resolves to an ``elasticsearch>=9`` Python client.
+That client unconditionally negotiates ``compatible-with=9`` on every request,
+which Elasticsearch 8.x servers reject with HTTP 400
+``media_type_header_exception``. Both the task log writer and the
+``ElasticsearchSQLHook`` / ``ElasticsearchPythonHook`` are affected.
+
+If you need to keep a single Airflow image compatible with an
+``elasticsearch<9`` server, set ``[elasticsearch] es_compat_with`` to the server
+major version. The provider then rewrites the client transport so every outbound
+request carries ``Accept`` / ``Content-Type:
+application/vnd.elasticsearch+json; compatible-with=<major>`` (and the matching
+``+x-ndjson`` form for bulk requests):
+
+.. code-block:: ini
+
+    [elasticsearch]
+    es_compat_with = 8
+
+Only a positive integer major version is accepted (``"7"``, ``"8"``, ``"9"``);
+any other value (e.g. ``"v8"``, ``"8.0"``) fails fast with an
+``AirflowConfigException`` at client construction time so the misconfiguration
+is obvious in the worker startup log instead of producing a per-request 400
+storm.
+
+.. note::
+
+   The fix is installed at the **transport layer** (a wrapper around
+   ``client.transport.perform_request``) and therefore overrides the
+   per-API-method ``Accept`` / ``Content-Type`` headers that elasticsearch-py
+   negotiates from its own client major. Constructor-level ``headers=`` on
+   ``Elasticsearch.__init__`` and the ``elasticsearch_configs`` section do
+   **not** work for this purpose — elasticsearch-py re-applies its own
+   ``compatible-with=<client_major>`` headers right before the request goes
+   out, after any constructor headers.
+
+When the option is unset the client behaves as before (negotiating its own
+major version).
 
 .. _elasticsearch-document-schema:
 

@@ -55,6 +55,7 @@ REGION = "europe-west1"
 CLUSTER_CONFIG = {
     "cluster_type": "STANDARD",
     "cluster_tier": "CLUSTER_TIER_STANDARD",
+    "engine": "DEFAULT",
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
@@ -82,7 +83,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc", "pig"],
+    tags=["example", "managed-spark", "pig"],
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",

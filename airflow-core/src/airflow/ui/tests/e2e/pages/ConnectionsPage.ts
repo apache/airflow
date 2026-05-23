@@ -100,7 +100,7 @@ export class ConnectionsPage extends BasePage {
     await expect(this.addButton).toBeVisible({ timeout: 5000 });
     await expect(this.addButton).toBeEnabled({ timeout: 5000 });
     await this.addButton.click();
-    await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
+    await expect(this.connectionForm).toBeVisible();
   }
 
   public async clickEditButton(connectionId: string): Promise<void> {
@@ -115,7 +115,7 @@ export class ConnectionsPage extends BasePage {
     await expect(editButton).toBeVisible({ timeout: 5000 });
     await expect(editButton).toBeEnabled({ timeout: 5000 });
     await editButton.click();
-    await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
+    await expect(this.connectionForm).toBeVisible();
   }
 
   public async connectionExists(connectionId: string): Promise<boolean> {
@@ -144,16 +144,14 @@ export class ConnectionsPage extends BasePage {
 
     const deleteButton = row.getByRole("button", { name: "Delete Connection" });
 
-    await expect(deleteButton).toBeVisible({ timeout: 10_000 });
+    await expect(deleteButton).toBeVisible();
     await expect(deleteButton).toBeEnabled({ timeout: 5000 });
+    await deleteButton.click();
 
-    await expect(async () => {
-      await deleteButton.click({ timeout: 5000 });
-      await expect(this.confirmDeleteButton).toBeVisible({ timeout: 5000 });
-    }).toPass({ intervals: [2000], timeout: 30_000 });
-
+    await expect(this.confirmDeleteButton).toBeVisible();
     await expect(this.confirmDeleteButton).toBeEnabled({ timeout: 5000 });
     await this.confirmDeleteButton.click();
+    await this.waitForAllDialogsClosed();
 
     await expect(this.emptyState).toBeVisible({ timeout: 5000 });
   }
@@ -166,9 +164,10 @@ export class ConnectionsPage extends BasePage {
     }
 
     await this.clickEditButton(connectionId);
-    await expect(this.connectionIdInput).toBeVisible({ timeout: 10_000 });
+    await expect(this.connectionIdInput).toBeVisible();
     await this.fillConnectionForm(updates);
     await this.saveConnection();
+    await this.waitForConnectionsListLoad();
   }
 
   public async fillConnectionForm(details: Partial<ConnectionDetails>): Promise<void> {
@@ -180,7 +179,7 @@ export class ConnectionsPage extends BasePage {
       const selectInput = this.connectionForm.locator('[role="combobox"]').first();
 
       await expect(async () => {
-        await expect(selectInput).toBeEnabled({ timeout: 10_000 });
+        await expect(selectInput).toBeEnabled();
         await selectInput.click({ force: true, timeout: 5000 });
       }).toPass({ intervals: [2000, 3000], timeout: 120_000 });
 
@@ -188,70 +187,68 @@ export class ConnectionsPage extends BasePage {
 
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
 
-      await option.click({ timeout: 10_000 });
+      await option.click();
     }
 
     if (details.host !== undefined && details.host !== "") {
-      await expect(this.hostInput).toBeVisible({ timeout: 10_000 });
+      await expect(this.hostInput).toBeVisible();
       await this.hostInput.fill(details.host);
     }
 
     if (details.port !== undefined && details.port !== "") {
-      await expect(this.portInput).toBeVisible({ timeout: 10_000 });
+      await expect(this.portInput).toBeVisible();
       await this.portInput.fill(String(details.port));
     }
 
     if (details.login !== undefined && details.login !== "") {
-      await expect(this.loginInput).toBeVisible({ timeout: 10_000 });
+      await expect(this.loginInput).toBeVisible();
       await this.loginInput.fill(details.login);
     }
 
     if (details.password !== undefined && details.password !== "") {
-      await expect(this.passwordInput).toBeVisible({ timeout: 10_000 });
+      await expect(this.passwordInput).toBeVisible();
       await this.passwordInput.fill(details.password);
     }
 
     if (details.description !== undefined && details.description !== "") {
-      await expect(this.descriptionInput).toBeVisible({ timeout: 10_000 });
+      await expect(this.descriptionInput).toBeVisible();
       await this.descriptionInput.fill(details.description);
     }
 
     if (details.schema !== undefined && details.schema !== "") {
-      await expect(this.schemaInput).toBeVisible({ timeout: 10_000 });
+      await expect(this.schemaInput).toBeVisible();
       await this.schemaInput.fill(details.schema);
     }
 
     if (details.extra !== undefined && details.extra !== "") {
       const extraAccordion = this.page.getByRole("button", { name: /extra fields json/i });
-      const accordionVisible = await extraAccordion.isVisible({ timeout: 5000 }).catch(() => false);
 
-      if (accordionVisible) {
-        await extraAccordion.click();
-        const monacoEditor = this.page.locator(".monaco-editor").first();
+      await expect(extraAccordion).toBeVisible({ timeout: 5000 });
+      await extraAccordion.click();
+      const monacoEditor = this.page.locator(".monaco-editor").first();
 
-        await monacoEditor.waitFor({ state: "visible", timeout: 30_000 });
+      await expect(monacoEditor).toBeVisible({ timeout: 30_000 });
 
-        // Set value via Monaco API to avoid auto-closing bracket/quote issues with keyboard input
-        await monacoEditor.evaluate((container, value) => {
-          const monacoApi = (globalThis as Record<string, unknown>).monaco as
-            | {
-                editor: {
-                  getEditors: () => Array<{ getDomNode: () => Node; setValue: (v: string) => void }>;
-                };
-              }
-            | undefined;
-
-          if (monacoApi !== undefined) {
-            const editor = monacoApi.editor.getEditors().find((e) => container.contains(e.getDomNode()));
-
-            if (editor !== undefined) {
-              editor.setValue(value);
+      // Set value via Monaco API to avoid auto-closing bracket/quote issues with keyboard input
+      await monacoEditor.evaluate((container, value) => {
+        const monacoApi = (globalThis as Record<string, unknown>).monaco as
+          | {
+              editor: {
+                getEditors: () => Array<{ getDomNode: () => Node; setValue: (v: string) => void }>;
+              };
             }
-          }
-        }, details.extra);
+          | undefined;
 
-        await this.connectionIdInput.click();
-      }
+        if (monacoApi !== undefined) {
+          const editor = monacoApi.editor.getEditors().find((e) => container.contains(e.getDomNode()));
+
+          if (editor !== undefined) {
+            editor.setValue(value);
+          }
+        }
+      }, details.extra);
+
+      await this.connectionIdInput.click();
     }
   }
 
@@ -263,28 +260,29 @@ export class ConnectionsPage extends BasePage {
 
   public async getConnectionIds(): Promise<Array<string>> {
     const rowLocator = this.page.locator("tbody tr");
-    const stableRowCount = await waitForStableRowCount(rowLocator, { timeout: 10_000 }).catch(() => 0);
+    const stableRowCount = await waitForStableRowCount(rowLocator).catch(() => 0);
 
     if (stableRowCount === 0) {
       return [];
     }
 
+    const headerTexts = await this.page.locator("thead th").allTextContents();
+    const idColumnIndex = headerTexts.findIndex((text) => /connection\s*id/i.test(text));
+
+    if (idColumnIndex === -1) {
+      throw new Error(`"Connection ID" column not found in headers: ${JSON.stringify(headerTexts)}`);
+    }
+
+    const rows = this.page.locator("tbody tr");
     const connectionIds: Array<string> = [];
 
     for (let i = 0; i < stableRowCount; i++) {
       try {
-        const row = rowLocator.nth(i);
-        const cells = row.locator("td");
-        const cellCount = await cells.count();
+        const cell = rows.nth(i).locator("td").nth(idColumnIndex);
+        const text = await cell.textContent({ timeout: 3000 });
 
-        if (cellCount > 1) {
-          // Second cell (after checkbox) contains the connection ID.
-          const idCell = cells.nth(1);
-          const text = await idCell.textContent({ timeout: 3000 });
-
-          if (text !== null && text.trim() !== "") {
-            connectionIds.push(text.trim());
-          }
+        if (text !== null && text.trim() !== "") {
+          connectionIds.push(text.trim());
         }
       } catch {
         continue;
@@ -302,19 +300,20 @@ export class ConnectionsPage extends BasePage {
   }
 
   public async saveConnection(): Promise<void> {
-    await expect(this.saveButton).toBeVisible({ timeout: 10_000 });
+    await expect(this.saveButton).toBeVisible();
     await expect(this.saveButton).toBeEnabled({ timeout: 5000 });
+
+    const responsePromise = this.page.waitForResponse(
+      (response) =>
+        /\/api\/v2\/connections(\/[^/]+)?(\?|$)/.test(response.url()) &&
+        ["PATCH", "POST"].includes(response.request().method()) &&
+        response.ok(),
+      { timeout: 15_000 },
+    );
+
     await this.saveButton.click();
-
-    await Promise.race([
-      this.page.waitForURL("**/connections", { timeout: 10_000 }),
-      this.successAlert.waitFor({ state: "visible", timeout: 30_000 }),
-    ]);
-
-    // Ensure the dialog is fully closed before proceeding.
-    // Ark UI may leave the backdrop element in the DOM with data-state="closed",
-    // but it is non-interactive (pointer-events: none) and does not block clicks.
-    await expect(this.connectionForm).toBeHidden({ timeout: 10_000 });
+    await responsePromise;
+    await this.waitForAllDialogsClosed();
   }
 
   public async searchConnections(searchTerm: string): Promise<void> {
@@ -392,12 +391,12 @@ export class ConnectionsPage extends BasePage {
   }
 
   private async waitForConnectionsListLoad(): Promise<void> {
-    await expect(this.page).toHaveURL(/\/connections/, { timeout: 10_000 });
+    await expect(this.page).toHaveURL(/\/connections/);
     await this.page.waitForLoadState("domcontentloaded");
 
     const table = this.connectionsTable;
 
-    await expect(table.or(this.emptyState)).toBeVisible({ timeout: 10_000 });
+    await expect(table.or(this.emptyState)).toBeVisible();
 
     const isTableVisible = await table.isVisible();
 

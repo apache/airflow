@@ -126,7 +126,7 @@ You can also configure these flags through configuration files. See `Configuring
 Key Import Updates
 ^^^^^^^^^^^^^^^^^^
 
-While ruff can automatically fix many import issues, here are the key import changes you'll need to make to ensure your DAGs and other
+While ruff can automatically fix many import issues, here are the key import changes you'll need to make to ensure your Dags and other
 code import Airflow components correctly in Airflow 3. The older paths are deprecated and will be removed in a future Airflow version.
 
 .. list-table::
@@ -317,6 +317,7 @@ and FastAPI middlewares (``fastapi_root_middlewares``).
 
 If you use the Airflow Helm Chart to deploy Airflow, please check your defined values against configuration options available in Airflow 3.
 All configuration options below ``webserver`` need to be changed to ``apiServer``. Consider that many parameters have been renamed or removed.
+For the full chart-specific upgrade checklist (``values.yaml`` changes, the standalone Dag processor, JWT secret, FAB defaults, minimum Kubernetes version, and renamed keys across chart ``1.16.0``..``1.18.0``), see :doc:`helm-chart:upgrading-to-airflow-3`.
 
 Step 7: Changes to your startup scripts
 ---------------------------------------
@@ -372,10 +373,82 @@ These include:
   - ``next_ds``
   - ``execution_date``
 - The ``catchup_by_default`` Dag parameter is now ``False`` by default.
-- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
+- The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``.
+
+  This only affects Dags that pass a **bare cron string** to ``schedule=`` (e.g.
+  ``schedule="0 0 * * *"``); Dags that pass an explicit timetable instance are
+  unaffected. Decide whether you rely on ``data_interval_start`` /
+  ``data_interval_end`` (and on the related templated values like ``ds`` /
+  ``ts`` in your tasks, which are derived from ``logical_date`` and shift
+  between the two timetables). If you do, set
+  ``create_cron_data_intervals=True`` explicitly to keep ``CronDataIntervalTimetable``.
+  If you don't, the new ``False`` default is fine.
+
+  Set this **before** the upgrade. If you instead change the flag after some
+  Airflow 3 dagruns already exist (going
+  ``CronTriggerTimetable`` -> ``CronDataIntervalTimetable``), one scheduled run
+  is skipped to avoid colliding with the previous run's ``logical_date``.
+- **Manual Dag runs and data intervals**: In Airflow 3, do not assume that a manually triggered Dag run's ``data_interval`` is derived from, or equal to, the supplied ``logical_date``. If your Dag logic needs the user-specified trigger date, use ``logical_date`` explicitly. This especially affects workflows that read ``data_interval_start`` or ``data_interval_end`` during manual triggering or when using ``TriggerDagRunOperator``. For detailed migration guidance, see :ref:`data-interval-manual-triggering`.
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini
 
       airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 - **AUTH API** api routes defined in the auth manager are prefixed with the ``/auth`` route. Urls consumed outside of the application such as oauth redirect urls will have to updated accordingly. For example an oauth redirect url that was ``https://<your-airflow-url.com>/oauth-authorized/google`` in Airflow 2.x will be ``https://<your-airflow-url.com>/auth/oauth-authorized/google`` in Airflow 3.x
+- **XCom Pull Default Behavior**: Calling ``xcom_pull()`` without a ``task_ids`` argument now pulls only from the current task. In Airflow 2, omitting ``task_ids`` would search all tasks in the Dag run and return the most recently pushed value for the given key. You must now explicitly pass ``task_ids`` to pull XComs from other tasks:
+
+  .. code-block:: python
+
+      # Airflow 2 - pulls most recent value from any task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - same call only checks the current task
+      value = ti.xcom_pull(key="shared_state")
+
+      # Airflow 3 - specify task_ids to pull from other tasks
+      value = ti.xcom_pull(task_ids="upstream_task", key="shared_state")
+
+.. _data-interval-manual-triggering:
+
+Manual Dag Runs and ``logical_date``
+====================================
+
+For scheduled runs, ``logical_date`` and ``data_interval`` are both derived from
+the Dag's timetable.
+
+For manually triggered runs in Airflow 3, do not assume that
+``data_interval_start`` or ``data_interval_end`` are derived from, or equal to,
+the supplied ``logical_date``. The resulting ``data_interval`` depends on the
+timetable and the trigger path, and some APIs also allow the data interval to
+be provided explicitly.
+
+This matters most for Dags that:
+
+- use ``data_interval_start`` or ``data_interval_end`` during manual runs
+- trigger downstream Dags with ``TriggerDagRunOperator``
+- migrated from Airflow 2 and treated ``data_interval_start`` as the requested
+  manual run date
+
+Migration guidance
+------------------
+
+If your Dag logic needs the user-specified date for a manual run, use
+``logical_date`` explicitly.
+
+.. code-block:: python
+
+   from airflow.decorators import get_current_context, task
+
+
+   @task
+   def process_data():
+       context = get_current_context()
+       processing_date = context["logical_date"]
+       return f"Processing data for {processing_date}"
+
+Keep using ``data_interval_start`` and ``data_interval_end`` when you need the
+run's resolved interval semantics instead of the user-supplied trigger date.
+
+When upgrading from Airflow 2, review any manual-triggered workflows that read
+``data_interval_start`` or ``data_interval_end`` and confirm whether they
+really wanted the interval semantics or the requested logical date.

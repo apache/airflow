@@ -26,8 +26,10 @@ from __future__ import annotations
 import csv
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, column, func, inspect, select, table, text
@@ -475,11 +477,22 @@ def _print_config(*, configs: dict[str, _TableConfig]) -> None:
 
 
 @contextmanager
-def _suppress_with_logging(table: str, session: Session):
-    """Suppresses errors but logs them."""
+def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleNamespace, None, None]:
+    """
+    Suppress per-table cleanup errors, log them, and expose failure state to the caller.
+
+    Yields a :class:`~types.SimpleNamespace` with a single attribute ``failed`` (bool).
+    When an :class:`~sqlalchemy.exc.OperationalError` or
+    :class:`~sqlalchemy.exc.ProgrammingError` is raised inside the ``with`` block the
+    exception is swallowed, ``ctx.failed`` is set to ``True``, a WARNING is emitted for
+    the table, and the session is rolled back.  The caller can inspect ``ctx.failed``
+    after the block to decide whether to surface the error upstream.
+    """
+    ctx = SimpleNamespace(failed=False)
     try:
-        yield
+        yield ctx
     except (OperationalError, ProgrammingError):
+        ctx.failed = True
         logger.warning("Encountered error when attempting to clean table '%s'. ", table)
         logger.debug("Traceback for table '%s'", table, exc_info=True)
         if session.is_active:
@@ -554,6 +567,7 @@ def run_cleanup(
     skip_archive: bool = False,
     session: Session = NEW_SESSION,
     batch_size: int | None = None,
+    error_on_cleanup_failure: bool = False,
 ) -> None:
     """
     Purges old records in airflow metadata database.
@@ -577,6 +591,9 @@ def run_cleanup(
     :param skip_archive: Set to True if you don't want the purged rows preserved in an archive table.
     :param session: Session representing connection to the metadata database.
     :param batch_size: Maximum number of rows to delete or archive in a single transaction.
+    :param error_on_cleanup_failure: If True, raise a RuntimeError after processing all tables
+        if any per-table cleanup encountered an error. By default errors are suppressed, a warning
+        summary is logged, and the command exits 0 even if some tables were not cleaned.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
@@ -597,10 +614,11 @@ def run_cleanup(
             exclude_dag_ids=exclude_dag_ids,
         )
     existing_tables = reflect_tables(tables=None, session=session).tables
+    failed_tables: list[str] = []
 
     for table_name, table_config in effective_config_dict.items():
         if table_name in existing_tables:
-            with _suppress_with_logging(table_name, session):
+            with _suppress_with_logging(table_name, session) as ctx:
                 _cleanup_table(
                     clean_before_timestamp=clean_before_timestamp,
                     dag_ids=dag_ids,
@@ -612,9 +630,21 @@ def run_cleanup(
                     session=session,
                     batch_size=batch_size,
                 )
-                session.commit()
+            if ctx.failed:
+                failed_tables.append(table_name)
         else:
             logger.warning("Table %s not found.  Skipping.", table_name)
+
+    if failed_tables:
+        if error_on_cleanup_failure:
+            raise RuntimeError(
+                f"airflow db clean encountered errors on the following tables and did not clean them: "
+                f"{failed_tables}. Check the logs above for details."
+            )
+        logger.warning(
+            "The following tables were not cleaned due to errors: %s. Check the logs above for details.",
+            failed_tables,
+        )
 
 
 @provide_session

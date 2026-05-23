@@ -35,6 +35,7 @@ import { Tooltip } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { TrimText } from "src/utils/TrimText";
 
@@ -65,7 +66,6 @@ const getColumns = ({
         <Checkbox
           borderWidth={1}
           checked={selectedRows.get(row.original.key)}
-          colorPalette="brand"
           onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
         />
       ),
@@ -75,7 +75,6 @@ const getColumns = ({
         <Checkbox
           borderWidth={1}
           checked={allRowsSelected}
-          colorPalette="brand"
           onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
         />
       ),
@@ -155,6 +154,7 @@ export const Variables = () => {
   const { onClose, onOpen, open } = useDisclosure();
   const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
+  const advancedSearch = useAdvancedSearch("variables");
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
@@ -164,7 +164,9 @@ export const Variables = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
-    variableKeyPattern: variableKeyPattern ?? undefined,
+    ...(advancedSearch.enabled
+      ? { variableKeyPattern: variableKeyPattern ?? undefined }
+      : { variableKeyPrefixPattern: variableKeyPattern ?? undefined }),
   });
 
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
@@ -202,6 +204,7 @@ export const Variables = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={variableKeyPattern ?? ""}
           onChange={handleSearchChange}
           placeholder={translate("variables.searchPlaceholder")}
@@ -210,6 +213,7 @@ export const Variables = () => {
           <ExpandCollapseButtons
             collapseLabel={translate("common:expand.collapse")}
             expandLabel={translate("common:expand.expand")}
+            isExpanded={open}
             onCollapse={onClose}
             onExpand={onOpen}
           />

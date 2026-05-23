@@ -17,10 +17,9 @@
 
 from __future__ import annotations
 
-from http.client import HTTPException
 from typing import Annotated
 
-from fastapi import Depends, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import defaultload
 
@@ -37,7 +36,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryBundleNameFilter,
     QueryBundleVersionFilter,
     QueryDagDisplayNamePatternSearch,
+    QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
+    QueryDagIdPrefixPatternSearch,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -95,7 +96,9 @@ def get_dags(
         Depends(filter_param_factory(DagModel.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
     ],
     dag_id_pattern: QueryDagIdPatternSearch,
+    dag_id_prefix_pattern: QueryDagIdPrefixPatternSearch,
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
+    dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
     has_import_errors: QueryHasImportErrorsFilter,
@@ -121,8 +124,8 @@ def get_dags(
     user: GetUserDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
-    """Get DAGs with recent DagRun."""
-    # Fetch DAGs with their latest DagRun and apply filters
+    """Get Dags with recent DagRun."""
+    # Fetch Dags with their latest DagRun and apply filters
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
             last_dag_run_state,
@@ -138,8 +141,10 @@ def get_dags(
             paused,
             has_import_errors,
             dag_id_pattern,
+            dag_id_prefix_pattern,
             dag_ids,
             dag_display_name_pattern,
+            dag_display_name_prefix_pattern,
             tags,
             owners,
             last_dag_run_state,
@@ -159,14 +164,14 @@ def get_dags(
 
     dags = [dag for dag in session.scalars(dags_select)]
 
-    # Fetch favorite status for each DAG for the current user
+    # Fetch favorite status for each Dag for the current user
     user_id = str(user.get_id())
     favorites_select = select(DagFavorite.dag_id).where(
         DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
     )
     favorite_dag_ids = set(session.scalars(favorites_select))
 
-    # Populate the last 'dag_runs_limit' DagRuns for each DAG
+    # Populate the last 'dag_runs_limit' DagRuns for each Dag
     recent_runs_subquery = (
         select(
             DagRun.dag_id,

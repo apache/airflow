@@ -152,8 +152,8 @@ def test_uri_with_password() -> None:
         "An Asset URI should not contain a password. User info has been automatically dropped."
     )
     EmptyOperator(task_id="task1", outlets=[asset])
-    assert asset.uri == "ftp://localhost/foo.txt"
-    assert os.fspath(asset) == "ftp://localhost/foo.txt"
+    assert asset.uri == "ftp://localhost:21/foo.txt"
+    assert os.fspath(asset) == "ftp://localhost:21/foo.txt"
 
 
 def test_uri_without_password() -> None:
@@ -457,3 +457,23 @@ class TestAssetSubclasses:
         assert obj.name == arg
         assert obj.uri == arg
         assert obj.group == group
+
+
+class TestAssetAccessControl:
+    def test_sets_access_control_correctly(self):
+        from airflow.sdk.definitions.asset.access_control import AssetAccessControl
+
+        ac = AssetAccessControl(producer_teams=["team_a"], allow_global=False)
+        asset = Asset(name="x", access_control=ac)
+        assert asset.access_control.producer_teams == ["team_a"]
+        assert asset.access_control.allow_global is False
+
+    def test_defaults_to_default_access_control(self):
+        asset = Asset(name="x")
+        assert asset.access_control.producer_teams == []
+        assert asset.access_control.allow_global is True
+
+    def test_explicit_none_uses_default(self):
+        asset = Asset(name="x", access_control=None)
+        assert asset.access_control.producer_teams == []
+        assert asset.access_control.allow_global is True

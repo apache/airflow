@@ -188,7 +188,9 @@ class BulkPoolService(BulkService[PoolBody]):
     def handle_bulk_delete(self, action: BulkDeleteAction[PoolBody], results: BulkActionResponse) -> None:
         """Bulk delete pools."""
         to_delete_pool_names = set(action.entities)
-        _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_delete_pool_names)
+        existing_pools_dict, matched_pool_names, not_found_pool_names = self.categorize_pools(
+            to_delete_pool_names
+        )
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
@@ -196,16 +198,10 @@ class BulkPoolService(BulkService[PoolBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
                 )
-            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
-                delete_pool_names = matched_pool_names
-            else:
-                delete_pool_names = to_delete_pool_names
 
-            for pool_name in delete_pool_names:
-                existing_pool = self.session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
-                if existing_pool:
-                    self.session.delete(existing_pool)
-                    results.success.append(pool_name)
+            for pool_name in matched_pool_names:
+                self.session.delete(existing_pools_dict[pool_name])
+                results.success.append(pool_name)
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

@@ -38,6 +38,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
     :param retry_delay: The number of seconds to wait between retries.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param run_page_url: The run page url.
+    :param repair_run: Repair the databricks run in case of failure.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     def __init__(
@@ -61,6 +63,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
         self.retry_args = retry_args
         self.run_page_url = run_page_url
         self.repair_run = repair_run
+        self.caller = caller
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -81,8 +84,17 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 "retry_args": self.retry_args,
                 "run_page_url": self.run_page_url,
                 "repair_run": self.repair_run,
+                "caller": self.caller,
             },
         )
+
+    async def on_kill(self) -> None:
+        """Cancel the Databricks run when the trigger is cancelled by a user action."""
+        if self.run_id:
+            from asgiref.sync import sync_to_async
+
+            self.log.info("Cancelling Databricks run %s.", self.run_id)
+            await sync_to_async(self.hook.cancel_run)(self.run_id)
 
     async def run(self):
         async with self.hook:
@@ -124,6 +136,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
     :param retry_limit: The number of times to retry the connection in case of service outages.
     :param retry_delay: The number of seconds to wait between retries.
     :param retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param caller: The name of the operator that is calling the hook.
     """
 
     def __init__(
@@ -145,6 +158,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.retry_args = retry_args
+        self.caller = caller
         self.hook = DatabricksHook(
             databricks_conn_id,
             retry_limit=self.retry_limit,
@@ -164,8 +178,17 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 "retry_limit": self.retry_limit,
                 "retry_delay": self.retry_delay,
                 "retry_args": self.retry_args,
+                "caller": self.caller,
             },
         )
+
+    async def on_kill(self) -> None:
+        """Cancel the Databricks SQL statement when the trigger is cancelled by a user action."""
+        if self.statement_id:
+            from asgiref.sync import sync_to_async
+
+            self.log.info("Cancelling Databricks SQL statement %s.", self.statement_id)
+            await sync_to_async(self.hook.cancel_sql_statement)(self.statement_id)
 
     async def run(self):
         async with self.hook:

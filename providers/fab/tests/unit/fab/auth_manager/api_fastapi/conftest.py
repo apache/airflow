@@ -63,7 +63,9 @@ def override_deps(test_client):
 @pytest.fixture
 def as_user(override_deps):
     @contextmanager
-    def _as(u=types.SimpleNamespace(id=1, username="tester")):
+    def _as(u=None):
+        if u is None:
+            u = types.SimpleNamespace(id=1, username="tester")
         with override_deps({get_user_dep: lambda: u}):
             yield u
 

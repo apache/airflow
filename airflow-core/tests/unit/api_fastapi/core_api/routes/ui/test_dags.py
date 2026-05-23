@@ -95,6 +95,8 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             # Search
             ({"dag_id_pattern": "1"}, [DAG1_ID], 6),
             ({"dag_display_name_pattern": "test_dag2"}, [DAG2_ID], 5),
+            ({"dag_id_prefix_pattern": "test_dag1"}, [DAG1_ID], 6),
+            ({"dag_display_name_prefix_pattern": "test_dag2"}, [DAG2_ID], 5),
             # Bundle filters
             ({"bundle_name": "dag_maker"}, [DAG1_ID, DAG2_ID], 11),
             ({"bundle_name": "wrong_bundle"}, [], 0),
@@ -349,6 +351,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
     def test_latest_run_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 403
+
+    def test_latest_run_should_response_400_when_dag_id_is_tilde(self, test_client):
+        response = test_client.get("/dags/~/latest_run")
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "`~` was supplied as dag_id, but querying multiple dags is not supported."
+        }
 
     @pytest.mark.parametrize(
         ("query_params", "expected_dag_count"),

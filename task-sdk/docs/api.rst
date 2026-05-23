@@ -139,6 +139,22 @@ Tasks & Operators
 
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
+Retry Policies
+--------------
+Retry policies let you configure per-exception retry behaviour as a parameter on any
+task or operator without modifying task code. See the Retry Policies section of the
+Tasks page in the core docs for usage and design rationale.
+
+.. autoapiclass:: airflow.sdk.RetryPolicy
+
+.. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
+
+.. autoapiclass:: airflow.sdk.RetryRule
+
+.. autoapiclass:: airflow.sdk.RetryDecision
+
+.. autoclass:: airflow.sdk.RetryAction
+
 State Enums
 -----------
 .. autoclass:: airflow.sdk.TaskInstanceState
@@ -164,6 +180,8 @@ Edges & Labels
 Assets
 ------
 .. autoapiclass:: airflow.sdk.Asset
+
+.. autoapiclass:: airflow.sdk.AssetAccessControl
 
 .. autoapiclass:: airflow.sdk.AssetAlias
 
@@ -192,6 +210,8 @@ Timetables
 .. autoapiclass:: airflow.sdk.EventsTimetable
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.PartitionAtRuntime
 
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
@@ -245,6 +265,10 @@ For a complete list of available context variables (such as ``dag_run``,
 ``task_instance``, ``logical_date``, etc.), see the
 :ref:`Templates reference <templates-ref>`.
 
+.. rubric:: Task State
+
+.. autodata:: airflow.sdk.NEVER_EXPIRE
+
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret
@@ -259,7 +283,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAccessControl, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:

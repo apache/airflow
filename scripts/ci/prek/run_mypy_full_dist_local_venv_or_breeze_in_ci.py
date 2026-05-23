@@ -24,7 +24,7 @@
 """Run mypy on entire folders using local virtualenv (uv) instead of breeze.
 
 Used for non-provider projects: airflow-core, task-sdk, airflow-ctl, dev, scripts,
-devel-common, airflow-ctl-tests, helm-tests, airflow-e2e-tests,
+devel-common, airflow-ctl-tests, chart/tests, airflow-e2e-tests,
 task-sdk-integration-tests, docker-tests, kubernetes-tests, shared.
 """
 
@@ -39,6 +39,7 @@ from pathlib import Path
 
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
+    check_uv_version,
 )
 
 CI = os.environ.get("CI")
@@ -64,7 +65,7 @@ _TOP_LEVEL_ALLOWED_FOLDERS = [
     "task-sdk",
     "airflow-ctl",
     "airflow-ctl-tests",
-    "helm-tests",
+    "chart/tests",
     "airflow-e2e-tests",
     "task-sdk-integration-tests",
     "docker-tests",
@@ -82,6 +83,9 @@ ALLOWED_FOLDERS = _TOP_LEVEL_ALLOWED_FOLDERS + _SHARED_DISTS
 # Map folder(s) to the uv project to use for running mypy.
 # When multiple folders are checked together, the first folder's project is used.
 FOLDER_TO_PROJECT = {f: f for f in ALLOWED_FOLDERS}
+# `chart/tests` is not its own uv workspace member — it lives inside the
+# `chart` workspace member, which carries the merged pyproject.toml.
+FOLDER_TO_PROJECT["chart/tests"] = "chart"
 
 # Projects that ship their own [tool.mypy] configuration in their pyproject.toml;
 # mypy must be invoked with --config-file pointing at that file so those sections
@@ -182,13 +186,37 @@ def run_local_mypy(project: str, hook_name: str, files: list[str], config_file: 
     mypy_venv_dir.parent.mkdir(parents=True, exist_ok=True)
     mypy_cache_dir.parent.mkdir(parents=True, exist_ok=True)
 
+    # Prefer the uv binary installed in the project's main .venv so the uv version used
+    # to sync and run mypy is pinned by the project rather than whatever uv happens to
+    # be on the contributor's PATH. Fall back to PATH `uv` with a warning if missing.
+    main_venv_uv = AIRFLOW_ROOT_PATH / ".venv" / "bin" / "uv"
+    if main_venv_uv.exists():
+        uv_bin = str(main_venv_uv)
+    else:
+        uv_bin = "uv"
+        warning = (
+            f"uv not found in the main project virtualenv at {main_venv_uv}; falling back "
+            "to `uv` on PATH. The project-pinned uv gives deterministic sync/run results — "
+            "sync the main venv to get it (uv is included in the `dev` dependency group via "
+            "the `all` extras):\n"
+            "  uv sync\n"
+        )
+        if console:
+            console.print(f"[yellow]WARNING: {warning}")
+        else:
+            print(f"WARNING: {warning}")
+
+    # Verify the uv we're about to invoke meets the project-required minimum (from
+    # `[tool.uv] required-version` in the root pyproject.toml).
+    check_uv_version(uv_bin)
+
     run_env = {
         **os.environ,
         "TERM": "ansi",
         "UV_PROJECT_ENVIRONMENT": str(mypy_venv_dir),
     }
 
-    sync_cmd = ["uv", "sync", "--frozen", "--project", project, "--group", "mypy"]
+    sync_cmd = [uv_bin, "sync", "--frozen", "--project", project, "--group", "mypy"]
     if console:
         console.print(
             f"[magenta]Syncing dedicated mypy virtualenv ({mypy_venv_dir}) "
@@ -226,7 +254,7 @@ def run_local_mypy(project: str, hook_name: str, files: list[str], config_file: 
     # same file across hooks because each hook's virtualenv installs a different dependency
     # set that influences type inference.
     cmd = [
-        "uv",
+        uv_bin,
         "run",
         "--frozen",
         "--project",

@@ -26,6 +26,157 @@
 Changelog
 ---------
 
+9.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support to AthenaSQLHook (#66844)``
+* ``Add S3TablesDeleteTableBucketPolicyOperator (#66957)``
+* ``Add parent info injection to EMR operator (#66816)``
+* ``Add MwaaServerlessDeleteWorkflowOperator (#66891)``
+* ``Add callback support to AWS batch executor (#62984)``
+* ``Add MwaaServerlessUpdateWorkflowOperator (#66833)``
+* ``Add S3TablesPutTableBucketPolicyOperator (#66720)``
+* ``Add S3VectorsQueryVectorsOperator (#66724)``
+* ``Add async support to SageMakerNotebookJobTrigger (#65571)``
+* ``Add S3VectorsPutVectorsOperator (#66545)``
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Add S3TablesRenameTableOperator (#66544)``
+* ``Add MwaaServerlessStopWorkflowRunOperator (#66548)``
+* ``Add BedrockUpdateGuardrailOperator (#66547)``
+* ``Add GlueCatalogCreatePartitionOperator (#66546)``
+* ``Add MwaaServerlessWorkflowRunSensor (#66382)``
+* ``Add 'BedrockCreateEvaluationJobOperator' (#66722)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CreateWorkflowOperator if_exists=skip ARN construction (#66974)``
+* ``Fix EMR container job not cancelled on deferral timeout (#64770)``
+
+Misc
+~~~~
+
+* ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Bundle documentation for Amazon S3 (#66993)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``Fix s3_tables system test: use CDK-provided ACCOUNT_ID for bucket policy (#66972)``
+   * ``Fix system test bugs: bedrock_guardrail, glue_catalog, s3_vectors (#66758)``
+   * ``Revert "Apply AIR201-style replacements (#65197)" (#66712)``
+   * ``Adjust log message header for expandable sources (#66570)``
+   * ``Fix SageMaker delete model compat test to handle moto status code change (#66473)``
+
+9.28.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3TablesDeleteNamespaceOperator' (#66375)``
+* ``Add 'GlueCatalogDeleteTableOperator' (#66380)``
+* ``Add AWS SageMakerUnifiedStudioNotebookOperator (#62240)``
+* ``Add 'GlueCatalogCreateTableOperator' (#66362)``
+* ``Add 'S3VectorsDeleteIndexOperator' (#66361)``
+* ``Add 'MwaaServerlessCreateWorkflowOperator' (#66363)``
+* ``Add 'BedrockCreateGuardrailVersionOperator' (#66372)``
+* ``Add 'S3TablesCreateNamespaceOperator' (#66360)``
+* ``Add 'S3TablesDeleteTableBucketOperator' (#66120)``
+* ``Add 'S3VectorsCreateIndexOperator' (#66121)``
+* ``Add MwaaServerlessStartWorkflowRunOperator (#66046)``
+* ``Add 'BedrockDeleteGuardrailOperator' (#66140)``
+* ``Add 'S3TablesCreateTableBucketOperator' (#66119)``
+* ``Add ExecuteCallback support to AwsLambdaExecutor (#63035)``
+* ``Add 'BedrockCreateGuardrailOperator' (#66035)``
+* ``Add 'S3TablesDeleteTableOperator' (#66019)``
+* ``Add 'GlueCatalogDeleteDatabaseOperator' (#66021)``
+* ``Add 'S3VectorsDeleteVectorBucketOperator' (#66048)``
+* ``Add 'S3VectorsCreateVectorBucketOperator' for Amazon S3 Vectors (#65968)``
+* ``Add 'GlueCatalogCreateDatabaseOperator' (#65977)``
+* ``Migrate EmrServerlessStartJobTrigger from CancelledError to on_kill() (#65740)``
+* ``Add 'S3TablesCreateTableOperator' (#65816)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS auth manager batch team context (#66203)``
+* ``Fix ASYNC110 violation in RedshiftDataTrigger (#66157)``
+* ``Fix double cancellation for airflow 3.3+ for EmrServerlessStartJobTrigger (#65997)``
+
+Misc
+~~~~
+
+* ``Word changed from DAG to Dag in providers/amazon/ (#66152)``
+* ``Added logging for skipped lookups in SM and SSM backends (#66059)``
+* ``Configure S3Hook transfer_config_args via service_config (#65963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use contextlib.suppress instead of try-except-pass in providers (#66178)``
+   * ``Apply AIR201-style replacements (#65197)``
+   * ``fix: Align DAG_ID with module name in S3 Tables and S3 Vectors system tests (#66134)``
+   * ``Providers wave 2026-04-26 (#65902)``
+   * ``Providers wave 2026-04-26``
+
+9.27.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'S3ReadObjectOperator' (#65789)``
+* ``Add multi-team dimensions to boto3 user agent string (#65821)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent unauthorized access to team-scoped secrets in SM and SSM (#65703)``
+
+Misc
+~~~~
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+9.26.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support AWS China region endpoints in RedshiftSQLHook OpenLineage identifier parsing (#65483)``
+* ``Update SecretsManagerBackend to support multi-team (#65395)``
+* ``Update SystemsManagerParameterStoreBackend to support multi-team (#65396)``
+* ``Correct AWS China SQS regex to use amazonaws.com.cn (#65299)``
+* ``Extend SQS QUEUE_REGEXP to match AWS China endpoints (#65173)``
+* ``Update 'AwsAuthManager' to support multi-team #65371 (#65393)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix RedshiftSQLHook._get_conn_params connection mutation with IAM (#64991)``
+* ``Fix SQS CreateQueue type error by casting attributes to string (#65649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky Stackdriver test timeout caused by leaked watchtower handler (#65488)``
+   * ``[AWS System Tests] Use dynamic inference profiles in Bedrock system tests (#65185)``
+
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix: Correct grammatical error in AWS IAM Identity Center documentation (#65603)``
+
 9.25.0
 ......
 
