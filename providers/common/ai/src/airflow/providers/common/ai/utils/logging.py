@@ -14,19 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Logging utilities for pydantic-ai agent runs."""
+"""Logging utilities for agent runs."""
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
 
-from pydantic_ai.messages import ToolCallPart
-
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 
 if TYPE_CHECKING:
-    from pydantic_ai.result import AgentRunResult
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
     from airflow.sdk.types import Logger
@@ -34,24 +32,26 @@ if TYPE_CHECKING:
 _MAX_OUTPUT_LEN = 500
 
 
-def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]) -> None:
+def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult) -> None:
     """Log model name, token usage, and tool call sequence from an agent run."""
-    usage = result.usage()
-    model_name = getattr(result.response, "model_name", "unknown")
-    logger.info(
-        "::group::LLM run complete: model=%s, requests=%s, tool_calls=%s, "
-        "input_tokens=%s, output_tokens=%s, total_tokens=%s",
-        model_name,
-        usage.requests,
-        usage.tool_calls,
-        usage.input_tokens,
-        usage.output_tokens,
-        usage.total_tokens,
-    )
+    model_name = result.model_name or "unknown"
+    usage = result.usage
+    if usage is not None:
+        logger.info(
+            "::group::LLM run complete: model=%s, requests=%s, tool_calls=%s, "
+            "input_tokens=%s, output_tokens=%s, total_tokens=%s",
+            model_name,
+            usage.requests,
+            usage.tool_calls,
+            usage.input_tokens,
+            usage.output_tokens,
+            usage.total_tokens,
+        )
+    else:
+        logger.info("::group::LLM run complete: model=%s", model_name)
 
-    tool_names = _extract_tool_sequence(result)
-    if tool_names:
-        logger.info("Tool call sequence: %s", " -> ".join(tool_names))
+    if result.tool_names:
+        logger.info("Tool call sequence: %s", " -> ".join(result.tool_names))
 
     _log_output_debug(logger, result.output)
     logger.info("::endgroup::")
@@ -70,16 +70,6 @@ def _log_output_debug(logger: Logger | logging.Logger, output: Any) -> None:
     if len(text) > _MAX_OUTPUT_LEN:
         text = text[:_MAX_OUTPUT_LEN] + "..."
     logger.debug("Output: %s", text)
-
-
-def _extract_tool_sequence(result: AgentRunResult[Any]) -> list[str]:
-    """Extract ordered tool names from the message history."""
-    tool_names: list[str] = []
-    for message in result.all_messages():
-        for part in getattr(message, "parts", []):
-            if isinstance(part, ToolCallPart):
-                tool_names.append(part.tool_name)
-    return tool_names
 
 
 def wrap_toolsets_for_logging(

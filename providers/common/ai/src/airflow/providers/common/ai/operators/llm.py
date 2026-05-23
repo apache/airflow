@@ -126,7 +126,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         agent: Agent[None, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+        result = self.llm_hook.run_agent(agent, prompt=self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

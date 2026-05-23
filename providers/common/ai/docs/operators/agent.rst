@@ -31,7 +31,10 @@ a single prompt and returns the output. ``AgentOperator`` manages a stateful
 tool-call loop where the LLM decides which tools to call and when to stop.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydanticai>`
+    :ref:`Pydantic AI connection <howto/connection:pydanticai>`
+
+The agent backend is selected by the Airflow connection ``conn_type`` (for example
+``pydanticai`` or ``pydanticai-bedrock``). You do not choose a different operator class.
 
 
 SQL Agent

@@ -25,6 +25,15 @@
 Changelog
 ---------
 
+Next release
+............
+
+Features
+^^^^^^^^
+
+* Add ``BaseAIHook`` abstract contract so ``AgentOperator`` selects the agent backend
+  via connection type, with ``PydanticAIHook`` as the first concrete implementation.
+
 0.3.0
 .....
 

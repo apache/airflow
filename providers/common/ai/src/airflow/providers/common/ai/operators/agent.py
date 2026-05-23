@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operator for running pydantic-ai agents with tools and multi-turn reasoning."""
+"""Operator for running LLM agents with tools and multi-turn reasoning."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.hooks.base_ai import BaseAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.compat.sdk import (
@@ -83,14 +83,17 @@ class HITLReviewLink(BaseOperatorLink):
 
 class AgentOperator(BaseOperator, HITLReviewMixin):
     """
-    Run a pydantic-ai Agent with tools and multi-turn reasoning.
+    Run an LLM agent with tools and multi-turn reasoning.
 
     Provide ``llm_conn_id`` and optional ``toolsets`` to let the operator build
     and run the agent. The agent reasons about the prompt, calls tools in a
     multi-turn loop, and returns a final answer.
 
+    The agent backend is selected by the connection ``conn_type`` (for example
+    ``pydanticai``, ``pydanticai-bedrock``, or ``pydanticai-azure``).
+
     :param prompt: The prompt to send to the agent.
-    :param llm_conn_id: Connection ID for the LLM provider.
+    :param llm_conn_id: Connection ID for the agent provider.
     :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
         Overrides the model stored in the connection's extra field.
     :param system_prompt: System-level instructions for the agent.
@@ -191,12 +194,32 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             )
 
     @cached_property
-    def llm_hook(self) -> PydanticAIHook:
-        """Return PydanticAIHook for the configured LLM connection."""
+    def llm_hook(self) -> BaseAIHook:
+        """Return the agent hook for the configured connection (resolved from ``conn_type``)."""
         hook_params = {
             "model_id": self.model_id,
         }
-        return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
+        return BaseAIHook.get_agent_hook(self.llm_conn_id, hook_params=hook_params)
+
+    def _validate_hook_capabilities(self) -> None:
+        """Raise if operator options are incompatible with the resolved agent hook."""
+        hook = self.llm_hook
+        if self.toolsets and not hook.supports_toolsets:
+            raise ValueError(
+                f"toolsets are not supported for connection {self.llm_conn_id!r} "
+                f"(conn_type resolves to {type(hook).__name__}). "
+                "Use a pydantic-ai connection type (e.g. pydanticai, pydanticai-bedrock)."
+            )
+        if self.usage_limits is not None and not hook.supports_usage_limits:
+            raise ValueError(
+                f"usage_limits are not supported for connection {self.llm_conn_id!r} "
+                f"(conn_type resolves to {type(hook).__name__})."
+            )
+        if self.durable and not hook.supports_durable:
+            raise ValueError(
+                f"durable=True requires a pydantic-ai connection type; got {type(hook).__name__} "
+                f"for connection {self.llm_conn_id!r}."
+            )
 
     def _build_agent(self) -> Agent[None, Any]:
         """Build and return a pydantic-ai Agent from the operator's config."""
@@ -225,6 +248,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
 
     def execute(self, context: Context) -> Any:
+        self._validate_hook_capabilities()
+
         self._durable_storage = None
         self._durable_counter = None
 
@@ -255,11 +280,19 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             resolved_model = infer_model(agent.model)
             caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
-                result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+                run_result = self.llm_hook.run_agent(
+                    agent,
+                    prompt=self.prompt,
+                    usage_limits=self.usage_limits,
+                )
         else:
-            result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
+            run_result = self.llm_hook.run_agent(
+                agent,
+                prompt=self.prompt,
+                usage_limits=self.usage_limits,
+            )
 
-        log_run_summary(self.log, result)
+        log_run_summary(self.log, run_result)
 
         if self._durable_counter is not None:
             c = self._durable_counter
@@ -280,13 +313,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         if self._durable_storage is not None:
             self._durable_storage.cleanup()
 
-        output = result.output
+        output = run_result.output
 
         if self.enable_hitl_review:
             result_str = self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
-                message_history=result.all_messages(),
+                message_history=run_result.message_history,
             )
             # Deserialize back to dict
             try:
@@ -301,11 +334,15 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """Re-run the agent with *feedback* appended to the conversation history."""
         agent = self._build_agent()
-        messages = message_history or []
-        result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
-        log_run_summary(self.log, result)
+        run_result = self.llm_hook.run_agent(
+            agent,
+            prompt=feedback,
+            message_history=message_history,
+            usage_limits=self.usage_limits,
+        )
+        log_run_summary(self.log, run_result)
 
-        output = result.output
+        output = run_result.output
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
-        return str(output), result.all_messages()
+        return str(output), run_result.message_history

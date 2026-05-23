@@ -24,12 +24,23 @@ import pytest
 from pydantic_ai.models import Model
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, BaseAIHook
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+
+
+class TestPydanticAIHookBaseContract:
+    def test_is_base_ai_hook(self):
+        assert issubclass(PydanticAIHook, BaseAIHook)
+
+    def test_capability_flags(self):
+        assert PydanticAIHook.supports_toolsets is True
+        assert PydanticAIHook.supports_durable is True
+        assert PydanticAIHook.supports_usage_limits is True
 
 
 class TestPydanticAIHookInit:
@@ -652,3 +663,41 @@ class TestPydanticAIVertexHook:
         factory = mock_infer_model.call_args[1]["provider_factory"]
         factory("google-vertex")
         mock_provider_cls.assert_called_with(project="my-project", location="europe-west4")
+
+
+class TestPydanticAIHookRunAgent:
+    def test_run_agent_returns_agent_run_result(self):
+        hook = PydanticAIHook()
+        mock_agent = MagicMock()
+        mock_usage = MagicMock(requests=1, tool_calls=0, input_tokens=5, output_tokens=10, total_tokens=15)
+        mock_result = MagicMock()
+        mock_result.output = "done"
+        mock_result.usage.return_value = mock_usage
+        mock_result.response = MagicMock(model_name="openai:gpt-5")
+        mock_result.all_messages.return_value = []
+        mock_agent.run_sync.return_value = mock_result
+
+        run_result = hook.run_agent(mock_agent, prompt="hello")
+
+        assert isinstance(run_result, AgentRunResult)
+        assert run_result.output == "done"
+        assert run_result.model_name == "openai:gpt-5"
+        mock_agent.run_sync.assert_called_once_with("hello", usage_limits=None)
+
+    def test_run_agent_forwards_message_history_and_usage_limits(self):
+        hook = PydanticAIHook()
+        mock_agent = MagicMock()
+        mock_result = MagicMock()
+        mock_result.output = "ok"
+        mock_result.usage.return_value = MagicMock(
+            requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+        )
+        mock_result.response = MagicMock(model_name="m")
+        mock_result.all_messages.return_value = ["history"]
+        mock_agent.run_sync.return_value = mock_result
+        limits = MagicMock()
+        history = ["prior"]
+
+        hook.run_agent(mock_agent, prompt="more", message_history=history, usage_limits=limits)
+
+        mock_agent.run_sync.assert_called_once_with("more", message_history=history, usage_limits=limits)

@@ -22,7 +22,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
 
 OutputT = TypeVar("OutputT")
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
 
-class PydanticAIHook(BaseHook):
+class PydanticAIHook(BaseAIHook):
     """
     Hook for LLM access via pydantic-ai.
 
@@ -55,6 +55,10 @@ class PydanticAIHook(BaseHook):
     default_conn_name = "pydanticai_default"
     conn_type = "pydanticai"
     hook_name = "Pydantic AI"
+
+    supports_toolsets = True
+    supports_durable = True
+    supports_usage_limits = True
 
     def __init__(
         self,
@@ -190,6 +194,43 @@ class PydanticAIHook(BaseHook):
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
         return Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+
+    def run_agent(
+        self,
+        agent: Agent[None, Any],
+        *,
+        prompt: str,
+        usage_limits: Any = None,
+        message_history: Any = None,
+    ) -> AgentRunResult:
+        """Run a pydantic-ai agent and return a normalized :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunResult`."""
+        from pydantic_ai.messages import ToolCallPart
+
+        if message_history is not None:
+            result = agent.run_sync(prompt, message_history=message_history, usage_limits=usage_limits)
+        else:
+            result = agent.run_sync(prompt, usage_limits=usage_limits)
+
+        usage = result.usage()
+        tool_names: list[str] = []
+        for message in result.all_messages():
+            for part in getattr(message, "parts", []):
+                if isinstance(part, ToolCallPart):
+                    tool_names.append(part.tool_name)
+
+        return AgentRunResult(
+            output=result.output,
+            message_history=result.all_messages(),
+            model_name=getattr(result.response, "model_name", None),
+            usage=AgentUsage(
+                requests=usage.requests,
+                tool_calls=usage.tool_calls,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                total_tokens=usage.total_tokens,
+            ),
+            tool_names=tool_names or None,
+        )
 
     def test_connection(self) -> tuple[bool, str]:
         """
