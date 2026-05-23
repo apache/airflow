@@ -1453,7 +1453,7 @@ class TriggerRunner:
         # (BaseEventTrigger.shared_stream_key returns non-None) consume a
         # broadcast stream produced by SharedStreamManager and convert it
         # via filter_shared_stream(). Everything else stays on the original
-        # standalone-run() path.  The key is computed after
+        # standalone-run() path. The key is computed after
         # render_template_fields so any templated attributes are already
         # resolved when the key is constructed.
         event_trigger: BaseEventTrigger | None = None
