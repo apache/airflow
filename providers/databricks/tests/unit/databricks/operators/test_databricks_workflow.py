@@ -333,3 +333,28 @@ def test_on_kill(mock_databricks_hook, context, mock_workflow_run_metadata):
     operator.on_kill()
 
     operator._hook.cancel_run.assert_called_once_with(RUN_ID)
+
+def test_launch_task_waits_for_upstream_tasks():
+    """
+    Test that the DatabricksWorkflowTaskGroup launch task correctly waits
+    for tasks defined OUTSIDE the task group.
+    Fix for issue #51598.
+    """
+    with DAG(dag_id="test_dag_51598", schedule=None, start_date=DEFAULT_DATE):
+        external_task = EmptyOperator(task_id="external_upstream")
+        external_task._convert_to_databricks_workflow_task = MagicMock(return_value={})
+
+        with DatabricksWorkflowTaskGroup(
+            group_id="test_group_51598",
+            databricks_conn_id="databricks_conn",
+        ) as task_group:
+            inner_task = EmptyOperator(task_id="inner_task")
+            inner_task._convert_to_databricks_workflow_task = MagicMock(return_value={})
+
+        external_task >> task_group
+
+    launch_task = task_group.get_child_by_label("launch")
+
+    assert "external_upstream" in launch_task.upstream_task_ids, (
+        "Launch task should wait for external upstream tasks (fix for #51598)"
+    )    
