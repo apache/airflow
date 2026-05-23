@@ -1120,22 +1120,6 @@ class SFTPHookAsync(BaseHook):
         concurrency: int = 1,
         prefetch: bool = True,
     ) -> None:
-        """
-        Perform an SFTP transfer operation (GET, PUT, or DELETE) via a thread executor.
-
-        Delegates to :meth:`SFTPHook.transfer` so that both the operator and the
-        trigger share identical transfer logic, in line with the DRY principle.
-        Using a thread executor keeps the async event loop unblocked while the
-        synchronous paramiko transfer runs in a worker thread.
-
-        :param operation: The SFTP operation - put, get, or delete.
-        :param local_filepath: Local file path(s).
-        :param remote_filepath: Remote file path(s).
-        :param confirm: Whether to confirm file size after PUT (default: True).
-        :param create_intermediate_dirs: Create missing intermediate directories (default: False).
-        :param concurrency: Number of threads for directory transfers (default: 1).
-        :param prefetch: Whether to prefetch during GET (default: True).
-        """
         import asyncio
 
         loop = asyncio.get_running_loop()
