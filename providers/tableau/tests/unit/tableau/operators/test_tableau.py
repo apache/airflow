@@ -396,3 +396,25 @@ class TestTableauOperator:
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
         )
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_incremental_refresh_warning_on_non_refresh_method(self, mock_tableau_hook, caplog):
+        """
+        Test that a warning is logged when incremental_refresh is set but method is not 'refresh'
+        """
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+
+        operator = TableauOperator(
+            find="ds_2",
+            resource="datasources",
+            method="delete",
+            incremental_refresh=True,
+            dag=None,
+            task_id="test",
+        )
+
+        operator.execute(context={})
+
+        assert "incremental_refresh parameter is set to True but method is 'delete'" in caplog.text
+        assert "This parameter only applies to 'refresh' operations" in caplog.text

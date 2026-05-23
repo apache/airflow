@@ -115,6 +115,13 @@ class TableauOperator(BaseOperator):
             error_message = f"Method not found! Available methods for {self.resource}: {available_methods}"
             raise AirflowException(error_message)
 
+        if self.incremental_refresh and self.method != "refresh":
+            self.log.warning(
+                "incremental_refresh parameter is set to True but method is '%s'. "
+                "This parameter only applies to 'refresh' operations and will be ignored.",
+                self.method,
+            )
+
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
             resource = getattr(tableau_hook.server, self.resource)
             method = getattr(resource, self.method)
