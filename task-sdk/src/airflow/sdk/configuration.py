@@ -32,6 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
     expand_env_var,
 )
+from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -236,8 +237,6 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
-    from airflow.sdk._shared.module_loading import import_string
-
     backend_list = []
     worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode

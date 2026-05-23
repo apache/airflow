@@ -56,7 +56,6 @@ const FailedLogs = ({
             bg="bg.panel"
             fontSize="sm"
             onClick={toggleWrap}
-            size="sm"
             variant="outline"
           >
             {translate(`common:wrap.${wrap ? "un" : ""}wrap`)}

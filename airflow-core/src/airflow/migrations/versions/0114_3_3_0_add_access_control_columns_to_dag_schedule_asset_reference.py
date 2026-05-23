@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add allow_producer_teams column to dag_schedule_asset_reference table.
+Add access control columns to dag_schedule_asset_reference table.
 
 Revision ID: a7f3b2c1d4e5
 Revises: b8f3e4a1d2c9
@@ -38,15 +38,19 @@ airflow_version = "3.3.0"
 
 
 def upgrade():
-    """Add allow_producer_teams column to dag_schedule_asset_reference."""
+    """Add access control columns to dag_schedule_asset_reference."""
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         batch_op.add_column(sa.Column("allow_producer_teams", sa.JSON(), nullable=True))
+        batch_op.add_column(
+            sa.Column("allow_global_producers", sa.Boolean(), nullable=False, server_default=sa.true())
+        )
 
 
 def downgrade():
-    """Remove allow_producer_teams column from dag_schedule_asset_reference."""
+    """Remove access control columns from dag_schedule_asset_reference."""
     from airflow.migrations.utils import disable_sqlite_fkeys
 
     with disable_sqlite_fkeys(op):
         with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
+            batch_op.drop_column("allow_global_producers")
             batch_op.drop_column("allow_producer_teams")

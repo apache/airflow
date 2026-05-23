@@ -18,6 +18,7 @@
  */
 
 export * from "./Dialog";
+export * from "./IconButton";
 export * from "./Pagination";
 export * from "./Select";
 export * from "./Alert";

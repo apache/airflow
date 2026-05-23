@@ -1974,6 +1974,11 @@ components:
         multi_team:
           type: boolean
           title: Multi Team
+        rerun_with_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Rerun With Latest Version
       type: object
       required:
       - fallback_page_limit

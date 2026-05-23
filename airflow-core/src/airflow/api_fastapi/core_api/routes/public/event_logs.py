@@ -46,9 +46,7 @@ from airflow.api_fastapi.core_api.datamodels.event_logs import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
-    DagAccessEntity,
     ReadableEventLogsFilterDep,
-    requires_access_dag,
     requires_access_event_log,
 )
 from airflow.models import Log
@@ -75,7 +73,7 @@ def get_event_log(
 
 @event_logs_router.get(
     "",
-    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.AUDIT_LOG))],
+    dependencies=[Depends(requires_access_event_log("GET"))],
 )
 def get_event_logs(
     limit: QueryLimit,

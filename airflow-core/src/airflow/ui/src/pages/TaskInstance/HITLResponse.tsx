@@ -17,8 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useParams } from "react-router-dom";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import {
   useTaskInstanceServiceGetHitlDetailTryDetail,

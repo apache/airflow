@@ -1,0 +1,79 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { loader } from "@monaco-editor/react";
+
+type MonacoEnvironment = {
+  readonly getWorker: (_moduleId: string, label: string) => Worker;
+};
+
+let configurationPromise: Promise<void> | undefined;
+
+const loadMonacoModules = async () => {
+  // `editor.api` is API-only — also load the folding contribution so `editor.foldAll` /
+  // `editor.unfoldAll` actions and the fold-gutter UI are actually registered, and the
+  // codicon styles so the gutter glyph (the `>` arrow) renders instead of an empty box.
+  // The CDN bundle used to pull these in transitively; the local ESM `editor.api` does not.
+  const monacoApi = Promise.all([
+    import("monaco-editor/esm/vs/editor/editor.api"),
+    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
+    import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
+  ]).then(([api]) => api);
+
+  const workerConstructors = Promise.all([
+    import("monaco-editor/esm/vs/editor/editor.worker?worker").then((module) => module.default),
+    import("monaco-editor/esm/vs/language/json/json.worker?worker").then((module) => module.default),
+  ]);
+
+  const languageContributions = Promise.all([
+    import("monaco-editor/esm/vs/basic-languages/python/python.contribution"),
+    import("monaco-editor/esm/vs/language/json/monaco.contribution"),
+  ]);
+
+  const [monaco, [editorWorker, jsonWorker]] = await Promise.all([
+    monacoApi,
+    workerConstructors,
+    languageContributions,
+  ]);
+
+  return { editorWorker, jsonWorker, monaco };
+};
+
+export const configureMonaco = () => {
+  if (configurationPromise !== undefined) {
+    return configurationPromise;
+  }
+
+  configurationPromise = loadMonacoModules()
+    .then(({ editorWorker, jsonWorker, monaco }) => {
+      Reflect.set(globalThis, "MonacoEnvironment", {
+        getWorker: (_moduleId: string, label: string) =>
+          label === "json" ? new jsonWorker() : new editorWorker(),
+      } satisfies MonacoEnvironment);
+
+      loader.config({ monaco });
+    })
+    .catch((error: unknown) => {
+      configurationPromise = undefined;
+      // eslint-disable-next-line no-console
+      console.error("Failed to configure Monaco editor", error);
+      throw error;
+    });
+
+  return configurationPromise;
+};

@@ -37,6 +37,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import (
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
+    IsAuthorizedDagRequest,
     IsAuthorizedPoolRequest,
     IsAuthorizedVariableRequest,
 )
@@ -62,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -369,12 +371,14 @@ def requires_access_event_log(
         dag_id = None
 
         event_log_id_raw = request.path_params.get("event_log_id")
-        try:
-            event_log_id = int(event_log_id_raw) if event_log_id_raw is not None else None
-        except ValueError:
-            event_log_id = None
-
-        if event_log_id is not None:
+        if event_log_id_raw is not None:
+            try:
+                event_log_id = int(event_log_id_raw)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="'event_log_id' must be an integer",
+                )
             dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
 
         requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
@@ -715,6 +719,56 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
         _requires_access(
             # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_variable(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUser, str], None]:
+    def inner(
+        request: BulkBody[BulkDAGRunBody],
+        user: GetUserDep,
+        dag_id: str,
+    ) -> None:
+        resolved_dag_ids: set[str] = set()
+        for action in request.actions:
+            for entity in action.entities:
+                if isinstance(entity, str):
+                    entity_dag_id: str | None = dag_id
+                else:
+                    entity_dag_id = entity.dag_id or dag_id
+                if entity_dag_id and entity_dag_id != "~":
+                    resolved_dag_ids.add(entity_dag_id)
+
+        dag_id_to_team = {d: DagModel.get_team_name(d) for d in resolved_dag_ids}
+
+        requests: list[IsAuthorizedDagRequest] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for entity in action.entities:
+                if isinstance(entity, str):
+                    entity_dag_id = dag_id
+                else:
+                    entity_dag_id = entity.dag_id or dag_id
+                # Entities that can't be resolved are surfaced as 400 in the service's BulkResponse.
+                if not entity_dag_id or entity_dag_id == "~":
+                    continue
+                for method in methods:
+                    requests.append(
+                        {
+                            "method": method,
+                            "access_entity": DagAccessEntity.RUN,
+                            "details": DagDetails(
+                                id=entity_dag_id, team_name=dag_id_to_team.get(entity_dag_id)
+                            ),
+                        }
+                    )
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
                 requests=requests,
                 user=user,
             )
