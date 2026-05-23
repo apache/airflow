@@ -812,6 +812,12 @@ repos:
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
         pass_filenames: true
+      - id: check-example-dag-tags
+        name: Check example DAGs carry the "example" tag
+        entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/prek/check_license.py

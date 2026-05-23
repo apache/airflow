@@ -35,7 +35,7 @@ with DAG(
     catchup=False,
     start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["consumes"],
+    tags=["example", "consumes"],
 ):
 
     @task(inlets=[asset])
@@ -50,7 +50,7 @@ with DAG(
     catchup=False,
     start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
-    tags=["consumes"],
+    tags=["example", "consumes"],
 ):
     BashOperator(
         task_id="read_asset_event_from_classic",

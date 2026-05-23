@@ -54,7 +54,7 @@ with DAG(
     start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
     schedule="@daily",
     catchup=False,
-    tags=["team_analytics", "produces", "asset-scheduled", "allow-teams"],
+    tags=["example", "team_analytics", "produces", "asset-scheduled", "allow-teams"],
 ) as producer_dag:
     BashOperator(
         task_id="produce_shared_data",
@@ -70,7 +70,7 @@ with DAG(
     start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
     schedule=[shared_data],
     catchup=False,
-    tags=["team_ml", "consumes", "asset-scheduled", "allow-teams"],
+    tags=["example", "team_ml", "consumes", "asset-scheduled", "allow-teams"],
 ) as consumer_dag:
     BashOperator(
         task_id="consume_shared_data",
