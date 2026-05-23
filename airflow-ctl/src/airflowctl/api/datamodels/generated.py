@@ -240,7 +240,14 @@ class ClearTaskInstancesBody(BaseModel):
         ),
     ] = None
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
-    note: Annotated[Note | None, Field(title="Note")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None,
+    include_downstream_dags: Annotated[
+        bool | None,
+        Field(
+            description = "If True, also clear tasks in downstream DAGs that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.",
+            title = "Include Downstream Dags",
+        ),
+    ] = False
 
 
 class Value(RootModel[list]):
