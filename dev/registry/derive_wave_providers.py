@@ -59,7 +59,7 @@ NON_PROVIDER_TOKENS = frozenset(
         "helm-chart",
         "docker-stack",
         "apache-airflow-ctl",
-        "apache-airflow-task-sdk",
+        "task-sdk",
     }
 )
 PROVIDER_PREFIX = "apache-airflow-providers-"

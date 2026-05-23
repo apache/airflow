@@ -31,7 +31,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_operator_agent_sql]
-@dag
+@dag(tags=["example"])
 def example_agent_operator_sql():
     AgentOperator(
         task_id="analyst",
@@ -62,7 +62,7 @@ example_agent_operator_sql()
 
 
 # [START howto_operator_agent_hook]
-@dag
+@dag(tags=["example"])
 def example_agent_operator_hook():
     from airflow.providers.http.hooks.http import HttpHook
 
@@ -94,7 +94,7 @@ example_agent_operator_hook()
 
 
 # [START howto_decorator_agent]
-@dag
+@dag(tags=["example"])
 def example_agent_decorator():
     @task.agent(
         llm_conn_id="pydanticai_default",
@@ -123,7 +123,7 @@ example_agent_decorator()
 
 
 # [START howto_decorator_agent_structured]
-@dag
+@dag(tags=["example"])
 def example_agent_structured_output():
     from pydantic import BaseModel
 
@@ -155,7 +155,7 @@ example_agent_structured_output()
 
 
 # [START howto_agent_chain]
-@dag
+@dag(tags=["example"])
 def example_agent_chain():
     @task.agent(
         llm_conn_id="pydanticai_default",
@@ -186,7 +186,7 @@ example_agent_chain()
 
 
 # [START howto_operator_agent_hitl_review]
-@dag
+@dag(tags=["example"])
 def example_agent_operator_hitl_review():
     """AgentOperator with HITL review — a human approves output via hitl-review plugin UI."""
     AgentOperator(

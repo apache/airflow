@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
@@ -38,6 +39,7 @@ from opensearchpy.exceptions import NotFoundError
 from sqlalchemy import select
 
 import airflow.logging_config as alc
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, conf
@@ -380,8 +382,31 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    # stacklevel=1 keeps the warning attributed to this airflow.providers
+                    # module so module-based deprecation filters still match; dictConfig
+                    # is in stdlib and would otherwise hide the warning at stacklevel=2.
+                    warnings.warn(
+                        "Implicit REMOTE_TASK_LOG registration by OpensearchTaskHandler during "
+                        "dictConfig is deprecated and will be removed in a future provider "
+                        "release. Set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at "
+                        "module scope in your ``[logging] logging_config_class`` module. See "
+                        "the OpenSearch provider logging documentation for the updated "
+                        "override example.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=1,
+                    )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                warnings.warn(
+                    "Implicit REMOTE_TASK_LOG registration by OpensearchTaskHandler during "
+                    "dictConfig is deprecated and will be removed in a future provider "
+                    "release. Set ``REMOTE_TASK_LOG = OpensearchRemoteLogIO(...)`` at "
+                    "module scope in your ``[logging] logging_config_class`` module. See "
+                    "the OpenSearch provider logging documentation for the updated "
+                    "override example.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
