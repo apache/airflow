@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, TypeGuard
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard, cast
 
 import attrs
 import methodtools
@@ -64,13 +64,15 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.iterableoperator import IterableOperator
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.sdk.definitions.partitionedoperator import PartitionedOperator
     from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
-ValidationSource = Literal["expand"] | Literal["partial"]
+ValidationSource = Literal["expand"] | Literal["iterate"] | Literal["partial"]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -213,67 +215,32 @@ class OperatorPartial:
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
-    def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
-        from airflow.providers.standard.operators.empty import EmptyOperator
-        from airflow.sdk import BaseSensorOperator
-        from airflow.sdk.bases.skipmixin import SkipMixin
-
-        self._expand_called = True
-        ensure_xcomarg_return_value(expand_input.value)
-
-        partial_kwargs = self.kwargs.copy()
-        task_id = partial_kwargs.pop("task_id")
-        dag = partial_kwargs.pop("dag")
-        task_group = partial_kwargs.pop("task_group")
-        start_date = partial_kwargs.pop("start_date", None)
-        end_date = partial_kwargs.pop("end_date", None)
-        start_from_trigger = (
-            partial_kwargs["start_from_trigger"]
-            if "start_from_trigger" in partial_kwargs
-            else getattr(self.operator_class, "start_from_trigger", False)
-        )
-        start_trigger_args = (
-            partial_kwargs["start_trigger_args"]
-            if "start_trigger_args" in partial_kwargs
-            else getattr(self.operator_class, "start_trigger_args", None)
+    def _expand(
+        self,
+        expand_input: ExpandInput,
+        *,
+        strict: bool,
+        apply_upstream_relationship: bool = True,
+    ) -> MappedOperator:
+        return self.partition(size=0)._expand(
+            expand_input, strict=strict, apply_upstream_relationship=apply_upstream_relationship
         )
 
-        try:
-            operator_name = self.operator_class.custom_operator_name  # type: ignore
-        except AttributeError:
-            operator_name = self.operator_class.__name__
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
+        operator = self.partition(size=0).iterate(**mapped_kwargs)
+        return cast("IterableOperator", operator)
 
-        op = MappedOperator(
-            operator_class=self.operator_class,
-            expand_input=expand_input,
-            partial_kwargs=partial_kwargs,
-            task_id=task_id,
-            params=self.params,
-            operator_extra_links=self.operator_class.operator_extra_links,
-            template_ext=self.operator_class.template_ext,
-            template_fields=self.operator_class.template_fields,
-            template_fields_renderers=self.operator_class.template_fields_renderers,
-            ui_color=self.operator_class.ui_color,
-            ui_fgcolor=self.operator_class.ui_fgcolor,
-            is_empty=issubclass(self.operator_class, EmptyOperator),
-            is_sensor=issubclass(self.operator_class, BaseSensorOperator),
-            can_skip_downstream=issubclass(self.operator_class, SkipMixin),
-            task_module=self.operator_class.__module__,
-            task_type=self.operator_class.__name__,
-            operator_name=operator_name,
-            dag=dag,
-            task_group=task_group,
-            start_date=start_date,
-            end_date=end_date,
-            disallow_kwargs_override=strict,
-            # For classic operators, this points to expand_input because kwargs
-            # to BaseOperator.expand() contribute to operator arguments.
-            expand_input_attr="expand_input",
-            # TODO: Move these to task SDK's BaseOperator and remove getattr
-            start_trigger_args=start_trigger_args,
-            start_from_trigger=start_from_trigger,
-        )
-        return op
+    def iterate_kwargs(
+        self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True
+    ) -> IterableOperator:
+        operator = self.partition(size=0).iterate_kwargs(kwargs, strict=strict)
+        return cast("IterableOperator", operator)
+
+    def partition(self, size: int) -> PartitionedOperator:
+        """Return a PartitionedOperator for partitioned mapping."""
+        from airflow.sdk.definitions.partitionedoperator import PartitionedOperator
+
+        return PartitionedOperator(operator_partial=self, size=size)
 
 
 @attrs.define(
@@ -322,6 +289,7 @@ class MappedOperator(AbstractOperator):
     end_date: pendulum.DateTime | None
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
     downstream_task_ids: set[str] = attrs.field(factory=set, init=False)
+    _apply_upstream_relationship: bool = attrs.field(alias="apply_upstream_relationship", default=True)
 
     _disallow_kwargs_override: bool
     """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.
@@ -343,19 +311,26 @@ class MappedOperator(AbstractOperator):
         return f"<Mapped({self.task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
-        from airflow.sdk.definitions.xcom_arg import XComArg
+        # When _apply_upstream_relationship is False (i.e. IterableOperator), we intentionally
+        # skip the *entire* body — not just XComArg.apply_upstream_relationship.
+        # IterableOperator creates in-memory MappedOperator instances solely to drive task
+        # expansion; they must NOT be registered with the DAG or task group because Airflow
+        # treats the IterableOperator itself as the single real task instance in the DB.
+        # Calling dag.add_task() or task_group.add() here would raise duplicate-task errors.
+        if self._apply_upstream_relationship:
+            from airflow.sdk.definitions.xcom_arg import XComArg
 
-        if self.get_closest_mapped_task_group() is not None:
-            raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
+            if self.get_closest_mapped_task_group() is not None:
+                raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
 
-        if self.task_group:
-            self.task_group.add(self)
-        if self.dag:
-            self.dag.add_task(self)
-        XComArg.apply_upstream_relationship(self, self._get_specified_expand_input().value)
-        for k, v in self.partial_kwargs.items():
-            if k in self.template_fields:
-                XComArg.apply_upstream_relationship(self, v)
+            if self.task_group:
+                self.task_group.add(self)
+            if self.dag:
+                self.dag.add_task(self)
+            XComArg.apply_upstream_relationship(self, self._get_specified_expand_input().value)
+            for k, v in self.partial_kwargs.items():
+                if k in self.template_fields:
+                    XComArg.apply_upstream_relationship(self, v)
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod

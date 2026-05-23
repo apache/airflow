@@ -1820,6 +1820,76 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
     assert ti.rendered_map_index == "Label: test_task"
 
 
+class TestIndexedTaskInstance:
+    @pytest.mark.parametrize(
+        ("index", "key", "value", "expected_key", "expected_xcom_pushed"),
+        [
+            (3, "result", "ok", "result_3", False),
+            (2, BaseXCom.XCOM_RETURN_KEY, "value1", f"{BaseXCom.XCOM_RETURN_KEY}_2", True),
+            (1, "custom_key", "value2", "custom_key_1", False),
+        ],
+        ids=["delegates_with_index_suffix", "sets_flag_for_default_key", "does_not_set_flag_for_custom_key"],
+    )
+    def test_xcom_push_suffix_and_flag(
+        self, make_indexed_ti, index, key, value, expected_key, expected_xcom_pushed
+    ):
+        """xcom_push appends map index suffix and only marks default-key pushes."""
+        ti = make_indexed_ti(index=index)
+        assert ti.xcom_pushed is False
+
+        with mock.patch("airflow.sdk.execution_time.task_runner._xcom_push", autospec=True) as mock_push:
+            ti.xcom_push(key=key, value=value)
+
+        mock_push.assert_called_once_with(ti, expected_key, value)
+        assert ti.xcom_pushed is expected_xcom_pushed
+
+    def test_xcom_pull_delegates_with_index_suffix(self, make_indexed_ti):
+        """xcom_pull delegates to RuntimeTaskInstance with key suffixed by _{index}."""
+        ti = make_indexed_ti(index=5)
+
+        with mock.patch.object(
+            ti.__class__.__bases__[0],
+            "xcom_pull",
+            autospec=True,
+            return_value="pulled_value",
+        ) as mock_pull:
+            result = ti.xcom_pull(key="result")
+
+        mock_pull.assert_called_once_with(
+            ti,
+            task_ids=None,
+            dag_id=None,
+            key="result_5",
+            include_prior_dates=False,
+            map_indexes=mock.ANY,
+            default=None,
+            run_id=None,
+        )
+        assert result == "pulled_value"
+
+    def test_next_retry_datetime_without_exponential_backoff(self, make_indexed_ti):
+        ti = make_indexed_ti(retry_delay=timedelta(seconds=30), retry_exponential_backoff=False)
+
+        assert ti.next_retry_datetime() == timezone.datetime(2024, 12, 3, 10, 0, 30)
+
+    def test_next_retry_datetime_exponential_backoff_honors_max_retry_delay(self, make_indexed_ti):
+        ti = make_indexed_ti(
+            try_number=2,
+            retry_delay=timedelta(seconds=10),
+            retry_exponential_backoff=True,
+            max_retry_delay=timedelta(seconds=5),
+        )
+
+        assert ti.next_retry_datetime() == timezone.datetime(2024, 12, 3, 10, 0, 5)
+
+    def test_properties(self, make_indexed_ti):
+        ti = make_indexed_ti(index=7, try_number=4, is_async=True, do_xcom_push=False)
+
+        assert ti.is_async is True
+        assert ti.next_try_number == 5
+        assert ti.do_xcom_push is False
+
+
 class TestSerializeOutletEvents:
     """Tests for the wire format produced by ``_serialize_outlet_events``."""
 
@@ -2019,6 +2089,43 @@ class TestRuntimeTaskInstance:
 
         # Now the lazy attribute should trigger the call
         mock_supervisor_comms.send.assert_called_once()
+
+    def test_logical_date_returns_none_without_ti_context_from_server(self, mocked_parse):
+        """Test that logical_date returns None when _ti_context_from_server is not set."""
+        task = BaseOperator(task_id="hello")
+        dag_id = "basic_task"
+
+        get_inline_dag(dag_id=dag_id, task=task)
+
+        ti_id = uuid7()
+        ti = TaskInstance(
+            id=ti_id,
+            task_id=task.task_id,
+            dag_id=dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        start_date = timezone.datetime(2025, 1, 1)
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=None,
+            start_date=start_date,
+        )
+
+        assert runtime_ti.logical_date is None
+
+    def test_logical_date_returns_dag_run_logical_date(self, create_runtime_ti):
+        """Test that logical_date returns the dag run's logical_date when _ti_context_from_server is set."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dag_run = runtime_ti._ti_context_from_server.dag_run
+
+        assert runtime_ti.logical_date == dag_run.logical_date
+        assert runtime_ti.logical_date == timezone.datetime(2024, 12, 1, 1, 0, 0)
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""

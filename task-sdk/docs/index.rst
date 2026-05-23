@@ -172,6 +172,7 @@ For the full public API reference, see the :doc:`api` page.
 
   examples
   dynamic-task-mapping
+  dynamic-task-mapping-vs-iteration
   deferred-vs-async-operators
   api
   concepts

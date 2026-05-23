@@ -2819,6 +2819,7 @@ def test_operator_expand_serde():
         "template_ext": [".sh", ".bash"],
         "template_fields_renderers": {"bash_command": "bash", "env": "json"},
         "ui_color": "#f0ede4",
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
     }
@@ -2862,6 +2863,7 @@ def test_operator_expand_xcomarg_serde():
         },
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
     }
@@ -2917,6 +2919,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
         },
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
     }
@@ -2964,6 +2967,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         },
         "task_id": "task_2",
         "template_fields": ["arg1", "arg2"],
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
     }
@@ -3072,6 +3076,7 @@ def test_taskflow_expand_serde():
             "op_args": "py",
             "op_kwargs": "py",
         },
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
         "python_callable_name": "test_taskflow_expand_serde.<locals>.x",
@@ -3165,6 +3170,7 @@ def test_taskflow_expand_kwargs_serde(strict):
             "op_args": "py",
             "op_kwargs": "py",
         },
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "op_kwargs_expand_input",
     }
@@ -3276,6 +3282,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "partial_kwargs": {
             "retry_delay": {"__type": "timedelta", "__var": 300.0},
         },
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "_operator_extra_links": {"airflow": "_link_AirflowLink2"},
