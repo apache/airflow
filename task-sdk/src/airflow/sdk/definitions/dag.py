@@ -1357,7 +1357,7 @@ class DAG:
 
             dr: DagRun = get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date or run_after,
+                start_date=run_after,
                 logical_date=logical_date,
                 data_interval=data_interval,
                 run_after=run_after,
