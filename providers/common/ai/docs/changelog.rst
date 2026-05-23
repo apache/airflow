@@ -48,6 +48,15 @@ rather than a pretty form, but no allow-list edit is required). Cross-DAG
 parses its own DAG file. On older Airflow releases that lack ``allow_class``
 the operators continue to dump to ``dict``.
 
+Next release
+............
+
+Features
+^^^^^^^^
+
+* Add ``BaseAIHook`` contract with framework-agnostic ``create_agent`` / ``run_agent`` /
+  ``get_model`` interface so ``AgentOperator`` selects the agent backend via connection type.
+
 0.3.0
 .....
 

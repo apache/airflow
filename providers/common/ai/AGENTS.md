@@ -12,11 +12,13 @@ The hook is a thin bridge between Airflow connections and pydantic-ai's model/pr
   Bedrock, Ollama, etc.) via `infer_model()` and provider classes like `AzureProvider`, `BedrockProvider`.
   Do not re-implement provider-specific logic that pydantic-ai handles.
   Before writing new code, check: https://ai.pydantic.dev/models/
-- **Keep the hook thin.** `PydanticAIHook.get_conn()` maps Airflow connection fields to pydantic-ai
-  constructors. That is the hook's entire job. Do not add abstraction layers (builders, factories,
-  registries, Protocols) on top of pydantic-ai's own abstractions.
-- **No premature abstraction.** Do not add Protocols, builder patterns, or plugin systems for a single
-  code path. Wait until there are 3+ concrete use cases before introducing an abstraction.
+- **Keep LLM hooks thin.** `PydanticAIHook.get_conn()` maps Airflow connection fields to pydantic-ai
+  constructors. That is the hook's entire job for one-shot LLM operators.
+- **Agent backends use `BaseAIHook`.** `AgentOperator` / `@task.agent` resolve
+  `BaseAIHook.get_agent_hook(conn_id)` so the connection ``conn_type`` selects the runtime
+  (``pydanticai``, ``pydanticai-bedrock``, ``pydanticai-azure``, …). New agent frameworks subclass
+  `BaseAIHook` and implement `get_model`, `create_agent`, `run_agent`, and `_tool_spec_to_native`;
+  do not add parallel operator classes per framework.
 - **Operators stay focused.** Each operator does one thing: `LLMOperator` (prompt → output),
   `LLMBranchOperator` (prompt → branch decision), `LLMSQLOperator` (prompt → validated SQL).
 - **One backend per toolset.** A toolset wraps a single execution backend (e.g. `DbApiHook`,
@@ -67,7 +69,8 @@ building a wrapper here.
 
 ## Key Paths
 
-- Hook: `src/airflow/providers/common/ai/hooks/pydantic_ai.py`
+- Hooks: `src/airflow/providers/common/ai/hooks/pydantic_ai.py` (pydantic-ai)
+- Base hook contract: `src/airflow/providers/common/ai/hooks/base_ai.py`
 - Operators: `src/airflow/providers/common/ai/operators/`
 - Decorators: `src/airflow/providers/common/ai/decorators/`
 - Toolsets: `src/airflow/providers/common/ai/toolsets/`

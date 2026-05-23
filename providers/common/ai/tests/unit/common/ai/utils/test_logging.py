@@ -17,25 +17,17 @@
 from __future__ import annotations
 
 import logging
-from unittest.mock import MagicMock
 
 from pydantic import BaseModel
-from pydantic_ai.messages import (
-    ModelResponse,
-    ModelResponsePart,
-    ToolCallPart,
-)
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage
 from airflow.providers.common.ai.utils.logging import (
     _log_output_debug,
     log_run_summary,
-    wrap_toolsets_for_logging,
 )
 
 
-def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
-    """Build a mock AgentRunResult with usage, response, and messages."""
+def _make_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
     usage_kwargs = usage_kwargs or {
         "requests": 4,
         "tool_calls": 3,
@@ -43,22 +35,18 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
         "output_tokens": 512,
         "total_tokens": 3359,
     }
-    result = MagicMock()
-    result.usage.return_value = MagicMock(**usage_kwargs)
-    result.response = MagicMock(model_name=model_name)
-
-    messages: list = []
-    if tool_names:
-        parts: list[ModelResponsePart] = [ToolCallPart(tool_name=name, args="{}") for name in tool_names]
-        messages.append(ModelResponse(parts=parts))
-    result.all_messages.return_value = messages
-    return result
+    return AgentRunResult(
+        output="test output",
+        model_name=model_name,
+        usage=AgentUsage(**usage_kwargs),
+        tool_names=tool_names,
+    )
 
 
 class TestLogRunSummary:
     def test_logs_usage(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
-        result = _make_mock_result()
+        result = _make_result()
 
         with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
             log_run_summary(logger, result)
@@ -76,7 +64,7 @@ class TestLogRunSummary:
 
     def test_logs_tool_sequence(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
-        result = _make_mock_result(tool_names=["list_tables", "get_schema", "query"])
+        result = _make_result(tool_names=["list_tables", "get_schema", "query"])
 
         with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
             log_run_summary(logger, result)
@@ -88,13 +76,24 @@ class TestLogRunSummary:
 
     def test_no_tools_skips_sequence_line(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
-        result = _make_mock_result(tool_names=None)
+        result = _make_result(tool_names=None)
 
         with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
             log_run_summary(logger, result)
 
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert len(records) == 2  # summary line + endgroup (no tool sequence)
+        assert records[-1].message == "::endgroup::"
+
+    def test_logs_without_usage(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = AgentRunResult(output="something", model_name="my-model", usage=None)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert "model=my-model" in records[0].message
         assert records[-1].message == "::endgroup::"
 
 
@@ -134,18 +133,3 @@ class TestLogOutputDebug:
 
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
         assert len(debug_records) == 0
-
-
-class TestWrapToolsetsForLogging:
-    def test_wraps_each_toolset(self):
-        ts_a = MagicMock()
-        ts_b = MagicMock()
-        logger = logging.getLogger("test.wrap")
-
-        wrapped = wrap_toolsets_for_logging([ts_a, ts_b], logger)
-
-        assert len(wrapped) == 2
-        assert all(isinstance(w, LoggingToolset) for w in wrapped)
-        assert wrapped[0].wrapped is ts_a
-        assert wrapped[1].wrapped is ts_b
-        assert wrapped[0].logger is logger
