@@ -24,7 +24,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_decorator_llm_pipeline]
-@dag
+@dag(tags=["example"])
 def example_llm_analysis_pipeline():
     class TicketAnalysis(BaseModel):
         priority: str

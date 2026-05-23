@@ -644,13 +644,11 @@ def _create_ti_state_update_query_and_update_state(
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
-                # We skip fail_fast handling in this error case to avoid fetching the TI object while the row
-                # is still locked from the earlier with_for_update() query, which might cause deadlock issues
-                # in SQLA2. The task is marked as FAILED regardless.
+                ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
+                if ti is not None:
+                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
                 return query, TaskInstanceState.FAILED
 
-        # We can directly use task_instance_id instead of fetching the TaskInstance object to avoid SQLA2
-        #  lock contention issues when the TaskInstance row is already locked from before.
         actual_start_date = timezone.utcnow()
         session.add(
             TaskReschedule(
