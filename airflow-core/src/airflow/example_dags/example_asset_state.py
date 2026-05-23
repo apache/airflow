@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from airflow.sdk import DAG, Asset, task
 
@@ -43,7 +43,7 @@ def _fetch_records(since: str) -> list[dict]:
 
 with DAG(
     dag_id="example_asset_state_producer",
-    schedule=timedelta(hours=1),
+    schedule=None,
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["example", "asset-state"],

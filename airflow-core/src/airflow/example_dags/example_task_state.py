@@ -31,7 +31,7 @@ import json
 import random
 import string
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from airflow.sdk import DAG, task
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
@@ -58,7 +58,7 @@ with DAG(
     doc_md=__doc__,
 ):
 
-    @task(retries=2)
+    @task(retries=2, retry_delay=timedelta(seconds=5))
     def run_job(**context):
         ts = context["task_state"]
         try_number = context["ti"].try_number
