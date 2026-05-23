@@ -65,3 +65,18 @@ class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInter
 
 class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):
     """Session interface that exempts some routes and stores session data in a signed cookie."""
+
+    def save_session(self, app, session, response):
+        """Save session, ensuring cookie values are str for Werkzeug 3.0+."""
+        # Werkzeug 3.0 removed automatic bytes-to-str coercion in set_cookie().
+        # The itsdangerous signing serializer may return bytes in some
+        # configurations; coerce to str so the cookie value is always valid.
+        original_set_cookie = response.set_cookie
+
+        def _str_set_cookie(key, value="", **kwargs):
+            if isinstance(value, bytes):
+                value = value.decode("utf-8")
+            return original_set_cookie(key, value, **kwargs)
+
+        response.set_cookie = _str_set_cookie
+        return super().save_session(app, session, response)
