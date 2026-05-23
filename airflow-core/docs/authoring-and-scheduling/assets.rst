@@ -328,12 +328,18 @@ The shorthand for this is ``@asset.multi``:
 
 Dynamic data events emitting and asset creation through AssetAlias
 -----------------------------------------------------------------------
-An asset alias can be used to emit asset events of assets with association to the aliases. Downstreams can depend on resolved asset. This feature allows you to define complex dependencies for Dag executions based on asset updates.
+Use ``AssetAlias`` when a task must declare an asset dependency before the concrete asset URI is
+known. The alias is listed in ``outlets`` as a stable name, and the task resolves it at runtime by
+adding one or more concrete ``Asset`` objects through ``outlet_events`` or yielded ``Metadata``.
+Downstream Dags can depend on the alias, and Airflow triggers them when events are emitted for the
+resolved assets.
 
 How to use AssetAlias
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-``AssetAlias`` has one single argument ``name`` that uniquely identifies the asset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
+``AssetAlias`` has one single argument ``name`` that uniquely identifies the alias. The task must
+first declare the alias as an outlet, and then use ``outlet_events`` or yield ``Metadata`` during
+execution to associate the alias with the concrete assets it produced.
 
 The following example creates an asset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the asset does not exist, Airflow will dynamically create it and log a warning message.
 
