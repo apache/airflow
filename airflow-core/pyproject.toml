@@ -18,14 +18,14 @@
 [build-system]
 requires = [
     "gitdb==4.0.12",
-    "GitPython==3.1.46",
+    "GitPython==3.1.50",
     "hatchling==1.29.0",
-    "packaging==26.1",
-    "pathspec==1.0.4",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "smmap==5.0.3",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.5.7.17",
 ]
 build-backend = "hatchling.build"
 
@@ -64,10 +64,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
-version = "3.2.1"
+version = "3.3.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
+    "cachetools>=6.0.0",
     # aiosqlite 0.22.0 has a problem with hanging pytest sessions and we excluded it
     # See https://github.com/omnilib/aiosqlite/issues/369
     # It seems that while our test issues are fixed in 0.22.1, sqlalchemy 2 itself
@@ -96,9 +97,7 @@ dependencies = [
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
     "uvicorn>=0.37.0",
-    # Starlette 1.0.0 breaks the API server. Needs more investigation
-    # https://github.com/apache/airflow/issues/64116
-    "starlette>=0.45.0,<1",
+    "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -148,10 +147,10 @@ dependencies = [
     "tenacity>=8.3.0",
     "termcolor>=3.0.0",
     "typing-extensions>=4.14.1",
-    # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
     "universal-pathlib>=0.3.8",
     "uuid6>=2024.7.10",
-    "apache-airflow-task-sdk==1.2.1",
+    "apache-airflow-task-sdk<1.4.0,>=1.3.0",
+    "apache-airflow-ctl<0.1.6,>=0.1.5",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",
@@ -249,6 +248,7 @@ exclude = [
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/serialization/src/airflow_shared/serialization" = "src/airflow/_shared/serialization"
+"../shared/state/src/airflow_shared/state" = "src/airflow/_shared/state"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/_shared/plugins_manager"
@@ -285,6 +285,7 @@ dev = [
     "apache-airflow-core[all]",
     "apache-airflow-ctl",
     "apache-airflow-devel-common",
+    "apache-airflow-task-sdk",
     # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
     # airflow-core tests
     "apache-airflow[pandas,polars]",
@@ -311,6 +312,10 @@ dev = [
 docs = [
     "apache-airflow-devel-common[docs]"
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 
 [tool.uv]
@@ -318,6 +323,7 @@ required-version = ">=0.11.8"
 
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
+apache-airflow-ctl = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
 
 [tool.airflow]
@@ -331,6 +337,7 @@ shared_distributions = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
+    "apache-airflow-shared-state",
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",
