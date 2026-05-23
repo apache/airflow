@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, Skeleton, Link } from "@chakra-ui/react";
+import { Box, Heading, Flex, Skeleton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { Link as RouterLink } from "react-router-dom";
 
 import { type PoolServiceGetPoolsDefaultResponse, useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { usePoolServiceGetPools } from "openapi/queries/queries";
 import type { ApiError } from "openapi/requests";
 import { PoolBar, UNLIMITED_SLOTS } from "src/components/PoolBar";
+import { RouterLink } from "src/components/ui";
 import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 
@@ -98,9 +98,9 @@ export const PoolSummary = () => {
           </Heading>
         </Flex>
         {hasPoolsAccess ? (
-          <Link asChild color="fg.info" fontSize="xs" h={4}>
-            <RouterLink to="/pools">{translate("managePools")}</RouterLink>
-          </Link>
+          <RouterLink fontSize="xs" h={4} to="/pools">
+            {translate("managePools")}
+          </RouterLink>
         ) : undefined}
       </Flex>
 

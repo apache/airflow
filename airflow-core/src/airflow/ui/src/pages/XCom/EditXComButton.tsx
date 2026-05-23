@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit2 } from "react-icons/fi";
 
 import type { XComResponse } from "openapi/requests/types.gen";
+import { IconButton } from "src/components/ui";
 
 import XComModal from "./XComModal";
 
@@ -34,7 +35,7 @@ const EditXComButton = ({ xcom }: EditXComButtonProps) => {
 
   return (
     <>
-      <IconButton aria-label={translate("xcom.edit.title")} onClick={onOpen} variant="ghost">
+      <IconButton label={translate("xcom.edit.title")} onClick={onOpen}>
         <FiEdit2 />
       </IconButton>
 

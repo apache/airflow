@@ -93,6 +93,7 @@ class NullTimetable(_TrivialTimetable):
     """
 
     can_be_scheduled = False  # TODO (GH-52141): Find a way to keep this and one in Core in sync.
+    partitioned_at_runtime = False
     description: str = "Never, external triggers only"
 
     @property
@@ -181,6 +182,21 @@ class ContinuousTimetable(_TrivialTimetable):
             return None
 
         return DagRunInfo.interval(start, end)
+
+
+class PartitionAtRuntime(NullTimetable):
+    """
+    Timetable that never schedules anything; partition keys are set at runtime.
+
+    This corresponds to ``schedule=PartitionAtRuntime()``.
+    """
+
+    description: str = "Never, partition key(s) set at runtime"
+    partitioned_at_runtime = True
+
+    @property
+    def summary(self) -> str:
+        return "PartitionAtRuntime"
 
 
 class AssetTriggeredTimetable(_TrivialTimetable):

@@ -23,8 +23,8 @@ SENSITIVE_CONFIG_COMMANDS = [
     # Test that config list shows masked sensitive values
     "config list",
     # Test that getting specific sensitive config values are masked
-    "config get --section core --option fernet_key",
-    "config get --section database --option sql_alchemy_conn",
+    "config get core fernet_key",
+    "config get database sql_alchemy_conn",
 ]
 
 

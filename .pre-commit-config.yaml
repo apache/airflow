@@ -235,6 +235,13 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-ci-workflows-in-sync
+        name: Check ci-arm.yml and ci-amd.yml stay in sync
+        entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
+        language: python
+        files: ^\.github/workflows/ci-(arm|amd)\.yml$
+        pass_filenames: false
+        require_serial: true
       - id: sync-uv-min-version-markers
         name: Sync `# sync-uv-min-version` markers with [tool.uv] required-version
         entry: ./scripts/ci/prek/sync_uv_min_version_markers.py
@@ -346,7 +353,7 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          ^helm-tests/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
+          ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -386,13 +393,14 @@ repos:
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.github/skills/airflow-translations/|
+          ^\.github/skills/setup-steward/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: a4727cbbcd26d7098e96b9cb738169b59711ae51  # frozen: v1.24.1
+    rev: 04a94ec45c8e92de281e3cc55754eb6d9db526a1  # frozen: v1.25.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -401,7 +409,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: e85aaf5524b2f808e63bae55e594c843220f10f2  # frozen: lychee-v0.24.2
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -428,7 +436,9 @@ repos:
           ^.*/openapi-gen/|
           ^.*/node_modules/|
           ^\.build/|
-          ^generated/
+          ^generated/|
+          ^\.apache-steward-overrides/|
+          ^\.github/skills/setup-steward/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -492,6 +502,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
+      - id: check-task-instance-dto-sync
+        name: Check BaseTaskInstanceDTO duplicate is in sync between core and task-sdk
+        entry: ./scripts/ci/prek/check_task_instance_dto_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/executors/workloads/task\.py$|^task-sdk/src/airflow/sdk/execution_time/workloads/task\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -500,7 +516,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.12']
+        additional_dependencies: ['ruff==0.15.13']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -678,7 +694,7 @@ repos:
           .*/dist/.*|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
-          ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
+          ^chart/tests/chart_utils/helm_template_generator\.py$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock|woff2?)$|
           ^\.pre-commit-config\.yaml$|
@@ -915,6 +931,10 @@ repos:
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
+        exclude: |
+          (?x)
+          ^\.apache-steward-overrides/|
+          ^\.github/skills/setup-steward/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files
@@ -1126,6 +1146,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
+        require_serial: true
+      - id: generate-supervisor-schemas-snapshot
+        name: Regenerate supervisor schema snapshot
+        entry: ./scripts/ci/prek/generate_supervisor_schemas_snapshot.py
+        language: python
+        pass_filenames: false
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
+      - id: check-supervisor-schemas-versions
+        name: Check supervisor schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_supervisor_schemas_versions.py
+        language: python
+        pass_filenames: true
+        files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client

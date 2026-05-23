@@ -292,7 +292,7 @@ class KubernetesPodTrigger(BaseTrigger):
             with contextlib.suppress(asyncio.CancelledError):
                 await events_task
 
-        return self.define_container_state(await self._get_pod())
+        return self.define_pod_container_state(await self._get_pod())
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
         """
@@ -307,8 +307,8 @@ class KubernetesPodTrigger(BaseTrigger):
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
         while True:
             pod = await self._get_pod()
-            container_state = self.define_container_state(pod)
-            if container_state == ContainerState.TERMINATED:
+            pod_container_state = self.define_pod_container_state(pod)
+            if pod_container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
                     {
                         "status": "success",
@@ -318,7 +318,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         **self.trigger_kwargs,
                     }
                 )
-            if container_state == ContainerState.FAILED:
+            if pod_container_state == ContainerState.FAILED:
                 return TriggerEvent(
                     {
                         "status": "failed",
@@ -397,8 +397,16 @@ class KubernetesPodTrigger(BaseTrigger):
                 run_ids=[self.task_instance.run_id],
                 map_index=self.task_instance.map_index,
             )
+            # The /states endpoint suffixes the response key with ``_{map_index}`` for mapped TIs
+            # (see ``get_task_instance_states`` in airflow-core's execution_api routes); non-mapped
+            # TIs keep the plain ``task_id``.
+            ti_key = (
+                f"{self.task_instance.task_id}_{self.task_instance.map_index}"
+                if self.task_instance.map_index >= 0
+                else self.task_instance.task_id
+            )
             try:
-                return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+                return task_states_response[self.task_instance.run_id][ti_key]
             except KeyError:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
@@ -507,6 +515,19 @@ class KubernetesPodTrigger(BaseTrigger):
                     return state
                 return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
         return ContainerState.UNDEFINED
+
+    def define_pod_container_state(self, pod: V1Pod) -> ContainerState:
+        """Infer workload state from terminal pod phase first, then from the base container state."""
+        if pod.status is None:
+            return ContainerState.UNDEFINED
+
+        if pod.status.phase == PodPhase.SUCCEEDED:
+            return ContainerState.TERMINATED
+
+        if pod.status.phase == PodPhase.FAILED:
+            return ContainerState.FAILED
+
+        return self.define_container_state(pod)
 
     @staticmethod
     def should_wait(pod_phase: PodPhase, container_state: ContainerState) -> bool:

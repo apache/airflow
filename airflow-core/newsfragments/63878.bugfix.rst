@@ -1,0 +1,1 @@
+Fixed ``airflow`` CLI commands (including ``airflow db migrate``) crashing with ``PermissionError`` on startup when ``base_log_folder`` is configured to a path on a mounted filesystem (e.g. NFS) whose parent directories the Airflow user cannot create.

@@ -26,7 +26,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import quote
 from uuid import UUID
 
@@ -48,6 +48,7 @@ from sqlalchemy import (
     Uuid,
     and_,
     case,
+    cast,
     delete,
     extract,
     false,
@@ -68,7 +69,11 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
-from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
+from airflow._shared.observability.traces import (
+    TASK_SPAN_DETAIL_LEVEL_KEY,
+    new_dagrun_trace_carrier,
+    new_task_run_carrier,
+)
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -88,6 +93,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
@@ -126,6 +132,13 @@ if TYPE_CHECKING:
     from airflow.triggers.base import StartTriggerArgs
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+
+class OutletEventPayload(NamedTuple):
+    """A single outlet emission carrying its ``extra`` payload and optional per-emission ``partition_key``."""
+
+    extra: dict
+    partition_key: str | None
 
 
 @provide_session
@@ -413,7 +426,9 @@ def clear_task_instances(
             # Always update clear_number and queued_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
-            dr.context_carrier = new_dagrun_trace_carrier()
+            dr.context_carrier = new_dagrun_trace_carrier(
+                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None
+            )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
@@ -781,6 +796,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if self.map_index >= 0:
             return str(self.map_index)
         return None
+
+    @rendered_map_index.expression  # type: ignore[no-redef]
+    def rendered_map_index(cls):
+        return case(
+            (cls._rendered_map_index.isnot(None), cls._rendered_map_index),
+            (cls.map_index >= 0, cast(cls.map_index, String)),
+            else_=None,
+        )
 
     @property
     def log_url(self) -> str:
@@ -1468,7 +1491,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        print(task_outlets, outlet_events)
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
@@ -1476,10 +1498,33 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             SerializedAssetUriRef,
         )
 
-        # TODO: AIP-76 should we provide an interface to override this, so that the task can
-        #  tell the truth if for some reason it touches a different partition?
-        #  https://github.com/apache/airflow/issues/58474
-        partition_key = ti.dag_run.partition_key
+        payloads_by_asset: dict[SerializedAssetUniqueKey, list[OutletEventPayload]] = defaultdict(list)
+        runtime_pks: set[str] = set()
+        for outlet_event in outlet_events:
+            # Alias-emitted events are handled separately further down via
+            # register_asset_change_for_alias, which uses the DagRun-level
+            # partition_key. Per-emission partition keys do not fan out through
+            # the alias path — emission via an alias produces one event per
+            # resolved asset, all carrying the same dag_run_partition_key.
+            if "source_alias_name" in outlet_event:
+                continue
+            asset_key = SerializedAssetUniqueKey(**outlet_event["dest_asset_key"])
+            partition_key = outlet_event.get("partition_key")
+            payloads_by_asset[asset_key].append(
+                OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
+            )
+            if partition_key is not None:
+                runtime_pks.add(partition_key)
+
+        # Back-fill DagRun.partition_key from the task emission when the task
+        # emitted exactly one distinct partition_key across all outlet events
+        # and the DagRun did not already have one set. This lets a task that
+        # discovers the partition at runtime (rather than via params) act as
+        # the source of truth for the DagRun-level key.
+        if len(runtime_pks) == 1 and ti.dag_run.partition_key is None:
+            ti.dag_run.partition_key = next(iter(runtime_pks))
+        dag_run_partition_key = ti.dag_run.partition_key
+
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -1506,11 +1551,25 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             )
         }
 
-        asset_event_extras: dict[SerializedAssetUniqueKey, dict] = {
-            SerializedAssetUniqueKey(**event["dest_asset_key"]): event["extra"]
-            for event in outlet_events
-            if "source_alias_name" not in event
-        }
+        def _register(am: AssetModel, key: SerializedAssetUniqueKey) -> None:
+            payloads_for_asset = payloads_by_asset.get(key, [])
+            if not payloads_for_asset:
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=None,
+                    partition_key=dag_run_partition_key,
+                    session=session,
+                )
+                return
+            for payload in payloads_for_asset:
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=payload.extra,
+                    partition_key=payload.partition_key,
+                    session=session,
+                )
 
         for key in asset_keys:
             try:
@@ -1523,52 +1582,36 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 continue
             ti.log.debug("register event for asset %s", am)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=am,
-                extra=asset_event_extras.get(key),
-                partition_key=partition_key,
-                session=session,
-            )
+            _register(am, key)
 
         if asset_name_refs:
-            asset_models_by_name = {key.name: am for key, am in asset_models.items()}
-            asset_event_extras_by_name = {key.name: extra for key, extra in asset_event_extras.items()}
+            asset_models_by_name: dict[str, tuple[SerializedAssetUniqueKey, AssetModel]] = {
+                key.name: (key, am) for key, am in asset_models.items()
+            }
             for nref in asset_name_refs:
                 try:
-                    am = asset_models_by_name[nref.name]
+                    key, am = asset_models_by_name[nref.name]
                 except KeyError:
                     ti.log.warning(
                         'Task has inactive assets "Asset.ref(name=%s)" in inlets or outlets', nref.name
                     )
                     continue
                 ti.log.debug("register event for asset name ref %s", am)
-                asset_manager.register_asset_change(
-                    task_instance=ti,
-                    asset=am,
-                    extra=asset_event_extras_by_name.get(nref.name),
-                    partition_key=partition_key,
-                    session=session,
-                )
+                _register(am, key)
         if asset_uri_refs:
-            asset_models_by_uri = {key.uri: am for key, am in asset_models.items()}
-            asset_event_extras_by_uri = {key.uri: extra for key, extra in asset_event_extras.items()}
+            asset_models_by_uri: dict[str, tuple[SerializedAssetUniqueKey, AssetModel]] = {
+                key.uri: (key, am) for key, am in asset_models.items()
+            }
             for uref in asset_uri_refs:
                 try:
-                    am = asset_models_by_uri[uref.uri]
+                    key, am = asset_models_by_uri[uref.uri]
                 except KeyError:
                     ti.log.warning(
                         'Task has inactive assets "Asset.ref(uri=%s)" in inlets or outlets', uref.uri
                     )
                     continue
                 ti.log.debug("register event for asset uri ref %s", am)
-                asset_manager.register_asset_change(
-                    task_instance=ti,
-                    asset=am,
-                    extra=asset_event_extras_by_uri.get(uref.uri),
-                    partition_key=partition_key,
-                    session=session,
-                )
+                _register(am, key)
 
         def _asset_event_extras_from_aliases() -> dict[tuple[SerializedAssetUniqueKey, str, str], set[str]]:
             d = defaultdict(set)
@@ -1607,7 +1650,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=asset,
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
-                    partition_key=partition_key,
+                    partition_key=dag_run_partition_key,
                     session=session,
                 )
                 if event is None:
@@ -1619,7 +1662,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         asset=asset,
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
-                        partition_key=partition_key,
+                        partition_key=dag_run_partition_key,
                         session=session,
                     )
 
@@ -1691,7 +1734,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             self.state = TaskInstanceState.DEFERRED
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
-            self.next_kwargs = start_trigger_args.next_kwargs or {}
+            self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
             self.start_date = timezone.utcnow()
 
             # If an execution_timeout is set, set the timeout to the minimum of
