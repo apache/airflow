@@ -47,6 +47,15 @@ name added to ``[core] allowed_deserialization_classes`` -- the consumer DAG's
 worker only loads its own DAG. On Airflow versions whose worker does not register
 declared classes, the operators dump to ``dict`` instead.
 
+Next release
+............
+
+Features
+^^^^^^^^
+
+* Add ``BaseAIHook`` contract with framework-agnostic ``create_agent`` / ``run_agent`` /
+  ``get_model`` interface so ``AgentOperator`` selects the agent backend via connection type.
+
 0.4.0
 .....
 

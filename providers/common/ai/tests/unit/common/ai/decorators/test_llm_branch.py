@@ -23,19 +23,23 @@ import pytest
 from pydantic_ai.messages import ImageUrl
 
 from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage, BaseAIHook
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+def _make_run_result(output):
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1),
     )
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
+
+
+def _make_mock_hook(run_result):
+    mock_hook = MagicMock()
+    mock_hook.create_agent.return_value = MagicMock()
+    mock_hook.run_agent.return_value = run_result
+    return mock_hook
 
 
 class TestLLMBranchDecoratedOperator:
@@ -43,14 +47,10 @@ class TestLLMBranchDecoratedOperator:
         assert _LLMBranchDecoratedOperator.custom_operator_name == "@task.llm_branch"
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_calls_callable_and_branches(self, mock_hook_cls, mock_do_branch):
+    def test_execute_calls_callable_and_branches(self, mock_do_branch):
         """The callable's return value becomes the LLM prompt, LLM output goes through do_branch."""
         downstream_enum = Enum("DownstreamTasks", {"positive": "positive", "negative": "negative"})
-
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.positive)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = _make_mock_hook(_make_run_result(downstream_enum.positive))
         mock_do_branch.return_value = "positive"
 
         def my_prompt():
@@ -63,11 +63,11 @@ class TestLLMBranchDecoratedOperator:
         )
         op.downstream_task_ids = {"positive", "negative"}
 
-        result = op.execute(context={})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            result = op.execute(context={})
 
         assert result == "positive"
         assert op.prompt == "Route this review"
-        mock_agent.run_sync.assert_called_once_with("Route this review", usage_limits=None)
         mock_do_branch.assert_called_once()
 
     @pytest.mark.parametrize(
@@ -86,18 +86,13 @@ class TestLLMBranchDecoratedOperator:
             op.execute(context={})
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_accepts_sequence_prompt(self, mock_hook_cls, mock_do_branch):
-        """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
+    def test_execute_accepts_sequence_prompt(self, mock_do_branch):
+        """A non-empty Sequence[UserContent] return value is forwarded as-is."""
         downstream_enum = Enum("DownstreamTasks", {"positive": "positive"})
-
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.positive)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_do_branch.return_value = "positive"
-
         image = ImageUrl(url="https://example.com/x.png")
         prompt = ["Route based on this image:", image]
+        mock_hook = _make_mock_hook(_make_run_result(downstream_enum.positive))
+        mock_do_branch.return_value = "positive"
 
         def my_prompt():
             return prompt
@@ -108,20 +103,19 @@ class TestLLMBranchDecoratedOperator:
             llm_conn_id="my_llm",
         )
         op.downstream_task_ids = {"positive"}
-        op.execute(context={})
+
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None)
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.prompt == prompt
 
     @patch.object(LLMBranchOperator, "do_branch")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, mock_do_branch):
+    def test_execute_merges_op_kwargs_into_callable(self, mock_do_branch):
         """op_kwargs are resolved by the callable to build the prompt."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
-
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = _make_mock_hook(_make_run_result(downstream_enum.task_a))
 
         def my_prompt(ticket_type):
             return f"Route this {ticket_type} ticket"
@@ -134,6 +128,7 @@ class TestLLMBranchDecoratedOperator:
         )
         op.downstream_task_ids = {"task_a"}
 
-        op.execute(context={"task_instance": MagicMock()})
+        with patch.object(BaseAIHook, "get_agent_hook", return_value=mock_hook):
+            op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Route this billing ticket"
