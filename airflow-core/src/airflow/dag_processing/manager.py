@@ -430,9 +430,10 @@ class DagFileProcessorManager(LoggingMixin):
         for dag in dags_parsed:
             # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
-            if dag.bundle_name in inactive_bundles:
+            # Legacy DAGs with a NULL bundle_name (e.g. from Airflow 2.x) are also stale, as they will never be parsed.
+            if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
                 self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active.",
+                    "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
                     dag.dag_id,
                     dag.bundle_name,
                 )
