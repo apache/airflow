@@ -195,6 +195,22 @@ export const useBackfillServiceGetBackfillSuspense = <TData = Common.BackfillSer
   backfillId: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey), queryFn: () => BackfillService.getBackfill({ backfillId }) as TData, ...options });
 /**
+* List Backfill Dag Runs
+* @param data The data for the request.
+* @param data.backfillId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+* @returns BackfillDagRunCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useBackfillServiceListBackfillDagRunsSuspense = <TData = Common.BackfillServiceListBackfillDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ backfillId, limit, offset, orderBy }: {
+  backfillId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillDagRunsKeyFn({ backfillId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfillDagRuns({ backfillId, limit, offset, orderBy }) as TData, ...options });
+/**
 * List Backfills Ui
 * @param data The data for the request.
 * @param data.limit

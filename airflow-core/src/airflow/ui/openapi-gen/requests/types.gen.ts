@@ -138,6 +138,29 @@ export type BackfillCollectionResponse = {
 };
 
 /**
+ * BackfillDagRun Collection serializer for responses.
+ */
+export type BackfillDagRunCollectionResponse = {
+    backfill_dag_runs: Array<BackfillDagRunResponse>;
+    total_entries: number;
+};
+
+/**
+ * Serializer for a single BackfillDagRun entry with joined DagRun state.
+ */
+export type BackfillDagRunResponse = {
+    id: number;
+    backfill_id: number;
+    dag_run_id: number | null;
+    logical_date: string | null;
+    partition_key: string | null;
+    sort_ordinal: number;
+    exception_reason: string | null;
+    dag_run_state?: DagRunState | null;
+    dag_run_run_id?: string | null;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -2675,6 +2698,18 @@ export type GetBackfillData = {
 
 export type GetBackfillResponse = BackfillResponse;
 
+export type ListBackfillDagRunsData = {
+    backfillId: number;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListBackfillDagRunsResponse = BackfillDagRunCollectionResponse;
+
 export type PauseBackfillData = {
     backfillId: number;
 };
@@ -4808,6 +4843,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/backfills/{backfill_id}/dag_runs': {
+        get: {
+            req: ListBackfillDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BackfillDagRunCollectionResponse;
                 /**
                  * Unauthorized
                  */
