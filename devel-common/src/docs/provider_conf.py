@@ -33,7 +33,6 @@ from __future__ import annotations
 # serve to show the default.
 import logging
 import os
-from pathlib import Path
 from typing import Any
 
 import rich
@@ -47,11 +46,14 @@ from docs.utils.conf_constants import (
     AUTOAPI_OPTIONS,
     BASIC_AUTOAPI_IGNORE_PATTERNS,
     BASIC_SPHINX_EXTENSIONS,
-    REDOC_SCRIPT_URL,
     SMARTQUOTES_EXCLUDES,
     SPELLING_WORDLIST_PATH,
     SPHINX_DESIGN_STATIC_PATH,
+    SPHINX_SWAGGER_EXTENSION,
     SUPPRESS_WARNINGS,
+    SWAGGER_BUNDLE_URI,
+    SWAGGER_CSS_URI,
+    SWAGGER_PRESENT_URI,
     filter_autoapi_ignore_entries,
     get_autodoc_mock_imports,
     get_configs_and_deprecations,
@@ -61,6 +63,7 @@ from docs.utils.conf_constants import (
     get_html_theme_options,
     get_intersphinx_mapping,
     get_rst_epilogue,
+    mirror_artifact_locally,
 )
 from sphinx_exts.provider_yaml_utils import load_package_data
 
@@ -119,25 +122,21 @@ smartquotes_excludes = SMARTQUOTES_EXCLUDES
 # ones.
 extensions = BASIC_SPHINX_EXTENSIONS
 
-PROVIDER_PACKAGES_WITH_REDOC = ["apache-airflow-providers-fab", "apache-airflow-providers-keycloak"]
+PROVIDER_PACKAGES_WITH_API_REFERENCE = [
+    "apache-airflow-providers-edge3",
+    "apache-airflow-providers-fab",
+    "apache-airflow-providers-keycloak",
+]
 
-if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
-    extensions.extend(
-        [
-            "autoapi.extension",
-            # First, generate redoc
-            "sphinxcontrib.redoc",
-            # Second, update redoc script
-            "sphinx_script_update",
-        ]
-    )
-    redoc_script_url = REDOC_SCRIPT_URL
-else:
-    extensions.extend(
-        [
-            "autoapi.extension",
-        ]
-    )
+if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_API_REFERENCE:
+    extensions.append(SPHINX_SWAGGER_EXTENSION)
+    _DOCS_TARGET_ROOT_PATH = SPHINX_DESIGN_STATIC_PATH.parent
+
+    swagger_present_uri = mirror_artifact_locally(SWAGGER_PRESENT_URI, _DOCS_TARGET_ROOT_PATH)
+    swagger_bundle_uri = mirror_artifact_locally(SWAGGER_BUNDLE_URI, _DOCS_TARGET_ROOT_PATH)
+    swagger_css_uri = mirror_artifact_locally(SWAGGER_CSS_URI, _DOCS_TARGET_ROOT_PATH)
+
+extensions.append("autoapi.extension")
 
 extensions.extend(
     [
@@ -357,38 +356,3 @@ spelling_ignore_contributor_names = False
 spelling_ignore_importable_modules = True
 
 graphviz_output_format = "svg"
-
-if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
-    from airflow.providers.fab.auth_manager.api_fastapi.openapi import (
-        __file__ as fab_auth_manager_fastapi_api_file,
-    )
-    from airflow.providers.keycloak.auth_manager.openapi import (
-        __file__ as keycloak_auth_manager_fastapi_api_file,
-    )
-
-    fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
-        "v2-fab-auth-manager-generated.yaml"
-    )
-    keycloak_auth_manager_fastapi_api_path = Path(keycloak_auth_manager_fastapi_api_file).parent.joinpath(
-        "v2-keycloak-auth-manager-generated.yaml"
-    )
-    redoc = [
-        {
-            "name": "Fab auth manager API",
-            "page": "api-ref/fab-api-ref",
-            "spec": fab_auth_manager_fastapi_api_path.as_posix(),
-            "opts": {
-                "hide-hostname": True,
-                "no-auto-auth": True,
-            },
-        },
-        {
-            "name": "Keycloak auth manager token API",
-            "page": "api-ref/token-api-ref",
-            "spec": keycloak_auth_manager_fastapi_api_path.as_posix(),
-            "opts": {
-                "hide-hostname": True,
-                "no-auto-auth": True,
-            },
-        },
-    ]

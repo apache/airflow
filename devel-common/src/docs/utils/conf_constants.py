@@ -22,6 +22,7 @@ import re
 import sys
 from collections import defaultdict
 from typing import Any
+from urllib import request
 
 from packaging.version import Version, parse as parse_version
 
@@ -97,15 +98,35 @@ BASIC_SPHINX_EXTENSIONS = [
     "metrics_tables_from_registry",
 ]
 
-SPHINX_REDOC_EXTENSIONS = [
-    "autoapi.extension",
-    # First, generate redoc
-    "sphinxcontrib.redoc",
-    # Second, update redoc script
-    "sphinx_script_update",
-]
+# Properties for Swagger OpenAPI generation:
+# See https://github.com/SAP/swagger-plugin-for-sphinx
+SPHINX_SWAGGER_EXTENSION = "swagger_plugin_for_sphinx"
 
-REDOC_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+def mirror_artifact_locally(source_uri: str, doc_root: pathlib.Path) -> str:
+    """
+    Mirror (Swagger UI or other) artifacts locally to avoid relying on external CDNs.
+
+    Note: This is not needed if https://github.com/SAP/swagger-plugin-for-sphinx/issues/508
+          is implemented and the mirroring can be just a feature flag in the plugin itself.
+
+    :param source_uri: The original URI of the Swagger UI artifact.
+    :param doc_root: The root path of the documentation.
+    :return: The local URI of the mirrored Swagger UI artifact.
+    """
+    filename = pathlib.Path(source_uri).name
+    local_path = doc_root / "static" / "mirrored" / filename
+    if not local_path.exists():
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        request.urlretrieve(source_uri, local_path)
+
+    return f"mirrored/{filename}"
+
+
+_SWAGGER_VERSION = "5.11.0"
+SWAGGER_PRESENT_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-standalone-preset.js"
+SWAGGER_BUNDLE_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui-bundle.js"
+SWAGGER_CSS_URI = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_VERSION}/swagger-ui.css"
 
 
 def get_rst_filepath_from_path(filepath: pathlib.Path, root: pathlib.Path):

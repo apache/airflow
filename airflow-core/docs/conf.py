@@ -37,12 +37,14 @@ from docs.utils.conf_constants import (
     AUTOAPI_OPTIONS,
     BASIC_AUTOAPI_IGNORE_PATTERNS,
     BASIC_SPHINX_EXTENSIONS,
-    REDOC_SCRIPT_URL,
     SMARTQUOTES_EXCLUDES,
     SPELLING_WORDLIST_PATH,
     SPHINX_DESIGN_STATIC_PATH,
-    SPHINX_REDOC_EXTENSIONS,
+    SPHINX_SWAGGER_EXTENSION,
     SUPPRESS_WARNINGS,
+    SWAGGER_BUNDLE_URI,
+    SWAGGER_CSS_URI,
+    SWAGGER_PRESENT_URI,
     filter_autoapi_ignore_entries,
     get_autodoc_mock_imports,
     get_configs_and_deprecations,
@@ -53,13 +55,12 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
     get_rst_filepath_from_path,
+    mirror_artifact_locally,
     skip_util_classes_extension,
 )
 from packaging.version import Version, parse as parse_version
 
 import airflow
-from airflow.api_fastapi.auth.managers.simple.openapi import __file__ as sam_openapi_file
-from airflow.api_fastapi.core_api.openapi import __file__ as main_openapi_file
 from airflow.configuration import retrieve_configuration_description
 
 PACKAGE_NAME = "apache-airflow"
@@ -91,11 +92,11 @@ smartquotes_excludes = SMARTQUOTES_EXCLUDES
 # ones.
 extensions = BASIC_SPHINX_EXTENSIONS
 
-# -- Options for sphinxcontrib.redoc -------------------------------------------
-# See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+extensions.append(SPHINX_SWAGGER_EXTENSION)
 
-extensions.extend(SPHINX_REDOC_EXTENSIONS)
-redoc_script_url = REDOC_SCRIPT_URL
+swagger_present_uri = mirror_artifact_locally(SWAGGER_PRESENT_URI, Path(__file__).parent)
+swagger_bundle_uri = mirror_artifact_locally(SWAGGER_BUNDLE_URI, Path(__file__).parent)
+swagger_css_uri = mirror_artifact_locally(SWAGGER_CSS_URI, Path(__file__).parent)
 
 extensions.extend(
     [
@@ -356,27 +357,6 @@ spelling_ignore_contributor_names = False
 spelling_ignore_importable_modules = True
 
 graphviz_output_format = "svg"
-
-main_openapi_path = Path(main_openapi_file).parent.joinpath("v2-rest-api-generated.yaml")
-sam_openapi_path = Path(sam_openapi_file).parent.joinpath("v2-simple-auth-manager-generated.yaml")
-redoc = [
-    {
-        "name": "Simple auth manager token API",
-        "page": "core-concepts/auth-manager/simple/sam-token-api-ref",
-        "spec": sam_openapi_path.as_posix(),
-        "opts": {
-            "hide-hostname": True,
-        },
-    },
-    {
-        "name": "Airflow REST API",
-        "page": "stable-rest-api-ref",
-        "spec": main_openapi_path.as_posix(),
-        "opts": {
-            "hide-hostname": True,
-        },
-    },
-]
 
 
 def setup(sphinx):
