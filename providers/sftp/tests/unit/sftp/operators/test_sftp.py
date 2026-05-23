@@ -34,7 +34,7 @@ from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
-from airflow.providers.sftp.triggers.sftp import SFTPOperatorTrigger
+from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
@@ -694,7 +694,7 @@ class TestSFTPOperatorDeferrable:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context={})
-        assert isinstance(exc.value.trigger, SFTPOperatorTrigger)
+        assert isinstance(exc.value.trigger, SFTPTrigger)
         assert exc.value.method_name == "execute_complete"
 
     def test_sftp_operator_execute_complete_success(self):
@@ -726,12 +726,12 @@ class TestSFTPOperatorDeferrable:
             operator.execute_complete(context={}, event=event)
 
 
-class TestSFTPOperatorTrigger:
-    """Tests for SFTPOperatorTrigger."""
+class TestSFTPTrigger:
+    """Tests for SFTPTrigger."""
 
     def test_serialize_roundtrip(self):
         """Test that serialize() produces correct output for reconstruction."""
-        trigger = SFTPOperatorTrigger(
+        trigger = SFTPTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
             remote_filepath="/remote/test.txt",
@@ -743,7 +743,7 @@ class TestSFTPOperatorTrigger:
             prefetch=True,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPOperatorTrigger"
+        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPTrigger"
         assert kwargs["ssh_conn_id"] == "ssh_default"
         assert kwargs["local_filepath"] == "/tmp/test.txt"
         assert kwargs["remote_filepath"] == "/remote/test.txt"
@@ -758,7 +758,7 @@ class TestSFTPOperatorTrigger:
         import asyncio
         from unittest.mock import patch
 
-        trigger = SFTPOperatorTrigger(
+        trigger = SFTPTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
             remote_filepath="/remote/test.txt",
@@ -780,7 +780,7 @@ class TestSFTPOperatorTrigger:
         import asyncio
         from unittest.mock import patch
 
-        trigger = SFTPOperatorTrigger(
+        trigger = SFTPTrigger(
             ssh_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
             remote_filepath="/remote/test.txt",
