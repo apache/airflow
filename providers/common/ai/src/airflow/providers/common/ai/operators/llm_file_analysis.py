@@ -23,13 +23,12 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
 from airflow.providers.common.ai.utils.logging import log_run_summary
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
-
     from airflow.sdk import Context
 
 
@@ -129,12 +128,15 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
+        run_request = AgentRunRequest(
+            prompt=request.user_content,
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
-            **self.agent_params,
+            usage_limits=self.usage_limits,
+            agent_params=dict(self.agent_params),
         )
-        result = agent.run_sync(request.user_content, usage_limits=self.usage_limits)
+        agent = self.llm_hook.create_agent(run_request)
+        result = self.llm_hook.run_agent(agent, run_request)
         log_run_summary(self.log, result)
         output = result.output
 

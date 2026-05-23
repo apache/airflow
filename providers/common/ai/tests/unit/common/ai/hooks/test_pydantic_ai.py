@@ -24,12 +24,23 @@ import pytest
 from pydantic_ai.models import Model
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.hooks.base_ai import AgentRunRequest, AgentRunResult, BaseAIHook
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+
+
+class TestPydanticAIHookBaseContract:
+    def test_is_base_ai_hook(self):
+        assert issubclass(PydanticAIHook, BaseAIHook)
+
+    def test_capability_flags(self):
+        assert PydanticAIHook.supports_toolsets is True
+        assert PydanticAIHook.supports_durable is True
+        assert PydanticAIHook.supports_usage_limits is True
 
 
 class TestPydanticAIHookInit:
@@ -56,11 +67,16 @@ class TestPydanticAIHookInit:
         hook = PydanticAIVertexHook()
         assert hook.llm_conn_id == "pydanticai_vertex_default"
 
+    def test_durable_state_initialised_to_none(self):
+        hook = PydanticAIHook()
+        assert hook._durable_storage is None
+        assert hook._durable_counter is None
 
-class TestPydanticAIHookGetConn:
+
+class TestPydanticAIHookGetModel:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_with_api_key_and_base_url(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_model_with_api_key_and_base_url(self, mock_infer_provider_class, mock_infer_model):
         """Credentials are injected via provider_factory, not as direct kwargs."""
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
@@ -75,16 +91,14 @@ class TestPydanticAIHookGetConn:
             host="https://api.openai.com/v1",
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_conn()
+            result = hook.get_model()
 
         assert result is mock_model
         mock_infer_model.assert_called_once()
         call_args = mock_infer_model.call_args
         assert call_args[0][0] == "openai:gpt-5.3"
-        # provider_factory should be passed as keyword arg
         assert "provider_factory" in call_args[1]
 
-        # Call the factory to verify it creates the provider with credentials
         factory = call_args[1]["provider_factory"]
         factory("openai")
         mock_infer_provider_class.assert_called_with("openai")
@@ -94,7 +108,7 @@ class TestPydanticAIHookGetConn:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_with_model_from_extra(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_model_with_model_from_extra(self, mock_infer_provider_class, mock_infer_model):
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
         mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
@@ -107,7 +121,7 @@ class TestPydanticAIHookGetConn:
             extra='{"model": "anthropic:claude-opus-4-6"}',
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            result = hook.get_conn()
+            result = hook.get_model()
 
         assert result is mock_model
         assert mock_infer_model.call_args[0][0] == "anthropic:claude-opus-4-6"
@@ -126,12 +140,11 @@ class TestPydanticAIHookGetConn:
             extra='{"model": "anthropic:claude-opus-4-6"}',
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
-        # model_id param takes priority over extra
         assert mock_infer_model.call_args[0][0] == "openai:gpt-5.3"
 
-    def test_get_conn_raises_when_no_model(self):
+    def test_get_model_raises_when_no_model(self):
         hook = PydanticAIHook(llm_conn_id="test_conn")
         conn = Connection(
             conn_id="test_conn",
@@ -140,10 +153,10 @@ class TestPydanticAIHookGetConn:
         )
         with patch.object(hook, "get_connection", return_value=conn):
             with pytest.raises(ValueError, match="No model specified"):
-                hook.get_conn()
+                hook.get_model()
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_get_conn_without_credentials_uses_default_provider(self, mock_infer_model):
+    def test_get_model_without_credentials_uses_default_provider(self, mock_infer_model):
         """No api_key or base_url means env-based auth (Bedrock, Vertex, etc.)."""
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
@@ -154,14 +167,13 @@ class TestPydanticAIHookGetConn:
             conn_type="pydanticai",
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
-        # No provider_factory — uses default infer_provider which reads env vars
         mock_infer_model.assert_called_once_with("bedrock:us.anthropic.claude-v2")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_with_base_url_only(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_model_with_base_url_only(self, mock_infer_provider_class, mock_infer_model):
         """Ollama / vLLM: base_url but no API key."""
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
@@ -173,27 +185,34 @@ class TestPydanticAIHookGetConn:
             host="http://localhost:11434/v1",
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
-        # provider_factory should be used since base_url is set
         factory = mock_infer_model.call_args[1]["provider_factory"]
         factory("openai")
         mock_infer_provider_class.return_value.assert_called_with(base_url="http://localhost:11434/v1")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_get_conn_caches_model(self, mock_infer_model):
-        """get_conn() should resolve the model once and cache it."""
+    def test_get_model_caches_result(self, mock_infer_model):
+        """get_model() should resolve the model once and cache it."""
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
-            first = hook.get_conn()
-            second = hook.get_conn()
+            first = hook.get_model()
+            second = hook.get_model()
 
         assert first is second
         mock_infer_model.assert_called_once()
+
+    def test_get_conn_delegates_to_get_model(self):
+        """get_conn() is a compatibility shim that calls get_model()."""
+        hook = PydanticAIHook()
+        mock_model = MagicMock()
+        with patch.object(hook, "get_model", return_value=mock_model):
+            result = hook.get_conn()
+        assert result is mock_model
 
 
 class TestPydanticAIHookCreateAgent:
@@ -204,12 +223,10 @@ class TestPydanticAIHookCreateAgent:
         mock_infer_model.return_value = mock_model
 
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
-        conn = Connection(
-            conn_id="test_conn",
-            conn_type="pydanticai",
-        )
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(prompt="hi", instructions="You are a helpful assistant.")
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.create_agent(instructions="You are a helpful assistant.")
+            hook.create_agent(request)
 
         mock_agent_cls.assert_called_once_with(
             mock_model,
@@ -219,21 +236,20 @@ class TestPydanticAIHookCreateAgent:
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
-    def test_create_agent_with_params(self, mock_agent_cls, mock_infer_model):
+    def test_create_agent_with_agent_params(self, mock_agent_cls, mock_infer_model):
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
-        conn = Connection(
-            conn_id="test_conn",
-            conn_type="pydanticai",
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(
+            prompt="hi",
+            output_type=dict,
+            instructions="Be helpful.",
+            agent_params={"retries": 3},
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.create_agent(
-                output_type=dict,
-                instructions="Be helpful.",
-                retries=3,
-            )
+            hook.create_agent(request)
 
         mock_agent_cls.assert_called_once_with(
             mock_model,
@@ -241,6 +257,260 @@ class TestPydanticAIHookCreateAgent:
             instructions="Be helpful.",
             retries=3,
         )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_inits_durable_when_context_set(self, mock_agent_cls, mock_infer_model):
+        from airflow.providers.common.ai.hooks.base_ai import DurableContext
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        ctx = DurableContext(dag_id="d", task_id="t", run_id="r")
+        request = AgentRunRequest(prompt="hi", durable_context=ctx)
+
+        mock_storage = MagicMock()
+        mock_counter = MagicMock()
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            patch.object(hook, "_init_durable", return_value=(mock_storage, mock_counter)),
+        ):
+            hook.create_agent(request)
+
+        assert hook._durable_storage is mock_storage
+        assert hook._durable_counter is mock_counter
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_clears_durable_when_no_context(self, mock_agent_cls, mock_infer_model):
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook._durable_storage = MagicMock()
+        hook._durable_counter = MagicMock()
+
+        request = AgentRunRequest(prompt="hi")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(request)
+
+        assert hook._durable_storage is None
+        assert hook._durable_counter is None
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_passes_native_tools_through_directly(self, mock_agent_cls, mock_infer_model):
+        """Native pydantic-ai Tool objects bypass the BaseToolset pipeline."""
+        from pydantic_ai.tools import Tool
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        native_tool = MagicMock(spec=Tool)
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(prompt="hi", toolsets=[native_tool])
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(request)
+
+        call_kwargs = mock_agent_cls.call_args[1]
+        assert any(t is native_tool for t in call_kwargs["tools"])
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_mixes_base_toolset_and_native_tool(self, mock_agent_cls, mock_infer_model):
+        """BaseToolset items are resolved; native Tool objects are passed through unchanged."""
+        from pydantic_ai.tools import Tool
+
+        from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        def my_fn() -> str:
+            return "result"
+
+        class MyToolset(BaseToolset):
+            def as_tools(self):
+                return [ToolSpec(name="my_fn", description="desc", parameters={}, fn=my_fn)]
+
+        native_tool = MagicMock(spec=Tool)
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(prompt="hi", toolsets=[MyToolset(), native_tool], enable_tool_logging=False)
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(request)
+
+        call_kwargs = mock_agent_cls.call_args[1]
+        tools = call_kwargs["tools"]
+        assert len(tools) == 2
+        assert any(t is native_tool for t in tools)
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_routes_abstract_toolset_to_toolsets_kwarg(self, mock_agent_cls, mock_infer_model):
+        """AbstractToolset items must go in Agent(toolsets=[...]), not Agent(tools=[...])."""
+        from pydantic_ai.toolsets.abstract import AbstractToolset
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        abstract_ts = MagicMock(spec=AbstractToolset)
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(prompt="hi", toolsets=[abstract_ts], enable_tool_logging=False)
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(request)
+
+        call_kwargs = mock_agent_cls.call_args[1]
+        assert "tools" not in call_kwargs
+        assert "toolsets" in call_kwargs
+        assert any(ts is abstract_ts for ts in call_kwargs["toolsets"])
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_wraps_abstract_toolset_with_logging(self, mock_agent_cls, mock_infer_model):
+        """AbstractToolset items are wrapped with LoggingToolset when enable_tool_logging=True."""
+        from pydantic_ai.toolsets.abstract import AbstractToolset
+
+        from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        abstract_ts = MagicMock(spec=AbstractToolset)
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(prompt="hi", toolsets=[abstract_ts], enable_tool_logging=True)
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(request)
+
+        call_kwargs = mock_agent_cls.call_args[1]
+        toolsets = call_kwargs["toolsets"]
+        assert len(toolsets) == 1
+        assert isinstance(toolsets[0], LoggingToolset)
+        assert toolsets[0].wrapped is abstract_ts
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_wraps_abstract_toolset_with_caching_when_durable(
+        self, mock_agent_cls, mock_infer_model
+    ):
+        """AbstractToolset items are wrapped with CachingToolset (inner) and LoggingToolset (outer) for durable runs."""
+        from pydantic_ai.toolsets.abstract import AbstractToolset
+
+        from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+        from airflow.providers.common.ai.hooks.base_ai import DurableContext
+        from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        abstract_ts = MagicMock(spec=AbstractToolset)
+        mock_storage = MagicMock()
+        mock_counter = MagicMock()
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        ctx = DurableContext(dag_id="d", task_id="t", run_id="r")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        request = AgentRunRequest(
+            prompt="hi", toolsets=[abstract_ts], durable_context=ctx, enable_tool_logging=True
+        )
+        with (
+            patch.object(hook, "get_connection", return_value=conn),
+            patch.object(hook, "_init_durable", return_value=(mock_storage, mock_counter)),
+        ):
+            hook.create_agent(request)
+
+        call_kwargs = mock_agent_cls.call_args[1]
+        toolsets = call_kwargs["toolsets"]
+        assert len(toolsets) == 1
+        outer = toolsets[0]
+        assert isinstance(outer, LoggingToolset)
+        assert isinstance(outer.wrapped, CachingToolset)
+        assert outer.wrapped.wrapped is abstract_ts
+
+
+class TestPydanticAIHookRunAgent:
+    def test_run_agent_returns_agent_run_result(self):
+        hook = PydanticAIHook()
+        mock_agent = MagicMock()
+        mock_usage = MagicMock(requests=1, tool_calls=0, input_tokens=5, output_tokens=10, total_tokens=15)
+        mock_result = MagicMock()
+        mock_result.output = "done"
+        mock_result.usage.return_value = mock_usage
+        mock_result.response = MagicMock(model_name="openai:gpt-5")
+        mock_result.all_messages.return_value = []
+        mock_agent.run_sync.return_value = mock_result
+
+        request = AgentRunRequest(prompt="hello")
+        run_result = hook.run_agent(mock_agent, request)
+
+        assert isinstance(run_result, AgentRunResult)
+        assert run_result.output == "done"
+        assert run_result.model_name == "openai:gpt-5"
+        mock_agent.run_sync.assert_called_once_with("hello")
+
+    def test_run_agent_forwards_message_history_and_usage_limits(self):
+        hook = PydanticAIHook()
+        mock_agent = MagicMock()
+        mock_result = MagicMock()
+        mock_result.output = "ok"
+        mock_result.usage.return_value = MagicMock(
+            requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+        )
+        mock_result.response = MagicMock(model_name="m")
+        mock_result.all_messages.return_value = ["history"]
+        mock_agent.run_sync.return_value = mock_result
+        limits = MagicMock()
+        history = ["prior"]
+
+        request = AgentRunRequest(prompt="more", message_history=history, usage_limits=limits)
+        hook.run_agent(mock_agent, request)
+
+        mock_agent.run_sync.assert_called_once_with("more", message_history=history, usage_limits=limits)
+
+    def test_run_agent_durable_applies_caching_model(self):
+        """When durable state is set, run_agent wraps model with CachingModel."""
+        hook = PydanticAIHook()
+        mock_agent = MagicMock()
+        mock_agent.model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.output = "ok"
+        mock_result.usage.return_value = MagicMock(
+            requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+        )
+        mock_result.response = MagicMock(model_name="m")
+        mock_result.all_messages.return_value = []
+        mock_agent.run_sync.return_value = mock_result
+        mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
+        mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_storage = MagicMock()
+        mock_counter = MagicMock()
+        mock_counter.replayed_model = 1
+        mock_counter.replayed_tool = 0
+        mock_counter.cached_model = 0
+        mock_counter.cached_tool = 0
+        hook._durable_storage = mock_storage
+        hook._durable_counter = mock_counter
+
+        with patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", return_value=MagicMock()):
+            with patch("airflow.providers.common.ai.durable.caching_model.CachingModel"):
+                request = AgentRunRequest(prompt="hi")
+                run_result = hook.run_agent(mock_agent, request)
+
+        mock_agent.override.assert_called_once()
+        assert run_result.durable_stats is not None
+        assert hook._durable_storage is None
+        assert hook._durable_counter is None
+        mock_storage.cleanup.assert_called_once()
 
 
 class TestPydanticAIHookTestConnection:
@@ -345,12 +615,11 @@ class TestPydanticAIAzureHook:
             "https://myresource.openai.azure.com",
             {"model": "azure:gpt-4o"},
         )
-        # api_version should not appear if not in extra
         assert "api_version" not in result
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_uses_azure_endpoint(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_model_uses_azure_endpoint(self, mock_infer_provider_class, mock_infer_model):
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_provider_cls = MagicMock(return_value=MagicMock())
         mock_infer_provider_class.return_value = mock_provider_cls
@@ -364,7 +633,7 @@ class TestPydanticAIAzureHook:
             extra=json.dumps({"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
         factory("azure")
@@ -375,7 +644,7 @@ class TestPydanticAIAzureHook:
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_get_conn_falls_back_to_env_auth_when_no_kwargs(self, mock_infer_model):
+    def test_get_model_falls_back_to_env_auth_when_no_kwargs(self, mock_infer_model):
         """No host + no password → env-var auth path (empty _get_provider_kwargs)."""
         mock_infer_model.return_value = MagicMock(spec=Model)
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
@@ -385,7 +654,7 @@ class TestPydanticAIAzureHook:
             extra=json.dumps({"model": "azure:gpt-4o"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
         mock_infer_model.assert_called_once_with("azure:gpt-4o")
 
@@ -429,7 +698,7 @@ class TestPydanticAIBedrockHook:
         assert result == {}
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_get_conn_falls_back_to_env_auth(self, mock_infer_model):
+    def test_get_model_falls_back_to_env_auth(self, mock_infer_model):
         mock_infer_model.return_value = MagicMock(spec=Model)
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
@@ -438,13 +707,13 @@ class TestPydanticAIBedrockHook:
             extra=json.dumps({"model": "bedrock:us.anthropic.claude-opus-4-5"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
         mock_infer_model.assert_called_once_with("bedrock:us.anthropic.claude-opus-4-5")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_uses_explicit_keys(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_model_uses_explicit_keys(self, mock_infer_provider_class, mock_infer_model):
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_provider_cls = MagicMock(return_value=MagicMock())
         mock_infer_provider_class.return_value = mock_provider_cls
@@ -463,7 +732,7 @@ class TestPydanticAIBedrockHook:
             ),
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
         factory("bedrock")
@@ -510,8 +779,8 @@ class TestPydanticAIBedrockHook:
             None,
             {
                 "model": "bedrock:us.anthropic.claude-opus-4-5",
-                "aws_read_timeout": 60,  # int from JSON
-                "aws_connect_timeout": 10.5,  # float already
+                "aws_read_timeout": 60,
+                "aws_connect_timeout": 10.5,
             },
         )
         assert result["aws_read_timeout"] == 60.0
@@ -614,7 +883,7 @@ class TestPydanticAIVertexHook:
         assert result == {}
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
-    def test_get_conn_falls_back_to_adc(self, mock_infer_model):
+    def test_get_model_falls_back_to_adc(self, mock_infer_model):
         mock_infer_model.return_value = MagicMock(spec=Model)
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
@@ -623,13 +892,13 @@ class TestPydanticAIVertexHook:
             extra=json.dumps({"model": "google-vertex:gemini-2.0-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
         mock_infer_model.assert_called_once_with("google-vertex:gemini-2.0-flash")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
-    def test_get_conn_uses_explicit_project(self, mock_infer_provider_class, mock_infer_model):
+    def test_get_model_uses_explicit_project(self, mock_infer_provider_class, mock_infer_model):
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_provider_cls = MagicMock(return_value=MagicMock())
         mock_infer_provider_class.return_value = mock_provider_cls
@@ -647,7 +916,7 @@ class TestPydanticAIVertexHook:
             ),
         )
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.get_conn()
+            hook.get_model()
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
         factory("google-vertex")

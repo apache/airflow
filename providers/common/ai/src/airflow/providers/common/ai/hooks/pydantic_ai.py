@@ -16,21 +16,29 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any
 
 from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
-from airflow.providers.common.compat.sdk import BaseHook
-
-OutputT = TypeVar("OutputT")
+from airflow.providers.common.ai.hooks.base_ai import (
+    AgentRunRequest,
+    AgentRunResult,
+    AgentUsage,
+    BaseAIHook,
+    DurableStats,
+    ToolSpec,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
+    from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+    from airflow.providers.common.ai.durable.storage import DurableStorage
 
-class PydanticAIHook(BaseHook):
+
+class PydanticAIHook(BaseAIHook):
     """
     Hook for LLM access via pydantic-ai.
 
@@ -56,6 +64,10 @@ class PydanticAIHook(BaseHook):
     conn_type = "pydanticai"
     hook_name = "Pydantic AI"
 
+    supports_toolsets = True
+    supports_durable = True
+    supports_usage_limits = True
+
     def __init__(
         self,
         llm_conn_id: str | None = None,
@@ -70,6 +82,8 @@ class PydanticAIHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
         self._model: Model | None = None
+        self._durable_storage: DurableStorage | None = None
+        self._durable_counter: DurableStepCounter | None = None
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -116,7 +130,7 @@ class PydanticAIHook(BaseHook):
             kwargs["base_url"] = base_url
         return kwargs
 
-    def get_conn(self) -> Model:
+    def get_model(self) -> Model:
         """
         Return a configured pydantic-ai ``Model``.
 
@@ -171,25 +185,134 @@ class PydanticAIHook(BaseHook):
         self._model = infer_model(model_name)
         return self._model
 
-    @overload
-    def create_agent(
-        self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
-    ) -> Agent[None, OutputT]: ...
+    # ------------------------------------------------------------------
+    # BaseAIHook abstract interface
+    # ------------------------------------------------------------------
 
-    @overload
-    def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
+    def _tool_spec_to_native(self, spec: ToolSpec) -> Any:
+        """Convert a :class:`~airflow.providers.common.ai.hooks.base_ai.ToolSpec` to a pydantic-ai ``Tool``."""
+        from pydantic_ai.tools import Tool
 
-    def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
-    ) -> Agent[None, Any]:
+        return Tool(spec.fn, name=spec.name, description=spec.description)
+
+    def create_agent(self, request: AgentRunRequest) -> Agent[None, Any]:
         """
-        Create a pydantic-ai Agent configured with this hook's model.
+        Build a pydantic-ai ``Agent`` from *request*.
 
-        :param output_type: The expected output type from the agent (default: ``str``).
-        :param instructions: System-level instructions for the agent.
-        :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
+        When :attr:`~AgentRunRequest.durable_context` is set, initialises durable
+        storage and step counter and stores them on the instance for use by
+        :meth:`run_agent`.
+
+        :param request: Agent configuration — output type, instructions, toolsets, extra params.
         """
-        return Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+        if request.durable_context is not None:
+            storage, counter = self._init_durable(request.durable_context)
+            self._durable_storage = storage
+            self._durable_counter = counter
+        else:
+            self._durable_storage = None
+            self._durable_counter = None
+
+        extra_kwargs = dict(request.agent_params or {})
+        if request.toolsets:
+            from pydantic_ai.toolsets.abstract import AbstractToolset
+
+            abstract_items = [ts for ts in request.toolsets if isinstance(ts, AbstractToolset)]
+            pipeline_items = [ts for ts in request.toolsets if not isinstance(ts, AbstractToolset)]
+
+            if pipeline_items:
+                resolved = self._resolve_tools(
+                    pipeline_items,
+                    request.enable_tool_logging,
+                    self._durable_storage,
+                    self._durable_counter,
+                )
+                if resolved:
+                    extra_kwargs["tools"] = resolved
+
+            if abstract_items:
+                processed: list[Any] = list(abstract_items)
+                if self._durable_storage is not None and self._durable_counter is not None:
+                    from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+
+                    processed = [
+                        CachingToolset(
+                            wrapped=ts,
+                            storage=self._durable_storage,
+                            counter=self._durable_counter,
+                        )
+                        for ts in processed
+                    ]
+                if request.enable_tool_logging:
+                    from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+
+                    processed = [LoggingToolset(wrapped=ts, logger=self.log) for ts in processed]
+                extra_kwargs["toolsets"] = processed
+
+        return Agent(
+            self.get_model(),
+            output_type=request.output_type,
+            instructions=request.instructions,
+            **extra_kwargs,
+        )
+
+    def run_agent(self, agent: Agent[None, Any], request: AgentRunRequest) -> AgentRunResult:
+        """Run *agent* synchronously for *request* and return a normalized :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunResult`."""
+        from pydantic_ai.messages import ToolCallPart
+
+        run_kwargs: dict[str, Any] = {}
+        if request.message_history is not None:
+            run_kwargs["message_history"] = request.message_history
+        if request.usage_limits is not None:
+            run_kwargs["usage_limits"] = request.usage_limits
+
+        if self._durable_storage is not None and self._durable_counter is not None:
+            from airflow.providers.common.ai.durable.caching_model import CachingModel
+
+            resolved_model = infer_model(agent.model)
+            caching_model = CachingModel(
+                resolved_model,
+                storage=self._durable_storage,
+                counter=self._durable_counter,
+            )
+            with agent.override(model=caching_model):
+                result = agent.run_sync(request.prompt, **run_kwargs)
+        else:
+            result = agent.run_sync(request.prompt, **run_kwargs)
+
+        usage = result.usage()
+        tool_names: list[str] = []
+        for message in result.all_messages():
+            for part in getattr(message, "parts", []):
+                if isinstance(part, ToolCallPart):
+                    tool_names.append(part.tool_name)
+
+        run_result = AgentRunResult(
+            output=result.output,
+            message_history=result.all_messages(),
+            model_name=getattr(result.response, "model_name", None),
+            usage=AgentUsage(
+                requests=usage.requests,
+                tool_calls=usage.tool_calls,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                total_tokens=usage.total_tokens,
+            ),
+            tool_names=tool_names or None,
+        )
+
+        if self._durable_storage is not None:
+            run_result.durable_stats = DurableStats(
+                replayed_model=self._durable_counter.replayed_model,
+                replayed_tool=self._durable_counter.replayed_tool,
+                cached_model=self._durable_counter.cached_model,
+                cached_tool=self._durable_counter.cached_tool,
+            )
+            self._durable_storage.cleanup()
+            self._durable_storage = None
+            self._durable_counter = None
+
+        return run_result
 
     def test_connection(self) -> tuple[bool, str]:
         """
@@ -201,7 +324,7 @@ class PydanticAIHook(BaseHook):
         connectivity (quotas, billing, rate limits).
         """
         try:
-            self.get_conn()
+            self.get_model()
             return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)

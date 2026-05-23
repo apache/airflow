@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 try:
     from airflow.providers.common.ai.utils.sql_validation import validate_sql as _validate_sql
@@ -31,19 +31,9 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from pydantic_core import SchemaValidator, core_schema
-
+from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
 from airflow.providers.common.compat.sdk import BaseHook
 
-if TYPE_CHECKING:
-    from pydantic_ai._run_context import RunContext
-
-_PASSTHROUGH_VALIDATOR = SchemaValidator(core_schema.any_schema())
-
-# JSON Schemas for the four SQL tools.
 _LIST_TABLES_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {},
@@ -99,7 +89,7 @@ with suppress(ImportError):
     _SQLALCHEMY_RETRYABLE_EXCEPTIONS = (_SQLAlchemyProgrammingError,)
 
 
-class SQLToolset(AbstractToolset[Any]):
+class SQLToolset(BaseToolset):
     """
     Curated toolset that gives an LLM agent safe access to a SQL database.
 
@@ -143,10 +133,6 @@ class SQLToolset(AbstractToolset[Any]):
         self._max_rows = max_rows
         self._hook: DbApiHook | None = None
 
-    @property
-    def id(self) -> str:
-        return f"sql-{self._db_conn_id}"
-
     # ------------------------------------------------------------------
     # Lazy hook resolution
     # ------------------------------------------------------------------
@@ -164,50 +150,36 @@ class SQLToolset(AbstractToolset[Any]):
         return self._hook
 
     # ------------------------------------------------------------------
-    # AbstractToolset interface
+    # BaseToolset interface
     # ------------------------------------------------------------------
 
-    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        tools: dict[str, ToolsetTool[Any]] = {}
-
-        for name, description, schema in (
-            ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
-            ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
-            ("query", "Execute a SQL query and return rows as JSON.", _QUERY_SCHEMA),
-            ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
-        ):
-            # sequential=True because all tools use a shared DbApiHook with
-            # synchronous I/O — they must not run concurrently.
-            tool_def = ToolDefinition(
-                name=name,
-                description=description,
-                parameters_json_schema=schema,
-                sequential=True,
-            )
-            tools[name] = ToolsetTool(
-                toolset=self,
-                tool_def=tool_def,
-                max_retries=1,
-                args_validator=_PASSTHROUGH_VALIDATOR,
-            )
-        return tools
-
-    async def call_tool(
-        self,
-        name: str,
-        tool_args: dict[str, Any],
-        ctx: RunContext[Any],
-        tool: ToolsetTool[Any],
-    ) -> Any:
-        if name == "list_tables":
-            return self._list_tables()
-        if name == "get_schema":
-            return self._get_schema(tool_args["table_name"])
-        if name == "query":
-            return self._query(tool_args["sql"])
-        if name == "check_query":
-            return self._check_query(tool_args["sql"])
-        raise ValueError(f"Unknown tool: {name!r}")
+    def as_tools(self) -> list[ToolSpec]:
+        return [
+            ToolSpec(
+                name="list_tables",
+                description="List available table names in the database.",
+                parameters=_LIST_TABLES_SCHEMA,
+                fn=self._list_tables,
+            ),
+            ToolSpec(
+                name="get_schema",
+                description="Get column names and types for a table.",
+                parameters=_GET_SCHEMA_SCHEMA,
+                fn=self._get_schema,
+            ),
+            ToolSpec(
+                name="query",
+                description="Execute a SQL query and return rows as JSON.",
+                parameters=_QUERY_SCHEMA,
+                fn=self._query,
+            ),
+            ToolSpec(
+                name="check_query",
+                description="Validate SQL syntax without executing it.",
+                parameters=_CHECK_QUERY_SCHEMA,
+                fn=self._check_query,
+            ),
+        ]
 
     # ------------------------------------------------------------------
     # Tool implementations
@@ -236,11 +208,10 @@ class SQLToolset(AbstractToolset[Any]):
             rows = hook.get_records(sql)
         except Exception as e:
             if self._is_retryable_query_error(hook, e):
-                raise ModelRetry(
+                raise ValueError(
                     f"error: {e!s}, Use get_schema and list_tables tools for more details."
                 ) from e
             raise
-        # Fetch column names from cursor description.
         col_names: list[str] | None = None
         if hook.last_description:
             col_names = [desc[0] for desc in hook.last_description]
