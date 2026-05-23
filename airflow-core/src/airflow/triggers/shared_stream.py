@@ -332,8 +332,7 @@ class SharedStreamManager:
         """
         if key is None:
             raise ValueError("shared stream key must not be None")
-        group = self._groups.get(key)
-        if group is None:
+        if (group := self._groups.get(key)) is None:
             _, kwargs = trigger.serialize()
             group = _SharedStreamGroup(
                 key=key,
