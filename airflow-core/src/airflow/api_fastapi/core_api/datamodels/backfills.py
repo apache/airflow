@@ -24,6 +24,7 @@ from pydantic import AliasPath, Field, NonNegativeInt
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.backfill import ReprocessBehavior
+from airflow.utils.state import DagRunState
 
 
 class BackfillPostBody(StrictBaseModel):
@@ -66,6 +67,27 @@ class BackfillCollectionResponse(BaseModel):
     """Backfill Collection serializer for responses."""
 
     backfills: Iterable[BackfillResponse]
+    total_entries: int
+
+
+class BackfillDagRunResponse(BaseModel):
+    """Serializer for a single BackfillDagRun entry with joined DagRun state."""
+
+    id: NonNegativeInt
+    backfill_id: NonNegativeInt
+    dag_run_id: NonNegativeInt | None
+    logical_date: datetime | None
+    partition_key: str | None
+    sort_ordinal: int
+    exception_reason: str | None
+    dag_run_state: DagRunState | None = Field(default=None, validation_alias=AliasPath("dag_run", "state"))
+    dag_run_run_id: str | None = Field(default=None, validation_alias=AliasPath("dag_run", "run_id"))
+
+
+class BackfillDagRunCollectionResponse(BaseModel):
+    """BackfillDagRun Collection serializer for responses."""
+
+    backfill_dag_runs: list[BackfillDagRunResponse]
     total_entries: int
 
 

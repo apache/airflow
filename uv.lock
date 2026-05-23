@@ -6638,7 +6638,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "openai", extras = ["datalib"], specifier = ">=1.66.0" },
+    { name = "openai", extras = ["datalib"], specifier = ">=2.37.0" },
 ]
 
 [package.metadata.requires-dev]
