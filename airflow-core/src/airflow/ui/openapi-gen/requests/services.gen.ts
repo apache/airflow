@@ -1897,14 +1897,15 @@ export class DagService {
             method: 'GET',
             url: '/ui/dags/run_state_counts',
             query: {
-                dag_ids: data.dagIds
+                dag_ids: data.dagIds,
+                run_after_gte: data.runAfterGte
             },
             errors: {
                 422: 'Validation Error'
             }
         });
     }
-    
+
 }
 
 export class EventLogService {

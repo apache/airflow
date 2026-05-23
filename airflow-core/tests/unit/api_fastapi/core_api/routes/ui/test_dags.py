@@ -517,6 +517,34 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
         assert dag_ids == [DAG1_ID]
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_run_after_gte_filters_older_runs(self, test_client):
+        # All runs in seed_dag_runs are created at base = utcnow() - 10 days.
+        # Querying with run_after_gte = yesterday should exclude them all.
+        yesterday = (utcnow() - pendulum.duration(days=1)).isoformat()
+        response = test_client.get(
+            "/dags/run_state_counts",
+            params={"dag_ids": [DAG1_ID], "run_after_gte": yesterday},
+        )
+        assert response.status_code == 200
+        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
+        assert counts[DAG1_ID] == {"success": 0, "failed": 0, "running": 0, "queued": 0}
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_run_after_gte_includes_matching_runs(self, test_client):
+        # Using a cutoff 15 days ago should include all seeded runs (created 10 days ago).
+        fifteen_days_ago = (utcnow() - pendulum.duration(days=15)).isoformat()
+        response = test_client.get(
+            "/dags/run_state_counts",
+            params={"dag_ids": [DAG1_ID], "run_after_gte": fifteen_days_ago},
+        )
+        assert response.status_code == 200
+        counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
+        assert counts[DAG1_ID]["success"] == 2
+        assert counts[DAG1_ID]["failed"] == 2 + _PARENT_DAG1_FAILED
+        assert counts[DAG1_ID]["running"] == 1
+        assert counts[DAG1_ID]["queued"] == 1
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags/run_state_counts", params={"dag_ids": [DAG1_ID]})
         assert response.status_code == 401

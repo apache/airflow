@@ -18,7 +18,8 @@
  */
 import { Heading, HStack, Skeleton, VStack, type SelectValueChangeDetails, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
+import dayjs from "dayjs";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -43,6 +44,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
+import TimeRangeSelector from "src/components/TimeRangeSelector";
 
 import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
 import { DagCard } from "./DagCard";
@@ -216,11 +218,17 @@ const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithL
   },
 });
 
+const DEFAULT_HOURS = "24";
+
 export const DagsList = () => {
   const { t: translate } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
+
+  const now = dayjs();
+  const [startDate, setStartDate] = useState(now.subtract(Number(DEFAULT_HOURS), "hour").toISOString());
+  const [endDate, setEndDate] = useState(now.toISOString());
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
@@ -300,6 +308,7 @@ export const DagsList = () => {
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
     dagIds: visibleDagIds,
     dags: data?.dags,
+    startDate,
   });
   const runStateContext: RunStateCountsContext = useMemo(
     () => ({
@@ -343,9 +352,19 @@ export const DagsList = () => {
             </Heading>
             <DAGImportErrors iconOnly />
           </HStack>
-          {display === "card" ? (
-            <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
-          ) : undefined}
+          <HStack>
+            <TimeRangeSelector
+              defaultValue={DEFAULT_HOURS}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              setStartDate={setStartDate}
+              showDateRange={false}
+              startDate={startDate}
+            />
+            {display === "card" ? (
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+            ) : undefined}
+          </HStack>
         </HStack>
       </VStack>
       <Box pb={8}>

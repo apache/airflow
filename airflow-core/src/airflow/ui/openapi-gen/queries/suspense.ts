@@ -705,9 +705,10 @@ export const useDagServiceGetLatestRunInfoSuspense = <TData = Common.DagServiceG
 * @returns DAGsRunStateCountsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagServiceGetDagRunStateCountsUiSuspense = <TData = Common.DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds }: {
+export const useDagServiceGetDagRunStateCountsUiSuspense = <TData = Common.DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, runAfterGte }: {
   dagIds: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }, queryKey), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) as TData, ...options });
+  runAfterGte?: string | null;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds, runAfterGte }, queryKey), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds, runAfterGte }) as TData, ...options });
 /**
 * Get Event Log
 * @param data The data for the request.

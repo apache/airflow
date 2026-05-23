@@ -584,8 +584,8 @@ paths:
       tags:
       - DAG
       summary: Get Dag Run State Counts
-      description: Return per-DAG DagRun state counts (zero-filled, all-time) for
-        the DAG list page.
+      description: Return per-DAG DagRun state counts (zero-filled) for the DAG list
+        page.
       operationId: get_dag_run_state_counts_ui
       security:
       - OAuth2PasswordBearer: []
@@ -600,6 +600,15 @@ paths:
             type: string
           minItems: 1
           title: Dag Ids
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
       responses:
         '200':
           description: Successful Response

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -324,8 +325,9 @@ def get_dag_run_state_counts(
     session: SessionDep,
     readable_dags_filter: ReadableDagsFilterDep,
     dag_ids: Annotated[list[str], Query(min_length=1)],
+    run_after_gte: datetime | None = None,
 ) -> DAGsRunStateCountsCollectionResponse:
-    """Return per-DAG DagRun state counts (zero-filled, all-time) for the DAG list page."""
+    """Return per-DAG DagRun state counts (zero-filled) for the DAG list page."""
     permitted_dag_ids = readable_dags_filter.value or set()
     requested_dag_ids = [dag_id for dag_id in dict.fromkeys(dag_ids) if dag_id in permitted_dag_ids]
     counts_by_dag: dict[str, dict[DagRunState, int]] = {
@@ -340,6 +342,8 @@ def get_dag_run_state_counts(
             .where(DagRun.dag_id.in_(requested_dag_ids))
             .group_by(DagRun.dag_id, DagRun.state)
         )
+        if run_after_gte is not None:
+            count_query = count_query.where(DagRun.run_after >= run_after_gte)
         for row in session.execute(count_query):
             if row.state is None:
                 continue

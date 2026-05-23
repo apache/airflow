@@ -705,9 +705,10 @@ export const prefetchUseDagServiceGetLatestRunInfo = (queryClient: QueryClient, 
 * @returns DAGsRunStateCountsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDagRunStateCountsUi = (queryClient: QueryClient, { dagIds }: {
+export const prefetchUseDagServiceGetDagRunStateCountsUi = (queryClient: QueryClient, { dagIds, runAfterGte }: {
   dagIds: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
+  runAfterGte?: string | null;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds, runAfterGte }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds, runAfterGte }) });
 /**
 * Get Event Log
 * @param data The data for the request.

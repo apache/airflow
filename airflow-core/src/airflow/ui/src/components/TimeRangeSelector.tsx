@@ -30,6 +30,7 @@ type Props = {
   readonly endDate: string;
   readonly setEndDate: (startDate: string) => void;
   readonly setStartDate: (startDate: string) => void;
+  readonly showDateRange?: boolean;
   readonly startDate: string;
   readonly timeOptions?: ListCollection<{ label: string; value: string }>;
 };
@@ -39,6 +40,7 @@ const TimeRangeSelector = ({
   endDate,
   setEndDate,
   setStartDate,
+  showDateRange = true,
   startDate,
   timeOptions: customTimeOptions,
 }: Props) => {
@@ -83,9 +85,11 @@ const TimeRangeSelector = ({
           ))}
         </Select.Content>
       </Select.Root>
-      <Text>
-        <Time datetime={startDate} /> - <Time datetime={endDate} />
-      </Text>
+      {showDateRange ? (
+        <Text>
+          <Time datetime={startDate} /> - <Time datetime={endDate} />
+        </Text>
+      ) : undefined}
     </HStack>
   );
 };
