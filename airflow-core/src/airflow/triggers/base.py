@@ -255,10 +255,10 @@ class BaseEventTrigger(BaseTrigger):
     **Sharing an underlying I/O stream between triggers**
 
     A subclass that polls an upstream resource which can be safely consumed
-    by multiple sibling triggers (e.g. a directory scan, a polling REST API,
-    a Kafka topic read with ``enable.auto.commit=true``) may opt in to having
-    the triggerer run a single underlying poll loop and fan its raw events
-    out to every trigger in the group. To do so, override:
+    by multiple sibling triggers (e.g. a directory scan, a polling REST API)
+    may opt in to having the triggerer run a single underlying poll loop
+    and fan its raw events out to every trigger in the group. To do so,
+    override:
 
     * :meth:`shared_stream_key` — return a key identifying the
       shared stream (a ``tuple`` of strings is a common choice). Triggers
@@ -283,18 +283,16 @@ class BaseEventTrigger(BaseTrigger):
     on a side effect on a handle that only the producer holds:
 
     * Idempotent / read-only reads (filesystem listings, polling REST APIs).
-    * Auto-commit consumers, e.g. Kafka with ``enable.auto.commit=true``.
     * Subscriber-side-effect cleanup, where the trigger's per-event action
       (``unlink``, local marking, …) operates through APIs the subscriber
       already owns, independent of the shared producer handle.
 
-    Upstreams that do **not** fit this scope today include Kafka consumers
-    with manual commit, SQS with delete-on-process or visibility extension,
-    and any source where producer-side commit / advance is tied to the
-    subscriber's accept / reject decision. Adding a producer-side ack
-    channel to support those cases is tracked as a follow-up — to be
-    designed against a concrete Kafka or SQS consumer rather than against
-    an abstract API.
+    Upstreams **not** in scope include Kafka consumers (regardless of
+    commit mode), SQS with delete-on-process or visibility extension,
+    and any source where progress on the producer's handle is tied to
+    the subscriber's accept / reject decision. These sources need a way
+    for the subscriber to signal acceptance back to the producer, which
+    the current shared-stream API does not provide.
     """
 
     supports_triggerer_queue: bool = False
@@ -330,6 +328,10 @@ class BaseEventTrigger(BaseTrigger):
         group membership for this instance. To share one poll across a set
         of sibling triggers, ensure every trigger in the set returns the
         same key from the outset.
+
+        The key must be deterministic — derive it from configuration fields,
+        never from per-call values such as ``time.time()`` or ``uuid.uuid4()``,
+        because the comparison must be stable across the lifetime of the group.
 
         .. note::
 
