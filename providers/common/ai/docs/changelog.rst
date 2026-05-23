@@ -25,6 +25,31 @@
 Changelog
 ---------
 
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``@task.agent``, ``@task.llm``, ``@task.llm_branch``, ``@task.llm_schema_compare``,
+  and ``@task.llm_sql`` decorators now accept ``Sequence[UserContent]`` (e.g.,
+  ``["Describe this:", ImageUrl(url="...")]``) in addition to ``str`` from the
+  decorated callable, enabling vision, audio, and document inputs to pydantic-ai
+  agents directly through the TaskFlow decorator path.
+
+Misc
+~~~~
+
+* HITL review (``enable_hitl_review=True``) is not supported with a
+  ``Sequence[UserContent]`` prompt: the session model types ``prompt`` as a
+  string and will raise ``pydantic.ValidationError`` when the agent task tries
+  to record the session.
+* LLM approval (``require_approval=True``) is not supported with a
+  ``Sequence[UserContent]`` prompt: ``LLMApprovalMixin.defer_for_approval``
+  now raises ``TypeError`` to prevent the multimodal prompt from being
+  stringified into the human review body. Widening the approval body to
+  render multimodal content safely is tracked as a follow-up.
+
 0.3.0
 .....
 

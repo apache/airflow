@@ -114,6 +114,18 @@ With structured output:
     :start-after: [START howto_decorator_llm_structured]
     :end-before: [END howto_decorator_llm_structured]
 
+Multimodal prompts
+^^^^^^^^^^^^^^^^^^
+
+``@task.llm`` accepts the same prompt shape as ``@task.agent`` -- the callable
+may return either a ``str`` or a non-empty ``Sequence[UserContent]`` (e.g.,
+``["Describe this:", ImageUrl(url="...")]``) for vision, audio, or document
+inputs. See :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>` for
+the full example. ``require_approval=True`` is not currently supported with a
+``Sequence`` prompt -- the approval session model expects a string -- and will
+raise at the approval boundary; widening that path is tracked as a follow-up.
+
+
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
