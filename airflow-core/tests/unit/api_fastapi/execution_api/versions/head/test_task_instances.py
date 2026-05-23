@@ -1616,7 +1616,9 @@ class TestTIUpdateState:
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",
             state=State.RUNNING,
+            hostname="random-hostname",
         )
+        ti.start_date = DEFAULT_START_DATE
         session.commit()
 
         response = client.patch(
@@ -1624,6 +1626,7 @@ class TestTIUpdateState:
             json={
                 "state": State.UP_FOR_RETRY,
                 "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": "retry_label_abc",
             },
         )
 
@@ -1645,6 +1648,12 @@ class TestTIUpdateState:
         ).one()
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
+        assert tih.state == State.FAILED
+        assert tih.hostname == "random-hostname"
+        assert tih.start_date == DEFAULT_START_DATE
+        assert tih.end_date == DEFAULT_END_DATE
+        assert tih.duration == 3600
+        assert tih.rendered_map_index == "retry_label_abc"
 
     def test_ti_update_state_retry_with_policy_overrides(self, client, session, create_task_instance):
         """Test that retry_delay_seconds and retry_reason from a RetryPolicy are stored on the TI."""
