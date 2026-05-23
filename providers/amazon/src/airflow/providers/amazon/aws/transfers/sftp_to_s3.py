@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -44,8 +45,11 @@ class SFTPToS3Operator(BaseOperator):
         Connection.
     :param sftp_path: The sftp remote path. This is the specified file path
         for downloading the file from the SFTP server.
-    :param s3_conn_id: The s3 connection id. The name or identifier for
-        establishing a connection to S3
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket to where
         the file is uploaded.
     :param s3_key: The targeted s3 key. This is the specified path for
@@ -66,18 +70,26 @@ class SFTPToS3Operator(BaseOperator):
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
         sftp_remote_host: str = "",
-        s3_conn_id: str = "aws_default",
+        aws_conn_id: str = "aws_default",
+        s3_conn_id: str | None = None,
         use_temp_file: bool = True,
         fail_on_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if s3_conn_id is not None:
+            warnings.warn(
+                "The s3_conn_id parameter is deprecated. Use aws_conn_id instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            aws_conn_id = s3_conn_id
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
         self.sftp_remote_host = sftp_remote_host
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
         self.use_temp_file = use_temp_file
         self.fail_on_file_not_exist = fail_on_file_not_exist
 
@@ -92,7 +104,7 @@ class SFTPToS3Operator(BaseOperator):
 
         # SSHHook will handle a None/"" sftp_remote_host
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id, remote_host=self.sftp_remote_host)
-        s3_hook = S3Hook(self.s3_conn_id)
+        s3_hook = S3Hook(self.aws_conn_id)
 
         sftp_client = ssh_hook.get_conn().open_sftp()
 
