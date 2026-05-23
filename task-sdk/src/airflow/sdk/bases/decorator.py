@@ -586,10 +586,10 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         expand_input: ExpandInput,
         *,
         strict: bool,
-        apply_upstream_relationship: bool = True,
+        register_with_dag: bool = True,
     ) -> XComArg:
         operator = self.partition(size=0)._expand(
-            expand_input, strict=strict, apply_upstream_relationship=apply_upstream_relationship
+            expand_input, strict=strict, register_with_dag=register_with_dag
         )
         return XComArg(operator=operator)
 

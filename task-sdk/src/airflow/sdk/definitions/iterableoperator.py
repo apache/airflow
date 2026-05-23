@@ -427,7 +427,7 @@ class MappedIterableOperator(MappedOperator):
         self.delegate = mapped_operator
         self.delegate.partial_kwargs["partition_size"] = partition_size
         self.expand_input = expand_input
-        self._apply_upstream_relationship = True
+        self._register_with_dag = True
         self.__attrs_post_init__()
 
     def __getattr__(self, name):

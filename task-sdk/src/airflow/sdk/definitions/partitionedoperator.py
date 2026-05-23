@@ -138,14 +138,14 @@ class PartitionableOperator(Generic[T], metaclass=ABCMeta):
         expand_input: ExpandInput,
         *,
         strict: bool,
-        apply_upstream_relationship: bool = True,
+        register_with_dag: bool = True,
     ) -> MappedOperator:
         """
         Create a mapped operator for the given expansion input.
 
         :param expand_input: The input to expand against.
         :param strict: Whether to enforce strict argument checking.
-        :param apply_upstream_relationship: Whether to apply upstream relationships.
+        :param register_with_dag: Whether to register the mapped operator into Dag/task-group structures.
         :return: A MappedOperator instance.
         """
 
@@ -211,7 +211,7 @@ class PartitionedOperator(PartitionableOperator[OperatorPartial]):
     ) -> IterableOperator | MappedIterableOperator:
         from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
 
-        operator = self._expand(expand_input, strict=strict, apply_upstream_relationship=False)
+        operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
         if self.size > 0:
             return MappedIterableOperator(
@@ -229,7 +229,7 @@ class PartitionedOperator(PartitionableOperator[OperatorPartial]):
         expand_input: ExpandInput,
         *,
         strict: bool,
-        apply_upstream_relationship: bool = True,
+        register_with_dag: bool = True,
     ) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -288,7 +288,7 @@ class PartitionedOperator(PartitionableOperator[OperatorPartial]):
             expand_input_attr="expand_input",
             start_from_trigger=start_from_trigger,
             start_trigger_args=start_trigger_args,
-            apply_upstream_relationship=apply_upstream_relationship,
+            register_with_dag=register_with_dag,
         )
 
 
@@ -388,7 +388,7 @@ class DecoratedPartitionedOperator(PartitionableOperator[_TaskDecorator]):
     ) -> IterableOperator | MappedIterableOperator:
         from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
 
-        operator = self._expand(expand_input, strict=strict, apply_upstream_relationship=False)
+        operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
         if self.size > 0:
             return MappedIterableOperator(
@@ -403,7 +403,7 @@ class DecoratedPartitionedOperator(PartitionableOperator[_TaskDecorator]):
         expand_input: ExpandInput,
         *,
         strict: bool,
-        apply_upstream_relationship: bool = True,
+        register_with_dag: bool = True,
     ) -> MappedOperator:
         ensure_xcomarg_return_value(expand_input.value)
 
@@ -501,5 +501,5 @@ class DecoratedPartitionedOperator(PartitionableOperator[_TaskDecorator]):
             expand_input_attr="op_kwargs_expand_input",
             start_trigger_args=self.operator_class.start_trigger_args,
             start_from_trigger=self.operator_class.start_from_trigger,
-            apply_upstream_relationship=apply_upstream_relationship,
+            register_with_dag=register_with_dag,
         )

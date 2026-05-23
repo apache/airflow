@@ -220,10 +220,10 @@ class OperatorPartial:
         expand_input: ExpandInput,
         *,
         strict: bool,
-        apply_upstream_relationship: bool = True,
+        register_with_dag: bool = True,
     ) -> MappedOperator:
         return self.partition(size=0)._expand(
-            expand_input, strict=strict, apply_upstream_relationship=apply_upstream_relationship
+            expand_input, strict=strict, register_with_dag=register_with_dag
         )
 
     def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
@@ -289,7 +289,7 @@ class MappedOperator(AbstractOperator):
     end_date: pendulum.DateTime | None
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
     downstream_task_ids: set[str] = attrs.field(factory=set, init=False)
-    _apply_upstream_relationship: bool = attrs.field(alias="apply_upstream_relationship", default=True)
+    _register_with_dag: bool = attrs.field(alias="register_with_dag", default=True)
 
     _disallow_kwargs_override: bool
     """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.
@@ -311,13 +311,13 @@ class MappedOperator(AbstractOperator):
         return f"<Mapped({self.task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
-        # When _apply_upstream_relationship is False (i.e. IterableOperator), we intentionally
+        # When _register_with_dag is False (i.e. IterableOperator), we intentionally
         # skip the *entire* body — not just XComArg.apply_upstream_relationship.
         # IterableOperator creates in-memory MappedOperator instances solely to drive task
-        # expansion; they must NOT be registered with the DAG or task group because Airflow
+        # iteration; they must NOT be registered with the DAG or task group because Airflow
         # treats the IterableOperator itself as the single real task instance in the DB.
         # Calling dag.add_task() or task_group.add() here would raise duplicate-task errors.
-        if self._apply_upstream_relationship:
+        if self._register_with_dag:
             from airflow.sdk.definitions.xcom_arg import XComArg
 
             if self.get_closest_mapped_task_group() is not None:

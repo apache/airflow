@@ -136,7 +136,7 @@ class TestIterableOperator:
         )._expand(
             expand_input,
             strict=True,
-            apply_upstream_relationship=False,
+            register_with_dag=False,
         )
 
     @classmethod
