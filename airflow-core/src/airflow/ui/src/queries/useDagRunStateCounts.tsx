@@ -25,11 +25,13 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 export const useDagRunStateCounts = ({
   dagIds,
   dags,
+  startDate,
 }: {
   readonly dagIds: ReadonlyArray<string>;
   // Refresh predicate is derived from useDags' data so the counts query doesn't
   // need to be loaded before it knows whether to poll — avoids a chicken-and-egg.
   readonly dags: ReadonlyArray<DAGWithLatestDagRunsResponse> | undefined;
+  readonly startDate: string;
 }) => {
   const refetchInterval = useAutoRefresh({});
   const hasPendingRun =
@@ -39,9 +41,13 @@ export const useDagRunStateCounts = ({
   // Stable key: sort the dag_ids so pagination/sort order changes don't churn the cache.
   const sortedDagIds = useMemo(() => [...dagIds].sort(), [dagIds]);
 
-  return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds }, undefined, {
-    enabled: sortedDagIds.length > 0,
-    placeholderData: (prev) => prev,
-    refetchInterval: hasPendingRun ? refetchInterval : false,
-  });
+  return useDagServiceGetDagRunStateCountsUi(
+    { dagIds: sortedDagIds, runAfterGte: startDate },
+    undefined,
+    {
+      enabled: sortedDagIds.length > 0,
+      placeholderData: (prev) => prev,
+      refetchInterval: hasPendingRun ? refetchInterval : false,
+    },
+  );
 };
