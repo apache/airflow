@@ -1120,19 +1120,16 @@ class SFTPHookAsync(BaseHook):
         concurrency: int = 1,
         prefetch: bool = True,
     ) -> None:
-        import asyncio
+        """Perform an SFTP transfer operation (GET, PUT, or DELETE) via a thread executor."""
+        from asgiref.sync import sync_to_async
 
-        loop = asyncio.get_running_loop()
         sync_hook = SFTPHook(ssh_conn_id=self.sftp_conn_id)
-        await loop.run_in_executor(
-            None,
-            lambda: sync_hook.transfer(
-                operation=operation,
-                local_filepath=local_filepath,
-                remote_filepath=remote_filepath,
-                confirm=confirm,
-                create_intermediate_dirs=create_intermediate_dirs,
-                concurrency=concurrency,
-                prefetch=prefetch,
-            ),
+        await sync_to_async(sync_hook.transfer)(
+            operation=operation,
+            local_filepath=local_filepath,
+            remote_filepath=remote_filepath,
+            confirm=confirm,
+            create_intermediate_dirs=create_intermediate_dirs,
+            concurrency=concurrency,
+            prefetch=prefetch,
         )
