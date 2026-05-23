@@ -19,8 +19,8 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
 import check_trigger_serialize_init as check_module
+import pytest
 from check_trigger_serialize_init import ModuleAnalyzer, _get_init_param_names
 
 
@@ -296,7 +296,7 @@ class TestDictViaVariableResolver:
 
 
 class TestUnresolvedSerializeShapes:
-    """Sanity-check shapes that should still be skipped post-extension."""
+    """Verify shapes that should still be skipped post-extension."""
 
     def test_multiple_returns_unresolvable(self, analyzer_factory) -> None:
         analyzer = analyzer_factory(

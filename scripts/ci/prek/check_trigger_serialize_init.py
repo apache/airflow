@@ -228,11 +228,11 @@ class ModuleAnalyzer:
         .. code-block:: python
 
             def serialize(self):
-                data = {"a": ...}                    # single literal-dict init
-                data["b"] = ...                      # subscript assignment, string-constant key
-                data.update({"c": ..., "d": ...})    # .update() with a literal dict argument
+                data = {"a": ...}  # single literal-dict init
+                data["b"] = ...  # subscript assignment, string-constant key
+                data.update({"c": ..., "d": ...})  # .update() with a literal dict argument
                 if cond:
-                    data["e"] = ...                  # conditional branches are unioned
+                    data["e"] = ...  # conditional branches are unioned
                 return "<classpath>", data
 
         Returns the union of all keys that *could* appear in ``var_name``. Returns ``None`` if any
