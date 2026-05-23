@@ -58,6 +58,10 @@ class SFTPToS3Operator(BaseOperator):
         if False streams file from SFTP to S3.
     :param fail_on_file_not_exist: If True, operator fails when file does not exist,
         if False, operator will not fail and skips transfer. Default is True.
+    :param replace: If True, overwrite the S3 key if it already exists.
+    :param encrypt: If True, the file will be encrypted on the server-side by S3.
+    :param gzip: If True, the file will be compressed locally before upload.
+    :param acl_policy: Canned ACL policy for the file being uploaded to S3.
     """
 
     template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket")
@@ -74,6 +78,10 @@ class SFTPToS3Operator(BaseOperator):
         s3_conn_id: str | None = None,
         use_temp_file: bool = True,
         fail_on_file_not_exist: bool = True,
+        replace: bool = False,
+        encrypt: bool = False,
+        gzip: bool = False,
+        acl_policy: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,6 +100,10 @@ class SFTPToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.use_temp_file = use_temp_file
         self.fail_on_file_not_exist = fail_on_file_not_exist
+        self.replace = replace
+        self.encrypt = encrypt
+        self.gzip = gzip
+        self.acl_policy = acl_policy
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -119,8 +131,22 @@ class SFTPToS3Operator(BaseOperator):
         if self.use_temp_file:
             with NamedTemporaryFile("w") as f:
                 sftp_client.get(self.sftp_path, f.name)
-
-                s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
+                s3_hook.load_file(
+                    filename=f.name,
+                    key=self.s3_key,
+                    bucket_name=self.s3_bucket,
+                    replace=self.replace,
+                    encrypt=self.encrypt,
+                    gzip=self.gzip,
+                    acl_policy=self.acl_policy,
+                )
         else:
+            extra_args: dict = {}
+            if self.encrypt:
+                extra_args["ServerSideEncryption"] = "AES256"
+            if self.acl_policy:
+                extra_args["ACL"] = self.acl_policy
             with sftp_client.file(self.sftp_path, mode="rb") as data:
-                s3_hook.get_conn().upload_fileobj(data, self.s3_bucket, self.s3_key, Callback=self.log.info)
+                s3_hook.get_conn().upload_fileobj(
+                    data, self.s3_bucket, self.s3_key, ExtraArgs=extra_args or None, Callback=self.log.info
+                )

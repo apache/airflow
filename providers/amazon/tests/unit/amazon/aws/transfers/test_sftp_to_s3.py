@@ -246,3 +246,33 @@ class TestSFTPToS3OperatorInit:
         deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
         assert not deprecation_warnings
         assert op.aws_conn_id == "aws_default"
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            ({}, {"replace": False, "encrypt": False, "gzip": False, "acl_policy": None}),
+            (
+                {"replace": True, "encrypt": True, "gzip": True, "acl_policy": "bucket-owner-full-control"},
+                {
+                    "replace": True,
+                    "encrypt": True,
+                    "gzip": True,
+                    "acl_policy": "bucket-owner-full-control",
+                },
+            ),
+        ],
+    )
+    def test_s3_upload_options(self, kwargs, expected):
+        """replace/encrypt/gzip/acl_policy are stored and default to False/None."""
+        op = SFTPToS3Operator(
+            task_id="test_options",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            **kwargs,
+        )
+        assert op.replace == expected["replace"]
+        assert op.encrypt == expected["encrypt"]
+        assert op.gzip == expected["gzip"]
+        assert op.acl_policy == expected["acl_policy"]
