@@ -961,7 +961,7 @@ CONNECTION_COMMANDS = (
 DAG_COMMANDS = (
     ActionCommand(
         name="next-execution",
-        help="Show the next scheduled execution time for a DAG",
+        help="Show the next scheduled execution time for a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
         args=(
             ARG_DAG_ID,
