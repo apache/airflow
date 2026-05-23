@@ -67,6 +67,8 @@ class S3ToSFTPOperator(BaseOperator):
     :param confirm: specify if the SFTP operation should be confirmed, defaults to True.
         When True, a stat will be performed on the remote file after upload to verify
         the file size matches and confirm successful transfer.
+    :param fail_on_file_not_exist: If True, operator fails when a source S3 key does not
+        exist. If False, the operator logs a warning and skips the transfer. Default is True.
     """
 
     template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket", "s3_filenames", "sftp_filenames")
@@ -83,6 +85,7 @@ class S3ToSFTPOperator(BaseOperator):
         s3_filenames: str | list[str] | None = None,
         sftp_filenames: str | list[str] | None = None,
         confirm: bool = True,
+        fail_on_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -95,6 +98,7 @@ class S3ToSFTPOperator(BaseOperator):
         self.s3_filenames = s3_filenames
         self.sftp_filenames = sftp_filenames
         self.confirm = confirm
+        self.fail_on_file_not_exist = fail_on_file_not_exist
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -105,12 +109,17 @@ class S3ToSFTPOperator(BaseOperator):
     def _download_from_s3(
         self,
         sftp_client: paramiko.SFTPClient,
-        s3_client,
+        s3_hook: S3Hook,
         s3_key: str,
         sftp_path: str,
     ) -> None:
+        if not s3_hook.check_for_key(s3_key, self.s3_bucket):
+            if self.fail_on_file_not_exist:
+                raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")
+            self.log.info("Key %s not found in S3. Skipping transfer.", s3_key)
+            return
         with NamedTemporaryFile("w") as f:
-            s3_client.download_file(self.s3_bucket, s3_key, f.name)
+            s3_hook.get_conn().download_file(self.s3_bucket, s3_key, f.name)
             sftp_client.put(f.name, sftp_path, confirm=self.confirm)
 
     def execute(self, context: Context) -> None:
@@ -119,8 +128,6 @@ class S3ToSFTPOperator(BaseOperator):
         # SSHHook will handle a None/"" sftp_remote_host
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id, remote_host=self.sftp_remote_host)
         s3_hook = S3Hook(self.aws_conn_id)
-
-        s3_client = s3_hook.get_conn()
         sftp_client = ssh_hook.get_conn().open_sftp()
 
         if self.s3_filenames:
@@ -142,7 +149,7 @@ class S3ToSFTPOperator(BaseOperator):
                         sftp_filename = file
                     self._download_from_s3(
                         sftp_client,
-                        s3_client,
+                        s3_hook,
                         self.s3_key + file,
                         self.sftp_path + sftp_filename,
                     )
@@ -151,7 +158,7 @@ class S3ToSFTPOperator(BaseOperator):
                     for s3_file, sftp_file in zip(self.s3_filenames, self.sftp_filenames):
                         self._download_from_s3(
                             sftp_client,
-                            s3_client,
+                            s3_hook,
                             self.s3_key + s3_file,
                             self.sftp_path + sftp_file,
                         )
@@ -159,9 +166,9 @@ class S3ToSFTPOperator(BaseOperator):
                     for s3_file in self.s3_filenames:
                         self._download_from_s3(
                             sftp_client,
-                            s3_client,
+                            s3_hook,
                             self.s3_key + s3_file,
                             self.sftp_path + s3_file,
                         )
         else:
-            self._download_from_s3(sftp_client, s3_client, self.s3_key, self.sftp_path)
+            self._download_from_s3(sftp_client, s3_hook, self.s3_key, self.sftp_path)

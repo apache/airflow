@@ -70,3 +70,31 @@ class TestS3ToFTPOperatorInit:
         )
         assert op.s3_filenames == s3_filenames
         assert op.ftp_filenames == ftp_filenames
+
+    def test_fail_on_file_not_exist_default(self):
+        """fail_on_file_not_exist defaults to True."""
+        op = S3ToFTPOperator(task_id="test_fail_default", s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
+        assert op.fail_on_file_not_exist is True
+
+    @pytest.mark.parametrize("fail_on_file_not_exist", [True, False])
+    def test_fail_on_file_not_exist_skip(self, fail_on_file_not_exist):
+        """When key is missing: raise FileNotFoundError if True, skip if False."""
+        from unittest.mock import MagicMock, patch
+
+        op = S3ToFTPOperator(
+            task_id="test_skip",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            ftp_path=FTP_PATH,
+            fail_on_file_not_exist=fail_on_file_not_exist,
+        )
+        mock_s3_hook = MagicMock()
+        mock_s3_hook.check_for_key.return_value = False
+
+        if fail_on_file_not_exist:
+            with pytest.raises(FileNotFoundError):
+                op._download_from_s3(mock_s3_hook, MagicMock(), S3_KEY, FTP_PATH)
+        else:
+            with patch.object(op.log, "info") as mock_log:
+                op._download_from_s3(mock_s3_hook, MagicMock(), S3_KEY, FTP_PATH)
+            mock_log.assert_called_once()

@@ -55,6 +55,8 @@ class S3ToFTPOperator(BaseOperator):
     :param aws_conn_id: reference to a specific AWS connection
     :param ftp_conn_id: The ftp connection id. The name or identifier for
         establishing a connection to the FTP server.
+    :param fail_on_file_not_exist: If True, operator fails when a source S3 key does not
+        exist. If False, the operator logs a warning and skips the transfer. Default is True.
     """
 
     template_fields: Sequence[str] = ("s3_bucket", "s3_key", "ftp_path", "s3_filenames", "ftp_filenames")
@@ -69,6 +71,7 @@ class S3ToFTPOperator(BaseOperator):
         ftp_filenames: str | list[str] | None = None,
         aws_conn_id="aws_default",
         ftp_conn_id="ftp_default",
+        fail_on_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -79,8 +82,14 @@ class S3ToFTPOperator(BaseOperator):
         self.ftp_filenames = ftp_filenames
         self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
+        self.fail_on_file_not_exist = fail_on_file_not_exist
 
     def _download_from_s3(self, s3_hook: S3Hook, ftp_hook: FTPHook, s3_key: str, ftp_path: str) -> None:
+        if not s3_hook.check_for_key(s3_key, self.s3_bucket):
+            if self.fail_on_file_not_exist:
+                raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")
+            self.log.info("Key %s not found in S3. Skipping transfer.", s3_key)
+            return
         s3_obj = s3_hook.get_key(s3_key, self.s3_bucket)
         with NamedTemporaryFile() as local_tmp_file:
             self.log.info("Downloading file from %s", s3_key)
