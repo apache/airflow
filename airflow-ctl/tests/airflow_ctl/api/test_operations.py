@@ -1153,7 +1153,9 @@ class TestTasksOperations:
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
             # Ensure body is correctly serialized
-            assert json.loads(request.content.decode()) == clear_body.model_dump(exclude_unset=True, by_alias=True)
+            assert json.loads(request.content.decode()) == clear_body.model_dump(
+                exclude_unset=True, by_alias=True
+            )
             return httpx.Response(200, json=json.loads(expected_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))

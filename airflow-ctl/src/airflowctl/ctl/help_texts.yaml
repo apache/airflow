@@ -103,4 +103,3 @@ plugins:
 
 tasks:
   clear: "Clear task instances"
-
