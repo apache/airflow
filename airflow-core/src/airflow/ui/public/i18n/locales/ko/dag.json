@@ -3,7 +3,7 @@
   "blockingDeps": {
     "dependency": "종속성",
     "reason": "이유",
-    "title": "작업 스케줄링을 막는 종속성"
+    "title": "태스크 스케줄링을 막는 종속성"
   },
   "calendar": {
     "daily": "일간",
@@ -108,7 +108,7 @@
   },
   "navigation": {
     "navigation": "탐색: Shift+{{arrow}}",
-    "openGraphFilters": "작업 필터: Ctrl+Shift+F",
+    "openGraphFilters": "태스크 필터: Ctrl+Shift+F",
     "toggleGroup": "그룹 전환: Space"
   },
   "notFound": {
@@ -121,10 +121,10 @@
     "buttons": {
       "failedRun_one": "실패한 실행",
       "failedRun_other": "실패한 실행",
-      "failedTask_one": "실패한 작업",
-      "failedTask_other": "실패한 작업",
-      "failedTaskInstance_one": "실패한 작업 인스턴스",
-      "failedTaskInstance_other": "실패한 작업 인스턴스"
+      "failedTask_one": "실패한 태스크",
+      "failedTask_other": "실패한 태스크",
+      "failedTaskInstance_one": "실패한 태스크 인스턴스",
+      "failedTaskInstance_other": "실패한 태스크 인스턴스"
     },
     "charts": {
       "assetEvent_one": "생성된 에셋 이벤트",
@@ -137,7 +137,7 @@
     "failedLogs": {
       "hideLogs": "로그 숨기기",
       "showLogs": "로그 보기",
-      "title": "최근 실패한 작업 로그",
+      "title": "최근 실패한 태스크 로그",
       "viewFullLogs": "전체 로그 보기"
     }
   },
@@ -156,7 +156,7 @@
       "options": {
         "allDagDependencies": "모든 Dag 종속성",
         "externalConditions": "외부 조건",
-        "onlyTasks": "작업만"
+        "onlyTasks": "태스크만"
       },
       "placeholder": "종속성"
     },
@@ -166,12 +166,12 @@
     "graphFilters": {
       "clearFilters": "필터 초기화",
       "durationGte": "최소 실행 시간(초)",
-      "durationGteHint": "매핑된 작업의 경우 모든 인스턴스에 걸친 총 소요 시간을 기준으로 합니다.",
+      "durationGteHint": "매핑된 태스크의 경우 모든 인스턴스에 걸친 총 소요 시간을 기준으로 합니다.",
       "mapIndex": "최소 맵 인덱스",
-      "mapIndexHint": "매핑된 작업을 해당 인덱스까지 펼쳐 표시합니다.",
+      "mapIndexHint": "매핑된 태스크를 해당 인덱스까지 펼쳐 표시합니다.",
       "selectStatus": "상태 선택",
-      "selectTaskGroup": "작업 그룹 선택",
-      "title": "작업 필터"
+      "selectTaskGroup": "태스크 그룹 선택",
+      "title": "태스크 필터"
     },
     "showVersionIndicator": {
       "label": "버전 인디케이터 표시",
@@ -185,7 +185,7 @@
     "taskStreamFilter": {
       "activeFilter": "필터 적용하기",
       "clearFilter": "필터 지우기",
-      "clickTask": "필터 기준으로 사용할 작업을 선택하려면 클릭하세요",
+      "clickTask": "필터 기준으로 사용할 태스크를 선택하려면 클릭하세요",
       "depth": "깊이",
       "direction": "방향",
       "label": "필터",
@@ -200,7 +200,7 @@
         "downstream": "다운스트림",
         "upstream": "업스트림"
       },
-      "selectedTask": "선택된 작업"
+      "selectedTask": "선택된 태스크"
     }
   },
   "paramsFailed": "매개변수 로드 실패",
@@ -224,18 +224,18 @@
     "code": "코드",
     "details": "세부 정보",
     "logs": "로그",
-    "mappedTaskInstances_one": "작업 인스턴스 [{{count}}]",
-    "mappedTaskInstances_other": "작업 인스턴스 [{{count}}]",
+    "mappedTaskInstances_one": "태스크 인스턴스 [{{count}}]",
+    "mappedTaskInstances_other": "태스크 인스턴스 [{{count}}]",
     "overview": "개요",
     "renderedTemplates": "렌더링된 템플릿",
     "requiredActions": "필수 작업",
     "runs": "실행",
-    "taskInstances": "작업 인스턴스",
-    "tasks": "작업",
+    "taskInstances": "태스크 인스턴스",
+    "tasks": "태스크",
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "모든 작업 그룹 접기",
-    "expandAll": "모든 작업 그룹 펼치기"
+    "collapseAll": "모든 태스크 그룹 접기",
+    "expandAll": "모든 태스크 그룹 펼치기"
   }
 }

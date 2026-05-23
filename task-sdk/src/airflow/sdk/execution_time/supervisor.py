@@ -37,7 +37,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, ClassVar, NoReturn, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -151,6 +151,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_put_variable,
     handle_set_xcom,
 )
+from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
 
 try:
     from socket import send_fds
@@ -532,6 +533,12 @@ def _child_exec_main():
     _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
 
 
+def _validate_schema_version(instance, _, value) -> str | None:
+    if value is None:
+        return None
+    return get_schema_version_migrator().resolve_version(str(value))
+
+
 @attrs.define(kw_only=True)
 class WatchedSubprocess:
     """
@@ -554,6 +561,17 @@ class WatchedSubprocess:
 
     _process: psutil.Process = attrs.field(repr=False)
     """File descriptor for request handling."""
+
+    _subprocess_schema_version: str | None = attrs.field(default=None, validator=_validate_schema_version)
+    """
+    Schema version for the subprocess to specify the schema version it uses.
+
+    This is used for the supervisor (server) to upgrade messages from the client
+    to match the server schema, and downgrade server messages before they are
+    sent so the client can understand them.
+
+    No migration is attempted if this is set to *None* (default).
+    """
 
     _exit_code: int | None = attrs.field(default=None, init=False)
     _process_exit_monotonic: float | None = attrs.field(default=None, init=False)
@@ -737,27 +755,43 @@ class WatchedSubprocess:
 
     def _on_socket_closed(self, sock: socket):
         # We want to keep servicing this process until we've read up to EOF from all the sockets.
-
         with suppress(KeyError):
             self.selector.unregister(sock)
             del self._open_sockets[sock]
 
+    def _serialize_response(self, msg: BaseModel | ErrorResponse, **dump_opts) -> dict[str, Any]:
+        if self._subprocess_schema_version is not None:
+            migrator = get_schema_version_migrator()
+            msg = migrator.downgrade(msg, self._subprocess_schema_version, **dump_opts)
+        return msg.model_dump(**dump_opts)
+
     def send_msg(
-        self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
+        self,
+        msg: BaseModel | None,
+        request_id: int,
+        error: ErrorResponse | None = None,
+        **dump_opts,
     ):
         """
         Send the msg as a length-prefixed response frame.
 
-        ``request_id`` is the ID that the client sent in it's request, and has no meaning to the server
-
+        :param request_id: The ID sent in the request by the client. This has no
+            meaning to the server, and is only included in the response frame
+            for the client to identify what the response is for.
         """
         if msg:
-            frame = _ResponseFrame(id=request_id, body=msg.model_dump(**dump_opts))
+            frame = _ResponseFrame(id=request_id, body=self._serialize_response(msg, **dump_opts))
         else:
-            err_resp = error.model_dump() if error else None
+            err_resp = self._serialize_response(error) if error else None
             frame = _ResponseFrame(id=request_id, error=err_resp)
-
         self.stdin.sendall(frame.as_bytes())
+
+    def _deserialize_request(self, body: dict[str, Any] | None) -> dict[str, Any] | None:
+        if self._subprocess_schema_version is None or body is None:
+            return body
+        if (model := resolve_body_class(body)) is None:
+            raise ValueError(f"Cannot resolve model without a valid 'type' discriminator: {body!r}")
+        return get_schema_version_migrator().upgrade(body, model, self._subprocess_schema_version)
 
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, _RequestFrame, None]:
         """Handle incoming requests from the task process, respond with the appropriate data."""
@@ -765,7 +799,7 @@ class WatchedSubprocess:
             request = yield
 
             try:
-                msg = self.decoder.validate_python(request.body)
+                msg = self.decoder.validate_python(self._deserialize_request(request.body))
             except Exception:
                 log.exception("Unable to decode message", body=request.body)
                 continue

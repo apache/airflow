@@ -14,37 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-# We don't want to `import *` here to avoid the risk of making adding too much to Public python API
-from airflow.sdk._shared.timezones.timezone import (
-    coerce_datetime,
-    convert_to_utc,
-    datetime,
-    from_timestamp,
-    initialize,
-    make_naive,
-    parse,
-    utc,
-    utcnow,
-)
-
-try:
-    from airflow.sdk.configuration import conf
-
-    tz_str = conf.get_mandatory_value("core", "default_timezone")
-    initialize(tz_str)
-except Exception:
-    initialize("UTC")
-
-__all__ = [
-    "coerce_datetime",
-    "convert_to_utc",
-    "datetime",
-    "from_timestamp",
-    "make_naive",
-    "parse",
-    "utc",
-    "utcnow",
-]
