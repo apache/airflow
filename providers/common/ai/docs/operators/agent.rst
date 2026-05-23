@@ -31,7 +31,10 @@ a single prompt and returns the output. ``AgentOperator`` manages a stateful
 tool-call loop where the LLM decides which tools to call and when to stop.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydanticai>`
+    :ref:`Pydantic AI connection <howto/connection:pydanticai>`
+
+The agent backend is selected by the Airflow connection ``conn_type`` (for example
+``pydanticai``, ``pydanticai-bedrock``, or ``pydanticai-azure``). You do not choose a different operator class.
 
 
 SQL Agent
@@ -303,11 +306,18 @@ Parameters
   templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
-- ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
-  ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
-- ``enable_tool_logging``: Wrap each toolset in
-  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
-  every tool call is logged in real time. Default ``True``.
+- ``toolsets``: List of toolsets the agent can use. Accepts
+  :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset` subclasses
+  (``SQLToolset``), pydantic-ai ``AbstractToolset`` implementations
+  (``HookToolset``, ``MCPToolset``, ``DataFusionToolset``,
+  ``AgentSkillsToolset`` for :ref:`agent-skills`, third-party toolsets),
+  plain Python callables, or native pydantic-ai ``Tool`` objects. Mixed lists
+  are supported.
+- ``enable_tool_logging``: When ``True`` (default), wraps each tool call with
+  real-time logging. For pydantic-ai ``AbstractToolset`` items this is done via
+  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset`; for
+  plain callables and :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
+  items it is applied at the callable level.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
@@ -326,9 +336,9 @@ Parameters
 Logging
 -------
 
-All AI operators automatically log a post-run summary after ``run_sync()``
-completes. ``AgentOperator`` additionally wraps toolsets for real-time
-per-tool-call logging (controlled by ``enable_tool_logging``).
+All AI operators automatically log a post-run summary after the agent run
+completes. ``AgentOperator`` additionally provides real-time per-tool-call
+logging (controlled by ``enable_tool_logging``).
 
 **Real-time tool call logging** (AgentOperator only) — each tool call is
 logged as it happens:

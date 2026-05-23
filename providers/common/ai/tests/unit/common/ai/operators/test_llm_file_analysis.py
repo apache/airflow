@@ -23,6 +23,7 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.hooks.base_ai import AgentRunResult, AgentUsage
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 
@@ -46,19 +47,11 @@ class Summary(BaseModel):
 
 
 def _make_mock_run_result(output):
-    mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
-        requests=1,
-        tool_calls=0,
-        input_tokens=0,
-        output_tokens=0,
-        total_tokens=0,
+    return AgentRunResult(
+        output=output,
+        model_name="test-model",
+        usage=AgentUsage(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0),
     )
-    mock_result.response = MagicMock(spec=["model_name"], model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
 
 
 def _make_context(ti_id=None):
@@ -83,7 +76,7 @@ class TestLLMFileAnalysisOperator:
         }
         assert set(LLMFileAnalysisOperator.template_fields) == expected
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
@@ -93,9 +86,11 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("Analysis complete")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock()
+        mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
+            "Analysis complete"
+        )
 
         op = LLMFileAnalysisOperator(
             task_id="test",
@@ -117,10 +112,13 @@ class TestLLMFileAnalysisOperator:
             max_text_chars=100_000,
             sample_rows=10,
         )
-        mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
+        mock_hook = mock_hook_cls.get_agent_hook.return_value
+        request = mock_hook.create_agent.call_args[0][0]
+        assert request.prompt == "prepared prompt"
+        mock_hook.run_agent.assert_called_once_with(mock_agent, request)
 
     @requires_allow_class
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
@@ -130,9 +128,11 @@ class TestLLMFileAnalysisOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock()
+        mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
+            Summary(findings=["error spike"])
+        )
 
         op = LLMFileAnalysisOperator(
             task_id="test",
@@ -175,7 +175,7 @@ class TestLLMFileAnalysisOperator:
 class TestLLMFileAnalysisOperatorApproval:
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
@@ -189,9 +189,11 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock()
+        mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
+            "LLM response"
+        )
 
         op = LLMFileAnalysisOperator(
             task_id="approval_test",
@@ -211,7 +213,7 @@ class TestLLMFileAnalysisOperatorApproval:
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
@@ -225,9 +227,11 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock()
+        mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result(
+            Summary(findings=["error spike"])
+        )
 
         op = LLMFileAnalysisOperator(
             task_id="approval_structured_test",
@@ -285,7 +289,7 @@ class TestLLMFileAnalysisOperatorApproval:
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
     )
@@ -299,9 +303,9 @@ class TestLLMFileAnalysisOperatorApproval:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result("output")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent = MagicMock()
+        mock_hook_cls.get_agent_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_agent_hook.return_value.run_agent.return_value = _make_mock_run_result("output")
 
         timeout = timedelta(hours=1)
         op = LLMFileAnalysisOperator(
