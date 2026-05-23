@@ -270,7 +270,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _resolve_connection(self) -> dict[str, Any]:
         # Build from connection master or default to yarn if not available
-        conn_data = {
+        conn_data: dict[str, Any] = {
             "master": "yarn",
             "queue": None,  # yarn queue
             "deploy_mode": None,
@@ -330,9 +330,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if conn_data["keytab"] is None:
                 base64_keytab = extra.get("keytab")
                 if base64_keytab is not None:
-                    principal: str | None = conn_data["principal"]
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
-                        base64_keytab, principal
+                        base64_keytab, conn_data["principal"]
                     )
         except AirflowException:
             self.log.info(
