@@ -57,13 +57,14 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
 )
 def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
     """Logout the user."""
+    # Revoke the current token before any redirect or cookie deletion so the JWT
+    # is invalidated even when the auth manager redirects to an external logout URL.
+    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+        auth_manager.revoke_token(token_str)
+
     logout_url = auth_manager.get_url_logout()
     if logout_url:
         return RedirectResponse(logout_url)
-
-    # Revoke the current token before deleting the cookie
-    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
-        auth_manager.revoke_token(token_str)
 
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     cookie_path = get_cookie_path()
