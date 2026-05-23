@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.transfers.s3_to_ftp import S3ToFTPOperator
 
 TASK_ID = "test_s3_to_ftp"
@@ -42,3 +44,29 @@ class TestS3ToFTPOperator:
         mock_local_tmp_file_value = mock_local_tmp_file.return_value.__enter__.return_value
         mock_s3_hook_get_key.return_value.download_fileobj.assert_called_once_with(mock_local_tmp_file_value)
         mock_ftp_hook_store_file.assert_called_once_with(operator.ftp_path, mock_local_tmp_file_value.name)
+
+
+class TestS3ToFTPOperatorInit:
+    """Unit tests for S3ToFTPOperator.__init__ that do not require an FTP server."""
+
+    @pytest.mark.parametrize(
+        ("s3_filenames", "ftp_filenames"),
+        [
+            (None, None),
+            ("*", None),
+            ("prefix_", "renamed_"),
+            (["a.csv", "b.csv"], ["x.csv", "y.csv"]),
+        ],
+    )
+    def test_multi_file_params(self, s3_filenames, ftp_filenames):
+        """s3_filenames and ftp_filenames are stored correctly."""
+        op = S3ToFTPOperator(
+            task_id="test_multi",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            ftp_path=FTP_PATH,
+            s3_filenames=s3_filenames,
+            ftp_filenames=ftp_filenames,
+        )
+        assert op.s3_filenames == s3_filenames
+        assert op.ftp_filenames == ftp_filenames

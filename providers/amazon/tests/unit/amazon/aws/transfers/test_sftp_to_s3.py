@@ -276,3 +276,26 @@ class TestSFTPToS3OperatorInit:
         assert op.encrypt == expected["encrypt"]
         assert op.gzip == expected["gzip"]
         assert op.acl_policy == expected["acl_policy"]
+
+    @pytest.mark.parametrize(
+        ("sftp_filenames", "s3_filenames"),
+        [
+            (None, None),
+            ("*", None),
+            ("prefix_", "renamed_"),
+            (["a.csv", "b.csv"], ["x.csv", "y.csv"]),
+        ],
+    )
+    def test_multi_file_params(self, sftp_filenames, s3_filenames):
+        """sftp_filenames and s3_filenames are stored correctly."""
+        op = SFTPToS3Operator(
+            task_id="test_multi",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            sftp_filenames=sftp_filenames,
+            s3_filenames=s3_filenames,
+        )
+        assert op.sftp_filenames == sftp_filenames
+        assert op.s3_filenames == s3_filenames

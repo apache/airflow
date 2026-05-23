@@ -313,3 +313,30 @@ class TestS3ToSFTPOperator:
 
     def teardown_method(self):
         self.delete_remote_resource()
+
+
+class TestS3ToSFTPOperatorInit:
+    """Unit tests for S3ToSFTPOperator.__init__ that do not require an SSH server."""
+
+    @pytest.mark.parametrize(
+        ("s3_filenames", "sftp_filenames"),
+        [
+            (None, None),
+            ("*", None),
+            ("prefix_", "renamed_"),
+            (["a.csv", "b.csv"], ["x.csv", "y.csv"]),
+        ],
+    )
+    def test_multi_file_params(self, s3_filenames, sftp_filenames):
+        """s3_filenames and sftp_filenames are stored correctly."""
+        op = S3ToSFTPOperator(
+            task_id="test_multi",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            s3_filenames=s3_filenames,
+            sftp_filenames=sftp_filenames,
+        )
+        assert op.s3_filenames == s3_filenames
+        assert op.sftp_filenames == sftp_filenames
