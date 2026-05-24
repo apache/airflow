@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import mock
 
 import pytest
@@ -59,6 +59,17 @@ TEST_EXEC_RESULT = {
     "output_end": True,
     "exit_info": {"exit_code": 0, "error": ""},
 }
+
+
+def build_task_instance_result(state, date_key, task_id, logical_date):
+    return {
+        "task_id": task_id,
+        "dag_id": TEST_COMPOSER_DAG_ID,
+        "state": state,
+        date_key: logical_date,
+        "start_date": "2024-03-22T11:20:01.531988+00:00",
+        "end_date": "2024-03-22T11:20:11.997479+00:00",
+    }
 
 
 @pytest.fixture
@@ -209,3 +220,57 @@ class TestCloudComposerExternalTaskTrigger:
             },
         )
         assert actual_data == expected_data
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @pytest.mark.parametrize(
+        ("task_instance_states_and_dates", "expected_status"),
+        [
+            pytest.param(
+                [
+                    ("success", "2024-03-22T10:30:00+00:00"),
+                    ("success", "2024-03-22T12:30:00+00:00"),
+                ],
+                False,
+                id="all-task-instances-outside-execution-range",
+            ),
+            pytest.param(
+                [
+                    ("success", "2024-03-22T11:00:00+00:00"),
+                    ("success", "2024-03-22T12:00:00+00:00"),
+                ],
+                False,
+                id="only-boundary-task-instances",
+            ),
+            pytest.param(
+                [
+                    ("running", "2024-03-22T10:30:00+00:00"),
+                    ("success", "2024-03-22T11:10:00+00:00"),
+                ],
+                True,
+                id="mixed-outside-and-inside-execution-range",
+            ),
+        ],
+    )
+    def test_execution_range_requires_matching_task_instance(
+        self,
+        external_task_trigger,
+        task_instance_states_and_dates,
+        expected_status,
+        composer_airflow_version,
+    ):
+        external_task_trigger.composer_airflow_version = composer_airflow_version
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        task_instances = [
+            build_task_instance_result(state, date_key, TEST_COMPOSER_EXTERNAL_TASK_IDS[0], logical_date)
+            for state, logical_date in task_instance_states_and_dates
+        ]
+
+        assert (
+            external_task_trigger._check_task_instances_states(
+                task_instances=task_instances,
+                start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+                end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+                states=TEST_ALLOWED_STATES,
+            )
+            is expected_status
+        )
