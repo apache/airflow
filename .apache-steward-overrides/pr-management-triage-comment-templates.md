@@ -25,6 +25,7 @@
   - [Project-specific URLs](#project-specific-urls)
   - [Quality-criteria marker string](#quality-criteria-marker-string)
   - [AI-attribution footer](#ai-attribution-footer)
+  - [Violations bullet format](#violations-bullet-format)
   - [Template bodies](#template-bodies)
     - [`draft`](#draft)
     - [`comment-only`](#comment-only)
@@ -96,6 +97,69 @@ rationale).
 
 _Note: This comment was drafted by an AI-assisted triage tool and may contain mistakes. Once you have addressed the points above, an Apache Airflow maintainer — a real person — will take the next look at your PR. We use this [two-stage triage process](https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md#why-the-first-pass-is-automated) so that our maintainers' limited time is spent where it matters most: the conversation with you._
 ```
+
+## Violations bullet format
+
+`<violations>` in the [template bodies](#template-bodies) below
+expands to a bullet list — one bullet per category of failing
+check or other violation. For this project, the bullet uses the
+**bare-category form**:
+
+```
+- :x: **<category>**. See [docs](<doc_link>).
+```
+
+- `:x:` for severity `error`, `:warning:` for severity `warning`.
+- `<category>` and `<doc_link>` are looked up in
+  [`pr-management-triage-ci-check-map.md`](pr-management-triage-ci-check-map.md)
+  (one bullet per **category**, regardless of how many individual
+  check names matched it).
+
+### Do not list individual failing job names
+
+This overrides the framework default. The triage comment must
+**not** enumerate the failing check names underneath the
+category (e.g. avoid `:x: **Kubernetes tests** — Failing:
+Kubernetes tests / K8S System:LocalExecutor-3.10-v1.30.13-false,
+Kubernetes tests / K8S System:KubernetesExecutor-3.10-...,
+(+1 more). See docs.`).
+
+The same applies to the per-category remediation snippets the
+framework's default rendering may add ("Run `prek run …`
+locally and fix anything that flags." etc.) — drop them. The
+linked doc has the steps; the bullet's job is to point at the
+**category** and the **doc URL**, nothing more.
+
+GitHub's Checks tab already shows the failing job names and
+re-running steps; repeating them in the triage comment adds
+noise without adding signal and pushes the comment past the
+size where contributors actually read it. Multiple violations
+in different categories produce multiple bullets in the same
+list; multiple failing checks in the same category produce a
+single bullet.
+
+### Non-CI violations with a useful inline payload
+
+A few violations carry a short payload that is genuinely useful
+in the bullet itself (number of unresolved threads, count of
+flagged PRs by the author, branch-behind-by-N). For those, the
+bullet may append the payload inline after the category:
+
+```
+- :x: **<category>**: <short payload>. See [docs](<doc_link>).
+```
+
+Examples permitted by this rule:
+
+- `- :x: **Unresolved review comments**: 3 thread(s). See [docs](…).`
+- `- :x: **Multiple flagged PRs**: <flagged_count> of your PRs are currently flagged for quality issues. Please focus on those before opening new ones.`
+  (already present verbatim in the [`close`](#close) template
+  body below — kept as-is.)
+
+The payload must be **one short clause**, not a list of
+job names. If you find yourself listing three or more items in
+the payload, the rule above applies — drop them and let the
+doc link do the work.
 
 ## Template bodies
 
