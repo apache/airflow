@@ -349,6 +349,10 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         chained list of accounts. See the Google provider docs for details.
     :param deferrable: Run in deferrable mode using
         :class:`BigQueryStreamingBufferEmptyTrigger`.
+    :param consecutive_empty_checks: The number of consecutive checks the streaming
+        buffer must be reported as empty before the sensor succeeds. Defaults to 1.
+        BigQuery's buffer metadata is eventually consistent, so setting this to > 1
+        (e.g., 2 checks with a 10s poke_interval) helps avoid false negatives.
     """
 
     template_fields: Sequence[str] = (
@@ -369,6 +373,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        consecutive_empty_checks: int = 1,
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -382,6 +387,8 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+        self.consecutive_empty_checks = consecutive_empty_checks
+        self._consecutive_empty_checks_count = 0
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
@@ -398,6 +405,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
                 poll_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                consecutive_empty_checks=self.consecutive_empty_checks,
             ),
             method_name="execute_complete",
         )
@@ -426,4 +434,19 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             table = hook.get_client(project_id=self.project_id).get_table(table_ref)
         except NotFound as err:
             raise ValueError(f"Table {table_uri} not found") from err
-        return table.streaming_buffer is None
+
+        if table.streaming_buffer is None:
+            self._consecutive_empty_checks_count += 1
+            if self._consecutive_empty_checks_count >= self.consecutive_empty_checks:
+                return True
+            else:
+                self.log.info(
+                    "Table streaming buffer is empty, but waiting for %s consecutive checks "
+                    "(current: %s)",
+                    self.consecutive_empty_checks,
+                    self._consecutive_empty_checks_count,
+                )
+                return False
+        else:
+            self._consecutive_empty_checks_count = 0
+            return False

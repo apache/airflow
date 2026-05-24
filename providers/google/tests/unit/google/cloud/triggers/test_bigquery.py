@@ -1057,6 +1057,7 @@ class TestBigQueryStreamingBufferEmptyTrigger:
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "poll_interval": POLLING_PERIOD_SECONDS,
             "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+            "consecutive_empty_checks": 1,
         }
 
     @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryTableAsyncHook")

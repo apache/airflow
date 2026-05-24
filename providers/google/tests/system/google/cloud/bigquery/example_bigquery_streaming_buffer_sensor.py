@@ -109,19 +109,6 @@ with DAG(
             rows=[{"value": 100, "ds": ds}],
             fail_on_error=True,
         )
-        # BigQuery's streamingBuffer table metadata is eventually consistent: for
-        # a few seconds after a streaming insert the row is in the buffer but
-        # table.streaming_buffer is still None. Wait for the metadata to catch up
-        # so check_streaming_buffer_empty does not falsely report "empty" before
-        # the buffer is reported at all. Remove once the sensor handles this
-        # itself; tracked at https://github.com/apache/airflow/issues/66963
-        client = hook.get_client(project_id=PROJECT_ID)
-        table_uri = f"{PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}"
-        for _ in range(30):
-            if client.get_table(table_uri).streaming_buffer is not None:
-                return
-            time.sleep(2)
-        raise RuntimeError("BigQuery streaming buffer metadata did not appear within 60s")
 
     streaming_insert_task = streaming_insert()
 
@@ -132,6 +119,7 @@ with DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
         poke_interval=30,
+        consecutive_empty_checks=2,
         timeout=5400,  # BigQuery flushes the streaming buffer within ~90 minutes
     )
     # [END howto_sensor_bigquery_streaming_buffer_empty]
@@ -154,6 +142,7 @@ with DAG(
         table_id=TABLE_NAME,
         deferrable=True,
         poke_interval=30,
+        consecutive_empty_checks=2,
         timeout=5400,  # BigQuery flushes the streaming buffer within ~90 minutes
     )
     # [END howto_sensor_bigquery_streaming_buffer_empty_deferred]

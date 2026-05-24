@@ -902,6 +902,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
         gcp_conn_id: str,
         poll_interval: float = 30.0,
         impersonation_chain: str | Sequence[str] | None = None,
+        consecutive_empty_checks: int = 1,
     ):
         super().__init__()
         self.project_id = project_id
@@ -910,6 +911,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.poll_interval = poll_interval
         self.impersonation_chain = impersonation_chain
+        self.consecutive_empty_checks = consecutive_empty_checks
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -921,6 +923,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
+                "consecutive_empty_checks": self.consecutive_empty_checks,
             },
         )
 
@@ -932,6 +935,7 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        empty_checks_count = 0
         try:
             hook = self._get_async_hook()
             async with ClientSession() as session:
@@ -945,11 +949,23 @@ class BigQueryStreamingBufferEmptyTrigger(BaseTrigger):
                         table_id=self.table_id,
                     )
                     if is_empty:
-                        message = f"Streaming buffer is empty for table: {table_uri}"
-                        self.log.info(message)
-                        yield TriggerEvent({"status": "success", "message": message})
-                        return
-                    self.log.info("Streaming buffer not empty, sleeping %ss", self.poll_interval)
+                        empty_checks_count += 1
+                        if empty_checks_count >= self.consecutive_empty_checks:
+                            message = f"Streaming buffer is empty for table: {table_uri}"
+                            self.log.info(message)
+                            yield TriggerEvent({"status": "success", "message": message})
+                            return
+                        else:
+                            self.log.info(
+                                "Table streaming buffer is empty, but waiting for %s consecutive checks "
+                                "(current: %s)",
+                                self.consecutive_empty_checks,
+                                empty_checks_count,
+                            )
+                    else:
+                        empty_checks_count = 0
+                    
+                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
         except Exception as e:
             self.log.exception("Error while checking streaming buffer for table %s", table_uri)
