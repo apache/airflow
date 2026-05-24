@@ -2466,6 +2466,15 @@ class TestTriggerDagRun:
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
+    def test_should_respond_400_if_partition_key_on_non_partitioned_dag(self, test_client):
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": "us-east-1"},
+        )
+        assert response.status_code == 400
+        assert "does not use a partitioned timetable" in response.json()["detail"]
+
 
 class TestResolveRunOnLatestVersion:
     @pytest.mark.parametrize("explicit_value", [True, False])

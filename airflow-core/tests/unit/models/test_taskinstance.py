@@ -3513,10 +3513,10 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert pakl.target_dag_id == "asset_event_listener"
 
 
-def test_runtime_partition_key_backfills_dag_run_when_none(dag_maker, session):
-    """Single runtime key on a PartitionAtRuntime-style run (dag_run.partition_key=None) back-fills the run."""
+def test_runtime_partition_key_does_not_backfill_dag_run(dag_maker, session):
+    """A task-emitted partition key lands on the AssetEvent but never writes back to DagRun.partition_key."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_backfill", schedule=None) as dag:
+    with dag_maker(dag_id="rt_pk_no_backfill", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(session=session)
     assert dr.partition_key is None
@@ -3532,8 +3532,9 @@ def test_runtime_partition_key_backfills_dag_run_when_none(dag_maker, session):
     )
     event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
     assert event.partition_key == "us"
+    # DagRun.partition_key must remain None — back-fill logic has been removed.
     session.refresh(dr)
-    assert dr.partition_key == "us"
+    assert dr.partition_key is None
 
 
 def test_runtime_partition_key_does_not_overwrite_scheduler_partition(dag_maker, session):
@@ -3582,10 +3583,10 @@ def test_runtime_partition_keys_fan_out_to_one_event_per_key(dag_maker, session)
     assert dr.partition_key is None
 
 
-def test_runtime_partition_key_is_none_when_event_has_no_key(dag_maker, session):
-    """An outlet event without partition_key produces an AssetEvent with partition_key=None."""
+def test_extra_only_event_inherits_dag_run_partition_key(dag_maker, session):
+    """An outlet event without an explicit partition_key inherits DagRun.partition_key."""
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_none", schedule=None) as dag:
+    with dag_maker(dag_id="rt_pk_extra_only", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="from-run", session=session)
     [ti] = dr.get_task_instances(session=session)
@@ -3599,11 +3600,12 @@ def test_runtime_partition_key_is_none_when_event_has_no_key(dag_maker, session)
         session=session,
     )
     event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
-    assert event.partition_key is None
+    # No explicit partition_key in the event → falls back to DagRun.partition_key.
+    assert event.partition_key == "from-run"
 
 
 def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
-    """One event with partition_key + one without produce two AssetEvents (key + None)."""
+    """One event with explicit partition_key + one without produce two events; the keyless one inherits the run key."""
     asset = Asset(name="hello")
     with dag_maker(dag_id="rt_pk_mixed", schedule=None) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
@@ -3620,7 +3622,8 @@ def test_runtime_partition_key_mixed_events_for_same_asset(dag_maker, session):
         session=session,
     )
     events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
-    assert {e.partition_key for e in events} == {"us", None}
+    # Explicit "us" is preserved; the keyless event falls back to the DagRun key "from-run".
+    assert {e.partition_key for e in events} == {"us", "from-run"}
     session.refresh(dr)
     assert dr.partition_key == "from-run"
 
