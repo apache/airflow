@@ -103,6 +103,17 @@ dependencies = [
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
 ]
+# crewai is intentionally NOT declared as an optional extra here. crewai
+# 1.14.x ships tight conservative pins (click~=8.1.7, tomli~=2.0.2, and
+# a crewai-cli that pulls textual>=7.5 → rich>=14.2) that conflict with
+# Airflow's own resolved click 8.3+, tomli 2.4+, and FAB's transitive
+# rich<14. uv can satisfy the install via override-dependencies, but
+# Airflow's CI image build runs ``pip check`` afterwards (see
+# scripts/docker/install_airflow_when_building_images.sh) which treats
+# the metadata mismatch as fatal. Users who want the CrewAI hook should
+# ``pip install crewai>=1.14.5`` into their venv after installing
+# common-ai; see docs/hooks/crewai.rst. Hook tests stub ``crewai`` in
+# ``sys.modules``.
 "pdf" = ["pypdf>=4.0.0"]
 "docx" = ["python-docx>=1.0.0"]
 
@@ -122,6 +133,10 @@ dev = [
     "llama-index-core>=0.13.0",
     "llama-index-embeddings-openai>=0.6.0",
     "llama-index-llms-openai>=0.6.0",
+    # crewai deliberately NOT listed here, and also NOT declared as an
+    # optional extra above -- see the comment under
+    # ``[project.optional-dependencies]`` for the pip-check rationale.
+    # Tests stub ``crewai`` in ``sys.modules``.
 ]
 
 # To build docs:
