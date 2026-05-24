@@ -23,6 +23,7 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -99,7 +100,7 @@ class SFTPToS3Operator(BaseOperator):
         if s3_conn_id is not None:
             warnings.warn(
                 "The s3_conn_id parameter is deprecated. Use aws_conn_id instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             aws_conn_id = s3_conn_id

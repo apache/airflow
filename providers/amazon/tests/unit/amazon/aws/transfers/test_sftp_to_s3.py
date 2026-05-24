@@ -23,6 +23,7 @@ import boto3
 import pytest
 from moto import mock_aws
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
@@ -227,13 +228,15 @@ class TestSFTPToS3OperatorInit:
                 sftp_conn_id=SFTP_CONN_ID,
                 s3_conn_id="my_legacy_conn",
             )
-        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, AirflowProviderDeprecationWarning)
+        ]
         assert len(deprecation_warnings) == 1
         assert "s3_conn_id" in str(deprecation_warnings[0].message)
         assert op.aws_conn_id == "my_legacy_conn"
 
     def test_aws_conn_id_default(self):
-        """aws_conn_id defaults to 'aws_default' and no DeprecationWarning is raised."""
+        """aws_conn_id defaults to 'aws_default' and no AirflowProviderDeprecationWarning is raised."""
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             op = SFTPToS3Operator(
@@ -243,7 +246,9 @@ class TestSFTPToS3OperatorInit:
                 sftp_path=SFTP_PATH,
                 sftp_conn_id=SFTP_CONN_ID,
             )
-        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        deprecation_warnings = [
+            w for w in caught if issubclass(w.category, AirflowProviderDeprecationWarning)
+        ]
         assert not deprecation_warnings
         assert op.aws_conn_id == "aws_default"
 
