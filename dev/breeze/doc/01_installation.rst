@@ -63,6 +63,25 @@ Here is an example configuration with more than 200GB disk space for Docker:
 
 **Docker errors that may come while running breeze**
 
+- ``breeze start-airflow`` starts Airflow by launching Docker containers. Run it
+  from the outer host shell that has access to the Docker socket, not from a
+  shell that is already inside the Breeze container or a Codespaces
+  devcontainer. In Codespaces, a ``[Breeze:...]`` prompt means you are already
+  inside the containerized development environment.
+
+- If ``docker info`` fails in Codespaces or another devcontainer, check the
+  Docker context, socket, and server API version before changing Breeze:
+
+    .. code-block:: bash
+
+        docker context ls
+        ls -l /var/run/docker.sock
+        docker version
+
+  When the Docker client reports that its API version is too new for the server,
+  set ``DOCKER_API_VERSION`` to the maximum API version reported by the server
+  and retry ``docker info``.
+
 - If docker not running in python virtual environment:
 
     1. Create the docker group if it does not exist: ``sudo groupadd docker``

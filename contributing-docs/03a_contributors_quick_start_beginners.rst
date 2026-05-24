@@ -46,6 +46,7 @@ For Breeze (local development):
 .. code-block:: bash
 
     curl -LsSf https://astral.sh/uv/install.sh | sh
+
 * `Prek <https://github.com/j178/prek>`__, which runs Airflow's required code-quality checks (formatting, linting, and bug-spotting) before you commit, helping save contributors and committers time during the pull request process.
 
 .. code-block:: bash
@@ -175,7 +176,7 @@ Option B – One-Click GitHub Codespaces
    (Command Palette → *Codespaces: Rebuild Container*) or restarting
    the Codespace from the GitHub Codespaces dashboard.
 
-5. Install Breeze and start the development container
+5. Install the local development tools
 
 .. code-block:: bash
 
@@ -185,7 +186,12 @@ Option B – One-Click GitHub Codespaces
       prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
       ./scripts/tools/setup_breeze
       uv run dev/ide_setup/setup_vscode.py
-      breeze start-airflow
+
+   The Codespace terminal is already running inside the Airflow devcontainer/Breeze
+   environment. Do not run ``breeze start-airflow`` from a ``[Breeze:...]`` prompt
+   or another shell inside the devcontainer. That command starts Docker containers
+   and is intended to be run from the outer host shell with access to the Docker
+   socket.
 
 6. Edit a file in the editor, save, and commit via the Source Control sidebar.
    Push when prompted.

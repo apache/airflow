@@ -39,8 +39,14 @@ Setup and develop using GitHub Codespaces
        :target: https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=33884891
        :alt: Open in GitHub Codespaces
 
-3. Once the codespace starts your terminal should already be in the ``Breeze`` environment and you should
-   be able to edit and run the tests in VS Code interface.
+3. Once the codespace starts your terminal should already be in the Airflow
+   devcontainer/Breeze environment and you should be able to edit and run the
+   tests in VS Code interface.
+
+   If your prompt starts with ``[Breeze:...]``, you are already inside the
+   containerized development environment. Do not run ``breeze start-airflow`` from
+   that prompt. ``breeze start-airflow`` starts Docker containers and is intended
+   to be run from the outer host shell with access to the Docker socket.
 
 4. You can use `Quick start guide for Visual Studio Code <contributors_quick_start_vscode.rst>`_ for details
    as Codespaces use Visual Studio Code as interface.
@@ -49,7 +55,11 @@ Setup and develop using GitHub Codespaces
 Troubleshooting Docker in Codespaces
 -------------------------------------
 
-If you see a "Docker is not running" error when running Breeze commands, try these steps:
+If you see a "Docker is not running" error when running Breeze commands, first
+check where the command is being run. In Codespaces the terminal is already
+inside the Airflow devcontainer/Breeze environment. Commands that start another
+set of containers, such as ``breeze start-airflow``, should be run outside that
+container context.
 
 1. Verify that Docker is accessible by running:
 
@@ -57,19 +67,31 @@ If you see a "Docker is not running" error when running Breeze commands, try the
 
       docker info
 
-2. If the command fails, check that the Docker socket exists:
+   If the output reports that the Docker client API version is too new for the
+   server, set the API version reported by the server and retry the command, for
+   example:
+
+   .. code-block:: bash
+
+      export DOCKER_API_VERSION=1.43
+      docker info
+
+2. If the command fails because Docker cannot connect to the daemon, check that
+   the Docker socket exists:
 
    .. code-block:: bash
 
       ls -la /var/run/docker.sock
 
-3. Check that your user has permission to access Docker:
+3. Check the active Docker context and socket permissions:
 
    .. code-block:: bash
 
+      docker context ls
       groups $USER
+      ls -l /var/run/docker.sock
 
-   You should see ``docker`` in the list. If not, add yourself to the group:
+   You should see ``docker`` in the group list. If not, add yourself to the group:
 
    .. code-block:: bash
 
