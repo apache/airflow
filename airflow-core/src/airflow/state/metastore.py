@@ -17,17 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import TYPE_CHECKING
 
+import structlog
 from sqlalchemy import delete, select
 
 from airflow._shared.state import AssetScope, BaseStateBackend, StateScope, TaskScope
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.asset_state import AssetStateModel
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state import TaskStateModel
 from airflow.typing_compat import assert_never
-from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
@@ -36,6 +41,19 @@ if TYPE_CHECKING:
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
+
+
+log = structlog.get_logger(__name__)
+
+
+@asynccontextmanager
+async def _async_session(session: AsyncSession | None) -> AsyncGenerator[AsyncSession, None]:
+    """Use provided async session or create a new one."""
+    if session is not None:
+        yield session
+    else:
+        async with create_session_async() as s:
+            yield s
 
 
 def _build_upsert_stmt(
@@ -69,7 +87,9 @@ class MetastoreStateBackend(BaseStateBackend):
     """Default state backend for tasks and assets. Stores task and asset state in the Airflow metadata database."""
 
     @provide_session
-    def get(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> str | None:
+    def get(self, scope: StateScope, key: str, *, session: Session | None = NEW_SESSION) -> str | None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 return self._get_task_state(scope, key, session=session)
@@ -79,17 +99,29 @@ class MetastoreStateBackend(BaseStateBackend):
                 assert_never(scope)
 
     @provide_session
-    def set(self, scope: StateScope, key: str, value: str, *, session: Session = NEW_SESSION) -> None:
+    def set(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: Session | None = NEW_SESSION,
+    ) -> None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
-                self._set_task_state(scope, key, value, session=session)
+                self._set_task_state(scope, key, value, expires_at=expires_at, session=session)
             case AssetScope():
                 self._set_asset_state(scope, key, value, session=session)
             case _:
                 assert_never(scope)
 
     @provide_session
-    def delete(self, scope: StateScope, key: str, *, session: Session = NEW_SESSION) -> None:
+    def delete(self, scope: StateScope, key: str, *, session: Session | None = NEW_SESSION) -> None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 self._delete_task_state(scope, key, session=session)
@@ -104,8 +136,10 @@ class MetastoreStateBackend(BaseStateBackend):
         scope: StateScope,
         *,
         all_map_indices: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session | None = NEW_SESSION,
     ) -> None:
+        if TYPE_CHECKING:
+            assert session is not None
         match scope:
             case TaskScope():
                 self._clear_task_state(scope, all_map_indices=all_map_indices, session=session)
@@ -114,43 +148,53 @@ class MetastoreStateBackend(BaseStateBackend):
             case _:
                 assert_never(scope)
 
-    async def aget(self, scope: StateScope, key: str) -> str | None:
-        async with create_session_async() as session:
+    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    return await self._aget_task_state(scope, key, session=session)
+                    return await self._aget_task_state(scope, key, session=s)
                 case AssetScope():
-                    return await self._aget_asset_state(scope, key, session=session)
+                    return await self._aget_asset_state(scope, key, session=s)
                 case _:
                     assert_never(scope)
 
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
-        async with create_session_async() as session:
+    async def aset(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: AsyncSession | None = None,
+    ) -> None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aset_task_state(scope, key, value, session=session)
+                    await self._aset_task_state(scope, key, value, expires_at=expires_at, session=s)
                 case AssetScope():
-                    await self._aset_asset_state(scope, key, value, session=session)
+                    await self._aset_asset_state(scope, key, value, session=s)
                 case _:
                     assert_never(scope)
 
-    async def adelete(self, scope: StateScope, key: str) -> None:
-        async with create_session_async() as session:
+    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._adelete_task_state(scope, key, session=session)
+                    await self._adelete_task_state(scope, key, session=s)
                 case AssetScope():
-                    await self._adelete_asset_state(scope, key, session=session)
+                    await self._adelete_asset_state(scope, key, session=s)
                 case _:
                     assert_never(scope)
 
-    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
-        async with create_session_async() as session:
+    async def aclear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+    ) -> None:
+        async with _async_session(session) as s:
             match scope:
                 case TaskScope():
-                    await self._aclear_task_state(scope, all_map_indices=all_map_indices, session=session)
+                    await self._aclear_task_state(scope, all_map_indices=all_map_indices, session=s)
                 case AssetScope():
-                    await self._aclear_asset_state(scope, session=session)
+                    await self._aclear_asset_state(scope, session=s)
                 case _:
                     assert_never(scope)
 
@@ -166,7 +210,15 @@ class MetastoreStateBackend(BaseStateBackend):
         )
         return row.value if row is not None else None
 
-    def _set_task_state(self, scope: TaskScope, key: str, value: str, *, session: Session) -> None:
+    def _set_task_state(
+        self,
+        scope: TaskScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: Session,
+    ) -> None:
         dag_run_id = session.scalar(
             select(DagRun.id).where(
                 DagRun.dag_id == scope.dag_id,
@@ -185,13 +237,14 @@ class MetastoreStateBackend(BaseStateBackend):
             key=key,
             value=value,
             updated_at=now,
+            expires_at=expires_at,
         )
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             TaskStateModel,
             ["dag_run_id", "task_id", "map_index", "key"],
             values,
-            dict(value=value, updated_at=now),
+            dict(value=value, updated_at=now, expires_at=expires_at),
         )
         session.execute(stmt)
 
@@ -252,6 +305,51 @@ class MetastoreStateBackend(BaseStateBackend):
             )
         )
 
+    def cleanup(self) -> None:
+        """
+        Remove expired task state rows.
+
+        ``expires_at`` is set at write time on every ``set()`` call, so cleanup is a single
+        ``WHERE expires_at < now()`` pass. Rows with ``expires_at=NULL`` (default_retention_days=0)
+        are never deleted. Batching is configurable via ``[state_store] state_cleanup_batch_size``.
+        """
+        batch_size = conf.getint("state_store", "state_cleanup_batch_size")
+        now = timezone.utcnow()
+
+        def _delete_batched(where_clause) -> int:
+            total = 0
+            with create_session() as session:
+                while True:
+                    id_query = select(TaskStateModel.id).where(where_clause)
+                    if batch_size > 0:
+                        id_query = id_query.limit(batch_size)
+                    ids = session.scalars(id_query).all()
+                    if not ids:
+                        break
+                    session.execute(delete(TaskStateModel).where(TaskStateModel.id.in_(ids)))
+                    session.commit()
+                    total += len(ids)
+                    if batch_size <= 0 or len(ids) < batch_size:
+                        break
+            return total
+
+        deleted = _delete_batched(TaskStateModel.expires_at < now)
+        log.info("Deleted expired task_state rows", rows_deleted=deleted)
+
+    def _summary_dry_run(self) -> dict[str, list]:
+        """Return rows that would be deleted by cleanup() without deleting anything."""
+        now = timezone.utcnow()
+        cols = (
+            TaskStateModel.dag_id,
+            TaskStateModel.run_id,
+            TaskStateModel.task_id,
+            TaskStateModel.map_index,
+            TaskStateModel.key,
+        )
+        with create_session() as session:
+            expired = session.execute(select(*cols).where(TaskStateModel.expires_at < now)).all()
+        return {"expired": list(expired)}
+
     async def _aget_task_state(self, scope: TaskScope, key: str, *, session: AsyncSession) -> str | None:
         row = await session.scalar(
             select(TaskStateModel).where(
@@ -265,7 +363,13 @@ class MetastoreStateBackend(BaseStateBackend):
         return row.value if row is not None else None
 
     async def _aset_task_state(
-        self, scope: TaskScope, key: str, value: str, *, session: AsyncSession
+        self,
+        scope: TaskScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: AsyncSession,
     ) -> None:
         dag_run_id = await session.scalar(
             select(DagRun.id).where(
@@ -285,6 +389,7 @@ class MetastoreStateBackend(BaseStateBackend):
             key=key,
             value=value,
             updated_at=now,
+            expires_at=expires_at,
         )
         # get_dialect_name expects a sync Session; sync_session is the underlying Session the async wrapper delegates to
         stmt = _build_upsert_stmt(
@@ -292,7 +397,7 @@ class MetastoreStateBackend(BaseStateBackend):
             TaskStateModel,
             ["dag_run_id", "task_id", "map_index", "key"],
             values,
-            dict(value=value, updated_at=now),
+            dict(value=value, updated_at=now, expires_at=expires_at),
         )
         await session.execute(stmt)
 

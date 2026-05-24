@@ -137,7 +137,7 @@ with DAG(
         response = service.files().list(q=f"name = '{DRIVE_FILE_NAME}'").execute()
         if files := response["files"]:
             file = files[0]
-            log.info("Deleting file {}...", file)
+            log.info("Deleting file %s...", file)
             service.files().delete(fileId=file["id"])
             log.info("Done.")
 

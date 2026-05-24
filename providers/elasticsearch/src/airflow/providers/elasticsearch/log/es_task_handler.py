@@ -25,6 +25,7 @@ import os
 import shutil
 import sys
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from operator import attrgetter
@@ -41,8 +42,10 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
@@ -269,7 +272,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -317,8 +320,31 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
 
                 if get_remote_task_log() is None:
+                    # stacklevel=1 keeps the warning attributed to this airflow.providers
+                    # module so module-based deprecation filters still match; dictConfig
+                    # is in stdlib and would otherwise hide the warning at stacklevel=2.
+                    warnings.warn(
+                        "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
+                        "during dictConfig is deprecated and will be removed in a future "
+                        "provider release. Set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)`` "
+                        "at module scope in your ``[logging] logging_config_class`` module. "
+                        "See the Elasticsearch provider logging documentation for the "
+                        "updated override example.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=1,
+                    )
                     _ActiveLoggingConfig.set(self.io, None)
             elif alc.REMOTE_TASK_LOG is None:  # type: ignore[attr-defined]
+                warnings.warn(
+                    "Implicit REMOTE_TASK_LOG registration by ElasticsearchTaskHandler "
+                    "during dictConfig is deprecated and will be removed in a future "
+                    "provider release. Set ``REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(...)`` "
+                    "at module scope in your ``[logging] logging_config_class`` module. "
+                    "See the Elasticsearch provider logging documentation for the "
+                    "updated override example.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
                 alc.REMOTE_TASK_LOG = self.io  # type: ignore[attr-defined]
 
     @staticmethod
@@ -651,7 +677,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
-        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
+        self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
         self.index_patterns_callable = conf.get("elasticsearch", "index_patterns_callable", fallback="")
         self.PAGE = 0
         self.MAX_LINE_PER_PAGE = conf.getint("elasticsearch", "max_lines_per_page", fallback=1000)
@@ -695,13 +721,31 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         offset = 1
         for line in logs:
             # Make sure line is not empty
-            if line.strip():
-                # construct log_id which is {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
-                # also construct the offset field (default is 'offset')
+            if not line.strip():
+                continue
+
+            try:
                 log_dict = json.loads(line)
-                log_dict.update({"log_id": log_id, self.offset_field: offset})
-                offset += 1
-                parsed_logs.append(log_dict)
+            except json.JSONDecodeError:
+                # Best-effort fallback: preserve the raw line
+                self.log.debug("Failed to parse log line as JSON", exc_info=True)
+                log_dict = {
+                    "message": line,
+                    "unparsed": True,
+                }
+
+            # Ensure minimal compatibility with Airflow log expectations
+            if "event" not in log_dict and "message" not in log_dict:
+                log_dict["message"] = str(line)
+
+            log_dict.update(
+                {
+                    "log_id": log_id,
+                    self.offset_field: offset,
+                }
+            )
+            offset += 1
+            parsed_logs.append(log_dict)
 
         return parsed_logs
 

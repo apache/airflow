@@ -125,7 +125,14 @@ class WorkerQueuesBase(BaseModel):
         str | None,
         Field(
             None,
-            description="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+            description=(
+                "Team name for the experimental ``[core] multi_team`` feature. "
+                "This is a UI/REST API-level hint; the Execution API does not "
+                "currently enforce team-based access boundaries -- see "
+                "``airflow-core/docs/security/workload.rst`` (section: "
+                "'No team-level isolation in Execution API'). Workers without "
+                "team_name behave as default-team workers."
+            ),
         ),
     ] = None
 

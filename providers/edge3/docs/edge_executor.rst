@@ -89,9 +89,18 @@ each worker only picks up jobs assigned to its team.
 
     airflow edge worker --team-name team_a -q queue1,queue2
 
-When ``--team-name`` is omitted, the worker operates without team isolation — the
+When ``--team-name`` is omitted, the worker operates as a default-team worker — the
 same behavior as a single-team deployment. Existing workers continue to work without
 any changes.
+
+.. note::
+
+    ``--team-name`` is an experimental UI/REST API-level hint. The Execution API
+    does not currently enforce team-based access boundaries — workloads from
+    different teams share the same Execution API, JWT signing keys, and access to
+    connections, variables, and XComs. See
+    :doc:`apache-airflow:security/workload` (section "No team-level isolation in
+    Execution API") for the full security boundary discussion.
 
 **Per-team configuration overrides:**
 

@@ -26,6 +26,55 @@
 Changelog
 ---------
 
+9.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support to AthenaSQLHook (#66844)``
+* ``Add S3TablesDeleteTableBucketPolicyOperator (#66957)``
+* ``Add parent info injection to EMR operator (#66816)``
+* ``Add MwaaServerlessDeleteWorkflowOperator (#66891)``
+* ``Add callback support to AWS batch executor (#62984)``
+* ``Add MwaaServerlessUpdateWorkflowOperator (#66833)``
+* ``Add S3TablesPutTableBucketPolicyOperator (#66720)``
+* ``Add S3VectorsQueryVectorsOperator (#66724)``
+* ``Add async support to SageMakerNotebookJobTrigger (#65571)``
+* ``Add S3VectorsPutVectorsOperator (#66545)``
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Add S3TablesRenameTableOperator (#66544)``
+* ``Add MwaaServerlessStopWorkflowRunOperator (#66548)``
+* ``Add BedrockUpdateGuardrailOperator (#66547)``
+* ``Add GlueCatalogCreatePartitionOperator (#66546)``
+* ``Add MwaaServerlessWorkflowRunSensor (#66382)``
+* ``Add 'BedrockCreateEvaluationJobOperator' (#66722)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CreateWorkflowOperator if_exists=skip ARN construction (#66974)``
+* ``Fix EMR container job not cancelled on deferral timeout (#64770)``
+
+Misc
+~~~~
+
+* ``Enable ruff PLE1205 to catch logging calls with too many arguments (#66978)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Bundle documentation for Amazon S3 (#66993)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable ruff B015 to catch silent no-op comparisons in tests (#66977)``
+   * ``Fix s3_tables system test: use CDK-provided ACCOUNT_ID for bucket policy (#66972)``
+   * ``Fix system test bugs: bedrock_guardrail, glue_catalog, s3_vectors (#66758)``
+   * ``Revert "Apply AIR201-style replacements (#65197)" (#66712)``
+   * ``Adjust log message header for expandable sources (#66570)``
+   * ``Fix SageMaker delete model compat test to handle moto status code change (#66473)``
+
 9.28.0
 ......
 

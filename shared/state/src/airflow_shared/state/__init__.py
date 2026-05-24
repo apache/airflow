@@ -18,6 +18,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 
 @dataclass(frozen=True)
@@ -40,9 +47,25 @@ class TaskScope:
 
 @dataclass(frozen=True)
 class AssetScope:
-    """Identifies the state namespace for an asset."""
+    """
+    Identifies the state namespace for an asset.
 
-    asset_id: int
+    Server-side backends receive ``asset_id``. Worker-side backends receive ``name`` or ``uri``
+    since workers do not have access to the integer ``asset_id``.
+
+    Note: ``name`` and ``uri`` are not guaranteed to be unique over time — if an asset is
+    deactivated and a new one created with the same name, both share the same ``name`` value.
+    State for inactive assets is cleaned up by the orphan GC pass; until then, stale rows exist
+    in the DB but cannot be written to (the Execution API resolver filters to active assets only).
+    """
+
+    asset_id: int | None = None
+    name: str | None = None
+    uri: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.asset_id is None and self.name is None and self.uri is None:
+            raise ValueError("AssetScope requires at least one of: asset_id, name, or uri")
 
 
 StateScope = TaskScope | AssetScope
@@ -62,10 +85,16 @@ class BaseStateBackend(ABC):
                 ...  # asset-specific storage
 
     Custom backends are configured via ``[state_store] backend`` in ``airflow.cfg``.
+
+    **The ``session`` parameter on ``get``, ``set``, ``delete``, and ``clear``:**
+
+    The default ``MetastoreStateBackend`` passes a SQLAlchemy ``Session`` through
+    these methods. Custom backends that do not use SQLAlchemy should accept ``session`` as a
+    keyword argument and ignore it.
     """
 
     @abstractmethod
-    def get(self, scope: StateScope, key: str) -> str | None:
+    def get(self, scope: StateScope, key: str, *, session: Session | None = None) -> str | None:
         """
         Return the stored value, or None if the key does not exist.
 
@@ -73,15 +102,27 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def set(self, scope: StateScope, key: str, value: str) -> None:
+    def set(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: Session | None = None,
+    ) -> None:
         """
         Write or overwrite the value for the given key.
 
         Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
+        Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
+        skipped by garbage collection.
         """
 
     @abstractmethod
-    def delete(self, scope: StateScope, key: str) -> None:
+    def delete(self, scope: StateScope, key: str, *, session: Session | None = None) -> None:
         """
         Delete a single key. No-op if the key does not exist.
 
@@ -89,7 +130,9 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    def clear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
+    def clear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: Session | None = None
+    ) -> None:
         """
         Delete all keys under the given scope.
 
@@ -102,23 +145,111 @@ class BaseStateBackend(ABC):
         """
 
     @abstractmethod
-    async def aget(self, scope: StateScope, key: str) -> str | None:
-        """Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``."""
+    async def aget(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> str | None:
+        """
+        Async variant of get. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
-    async def aset(self, scope: StateScope, key: str, value: str) -> None:
-        """Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``."""
+    async def aset(
+        self,
+        scope: StateScope,
+        key: str,
+        value: str,
+        *,
+        expires_at: datetime | None = None,
+        session: AsyncSession | None = None,
+    ) -> None:
+        """
+        Async variant of set. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
-    async def adelete(self, scope: StateScope, key: str) -> None:
-        """Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``."""
+    async def adelete(self, scope: StateScope, key: str, *, session: AsyncSession | None = None) -> None:
+        """
+        Async variant of delete. Must handle both ``TaskScope`` and ``AssetScope``.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
+        """
 
     @abstractmethod
-    async def aclear(self, scope: StateScope, *, all_map_indices: bool = False) -> None:
+    async def aclear(
+        self, scope: StateScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
+    ) -> None:
         """
         Async variant of clear. Must handle both ``TaskScope`` and ``AssetScope``.
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. Pass ``all_map_indices=True`` to wipe state across every
         mapped instance of the task. For ``AssetScope`` the flag has no effect.
+
+        ``session`` is optional. If provided, implementations should use it directly.
+        If ``None``, implementations manage their own async session internally.
         """
+
+    def cleanup(self) -> None:
+        """
+        Remove expired and orphaned state records.
+
+        This is a no-op by default. Custom backends override this to implement their own
+        retention policy. The backend is responsible for reading any relevant config (e.g.
+        ``[state_store] default_retention_days``) and deciding what to delete.
+        """
+
+    def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str:
+        """
+        Serialize a task state value before it is sent to the execution API for db persistence.
+
+        Called by ``TaskStateAccessor.set()`` on the worker. The return value is what gets
+        stored in the DB — typically a reference path (e.g. an S3 key) rather than the
+        actual value. Default: return ``value`` unchanged.
+
+        The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
+        must always return the same string. Do not use timestamps or random UUIDs as part of
+        the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
+        object will be orphaned.
+        """
+        return value
+
+    def deserialize_task_state_from_ref(self, stored: str) -> str:
+        """
+        Resolve a stored task state string back to the actual value.
+
+        Called by ``TaskStateAccessor.get()`` after the stored string is retrieved from
+        the execution API. Default: return ``stored`` unchanged.
+        """
+        return stored
+
+    def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str:
+        """
+        Serialize an asset state value before it is sent to the Execution API for db persistence.
+
+        Called by ``AssetStateAccessor.set()`` on the worker. The return value is what gets
+        stored in the DB — typically a reference path rather than the actual value.
+        Default: return ``value`` unchanged.
+
+        ``asset_ref`` is either the asset name or URI, depending on how the accessor was
+        constructed. It may be a URI string if the task inlet was declared as ``AssetUriRef``.
+
+        The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
+        must always return the same string. Do not use timestamps or random UUIDs as part of
+        the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
+        object will be orphaned.
+        """
+        return value
+
+    def deserialize_asset_state_from_ref(self, stored: str) -> str:
+        """
+        Resolve a stored asset state string back to the actual value.
+
+        Called by ``AssetStateAccessor.get()`` after the stored string is retrieved from
+        the Execution API. Default: return ``stored`` unchanged.
+        """
+        return stored

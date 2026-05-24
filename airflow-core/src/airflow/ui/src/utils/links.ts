@@ -47,6 +47,13 @@ export const getRedirectPath = (targetPath: string): string => {
   return new URL(targetPath, baseUrl).pathname;
 };
 
+// Build a same-origin "next" target (path + query + hash) from a Location.
+// Using a relative URL ensures redirects work correctly when the UI is
+// reached through a proxy or a different origin than the API server reports
+// (e.g. Gitpod port-based domains, see #46533).
+export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "search">): string =>
+  `${location.pathname}${location.search}${location.hash}`;
+
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.filter((route) => route.path !== undefined).map((route) => route.path);
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
@@ -71,6 +78,55 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   }
 
   return "";
+};
+
+const SAFE_EXTERNAL_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+/**
+ * Pass-through filter for href values that originate outside the application —
+ * for example DAG-author-supplied `owner_links`, or operator extra-link URLs
+ * read from task-pushed XCom.
+ *
+ * Returns the URL unchanged when it is either a same-origin / relative path or
+ * uses one of the allow-listed schemes (`http:`, `https:`, `mailto:`).
+ * Returns `undefined` for any other scheme (`javascript:`, `data:`, `file:`,
+ * `vbscript:`, etc.) and for unparsable input, matching the scheme-allowlist
+ * policy already applied to markdown links via react-markdown's default
+ * `urlTransform` and to log / XCom linkification (which is `https?://`-only).
+ *
+ * Callers should fall back to plain text or skip rendering when this returns
+ * `undefined`.
+ */
+export const getSafeExternalUrl = (url: string): string | undefined => {
+  const trimmed = url.trim();
+
+  if (trimmed === "") {
+    return undefined;
+  }
+
+  let parsed: URL;
+
+  try {
+    parsed = new URL(trimmed, globalThis.location.origin);
+  } catch {
+    return undefined;
+  }
+
+  // Same-origin URL (relative input, or absolute pointing at our own origin).
+  // We have to compare against `location.origin` rather than just looking at
+  // the protocol because `new URL("/foo", origin)` produces a URL whose
+  // protocol is the origin's protocol (typically `http(s):`), so a
+  // protocol-only check would let through any non-allow-listed scheme that
+  // happens to share the origin's protocol shape.
+  if (parsed.origin === globalThis.location.origin) {
+    return trimmed;
+  }
+
+  if (SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol)) {
+    return trimmed;
+  }
+
+  return undefined;
 };
 
 export const buildTaskInstanceUrl = (params: {

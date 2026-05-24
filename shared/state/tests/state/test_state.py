@@ -18,7 +18,22 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_shared.state import BaseStateBackend, StateScope
+from airflow_shared.state import AssetScope, BaseStateBackend, StateScope
+
+
+class TestAssetScope:
+    def test_requires_at_least_one_identifier(self):
+        with pytest.raises(ValueError, match="at least one of"):
+            AssetScope()
+
+    def test_asset_id_alone_is_valid(self):
+        AssetScope(asset_id=1)
+
+    def test_name_alone_is_valid(self):
+        AssetScope(name="my_asset")
+
+    def test_uri_alone_is_valid(self):
+        AssetScope(uri="s3://bucket/key")
 
 
 class TestBaseStateBackend:
@@ -70,3 +85,69 @@ class TestBaseStateBackend:
         """BaseStateBackend enforces all 8 sync+async methods as abstract."""
         expected = {"get", "set", "delete", "clear", "aget", "aset", "adelete", "aclear"}
         assert BaseStateBackend.__abstractmethods__ == expected
+
+    def test_task_state_serialize_deserialize_round_trip(self, backend):
+        original = "app_1234"
+        serialized = backend.serialize_task_state_to_ref(value=original, key="job_id", ti_id="abc-123")
+        deserialized = backend.deserialize_task_state_from_ref(serialized)
+        assert deserialized == original
+
+    def test_custom_backend_overrides_task_state_ser_deser(self):
+        class MyBackend(BaseStateBackend):
+            def get(self, scope, key): ...
+            def set(self, scope, key, value): ...
+            def delete(self, scope, key): ...
+            def clear(self, scope, *, all_map_indices=False): ...
+            async def aget(self, scope, key): ...
+            async def aset(self, scope, key, value): ...
+            async def adelete(self, scope, key): ...
+            async def aclear(self, scope, *, all_map_indices=False): ...
+
+            def serialize_task_state_to_ref(self, *, value, key, ti_id):
+                return f"s3://bucket/{ti_id}/{key}"
+
+            def deserialize_task_state_from_ref(self, stored):
+                return f"fetched:{stored}"
+
+        b = MyBackend()
+        assert b.serialize_task_state_to_ref(value="app_1234", key="job_id", ti_id="abc-123") == (
+            "s3://bucket/abc-123/job_id"
+        )
+        assert (
+            b.deserialize_task_state_from_ref("s3://bucket/abc-123/job_id")
+            == "fetched:s3://bucket/abc-123/job_id"
+        )
+
+    def test_asset_state_serialize_deserialize_round_trip(self, backend):
+        original = "2026-05-01"
+        serialized = backend.serialize_asset_state_to_ref(
+            value="2026-05-01", key="watermark", asset_ref="my_asset"
+        )
+        deserialized = backend.deserialize_asset_state_from_ref(serialized)
+        assert deserialized == original
+
+    def test_custom_backend_overrides_asset_state_ser_deser(self):
+        class MyBackend(BaseStateBackend):
+            def get(self, scope, key): ...
+            def set(self, scope, key, value): ...
+            def delete(self, scope, key): ...
+            def clear(self, scope, *, all_map_indices=False): ...
+            async def aget(self, scope, key): ...
+            async def aset(self, scope, key, value): ...
+            async def adelete(self, scope, key): ...
+            async def aclear(self, scope, *, all_map_indices=False): ...
+
+            def serialize_asset_state_to_ref(self, *, value, key, asset_ref):
+                return f"s3://bucket/assets/{asset_ref}/{key}"
+
+            def deserialize_asset_state_from_ref(self, stored):
+                return f"resolved:{stored}"
+
+        b = MyBackend()
+        assert b.serialize_asset_state_to_ref(value="2026-05-01", key="watermark", asset_ref="my_asset") == (
+            "s3://bucket/assets/my_asset/watermark"
+        )
+        assert (
+            b.deserialize_asset_state_from_ref("s3://bucket/assets/my_asset/watermark")
+            == "resolved:s3://bucket/assets/my_asset/watermark"
+        )

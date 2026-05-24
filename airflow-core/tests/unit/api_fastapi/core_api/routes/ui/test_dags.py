@@ -352,6 +352,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 403
 
+    def test_latest_run_should_response_400_when_dag_id_is_tilde(self, test_client):
+        response = test_client.get("/dags/~/latest_run")
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "`~` was supplied as dag_id, but querying multiple dags is not supported."
+        }
+
     @pytest.mark.parametrize(
         ("query_params", "expected_dag_count"),
         [

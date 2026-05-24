@@ -17,9 +17,10 @@
  * under the License.
  */
 import type { ButtonProps } from "@chakra-ui/react";
-import { IconButton } from "@chakra-ui/react";
 import * as React from "react";
 import { LuCheck, LuClipboard } from "react-icons/lu";
+
+import { IconButton } from ".";
 
 type LazyClipboardProps = {
   readonly getValue: () => string;

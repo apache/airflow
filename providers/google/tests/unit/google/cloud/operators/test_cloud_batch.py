@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -52,7 +54,7 @@ class TestCloudBatchSubmitJobOperator:
         assert completed_job["name"] == JOB_NAME
 
         mock.return_value.submit_batch_job.assert_called_with(
-            job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
+            job_name=JOB_NAME, job=batch_v1.Job.to_dict(JOB), region=REGION, project_id=PROJECT_ID
         )
         mock.return_value.wait_for_job.assert_called()
 
@@ -90,6 +92,59 @@ class TestCloudBatchSubmitJobOperator:
             expected_exception=AirflowException, match="Unexpected error in the operation: test error"
         ):
             operator.execute_complete(context=mock.MagicMock(), event=event)
+
+
+def _job_dict_with_template() -> dict:
+    return {
+        "task_groups": [
+            {
+                "task_spec": {
+                    "runnables": [
+                        {
+                            "container": {
+                                "image_uri": "gcr.io/google-containers/busybox",
+                                "entrypoint": "/bin/sh",
+                                "commands": ["-c", "echo {{ ds }}"],
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "labels": {"run_id": "{{ run_id }}"},
+    }
+
+
+class TestCloudBatchSubmitJobOperatorTemplating:
+    def test_template_fields_includes_job(self):
+        assert "job" in CloudBatchSubmitJobOperator.template_fields
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "job_input_factory",
+        [
+            pytest.param(lambda d: d, id="dict"),
+            pytest.param(lambda d: batch_v1.Job.from_json(json.dumps(d)), id="protobuf-Job"),
+        ],
+    )
+    def test_jinja_in_job_commands_is_rendered(self, create_task_instance_of_operator, job_input_factory):
+        ti = create_task_instance_of_operator(
+            CloudBatchSubmitJobOperator,
+            dag_id="test_cloud_batch_render",
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=JOB_NAME,
+            job=job_input_factory(_job_dict_with_template()),
+            logical_date=datetime(2026, 1, 15),
+        )
+        task = ti.render_templates()
+
+        assert isinstance(task.job, dict)
+        rendered_cmd = task.job["task_groups"][0]["task_spec"]["runnables"][0]["container"]["commands"][1]
+        assert rendered_cmd == "echo 2026-01-15"
+        # dag_maker's default run_id is "test"; the point is {{ run_id }} got substituted at all.
+        assert task.job["labels"]["run_id"] == "test"
 
 
 class TestCloudBatchDeleteJobOperator:

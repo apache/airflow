@@ -261,7 +261,10 @@ core:
     allowed_deserialization_classes_regexp:
       description: |
         Space-separated list of classes that may be imported during deserialization. Items are processed
-        as regex expressions. Python built-in classes (like dict) are always allowed.
+        as regex expressions and matched against the full classname (``re.fullmatch`` semantics), so a
+        pattern such as ``airflow\.models\.Variable`` does not also admit ``airflow.models.VariableXYZ``.
+        Use ``.*`` (e.g. ``airflow\.models\..*``) to allow a prefix and any suffix. Python built-in
+        classes (like dict) are always allowed.
         This is a secondary option to ``[core] allowed_deserialization_classes``.
       version_added: 2.8.2
       type: string
@@ -517,6 +520,19 @@ core:
       type: boolean
       example: ~
       default: "False"
+    rerun_with_latest_version:
+      description: |
+        Default value for whether cleared, rerun, or backfilled tasks should use
+        the latest bundle version. When set to True, reruns and backfills pick up
+        the latest code. When set to False, they use the original bundle version.
+        When unset, the fallback depends on the call site: False for clearing or
+        rerunning tasks, True for creating backfills (preserving the historical
+        defaults for each). Individual DAGs can override this with the
+        ``rerun_with_latest_version`` parameter.
+      type: boolean
+      example: ~
+      default: ~
+      version_added: 3.2.0
 database:
   description: ~
   options:
@@ -1794,6 +1810,16 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
+    access_control_allow_credentials:
+      description: |
+        Whether the FastAPI server includes the ``Access-Control-Allow-Credentials`` header on
+        CORS responses. Defaults to True to preserve existing behavior; set to False if you have
+        configured ``access_control_allow_origins`` and do not want browsers to send credentials
+        (cookies, Authorization header) with cross-origin requests.
+      type: boolean
+      version_added: 3.2.2
+      example: ~
+      default: "True"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -1885,6 +1911,17 @@ workers:
       type: string
       sensitive: true
       example: ~
+      default: ""
+    state_backend:
+      description: |
+        Full class name of a custom worker-side state backend. When set, task state values are
+        routed through this backend so large payloads or credentialed storage stay on worker
+        infrastructure. The Execution API still records a reference string in the database.
+
+        Leave empty (default) to use the standard path through the task sdk supervisor.
+      version_added: 3.3.0
+      type: string
+      example: "mypackage.state.S3StateBackend"
       default: ""
     min_heartbeat_interval:
       description: |
@@ -3025,6 +3062,38 @@ state_store:
       type: string
       example: "mypackage.state.CustomStateBackend"
       default: "airflow.state.metastore.MetastoreStateBackend"
+    clear_on_success:
+      description: |
+        If set to True, all task state keys for a task instance are automatically cleared
+        when that task instance moved to SUCCESS.
+
+        Defaults to False so that task state persists after success for observability —
+        operators and the UI can inspect what the task wrote (e.g. submitted job IDs,
+        advanced watermarks) after the run completes.
+        Consider setting to True if you do not need post-success visibility and want automatic
+        cleanup without waiting for the global retention period.
+      version_added: 3.3.0
+      type: boolean
+      example: "True"
+      default: "False"
+    default_retention_days:
+      description: |
+        Number of days to retain task state after their last update.
+        Rows older than this are removed when cleanup is triggered.
+        This config does not affect asset_state rows.
+        Set to 0 to disable time-based cleanup entirely.
+      version_added: 3.3.0
+      type: integer
+      example: "7"
+      default: "30"
+    state_cleanup_batch_size:
+      description: |
+        Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
+        Tune this on deployments with large task_state tables to improve performance per transaction.
+      version_added: 3.3.0
+      type: integer
+      example: "10000"
+      default: "0"
 
 profiling:
   description: |
@@ -3049,3 +3118,18 @@ profiling:
       type: string
       example: "scheduler,api,dag_processor"
       default: ~
+    memray_detailed_tracing:
+      description: |
+        Whether to enable memray's ``native_traces`` and ``trace_python_allocators`` options
+        when ``memray_trace_components`` is set. Captures C/C++ stack frames for compiled
+        extensions (numpy, pandas, etc.) and small ``pymalloc`` allocations that would
+        otherwise be invisible.
+
+        This adds significant runtime overhead and produces much larger profile files, so
+        leave it disabled unless the default trace lacks the detail you need. Native symbol
+        resolution is most accurate on Linux and less precise on macOS. See
+        https://bloomberg.github.io/memray/api.html for the underlying ``Tracker`` options.
+      version_added: 3.3.0
+      type: boolean
+      example: ~
+      default: "False"
