@@ -329,6 +329,77 @@ Execution API. For a detailed description of the JWT authentication flows, token
 configuration, see :doc:`/security/jwt_token_authentication`. For the current state of workload
 isolation protections and their limitations, see :ref:`workload-isolation`.
 
+The diagram below summarizes the trust boundaries between Airflow components and the metadata
+database. Solid arrows are authenticated network calls (JWT-bearing HTTP). Dashed arrows are
+direct database access — components on the right of the dashed line can read and write the
+metadata DB, so any code they execute is implicitly trusted with the metadata database.
+
+.. mermaid::
+
+    flowchart LR
+        subgraph users["Users (untrusted by default)"]
+            UI[UI / browser]
+            CLI[CLI]
+            EXT[External REST clients]
+        end
+
+        subgraph dataplane["Worker plane (no metadata DB access)"]
+            WRK[Worker / Task]
+        end
+
+        subgraph controlplane["Control plane (metadata DB access)"]
+            APISVR[API Server]
+            SCH[Scheduler]
+            DFP[Dag File Processor]
+            TRG[Triggerer]
+        end
+
+        DB[(Metadata DB)]
+
+        UI -->|JWT| APISVR
+        CLI -->|JWT| APISVR
+        EXT -->|JWT| APISVR
+        WRK -->|JWT<br/>Execution API| APISVR
+
+        APISVR -. SQL .-> DB
+        SCH -. SQL .-> DB
+        DFP -. SQL .-> DB
+        TRG -. SQL .-> DB
+
+        DFP -. in-process<br/>JWT bypassed .-> APISVR
+        TRG -. in-process<br/>JWT bypassed .-> APISVR
+
+        classDef untrusted fill:#fee,stroke:#a33
+        classDef trusted fill:#efe,stroke:#3a3
+        classDef data fill:#eef,stroke:#446
+        class UI,CLI,EXT,WRK untrusted
+        class APISVR,SCH,DFP,TRG trusted
+        class DB data
+
+The intentional asymmetry: **workers have no direct DB credentials and reach data only through
+the JWT-authenticated Execution API**, while DFP and Triggerer share the control plane's DB
+access and use an *in-process* transport that bypasses the JWT bearer dependency. This is why
+Dag File Processor and Triggerer are treated as part of the control-plane trust boundary even
+though they run user-supplied code — see :ref:`workload-isolation` and the limitations below.
+
+Defense in depth at the router level
+....................................
+
+Both the public REST API router (``/api/v2``) and the UI router (``/ui``) declare
+``Depends(get_user)`` at the router level. This is purely a defense-in-depth backstop: every
+authenticated route already declares its own ``GetUserDep`` or ``requires_access_*`` dependency
+that itself resolves ``get_user``, and FastAPI caches dependency resolutions per request, so
+the duplicate declaration is resolved only once and the runtime cost is zero. The value is preventing a future route from being added
+under either router without an authentication check — the router-level dependency catches the
+regression at registration time. The explicit no-auth carve-outs are limited to
+``monitor_router`` (health probes), ``version_router``, and the public ``auth_router`` (login
+endpoints), which are mounted directly on the public router rather than under
+``authenticated_router``.
+
+A structural test asserts both routers carry the router-level ``Depends(get_user)``, so a
+refactor that drops the dependency without considering its purpose fails CI rather than
+silently widening the unauthenticated surface.
+
 Current isolation limitations
 .............................
 
@@ -409,6 +480,24 @@ potentially still executes with direct database access in the Dag File Processor
    variables, and XComs are accessible to all tasks. There is no isolation between tasks belonging to
    different teams or Dag authors at the Execution API level.
 
+   What the Execution API **does** enforce, beyond ``ti:self``:
+
+   * **Secrets-backend deny is honoured.** When the Execution API returns ``401``/``403`` for a
+     connection or variable lookup, the SDK's ``ExecutionAPISecretsBackend`` raises
+     ``AirflowSecretsBackendAccessDenied`` (a subclass of ``PermissionError``) instead of returning
+     ``None``. The secrets-backend dispatcher must not fall through to a less-restrictive backend
+     (such as ``EnvironmentVariablesBackend``, which performs no authorization checks) when the
+     authoritative backend has explicitly denied the request. ``NOT_FOUND`` responses keep the
+     existing fall-through behaviour so the not-found-here path remains usable. This closes a
+     "Type C" gap where the authorization control fired but its rejection was treated as a miss.
+   * **Tightened deserialization allowlist.** The serializer's class-name allowlist regex is
+     anchored to require a full-string match, so attacker-controlled values cannot smuggle
+     untrusted class names by appending an allowed suffix to a non-allowed name.
+   * **Typed JWT claims schema.** Even after cryptographic validation, claims are run through a
+     typed Pydantic schema (``TIClaims``) that enforces the ``scope`` literal, and then through
+     ``TIToken`` which parses ``sub`` as a UUID. A token whose ``scope`` is unknown or whose
+     ``sub`` is not a valid UUID is rejected before any route handler runs.
+
 **Token signing key might be a shared secret**
    In symmetric key mode (``[api_auth] jwt_secret``), the same secret key is used to both generate and
    validate tokens. Any component that has access to this secret can forge tokens with arbitrary claims,
@@ -465,6 +554,59 @@ model — Airflow does not enforce these natively.
    ``ptrace``. In contrast, configuration files on disk are readable by any process running as
    the same Unix user. Environment variables can also be scoped to individual processes or
    containers, making it easier to restrict which components have access to which secrets.
+
+   The following diagram summarizes which components need which classes of sensitive value in a
+   well-hardened deployment. Workers should not see DB credentials or the JWT signing key at all;
+   the API Server is the only component that needs *all* of them.
+
+   .. mermaid::
+
+       flowchart LR
+           subgraph secrets["Sensitive values"]
+               DBC[DB connection<br/>SQL_ALCHEMY_CONN]
+               JWT[JWT signing key<br/>jwt_secret /<br/>jwt_private_key_path]
+               FERN[Fernet key]
+               SB_CFG[Secrets backend<br/>credentials<br/>non-worker]
+               SB_WRK[Secrets backend<br/>credentials<br/>worker]
+               REMLOG[Remote log<br/>handler kwargs]
+           end
+
+           subgraph components["Components"]
+               APISVR[API Server]
+               SCH[Scheduler]
+               DFP[Dag File Processor]
+               TRG[Triggerer]
+               WRK[Worker]
+           end
+
+           DBC --> APISVR
+           DBC --> SCH
+           DBC --> DFP
+           DBC --> TRG
+
+           JWT --> APISVR
+           JWT --> SCH
+
+           FERN --> APISVR
+           FERN --> SCH
+           FERN --> DFP
+           FERN --> TRG
+           FERN --> WRK
+
+           SB_CFG --> SCH
+           SB_CFG --> DFP
+           SB_CFG --> TRG
+
+           SB_WRK --> WRK
+
+           REMLOG --> SCH
+           REMLOG --> TRG
+           REMLOG --> WRK
+
+           classDef worker fill:#efe,stroke:#3a3
+           classDef control fill:#eef,stroke:#446
+           class WRK worker
+           class APISVR,SCH,DFP,TRG control
 
    The following tables list all security-sensitive configuration variables (marked ``sensitive: true``
    in Airflow's configuration). Deployment Managers should review each variable and ensure it is only
