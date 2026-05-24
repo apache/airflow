@@ -368,7 +368,17 @@ def dag_next_execution(args) -> None:
         else:
             columns = ["logical_date", "data_interval.start", "data_interval.end", "run_after"]
         getters = [(c, operator.attrgetter(c)) for c in columns]
-        AirflowConsole().print_as_table([{n: f(o) for n, f in getters} for o in iter_next_dagrun_info()])
+        rows = []
+        for info in iter_next_dagrun_info():
+            if info is None:
+                print(
+                    "[WARN] No following schedule can be found. "
+                    "This DAG may have schedule interval '@once' or `None`.",
+                    file=sys.stderr,
+                )
+            else:
+                rows.append({n: f(info) for n, f in getters})
+        AirflowConsole().print_as_table(rows)
         return
 
     if args.field:

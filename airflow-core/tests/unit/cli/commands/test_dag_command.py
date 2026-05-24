@@ -272,6 +272,93 @@ class TestCliDags:
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
+    @pytest.mark.parametrize(
+        ("dag_id", "delta", "schedule", "catchup", "num_executions", "expected_rows", "expect_warn"),
+        [
+            pytest.param(
+                "table_schedule_none",
+                "timedelta(days=5)",
+                "None",
+                "True",
+                1,
+                0,
+                True,
+                id="table_schedule_none",
+            ),
+            pytest.param(
+                "table_schedule_once",
+                "timedelta(days=5)",
+                "'@once'",
+                "True",
+                1,
+                1,
+                False,
+                id="table_schedule_once_single",
+            ),
+            pytest.param(
+                "table_schedule_once_two_execs",
+                "timedelta(days=5)",
+                "'@once'",
+                "True",
+                2,
+                1,
+                True,
+                id="table_schedule_once_two_executions",
+            ),
+        ],
+    )
+    def test_next_execution_table(
+        self,
+        dag_id,
+        delta,
+        schedule,
+        catchup,
+        num_executions,
+        expected_rows,
+        expect_warn,
+        tmp_path,
+        stdout_capture,
+        stderr_capture,
+    ):
+        """Verify --table does not crash and warns correctly when info is None."""
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + {delta}, schedule={schedule}, catchup={catchup})",
+                "task = EmptyOperator(task_id='empty_task',dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
+
+        args = self.parser.parse_args(
+            ["dags", "next-execution", dag_id, "--table", "--num-executions", str(num_executions)]
+        )
+        with stdout_capture as temp_stdout, stderr_capture as temp_stderr:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
+            err = temp_stderr.getvalue()
+
+        if expected_rows == 0:
+            assert "No data found" in out
+        else:
+            assert "logical_date" in out
+
+        if expect_warn:
+            assert "[WARN]" in err
+        else:
+            assert "[WARN]" not in err
+
+        # Rebuild Test DB for other tests
+        clear_db_dags()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
