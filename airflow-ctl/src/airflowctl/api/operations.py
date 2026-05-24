@@ -210,7 +210,9 @@ def _missing_required_fields(value: Any, model: type[BaseModel] | None = None, p
     return []
 
 
-def validate_required_fields(value: Any, model: type[BaseModel] | None = None, name: str | None = None) -> None:
+def validate_required_fields(
+    value: Any, model: type[BaseModel] | None = None, name: str | None = None
+) -> None:
     missing = _missing_required_fields(value, model)
     if not missing:
         return
