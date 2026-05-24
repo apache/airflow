@@ -217,6 +217,20 @@ class TestGetPools(TestPoolsEndpoint):
         assert body["total_entries"] == expected_total_entries
         assert [pool["name"] for pool in body["pools"]] == expected_ids
 
+    def test_should_respond_200_with_unlimited_slots(self, test_client, session):
+        self.create_pools()
+        session.add(Pool(pool="unlimited_pool", slots=-1, include_deferred=False))
+        session.commit()
+
+        response = test_client.get("/pools")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 5
+        unlimited_pool = next(pool for pool in body["pools"] if pool["name"] == "unlimited_pool")
+        assert unlimited_pool["slots"] == -1
+        assert unlimited_pool["open_slots"] == -1
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/pools", params={"pool_name_pattern": "~"})
         assert response.status_code == 401
