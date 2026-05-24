@@ -280,7 +280,7 @@ class PydanticAIHook(BaseAIHook):
         else:
             result = agent.run_sync(request.prompt, **run_kwargs)
 
-        usage = result.usage()
+        usage = result.usage
         tool_names: list[str] = []
         for message in result.all_messages():
             for part in getattr(message, "parts", []):
