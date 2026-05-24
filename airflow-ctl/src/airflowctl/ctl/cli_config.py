@@ -46,6 +46,7 @@ from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
+    AirflowCtlValidationException,
 )
 from airflowctl.utils.module_loading import import_string
 
@@ -80,6 +81,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         AirflowCtlConnectionException,
         AirflowCtlKeyringException,
         AirflowCtlNotFoundException,
+        AirflowCtlValidationException,
     ) as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)

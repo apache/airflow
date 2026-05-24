@@ -31,6 +31,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     PoolBody,
 )
+from airflowctl.api.operations import validate_required_fields
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -95,18 +96,12 @@ def _import_helper(api_client: Client, filepath: Path, action_on_existence: Bulk
         raise SystemExit("Invalid format: Expected a list of pool objects")
 
     pools_to_update = []
-    for pool_config in pools_json:
-        if not isinstance(pool_config, dict) or "name" not in pool_config or "slots" not in pool_config:
+    for index, pool_config in enumerate(pools_json):
+        if not isinstance(pool_config, dict):
             raise SystemExit(f"Invalid pool configuration: {pool_config}")
+        validate_required_fields(pool_config, PoolBody, f"pool at index {index}")
 
-        pools_to_update.append(
-            PoolBody(
-                name=pool_config["name"],
-                slots=pool_config["slots"],
-                description=pool_config.get("description", ""),
-                include_deferred=pool_config.get("include_deferred", False),
-            )
-        )
+        pools_to_update.append(PoolBody.model_validate(pool_config))
 
     bulk_body = BulkBodyPoolBody(
         actions=[

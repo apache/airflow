@@ -30,6 +30,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
 )
 from airflowctl.ctl.commands import pool_command
+from airflowctl.exceptions import AirflowCtlValidationException
 
 
 @pytest.fixture
@@ -60,9 +61,22 @@ class TestPoolImportCommand:
     def test_import_invalid_pool_config(self, mock_client, tmp_path):
         """Test import with invalid pool configuration."""
         invalid_pool = tmp_path / "invalid_pool.json"
-        invalid_pool.write_text(json.dumps([{"invalid": "config"}]))
-        with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
+        invalid_pool.write_text(json.dumps(["invalid"]))
+        with pytest.raises(SystemExit, match="Invalid pool configuration: invalid"):
             pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
+
+    def test_import_missing_required_pool_field(self, mock_client, tmp_path):
+        """Test import with a missing field required by the API schema."""
+        invalid_pool = tmp_path / "invalid_pool.json"
+        invalid_pool.write_text(json.dumps([{"name": "test_pool"}]))
+
+        with pytest.raises(
+            AirflowCtlValidationException,
+            match="Missing required field\\(s\\) for pool at index 0: slots",
+        ):
+            pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
+
+        mock_client.pools.bulk.assert_not_called()
 
     def test_import_success(self, mock_client, tmp_path, capsys):
         """Test successful pool import."""

@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import datetime
 import json
-from typing import TYPE_CHECKING, Any, TypeVar, get_args
+from collections.abc import Mapping
+from types import UnionType
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, get_args, get_origin
 
 import httpx
 import structlog
@@ -78,7 +80,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponseNative,
     XComUpdateBody,
 )
-from airflowctl.exceptions import AirflowCtlConnectionException
+from airflowctl.exceptions import AirflowCtlConnectionException, AirflowCtlValidationException
 
 if TYPE_CHECKING:
     from airflowctl.api.client import Client
@@ -143,6 +145,86 @@ TYPE_DEFAULTS = {
     list: [],
     dict: {},
 }
+
+
+def _field_label(field_name: str, field_info) -> str:
+    return field_info.alias or field_name
+
+
+def _iter_model_annotations(annotation: Any):
+    origin = get_origin(annotation)
+    if origin is Annotated:
+        yield from _iter_model_annotations(get_args(annotation)[0])
+        return
+    if origin in (list, tuple, set, frozenset):
+        for arg in get_args(annotation):
+            yield from _iter_model_annotations(arg)
+        return
+    if origin in (UnionType, Union):
+        for arg in get_args(annotation):
+            if arg is not type(None):
+                yield from _iter_model_annotations(arg)
+        return
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        yield annotation
+
+
+def _missing_required_fields(value: Any, model: type[BaseModel] | None = None, prefix: str = "") -> list[str]:
+    if isinstance(value, BaseModel):
+        model = type(value)
+        fields_set = value.model_fields_set
+        missing = []
+        for field_name, field_info in model.model_fields.items():
+            label = _field_label(field_name, field_info)
+            field_path = f"{prefix}.{label}" if prefix else label
+            if field_info.is_required() and field_name not in fields_set:
+                missing.append(field_path)
+                continue
+            if hasattr(value, field_name):
+                missing.extend(_missing_required_fields(getattr(value, field_name), prefix=field_path))
+        return missing
+
+    if isinstance(value, Mapping) and model is not None:
+        missing = []
+        for field_name, field_info in model.model_fields.items():
+            label = _field_label(field_name, field_info)
+            field_path = f"{prefix}.{label}" if prefix else label
+            keys = {field_name}
+            if field_info.alias:
+                keys.add(field_info.alias)
+            present_key = next((key for key in keys if key in value), None)
+            if present_key is None:
+                if field_info.is_required():
+                    missing.append(field_path)
+                continue
+            for nested_model in _iter_model_annotations(field_info.annotation):
+                missing.extend(_missing_required_fields(value[present_key], nested_model, field_path))
+        return missing
+
+    if isinstance(value, list):
+        missing = []
+        for index, item in enumerate(value):
+            missing.extend(_missing_required_fields(item, model, f"{prefix}[{index}]"))
+        return missing
+
+    return []
+
+
+def validate_required_fields(value: Any, model: type[BaseModel] | None = None, name: str | None = None) -> None:
+    missing = _missing_required_fields(value, model)
+    if not missing:
+        return
+    field_list = ", ".join(missing)
+    target = name or (model.__name__ if model else type(value).__name__)
+    raise AirflowCtlValidationException(
+        f"Missing required field(s) for {target}: {field_list}. "
+        "Please provide the missing value(s) before sending the request."
+    )
+
+
+def dump_body(body: BaseModel, **kwargs: Any) -> dict[str, Any]:
+    validate_required_fields(body)
+    return body.model_dump(**kwargs)
 
 
 def get_field_default(annotation) -> Any:
@@ -239,7 +321,7 @@ class LoginOperations:
         """Login to the API server."""
         try:
             return LoginResponse.model_validate_json(
-                self.client.post("/token/cli", json=login.model_dump(mode="json")).content
+                self.client.post("/token/cli", json=dump_body(login, mode="json")).content
             )
         except ServerResponseError as e:
             raise e
@@ -282,7 +364,7 @@ class AssetsOperations(BaseOperations):
             if asset_event_body.extra is None:
                 asset_event_body.extra = {}
             self.response = self.client.post(
-                "assets/events", json=asset_event_body.model_dump(mode="json", exclude_none=True)
+                "assets/events", json=dump_body(asset_event_body, mode="json", exclude_none=True)
             )
             return AssetEventResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -354,7 +436,7 @@ class BackfillOperations(BaseOperations):
         """Create a backfill."""
         try:
             self.response = self.client.post(
-                "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills", json=dump_body(backfill, mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -364,7 +446,7 @@ class BackfillOperations(BaseOperations):
         """Create a dry run backfill."""
         try:
             self.response = self.client.post(
-                "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
+                "backfills/dry_run", json=dump_body(backfill, mode="json", exclude_none=True)
             )
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -450,7 +532,7 @@ class ConnectionsOperations(BaseOperations):
         """Create a connection."""
         try:
             self.response = self.client.post(
-                "connections", json=connection.model_dump(mode="json", by_alias=True, exclude_none=True)
+                "connections", json=dump_body(connection, mode="json", by_alias=True, exclude_none=True)
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -460,7 +542,7 @@ class ConnectionsOperations(BaseOperations):
         """CRUD multiple connections."""
         try:
             self.response = self.client.patch(
-                "connections", json=connections.model_dump(mode="json", by_alias=True)
+                "connections", json=dump_body(connections, mode="json", by_alias=True)
             )
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -490,7 +572,7 @@ class ConnectionsOperations(BaseOperations):
         try:
             self.response = self.client.patch(
                 f"connections/{connection.connection_id}",
-                json=connection.model_dump(mode="json", by_alias=True),
+                json=dump_body(connection, mode="json", by_alias=True),
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -503,7 +585,7 @@ class ConnectionsOperations(BaseOperations):
         """Test a connection."""
         try:
             self.response = self.client.post(
-                "connections/test", json=connection.model_dump(mode="json", by_alias=True)
+                "connections/test", json=dump_body(connection, mode="json", by_alias=True)
             )
             return ConnectionTestResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -539,7 +621,7 @@ class DagsOperations(BaseOperations):
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
         try:
-            self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump(mode="json"))
+            self.response = self.client.patch(f"dags/{dag_id}", json=dump_body(dag_body, mode="json"))
             return DAGResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -591,7 +673,7 @@ class DagsOperations(BaseOperations):
             trigger_dag_run.conf = {}
         try:
             self.response = self.client.post(
-                f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
+                f"dags/{dag_id}/dagRuns", json=dump_body(trigger_dag_run, mode="json")
             )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -685,7 +767,7 @@ class PoolsOperations(BaseOperations):
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
         try:
-            self.response = self.client.post("pools", json=pool.model_dump(mode="json", exclude_none=True))
+            self.response = self.client.post("pools", json=dump_body(pool, mode="json", exclude_none=True))
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -693,7 +775,7 @@ class PoolsOperations(BaseOperations):
     def bulk(self, pools: BulkBodyPoolBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple pools."""
         try:
-            self.response = self.client.patch("pools", json=pools.model_dump(mode="json"))
+            self.response = self.client.patch("pools", json=dump_body(pools, mode="json"))
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -710,7 +792,7 @@ class PoolsOperations(BaseOperations):
         """Update a pool."""
         try:
             self.response = self.client.patch(
-                f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json")
+                f"pools/{pool_body.pool}", json=dump_body(pool_body, mode="json")
             )
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -744,7 +826,7 @@ class VariablesOperations(BaseOperations):
         """Create a variable."""
         try:
             self.response = self.client.post(
-                "variables", json=variable.model_dump(mode="json", exclude_none=True)
+                "variables", json=dump_body(variable, mode="json", exclude_none=True)
             )
             return VariableResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -753,7 +835,7 @@ class VariablesOperations(BaseOperations):
     def bulk(self, variables: BulkBodyVariableBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple variables."""
         try:
-            self.response = self.client.patch("variables", json=variables.model_dump(mode="json"))
+            self.response = self.client.patch("variables", json=dump_body(variables, mode="json"))
             return BulkResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -770,7 +852,7 @@ class VariablesOperations(BaseOperations):
         """Update a variable."""
         try:
             self.response = self.client.patch(
-                f"variables/{variable.key}", json=variable.model_dump(mode="json")
+                f"variables/{variable.key}", json=dump_body(variable, mode="json")
             )
             return VariableResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -855,7 +937,7 @@ class XComOperations(BaseOperations):
         try:
             self.response = self.client.post(
                 f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
-                json=body.model_dump(mode="json", exclude_unset=True, exclude_none=True),
+                json=dump_body(body, mode="json", exclude_unset=True, exclude_none=True),
             )
             return XComResponseNative.model_validate_json(self.response.content)
         except ServerResponseError as e:
@@ -883,7 +965,7 @@ class XComOperations(BaseOperations):
         try:
             self.response = self.client.patch(
                 f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
-                json=body.model_dump(mode="json", exclude_unset=True, exclude_none=True),
+                json=dump_body(body, mode="json", exclude_unset=True, exclude_none=True),
             )
             return XComResponseNative.model_validate_json(self.response.content)
         except ServerResponseError as e:

@@ -29,6 +29,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionConnectionBody,
     ConnectionBody,
 )
+from airflowctl.api.operations import validate_required_fields
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -46,20 +47,21 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
         except Exception as e:
             raise SystemExit(f"Error reading connections file {args.file}: {e}")
     try:
-        connections_data = {
-            k: ConnectionBody(
-                connection_id=k,
-                conn_type=v.get("conn_type"),
-                host=v.get("host"),
-                login=v.get("login"),
-                password=v.get("password"),
-                port=v.get("port"),
-                extra=v.get("extra"),
-                description=v.get("description", ""),
-                **({"schema": v["schema"]} if "schema" in v else {}),
-            )
-            for k, v in connections_json.items()
-        }
+        connections_data = {}
+        for connection_id, connection_config in connections_json.items():
+            connection_data = {
+                "connection_id": connection_id,
+                **({"conn_type": connection_config["conn_type"]} if "conn_type" in connection_config else {}),
+                "host": connection_config.get("host"),
+                "login": connection_config.get("login"),
+                "password": connection_config.get("password"),
+                "port": connection_config.get("port"),
+                "extra": connection_config.get("extra"),
+                "description": connection_config.get("description", ""),
+                **({"schema": connection_config["schema"]} if "schema" in connection_config else {}),
+            }
+            validate_required_fields(connection_data, ConnectionBody, f"connection {connection_id!r}")
+            connections_data[connection_id] = ConnectionBody(**connection_data)
         connection_create_action = BulkCreateActionConnectionBody(
             action="create",
             entities=list(connections_data.values()),

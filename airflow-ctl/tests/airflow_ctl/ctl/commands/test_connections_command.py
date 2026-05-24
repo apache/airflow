@@ -132,6 +132,30 @@ class TestCliConnectionCommands:
             )
         assert exc_info.value.code == 1
 
+    def test_import_missing_required_conn_type(self, api_client_maker, tmp_path, monkeypatch, capsys):
+        api_client = api_client_maker(
+            path="/api/v2/connections",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        json_path.write_text(json.dumps({self.connection_id: {"host": "test_host"}}))
+
+        with pytest.raises(SystemExit) as exc_info:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+                api_client=api_client,
+            )
+
+        assert exc_info.value.code == 1
+        output = capsys.readouterr().out
+        assert "Missing required field(s)" in output
+        assert "test_connection" in output
+        assert "conn_type" in output
+
     def test_import_without_extra_field(self, api_client_maker, tmp_path, monkeypatch):
         """Import succeeds when JSON omits the ``extra`` field (#62653).
 

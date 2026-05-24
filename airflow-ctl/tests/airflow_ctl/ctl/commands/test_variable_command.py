@@ -29,6 +29,7 @@ from airflowctl.api.datamodels.generated import (
 )
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import variable_command
+from airflowctl.exceptions import AirflowCtlValidationException
 
 
 class TestCliVariableCommands:
@@ -132,5 +133,26 @@ class TestCliVariableCommands:
         with pytest.raises(SystemExit):
             variable_command.import_(
                 self.parser.parse_args(["variables", "import", expected_json_path.as_posix()]),
+                api_client=api_client,
+            )
+
+    def test_import_missing_required_value(self, api_client_maker, tmp_path, monkeypatch):
+        api_client = api_client_maker(
+            path="/api/v2/variables",
+            response_json=self.bulk_response_success.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        monkeypatch.chdir(tmp_path)
+        variable_path = tmp_path / self.export_file_name
+        variable_path.write_text(json.dumps({self.key: {"description": "missing value"}}))
+
+        with pytest.raises(
+            AirflowCtlValidationException,
+            match="Missing required field\\(s\\) for variable 'key': value",
+        ):
+            variable_command.import_(
+                self.parser.parse_args(["variables", "import", variable_path.as_posix()]),
                 api_client=api_client,
             )

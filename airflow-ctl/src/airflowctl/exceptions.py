@@ -44,3 +44,7 @@ class AirflowCtlConnectionException(AirflowCtlException):
 
 class AirflowCtlKeyringException(AirflowCtlException):
     """Raise when a keyring error occurs while performing an operation."""
+
+
+class AirflowCtlValidationException(AirflowCtlException):
+    """Raise when user-provided data fails client-side validation."""

@@ -29,6 +29,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionVariableBody,
     VariableBody,
 )
+from airflowctl.api.operations import validate_required_fields
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -50,17 +51,9 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     action_on_existence = BulkActionOnExistence(args.action_on_existing_key)
     vars_to_update = []
     for k, v in var_json.items():
-        value, description = v, None
-        if isinstance(v, dict) and "value" in v:
-            value, description = v["value"], v.get("description")
-
-        vars_to_update.append(
-            VariableBody(
-                key=k,
-                value=value,
-                description=description,
-            )
-        )
+        variable_data = {"key": k, **v} if isinstance(v, dict) else {"key": k, "value": v}
+        validate_required_fields(variable_data, VariableBody, f"variable {k!r}")
+        vars_to_update.append(VariableBody.model_validate(variable_data))
 
     bulk_body = BulkBodyVariableBody(
         actions=[

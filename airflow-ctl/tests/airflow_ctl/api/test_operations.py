@@ -101,7 +101,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponseNative,
 )
 from airflowctl.api.operations import BaseOperations
-from airflowctl.exceptions import AirflowCtlConnectionException
+from airflowctl.exceptions import AirflowCtlConnectionException, AirflowCtlValidationException
 
 if TYPE_CHECKING:
     from pydantic import NonNegativeInt
@@ -1404,6 +1404,19 @@ class TestPoolsOperations:
         response = client.pools.create(pool=self.pool)
         assert response == self.pool_response
 
+    def test_create_rejects_missing_required_field_before_request(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise AssertionError("request should not be sent")
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        pool = PoolBody.model_construct(name=self.pool_name)
+
+        with pytest.raises(
+            AirflowCtlValidationException,
+            match="Missing required field\\(s\\) for PoolBody: slots",
+        ):
+            client.pools.create(pool=pool)
+
     def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/pools"
@@ -1412,6 +1425,28 @@ class TestPoolsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.pools.bulk(pools=self.pools_bulk_body)
         assert response == self.pool_bulk_response
+
+    def test_bulk_rejects_nested_missing_required_field_before_request(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise AssertionError("request should not be sent")
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        pool = PoolBody.model_construct(name=self.pool_name)
+        pools = BulkBodyPoolBody.model_construct(
+            actions=[
+                BulkCreateActionPoolBody.model_construct(
+                    action="create",
+                    entities=[pool],
+                    action_on_existence=BulkActionOnExistence.FAIL,
+                )
+            ]
+        )
+
+        with pytest.raises(
+            AirflowCtlValidationException,
+            match=r"actions\[0\]\.entities\[0\]\.slots",
+        ):
+            client.pools.bulk(pools=pools)
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
