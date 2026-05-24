@@ -1053,9 +1053,7 @@ class OpenLineageListener:
         try:
             fut = self.executor.submit(callable, *args, **kwargs)
         except BrokenProcessPool:
-            self.log.warning(
-                "ProcessPoolExecutor is broken; recreating and retrying submission."
-            )
+            self.log.warning("ProcessPoolExecutor is broken; recreating and retrying submission.")
             self._executor.shutdown(wait=False)
             self._executor = None
             fut = self.executor.submit(callable, *args, **kwargs)
