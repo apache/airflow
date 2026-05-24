@@ -1209,3 +1209,128 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
         version = response["version"]
         self.log.info("Guardrail %s version %s created.", response["guardrailId"], version)
         return version
+
+
+class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Update an Amazon Bedrock guardrail configuration.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockUpdateGuardrailOperator`
+
+    :param guardrail_identifier: The ID or ARN of the guardrail to update. (templated)
+    :param guardrail_name: The new name for the guardrail. (templated)
+    :param blocked_input_messaging: Message returned when input is blocked. (templated)
+    :param blocked_outputs_messaging: Message returned when output is blocked. (templated)
+    :param description: Optional description. (templated)
+    :param topic_policy_config: Optional topic policy configuration dict.
+    :param content_policy_config: Optional content filter policy configuration dict.
+    :param word_policy_config: Optional word filter policy configuration dict.
+    :param sensitive_information_policy_config: Optional sensitive information policy dict.
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "guardrail_identifier", "guardrail_name", "blocked_input_messaging", "blocked_outputs_messaging"
+    )
+
+    def __init__(
+        self,
+        *,
+        guardrail_identifier: str,
+        guardrail_name: str,
+        blocked_input_messaging: str,
+        blocked_outputs_messaging: str,
+        description: str | None = None,
+        topic_policy_config: dict[str, Any] | None = None,
+        content_policy_config: dict[str, Any] | None = None,
+        word_policy_config: dict[str, Any] | None = None,
+        sensitive_information_policy_config: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.guardrail_identifier = guardrail_identifier
+        self.guardrail_name = guardrail_name
+        self.blocked_input_messaging = blocked_input_messaging
+        self.blocked_outputs_messaging = blocked_outputs_messaging
+        self.description = description
+        self.topic_policy_config = topic_policy_config
+        self.content_policy_config = content_policy_config
+        self.word_policy_config = word_policy_config
+        self.sensitive_information_policy_config = sensitive_information_policy_config
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Updating guardrail %s", self.guardrail_identifier)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "guardrailIdentifier": self.guardrail_identifier,
+                "name": self.guardrail_name,
+                "blockedInputMessaging": self.blocked_input_messaging,
+                "blockedOutputsMessaging": self.blocked_outputs_messaging,
+                "description": self.description,
+                "topicPolicyConfig": self.topic_policy_config,
+                "contentPolicyConfig": self.content_policy_config,
+                "wordPolicyConfig": self.word_policy_config,
+                "sensitiveInformationPolicyConfig": self.sensitive_information_policy_config,
+            }
+        )
+        response = self.hook.conn.update_guardrail(**kwargs)
+        self.log.info("Updated guardrail %s version %s", response["guardrailId"], response["version"])
+        return response["guardrailId"]
+
+
+class BedrockCreateEvaluationJobOperator(AwsBaseOperator[BedrockHook]):
+    """
+    Create an Amazon Bedrock model evaluation job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateEvaluationJobOperator`
+
+    :param job_name: The name of the evaluation job. (templated)
+    :param role_arn: The IAM role ARN for the evaluation job. (templated)
+    :param evaluation_config: The evaluation configuration dict. (templated)
+    :param inference_config: The inference configuration dict. (templated)
+    :param output_data_config: The output data configuration dict. (templated)
+    :param job_description: Optional description. (templated)
+    """
+
+    aws_hook_class = BedrockHook
+    template_fields: Sequence[str] = aws_template_fields("job_name", "role_arn", "job_description")
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        role_arn: str,
+        evaluation_config: dict[str, Any],
+        inference_config: dict[str, Any],
+        output_data_config: dict[str, Any],
+        job_description: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.role_arn = role_arn
+        self.evaluation_config = evaluation_config
+        self.inference_config = inference_config
+        self.output_data_config = output_data_config
+        self.job_description = job_description
+
+    def execute(self, context: Context) -> str:
+        self.log.info("Creating evaluation job %s", self.job_name)
+        kwargs: dict[str, Any] = prune_dict(
+            {
+                "jobName": self.job_name,
+                "roleArn": self.role_arn,
+                "evaluationConfig": self.evaluation_config,
+                "inferenceConfig": self.inference_config,
+                "outputDataConfig": self.output_data_config,
+                "jobDescription": self.job_description,
+            }
+        )
+        response = self.hook.conn.create_evaluation_job(**kwargs)
+        job_arn = response["jobArn"]
+        self.log.info("Created evaluation job %s: %s", self.job_name, job_arn)
+        return job_arn

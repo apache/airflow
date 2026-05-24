@@ -46,13 +46,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAX_RUNS: "10"
-          WORKFLOW_NAME: "ci-amd-arm.yml"
+          # E2E test runs come from the AMD workflow (every PR / push to main
+          # goes through it). The ARM canary is too sparse to drive flakiness
+          # analysis, so we keep the report tied to AMD.
+          WORKFLOW_NAME: "ci-amd.yml"
           BRANCH: "main"
           OUTPUT_FILE: "slack-message.json"
 
       - name: "Post report to Slack"
         if: always() && steps.analyze.outcome == 'success'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

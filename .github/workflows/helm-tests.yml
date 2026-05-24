@@ -134,6 +134,9 @@ jobs:
       - name: "Helm release package"
         run: >
           breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+      - name: "Verify packaged chart contents and lint"
+        run: >
+          uv run scripts/ci/verify_helm_chart_package.py dist/airflow-*.tgz
       - name: "Sign artifacts for ASF distribution"
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:

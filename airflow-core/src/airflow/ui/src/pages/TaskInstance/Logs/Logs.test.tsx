@@ -91,9 +91,7 @@ describe("Task log grouping", () => {
     await waitForLogs();
 
     // Group headers use the summary-{name} testid pattern and are always visible
-    const summarySource = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log"]',
-    );
+    const summarySource = screen.getByTestId("summary-Log message source details");
 
     expect(summarySource).toBeVisible();
 
@@ -136,7 +134,7 @@ describe("Task log grouping", () => {
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).toBeNull());
 
     // Test Expand All / Collapse All via settings menu
-    const settingsBtn = screen.getByRole("button", { name: /settings/iu });
+    const settingsBtn = screen.getByTestId("log-settings-button");
 
     fireEvent.click(settingsBtn);
 
@@ -183,35 +181,38 @@ describe("Task log grouping", () => {
 });
 
 describe("Task Identity preamble", () => {
-  it("renders Task Identity preamble after the Log message source details group", async () => {
+  it("renders Task Identity preamble after the 'Pre Execute' group header as first group element", async () => {
     render(
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/ti_context"]} />,
     );
 
     await waitForLogs();
 
-    const sourceGroup = screen.getByTestId(
-      'summary-Log message source details sources=["/home/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=ti_context/attempt=1.log"]',
-    );
+    const sourceGroup = screen.getByTestId("summary-Log message source details");
 
     expect(sourceGroup).toBeInTheDocument();
 
-    // Task Identity preamble should be visible
-    expect(screen.getByText("Task Identity")).toBeInTheDocument();
+    // Expand the Pre Execute group to reveal the preamble
+    const groupHeader = screen.getByTestId("summary-Pre Execute");
+
+    fireEvent.click(groupHeader);
+
+    // Task Identity preamble should be visible after expanding the group
+    await waitFor(() => expect(screen.getByText("Task Identity")).toBeInTheDocument());
     expect(screen.getByText("ti_id")).toBeInTheDocument();
     // Value is a text node adjacent to =; match via partial text
     expect(screen.getByText(/01951900-16f6-7c1c-ae66-91bdfe9e0cfd/u)).toBeInTheDocument();
+    expect(screen.getByText("Done. Returned value was: None")).toBeInTheDocument();
 
-    // Preamble should come after the source details group in DOM order.
+    // Preamble should come after the "Pre Execute" group header in DOM order.
     const preamble = screen.getByText("Task Identity");
-    const groupHeader = sourceGroup.closest('[data-testid^="group-header-"]');
 
     expect(preamble).toBeInTheDocument();
     expect(groupHeader).toBeInTheDocument();
 
     // DOCUMENT_POSITION_FOLLOWING (4) is set when preamble comes after groupHeader
     // eslint-disable-next-line no-bitwise
-    expect(groupHeader!.compareDocumentPosition(preamble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(groupHeader.compareDocumentPosition(preamble) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("does not render TI context fields on individual log lines", async () => {
@@ -432,8 +433,8 @@ describe("Task log search", () => {
 
     fireEvent.click(summaryDependency);
 
-    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 0);
-    await expectRenderedLineNumber(/dep_context=requeueable/iu, 1);
-    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 2);
+    await expectRenderedLineNumber(/dep_context=non-requeueable/iu, 1);
+    await expectRenderedLineNumber(/dep_context=requeueable/iu, 2);
+    await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 3);
   }, 10_000);
 });

@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+Misc
+~~~~
+
+* ``Some nits in asset normalization (#66710)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.5.3
 .....
 

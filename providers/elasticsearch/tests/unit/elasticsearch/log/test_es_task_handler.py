@@ -115,9 +115,10 @@ def _assert_log_events(logs, metadatas, *, expected_events: list[str], expected_
     if AIRFLOW_V_3_0_PLUS:
         logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
-        assert logs[0].sources == expected_sources
-        assert logs[1].event == "::endgroup::"
-        assert [log.event for log in logs[2:]] == expected_events
+        for i, source in enumerate(expected_sources, start=1):
+            assert logs[i].event == source
+        assert logs[1 + len(expected_sources)].event == "::endgroup::"
+        assert [log.event for log in logs[(2 + len(expected_sources)) :]] == expected_events
     else:
         assert len(logs) == 1
         assert len(logs[0]) == 1
@@ -667,6 +668,50 @@ class TestElasticsearchRemoteLogIO:
         assert len(json_log_lines) == 3
         assert [line["offset"] for line in json_log_lines] == [1, 2, 3]
         assert all(line["log_id"] == log_id for line in json_log_lines)
+
+    def test_raw_log_handles_invalid_json_line(self, ti):
+
+        raw_log = '{"message": "ok"}\nINVALID_JSON\n{"message": "ok2"}\n'
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 3
+
+        assert json_log_lines[1]["message"] == "INVALID_JSON"
+        assert json_log_lines[1]["unparsed"] is True
+
+        assert [line["offset"] for line in json_log_lines] == [1, 2, 3]
+
+    def test_raw_log_all_plain_text(self, ti):
+        raw_log = "line1\nline2\nline3\n"
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 3
+        assert all(line["unparsed"] for line in json_log_lines)
+        assert [line["message"] for line in json_log_lines] == ["line1", "line2", "line3"]
+
+    def test_raw_log_mixed_content(self, ti):
+        raw_log = '{"event": "ok"}\nplain text\n{"message": "done"}\n'
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert json_log_lines[0]["event"] == "ok"
+        assert json_log_lines[1]["message"] == "plain text"
+        assert json_log_lines[1]["unparsed"] is True
+        assert json_log_lines[2]["message"] == "done"
+
+    def test_raw_log_ignores_empty_lines(self, ti):
+        raw_log = '\n{"message": "ok"}\n\n'
+        log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        json_log_lines = self.elasticsearch_io._parse_raw_log(raw_log, log_id)
+
+        assert len(json_log_lines) == 1
+        assert json_log_lines[0]["message"] == "ok"
 
     def test_get_source_includes(self):
         assert self.elasticsearch_io._get_source_includes() == [

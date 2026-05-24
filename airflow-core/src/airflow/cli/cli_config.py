@@ -382,10 +382,12 @@ ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
     help=(
         "(Experimental) The backfill will run tasks using the latest bundle version instead of "
-        "the version that was active when the original Dag run was created. Defaults to True."
+        "the version that was active when the original Dag run was created. "
+        "If not specified, uses the DAG-level or global configuration default "
+        "(falling back to True for backfills to preserve historical behavior)."
     ),
-    action="store_true",
-    default=True,
+    action=argparse.BooleanOptionalAction,
+    default=None,
 )
 
 
@@ -540,6 +542,11 @@ ARG_DB_BATCH_SIZE = Arg(
         "Maximum number of rows to delete or archive in a single transaction.\n"
         "Lower values reduce long-running locks but increase the number of batches."
     ),
+)
+ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
+    ("--error-on-cleanup-failure",),
+    help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
+    action="store_true",
 )
 ARG_DAG_IDS = Arg(
     ("--dag-ids",),
@@ -1518,7 +1525,28 @@ TEAMS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="sync",
+        help="Sync teams",
+        description=("Sync missing teams from the dag bundle config into the database.\n"),
+        func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
+        args=(ARG_VERBOSE,),
+    ),
 )
+STATE_STORE_COMMANDS = (
+    ActionCommand(
+        name="cleanup-task-states",
+        help="Remove expired task state rows (MetastoreStateBackend only)",
+        description=(
+            "Reads [state_store] default_retention_days from config and deletes task_state rows "
+            "older than the configured threshold. Only applies when MetastoreStateBackend is configured; "
+            "custom backends are skipped. Use --dry-run to preview without deleting."
+        ),
+        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup_task_states"),
+        args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
+    ),
+)
+
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
@@ -1603,6 +1631,7 @@ DB_COMMANDS = (
             ARG_DB_BATCH_SIZE,
             ARG_DAG_IDS,
             ARG_EXCLUDE_DAG_IDS,
+            ARG_DB_ERROR_ON_CLEANUP_FAILURE,
         ),
     ),
     ActionCommand(
@@ -2101,6 +2130,11 @@ core_commands: list[CLICommand] = [
         name="providers",
         help="Display providers",
         subcommands=PROVIDERS_COMMANDS,
+    ),
+    GroupCommand(
+        name="state-store",
+        help="Manage task and asset state storage",
+        subcommands=STATE_STORE_COMMANDS,
     ),
     ActionCommand(
         name="rotate-fernet-key",

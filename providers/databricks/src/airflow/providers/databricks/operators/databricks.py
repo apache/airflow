@@ -139,6 +139,8 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
                         repair_json["latest_repair_id"] = latest_repair_id
+                    if "job_parameters" in operator.json:
+                        repair_json["job_parameters"] = operator.json["job_parameters"]
                     operator.json["latest_repair_id"] = hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
                 raise AirflowException(error_message)
@@ -976,6 +978,8 @@ class DatabricksRunNowOperator(BaseOperator):
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
                     repair_json["latest_repair_id"] = latest_repair_id
+                if "job_parameters" in self.json:
+                    repair_json["job_parameters"] = self.json["job_parameters"]
                 self.json["latest_repair_id"] = self._hook.repair_run(repair_json)
                 _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
 

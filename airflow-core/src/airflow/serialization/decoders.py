@@ -106,6 +106,7 @@ def _decode_asset(var: dict[str, Any]):
             )
             for watcher in watchers
         ],
+        access_control=var.get("access_control", {}),
     )
 
 

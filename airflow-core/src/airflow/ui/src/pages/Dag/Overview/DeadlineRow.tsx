@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, HStack, Link, Text, VStack } from "@chakra-ui/react";
+import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
-import { Link as RouterLink } from "react-router-dom";
 
 import type { DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+import { RouterLink } from "src/components/ui";
 
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
@@ -53,11 +53,13 @@ export const DeadlineRow = ({ alert, deadline }: DeadlineRowProps) => {
             {deadline.missed ? <FiAlertTriangle /> : <FiClock />}
             {translate(deadline.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
           </Badge>
-          <Link asChild color="fg.info" fontSize="sm" fontWeight="bold">
-            <RouterLink to={`/dags/${deadline.dag_id}/runs/${deadline.dag_run_id}`}>
-              {deadline.dag_run_id}
-            </RouterLink>
-          </Link>
+          <RouterLink
+            fontSize="sm"
+            fontWeight="bold"
+            to={`/dags/${deadline.dag_id}/runs/${deadline.dag_run_id}`}
+          >
+            {deadline.dag_run_id}
+          </RouterLink>
         </HStack>
         {reference !== undefined && interval !== undefined ? (
           <Text color="fg.muted" fontSize="xs">
