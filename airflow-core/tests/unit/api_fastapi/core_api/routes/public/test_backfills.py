@@ -255,6 +255,30 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
+    def test_create_backfill_uses_request_session(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.scalars(select(DagModel)).all()
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-02-01")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+        }
+
+        with mock.patch(
+            "airflow.models.backfill.create_session",
+            side_effect=AssertionError("_create_backfill should use the request session"),
+        ):
+            response = test_client.post(
+                url="/backfills",
+                json=data,
+            )
+
+        assert response.status_code == 200
+
     def test_dag_not_exist(self, session, test_client):
         session.scalars(select(DagModel)).all()
         session.commit()

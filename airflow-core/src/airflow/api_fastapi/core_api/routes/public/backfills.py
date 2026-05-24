@@ -250,6 +250,7 @@ def create_backfill(
             triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            session=session,
         )
         return BackfillResponse.model_validate(backfill_obj)
 
