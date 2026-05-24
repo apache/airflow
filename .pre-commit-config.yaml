@@ -490,20 +490,6 @@ repos:
           ^providers/.*/src/.*\.py$|
           ^task-sdk/src/.*\.py$|
           ^shared/.*/src/.*\.py$
-      - id: check-http-exception-import-from-fastapi
-        name: Check HTTPException is imported from fastapi in fastapi-using trees
-        entry: ./scripts/ci/prek/check_http_exception_import_from_fastapi.py
-        language: python
-        pass_filenames: true
-        files: >
-          (?x)
-          ^airflow-core/src/airflow/api_fastapi/.*\.py$|
-          ^airflow-core/tests/unit/api_fastapi/.*\.py$|
-          ^providers/amazon/(src|tests)/.*\.py$|
-          ^providers/common/ai/(src|tests)/.*\.py$|
-          ^providers/edge3/(src|tests)/.*\.py$|
-          ^providers/fab/(src|tests)/.*\.py$|
-          ^providers/keycloak/(src|tests)/.*\.py$
       - id: check-secrets-search-path-sync
         name: Check sync between sdk and core
         entry: ./scripts/ci/prek/check_secrets_search_path_sync.py

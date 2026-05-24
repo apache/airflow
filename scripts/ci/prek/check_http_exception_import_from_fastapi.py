@@ -18,11 +18,15 @@
 # under the License.
 """Check that ``HTTPException`` is imported from ``fastapi`` in fastapi-using trees.
 
-In code that targets FastAPI (``airflow-core/src/airflow/api_fastapi/``, the
-matching tests under ``airflow-core/tests/unit/api_fastapi/``, and the
-provider trees that wire FastAPI apps), every ``HTTPException`` must come
-from ``fastapi`` (which re-exports the Starlette class). Two common mistakes
-this hook catches:
+The hook is wired into per-distribution ``.pre-commit-config.yaml`` files
+(``airflow-core``, ``providers/amazon``, ``providers/common/ai``,
+``providers/edge3``, ``providers/fab``, ``providers/keycloak``), each
+scoped to the subtree that actually wires a FastAPI app. Provider trees
+that mix client and server code (e.g. edge3's ``cli/`` is a client) are
+scoped to the server-side subfolders only to avoid false positives on
+stdlib HTTP usage in the client. Within those scopes, every
+``HTTPException`` must come from ``fastapi`` (which re-exports the
+Starlette class). Two common mistakes this hook catches:
 
 * ``from starlette.exceptions import HTTPException`` — a different class at
   runtime; ``isinstance(exc, fastapi.HTTPException)`` and
@@ -80,9 +84,7 @@ def check_file(file_path: Path) -> list[tuple[int, str]]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Check that HTTPException is imported from fastapi"
-    )
+    parser = argparse.ArgumentParser(description="Check that HTTPException is imported from fastapi")
     parser.add_argument("files", nargs="*", help="Files to check")
     args = parser.parse_args()
 
