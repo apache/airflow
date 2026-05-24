@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -23,6 +24,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from pydantic import JsonValue
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
@@ -203,7 +205,7 @@ class BaseStateBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str:
+    def serialize_task_state_to_ref(self, *, value: JsonValue, key: str, ti_id: str) -> str:
         """
         Serialize a task state value before it is sent to the execution API for db persistence.
 
@@ -214,20 +216,21 @@ class BaseStateBackend(ABC):
         The returned reference must be deterministic — given the same ``ti_id`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
-        object will be orphaned.
+        object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
         """
-        return value
+        return json.dumps(value)
 
-    def deserialize_task_state_from_ref(self, stored: str) -> str:
+    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored task state string back to the actual value.
+        Resolve a stored task state reference back to the actual value.
 
         Called by ``TaskStateAccessor.get()`` after the stored string is retrieved from
-        the execution API. Default: return ``stored`` unchanged.
+        the execution API. By default, it JSON decodes ``stored`` to reverse the default
+        ``serialize_task_state_to_ref`` encoding.
         """
-        return stored
+        return json.loads(stored)
 
-    def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str:
+    def serialize_asset_state_to_ref(self, *, value: JsonValue, key: str, asset_ref: str) -> str:
         """
         Serialize an asset state value before it is sent to the Execution API for db persistence.
 
@@ -241,15 +244,16 @@ class BaseStateBackend(ABC):
         The returned reference must be deterministic — given the same ``asset_ref`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
-        object will be orphaned.
+        object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
         """
-        return value
+        return json.dumps(value)
 
-    def deserialize_asset_state_from_ref(self, stored: str) -> str:
+    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
         """
-        Resolve a stored asset state string back to the actual value.
+        Resolve a stored asset state reference back to the actual value.
 
         Called by ``AssetStateAccessor.get()`` after the stored string is retrieved from
-        the Execution API. Default: return ``stored`` unchanged.
+        the Execution API. By default, it JSON decodes ``stored`` to reverse the default
+        ``serialize_asset_state_to_ref`` encoding.
         """
-        return stored
+        return json.loads(stored)

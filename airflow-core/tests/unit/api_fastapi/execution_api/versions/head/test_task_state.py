@@ -95,7 +95,37 @@ class TestPutTaskState:
                 )
             )
             assert row is not None
-            assert row.value == "spark_001"
+            # DB stores a json string
+            assert row.value == '"spark_001"'
+
+    def test_put_int_value_roundtrip(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(_api_url(ti.id, "retry_count"), json={"value": 3})
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "retry_count")).json() == {"value": 3}
+
+    def test_put_dict_value_roundtrip(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(
+            _api_url(ti.id, "poll_result"),
+            json={"value": {"status": "succeeded", "rows": 1234}},
+        )
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "poll_result")).json() == {
+            "value": {"status": "succeeded", "rows": 1234}
+        }
+
+    def test_put_list_value_roundtrip(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+
+        response = client.put(_api_url(ti.id, "checkpoints"), json={"value": [1, 2, 3]})
+
+        assert response.status_code == 204
+        assert client.get(_api_url(ti.id, "checkpoints")).json() == {"value": [1, 2, 3]}
 
     def test_put_with_expires_at_creates_row(
         self, client: TestClient, create_task_instance: CreateTaskInstance, time_machine
@@ -122,7 +152,7 @@ class TestPutTaskState:
                 )
             )
             assert row is not None
-            assert row.value == "spark_001"
+            assert row.value == '"spark_001"'
             assert row.expires_at == datetime(2026, 5, 15, 12, 0, 0, tzinfo=pendulum.UTC)
 
     def test_put_overwrites_existing(self, client: TestClient, create_task_instance: CreateTaskInstance):

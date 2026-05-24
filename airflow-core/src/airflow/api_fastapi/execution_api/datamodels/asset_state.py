@@ -17,16 +17,25 @@
 
 from __future__ import annotations
 
+from pydantic import JsonValue, field_validator
+
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
 class AssetStateResponse(StrictBaseModel):
     """Asset state value returned to a worker."""
 
-    value: str
+    value: JsonValue
 
 
 class AssetStatePutBody(StrictBaseModel):
     """Request body for setting an asset state value."""
 
-    value: str
+    value: JsonValue
+
+    @field_validator("value")
+    @classmethod
+    def value_not_none(cls, v: JsonValue) -> JsonValue:
+        if v is None:
+            raise ValueError("value cannot be null")
+        return v

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone as dt_timezone
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
@@ -101,6 +102,9 @@ from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
 from airflow.sdk.state import BaseStateBackend
 
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from pydantic import JsonValue
 
 
 def test_convert_connection_result_conn():
@@ -1417,23 +1421,23 @@ class InMemoryStateBackend(BaseStateBackend):
         self._actual_key_value_store: dict[str, str] = {}  # key -> actual value
         self.reference: dict[str, str] = {}  # key -> stored ref (mem:// URI)
 
-    def serialize_task_state_to_ref(self, *, value: str, key: str, ti_id: str) -> str:
+    def serialize_task_state_to_ref(self, *, value, key: str, ti_id: str) -> str:
         ref = f"mem://{ti_id}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
 
-    def deserialize_task_state_from_ref(self, stored: str) -> str:
+    def deserialize_task_state_from_ref(self, stored: str) -> JsonValue:
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 
-    def serialize_asset_state_to_ref(self, *, value: str, key: str, asset_ref: str) -> str:
+    def serialize_asset_state_to_ref(self, *, value, key: str, asset_ref: str) -> str:
         ref = f"mem://{asset_ref}/{key}"
         self._actual_key_value_store[key] = value
         self.reference[key] = ref
         return ref
 
-    def deserialize_asset_state_from_ref(self, stored: str) -> str:
+    def deserialize_asset_state_from_ref(self, stored: str) -> JsonValue:
         key = stored.rsplit("/", 1)[-1]
         return self._actual_key_value_store.get(key, stored)
 

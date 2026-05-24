@@ -495,7 +495,7 @@ class TaskStateAccessor:
     # is not implemented yet cos it's unclear whether task state values will be
     # used in templates.
 
-    def get(self, key: str) -> str | None:
+    def get(self, key: str) -> JsonValue:
         """Return the stored value, or ``None`` if the key does not exist."""
         from airflow.sdk.execution_time.comms import ErrorResponse, GetTaskState, TaskStateResult
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -508,10 +508,14 @@ class TaskStateAccessor:
             # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
             # custom backend using the reference
             backend = _get_worker_state_backend()
-            return backend.deserialize_task_state_from_ref(stored) if backend else stored
+            if backend is not None:
+                if TYPE_CHECKING:
+                    assert isinstance(stored, str)
+                return backend.deserialize_task_state_from_ref(stored)
+            return stored
         return None
 
-    def set(self, key: str, value: str, *, retention: timedelta | None = None) -> None:
+    def set(self, key: str, value: JsonValue, *, retention: timedelta | None = None) -> None:
         """
         Write or overwrite the value for the given key.
 
@@ -614,7 +618,7 @@ class AssetStateAccessor:
             return f"<AssetStateAccessor name={self._name!r}>"
         return f"<AssetStateAccessor uri={self._uri!r}>"
 
-    def get(self, key: str) -> str | None:
+    def get(self, key: str) -> JsonValue:
         """Return the stored value, or ``None`` if the key does not exist."""
         from airflow.sdk.execution_time.comms import (
             AssetStateResult,
@@ -635,13 +639,15 @@ class AssetStateAccessor:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStateResult):
             stored = resp.value
-            # if custom backend is configured, the stored value in DB is a reference, fetch the actual value from
-            # custom backend using the reference
             backend = _get_worker_state_backend()
-            return backend.deserialize_asset_state_from_ref(stored) if backend else stored
+            if backend is not None:
+                # serialize_asset_state_to_ref always returns str by contract; stored is the ref.
+                # stored is always str here: serialize_asset_state_to_ref always returns str
+                return backend.deserialize_asset_state_from_ref(stored)  # type: ignore[arg-type]
+            return stored
         return None
 
-    def set(self, key: str, value: str) -> None:
+    def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the given key."""
         from airflow.sdk.execution_time.comms import SetAssetStateByName, SetAssetStateByUri, ToSupervisor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -756,11 +762,11 @@ class AssetStateAccessors:
             return next(iter(self._by_name.values()))
         return next(iter(self._by_uri.values()))
 
-    def get(self, key: str) -> str | None:
+    def get(self, key: str) -> JsonValue:
         """Return the stored value for the single-inlet task, or ``None`` if not found."""
         return self._single_accessor().get(key)
 
-    def set(self, key: str, value: str) -> None:
+    def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the single-inlet task."""
         self._single_accessor().set(key, value)
 
