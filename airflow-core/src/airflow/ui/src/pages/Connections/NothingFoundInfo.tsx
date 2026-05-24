@@ -20,11 +20,12 @@ import { Box, Text, Link, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useVersionServiceGetVersion } from "openapi/queries";
+import { getAirflowDocsUrl } from "src/utils/links";
 
 export const NothingFoundInfo = () => {
   const { t: translate } = useTranslation("admin");
   const { data } = useVersionServiceGetVersion();
-  const docsLink = `https://airflow.apache.org/docs/apache-airflow/${data?.version}/howto/connection.html#visibility-in-ui-and-cli`;
+  const docsLink = getAirflowDocsUrl(data?.version, "howto/connection.html#visibility-in-ui-and-cli");
 
   return (
     <Box textAlign="center">

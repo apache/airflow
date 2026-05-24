@@ -22,6 +22,7 @@ import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
+import { getAirflowDocsUrl } from "src/utils/links";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
@@ -56,7 +57,7 @@ export const DocsButton = ({
   const { t: translate } = useTranslation("common");
   const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
 
-  const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
+  const versionLink = getAirflowDocsUrl(version, "index.html");
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>

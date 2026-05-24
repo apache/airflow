@@ -18,13 +18,25 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as OpenApiQueries from "openapi/queries";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { NothingFoundInfo } from "./NothingFoundInfo";
 
+const mockVersion = vi.hoisted(() => ({ version: "3.2.0.dev0" }));
+
+vi.mock("openapi/queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof OpenApiQueries>()),
+  useVersionServiceGetVersion: () => ({ data: mockVersion }),
+}));
+
 describe("NothingFoundInfo", () => {
+  beforeEach(() => {
+    mockVersion.version = "3.2.0.dev0";
+  });
+
   it("should have correct external link attributes", () => {
     render(<NothingFoundInfo />, { wrapper: Wrapper });
 
@@ -32,5 +44,14 @@ describe("NothingFoundInfo", () => {
 
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("links dev versions to stable documentation", () => {
+    render(<NothingFoundInfo />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#visibility-in-ui-and-cli",
+    );
   });
 });

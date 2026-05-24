@@ -53,4 +53,15 @@ describe("DocsButton", () => {
 
     expect(await screen.findByText("docs.restApiReference")).toBeInTheDocument();
   });
+
+  it("links dev versions to stable documentation", async () => {
+    render(<DocsButton externalViews={[]} showAPI version="3.2.0.dev0" />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByRole("button", { name: /nav.docs/iu }));
+
+    expect(await screen.findByLabelText("3.2.0.dev0")).toHaveAttribute(
+      "href",
+      "https://airflow.apache.org/docs/apache-airflow/stable/index.html",
+    );
+  });
 });

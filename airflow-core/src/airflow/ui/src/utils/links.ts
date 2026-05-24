@@ -19,6 +19,20 @@
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { taskInstanceRoutes } from "src/router";
 
+const AIRFLOW_DOCS_BASE_URL = "https://airflow.apache.org/docs/apache-airflow/";
+const STABLE_DOCS_VERSION = "stable";
+
+const getDocsVersion = (version?: string): string => {
+  if (version === undefined || !/^\d+\.\d+\.\d+$/u.test(version) || version.endsWith(".0")) {
+    return STABLE_DOCS_VERSION;
+  }
+
+  return version;
+};
+
+export const getAirflowDocsUrl = (version?: string, page = ""): string =>
+  new URL(`${getDocsVersion(version)}/${page}`, AIRFLOW_DOCS_BASE_URL).href;
+
 export const getTaskInstanceLink = (
   tiOrParams:
     | TaskInstanceResponse
