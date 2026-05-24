@@ -24,7 +24,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_decorator_llm_classification]
-@dag
+@dag(tags=["example"])
 def example_llm_classification():
     @task.llm(
         llm_conn_id="pydanticai_default",

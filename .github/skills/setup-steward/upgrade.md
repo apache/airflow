@@ -1,6 +1,3 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
-
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
@@ -163,18 +160,29 @@ bootstrap logic. It implements
    over the committed copy:
 
    ```bash
-   # For the flat layout:
+   # For the flat layout (Pattern A):
    rm -rf .claude/skills/setup-steward
    cp -r .apache-steward/.claude/skills/setup-steward \
          .claude/skills/setup-steward
 
-   # For the double-symlinked layout (e.g. apache/airflow):
+   # For the double-symlinked layout (Pattern B):
    rm -rf .github/skills/setup-steward
    cp -r .apache-steward/.claude/skills/setup-steward \
          .github/skills/setup-steward
-   # The .claude/skills/setup-steward symlink does not need
-   # touching — it points at .github/skills/setup-steward
+   # The .claude/skills/setup-steward per-skill symlink does
+   # not need touching — it points at .github/skills/setup-steward
    # which is now the new content.
+
+   # For the single directory-symlink layout (Pattern D),
+   # write to the *canonical* side only. With D.1
+   # (canonical = .github/skills/):
+   rm -rf .github/skills/setup-steward
+   cp -r .apache-steward/.claude/skills/setup-steward \
+         .github/skills/setup-steward
+   # With D.2 (canonical = .claude/skills/), write to
+   # .claude/skills/setup-steward instead. Either way: the
+   # symlinked side resolves to the refreshed content
+   # automatically — nothing to touch there.
    ```
 
 4. **Reload in-flight.** Immediately after the copy lands —
@@ -262,12 +270,23 @@ family, reconcile the adopter's `.gitignore` so the new
 family's snapshot symlinks are gitignored. Append the
 `.gitignore` lines from
 [`adopt.md` Step 7](adopt.md#step-7--gitignore-entries-fresh-only)
-for the new family's prefix (e.g. `/.claude/skills/issue-*`
-and the `.github/skills/` mirror when the adopter uses the
-double-symlinked convention). The append is idempotent —
-skip lines that already exist. The same idempotence covers
-adopters whose `.gitignore` already had the entries (e.g.
-from a manually-edited block or a previous adopt run).
+for the new family's prefix, matching the adopter's
+[skills-dir convention](conventions.md):
+
+- Pattern A — `/.claude/skills/<prefix>-*` only.
+- Pattern B — both `/.claude/skills/<prefix>-*` and
+  `/.github/skills/<prefix>-*` (two physical symlinks per
+  skill).
+- Pattern D — only the *canonical-side* `<canonical>/<prefix>-*`
+  ignore line. D.1 → `/.github/skills/<prefix>-*`; D.2 →
+  `/.claude/skills/<prefix>-*`. The symlinked side's
+  directory symlink does not need its own ignore line — git
+  does not descend into it.
+
+The append is idempotent — skip lines that already exist.
+The same idempotence covers adopters whose `.gitignore`
+already had the entries (e.g. from a manually-edited block
+or a previous adopt run).
 
 The post-upgrade state must be: *every framework skill in
 the new snapshot that belongs to the effective family set
@@ -304,7 +323,19 @@ Run two passes:
      release notes), offer to re-symlink to the new name.
    - If removed, offer to remove the stale symlink.
 
-For the double-symlinked convention, refresh both layers.
+Per-pattern symlink layers to refresh:
+
+- **Pattern A (flat)** — refresh the single layer at
+  `.claude/skills/<n>`.
+- **Pattern B (double-symlinked)** — refresh both layers
+  (inner at `.github/skills/<n>`, outer at
+  `.claude/skills/<n>` → inner).
+- **Pattern D (single directory symlink)** — refresh only
+  the *canonical-side* layer at
+  `<canonical>/skills/<n>` (D.1 → `.github/skills/<n>`;
+  D.2 → `.claude/skills/<n>`). The symlinked-side path
+  resolves through the directory symlink and needs no
+  per-skill plumbing.
 
 ## Step 6b — Sync locally-installed hooks and configuration
 
