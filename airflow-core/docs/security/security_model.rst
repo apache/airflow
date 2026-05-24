@@ -153,15 +153,43 @@ Those users should be highly trusted not to misuse this capability.
    case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions mask these sensitive credentials
    at the API level and do not return them in clear text.
 
-About Sensitive information
-...........................
+Sensitive information in the UI and API
+.......................................
 
-Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
-sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
-However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
-Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
-Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
-information in other way (e.g., via environment variables), those values will not be masked.
+Sensitive information includes connection passwords, selected connection extra fields, Variable values,
+and configuration values marked as sensitive. Airflow's public UI, REST API, and ``airflowctl`` are designed
+to avoid returning those values in clear text. Instead, Airflow masks or redacts known sensitive fields and
+values before displaying them or serializing them in responses.
+
+This protection is applied as close to the API boundary as possible. A user who can read a Connection,
+Variable, or configuration entry should not receive its stored secret value through the UI or public REST API
+unless the specific interface explicitly opts in to showing values, such as the local CLI ``--show-values``
+option. Write access to a secret-bearing resource is still highly privileged: users with permission to edit
+connections, variables, or configuration can change values and may be able to influence code that runs in
+tasks. See :ref:`connection-configuration-users`.
+
+Airflow stores and resolves secrets from several places:
+
+* Connection passwords and encrypted extras stored in the metadata database are encrypted at rest with
+  Fernet and are masked in API and UI output.
+* Variables stored in the metadata database, environment variables, or a secrets backend are masked when
+  they are exposed through supported Airflow interfaces.
+* Sensitive configuration values are masked in public configuration APIs and should be provided only to
+  components that need them.
+* External secrets backends keep the source-of-truth secret outside Airflow. Airflow may retrieve those
+  values for task execution, but the UI and public API still should not disclose them to authenticated users.
+
+Masking is not a general-purpose data loss prevention system. It depends on Airflow knowing which fields or
+values are sensitive. Values that a Dag author prints, passes through XCom, embeds in a Dag file, exposes via
+environment variables, or returns from custom code may still be visible in logs, rendered templates, API
+responses, or other user-controlled output. Deployment Managers and Dag authors are responsible for keeping
+secrets out of Dags, logs, XComs, and other non-secret storage, and for extending Airflow's masking rules when
+their deployment uses additional sensitive field names. See :ref:`security:mask-sensitive-values`.
+
+The Task SDK and Execution API are different from the public UI and REST API. They intentionally provide task
+code with the connections and variables needed to run workloads, using task-scoped authentication where
+applicable. Dag authors who can run code should therefore be trusted not to exfiltrate secrets available to
+their tasks, as described in :ref:`capabilities-of-dag-authors`.
 
 Audit log users
 ...............
