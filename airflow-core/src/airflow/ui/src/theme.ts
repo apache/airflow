@@ -382,6 +382,15 @@ const defaultAirflowTheme: ThemingConfig = {
     },
     switch: {
       slots: [],
+      base: {
+        control: {
+          borderColor: { _dark: "border.emphasized", _light: "transparent" },
+          borderWidth: "1px",
+          _checked: {
+            borderColor: "colorPalette.solid",
+          },
+        },
+      },
       defaultVariants: { size: "sm" } as Record<string, string>,
     },
     // size="sm" gives px/py:2 on cell and columnHeader vs px/py:3 for "md".
