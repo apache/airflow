@@ -136,7 +136,7 @@ ENV/
 .claude/*
 !.claude/skills/
 .claude/skills/*
-!.claude/skills/pr-triage
+!.claude/skills/setup-steward
 
 # Cursor
 .cursor/
@@ -303,3 +303,30 @@ dev/registry/output/
 dev/registry/logos/
 dev/registry/modules.json
 dev/registry/providers.json
+
+# apache-steward — gitignored snapshot of the framework, refreshed
+# by /setup-steward upgrade. Build artefact, not source.
+/.apache-steward/
+
+# Per-machine local-pin file. Records what THIS machine fetched and
+# when. Compared against the committed .apache-steward.lock to
+# detect drift.
+/.apache-steward.local.lock
+
+# Symlinks created by /setup-steward into the gitignored snapshot.
+/.claude/skills/security-*
+/.claude/skills/pr-management-*
+/.claude/skills/issue-*
+/.claude/skills/setup-isolated-setup-*
+/.claude/skills/setup-override-upstream
+/.claude/skills/setup-shared-config-sync
+/.claude/skills/list-steward-*
+# Mirror the same patterns under .github/skills/ if your repo uses
+# the double-symlinked convention.
+/.github/skills/security-*
+/.github/skills/pr-management-*
+/.github/skills/issue-*
+/.github/skills/setup-isolated-setup-*
+/.github/skills/setup-override-upstream
+/.github/skills/setup-shared-config-sync
+/.github/skills/list-steward-*
