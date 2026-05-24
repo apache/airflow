@@ -2396,6 +2396,12 @@ class TestKubernetesExecutorCallbackSupport:
             log_path="executor_callbacks/test_dag/run_1/12345678",
         )
 
+    @staticmethod
+    def _make_callback_key(callback_id="12345678-1234-5678-1234-567812345678"):
+        from airflow.models.callback import CallbackKey
+
+        return CallbackKey(id=callback_id)
+
     def test_supports_callbacks_flag_is_true(self):
         assert KubernetesExecutor.supports_callbacks is True
 
@@ -2405,8 +2411,8 @@ class TestKubernetesExecutorCallbackSupport:
 
         executor.queue_workload(workload, session=None)
 
-        assert workload.callback.id in executor.queued_callbacks
-        assert executor.queued_callbacks[workload.callback.id] is workload
+        assert workload.key in executor.queued_callbacks
+        assert executor.queued_callbacks[workload.key] is workload
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
@@ -2450,7 +2456,7 @@ class TestKubernetesExecutorCallbackSupport:
         executor.start()
 
         try:
-            callback_key = "12345678-1234-5678-1234-567812345678"
+            callback_key = self._make_callback_key()
             executor.running = {callback_key}
 
             # Pod succeeded (state=None means success in K8s executor)
@@ -2480,7 +2486,7 @@ class TestKubernetesExecutorCallbackSupport:
         executor.start()
 
         try:
-            callback_key = "12345678-1234-5678-1234-567812345678"
+            callback_key = self._make_callback_key()
             executor.running = {callback_key}
 
             results = KubernetesResults(
@@ -2506,7 +2512,7 @@ class TestKubernetesExecutorCallbackSupport:
         executor.start()
 
         try:
-            callback_key = "12345678-1234-5678-1234-567812345678"
+            callback_key = self._make_callback_key()
             executor.running = {callback_key}
 
             results = KubernetesResults(
@@ -2539,7 +2545,7 @@ class TestKubernetesExecutorCallbackSupport:
 
         try:
             executor.kube_config.delete_worker_pods = False
-            callback_key = "12345678-1234-5678-1234-567812345678"
+            callback_key = self._make_callback_key()
             executor.running = {callback_key}
 
             results = KubernetesResults(
@@ -2584,7 +2590,7 @@ class TestKubernetesExecutorCallbackSupport:
         try:
             executor.kube_config.delete_worker_pods = True
             executor.kube_config.delete_worker_pods_on_failure = delete_on_failure
-            callback_key = "12345678-1234-5678-1234-567812345678"
+            callback_key = self._make_callback_key()
             executor.running = {callback_key}
 
             results = KubernetesResults(
@@ -2621,7 +2627,7 @@ class TestKubernetesExecutorCallbackSupport:
         executor.start()
 
         try:
-            callback_key = "12345678-1234-5678-1234-567812345678"
+            callback_key = self._make_callback_key()
             executor.running = {callback_key}
 
             results = KubernetesResults(
@@ -2654,14 +2660,37 @@ class TestKubernetesExecutorCallbackSupport:
             executor.end()
 
     def test_annotations_to_key_for_callback(self):
-        """Test that annotations_to_key returns callback_id for callback pods."""
+        """annotations_to_key returns a CallbackKey for callback pods."""
+        from airflow.models.callback import CallbackKey
+
         callback_id = "12345678-1234-5678-1234-567812345678"
         annotations = {"callback_id": callback_id}
 
         key = annotations_to_key(annotations)
 
-        assert key == callback_id
-        assert isinstance(key, str)
+        assert isinstance(key, CallbackKey)
+        assert key.id == callback_id
+        # CallbackKey.__str__ returns its id — this contract is relied on by
+        # log lines in the watcher / executor.
+        assert str(key) == callback_id
+
+    def test_annotations_to_key_callback_precedence_over_task(self):
+        """When both callback_id and task annotations are present, callback path wins."""
+        from airflow.models.callback import CallbackKey
+
+        callback_id = "12345678-1234-5678-1234-567812345678"
+        annotations = {
+            "callback_id": callback_id,
+            "dag_id": "my_dag",
+            "task_id": "my_task",
+            "run_id": "run_1",
+            "try_number": "1",
+        }
+
+        key = annotations_to_key(annotations)
+
+        assert isinstance(key, CallbackKey)
+        assert key.id == callback_id
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils"
@@ -2732,7 +2761,7 @@ class TestKubernetesExecutorCallbackSupport:
             name="callback-pod",
             namespace="default",
         )
-        assert callback_id in executor.running
+        assert self._make_callback_key(callback_id) in executor.running
         assert tis_to_flush_by_key == {}
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
@@ -2758,5 +2787,39 @@ class TestKubernetesExecutorCallbackSupport:
         executor.adopt_launched_task(mock_kube_client, pod=pod, tis_to_flush_by_key=tis_to_flush_by_key)
 
         mock_kube_client.patch_namespaced_pod.assert_called_once()
-        assert callback_id not in executor.running
+        assert self._make_callback_key(callback_id) not in executor.running
         assert tis_to_flush_by_key == {}
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_completed_callback_pod_adoption(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        """`_adopt_completed_pods` feeds callback results through `_change_state` with
+        `state="completed"`. The dispatcher must route to `_change_callback_state`,
+        which falls through to `CallbackState.SUCCESS` (the pod was filtered on
+        `status.phase=Succeeded`).
+        """
+        from airflow.utils.state import CallbackState
+
+        executor = KubernetesExecutor()
+        executor.job_id = 5
+        executor.start()
+
+        try:
+            callback_key = self._make_callback_key()
+            executor.running = {callback_key}
+
+            results = KubernetesResults(
+                callback_key, "completed", "callback-pod", "default", "resource_version", None
+            )
+            executor._change_state(results)
+
+            assert executor.event_buffer[callback_key] == (CallbackState.SUCCESS, None)
+            assert callback_key not in executor.running
+            mock_delete_pod.assert_called_once_with(pod_name="callback-pod", namespace="default")
+        finally:
+            executor.end()

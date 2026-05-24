@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.executors import workloads
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
@@ -101,3 +103,15 @@ class TestExecuteWorkload:
             main()
 
         mock_execute_workload.assert_called_once_with(workload)
+
+    def test_main_invalid_json_string_exits(self):
+        """main() exits with status 1 when --json-string is not valid JSON for ExecutorWorkload."""
+        import sys
+
+        from airflow.sdk.execution_time.execute_workload import main
+
+        with mock.patch.object(sys, "argv", ["execute_workload", "--json-string", "{not valid"]):
+            with pytest.raises(SystemExit) as excinfo:
+                main()
+
+        assert excinfo.value.code == 1

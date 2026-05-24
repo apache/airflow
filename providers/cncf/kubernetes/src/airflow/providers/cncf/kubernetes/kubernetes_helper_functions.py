@@ -30,6 +30,7 @@ from slugify import slugify
 from sqlalchemy import select
 from urllib3.exceptions import HTTPError
 
+from airflow.models.callback import CallbackKey
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -160,7 +161,7 @@ def annotations_to_key(annotations: dict[str, str]) -> WorkloadKey:
 
     # Callback pods have a "callback_id" annotation instead of task annotations
     if "callback_id" in annotations:
-        return annotations["callback_id"]
+        return CallbackKey(id=annotations["callback_id"])
 
     dag_id = annotations["dag_id"]
     task_id = annotations["task_id"]

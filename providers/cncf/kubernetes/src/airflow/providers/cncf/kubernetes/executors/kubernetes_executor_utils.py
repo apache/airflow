@@ -281,7 +281,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                             key = annotations_to_key(annotations=annotations)
                             task_key_str = (
                                 f"{key.dag_id}.{key.task_id}.{key.try_number}"
-                                if not isinstance(key, str)
+                                if isinstance(key, TaskInstanceKey)
                                 else "unknown"
                             )
                             self.log.warning(
