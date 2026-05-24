@@ -18,24 +18,36 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
 
-const dagParams = vi.hoisted(() => ({
-  paramsDict: {
-    message: {
-      description: "Message",
-      schema: {
-        title: "Message",
-        type: "string",
+type TestParam = {
+  description: string;
+  schema: {
+    format?: string;
+    title: string;
+    type: string;
+  };
+  value: string;
+};
+
+const dagParams = vi.hoisted(
+  (): { paramsDict: Record<string, TestParam> } => ({
+    paramsDict: {
+      message: {
+        description: "Message",
+        schema: {
+          title: "Message",
+          type: "string",
+        },
+        value: "Hello",
       },
-      value: "Hello",
     },
-  },
-}));
+  }),
+);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -83,6 +95,19 @@ vi.mock("../JsonEditor", () => ({
 }));
 
 describe("TriggerDAGForm", () => {
+  beforeEach(() => {
+    dagParams.paramsDict = {
+      message: {
+        description: "Message",
+        schema: {
+          title: "Message",
+          type: "string",
+        },
+        value: "Hello",
+      },
+    };
+  });
+
   it("syncs Advanced Options JSON after Run Parameters edits in prefilled re-trigger mode", async () => {
     const { container } = render(
       <TriggerDAGForm
@@ -126,6 +151,59 @@ describe("TriggerDAGForm", () => {
       }
 
       expect(configJson.value).toContain('"Updated message"');
+    });
+  });
+
+  it("submits time params with seconds when browser time inputs omit them", async () => {
+    dagParams.paramsDict = {
+      cutoff_time: {
+        description: "Cutoff time",
+        schema: {
+          format: "time",
+          title: "Cutoff time",
+          type: "string",
+        },
+        value: "07:30:00",
+      },
+    };
+
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Params Trigger UI"
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_cutoff_time"]')).toBeInTheDocument(),
+    );
+    const timeField = container.querySelector<HTMLInputElement>('input[name="element_cutoff_time"]');
+
+    if (timeField === null) {
+      throw new Error("Expected time input to be rendered");
+    }
+
+    expect(timeField).toHaveAttribute("step", "1");
+
+    fireEvent.change(timeField, { target: { value: "19:30" } });
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() => {
+      const configJson = screen.getByLabelText("Configuration JSON");
+
+      if (!(configJson instanceof HTMLTextAreaElement)) {
+        throw new TypeError("Expected Configuration JSON to render as a textarea");
+      }
+
+      expect(configJson.value).toContain('"cutoff_time": "19:30:00"');
     });
   });
 });

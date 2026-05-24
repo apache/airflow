@@ -23,6 +23,8 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { DateTimeInput } from "../DateTimeInput";
 
+const normalizeTimeValue = (value: string) => (/^\d{2}:\d{2}$/u.test(value) ? `${value}:00` : value);
+
 export const FieldDateTime = ({
   name,
   namespace = "default",
@@ -32,13 +34,15 @@ export const FieldDateTime = ({
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
+    const fieldValue = rest.type === "time" ? normalizeTimeValue(value) : value;
+
     // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
     if (paramsDict[name]) {
-      paramsDict[name].value = value === "" ? null : value;
+      paramsDict[name].value = fieldValue === "" ? null : fieldValue;
     }
 
     setParamsDict(paramsDict);
-    onUpdate(value);
+    onUpdate(fieldValue);
   };
 
   if (rest.type === "datetime-local") {
@@ -62,6 +66,7 @@ export const FieldDateTime = ({
       onChange={(event) => handleChange(event.target.value)}
       required={rest.required}
       size="sm"
+      step={rest.type === "time" ? 1 : undefined}
       type={rest.type}
       value={((param.value ?? "") as string).slice(0, 16)}
     />
