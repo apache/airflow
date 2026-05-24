@@ -262,6 +262,61 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             response = test_client.get("/dags")
         assert response.status_code == 403
 
+    def test_order_by_last_run_start_date_uses_run_after_for_queued_runs(self, session, test_client):
+        self._clear_db()
+
+        running_dag_id = "running_latest_run"
+        queued_dag_id = "queued_latest_run"
+        session.add_all(
+            [
+                DagModel(
+                    dag_id=running_dag_id,
+                    bundle_name="dag_maker",
+                    fileloc="/tmp/running_latest_run.py",
+                    is_stale=False,
+                ),
+                DagModel(
+                    dag_id=queued_dag_id,
+                    bundle_name="dag_maker",
+                    fileloc="/tmp/queued_latest_run.py",
+                    is_stale=False,
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                DagRun(
+                    dag_id=running_dag_id,
+                    run_id="manual__running",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+                    run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+                    start_date=pendulum.datetime(2025, 1, 2, tz="UTC"),
+                    state=DagRunState.RUNNING,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+                DagRun(
+                    dag_id=queued_dag_id,
+                    run_id="manual__queued",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=pendulum.datetime(2025, 1, 3, tz="UTC"),
+                    run_after=pendulum.datetime(2025, 1, 3, tz="UTC"),
+                    start_date=None,
+                    state=DagRunState.QUEUED,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={"order_by": "-last_run_start_date", "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [queued_dag_id, running_dag_id]
+
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
         num_dags = 5
