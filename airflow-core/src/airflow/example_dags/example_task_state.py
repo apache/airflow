@@ -60,17 +60,17 @@ with DAG(
 
     @task(retries=2, retry_delay=timedelta(seconds=5))
     def run_job(**context):
-        ts = context["task_state"]
+        task_state = context["task_state"]
         try_number = context["ti"].try_number
 
-        job_id = ts.get("job_id")
+        job_id = task_state.get("job_id")
         if job_id:
             print(f"Try {try_number}: reattaching to existing job: {job_id}")
         else:
             job_id = _submit_job()
             # Store with NEVER_EXPIRE so the job ID survives across all retries.
-            ts.set("job_id", job_id, retention=NEVER_EXPIRE)
-            ts.set("submitted_at", datetime.now(tz=timezone.utc).isoformat())
+            task_state.set("job_id", job_id, retention=NEVER_EXPIRE)
+            task_state.set("submitted_at", datetime.now(tz=timezone.utc).isoformat())
             print(f"Try {try_number}: submitted job: {job_id}")
 
             # Simulate a crash after submission on the first attempt.
@@ -79,10 +79,10 @@ with DAG(
                 f"Simulated failure after submitting {job_id}. The next retry will reattach to this job."
             )
 
-        ts.set("status", "running")
+        task_state.set("status", "running")
         result = _poll_job(job_id)
-        ts.set("status", "complete")
-        ts.set("result", json.dumps(result))
+        task_state.set("status", "complete")
+        task_state.set("result", json.dumps(result))
 
         print(f"Try {try_number}: job complete — {result['rows_written']} rows written")
         return result["rows_written"]
