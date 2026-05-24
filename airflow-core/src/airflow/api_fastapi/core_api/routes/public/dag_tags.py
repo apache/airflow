@@ -37,7 +37,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DAGTagCollectionResponse
 from airflow.api_fastapi.core_api.security import ReadableTagsFilterDep, requires_access_dag
-from airflow.models.dag import DagTag
+from airflow.models.dag import DagModel, DagTag
 
 dag_tags_router = AirflowRouter(tags=["DAG"], prefix="/dagTags")
 
@@ -61,7 +61,12 @@ def get_dag_tags(
     session: SessionDep,
 ) -> DAGTagCollectionResponse:
     """Get all Dag tags."""
-    query = select(DagTag.name).group_by(DagTag.name)
+    query = (
+        select(DagTag.name)
+        .join(DagModel, DagModel.dag_id == DagTag.dag_id)
+        .where(DagModel.is_stale.is_(False))
+        .group_by(DagTag.name)
+    )
     dag_tags_select, total_entries = paginated_select(
         statement=query,
         filters=[tag_name_pattern, tag_name_prefix_pattern, readable_tags_filter],

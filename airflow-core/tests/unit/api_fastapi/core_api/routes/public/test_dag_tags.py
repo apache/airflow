@@ -99,9 +99,10 @@ class TestDagEndpoint:
         session.add(dagrun_success)
 
     def _create_dag_tags(self, session=None):
+        session.add(DagTag(dag_id=DAG1_ID, name="tag_1"))
         session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
-        session.add(DagTag(dag_id=DAG2_ID, name="tag_1"))
         session.add(DagTag(dag_id=DAG3_ID, name="tag_1"))
+        session.add(DagTag(dag_id=DAG3_ID, name="stale_only"))
 
     @pytest.fixture(autouse=True)
     @provide_session
