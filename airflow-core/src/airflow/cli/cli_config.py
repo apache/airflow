@@ -382,10 +382,12 @@ ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
     help=(
         "(Experimental) The backfill will run tasks using the latest bundle version instead of "
-        "the version that was active when the original Dag run was created. Defaults to True."
+        "the version that was active when the original Dag run was created. "
+        "If not specified, uses the DAG-level or global configuration default "
+        "(falling back to True for backfills to preserve historical behavior)."
     ),
-    action="store_true",
-    default=True,
+    action=argparse.BooleanOptionalAction,
+    default=None,
 )
 
 

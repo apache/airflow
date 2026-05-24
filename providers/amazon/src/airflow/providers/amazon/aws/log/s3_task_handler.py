@@ -62,6 +62,8 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -119,7 +121,9 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
-                log = f"{old_log}\n{log}" if old_log else log
+                if old_log:
+                    sep = "" if old_log.endswith("\n") else "\n"
+                    log = f"{old_log}{sep}{log}"
         except Exception:
             self.log.exception("Could not verify previous log to append")
             return False

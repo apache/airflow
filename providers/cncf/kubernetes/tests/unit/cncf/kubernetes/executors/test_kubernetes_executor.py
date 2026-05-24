@@ -808,7 +808,7 @@ class TestKubernetesExecutor:
         try:
             assert executor.event_buffer == {}
             executor.execute_async(
-                key=("dag", "task", timezone.utcnow(), 1),
+                key=TaskInstanceKey("dag", "task", "run_id", 1, -1),
                 queue=None,
                 command=["airflow", "tasks", "run", "true", "some_parameter"],
                 executor_config=k8s.V1Pod(
@@ -1639,7 +1639,7 @@ class TestKubernetesExecutor:
         assert not executor.has_task(task_instance=ti)
         executor.kube_scheduler.patch_pod_revoked.assert_called_once()
         executor.kube_scheduler.delete_pod.assert_called_once()
-        mock_kube_client.patch_namespaced_pod.calls[0] == []
+        mock_kube_client.patch_namespaced_pod.assert_not_called()
         assert executor.running == set()
 
     @pytest.mark.parametrize(

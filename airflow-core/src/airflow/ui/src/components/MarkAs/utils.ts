@@ -16,6 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DAGRunPatchStates } from "openapi/requests/types.gen";
+import type { DagRunMutableStates } from "openapi/requests/types.gen";
 
-export const allowedStates: Array<DAGRunPatchStates> = ["success", "failed"];
+export const allowedStates: Array<DagRunMutableStates> = ["success", "failed"];

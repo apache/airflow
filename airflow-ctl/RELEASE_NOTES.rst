@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+ .. This file is populated while releasing after cutting the release candidate. Please do not edit in PRs.
+
 airflowctl unreleased
 ---------------------
 

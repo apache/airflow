@@ -30,7 +30,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_operator_agent_durable]
-@dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)})
+@dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)}, tags=["example"])
 def example_agent_durable_operator():
     """Agent with durable execution -- resumes from the last model call on retry."""
     AgentOperator(
@@ -63,7 +63,7 @@ example_agent_durable_operator()
 
 
 # [START howto_decorator_agent_durable]
-@dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)})
+@dag(default_args={"retries": 3, "retry_delay": timedelta(seconds=30)}, tags=["example"])
 def example_agent_durable_decorator():
     @task.agent(
         llm_conn_id="pydanticai_default",
