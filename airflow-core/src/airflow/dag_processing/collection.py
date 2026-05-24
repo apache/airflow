@@ -895,22 +895,30 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_references = []
                 continue
-            referenced_assets = {assets[r.name, r.uri]: r.allow_producer_teams for r in references}
+            referenced_assets = {
+                assets[r.name, r.uri]: (
+                    r.access_control.get("producer_teams", []),
+                    r.access_control.get("allow_global", True),
+                )
+                for r in references
+            }
             referenced_asset_ids = {a.id for a in referenced_assets}
             orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
                 if asset_id not in referenced_asset_ids:
                     session.delete(ref)
-            for asset_model, teams in referenced_assets.items():
+            for asset_model, (teams, allow_global) in referenced_assets.items():
                 if asset_model.id in orm_refs:
                     orm_refs[asset_model.id].allow_producer_teams = teams
+                    orm_refs[asset_model.id].allow_global_producers = allow_global
             session.bulk_save_objects(
                 DagScheduleAssetReference(
                     asset_id=asset_model.id,
                     dag_id=dag_id,
                     allow_producer_teams=teams,
+                    allow_global_producers=allow_global,
                 )
-                for asset_model, teams in referenced_assets.items()
+                for asset_model, (teams, allow_global) in referenced_assets.items()
                 if asset_model.id not in orm_refs
             )
 

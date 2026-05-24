@@ -17,10 +17,9 @@
 
 from __future__ import annotations
 
-from http.client import HTTPException
 from typing import Annotated
 
-from fastapi import Depends, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import defaultload
 
