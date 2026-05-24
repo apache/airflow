@@ -34,20 +34,18 @@ type TestParam = {
   value: string;
 };
 
-const dagParams = vi.hoisted(
-  (): { paramsDict: Record<string, TestParam> } => ({
-    paramsDict: {
-      message: {
-        description: "Message",
-        schema: {
-          title: "Message",
-          type: "string",
-        },
-        value: "Hello",
+const dagParams = vi.hoisted((): { paramsDict: Record<string, TestParam> } => ({
+  paramsDict: {
+    message: {
+      description: "Message",
+      schema: {
+        title: "Message",
+        type: "string",
       },
+      value: "Hello",
     },
-  }),
-);
+  },
+}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -183,7 +181,9 @@ describe("TriggerDAGForm", () => {
     );
 
     await waitFor(() =>
-      expect(container.querySelector<HTMLInputElement>('input[name="element_cutoff_time"]')).toBeInTheDocument(),
+      expect(
+        container.querySelector<HTMLInputElement>('input[name="element_cutoff_time"]'),
+      ).toBeInTheDocument(),
     );
     const timeField = container.querySelector<HTMLInputElement>('input[name="element_cutoff_time"]');
 
