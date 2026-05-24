@@ -74,7 +74,7 @@ export const PoolSummary = () => {
 
   pools?.forEach((pool) => {
     slotKeys.forEach((slotKey) => {
-      const slotValue = pool[slotKey];
+      const slotValue = slotKey === "deferred_slots" && !pool.include_deferred ? 0 : pool[slotKey];
 
       if (slotValue === UNLIMITED_SLOTS) {
         aggregatePool[slotKey] = UNLIMITED_SLOTS;
