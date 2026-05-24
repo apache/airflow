@@ -1,5 +1,5 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/legal/release-policy.html -->
 
 # overrides — manage agentic overrides for framework skills
 
@@ -72,7 +72,7 @@ Use the canonical scaffold below.
 
 ```markdown
 <!-- SPDX-License-Identifier: Apache-2.0
-     https://www.apache.org/licenses/LICENSE-2.0 -->
+     https://www.apache.org/legal/release-policy.html -->
 
 <!-- apache-steward agentic override
      Framework skill:    <framework-skill>
