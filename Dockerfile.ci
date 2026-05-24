@@ -1478,6 +1478,34 @@ function reinstall_shared_distributions() {
     uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
 }
 
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
+
+function run_pre_extras_install_if_registered() {
+    local provider_id="${1}"
+    local registered_provider
+    for registered_provider in "${PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL[@]}"; do
+        if [[ "${registered_provider}" == "${provider_id}" ]]; then
+            echo
+            echo "${COLOR_BLUE}Running pre-extras install manifest for ${provider_id}${COLOR_RESET}"
+            echo
+            local env_file
+            env_file=$(mktemp)
+            if ! python "${AIRFLOW_SOURCES}/scripts/in_container/run_pre_extras_install.py" \
+                    "${provider_id}" --emit-env-to "${env_file}"; then
+                rm -f "${env_file}"
+                echo "${COLOR_RED}Pre-extras install failed for ${provider_id}${COLOR_RESET}"
+                exit 1
+            fi
+            if [[ -s "${env_file}" ]]; then
+                # shellcheck disable=SC1090
+                source "${env_file}"
+            fi
+            rm -f "${env_file}"
+            return
+        fi
+    done
+}
+
 function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
@@ -1496,6 +1524,7 @@ function check_force_lowest_dependencies() {
             exit 0
         fi
         cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
+        run_pre_extras_install_if_registered "${provider_id}"
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -1826,7 +1855,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=26.1.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.11.14
-ARG AIRFLOW_PREK_VERSION="0.3.13"
+ARG AIRFLOW_PREK_VERSION="0.4.0"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \

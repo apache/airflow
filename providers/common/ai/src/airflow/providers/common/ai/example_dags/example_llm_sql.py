@@ -24,7 +24,7 @@ from airflow.providers.common.sql.config import DataSourceConfig
 
 
 # [START howto_operator_llm_sql_basic]
-@dag
+@dag(tags=["example"])
 def example_llm_sql_basic():
     LLMSQLQueryOperator(
         task_id="generate_sql",
@@ -45,7 +45,7 @@ example_llm_sql_basic()
 
 
 # [START howto_operator_llm_sql_schema]
-@dag
+@dag(tags=["example"])
 def example_llm_sql_schema_introspection():
     LLMSQLQueryOperator(
         task_id="generate_sql",
@@ -63,7 +63,7 @@ example_llm_sql_schema_introspection()
 
 
 # [START howto_decorator_llm_sql]
-@dag
+@dag(tags=["example"])
 def example_llm_sql_decorator():
     @task.llm_sql(
         llm_conn_id="pydanticai_default",
@@ -81,7 +81,7 @@ example_llm_sql_decorator()
 
 
 # [START howto_operator_llm_sql_expand]
-@dag
+@dag(tags=["example"])
 def example_llm_sql_expand():
     LLMSQLQueryOperator.partial(
         task_id="generate_sql",
@@ -104,7 +104,7 @@ example_llm_sql_expand()
 
 
 # [START howto_operator_llm_sql_with_object_storage]
-@dag
+@dag(tags=["example"])
 def example_llm_sql_with_object_storage():
     datasource_config = DataSourceConfig(
         conn_id="aws_default",
@@ -127,7 +127,7 @@ example_llm_sql_with_object_storage()
 
 
 # [START howto_operator_llm_sql_approval]
-@dag
+@dag(tags=["example"])
 def example_llm_sql_approval():
     from datetime import timedelta
 

@@ -188,6 +188,8 @@ Declaring an ``@asset`` automatically creates:
 * A ``DAG`` with *dag_id* set to the function name.
 * A task inside the ``DAG`` with *task_id* set to the function name, and *outlet* to the created ``Asset``.
 
+The parameter names ``self``, ``context``, and ``outlet_events`` are **reserved** in an ``@asset`` function: they are populated by Airflow at runtime (with the asset itself, the execution context, and the outlet event accessor respectively) and are never treated as inlet asset references.
+
 Attaching extra information to an emitting asset event
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -593,6 +595,48 @@ including ``partition_key`` in the request body):
         "logical_date": "2026-03-10T00:00:00Z",
         "partition_key": "us|2026-03-10T09:00:00"
       }'
+
+Setting partition keys at runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the partition key is not known ahead of time (for example, a watermark
+discovered from the source data, a late-arriving file, or a backfill request),
+let the producing task decide it while it runs. Schedule the producer with
+``PartitionAtRuntime()`` and record the key(s) on the emitted event with
+``outlet_events[self].add_partitions(...)``:
+
+.. code-block:: python
+
+    from airflow.sdk import PartitionAtRuntime, asset
+
+
+    @asset(
+        uri="file://incoming/player-stats/live-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def live_region_player_stats(self, outlet_events):
+        # The key is only known once the task runs.
+        outlet_events[self].add_partitions("us")
+
+Inside an ``@asset`` function, ``self`` (the emitted ``Asset``) and
+``outlet_events`` (the outlet event accessor) are reserved parameter names that
+Airflow populates at runtime. Pass a single key, or a list to fan out to several
+partitions in one run. Each key produces its own asset event, and duplicate
+keys collapse to a single event:
+
+.. code-block:: python
+
+    @asset(
+        uri="file://incoming/player-stats/multi-region.csv",
+        schedule=PartitionAtRuntime(),
+    )
+    def multi_region_player_stats(self, outlet_events):
+        outlet_events[self].add_partitions(["us", "eu", "apac"])
+
+When a runtime run emits exactly one partition key, the producing
+``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
+these events the same way as timetable-produced partitions, through
+``PartitionedAssetTimetable``.
 
 For complete runnable examples, see
 ``airflow-core/src/airflow/example_dags/example_asset_partition.py``.

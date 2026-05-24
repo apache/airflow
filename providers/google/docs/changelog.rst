@@ -58,7 +58,7 @@ Features
 
 * ``Add 'host_key_policy' option to 'ComputeEngineSSHHook' (#66746)``
 * ``Add BigQueryStreamingBufferEmptySensor for DML on streaming tables (#66652)``
-* ``Add persist_xcom option to BigQueryInsertJobOperator (#66760)``
+* ``Deprecate 'job_id_path' XCom push from 'BigQueryInsertJobOperator' (#66760)``
 * ``Migrate BigQueryInsertJobTrigger to on_kill() for user-initiated kills (#66704)``
 * ``Add Cloud SQL Auth Proxy IAM authentication (#66510)``
 * ``Add aliases for rebranded Google services (#66344)``
