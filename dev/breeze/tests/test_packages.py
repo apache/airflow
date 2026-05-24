@@ -31,6 +31,7 @@ from airflow_breeze.utils.packages import (
     expand_all_provider_distributions,
     find_matching_long_package_names,
     get_available_distributions,
+    get_cross_provider_dependent_extras,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
     get_long_package_name,
@@ -265,17 +266,20 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
 
 def test_convert_cross_package_dependencies_to_table():
     EXPECTED = """
-| Dependent package                                                                       | Extra           |
-|:----------------------------------------------------------------------------------------|:----------------|
-| [apache-airflow-providers-common-compat](https://airflow.apache.org/docs/common-compat) | `common.compat` |
-| [apache-airflow-providers-common-sql](https://airflow.apache.org/docs/common-sql)       | `common.sql`    |
-| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)               | `google`        |
-| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage)     | `openlineage`   |
+| Dependent package                                                                   | Extra         |
+|:------------------------------------------------------------------------------------|:--------------|
+| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)           | `google`      |
+| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage) | `openlineage` |
 """
     assert (
-        convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()
+        convert_cross_package_dependencies_to_table(get_cross_provider_dependent_extras("trino")).strip()
         == EXPECTED.strip()
     )
+
+
+def test_get_cross_provider_dependent_extras_excludes_required_dependencies():
+    assert get_cross_provider_dependent_packages("openlineage") == ["common.compat", "common.sql"]
+    assert get_cross_provider_dependent_extras("openlineage") == []
 
 
 def test_get_provider_info_dict():

@@ -683,6 +683,20 @@ def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     return get_provider_dependencies()[provider_id]["cross-providers-deps"]
 
 
+def get_cross_provider_dependent_extras(provider_id: str) -> list[str]:
+    if provider_id in get_removed_provider_ids():
+        return []
+
+    suspended_provider_ids = set(get_suspended_provider_ids())
+    required_dependencies = "\n".join(get_provider_requirements(provider_id))
+    return [
+        cross_provider_id
+        for cross_provider_id in get_cross_provider_dependent_packages(provider_id)
+        if cross_provider_id not in suspended_provider_ids
+        and get_pip_package_name(cross_provider_id) not in required_dependencies
+    ]
+
+
 def get_license_files(provider_id: str) -> str:
     if provider_id == "fab":
         return str(["LICENSE", "NOTICE", "3rd-party-licenses/LICENSES-*"]).replace('"', "'")
@@ -700,7 +714,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
+    cross_providers_dependencies = get_cross_provider_dependent_extras(provider_id=provider_id)
 
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
@@ -729,7 +743,7 @@ def get_provider_jinja_context(
         "MIN_AIRFLOW_VERSION": get_min_airflow_version(provider_id),
         "PROVIDER_REMOVED": provider_details.removed,
         "PROVIDER_INFO": get_provider_info_dict(provider_id),
-        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": convert_cross_package_dependencies_to_table(
             cross_providers_dependencies, markdown=False
         ),
