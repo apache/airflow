@@ -534,7 +534,7 @@ class _Serializer:
         self,
         window: HourWindow | DayWindow | WeekWindow | MonthWindow | QuarterWindow | YearWindow,
     ) -> dict[str, Any]:
-        return {}
+        return window.serialize()
 
 
 _serializer = _Serializer()

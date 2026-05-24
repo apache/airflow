@@ -108,14 +108,15 @@ class StartOfYearMapper(_BaseTemporalMapper):
     default_output_format = "%Y"
 
 
-# Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
-# the core copy in
+# Keep the following in sync with the core copy in
 # ``airflow-core/src/airflow/partition_mappers/temporal.py`` —
 # the SDK and core class hierarchies are independent (the SDK cannot import
-# core), so both sides carry the same defaults and the lookup is by class
+# core), so both sides carry the same definitions and the lookup is by class
 # name. When adding a new ``Window`` subclass, extend the table on both
 # sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
 # (see ``FanOutMapper._resolve_default_downstream_mapper``).
+# Synced items:
+# - ``FanOutMapper.default_downstream_mapper_by_window_name``
 class FanOutMapper(PartitionMapper):
     """
     Partition mapper that fans one upstream key out into multiple downstream keys.
@@ -135,10 +136,20 @@ class FanOutMapper(PartitionMapper):
     waits for all members), fan-out is 1→N (one upstream event creates many
     downstream Dag runs).
 
+    For forward fan-out (emit the *next* period's members instead of the current
+    one), pass ``direction=WindowDirection.FORWARD`` to the window:
+
     .. code-block:: python
 
-        # Weekly upstream → 7 daily downstream Dag runs
+        from airflow.sdk import WindowDirection
+
+        # Weekly upstream → 7 daily downstream Dag runs (current week)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+
+        # Weekly upstream → 7 daily keys for the *following* week
+        FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(), window=WeekWindow(direction=WindowDirection.FORWARD)
+        )
     """
 
     default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
@@ -158,8 +169,7 @@ class FanOutMapper(PartitionMapper):
         the SDK ``Window`` classes (used in Dag-author code) and the core
         ``Window`` classes (used after deserialization) both resolve to the
         same default. Subclasses can extend or override the defaults by
-        setting :attr:`default_downstream_mapper_by_window_name` on the
-        subclass.
+        setting :attr:`default_downstream_mapper_by_window_name` on the subclass.
         """
         mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
         if mapper_cls is None:

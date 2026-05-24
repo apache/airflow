@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -35,8 +35,14 @@ from airflow.partition_mappers.window import (
     MonthWindow,
     QuarterWindow,
     WeekWindow,
+    Window,
+    WindowDirection,
     YearWindow,
 )
+from airflow.serialization.decoders import decode_partition_mapper, decode_window
+from airflow.serialization.encoders import encode_partition_mapper, encode_window
+from airflow.serialization.enums import Encoding
+from airflow.serialization.helpers import WindowNotSupported
 
 
 class TestHourWindow:
@@ -144,6 +150,120 @@ class TestYearWindow:
     def test_rejects_non_day_one_input(self):
         with pytest.raises(ValueError, match="expects a period start on day 1"):
             list(YearWindow().to_upstream(datetime(2024, 1, 31)))
+
+
+class TestForwardWindow:
+    def test_default_direction_is_backward(self):
+        assert WeekWindow().direction is WindowDirection.BACKWARD
+
+    @pytest.mark.parametrize(
+        ("window", "anchor", "expected"),
+        [
+            pytest.param(
+                HourWindow(direction=WindowDirection.FORWARD),
+                datetime(2024, 3, 4, 0),
+                [datetime(2024, 3, 4, 0) - timedelta(minutes=59) + timedelta(minutes=i) for i in range(60)],
+                id="hour",
+            ),
+            pytest.param(
+                DayWindow(direction=WindowDirection.FORWARD),
+                datetime(2024, 3, 4),
+                [datetime(2024, 3, 4) - timedelta(hours=23) + timedelta(hours=i) for i in range(24)],
+                id="day",
+            ),
+            pytest.param(
+                WeekWindow(direction=WindowDirection.FORWARD),
+                datetime(2024, 3, 4),  # Monday
+                [datetime(2024, 2, 27) + timedelta(days=i) for i in range(7)],
+                id="week",
+            ),
+            pytest.param(
+                MonthWindow(direction=WindowDirection.FORWARD),
+                datetime(2024, 3, 1),
+                # 2024-02 has 29 days (leap year); trailing period = Feb 2 … Mar 1 (29 members)
+                [datetime(2024, 2, d) for d in range(2, 30)] + [datetime(2024, 3, 1)],
+                id="month_forward_trailing",
+            ),
+            pytest.param(
+                QuarterWindow(direction=WindowDirection.FORWARD),
+                datetime(2024, 1, 1),
+                [datetime(2023, 11, 1), datetime(2023, 12, 1), datetime(2024, 1, 1)],
+                id="quarter_forward_trailing",
+            ),
+            pytest.param(
+                YearWindow(direction=WindowDirection.FORWARD),
+                datetime(2024, 1, 1),
+                [datetime(2023, m, 1) for m in range(2, 13)] + [datetime(2024, 1, 1)],
+                id="year_forward_trailing",
+            ),
+        ],
+    )
+    def test_forward_yields_trailing_period_ending_at_anchor(self, window, anchor, expected):
+        result = list(window.to_upstream(anchor))
+        assert result == expected
+        assert result[-1] == anchor
+
+    def test_month_forward_trailing_not_calendar_month(self):
+        """Month forward yields the trailing period (prev_month_start, anchor], not a calendar month."""
+        anchor = datetime(2024, 3, 1)
+        result = list(MonthWindow(direction=WindowDirection.FORWARD).to_upstream(anchor))
+        # Must include anchor (Mar 1) and must NOT include prev_month_start (Feb 1)
+        assert datetime(2024, 3, 1) in result
+        assert datetime(2024, 2, 1) not in result
+
+    @pytest.mark.parametrize(
+        "window",
+        [
+            pytest.param(MonthWindow(direction=WindowDirection.FORWARD), id="month"),
+            pytest.param(QuarterWindow(direction=WindowDirection.FORWARD), id="quarter"),
+            pytest.param(YearWindow(direction=WindowDirection.FORWARD), id="year"),
+        ],
+    )
+    def test_forward_on_non_day_one_raises(self, window):
+        """_require_day_one fires before the forward shift — non-day-1 + FORWARD direction still raises."""
+        with pytest.raises(ValueError, match="expects a period start on day 1"):
+            list(window.to_upstream(datetime(2024, 3, 15)))
+
+    @pytest.mark.parametrize(
+        "window",
+        [
+            pytest.param(HourWindow(direction=WindowDirection.FORWARD), id="hour"),
+            pytest.param(DayWindow(direction=WindowDirection.FORWARD), id="day"),
+            pytest.param(WeekWindow(direction=WindowDirection.FORWARD), id="week"),
+            pytest.param(MonthWindow(direction=WindowDirection.FORWARD), id="month"),
+            pytest.param(QuarterWindow(direction=WindowDirection.FORWARD), id="quarter"),
+            pytest.param(YearWindow(direction=WindowDirection.FORWARD), id="year"),
+        ],
+    )
+    def test_serialize_roundtrip_with_forward(self, window):
+        """WindowDirection.FORWARD survives serialize → deserialize; behaviour is identical."""
+        restored = decode_window(encode_window(window))
+        assert restored.direction is WindowDirection.FORWARD
+        assert type(restored) is type(window)
+
+    @pytest.mark.parametrize(
+        "window_cls",
+        [HourWindow, DayWindow, WeekWindow, MonthWindow, QuarterWindow, YearWindow],
+    )
+    def test_serialize_roundtrip_backward(self, window_cls):
+        window = window_cls(direction=WindowDirection.BACKWARD)
+        restored = decode_window(encode_window(window))
+        assert restored.direction is WindowDirection.BACKWARD
+        assert type(restored) is window_cls
+
+    @pytest.mark.parametrize(
+        ("window_cls", "anchor", "expected_count"),
+        [
+            (HourWindow, datetime(2024, 3, 15, 7, 30), 60),
+            (DayWindow, datetime(2024, 3, 15), 24),
+            (WeekWindow, datetime(2024, 3, 13), 7),  # Wed, non-Monday
+        ],
+        ids=["hour", "day", "week"],
+    )
+    def test_forward_non_day_one_does_not_raise(self, window_cls, anchor, expected_count):
+        window = window_cls(direction=WindowDirection.FORWARD)
+        result = list(window.to_upstream(anchor))
+        assert len(result) == expected_count
 
 
 class TestRollupMapperComposition:
@@ -257,9 +377,6 @@ class TestRollupMapperComposition:
         assert mapper.to_upstream("2024") == frozenset(f"2024-{m:02d}" for m in range(1, 13))
 
     def test_serialize_round_trip(self):
-        from airflow.serialization.decoders import decode_partition_mapper
-        from airflow.serialization.encoders import encode_partition_mapper
-
         mapper = RollupMapper(
             upstream_mapper=StartOfWeekMapper(input_format="%Y-%m-%d", output_format="%Y-%m-%d"),
             window=WeekWindow(),
@@ -306,9 +423,6 @@ class TestRollupMapperComposition:
         ],
     )
     def test_window_serialize_round_trip(self, upstream_factory, window, downstream_key):
-        from airflow.serialization.decoders import decode_partition_mapper
-        from airflow.serialization.encoders import encode_partition_mapper
-
         mapper = RollupMapper(upstream_mapper=upstream_factory(), window=window)
         restored = decode_partition_mapper(encode_partition_mapper(mapper))
         assert isinstance(restored, RollupMapper)
@@ -325,10 +439,6 @@ class TestWindowSerializationGate:
     """
 
     def test_encode_rejects_custom_window_subclass(self):
-        from airflow.partition_mappers.window import Window
-        from airflow.serialization.encoders import encode_window
-        from airflow.serialization.helpers import WindowNotSupported
-
         class CustomWindow(Window):
             def to_upstream(self, decoded_downstream):
                 return ()
@@ -337,9 +447,5 @@ class TestWindowSerializationGate:
             encode_window(CustomWindow())
 
     def test_decode_rejects_non_core_import_path(self):
-        from airflow.serialization.decoders import decode_window
-        from airflow.serialization.enums import Encoding
-        from airflow.serialization.helpers import WindowNotSupported
-
         with pytest.raises(WindowNotSupported, match="os.system"):
             decode_window({Encoding.TYPE: "os.system", Encoding.VAR: {}})

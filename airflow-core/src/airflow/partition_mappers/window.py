@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
@@ -55,6 +56,16 @@ def _shift_months(dt: datetime, months: int) -> datetime:
     return dt.replace(year=dt.year + total // 12, month=total % 12 + 1)
 
 
+class WindowDirection(str, Enum):
+    """Direction of a :class:`Window` fan-out relative to the upstream key."""
+
+    BACKWARD = "backward"
+    """Default; yield the period the upstream key itself represents."""
+
+    FORWARD = "forward"
+    """Yield the trailing period ending at the upstream key (the mirror of BACKWARD)."""
+
+
 class Window(ABC):
     """
     Describes a rollup window: which decoded upstream items make up one decoded downstream period.
@@ -88,16 +99,19 @@ class Window(ABC):
     #: but the window needs a different type. Temporal windows declare ``datetime``.
     expected_decoded_type: ClassVar[type] = str
 
+    def __init__(self, *, direction: WindowDirection = WindowDirection.BACKWARD) -> None:
+        self.direction = direction
+
     @abstractmethod
     def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
         """Yield each decoded upstream item composing *decoded_downstream*."""
 
     def serialize(self) -> dict[str, Any]:
-        return {}
+        return {"direction": self.direction.value}
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Window:
-        return cls()
+        return cls(direction=WindowDirection(data["direction"]))
 
 
 class HourWindow(Window):
@@ -106,6 +120,8 @@ class HourWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
+        if self.direction is WindowDirection.FORWARD:
+            period_start = period_start - timedelta(minutes=59)
         return (period_start + timedelta(minutes=i) for i in range(60))
 
 
@@ -138,11 +154,17 @@ class DayWindow(Window):
         **Mitigation**: use UTC ``input_format`` (e.g. ``%Y-%m-%dT%H%z``) and
         ensure upstream producers emit UTC partition keys so local-clock
         ambiguity never arises.
+
+        The same 24-hour-stride assumption applies to ``DayWindow(direction=WindowDirection.FORWARD)``:
+        the 24 members are enumerated as naive hourly steps ending at the anchor, not as
+        a step back to the "previous calendar day" in local time.
     """
 
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
+        if self.direction is WindowDirection.FORWARD:
+            period_start = period_start - timedelta(hours=23)
         return (period_start + timedelta(hours=i) for i in range(24))
 
 
@@ -152,6 +174,8 @@ class WeekWindow(Window):
     expected_decoded_type: ClassVar[type] = datetime
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
+        if self.direction is WindowDirection.FORWARD:
+            period_start = period_start - timedelta(days=6)
         return (period_start + timedelta(days=i) for i in range(7))
 
 
@@ -169,9 +193,18 @@ class MonthWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
-        next_month = period_start.month % 12 + 1
-        next_year = period_start.year + (1 if period_start.month == 12 else 0)
-        next_start = period_start.replace(year=next_year, month=next_month)
+        if self.direction is WindowDirection.FORWARD:
+            # Forward yields the trailing period ending at the anchor (period_start),
+            # analogous to WeekWindow FORWARD which yields the 7 days ending at the
+            # anchor rather than a calendar week.  The members are the open-closed
+            # interval (prev_month_start, anchor] — every day from the day after the
+            # previous month's 1st up to and including anchor itself.  This does NOT
+            # align to a calendar month: anchor=Mar 1 yields Feb 2…Mar 1 (29 days in
+            # 2024), not the full calendar February.
+            prev = _shift_months(period_start, -1)
+            days = (period_start - prev).days
+            return (prev + timedelta(days=i + 1) for i in range(days))
+        next_start = _shift_months(period_start, 1)
         days = (next_start - period_start).days
         return (period_start + timedelta(days=i) for i in range(days))
 
@@ -183,6 +216,8 @@ class QuarterWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
+        if self.direction is WindowDirection.FORWARD:
+            period_start = _shift_months(period_start, -2)
         return (_shift_months(period_start, i) for i in range(3))
 
 
@@ -193,4 +228,6 @@ class YearWindow(Window):
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
+        if self.direction is WindowDirection.FORWARD:
+            period_start = _shift_months(period_start, -11)
         return (_shift_months(period_start, i) for i in range(12))

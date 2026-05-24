@@ -93,6 +93,7 @@ __all__ = [
     "WeekWindow",
     "WeightRule",
     "Window",
+    "WindowDirection",
     "XComArg",
     "YearWindow",
     "asset",
@@ -172,6 +173,7 @@ if TYPE_CHECKING:
         QuarterWindow,
         WeekWindow,
         Window,
+        WindowDirection,
         YearWindow,
     )
     from airflow.sdk.definitions.retry_policy import (
@@ -282,6 +284,7 @@ __lazy_imports: dict[str, str] = {
     "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
     "Window": ".definitions.partition_mappers.window",
+    "WindowDirection": ".definitions.partition_mappers.window",
     "XComArg": ".definitions.xcom_arg",
     "YearWindow": ".definitions.partition_mappers.window",
     "asset": ".definitions.asset.decorators",

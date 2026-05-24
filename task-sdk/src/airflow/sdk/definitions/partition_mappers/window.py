@@ -14,10 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Keep the following in sync with the core copy in
+# ``airflow-core/src/airflow/partition_mappers/window.py`` —
+# the SDK and core class hierarchies are independent (the SDK cannot import
+# core), so both sides carry the same definitions. Runtime logic lives in the
+# core copy; this file provides the author-facing classes used at Dag-parse time.
+# Synced items: all class names, ``WindowDirection``, ``direction`` kwarg, ``serialize``/``deserialize``.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar
+from enum import Enum
+from typing import Any, ClassVar
+
+
+class WindowDirection(str, Enum):
+    """Direction of a :class:`Window` fan-out relative to the upstream key."""
+
+    BACKWARD = "backward"
+    """Default; yield the period the upstream key itself represents."""
+
+    FORWARD = "forward"
+    """Yield the trailing period ending at the upstream key (the mirror of BACKWARD)."""
 
 
 class Window:
@@ -42,6 +60,11 @@ class Window:
     therefore requires customizing **both** sides consistently so the
     invariant ``upstream_key in window.to_upstream(D) ⇔ D in
     mapper.to_downstream(upstream_key)`` holds.
+
+    :param direction: ``WindowDirection.FORWARD`` fans out the trailing period
+        ending at the upstream key (the mirror of BACKWARD);
+        ``WindowDirection.BACKWARD`` (default) fans out the period the upstream
+        key represents.
     """
 
     #: Decoded type the window iterates in; ``RollupMapper.__init__`` uses this
@@ -49,6 +72,16 @@ class Window:
     #: Default ``str`` matches the identity mapper; temporal windows declare
     #: ``datetime``. Mirrors the same attribute on the core ``Window``.
     expected_decoded_type: ClassVar[type] = str
+
+    def __init__(self, *, direction: WindowDirection = WindowDirection.BACKWARD) -> None:
+        self.direction = direction
+
+    def serialize(self) -> dict[str, Any]:
+        return {"direction": self.direction.value}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Window:
+        return cls(direction=WindowDirection(data["direction"]))
 
 
 class HourWindow(Window):

@@ -1122,17 +1122,19 @@ def test_encode_fan_out_mapper():
                 Encoding.VAR: {
                     "input_format": "%Y-%m-%dT%H:%M:%S",
                     "output_format": "%Y-%m-%d (W%V)",
+                    "timezone": "UTC",
                 },
             },
             "window": {
                 Encoding.TYPE: "airflow.partition_mappers.window.WeekWindow",
-                Encoding.VAR: {},
+                Encoding.VAR: {"direction": "backward"},
             },
             "downstream_mapper": {
                 Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
                 Encoding.VAR: {
                     "input_format": "%Y-%m-%dT%H:%M:%S",
                     "output_format": "%Y-%m-%d",
+                    "timezone": "UTC",
                 },
             },
         },

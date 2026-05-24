@@ -422,14 +422,15 @@ class StartOfYearMapper(_BaseTemporalMapper):
         )
 
 
-# Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
-# the SDK copy in
+# Keep the following in sync with the SDK copy in
 # ``task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal.py`` —
 # the SDK and core class hierarchies are independent (the SDK cannot import
-# core), so both sides carry the same defaults and the lookup is by class
+# core), so both sides carry the same definitions and the lookup is by class
 # name. When adding a new ``Window`` subclass, extend the table on both
 # sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
 # (see ``FanOutMapper._resolve_default_downstream_mapper``).
+# Synced items:
+# - ``FanOutMapper.default_downstream_mapper_by_window_name``
 class FanOutMapper(PartitionMapper):
     """
     Partition mapper that fans one upstream key out into multiple downstream keys.
@@ -449,10 +450,21 @@ class FanOutMapper(PartitionMapper):
     is N→1 (downstream waits until all members arrive), fan-out is 1→N (one
     upstream event creates one downstream Dag run per member).
 
+    For forward fan-out (emit the trailing period ending at the upstream key,
+    instead of the period it represents), pass ``direction=WindowDirection.FORWARD``
+    to the window:
+
     .. code-block:: python
 
-        # Weekly upstream → 7 daily downstream Dag runs
+        from airflow.partition_mappers import WindowDirection
+
+        # Weekly upstream → 7 daily downstream Dag runs (the 7 days the upstream Monday represents)
         FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+
+        # Weekly upstream → the 7 days ending at the upstream Monday (trailing period)
+        FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(), window=WeekWindow(direction=WindowDirection.FORWARD)
+        )
     """
 
     default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
@@ -472,8 +484,7 @@ class FanOutMapper(PartitionMapper):
         the SDK ``Window`` classes (used in Dag-author code) and the core
         ``Window`` classes (used after deserialization) both resolve to the
         same default. Subclasses can extend or override the defaults by
-        setting :attr:`default_downstream_mapper_by_window_name` on the
-        subclass.
+        setting :attr:`default_downstream_mapper_by_window_name` on the subclass.
         """
         mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
         if mapper_cls is None:

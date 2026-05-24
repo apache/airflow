@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
+from airflow.partition_mappers.base import PartitionMapper
 from airflow.partition_mappers.temporal import (
     FanOutMapper,
     StartOfDayMapper,
@@ -33,6 +36,7 @@ from airflow.partition_mappers.window import (
     MonthWindow,
     QuarterWindow,
     WeekWindow,
+    WindowDirection,
     YearWindow,
 )
 
@@ -138,10 +142,6 @@ class TestFanOutMapper:
         silent regression that skips the isoformat layer and falls to bare
         ``str(decoded)``.
         """
-        from unittest.mock import MagicMock
-
-        from airflow.partition_mappers.base import PartitionMapper
-
         # ``spec=PartitionMapper`` ensures the mock has no ``format`` attribute,
         # which is the trigger for the ``str(decoded)`` fallback.
         downstream = MagicMock(spec=PartitionMapper)
@@ -226,3 +226,97 @@ class TestFanOutMapper:
         assert isinstance(restored.window, window_cls)
         assert isinstance(restored.downstream_mapper, expected_downstream_cls)
         assert list(restored.to_downstream(upstream_key)) == list(mapper.to_downstream(upstream_key))
+
+    # --- WindowDirection.FORWARD integration tests ---
+
+    def test_fan_out_with_forward_window(self):
+        """FanOutMapper with WeekWindow(direction=FORWARD) yields the seven days ending at the upstream Monday."""
+        # 2024-03-04 is a Monday; StartOfWeekMapper normalises it to itself.
+        # WeekWindow(FORWARD) yields the trailing 7 days ending at that Monday:
+        # 02-27 (Tue) … 03-04 (Mon).  2024 is a leap year so Feb 29 is included.
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=WindowDirection.FORWARD),
+            downstream_mapper=StartOfDayMapper(),
+        )
+        result = list(mapper.to_downstream("2024-03-04T00:00:00"))
+        assert result == [
+            "2024-02-27",
+            "2024-02-28",
+            "2024-02-29",
+            "2024-03-01",
+            "2024-03-02",
+            "2024-03-03",
+            "2024-03-04",
+        ]
+
+    def test_fan_out_with_forward_window_resolves_default_downstream_mapper(self):
+        """FanOutMapper with WeekWindow(direction=FORWARD) auto-resolves downstream_mapper (no peek-through needed)."""
+        # WeekWindow(direction=FORWARD) is still a WeekWindow — class name lookup works unchanged.
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=WindowDirection.FORWARD),
+        )
+        assert isinstance(mapper.downstream_mapper, StartOfDayMapper)
+
+    def test_fan_out_with_forward_window_serialize_roundtrip(self):
+        """FanOutMapper with WeekWindow(direction=FORWARD) survives serialize → deserialize."""
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=WindowDirection.FORWARD),
+        )
+        restored = FanOutMapper.deserialize(mapper.serialize())
+        assert isinstance(restored, FanOutMapper)
+        assert isinstance(restored.window, WeekWindow)
+        assert restored.window.direction is WindowDirection.FORWARD
+        assert list(restored.to_downstream("2024-03-04T00:00:00")) == list(
+            mapper.to_downstream("2024-03-04T00:00:00")
+        )
+
+    # --- WindowDirection.BACKWARD integration tests ---
+
+    def test_fan_out_with_backward_window(self):
+        """FanOutMapper with WeekWindow(direction=BACKWARD) yields the seven days starting at the upstream Monday."""
+        # 2024-03-04 is a Monday; StartOfWeekMapper normalises it to itself.
+        # WeekWindow(BACKWARD) yields the 7 days starting at that Monday:
+        # 03-04 (Mon) … 03-10 (Sun).  This is the forward period in calendar
+        # time — the week the anchor key *represents* — contrasting with
+        # WeekWindow(FORWARD) which yields the trailing 7 days ending at the anchor.
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=WindowDirection.BACKWARD),
+            downstream_mapper=StartOfDayMapper(),
+        )
+        result = list(mapper.to_downstream("2024-03-04T00:00:00"))
+        assert result == [
+            "2024-03-04",
+            "2024-03-05",
+            "2024-03-06",
+            "2024-03-07",
+            "2024-03-08",
+            "2024-03-09",
+            "2024-03-10",
+        ]
+
+    def test_fan_out_with_backward_window_resolves_default_downstream_mapper(self):
+        """FanOutMapper with WeekWindow(direction=BACKWARD) auto-resolves downstream_mapper."""
+        # WeekWindow(direction=BACKWARD) is still a WeekWindow — class name lookup works unchanged.
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=WindowDirection.BACKWARD),
+        )
+        assert isinstance(mapper.downstream_mapper, StartOfDayMapper)
+
+    def test_fan_out_with_backward_window_serialize_roundtrip(self):
+        """FanOutMapper with WeekWindow(direction=BACKWARD) survives serialize → deserialize."""
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=WindowDirection.BACKWARD),
+        )
+        restored = FanOutMapper.deserialize(mapper.serialize())
+        assert isinstance(restored, FanOutMapper)
+        assert isinstance(restored.window, WeekWindow)
+        assert restored.window.direction is WindowDirection.BACKWARD
+        assert list(restored.to_downstream("2024-03-04T00:00:00")) == list(
+            mapper.to_downstream("2024-03-04T00:00:00")
+        )
