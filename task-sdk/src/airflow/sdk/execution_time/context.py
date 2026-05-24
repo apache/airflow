@@ -321,17 +321,31 @@ _VARIABLE_KEYS_PAGE_SIZE = 1000
 
 def _get_variable_keys(prefix: str | None = None) -> list[str]:
     from airflow.sdk.exceptions import AirflowRuntimeError
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import (
         ErrorResponse,
         GetVariableKeys,
         VariableKeysResult,
     )
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
+        raise AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.GENERIC_ERROR,
+                detail={
+                    "message": (
+                        "Variable.keys() requires a task execution context (SUPERVISOR_COMMS is not available). "
+                        "This typically happens when calling Variable.keys() at the top level of a DAG file "
+                        "or outside of a running task. Variable.keys() can only be used inside a task."
+                    )
+                },
+            )
+        )
 
     all_keys: list[str] = []
     offset = 0
     while True:
-        msg = SUPERVISOR_COMMS.send(
+        msg = task_runner.SUPERVISOR_COMMS.send(
             GetVariableKeys(prefix=prefix, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=offset)
         )
         if isinstance(msg, ErrorResponse):
@@ -358,6 +372,20 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
     from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
+        raise AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.GENERIC_ERROR,
+                detail={
+                    "message": (
+                        "Variable.set() requires a task execution context (SUPERVISOR_COMMS is not available). "
+                        "This typically happens when calling Variable.set() at the top level of a DAG file "
+                        "or outside of a running task. Variable.set() can only be used inside a task."
+                    )
+                },
+            )
+        )
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
@@ -387,20 +415,6 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
             value = json.dumps(value, indent=2)
     except Exception as e:
         log.exception(e)
-
-    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
-        raise AirflowRuntimeError(
-            ErrorResponse(
-                error=ErrorType.GENERIC_ERROR,
-                detail={
-                    "message": (
-                        "Variable.set() requires a task execution context (SUPERVISOR_COMMS is not available). "
-                        "This typically happens when calling Variable.set() at the top level of a DAG file "
-                        "or outside of a running task. Variable.set() can only be used inside a task."
-                    )
-                },
-            )
-        )
 
     task_runner.SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
