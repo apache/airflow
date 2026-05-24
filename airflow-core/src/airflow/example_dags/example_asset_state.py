@@ -51,8 +51,8 @@ with DAG(
 ):
 
     @task(inlets=[ORDERS], outlets=[ORDERS])
-    def load(**context):
-        state = context["asset_state"][ORDERS]
+    def load(asset_state=None):
+        state = asset_state[ORDERS]
 
         # First run: watermark is None — fall back to epoch start.
         watermark = state.get("watermark") or "2026-01-01T00:00:00+00:00"
@@ -88,8 +88,8 @@ with DAG(
 ):
 
     @task(inlets=[ORDERS])
-    def consume(**context):
-        state = context["asset_state"][ORDERS]
+    def consume(asset_state=None):
+        state = asset_state[ORDERS]
         summary = json.loads(state.get("last_run_summary") or "{}")
         print(
             f"Processing {summary.get('rows_loaded', '?')} rows "
