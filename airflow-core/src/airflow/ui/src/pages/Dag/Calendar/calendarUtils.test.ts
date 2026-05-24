@@ -129,6 +129,21 @@ describe("createCalendarScale", () => {
     expect(scale.getColor({ ...EMPTY_COUNTS, success: 1, total: 1 })).toEqual(DEFAULT_TOTAL_COLOR);
   });
 
+  it("returns the default failed color for a failed-only cell in total mode", () => {
+    const scale = createCalendarScale([run("failed", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, total: 1 })).toEqual(DEFAULT_FAILED_COLOR);
+  });
+
+  it("returns a mixed success and failed color for a mixed actual cell in total mode", () => {
+    const scale = createCalendarScale([run("success", 1), run("failed", 1)], "total", "hourly");
+
+    expect(scale.getColor({ ...EMPTY_COUNTS, failed: 1, success: 1, total: 2 })).toEqual({
+      actual: DEFAULT_TOTAL_COLOR,
+      planned: DEFAULT_FAILED_COLOR,
+    });
+  });
+
   it("returns the planned color for a queued-only cell in total mode", () => {
     const scale = createCalendarScale([run("queued", 1)], "total", "hourly");
 

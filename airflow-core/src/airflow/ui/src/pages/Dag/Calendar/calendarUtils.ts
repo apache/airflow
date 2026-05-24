@@ -58,6 +58,49 @@ const getActualRunCount = (counts: RunCounts, viewMode: CalendarColorMode) =>
 
 const getPendingRunCount = (counts: RunCounts) => counts.planned + counts.queued;
 
+const getSuccessfulRunCount = (counts: RunCounts) => counts.running + counts.success;
+
+const getColorForCount = (
+  count: number,
+  colorScheme: typeof TOTAL_COLOR_INTENSITIES,
+  uniqueThresholds: Array<number>,
+) => {
+  if (count === 0) {
+    return colorScheme[0] ?? EMPTY_COLOR;
+  }
+
+  for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
+    const threshold = uniqueThresholds[index];
+
+    if (threshold !== undefined && count >= threshold) {
+      return colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
+    }
+  }
+
+  return colorScheme[1] ?? EMPTY_COLOR;
+};
+
+const getTotalModeActualColor = (
+  counts: RunCounts,
+  colorScheme: typeof TOTAL_COLOR_INTENSITIES,
+  uniqueThresholds: Array<number>,
+) => {
+  const successfulCount = getSuccessfulRunCount(counts);
+
+  if (counts.failed > 0 && successfulCount === 0) {
+    return getColorForCount(counts.failed, FAILURE_COLOR_INTENSITIES, uniqueThresholds);
+  }
+
+  if (counts.failed > 0 && successfulCount > 0) {
+    return {
+      actual: getColorForCount(successfulCount, colorScheme, uniqueThresholds),
+      planned: getColorForCount(counts.failed, FAILURE_COLOR_INTENSITIES, uniqueThresholds),
+    };
+  }
+
+  return getColorForCount(successfulCount, colorScheme, uniqueThresholds);
+};
+
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
   const dailyDataMap = new Map<string, Array<CalendarTimeRangeResponse>>();
 
@@ -244,12 +287,23 @@ export const createCalendarScale = (
     return {
       getColor: (counts: RunCounts) => {
         const actualCount = getActualRunCount(counts, viewMode);
+        const actualColor =
+          viewMode === "total" && counts.failed > 0 && getSuccessfulRunCount(counts) === 0
+            ? (FAILURE_COLOR_INTENSITIES[2] ?? EMPTY_COLOR)
+            : singleColor;
         const hasPending = getPendingRunCount(counts) > 0;
         const hasActual = actualCount > 0;
 
-        if (hasPending && hasActual) {
+        if (viewMode === "total" && counts.failed > 0 && getSuccessfulRunCount(counts) > 0) {
           return {
             actual: singleColor,
+            planned: FAILURE_COLOR_INTENSITIES[2] ?? EMPTY_COLOR,
+          };
+        }
+
+        if (hasPending && hasActual) {
+          return {
+            actual: actualColor,
             planned: PLANNED_COLOR,
           };
         }
@@ -258,7 +312,7 @@ export const createCalendarScale = (
           return PLANNED_COLOR;
         }
 
-        return actualCount === 0 ? EMPTY_COLOR : singleColor;
+        return actualCount === 0 ? EMPTY_COLOR : actualColor;
       },
       legendItems: [
         { color: EMPTY_COLOR, label: "0" },
@@ -295,22 +349,16 @@ export const createCalendarScale = (
     const hasPending = getPendingRunCount(counts) > 0;
     const hasActual = actualCount > 0;
 
+    const actualColor =
+      viewMode === "total"
+        ? getTotalModeActualColor(counts, colorScheme, uniqueThresholds)
+        : getColorForCount(actualCount, colorScheme, uniqueThresholds);
+
+    if (typeof actualColor === "object" && "planned" in actualColor && "actual" in actualColor) {
+      return actualColor;
+    }
+
     if (hasPending && hasActual) {
-      let actualColor = colorScheme[0] ?? EMPTY_COLOR;
-
-      for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
-        const threshold = uniqueThresholds[index];
-
-        if (threshold !== undefined && actualCount >= threshold) {
-          actualColor = colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
-          break;
-        }
-      }
-
-      if (actualCount > 0 && actualColor === colorScheme[0]) {
-        actualColor = colorScheme[1] ?? EMPTY_COLOR;
-      }
-
       return {
         actual: actualColor,
         planned: PLANNED_COLOR,
@@ -321,21 +369,7 @@ export const createCalendarScale = (
       return PLANNED_COLOR;
     }
 
-    const targetCount = actualCount;
-
-    if (targetCount === 0) {
-      return colorScheme[0] ?? EMPTY_COLOR;
-    }
-
-    for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
-      const threshold = uniqueThresholds[index];
-
-      if (threshold !== undefined && targetCount >= threshold) {
-        return colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
-      }
-    }
-
-    return colorScheme[1] ?? EMPTY_COLOR;
+    return actualColor;
   };
 
   const legendItems: Array<LegendItem> = [];
