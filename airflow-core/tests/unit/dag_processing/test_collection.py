@@ -144,16 +144,16 @@ class TestAssetModelOperation:
         self.clean_db()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_sync_assets_preserves_allow_producer_teams_from_other_bundle(self, dag_maker, session):
+    def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
         """When a producer bundle (without access_control) is synced after a consumer bundle
-        (with access_control), the stored allow_producer_teams must not be wiped out."""
+        (with access_control), the stored access control fields must not be wiped out."""
         from airflow.models.asset import DagScheduleAssetReference
         from airflow.sdk import AssetAccessControl
 
         # First sync: consumer bundle sets access_control on the asset.
         consumer_asset = Asset(
             "shared_asset",
-            access_control=AssetAccessControl(producer_teams=["team1", "team2"]),
+            access_control=AssetAccessControl(producer_teams=["team1", "team2"], allow_global=False),
         )
         with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
             EmptyOperator(task_id="mytask")
@@ -170,6 +170,7 @@ class TestAssetModelOperation:
             select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == "consumer_dag")
         )
         assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
 
         # Second sync: producer bundle references the same asset WITHOUT access_control.
         producer_asset = Asset("shared_asset")
@@ -182,9 +183,10 @@ class TestAssetModelOperation:
         asset_op.sync_assets(session=session)
         session.flush()
 
-        # Consumer's allow_producer_teams must still be preserved.
+        # Consumer's access control must still be preserved.
         session.expire(ref)
         assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
 
     @pytest.mark.parametrize(
         ("is_active", "is_paused", "expected_num_triggers"),
