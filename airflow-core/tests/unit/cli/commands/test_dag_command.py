@@ -272,6 +272,36 @@ class TestCliDags:
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
+    def test_next_execution_table_none_schedule(self, tmp_path, stdout_capture, capsys):
+        """--table must not crash when schedule=None yields a None DagRunInfo."""
+        dag_id = "no_schedule_table_test"
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC'), schedule=None)",
+                "task = EmptyOperator(task_id='empty_task', dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
+
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table"])
+        # Must not raise AttributeError when DagRunInfo is None
+        dag_command.dag_next_execution(args)
+
+        captured = capsys.readouterr()
+        assert "No following schedule can be found" in captured.err
+
+        # Rebuild Test DB for other tests
+        clear_db_dags()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
