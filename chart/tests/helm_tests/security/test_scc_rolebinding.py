@@ -130,6 +130,25 @@ class TestSCCActivation:
             "namespace": "airflow",
         }
 
+    def test_worker_role_binding_uses_celery_service_account_name(self):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"serviceAccount": {"name": "custom-worker"}}},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='custom-worker'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "custom-worker",
+            "namespace": "airflow",
+        }
+        assert jmespath.search("subjects[?name=='prod-airflow-worker']", docs[0]) == []
+
     def test_worker_role_binding_should_not_exists(self):
         docs = render_chart(
             name="prod",

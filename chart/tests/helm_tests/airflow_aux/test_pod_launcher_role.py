@@ -148,6 +148,50 @@ class TestPodLauncher:
             "namespace": "airflow",
         }
 
+    def test_worker_role_binding_uses_celery_service_account_name(self):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"serviceAccount": {"name": "custom-worker"}}},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='custom-worker'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "custom-worker",
+            "namespace": "airflow",
+        }
+        assert jmespath.search("subjects[?name=='prod-airflow-worker']", docs[0]) == []
+
+    def test_worker_role_binding_keeps_kubernetes_fallback_service_account_when_celery_differs(self):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True},
+                "allowPodLaunching": True,
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "workers": {"celery": {"serviceAccount": {"name": "custom-worker"}}},
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='custom-worker'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "custom-worker",
+            "namespace": "airflow",
+        }
+        assert jmespath.search("subjects[?name=='prod-airflow-worker'] | [0]", docs[0]) == {
+            "kind": "ServiceAccount",
+            "name": "prod-airflow-worker",
+            "namespace": "airflow",
+        }
+
     def test_worker_role_binding_should_not_exists(self):
         docs = render_chart(
             name="prod",
