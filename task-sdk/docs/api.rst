@@ -264,6 +264,8 @@ Rollup Windows
 
 .. autoapiclass:: airflow.sdk.YearWindow
 
+.. autoclass:: airflow.sdk.WindowDirection
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath

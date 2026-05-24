@@ -85,6 +85,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     QuarterWindow,
     WeekWindow,
     Window,
+    WindowDirection,
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
@@ -189,6 +190,7 @@ __all__ = [
     "WeekWindow",
     "WeightRule",
     "Window",
+    "WindowDirection",
     "XComArg",
     "YearWindow",
     "asset",

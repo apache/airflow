@@ -36,6 +36,7 @@ from airflow.partition_mappers.window import (
     MonthWindow,
     QuarterWindow,
     WeekWindow,
+    WindowDirection,
     YearWindow,
 )
 
@@ -233,3 +234,80 @@ class TestFanOutMapper:
         assert isinstance(restored.window, window_cls)
         assert isinstance(restored.downstream_mapper, expected_downstream_cls)
         assert list(restored.to_downstream(upstream_key)) == list(mapper.to_downstream(upstream_key))
+
+    @pytest.mark.parametrize(
+        ("direction", "expected"),
+        [
+            pytest.param(
+                WindowDirection.FORWARD,
+                [
+                    "2024-03-04",
+                    "2024-03-05",
+                    "2024-03-06",
+                    "2024-03-07",
+                    "2024-03-08",
+                    "2024-03-09",
+                    "2024-03-10",
+                ],
+                id="forward",
+            ),
+            pytest.param(
+                WindowDirection.BACKWARD,
+                [
+                    "2024-02-27",
+                    "2024-02-28",
+                    "2024-02-29",
+                    "2024-03-01",
+                    "2024-03-02",
+                    "2024-03-03",
+                    "2024-03-04",
+                ],
+                id="backward",
+            ),
+        ],
+    )
+    def test_fan_out_with_directional_window(self, direction, expected):
+        """WeekWindow direction selects the period relative to the upstream Monday.
+
+        2024-03-04 is a Monday; StartOfWeekMapper normalises it to itself.
+        FORWARD yields the 7 days starting at that Monday (03-04 Mon … 03-10 Sun);
+        BACKWARD yields the trailing 7 days ending at it (02-27 Tue … 03-04 Mon,
+        including the leap-year Feb 29).
+        """
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=direction),
+            downstream_mapper=StartOfDayMapper(),
+        )
+        result = list(mapper.to_downstream("2024-03-04T00:00:00"))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "direction",
+        [WindowDirection.FORWARD, WindowDirection.BACKWARD],
+    )
+    def test_fan_out_with_directional_window_resolves_default_downstream_mapper(self, direction):
+        """A directional WeekWindow is still a WeekWindow — default downstream lookup works unchanged."""
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=direction),
+        )
+        assert isinstance(mapper.downstream_mapper, StartOfDayMapper)
+
+    @pytest.mark.parametrize(
+        "direction",
+        [WindowDirection.FORWARD, WindowDirection.BACKWARD],
+    )
+    def test_fan_out_with_directional_window_serialize_roundtrip(self, direction):
+        """A directional WeekWindow survives serialize → deserialize (direction and output preserved)."""
+        mapper = FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            window=WeekWindow(direction=direction),
+        )
+        restored = FanOutMapper.deserialize(mapper.serialize())
+        assert isinstance(restored, FanOutMapper)
+        assert isinstance(restored.window, WeekWindow)
+        assert restored.window.direction is direction
+        assert list(restored.to_downstream("2024-03-04T00:00:00")) == list(
+            mapper.to_downstream("2024-03-04T00:00:00")
+        )
