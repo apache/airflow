@@ -1,41 +1,58 @@
+```python
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """
 Example DAG: ERP Data Migration Pipeline
 
-This example demonstrates a structured ETL workflow including:
-extract, validate, transform, load, and reconcile steps.
+This DAG demonstrates a simplified ERP data migration workflow
+including extraction, validation, transformation, loading,
+and reconciliation steps.
 
 It is a simplified illustration of how Apache Airflow can be used
 to orchestrate enterprise ERP data migration processes.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 
-def extract_data(**kwargs):
-    """Simulates extraction from a legacy ERP system."""
-    print("Extracting data from legacy ERP system")
+def extract_data():
+    print("Extracting ERP data from legacy systems...")
 
 
-def validate_data(**kwargs):
-    """Simulates validation checks for completeness and accuracy."""
-    print("Validating data (completeness, accuracy checks)")
+def validate_data():
+    print("Validating extracted ERP data...")
 
 
-def transform_data(**kwargs):
-    """Simulates transforming source data into the target ERP format."""
-    print("Transforming data to target ERP format")
+def transform_data():
+    print("Transforming ERP data for S/4HANA compatibility...")
 
 
-def load_data(**kwargs):
-    """Simulates loading transformed data into the target system."""
-    print("Loading data into target system")
+def load_data():
+    print("Loading transformed data into target ERP system...")
 
 
-def reconcile_data(**kwargs):
-    """Simulates source-to-target reconciliation after loading."""
-    print("Reconciling source and target data")
+def reconcile_data():
+    print("Performing reconciliation and validation checks...")
 
 
 with DAG(
@@ -45,7 +62,6 @@ with DAG(
     catchup=False,
     tags=["example", "erp", "migration"],
 ) as dag:
-
     extract = PythonOperator(
         task_id="extract_data",
         python_callable=extract_data,
@@ -72,3 +88,4 @@ with DAG(
     )
 
     extract >> validate >> transform >> load >> reconcile
+```
