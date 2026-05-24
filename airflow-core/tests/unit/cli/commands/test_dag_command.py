@@ -272,6 +272,64 @@ class TestCliDags:
         clear_db_dags()
         parse_and_sync_to_db(os.devnull, include_examples=True)
 
+    def test_next_execution_table_with_no_schedule(self, tmp_path, capsys):
+        dag_id = "future_schedule_none_table"
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=5), schedule=None, catchup=True)",
+                "task = EmptyOperator(task_id='empty_task',dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
+
+        args = self.parser.parse_args(["dags", "next-execution", dag_id, "--table"])
+        dag_command.dag_next_execution(args)
+        captured = capsys.readouterr()
+
+        assert captured.out == ""
+        assert "[WARN] No following schedule can be found." in captured.err
+
+        clear_db_dags()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
+    def test_next_execution_table_with_once_and_multiple_executions(self, tmp_path, capsys):
+        dag_id = "past_schedule_once_table"
+        file_content = os.linesep.join(
+            [
+                "from airflow import DAG",
+                "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from datetime import timedelta; from pendulum import today",
+                f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + timedelta(days=-5), schedule='@once', catchup=True)",
+                "task = EmptyOperator(task_id='empty_task',dag=dag)",
+            ]
+        )
+        dag_file = tmp_path / f"{dag_id}.py"
+        dag_file.write_text(file_content)
+
+        with time_machine.travel(DEFAULT_DATE):
+            clear_db_dags()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
+
+        args = self.parser.parse_args(
+            ["dags", "next-execution", dag_id, "--table", "--num-executions", "2"]
+        )
+        dag_command.dag_next_execution(args)
+        captured = capsys.readouterr()
+
+        assert dec_27.isoformat() in captured.out
+        assert "[WARN] No following schedule can be found." in captured.err
+
+        clear_db_dags()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self, stdout_capture):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
