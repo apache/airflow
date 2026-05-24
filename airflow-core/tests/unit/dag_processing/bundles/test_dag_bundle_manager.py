@@ -28,11 +28,12 @@ from sqlalchemy import func, select
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
+from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dag_bundles
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
 
 
 @pytest.mark.parametrize(
@@ -147,8 +148,10 @@ def test_get_bundle():
 
 @pytest.fixture
 def clear_db():
+    clear_db_dags()
     clear_db_dag_bundles()
     yield
+    clear_db_dags()
     clear_db_dag_bundles()
 
 
@@ -467,3 +470,29 @@ def test_multiple_bundles_one_fails(clear_db, session):
 
 def test_get_all_bundle_names():
     assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_marks_dags_stale_on_bundle_removal(clear_db, session):
+    """DAGs belonging to a removed bundle must be marked is_stale=True."""
+    # Set up: sync my-test-bundle into DB
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    # Add a DAG belonging to my-test-bundle (is_stale defaults to True; set it False to simulate active DAG)
+    dag = DagModel(dag_id="dag_in_removed_bundle", bundle_name="my-test-bundle")
+    dag.is_stale = False
+    session.add(dag)
+    session.commit()
+
+    # Remove my-test-bundle from config (only dags-folder remains)
+    manager = DagBundlesManager()
+    manager.sync_bundles_to_db()
+
+    session.expire_all()
+    dag = session.get(DagModel, "dag_in_removed_bundle")
+    assert dag.is_stale is True
