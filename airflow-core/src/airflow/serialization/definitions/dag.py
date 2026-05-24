@@ -603,7 +603,23 @@ class SerializedDAG:
                 )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-        copied_params = self.params.deep_merge(conf)
+
+        # When triggering against a specific bundle version, validate conf against that
+        # version's param schema (not the live dag's), so callers get the right errors.
+        if bundle_version is not None and not self.disable_bundle_versioning:
+            if dag_version is None:
+                dag_version = DagVersion.get_latest_version(
+                    self.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
+                )
+                if not dag_version:
+                    raise DagVersionNotFound(
+                        f"DAG with dag_id: '{self.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                    )
+            params_dag = dag_version.serialized_dag.dag
+        else:
+            params_dag = self
+
+        copied_params = params_dag.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
