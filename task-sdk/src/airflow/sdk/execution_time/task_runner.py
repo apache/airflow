@@ -420,9 +420,9 @@ class RuntimeTaskInstance(TaskInstance):
                     include_prior_dates=include_prior_dates,
                 )
 
- if values is None:
- xcoms.append(default)
- else:
+                if values is None:
+                    xcoms.append(default)
+                else:
                     xcoms.extend(values)
             # For single task pulling from unmapped task, return single value
             if single_task_requested and len(xcoms) == 1:
