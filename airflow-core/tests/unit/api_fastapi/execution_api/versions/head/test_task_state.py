@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -183,6 +184,16 @@ class TestPutTaskState:
 
         response = client.put(_api_url(ti.id, "job_id"), json={"value": None})
 
+        assert response.status_code == 422
+
+    def test_put_nan_returns_422(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+        # send NaN as raw JSON (json module rejects it but try sending with a allow_nan=True to bypass validation)
+        response = client.put(
+            _api_url(ti.id, "job_id"),
+            content=json.dumps({"value": float("nan")}, allow_nan=True).encode(),
+            headers={"Content-Type": "application/json"},
+        )
         assert response.status_code == 422
 
     def test_put_missing_ti_returns_404(self, client: TestClient):

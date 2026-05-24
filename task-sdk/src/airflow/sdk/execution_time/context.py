@@ -509,6 +509,7 @@ class TaskStateAccessor:
             # custom backend using the reference
             backend = _get_worker_state_backend()
             if backend is not None:
+                # serialize_task_state_to_ref always returns str by contract; stored contains the ref.
                 if TYPE_CHECKING:
                     assert isinstance(stored, str)
                 return backend.deserialize_task_state_from_ref(stored)
@@ -641,9 +642,10 @@ class AssetStateAccessor:
             stored = resp.value
             backend = _get_worker_state_backend()
             if backend is not None:
-                # serialize_asset_state_to_ref always returns str by contract; stored is the ref.
-                # stored is always str here: serialize_asset_state_to_ref always returns str
-                return backend.deserialize_asset_state_from_ref(stored)  # type: ignore[arg-type]
+                # serialize_asset_state_to_ref always returns str by contract; stored contains the ref.
+                if TYPE_CHECKING:
+                    assert isinstance(stored, str)
+                return backend.deserialize_asset_state_from_ref(stored)
             return stored
         return None
 

@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import math
+
 from pydantic import JsonValue, field_validator
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
@@ -35,7 +37,9 @@ class AssetStatePutBody(StrictBaseModel):
 
     @field_validator("value")
     @classmethod
-    def value_not_none(cls, v: JsonValue) -> JsonValue:
+    def value_is_json_representable(cls, v: JsonValue) -> JsonValue:
         if v is None:
             raise ValueError("value cannot be null")
+        if isinstance(v, float) and not math.isfinite(v):
+            raise ValueError("value must be a finite number; NaN and Inf are not JSON representable")
         return v
