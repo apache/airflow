@@ -105,6 +105,7 @@ dependencies = [
 ]
 "pdf" = ["pypdf>=4.0.0"]
 "docx" = ["python-docx>=1.0.0"]
+"strands" = ["strands-agents[gemini]>=1.0.0"]
 
 [dependency-groups]
 dev = [

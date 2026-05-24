@@ -102,6 +102,21 @@ class ToolSpec:
 
 
 @dataclass
+class SkillSpec:
+    """
+    Framework-neutral skill descriptor (Agent Skills spec).
+
+    Provide *path* for filesystem or HTTPS skill directories, or *name*,
+    *description*, and *instructions* for inline programmatic skills.
+    """
+
+    path: str | None = None
+    name: str | None = None
+    description: str | None = None
+    instructions: str | None = None
+
+
+@dataclass
 class DurableContext:
     """Framework-neutral identity of the running task, used to locate the durable cache file."""
 
@@ -125,6 +140,12 @@ class AgentRunRequest:
     :param output_type: Expected structured output type (default: ``str``).
     :param instructions: System-level instructions for the agent.
     :param toolsets: List of :class:`BaseToolset` instances the agent may call.
+    :param skills: Skill sources for progressive-disclosure instructions. Each item
+        is a path/URL string or a :class:`SkillSpec`. Ignored unless the hook sets
+        ``supports_skills=True``.
+    :param skills_params: Extra keyword arguments forwarded to the backend skills
+        plugin constructor (for example ``strict``, ``max_resource_files``, ``state_key``).
+        Ignored unless the hook sets ``supports_skills=True``.
     :param usage_limits: Backend-specific usage limits; ignored if the hook does not support them.
     :param message_history: Prior conversation state from a previous :class:`AgentRunResult`.
     :param enable_tool_logging: When ``True`` (default), wraps each tool callable with a logging shim.
@@ -137,6 +158,8 @@ class AgentRunRequest:
     output_type: type[Any] = str
     instructions: str = ""
     toolsets: list[Any] | None = None
+    skills: list[str | SkillSpec] | None = None
+    skills_params: dict[str, Any] = field(default_factory=dict)
     usage_limits: Any = None
     message_history: Any = None
     enable_tool_logging: bool = True
@@ -163,7 +186,8 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     Abstract hook for multi-turn LLM agents.
 
     :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` resolves the concrete hook
-    from the Airflow connection ``conn_type`` (for example ``pydanticai`` or ``pydanticai-bedrock``).
+    from the Airflow connection ``conn_type`` (for example ``pydanticai``, ``pydanticai-bedrock``,
+    or ``strands-gemini``).
 
     :param llm_conn_id: Optional connection ID override (subclasses may apply a default).
     :param model_id: Optional model override; not all backends use this parameter.
@@ -171,8 +195,16 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     Subclasses implement :meth:`get_model`, :meth:`create_agent`, :meth:`run_agent`, and
     :meth:`_tool_spec_to_native`.
 
-    Shared helpers :meth:`_init_durable`, :meth:`_resolve_tools`, :meth:`_logged_callable`, and
-    :meth:`_cached_callable` are provided for all hooks.
+    Capability flags tell :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
+    which options are valid for the resolved hook:
+
+    * ``supports_toolsets`` — :attr:`AgentRunRequest.toolsets` / ``BaseToolset``
+    * ``supports_skills`` — :attr:`AgentRunRequest.skills` / :class:`SkillSpec`
+    * ``supports_durable`` — :attr:`AgentRunRequest.durable_context`
+    * ``supports_usage_limits`` — :attr:`AgentRunRequest.usage_limits`
+
+    Shared helpers :meth:`_init_durable`, :meth:`_resolve_tools`, :meth:`_resolve_skill_sources`,
+    :meth:`_logged_callable`, and :meth:`_cached_callable` are provided for all hooks.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -180,6 +212,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     supports_toolsets: ClassVar[bool] = False
     supports_durable: ClassVar[bool] = False
     supports_usage_limits: ClassVar[bool] = False
+    supports_skills: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -203,7 +236,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         if not isinstance(hook, BaseAIHook):
             raise TypeError(
                 f"Connection {conn_id!r} resolved to {type(hook).__name__}, which is not a BaseAIHook. "
-                "Use a connection type registered for agent frameworks (e.g. pydanticai, pydanticai-bedrock)."
+                "Use a connection type registered for agent frameworks (e.g. pydanticai, strands-gemini)."
             )
         return hook
 
@@ -221,8 +254,10 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         Build (but do not run) the agent described by *request*.
 
         Responsible for resolving :attr:`AgentRunRequest.toolsets` via
-        :meth:`_resolve_tools` and constructing the framework-native agent object
-        with the model, tools, instructions, and output type from *request*.
+        :meth:`_resolve_tools` and :attr:`AgentRunRequest.skills` via
+        :meth:`_resolve_skill_sources` (when ``supports_skills=True``), then constructing
+        the framework-native agent object with the model, tools, instructions, and output
+        type from *request*.
 
         When :attr:`AgentRunRequest.durable_context` is set, implementations
         should call :meth:`_init_durable` and bind the returned storage/counter
@@ -285,6 +320,49 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                 f"durable execution requires a hook that supports durable caching; "
                 f"got {hook_name} for connection {conn_id!r}."
             )
+        if request.skills and not self.supports_skills:
+            raise ValueError(
+                f"skills are not supported for connection {conn_id!r} (conn_type resolves to {hook_name}). "
+            )
+        if request.skills_params and not self.supports_skills:
+            raise ValueError(
+                f"skills_params are not supported for connection {conn_id!r} "
+                f"(conn_type resolves to {hook_name})."
+            )
+
+    def _skill_spec_to_native(self, skill: str | SkillSpec) -> Any:
+        """
+        Convert a skill source to a backend-native skill object or path string.
+
+        The default implementation handles path/URL strings and :class:`SkillSpec` items
+        with *path* set. Hooks that support inline programmatic skills (name, description,
+        instructions) should override this method.
+
+        :param skill: Path/URL string, :class:`SkillSpec`, or a native skill object.
+        """
+        if isinstance(skill, str):
+            return skill
+        if isinstance(skill, SkillSpec):
+            if skill.path:
+                return skill.path
+            raise ValueError(
+                "SkillSpec must set 'path', or the hook must override _skill_spec_to_native "
+                "to support inline name/description/instructions skills."
+            )
+        return skill
+
+    def _resolve_skill_sources(self, request: AgentRunRequest) -> list[Any]:
+        """
+        Resolve skill sources from :attr:`AgentRunRequest.skills`.
+
+        Each item is converted via :meth:`_skill_spec_to_native`. Returns an empty
+        list when no skills are configured on the request.
+
+        :param request: The agent run request.
+        """
+        if not request.skills:
+            return []
+        return [self._skill_spec_to_native(skill) for skill in request.skills]
 
     def _init_durable(self, ctx: DurableContext) -> tuple[Any, Any]:
         """

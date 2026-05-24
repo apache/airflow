@@ -30,6 +30,7 @@ from airflow.providers.common.ai.hooks.base_ai import (
     BaseToolset,
     DurableContext,
     DurableStats,
+    SkillSpec,
     ToolSpec,
 )
 from airflow.providers.common.compat.sdk import BaseHook
@@ -172,6 +173,8 @@ class TestAgentRunRequest:
         assert req.output_type is str
         assert req.instructions == ""
         assert req.toolsets is None
+        assert req.skills is None
+        assert req.skills_params == {}
         assert req.usage_limits is None
         assert req.message_history is None
         assert req.enable_tool_logging is True
@@ -185,6 +188,8 @@ class TestAgentRunRequest:
             output_type=int,
             instructions="sys",
             toolsets=["ts"],
+            skills=["/skills/"],
+            skills_params={"strict": True},
             usage_limits="limits",
             message_history=["h"],
             enable_tool_logging=False,
@@ -193,6 +198,8 @@ class TestAgentRunRequest:
         )
         assert req.output_type is int
         assert req.instructions == "sys"
+        assert req.skills == ["/skills/"]
+        assert req.skills_params == {"strict": True}
         assert req.durable_context is ctx
         assert req.agent_params == {"retries": 3}
 
@@ -362,6 +369,98 @@ class TestBaseAIHookResolveTools:
         )
 
         assert result == ["converted:greet", native_tool]
+
+
+class TestBaseAIHookSkills:
+    def test_default_capability_flags(self):
+        assert BaseAIHook.supports_toolsets is False
+        assert BaseAIHook.supports_skills is False
+        assert BaseAIHook.supports_durable is False
+        assert BaseAIHook.supports_usage_limits is False
+
+    def test_skill_spec_to_native_path_string(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+        assert hook._skill_spec_to_native("/skills/pdf") == "/skills/pdf"
+        assert hook._skill_spec_to_native(SkillSpec(path="/skills/")) == "/skills/"
+
+    def test_skill_spec_to_native_inline_raises_by_default(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+        with pytest.raises(ValueError, match="SkillSpec must set 'path'"):
+            hook._skill_spec_to_native(SkillSpec(name="only-name"))
+
+    def test_resolve_skill_sources_from_request(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+        request = AgentRunRequest(prompt="q", skills=["/a/", SkillSpec(path="/b/")])
+        assert hook._resolve_skill_sources(request) == ["/a/", "/b/"]
+
+    def test_resolve_skill_sources_empty_when_not_set(self):
+        class ConcreteHook(BaseAIHook):
+            conn_type = "test"
+            hook_name = "Test"
+
+            def get_model(self):
+                return None
+
+            def create_agent(self, request):
+                return None
+
+            def run_agent(self, agent, request):
+                return AgentRunResult(output="")
+
+            def _tool_spec_to_native(self, spec):
+                return spec
+
+        hook = ConcreteHook.__new__(ConcreteHook)
+        request = AgentRunRequest(prompt="q")
+        assert hook._resolve_skill_sources(request) == []
 
 
 class TestBaseAIHookLoggedCallable:

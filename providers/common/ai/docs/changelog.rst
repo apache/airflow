@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+Next release
+............
+
 .. For the next release: direct callers of :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.create_agent`
    and :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.run_agent` must use
    :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunRequest` instead of keyword arguments.

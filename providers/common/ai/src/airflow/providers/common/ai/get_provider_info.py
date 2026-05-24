@@ -65,6 +65,11 @@ def get_provider_info():
                 ],
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "Strands Agents",
+                "external-doc-url": "https://strandsagents.com/",
+                "tags": ["ai"],
+            },
         ],
         "hooks": [
             {
@@ -83,6 +88,10 @@ def get_provider_info():
             {
                 "integration-name": "LlamaIndex",
                 "python-modules": ["airflow.providers.common.ai.hooks.llamaindex"],
+            },
+            {
+                "integration-name": "Strands Agents",
+                "python-modules": ["airflow.providers.common.ai.hooks.strands_ai"],
             },
         ],
         "plugins": [
@@ -327,6 +336,30 @@ def get_provider_info():
                         "label": "LLM Model",
                         "description": "Default LlamaIndex LLM model name (e.g. gpt-4o). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
                         "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.strands_ai.StrandsGeminiHook",
+                "hook-name": "Strands (Google Gemini)",
+                "connection-type": "strands-gemini",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host"],
+                    "relabeling": {"password": "API Key"},
+                    "placeholders": {
+                        "extra": '{"model": "gemini-2.5-flash", "params": {"temperature": 0.7}}'
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Gemini model identifier (e.g. gemini-2.5-flash)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "params": {
+                        "label": "Model Parameters",
+                        "description": "Optional Gemini generation params (temperature, max_output_tokens, top_p, top_k).",
+                        "schema": {"type": ["object", "null"]},
                     },
                 },
             },

@@ -32,9 +32,11 @@ tool-call loop where the LLM decides which tools to call and when to stop.
 
 .. seealso::
     :ref:`Pydantic AI connection <howto/connection:pydanticai>`
+    :ref:`Strands Agents connection <howto/connection:strands-gemini>`
 
 The agent backend is selected by the Airflow connection ``conn_type`` (for example
-``pydanticai``, ``pydanticai-bedrock``, or ``pydanticai-azure``). You do not choose a different operator class.
+``pydanticai``, ``pydanticai-bedrock``, ``pydanticai-azure``, or ``strands-gemini``).
+You do not choose a different operator class.
 
 
 SQL Agent
@@ -76,6 +78,24 @@ methods you explicitly list are exposed — there is no auto-discovery.
     :language: python
     :start-after: [START howto_operator_agent_hook]
     :end-before: [END howto_operator_agent_hook]
+
+
+Strands Skills
+--------------
+
+When using a Strands connection (for example ``strands-gemini``), pass skill directories
+so the agent loads specialized instructions on demand via the Strands ``AgentSkills`` plugin:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands.py
+    :language: python
+    :start-after: [START howto_operator_strands_skills]
+    :end-before: [END howto_operator_strands_skills]
+
+Configure the ``AgentSkills`` plugin via operator ``skills_params``. When a skill includes
+resource files, provide tools (for example ``file_read`` / ``shell`` from ``strands-agents-tools``)
+so the agent can read scripts and references.
+
+Example DAGs: ``example_strands.py`` in the provider's ``example_dags`` package.
 
 
 TaskFlow Decorator

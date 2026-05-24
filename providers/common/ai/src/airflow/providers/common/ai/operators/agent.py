@@ -98,6 +98,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         ``BaseModel`` subclass for structured output.
     :param toolsets: List of :class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset`
         instances the agent can use.
+    :param skills: Skill sources for Strands progressive-disclosure instructions.
+        Each item is a filesystem/HTTPS path (``str``) or a
+        :class:`~airflow.providers.common.ai.hooks.base_ai.SkillSpec`.
+        Requires a hook with ``supports_skills=True`` (e.g. ``strands-gemini``).
+    :param skills_params: Extra keyword arguments forwarded to the backend skills
+        plugin (for example ``strict``, ``max_resource_files``, ``state_key`` for
+        Strands ``AgentSkills``). Requires a hook with ``supports_skills=True``.
     :param enable_tool_logging: When ``True`` (default), wraps each tool callable with a
         logging shim that logs calls with timing at INFO level and arguments at DEBUG level.
         Set to ``False`` to disable.
@@ -139,6 +146,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "model_id",
         "system_prompt",
         "agent_params",
+        "skills",
+        "skills_params",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -152,6 +161,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         system_prompt: str = "",
         output_type: type = str,
         toolsets: list[Any] | None = None,
+        skills: list[Any] | None = None,
+        skills_params: dict[str, Any] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | None = None,
@@ -171,6 +182,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.toolsets = toolsets
+        self.skills = skills
+        self.skills_params = skills_params or {}
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
@@ -214,6 +227,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             output_type=self.output_type,
             instructions=self.system_prompt,
             toolsets=self.toolsets,
+            skills=self.skills,
+            skills_params=dict(self.skills_params),
             usage_limits=self.usage_limits,
             message_history=message_history,
             enable_tool_logging=self.enable_tool_logging,

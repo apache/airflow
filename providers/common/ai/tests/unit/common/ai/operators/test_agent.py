@@ -45,6 +45,7 @@ def _make_mock_hook(output, *, message_history=None):
     mock_hook.supports_toolsets = True
     mock_hook.supports_durable = True
     mock_hook.supports_usage_limits = True
+    mock_hook.supports_skills = True
     mock_agent = MagicMock()
     mock_hook.create_agent.return_value = mock_agent
     mock_hook.run_agent.return_value = _make_agent_run_result(output, message_history=message_history)
@@ -59,6 +60,7 @@ class TestAgentOperatorHookCapabilities:
         mock_hook.supports_toolsets = False
         mock_hook.supports_durable = False
         mock_hook.supports_usage_limits = False
+        mock_hook.supports_skills = False
 
         def create_agent(request):
             BaseAIHook.validate_run_request(mock_hook, request)
@@ -74,6 +76,56 @@ class TestAgentOperatorHookCapabilities:
             toolsets=[MagicMock()],
         )
         with pytest.raises(ValueError, match="toolsets are not supported"):
+            op.execute(context=MagicMock())
+
+    @patch("airflow.providers.common.ai.operators.agent.BaseAIHook", autospec=True)
+    def test_execute_rejects_skills_when_hook_does_not_support_them(self, mock_hook_cls):
+        mock_hook = MagicMock(spec=BaseAIHook)
+        mock_hook.llm_conn_id = "strands_conn"
+        mock_hook.supports_toolsets = True
+        mock_hook.supports_durable = False
+        mock_hook.supports_usage_limits = False
+        mock_hook.supports_skills = False
+
+        def create_agent(request):
+            BaseAIHook.validate_run_request(mock_hook, request)
+            return MagicMock()
+
+        mock_hook.create_agent.side_effect = create_agent
+        mock_hook_cls.get_agent_hook.return_value = mock_hook
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="strands_conn",
+            skills=["./skills/"],
+        )
+        with pytest.raises(ValueError, match="skills are not supported"):
+            op.execute(context=MagicMock())
+
+    @patch("airflow.providers.common.ai.operators.agent.BaseAIHook", autospec=True)
+    def test_execute_rejects_skills_params_when_hook_does_not_support_them(self, mock_hook_cls):
+        mock_hook = MagicMock(spec=BaseAIHook)
+        mock_hook.llm_conn_id = "strands_conn"
+        mock_hook.supports_toolsets = True
+        mock_hook.supports_durable = False
+        mock_hook.supports_usage_limits = False
+        mock_hook.supports_skills = False
+
+        def create_agent(request):
+            BaseAIHook.validate_run_request(mock_hook, request)
+            return MagicMock()
+
+        mock_hook.create_agent.side_effect = create_agent
+        mock_hook_cls.get_agent_hook.return_value = mock_hook
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="strands_conn",
+            skills_params={"strict": True},
+        )
+        with pytest.raises(ValueError, match="skills_params are not supported"):
             op.execute(context=MagicMock())
 
 
@@ -104,7 +156,15 @@ class TestAgentOperatorValidation:
 
 class TestAgentOperatorTemplateFields:
     def test_template_fields(self):
-        expected = {"prompt", "llm_conn_id", "model_id", "system_prompt", "agent_params"}
+        expected = {
+            "prompt",
+            "llm_conn_id",
+            "model_id",
+            "system_prompt",
+            "agent_params",
+            "skills",
+            "skills_params",
+        }
         assert set(AgentOperator.template_fields) == expected
 
 
