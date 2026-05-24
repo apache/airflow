@@ -32,7 +32,7 @@ import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
@@ -85,6 +85,8 @@ export const Dag = () => {
       },
     },
   );
+
+  useDocumentTitle(dag?.dag_display_name ?? dagId);
 
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
