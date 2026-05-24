@@ -188,7 +188,8 @@ repos:
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
-          ^scripts/ci/license-templates/
+          ^scripts/ci/license-templates/|
+          ^\.github/skills/setup-steward/
       - id: insert-license
         name: Add license for all other files
         args:
