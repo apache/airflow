@@ -313,6 +313,11 @@ dev/registry/providers.json
 # detect drift.
 /.apache-steward.local.lock
 
+# Per-machine project-scope Claude Code settings (sandbox-allowlist
+# absolute paths written by sandbox-add-project-root.sh; per
+# https://github.com/apache/airflow-steward/issues/197).
+/.claude/settings.local.json
+
 # Symlinks created by /setup-steward into the gitignored snapshot.
 /.claude/skills/security-*
 /.claude/skills/pr-management-*
