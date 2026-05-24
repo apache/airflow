@@ -62,7 +62,7 @@ claims, and scope semantics.
         DFP -. in-process<br/>JWT bypassed .-> EXECAPI
         TRG -. in-process<br/>JWT bypassed .-> EXECAPI
 
-        classDef internal fill:#eef,stroke:#446
+        classDef internal fill:#bbdefb,stroke:#1565c0,stroke-width:2px,color:#000
         class WORKER,DFP,TRG internal
 
 
@@ -112,8 +112,8 @@ Airflow supports two mutually exclusive signing modes:
             A3 -->|verify only| A4
         end
 
-        classDef secret fill:#fee,stroke:#a33
-        classDef pub fill:#efe,stroke:#3a3
+        classDef secret fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+        classDef pub fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
         class S2 secret
         class A2 secret
         class A3 pub
@@ -388,8 +388,8 @@ Route-level enforcement is handled by ``require_auth``:
         MATCH -->|no| F1
         MATCH -->|yes| OK
 
-        classDef fail fill:#fee,stroke:#a33
-        classDef pass fill:#efe,stroke:#3a3
+        classDef fail fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+        classDef pass fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
         class F1 fail
         class OK,RET pass
 

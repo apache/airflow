@@ -369,9 +369,9 @@ metadata DB, so any code they execute is implicitly trusted with the metadata da
         DFP -. in-process<br/>JWT bypassed .-> APISVR
         TRG -. in-process<br/>JWT bypassed .-> APISVR
 
-        classDef untrusted fill:#fee,stroke:#a33
-        classDef trusted fill:#efe,stroke:#3a3
-        classDef data fill:#eef,stroke:#446
+        classDef untrusted fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+        classDef trusted fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+        classDef data fill:#fff9c4,stroke:#f57f17,stroke-width:2px,color:#000
         class UI,CLI,EXT,WRK untrusted
         class APISVR,SCH,DFP,TRG trusted
         class DB data
@@ -555,58 +555,108 @@ model — Airflow does not enforce these natively.
    the same Unix user. Environment variables can also be scoped to individual processes or
    containers, making it easier to restrict which components have access to which secrets.
 
-   The following diagram summarizes which components need which classes of sensitive value in a
-   well-hardened deployment. Workers should not see DB credentials or the JWT signing key at all;
-   the API Server is the only component that needs *all* of them.
+   The diagram and table below summarize which components need which classes of sensitive value
+   in a well-hardened deployment. Workers should not see DB credentials or the JWT signing key
+   at all; the API Server is the only component that needs *all* of the privileged values.
+   Components are arranged from least-privileged (Worker, green) to most-privileged
+   (API Server, blue) — the growing column visually conveys "more privilege ⇒ more secrets":
 
    .. mermaid::
 
        flowchart LR
-           subgraph secrets["Sensitive values"]
-               DBC[DB connection<br/>SQL_ALCHEMY_CONN]
-               JWT[JWT signing key<br/>jwt_secret /<br/>jwt_private_key_path]
-               FERN[Fernet key]
-               SB_CFG[Secrets backend<br/>credentials<br/>non-worker]
-               SB_WRK[Secrets backend<br/>credentials<br/>worker]
-               REMLOG[Remote log<br/>handler kwargs]
+           subgraph WRK["Worker (least privileged)"]
+               direction TB
+               W1[Fernet key]
+               W2[Worker secrets backend credentials]
+               W3[Remote log handler kwargs]
            end
 
-           subgraph components["Components"]
-               APISVR[API Server]
-               SCH[Scheduler]
-               DFP[Dag File Processor]
-               TRG[Triggerer]
-               WRK[Worker]
+           subgraph TRG["Triggerer"]
+               direction TB
+               T1[DB connection]
+               T2[Fernet key]
+               T3[Non-worker secrets backend credentials]
+               T4[Remote log handler kwargs]
            end
 
-           DBC --> APISVR
-           DBC --> SCH
-           DBC --> DFP
-           DBC --> TRG
+           subgraph DFP["Dag File Processor"]
+               direction TB
+               D1[DB connection]
+               D2[Fernet key]
+               D3[Non-worker secrets backend credentials]
+           end
 
-           JWT --> APISVR
-           JWT --> SCH
+           subgraph SCH["Scheduler"]
+               direction TB
+               S1[DB connection]
+               S2[JWT signing key]
+               S3[Fernet key]
+               S4[Non-worker secrets backend credentials]
+               S5[Remote log handler kwargs]
+           end
 
-           FERN --> APISVR
-           FERN --> SCH
-           FERN --> DFP
-           FERN --> TRG
-           FERN --> WRK
+           subgraph API["API Server (most privileged)"]
+               direction TB
+               A1[DB connection]
+               A2[JWT signing key]
+               A3[Fernet key]
+           end
 
-           SB_CFG --> SCH
-           SB_CFG --> DFP
-           SB_CFG --> TRG
+           classDef wrk fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+           classDef ctrl fill:#bbdefb,stroke:#1565c0,stroke-width:2px,color:#000
+           class WRK wrk
+           class API,SCH,DFP,TRG ctrl
 
-           SB_WRK --> WRK
+   Read row-by-row to check which components need a given secret; read column-by-column to
+   check what one component is allowed to see:
 
-           REMLOG --> SCH
-           REMLOG --> TRG
-           REMLOG --> WRK
+   .. list-table::
+      :header-rows: 1
+      :widths: 32 14 14 13 14 13
+      :align: left
 
-           classDef worker fill:#efe,stroke:#3a3
-           classDef control fill:#eef,stroke:#446
-           class WRK worker
-           class APISVR,SCH,DFP,TRG control
+      * - Sensitive value
+        - API Server
+        - Scheduler
+        - Dag File Processor
+        - Triggerer
+        - Worker
+      * - DB connection
+        - ✓
+        - ✓
+        - ✓
+        - ✓
+        - —
+      * - JWT signing key
+        - ✓
+        - ✓
+        - —
+        - —
+        - —
+      * - Fernet key
+        - ✓
+        - ✓
+        - ✓
+        - ✓
+        - ✓
+      * - Secrets backend credentials (non-worker)
+        - —
+        - ✓
+        - ✓
+        - ✓
+        - —
+      * - Secrets backend credentials (worker)
+        - —
+        - —
+        - —
+        - —
+        - ✓
+      * - Remote log handler kwargs
+        - —
+        - ✓
+        - —
+        - ✓
+        - ✓
 
    The following tables list all security-sensitive configuration variables (marked ``sensitive: true``
    in Airflow's configuration). Deployment Managers should review each variable and ensure it is only
