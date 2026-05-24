@@ -2847,6 +2847,63 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_executable_task_instances_to_queued_mixed_executors_external_executor_id(
+        self, dag_maker, session
+    ):
+        """
+        In a mixed-executor deployment only TIs routed to an opt-in executor should
+        receive a UUID. The CASE expression that implements this must not cause a
+        PostgreSQL type mismatch ("CASE types text and uuid cannot be matched").
+        """
+        dag_id = "SchedulerJobTest.test_mixed_executor_external_executor_id"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="opt_in_task")
+            EmptyOperator(task_id="default_task")
+
+        # opt_in_exec pre-assigns external_executor_id and has an explicit name.
+        class PreAssigningExecutor(MockExecutor):
+            pre_assigns_external_executor_id = True
+
+        opt_in_exec = PreAssigningExecutor()
+        opt_in_exec.name = ExecutorName(alias="opt_in_exec", module_path="tests.unit.mock.opt_in_exec")
+
+        default_exec = MockExecutor()
+        # default_exec.pre_assigns_external_executor_id is False (MockExecutor default)
+
+        scheduler_job = Job()
+        # default_exec is first → self.executor; opt_in_exec is secondary
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[default_exec, opt_in_exec])
+
+        dr = dag_maker.create_dagrun()
+        ti_opt_in = dr.get_task_instance("opt_in_task", session)
+        ti_default = dr.get_task_instance("default_task", session)
+
+        # Route opt_in_task to the opt-in executor by its alias.
+        ti_opt_in.executor = "opt_in_exec"
+        ti_opt_in.state = State.SCHEDULED
+        ti_default.executor = None
+        ti_default.state = State.SCHEDULED
+
+        session.merge(ti_opt_in)
+        session.merge(ti_default)
+        session.flush()
+
+        # This must not raise "CASE types text and uuid cannot be matched" on PostgreSQL.
+        returned_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert len(returned_tis) == 2
+        by_task = {ti.task_id: ti for ti in returned_tis}
+
+        # TI routed to opt-in executor → gets a UUID string.
+        assert by_task["opt_in_task"].external_executor_id is not None
+        UUID(by_task["opt_in_task"].external_executor_id)
+
+        # TI routed to default executor → no UUID assigned.
+        assert by_task["default_task"].external_executor_id is None
+
+        session.rollback()
+
     @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
     def test_enqueue_task_instances_sets_ti_state_to_None_if_dagrun_in_finish_state(self, state, dag_maker):
         """This tests that task instances whose dagrun is in finished state are not queued"""

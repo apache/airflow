@@ -72,7 +72,10 @@ class random_db_uuid(FunctionElement):
 
 @compiles(random_db_uuid, "postgresql")
 def _random_db_uuid_pg(element, compiler, **kw):
-    return "gen_random_uuid()"
+    # Cast to text so the result matches the TEXT external_executor_id column.
+    # Without this a CASE expression mixes UUID and TEXT branches and PostgreSQL
+    # raises "CASE types text and uuid cannot be matched".
+    return "gen_random_uuid()::text"
 
 
 @compiles(random_db_uuid, "mysql")
