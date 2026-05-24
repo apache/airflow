@@ -1886,9 +1886,10 @@ export class DagService {
     
     /**
      * Get Dag Run State Counts
-     * Return per-DAG DagRun state counts (zero-filled, all-time) for the DAG list page.
+     * Return per-DAG DagRun state counts (zero-filled) for the DAG list page.
      * @param data The data for the request.
      * @param data.dagIds
+     * @param data.runAfterGte
      * @returns DAGsRunStateCountsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1905,7 +1906,7 @@ export class DagService {
             }
         });
     }
-
+    
 }
 
 export class EventLogService {

@@ -355,7 +355,7 @@ export type DagServiceGetDagRunStateCountsUiQueryResult<TData = DagServiceGetDag
 export const useDagServiceGetDagRunStateCountsUiKey = "DagServiceGetDagRunStateCountsUi";
 export const UseDagServiceGetDagRunStateCountsUiKeyFn = ({ dagIds, runAfterGte }: {
   dagIds: string[];
-  runAfterGte?: string | null;
+  runAfterGte?: string;
 }, queryKey?: Array<unknown>) => [useDagServiceGetDagRunStateCountsUiKey, ...(queryKey ?? [{ dagIds, runAfterGte }])];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<ReturnType<typeof EventLogService.getEventLog>>;
 export type EventLogServiceGetEventLogQueryResult<TData = EventLogServiceGetEventLogDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;

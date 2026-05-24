@@ -41,13 +41,9 @@ export const useDagRunStateCounts = ({
   // Stable key: sort the dag_ids so pagination/sort order changes don't churn the cache.
   const sortedDagIds = useMemo(() => [...dagIds].sort(), [dagIds]);
 
-  return useDagServiceGetDagRunStateCountsUi(
-    { dagIds: sortedDagIds, runAfterGte: startDate },
-    undefined,
-    {
-      enabled: sortedDagIds.length > 0,
-      placeholderData: (prev) => prev,
-      refetchInterval: hasPendingRun ? refetchInterval : false,
-    },
-  );
+  return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds, runAfterGte: startDate }, undefined, {
+    enabled: sortedDagIds.length > 0,
+    placeholderData: (prev) => prev,
+    refetchInterval: hasPendingRun ? refetchInterval : false,
+  });
 };

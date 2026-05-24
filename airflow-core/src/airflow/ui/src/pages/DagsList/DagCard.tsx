@@ -71,7 +71,7 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading }: Props) =
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
         </HStack>
       </Flex>
-      <Grid px={3} py={2} gap={1} templateColumns="repeat(4, 1fr)" templateRows="auto auto">
+      <Grid gap={1} px={3} py={2} templateColumns="repeat(4, 1fr)" templateRows="auto auto">
         <GridItem gridColumn={1} gridRow={1}>
           <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
             <Schedule
@@ -111,15 +111,17 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading }: Props) =
             ) : undefined}
           </Stat>
         </GridItem>
-        <GridItem alignItems="flex-end" display="flex" gridColumn={4} gridRow="1 / 3" justifyContent="flex-end">
+        <GridItem
+          alignItems="flex-end"
+          display="flex"
+          gridColumn={4}
+          gridRow="1 / 3"
+          justifyContent="flex-end"
+        >
           <RecentRuns latestRuns={dag.latest_dag_runs} />
         </GridItem>
         <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
-          <DagRunStateCounts
-            counts={runStateCounts}
-            dagId={dag.dag_id}
-            isLoading={runStateCountsLoading}
-          />
+          <DagRunStateCounts counts={runStateCounts} dagId={dag.dag_id} isLoading={runStateCountsLoading} />
         </GridItem>
       </Grid>
     </Box>
