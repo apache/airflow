@@ -96,7 +96,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     multi-turn loop, and returns a final answer.
 
     The agent backend is selected by the connection ``conn_type`` (for example
-    ``pydanticai``, ``pydanticai-bedrock``, or ``pydanticai-azure``).
+    ``pydanticai``, ``pydanticai-bedrock``, ``pydanticai-azure``, or ``strands-gemini``).
 
     :param prompt: The prompt to send to the agent.
     :param llm_conn_id: Connection ID for the agent provider.
@@ -110,6 +110,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         cannot be deserialized from XCom.
     :param toolsets: List of :class:`~airflow.providers.common.ai.hooks.base.BaseToolset`
         instances the agent can use.
+    :param skills: Skill sources for Strands progressive-disclosure instructions.
+        Each item is a filesystem/HTTPS path (``str``) or a
+        :class:`~airflow.providers.common.ai.hooks.base.SkillSpec`.
+        Requires a hook with ``supports_skills=True`` (e.g. ``strands-gemini``).
+    :param skills_params: Extra keyword arguments forwarded to the backend skills
+        plugin (for example ``strict``, ``max_resource_files``, ``state_key`` for
+        Strands ``AgentSkills``). Requires a hook with ``supports_skills=True``.
     :param enable_tool_logging: When ``True`` (default), wraps Airflow-resolved tool callables
         with a logging shim that logs calls with timing at INFO level and arguments at DEBUG level.
         Backend-native tool objects may be passed through unchanged by the selected hook and might
@@ -159,6 +166,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "model_id",
         "system_prompt",
         "agent_params",
+        "skills",
+        "skills_params",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -172,6 +181,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         system_prompt: str = "",
         output_type: type = str,
         toolsets: list[Any] | None = None,
+        skills: list[Any] | None = None,
+        skills_params: dict[str, Any] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | None = None,
@@ -197,6 +208,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             for model_cls in iter_base_model_classes(output_type):
                 allow_class(model_cls)
         self.toolsets = toolsets
+        self.skills = skills
+        self.skills_params = skills_params or {}
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
         self.usage_limits = usage_limits
@@ -240,6 +253,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             output_type=self.output_type,
             instructions=self.system_prompt,
             toolsets=self.toolsets,
+            skills=self.skills,
+            skills_params=dict(self.skills_params),
             usage_limits=self.usage_limits,
             message_history=message_history,
             enable_tool_logging=self.enable_tool_logging,

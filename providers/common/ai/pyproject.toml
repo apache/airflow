@@ -117,6 +117,7 @@ dependencies = [
 "git" = [
     "apache-airflow-providers-git"
 ]
+"strands" = ["strands-agents[gemini]>=1.0.0"]
 
 [dependency-groups]
 dev = [
