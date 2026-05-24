@@ -28,11 +28,12 @@ from sqlalchemy import func, select
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowConfigException
+from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dag_bundles
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
 
 
 @pytest.mark.parametrize(
@@ -147,8 +148,10 @@ def test_get_bundle():
 
 @pytest.fixture
 def clear_db():
+    clear_db_dags()
     clear_db_dag_bundles()
     yield
+    clear_db_dags()
     clear_db_dag_bundles()
 
 
@@ -175,17 +178,17 @@ def test_sync_bundles_to_db(clear_db, session):
             stacktrace="some error",
         )
     )
+    session.add(DagModel(dag_id="dag-in-removed-bundle", bundle_name="my-test-bundle", is_stale=False))
     session.flush()
 
-    # simulate bundle config change (now 'dags-folder' is active, 'my-test-bundle' becomes inactive)
-    manager = DagBundlesManager()
-    manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [
-        ("dags-folder", True),
-        ("my-test-bundle", False),
-    ]
+    # simulate bundle config change (now 'my-test-bundle' becomes inactive)
+    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": "[]"}):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+    assert _get_bundle_names_and_active() == [("my-test-bundle", False)]
     # Since my-test-bundle is inactive, the associated import errors should be deleted
     assert session.scalar(select(func.count(ParseImportError.id))) == 0
+    assert session.get(DagModel, "dag-in-removed-bundle").is_stale is True
 
     # Re-enable one that reappears in config
     with patch.dict(
@@ -193,10 +196,7 @@ def test_sync_bundles_to_db(clear_db, session):
     ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
-    assert _get_bundle_names_and_active() == [
-        ("dags-folder", False),
-        ("my-test-bundle", True),
-    ]
+    assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
 
 
 @pytest.mark.db_test

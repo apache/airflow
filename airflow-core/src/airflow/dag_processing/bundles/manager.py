@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
@@ -286,12 +286,21 @@ class DagBundlesManager(LoggingMixin):
                 bundle.teams = []
 
         # Import here to avoid circular import
+        from airflow.models import DagModel
         from airflow.models.errors import ParseImportError
 
         for name, bundle in stored.items():
             bundle.active = False
             bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+            stale_dags = session.execute(
+                update(DagModel)
+                .where(DagModel.bundle_name == name, DagModel.is_stale.is_(False))
+                .values(is_stale=True)
+                .execution_options(synchronize_session="fetch")
+            )
+            if stale_dag_count := getattr(stale_dags, "rowcount", 0):
+                self.log.info("Marked %s DAGs from disabled bundle %s as stale", stale_dag_count, name)
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
