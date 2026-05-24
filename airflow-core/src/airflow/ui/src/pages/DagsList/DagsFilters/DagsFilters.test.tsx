@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -37,6 +37,10 @@ const mockConfig: Record<string, unknown> = {
 vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
 }));
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("defaults to showing only active dags", async () => {

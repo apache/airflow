@@ -18,9 +18,15 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 
+import { dagsFilterKey } from "src/constants/localStorage";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { AppWrapper } from "src/utils/AppWrapper";
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 describe("Dag Filters", () => {
   it("Filter by selected last run state", async () => {
@@ -33,5 +39,14 @@ describe("Dag Filters", () => {
     await waitFor(() => expect(screen.getByText("states.failed")).toBeInTheDocument());
     await waitFor(() => screen.getByText("states.failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+  });
+
+  it("restores selected last run state from localStorage", async () => {
+    localStorage.setItem(dagsFilterKey(SearchParamsKeys.LAST_DAG_RUN_STATE), JSON.stringify("failed"));
+
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
   });
 });

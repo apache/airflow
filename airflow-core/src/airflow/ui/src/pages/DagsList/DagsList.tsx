@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
@@ -48,6 +48,7 @@ import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
+import { useDagsFilterParams } from "./useDagsFilterParams";
 import { useTagFilter } from "./useTagFilter";
 
 const createColumns = (
@@ -171,15 +172,7 @@ const createColumns = (
   },
 ];
 
-const {
-  FAVORITE,
-  LAST_DAG_RUN_STATE,
-  NAME_PATTERN,
-  NEEDS_REVIEW,
-  OFFSET,
-  OWNERS,
-  PAUSED,
-}: SearchParamsKeysType = SearchParamsKeys;
+const { NAME_PATTERN, OFFSET, OWNERS }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -197,12 +190,9 @@ export const DagsList = () => {
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
-  const showPaused = searchParams.get(PAUSED);
-  const showFavorites = searchParams.get(FAVORITE);
-
-  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
+  const { favoriteFilter, lastDagRunStateFilter, needsReviewFilter, pausedFilter } =
+    useDagsFilterParams();
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
-  const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -234,23 +224,23 @@ export const DagsList = () => {
   let isFavorite = undefined;
   let pendingHitl = undefined;
 
-  if (showPaused === "all") {
+  if (pausedFilter === "all") {
     paused = undefined;
-  } else if (showPaused === "true") {
+  } else if (pausedFilter === "true") {
     paused = true;
-  } else if (showPaused === "false") {
+  } else if (pausedFilter === "false") {
     paused = false;
   }
 
-  if (showFavorites === "true") {
+  if (favoriteFilter === "true") {
     isFavorite = true;
-  } else if (showFavorites === "false") {
+  } else if (favoriteFilter === "false") {
     isFavorite = false;
   }
 
-  if (pendingReviews === "true") {
+  if (needsReviewFilter === "true") {
     pendingHitl = true;
-  } else if (pendingReviews === "false") {
+  } else if (needsReviewFilter === "false") {
     pendingHitl = false;
   }
 
@@ -259,7 +249,10 @@ export const DagsList = () => {
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     isFavorite,
-    lastDagRunState,
+    lastDagRunState:
+      lastDagRunStateFilter === null || lastDagRunStateFilter === "all"
+        ? undefined
+        : lastDagRunStateFilter,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy: [orderBy],
