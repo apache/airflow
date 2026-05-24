@@ -34,6 +34,7 @@
     - [`reviewer-ping` (author-primary)](#reviewer-ping-author-primary)
     - [`reviewer-ping` (reviewer-re-review)](#reviewer-ping-reviewer-re-review)
     - [`mark-ready-with-ping`](#mark-ready-with-ping)
+    - [`request-author-confirmation`](#request-author-confirmation)
     - [`stale-draft-close` (triaged)](#stale-draft-close-triaged)
     - [`stale-draft-close` (untriaged)](#stale-draft-close-untriaged)
     - [`inactive-to-draft`](#inactive-to-draft)
@@ -145,10 +146,26 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 <ai_attribution_footer>
 ```
 
+### `review-nudge` (author-primary)
+
+```markdown
+@<author> — This PR has new commits since the last review requesting changes from <reviewer_logins>. Could you address the outstanding review comments and either push a fix or reply in each thread explaining why the feedback doesn't apply? When you believe the threads are resolved, please mark them as resolved and ping the reviewer (<reviewer_logins>) — they'll either re-review or hand the PR back to the queue. Thanks!
+
+<ai_attribution_footer>
+```
+
 ### `review-nudge` (reviewer-re-review)
 
 ```markdown
 @<author> <reviewers> — This PR has new commits since the last review requesting changes, and the diff looks like it addresses the feedback (see <thread-links>). @<reviewers>, could you take another look when you have a chance to confirm? Thanks!
+
+<ai_attribution_footer>
+```
+
+### `reviewer-ping` (author-primary)
+
+```markdown
+@<author> — There are <N> unresolved review thread(s) on this PR from <reviewer_logins>. Could you either push a fix or reply in each thread explaining why the feedback doesn't apply? When you believe the feedback is addressed, please mark the threads as resolved and ping the reviewer (<reviewer_logins>) for a final look. Thanks!
 
 <ai_attribution_footer>
 ```
@@ -169,6 +186,25 @@ This is **not** a rejection — you're welcome to open a new PR addressing the i
 @<author> — Your unresolved review thread(s) from <reviewers> appear to have been addressed (post-review commits and/or in-thread replies on every thread, with the latest commit pushed after the most recent thread). I've added the `ready for maintainer review` label so the PR re-enters the maintainer review queue.
 
 <reviewers> — could you take another look when you have a chance? If you agree the feedback was addressed, please mark the threads as resolved so the queue signal stays accurate. If a thread still needs work, please reply in-line — @<author> will follow up.
+
+<ai_attribution_footer>
+```
+
+### `request-author-confirmation`
+
+The body **must** include the literal marker string
+`ready for maintainer review confirmation` verbatim — the
+framework's
+[`viewer_confirmation_request_present`](../.claude/skills/pr-management-triage/classify-and-act.md#viewer_confirmation_request_present)
+precondition searches for that exact text. Do not paraphrase
+that string when adapting the rest of the body.
+
+```markdown
+@<author> — There are <N> unresolved review thread(s) on this PR, and you have engaged with each one (post-review commits and/or in-thread replies). Could you confirm whether you believe the feedback is fully addressed and the PR is ready for maintainer review confirmation?
+
+If yes, reply here (a short "yes / ready" is fine) and an Apache Airflow maintainer will pick the PR up from the review queue on the next sweep.
+
+If you are still working on a thread, please reply with what is outstanding so the threads stay unresolved on purpose.
 
 <ai_attribution_footer>
 ```
