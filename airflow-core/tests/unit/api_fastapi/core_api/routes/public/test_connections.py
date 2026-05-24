@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, B
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.models import Connection
+from airflow.providers_manager import ConnectionFormWidgetInfo
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -60,6 +61,27 @@ TEST_CONN_LOGIN_2 = "some_login_b"
 
 TEST_CONN_ID_3 = "test_connection_id_3"
 TEST_CONN_TYPE_3 = "test_type_3"
+
+
+class _FakeFormWidgetField:
+    def __init__(self, validators):
+        self.kwargs = {"validators": validators}
+
+
+def _mock_form_widget_manager(validators):
+    widget_key = f"extra__{TEST_CONN_TYPE}__cms_authentication"
+    manager = mock.Mock()
+    manager.hooks = {TEST_CONN_TYPE: mock.Mock()}
+    manager._connection_form_widgets_from_metadata = {
+        widget_key: ConnectionFormWidgetInfo(
+            hook_class_name="TestHook",
+            package_name="test-provider",
+            field=_FakeFormWidgetField(validators),
+            field_name="cms_authentication",
+            is_sensitive=False,
+        )
+    }
+    return manager
 
 
 @provide_session
@@ -300,6 +322,62 @@ class TestPostConnection(TestConnectionEndpoint):
         connection = session.scalars(select(Connection)).all()
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.connections.ProvidersManager")
+    def test_post_runs_custom_form_widget_validators(self, providers_manager, test_client, session):
+        validator_calls = []
+
+        def validate_cms_authentication(form, field):
+            validator_calls.append((form.conn_type.data, field.data))
+            if field.data != "secEnterprise":
+                raise ValueError("Invalid authentication")
+
+        providers_manager.return_value = _mock_form_widget_manager([validate_cms_authentication])
+
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "extra": '{"cms_authentication": "invalid"}',
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body", "extra", "cms_authentication"]
+        assert response.json()["detail"][0]["msg"] == "Invalid authentication"
+        assert validator_calls == [(TEST_CONN_TYPE, "invalid")]
+        assert session.scalars(select(Connection)).all() == []
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.connections.ProvidersManager")
+    def test_post_honors_stop_validation_from_form_widget_validator(
+        self, providers_manager, test_client, session
+    ):
+        class StopValidation(Exception):
+            pass
+
+        validator_calls = []
+
+        def optional_validator(form, field):
+            raise StopValidation()
+
+        def custom_validator(form, field):
+            validator_calls.append((form.conn_type.data, field.data))
+
+        providers_manager.return_value = _mock_form_widget_manager([optional_validator, custom_validator])
+
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "extra": '{"cms_authentication": null}',
+            },
+        )
+
+        assert response.status_code == 201
+        assert validator_calls == []
+        assert len(session.scalars(select(Connection)).all()) == 1
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
@@ -988,6 +1066,35 @@ class TestPatchConnection(TestConnectionEndpoint):
             params={"update_mask": ["extra"]},
         )
         assert response.status_code == 422
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.connections.ProvidersManager")
+    def test_patch_runs_custom_form_widget_validators(self, providers_manager, test_client, session):
+        self.create_connection()
+        validator_calls = []
+
+        def validate_cms_authentication(form, field):
+            validator_calls.append((form.conn_type.data, field.data))
+            if field.data != "secEnterprise":
+                raise ValueError("Invalid authentication")
+
+        providers_manager.return_value = _mock_form_widget_manager([validate_cms_authentication])
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "extra": '{"cms_authentication": "invalid"}',
+            },
+            params={"update_mask": ["extra"]},
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body", "extra", "cms_authentication"]
+        assert response.json()["detail"][0]["msg"] == "Invalid authentication"
+        assert validator_calls == [(TEST_CONN_TYPE, "invalid")]
+        connection = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert connection.extra is None
 
     def test_patch_with_update_mask_rejects_extra_fields(self, test_client):
         """Partial model should still forbid unknown fields."""

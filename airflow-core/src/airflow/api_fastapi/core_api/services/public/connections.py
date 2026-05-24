@@ -18,8 +18,13 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
+from contextlib import nullcontext
+from types import SimpleNamespace
+from typing import Any
 
 from fastapi import HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
@@ -35,6 +40,137 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
+from airflow.providers_manager import ProvidersManager
+
+
+class _StopValidation:
+    pass
+
+
+_STOP_VALIDATION = _StopValidation()
+
+
+class _ConnectionExtraField:
+    """Minimal WTForms-compatible field object for legacy connection validators."""
+
+    def __init__(self, name: str, data: Any):
+        self.name = name
+        self.data = data
+        self.raw_data = [] if data is None else [str(data)]
+        self.errors: list[str] = []
+
+
+def _get_form_widget_validators(field: Any) -> Iterable:
+    if isinstance(field, dict):
+        return ()
+    if hasattr(field, "kwargs"):
+        return field.kwargs.get("validators", ())
+    return getattr(field, "validators", ())
+
+
+def _get_form_widget_default(field: Any) -> Any:
+    if hasattr(field, "kwargs"):
+        return field.kwargs.get("default")
+    return getattr(field, "default", None)
+
+
+def _optional_flask_request_context():
+    try:
+        from flask import Flask, has_request_context
+
+        if has_request_context():
+            return nullcontext()
+
+        app = Flask("airflow_connection_form_validation")
+        app.secret_key = "airflow-connection-form-validation"
+        return app.test_request_context()
+    except ImportError:
+        return nullcontext()
+
+
+def _run_form_widget_validator(
+    validator, form: SimpleNamespace, field: _ConnectionExtraField
+) -> str | _StopValidation | None:
+    try:
+        with _optional_flask_request_context():
+            validator(form, field)
+    except Exception as err:
+        if err.__class__.__name__ == "StopValidation":
+            return str(err) or _STOP_VALIDATION
+        if err.__class__.__name__ == "ValidationError" or isinstance(err, ValueError):
+            return str(err)
+        raise
+    return None
+
+
+def validate_connection_form_widgets(connection: ConnectionBody) -> None:
+    """Run legacy provider WTForms validators for extra fields on connection form submission."""
+    try:
+        extra = json.loads(connection.extra or "{}")
+    except json.JSONDecodeError:
+        return
+
+    if not isinstance(extra, dict) or not extra:
+        return
+
+    prefix = f"extra__{connection.conn_type}__"
+    providers_manager = ProvidersManager()
+    if connection.conn_type in providers_manager.hooks:
+        providers_manager.hooks[connection.conn_type]
+    elif not any(
+        widget_key.startswith(prefix)
+        for widget_key in providers_manager._connection_form_widgets_from_metadata
+    ):
+        return
+
+    form_fields = {
+        "connection_id": _ConnectionExtraField("connection_id", connection.connection_id),
+        "conn_type": _ConnectionExtraField("conn_type", connection.conn_type),
+        "description": _ConnectionExtraField("description", connection.description),
+        "host": _ConnectionExtraField("host", connection.host),
+        "login": _ConnectionExtraField("login", connection.login),
+        "schema": _ConnectionExtraField("schema", connection.schema_),
+        "port": _ConnectionExtraField("port", connection.port),
+        "password": _ConnectionExtraField("password", connection.password),
+        "team_name": _ConnectionExtraField("team_name", connection.team_name),
+    }
+    form_fields.update({key: _ConnectionExtraField(key, value) for key, value in extra.items()})
+
+    errors = []
+    for widget_key, widget in providers_manager._connection_form_widgets_from_metadata.items():
+        if not widget_key.startswith(prefix):
+            continue
+
+        validators = tuple(_get_form_widget_validators(widget.field))
+        if not validators:
+            continue
+
+        field_name = widget.field_name
+        field = form_fields.setdefault(
+            field_name,
+            _ConnectionExtraField(field_name, extra.get(field_name, _get_form_widget_default(widget.field))),
+        )
+        form = SimpleNamespace(
+            **form_fields, data={name: form_field.data for name, form_field in form_fields.items()}
+        )
+
+        for validator in validators:
+            validation_result = _run_form_widget_validator(validator, form, field)
+            if validation_result is _STOP_VALIDATION:
+                break
+            if validation_result is not None:
+                errors.append(
+                    {
+                        "type": "value_error",
+                        "loc": ("body", "extra", field_name),
+                        "msg": validation_result,
+                        "input": field.data,
+                    }
+                )
+                break
+
+    if errors:
+        raise RequestValidationError(errors=errors)
 
 
 def update_orm_from_pydantic(
