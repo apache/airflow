@@ -127,7 +127,12 @@ class TestWorkerApiRoutes:
             queues=input_queues,
             sysinfo=self.MOCK_SYSINFO,
         )
-        register("test_worker", body, session, jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)})
+        register(
+            "test_worker",
+            body,
+            session,
+            jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)},
+        )
         session.commit()
 
         worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
@@ -147,7 +152,12 @@ class TestWorkerApiRoutes:
             sysinfo=self.MOCK_SYSINFO,
             team_name="team_a",
         )
-        register("test_worker", body, session, jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)})
+        register(
+            "test_worker",
+            body,
+            session,
+            jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)},
+        )
         session.commit()
 
         worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
@@ -178,7 +188,12 @@ class TestWorkerApiRoutes:
             team_name="team_b",
         )
         with pytest.raises(HTTPException) as exc_info:
-            register("test_worker", body, session, jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)})
+            register(
+                "test_worker",
+                body,
+                session,
+                jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)},
+            )
         assert exc_info.value.status_code == 409
 
     def test_register_same_name_different_team_reuses_when_offline(
@@ -203,7 +218,12 @@ class TestWorkerApiRoutes:
             sysinfo=self.MOCK_SYSINFO,
             team_name="team_b",
         )
-        register("test_worker", body, session, jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)})
+        register(
+            "test_worker",
+            body,
+            session,
+            jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)},
+        )
         session.commit()
 
         worker = session.execute(
@@ -248,12 +268,25 @@ class TestWorkerApiRoutes:
 
         if should_raise:
             with pytest.raises(HTTPException) as exc_info:
-                register("test_worker", body, session, jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)})
+                register(
+                    "test_worker",
+                    body,
+                    session,
+                    jwt_payload={
+                        "method": "worker/test_worker",
+                        "team_name": getattr(body, "team_name", None),
+                    },
+                )
             assert exc_info.value.status_code == 409
             assert "already active" in str(exc_info.value.detail).lower()
         else:
             # Should succeed for offline/unknown states
-            register("test_worker", body, session, jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)})
+            register(
+                "test_worker",
+                body,
+                session,
+                jwt_payload={"method": "worker/test_worker", "team_name": getattr(body, "team_name", None)},
+            )
             session.commit()
             worker = session.execute(
                 select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == "test_worker")
@@ -354,7 +387,12 @@ class TestWorkerApiRoutes:
             queues=["default2"],
             sysinfo=self.MOCK_SYSINFO,
         )
-        return_queues = set_state("test2_worker", body, session, jwt_payload={"method": "worker/test2_worker", "team_name": getattr(body, "team_name", None)}).queues
+        return_queues = set_state(
+            "test2_worker",
+            body,
+            session,
+            jwt_payload={"method": "worker/test2_worker", "team_name": getattr(body, "team_name", None)},
+        ).queues
 
         worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
@@ -381,7 +419,12 @@ class TestWorkerApiRoutes:
             queues=["default"],
             sysinfo=self.MOCK_SYSINFO,
         )
-        result = set_state("test2_worker", body, session, jwt_payload={"method": "worker/test2_worker", "team_name": getattr(body, "team_name", None)})
+        result = set_state(
+            "test2_worker",
+            body,
+            session,
+            jwt_payload={"method": "worker/test2_worker", "team_name": getattr(body, "team_name", None)},
+        )
         assert result.concurrency == 16
 
     def test_set_state_returns_none_concurrency_when_not_overridden(
@@ -403,7 +446,12 @@ class TestWorkerApiRoutes:
             queues=["default"],
             sysinfo=self.MOCK_SYSINFO,
         )
-        result = set_state("test2_worker", body, session, jwt_payload={"method": "worker/test2_worker", "team_name": getattr(body, "team_name", None)})
+        result = set_state(
+            "test2_worker",
+            body,
+            session,
+            jwt_payload={"method": "worker/test2_worker", "team_name": getattr(body, "team_name", None)},
+        )
         assert result.concurrency is None
 
     def test_set_worker_concurrency(self, session: Session):

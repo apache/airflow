@@ -154,7 +154,9 @@ class TestJobsApiRoutes:
 
             body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
             result = fetch(
-                "worker1", body, session,
+                "worker1",
+                body,
+                session,
                 jwt_payload={"method": "jobs/fetch/worker1", "team_name": "team_a"},
             )
             assert result is not None
@@ -200,26 +202,34 @@ class TestJobsApiRoutes:
             body_cross = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name="team_a")
             with pytest.raises(HTTPException) as exc:
                 fetch(
-                    "worker1", body_cross, session,
+                    "worker1",
+                    body_cross,
+                    session,
                     jwt_payload={"method": "jobs/fetch/worker1", "team_name": "team_b"},
                 )
             assert exc.value.status_code == 403
 
             body1 = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name="team_a")
             result1 = fetch(
-                "worker1", body1, session,
+                "worker1",
+                body1,
+                session,
                 jwt_payload={"method": "jobs/fetch/worker1", "team_name": "team_a"},
             )
             assert result1 is not None
             body2 = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name=None)
             # No team in body or JWT — legacy worker, body wins via backcompat path.
             result2 = fetch(
-                "worker1", body2, session,
+                "worker1",
+                body2,
+                session,
                 jwt_payload={"method": "jobs/fetch/worker1"},
             )
             assert result2 is not None
             result3 = fetch(
-                "worker1", body2, session,
+                "worker1",
+                body2,
+                session,
                 jwt_payload={"method": "jobs/fetch/worker1"},
             )
             assert result3 is None
