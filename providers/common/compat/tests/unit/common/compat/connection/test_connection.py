@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from unittest import mock
 
 import pytest
@@ -26,10 +25,8 @@ from airflow.providers.common.compat.connection import get_async_connection
 
 
 class MockAgetBaseHook:
-    def __init__(*args, **kargs):
-        pass
-
-    async def aget_connection(self, conn_id: str):
+    @classmethod
+    async def aget_connection(cls, conn_id: str):
         return Connection(
             conn_id="test_conn",
             conn_type="http",
@@ -38,10 +35,8 @@ class MockAgetBaseHook:
 
 
 class MockBaseHook:
-    def __init__(*args, **kargs):
-        pass
-
-    def get_connection(self, conn_id: str):
+    @classmethod
+    def get_connection(cls, conn_id: str):
         return Connection(
             conn_id="test_conn_sync",
             conn_type="http",
@@ -49,21 +44,51 @@ class MockBaseHook:
         )
 
 
+class MockAsyncSubclass(MockAgetBaseHook):
+    @classmethod
+    async def aget_connection(cls, conn_id: str):
+        return Connection(
+            conn_id=conn_id,
+            conn_type="http",
+            password="secret_token_async_subclass",
+        )
+
+
+class MockSyncSubclass(MockBaseHook):
+    @classmethod
+    def get_connection(cls, conn_id: str):
+        return Connection(
+            conn_id=conn_id,
+            conn_type="http",
+            password="secret_token_sync_subclass",
+        )
+
+
 class TestGetAsyncConnection:
-    @mock.patch("airflow.providers.common.compat.connection.BaseHook", new_callable=MockAgetBaseHook)
+    @mock.patch("airflow.providers.common.compat.connection.BaseHook", new=MockAgetBaseHook)
     @pytest.mark.asyncio
-    async def test_get_async_connection_with_aget(self, _, caplog):
-        with caplog.at_level(logging.DEBUG):
-            conn = await get_async_connection("test_conn")
+    async def test_get_async_connection_with_aget(self):
+        conn = await get_async_connection("test_conn")
         assert conn.password == "secret_token_aget"
         assert conn.conn_type == "http"
-        assert "Get connection using `BaseHook.aget_connection()." in caplog.text
 
-    @mock.patch("airflow.providers.common.compat.connection.BaseHook", new_callable=MockBaseHook)
+    @mock.patch("airflow.providers.common.compat.connection.BaseHook", new=MockBaseHook)
     @pytest.mark.asyncio
-    async def test_get_async_connection_with_get_connection(self, _, caplog):
-        with caplog.at_level(logging.DEBUG):
-            conn = await get_async_connection("test_conn")
+    async def test_get_async_connection_with_get_connection(self):
+        conn = await get_async_connection("test_conn")
         assert conn.password == "secret_token"
         assert conn.conn_type == "http"
-        assert "Get connection using `BaseHook.get_connection()." in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_get_async_connection_uses_hook_class_aget_connection_override(self):
+        conn = await get_async_connection("test_conn", hook_class=MockAsyncSubclass)
+
+        assert conn.conn_id == "test_conn"
+        assert conn.password == "secret_token_async_subclass"
+
+    @pytest.mark.asyncio
+    async def test_get_async_connection_uses_hook_class_get_connection_override(self):
+        conn = await get_async_connection("test_conn", hook_class=MockSyncSubclass)
+
+        assert conn.conn_id == "test_conn"
+        assert conn.password == "secret_token_sync_subclass"

@@ -810,6 +810,28 @@ class TestHttpAsyncHook:
                     )
 
     @pytest.mark.asyncio
+    async def test_config_uses_subclass_aget_connection(self):
+        class CustomHttpAsyncHook(HttpAsyncHook):
+            @classmethod
+            async def aget_connection(cls, conn_id: str):
+                return Connection(
+                    conn_id=conn_id,
+                    conn_type="http",
+                    schema="https",
+                    host="custom.example.com",
+                    port=9443,
+                    login="custom_user",
+                    password="custom_password",
+                )
+
+        hook = CustomHttpAsyncHook()
+
+        config = await hook.config()
+
+        assert config.base_url == "https://custom.example.com:9443"
+        assert config.auth == aiohttp.BasicAuth("custom_user", "custom_password")
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "setup_connections_with_extras",
         [
