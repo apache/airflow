@@ -64,6 +64,9 @@ class TableauOperator(BaseOperator):
         between each instance state checks until operation is completed
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
+    :param incremental: When set to True triggers an incremental extract refresh instead of a full
+        refresh. Only applies when ``method="refresh"`` on datasource or workbook resources.
+        Defaults to False (full refresh).
     """
 
     template_fields: Sequence[str] = (
@@ -82,6 +85,7 @@ class TableauOperator(BaseOperator):
         blocking_refresh: bool = True,
         check_interval: float = 20,
         tableau_conn_id: str = "tableau_default",
+        incremental: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -93,6 +97,7 @@ class TableauOperator(BaseOperator):
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
+        self.incremental = incremental
 
     def execute(self, context: Context) -> str:
         """
@@ -124,6 +129,9 @@ class TableauOperator(BaseOperator):
                 if not job_items:
                     raise ValueError("Tableau tasks.run returned no JobItem in response")
                 job_id = job_items[0].id
+            elif self.method == "refresh":
+                response = method(resource_id, incremental=self.incremental)
+                job_id = response.id
             else:
                 response = method(resource_id)
                 job_id = response.id
