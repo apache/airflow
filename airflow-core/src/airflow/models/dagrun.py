@@ -127,6 +127,19 @@ log = structlog.get_logger(__name__)
 
 tracer = trace.get_tracer(__name__)
 
+_ROOT_DAGRUN_SPAN_TRIGGERED_BY = frozenset(
+    {
+        DagRunTriggeredByType.REST_API,
+        DagRunTriggeredByType.UI,
+        DagRunTriggeredByType.TIMETABLE,
+        DagRunTriggeredByType.ASSET,
+        DagRunTriggeredByType.BACKFILL,
+    }
+)
+_ROOT_DAGRUN_SPAN_RUN_TYPES = frozenset(
+    {DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED, DagRunType.BACKFILL_JOB}
+)
+
 
 class TISchedulingDecision(NamedTuple):
     """Type of return for DagRun.task_instance_scheduling_decisions."""
@@ -1056,7 +1069,17 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
-    def _emit_dagrun_span(self, state: DagRunState):
+    def _should_force_root_dagrun_span(self) -> bool:
+        """Whether this DagRun span should be emitted without an active parent context."""
+        if self.triggered_by is None or isinstance(self.triggered_by, DagRunTriggeredByType):
+            triggered_by = self.triggered_by
+        else:
+            triggered_by = DagRunTriggeredByType(self.triggered_by)
+        if triggered_by in _ROOT_DAGRUN_SPAN_TRIGGERED_BY:
+            return True
+        return DagRunType(self.run_type) in _ROOT_DAGRUN_SPAN_RUN_TYPES
+
+    def _emit_dagrun_span(self, state: DagRunState, *, force_root_span: bool = False):
         # just to be safe
         if not isinstance(self.context_carrier, dict):
             return
@@ -1081,19 +1104,14 @@ class DagRun(Base, LoggingMixin):
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
-            # TODO: make the empty parent context optional. Default should be to
-            # nest the dag run span under the currently active parent span (by
-            # omitting `context` here); only use the empty `context.Context()` to
-            # force a root span when Airflow itself initiates the run (e.g. dag
-            # triggered via API, scheduler, or backfill). Today this forces a
-            # root span unconditionally.
-            # Tracked at https://github.com/apache/airflow/issues/67210
-            span = tracer.start_span(
-                name=f"dag_run.{self.dag_id}",
-                start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
-                attributes=attributes,
-                context=context.Context(),
-            )
+            start_span_kwargs: dict[str, Any] = {
+                "name": f"dag_run.{self.dag_id}",
+                "start_time": int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
+                "attributes": attributes,
+            }
+            if force_root_span:
+                start_span_kwargs["context"] = context.Context()
+            span = tracer.start_span(**start_span_kwargs)
             status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
             span.set_status(status_code)
             span.end()
@@ -1282,7 +1300,10 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
             try:
-                self._emit_dagrun_span(state=self.state)
+                self._emit_dagrun_span(
+                    state=self.state,
+                    force_root_span=self._should_force_root_dagrun_span(),
+                )
             except Exception:
                 self.log.warning("Failed to emit dag run span", exc_info=True)
 

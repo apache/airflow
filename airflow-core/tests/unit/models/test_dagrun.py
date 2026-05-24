@@ -3628,7 +3628,7 @@ class TestDagRunTracing:
         with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
             dr.update_state(session=session)
 
-        mock_emit.assert_called_once_with(state=final_state)
+        mock_emit.assert_called_once_with(state=final_state, force_root_span=False)
 
     def test_emit_dagrun_span_not_called_while_running(self, dag_maker, session):
         """_emit_dagrun_span should not be called while the dag run is still running."""
@@ -3651,6 +3651,18 @@ class TestDagRunTracing:
             dr.update_state(session=session)
 
         mock_emit.assert_not_called()
+
+    @staticmethod
+    def _create_finished_single_task_dagrun(dag_maker, session, dag_id):
+        with dag_maker(dag_id, session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+        dr.dag = dag
+        return dr
 
     def test_emit_dagrun_span_uses_context_carrier_ids(self, dag_maker, session):
         """The emitted span should inherit trace_id/span_id from the context_carrier."""
@@ -3682,6 +3694,100 @@ class TestDagRunTracing:
 
         assert span.context.trace_id == stored_ctx.trace_id
         assert span.context.span_id == stored_ctx.span_id
+
+    def test_emit_dagrun_span_defaults_to_active_parent_context(self, dag_maker, session):
+        """The emitted span should nest under the active parent context by default."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        dr = self._create_finished_single_task_dagrun(dag_maker, session, "test_tracing_nested_parent")
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            with test_tracer.start_as_current_span("parent") as parent_span:
+                dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        dagrun_span = next(
+            span for span in in_mem_exporter.get_finished_spans() if span.name.startswith("dag_run.")
+        )
+        assert dagrun_span.parent is not None
+        assert dagrun_span.parent.span_id == parent_span.get_span_context().span_id
+
+    def test_emit_dagrun_span_can_force_root_span(self, dag_maker, session):
+        """The emitted span should be root when force_root_span is set."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        dr = self._create_finished_single_task_dagrun(dag_maker, session, "test_tracing_forced_root")
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            with test_tracer.start_as_current_span("parent"):
+                dr._emit_dagrun_span(state=DagRunState.SUCCESS, force_root_span=True)
+
+        dagrun_span = next(
+            span for span in in_mem_exporter.get_finished_spans() if span.name.startswith("dag_run.")
+        )
+        assert dagrun_span.parent is None
+
+    @pytest.mark.parametrize(
+        ("run_type", "triggered_by"),
+        [
+            (DagRunType.MANUAL, DagRunTriggeredByType.REST_API),
+            (DagRunType.MANUAL, DagRunTriggeredByType.UI),
+            (DagRunType.SCHEDULED, DagRunTriggeredByType.TIMETABLE),
+            (DagRunType.ASSET_TRIGGERED, DagRunTriggeredByType.ASSET),
+            (DagRunType.BACKFILL_JOB, DagRunTriggeredByType.BACKFILL),
+        ],
+    )
+    def test_update_state_emits_root_dagrun_span_for_airflow_initiated_runs(
+        self, dag_maker, session, run_type, triggered_by
+    ):
+        """Airflow-initiated Dag runs should emit root spans even with an active parent."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        dr = self._create_finished_single_task_dagrun(
+            dag_maker, session, f"test_tracing_root_{triggered_by.value}"
+        )
+        dr.run_type = run_type
+        dr.triggered_by = triggered_by
+        session.flush()
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            with test_tracer.start_as_current_span("parent"):
+                dr.update_state(session=session)
+
+        dagrun_span = next(
+            span for span in in_mem_exporter.get_finished_spans() if span.name.startswith("dag_run.")
+        )
+        assert dagrun_span.parent is None
+
+    def test_update_state_emits_nested_dagrun_span_for_operator_triggered_runs(self, dag_maker, session):
+        """Operator-triggered Dag runs should emit spans under the active parent context."""
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        dr = self._create_finished_single_task_dagrun(dag_maker, session, "test_tracing_operator_nested")
+        dr.run_type = DagRunType.OPERATOR_TRIGGERED
+        dr.triggered_by = DagRunTriggeredByType.OPERATOR
+        session.flush()
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            with test_tracer.start_as_current_span("parent") as parent_span:
+                dr.update_state(session=session)
+
+        dagrun_span = next(
+            span for span in in_mem_exporter.get_finished_spans() if span.name.startswith("dag_run.")
+        )
+        assert dagrun_span.parent is not None
+        assert dagrun_span.parent.span_id == parent_span.get_span_context().span_id
 
     @pytest.mark.parametrize("final_state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_emit_dagrun_span_attributes_and_status(self, dag_maker, session, final_state):
