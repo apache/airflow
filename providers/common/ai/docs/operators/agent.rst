@@ -239,6 +239,42 @@ skipped with a warning and will re-execute on retry instead of replaying from
 cache. The task itself still succeeds.
 
 
+.. _capabilities-passthrough:
+
+Capabilities (pydantic-ai)
+--------------------------
+
+pydantic-ai `capabilities <https://ai.pydantic.dev/capabilities/>`__ bundle
+tools, lifecycle hooks, instructions, and model settings into composable units.
+Common ones include ``Thinking`` (reasoning at a configurable effort level),
+``WebSearch``, ``WebFetch``, ``ImageGeneration``, and ``MCP``.
+
+``AgentOperator`` does not yet expose a first-class ``capabilities=`` kwarg,
+but anything passed through ``agent_params`` is forwarded to the underlying
+``Agent(...)`` constructor.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
+    :language: python
+    :start-after: [START howto_operator_agent_capabilities_thinking]
+    :end-before: [END howto_operator_agent_capabilities_thinking]
+
+Capabilities compose with toolsets -- pydantic-ai merges tools from both.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
+    :language: python
+    :start-after: [START howto_operator_agent_capabilities_composed]
+    :end-before: [END howto_operator_agent_capabilities_composed]
+
+.. warning::
+
+    ``agent_params`` is a templated field, which Airflow serializes by calling
+    ``str()`` on values it doesn't natively understand. Capability instances
+    are not yet round-trip-safe through DAG serialization, so the examples
+    below construct them inside the ``@dag`` function -- not at module level.
+    First-class ``capabilities=`` support on ``AgentOperator`` (with proper
+    serializer hooks) is tracked as a follow-up.
+
+
 Parameters
 ----------
 
@@ -257,7 +293,9 @@ Parameters
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+  ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``capabilities``).
+  See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
+  such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
   agent run (initial run, durable replay, and HITL regeneration). Use it to
   cap requests, tokens, or tool calls per task -- agents are particularly
