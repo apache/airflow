@@ -533,6 +533,8 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_run_after_gte_includes_matching_runs(self, test_client):
         # Using a cutoff 15 days ago should include all seeded runs (created 10 days ago).
+        # The parent fixture's FAILED run has run_after=DAG1_START_DATE (2018), so it is
+        # correctly excluded by this filter.
         fifteen_days_ago = (utcnow() - pendulum.duration(days=15)).isoformat()
         response = test_client.get(
             "/dags/run_state_counts",
@@ -541,7 +543,7 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         assert response.status_code == 200
         counts = {entry["dag_id"]: entry["state_counts"] for entry in response.json()["dags"]}
         assert counts[DAG1_ID]["success"] == 2
-        assert counts[DAG1_ID]["failed"] == 2 + _PARENT_DAG1_FAILED
+        assert counts[DAG1_ID]["failed"] == 2
         assert counts[DAG1_ID]["running"] == 1
         assert counts[DAG1_ID]["queued"] == 1
 
