@@ -18,12 +18,16 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
-from airflow.models.backfill import Backfill
+from airflow.models.backfill import Backfill, BackfillDagRun
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
@@ -118,6 +122,7 @@ class TestListBackfills(TestBackfillEndpoint):
                 "is_paused": False,
                 "reprocess_behavior": "none",
                 "max_active_runs": 10,
+                "running_task_instances": 0,
                 "to_date": from_datetime_to_zulu(to_date),
                 "updated_at": mock.ANY,
             },
@@ -132,6 +137,7 @@ class TestListBackfills(TestBackfillEndpoint):
                 "is_paused": False,
                 "reprocess_behavior": "none",
                 "max_active_runs": 10,
+                "running_task_instances": 0,
                 "to_date": from_datetime_to_zulu(to_date),
                 "updated_at": mock.ANY,
             },
@@ -146,6 +152,7 @@ class TestListBackfills(TestBackfillEndpoint):
                 "is_paused": True,
                 "reprocess_behavior": "none",
                 "max_active_runs": 10,
+                "running_task_instances": 0,
                 "to_date": from_datetime_to_zulu(to_date),
                 "updated_at": mock.ANY,
             },
@@ -192,3 +199,75 @@ class TestListBackfills(TestBackfillEndpoint):
         body = response.json()
         assert body["total_entries"] == 2
         assert {b["dag_id"] for b in body["backfills"]} == {"TEST_DAG_2", "TEST_DAG_3"}
+
+    def test_active_filter_includes_backfill_with_running_task_instances(
+        self, test_client, dag_maker, session
+    ):
+        dag_id = "TEST_DAG_RUNNING_TASKS"
+        from_date = pendulum.datetime(2024, 1, 1, tz="UTC")
+        to_date = pendulum.datetime(2024, 1, 2, tz="UTC")
+        with dag_maker(dag_id=dag_id, schedule="@daily", serialized=True, session=session):
+            EmptyOperator(task_id=TASK_ID)
+
+        backfill = Backfill(
+            dag_id=dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            completed_at=timezone.utcnow(),
+        )
+        session.add(backfill)
+        session.flush()
+
+        older_run = dag_maker.create_dagrun(
+            run_id="backfill_old",
+            logical_date=from_date,
+            run_type=DagRunType.BACKFILL_JOB,
+            state=DagRunState.SUCCESS,
+        )
+        newer_run = dag_maker.create_dagrun(
+            run_id="backfill_new",
+            logical_date=to_date,
+            run_type=DagRunType.BACKFILL_JOB,
+            state=DagRunState.SUCCESS,
+        )
+        older_run.backfill_id = backfill.id
+        newer_run.backfill_id = backfill.id
+        session.add_all(
+            [
+                BackfillDagRun(
+                    backfill_id=backfill.id,
+                    dag_run_id=older_run.id,
+                    logical_date=from_date,
+                    sort_ordinal=2,
+                ),
+                BackfillDagRun(
+                    backfill_id=backfill.id,
+                    dag_run_id=newer_run.id,
+                    logical_date=to_date,
+                    sort_ordinal=1,
+                ),
+            ]
+        )
+        for task_instance in older_run.task_instances:
+            task_instance.state = TaskInstanceState.RUNNING
+        for task_instance in newer_run.task_instances:
+            task_instance.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        active_response = test_client.get("/backfills", params={"dag_id": dag_id, "active": True})
+        inactive_response = test_client.get("/backfills", params={"dag_id": dag_id, "active": False})
+
+        assert active_response.status_code == 200
+        assert inactive_response.status_code == 200
+        assert active_response.json()["total_entries"] == 1
+        assert active_response.json()["backfills"][0]["running_task_instances"] == 1
+        assert inactive_response.json() == {"backfills": [], "total_entries": 0}
+
+        older_run.task_instances[0].state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        response = test_client.get("/backfills", params={"dag_id": dag_id, "active": False})
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert response.json()["backfills"][0]["running_task_instances"] == 0

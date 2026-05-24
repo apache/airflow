@@ -22,14 +22,14 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
-import type { BackfillResponse } from "openapi/requests/types.gen";
+import type { BackfillUiResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
-const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
+const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillUiResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (

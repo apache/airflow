@@ -202,7 +202,7 @@ export const prefetchUseBackfillServiceGetBackfill = (queryClient: QueryClient, 
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
 * @param data.active
-* @returns BackfillCollectionResponse Successful Response
+* @returns BackfillUiCollectionResponse Successful Response
 * @throws ApiError
 */
 export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClient, { active, dagId, limit, offset, orderBy }: {

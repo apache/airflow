@@ -69,6 +69,19 @@ class BackfillCollectionResponse(BaseModel):
     total_entries: int
 
 
+class BackfillUiResponse(BackfillResponse):
+    """Backfill serializer for UI responses."""
+
+    running_task_instances: NonNegativeInt
+
+
+class BackfillUiCollectionResponse(BaseModel):
+    """Backfill collection serializer for UI responses."""
+
+    backfills: Iterable[BackfillUiResponse]
+    total_entries: int
+
+
 class DryRunBackfillResponse(BaseModel):
     """Backfill serializer for responses in dry-run mode."""
 

@@ -480,6 +480,26 @@ export const $BackfillCollectionResponse = {
     description: 'Backfill Collection serializer for responses.'
 } as const;
 
+export const $BackfillUiCollectionResponse = {
+    properties: {
+        backfills: {
+            items: {
+                '$ref': '#/components/schemas/BackfillUiResponse'
+            },
+            type: 'array',
+            title: 'Backfills'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['backfills', 'total_entries'],
+    title: 'BackfillUiCollectionResponse',
+    description: 'Backfill collection serializer for UI responses.'
+} as const;
+
 export const $BackfillPostBody = {
     properties: {
         dag_id: {
@@ -617,6 +637,88 @@ export const $BackfillResponse = {
     required: ['id', 'dag_id', 'from_date', 'to_date', 'dag_run_conf', 'is_paused', 'reprocess_behavior', 'max_active_runs', 'created_at', 'completed_at', 'updated_at', 'dag_display_name'],
     title: 'BackfillResponse',
     description: 'Base serializer for Backfill.'
+} as const;
+
+export const $BackfillUiResponse = {
+    properties: {
+        id: {
+            type: 'integer',
+            minimum: 0,
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        from_date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'From Date'
+        },
+        to_date: {
+            type: 'string',
+            format: 'date-time',
+            title: 'To Date'
+        },
+        dag_run_conf: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Conf'
+        },
+        is_paused: {
+            type: 'boolean',
+            title: 'Is Paused'
+        },
+        reprocess_behavior: {
+            '$ref': '#/components/schemas/ReprocessBehavior'
+        },
+        max_active_runs: {
+            type: 'integer',
+            title: 'Max Active Runs'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        completed_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completed At'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        dag_display_name: {
+            type: 'string',
+            title: 'Dag Display Name'
+        },
+        running_task_instances: {
+            type: 'integer',
+            minimum: 0,
+            title: 'Running Task Instances'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'from_date', 'to_date', 'dag_run_conf', 'is_paused', 'reprocess_behavior', 'max_active_runs', 'created_at', 'completed_at', 'updated_at', 'dag_display_name', 'running_task_instances'],
+    title: 'BackfillUiResponse',
+    description: 'Backfill serializer for UI responses.'
 } as const;
 
 export const $BaseInfoResponse = {

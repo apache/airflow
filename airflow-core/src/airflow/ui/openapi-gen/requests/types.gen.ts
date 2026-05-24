@@ -138,6 +138,14 @@ export type BackfillCollectionResponse = {
 };
 
 /**
+ * Backfill collection serializer for UI responses.
+ */
+export type BackfillUiCollectionResponse = {
+    backfills: Array<BackfillUiResponse>;
+    total_entries: number;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -175,6 +183,13 @@ export type BackfillResponse = {
     updated_at: string;
     dag_display_name: string;
 };
+
+/**
+ * Backfill serializer for UI responses.
+ */
+export type BackfillUiResponse = (BackfillResponse & {
+    running_task_instances: number;
+});
 
 /**
  * Base info serializer for responses.
@@ -2710,7 +2725,7 @@ export type ListBackfillsUiData = {
     orderBy?: Array<(string)>;
 };
 
-export type ListBackfillsUiResponse = BackfillCollectionResponse;
+export type ListBackfillsUiResponse = BackfillUiCollectionResponse;
 
 export type DeleteConnectionData = {
     connectionId: string;
@@ -4958,7 +4973,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: BackfillCollectionResponse;
+                200: BackfillUiCollectionResponse;
                 /**
                  * Not Found
                  */

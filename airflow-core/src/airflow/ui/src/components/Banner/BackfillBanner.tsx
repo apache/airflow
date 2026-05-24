@@ -29,7 +29,7 @@ import {
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
-import type { BackfillResponse } from "openapi/requests/types.gen";
+import type { BackfillUiResponse } from "openapi/requests/types.gen";
 import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
@@ -48,6 +48,9 @@ const buttonProps = {
   variant: "outline",
 } satisfies ButtonProps;
 
+const isBackfillActive = (backfill: BackfillUiResponse) =>
+  backfill.completed_at === null || backfill.running_task_instances > 0;
+
 const BackfillBanner = ({ dagId }: Props) => {
   const { t: translate } = useTranslation("components");
   const refetchInterval = useAutoRefresh({ dagId });
@@ -60,12 +63,12 @@ const BackfillBanner = ({ dagId }: Props) => {
     undefined,
     {
       refetchInterval: (query) =>
-        query.state.data?.backfills.some((bf: BackfillResponse) => bf.completed_at === null && !bf.is_paused)
+        query.state.data?.backfills.some((bf: BackfillUiResponse) => isBackfillActive(bf) && !bf.is_paused)
           ? refetchInterval
           : false,
     },
   );
-  const [backfill] = data?.backfills.filter((bf: BackfillResponse) => bf.completed_at === null) ?? [];
+  const [backfill] = data?.backfills.filter(isBackfillActive) ?? [];
 
   const queryClient = useQueryClient();
   const onSuccess = async () => {
@@ -101,6 +104,7 @@ const BackfillBanner = ({ dagId }: Props) => {
   if (isLoading || backfill === undefined) {
     return undefined;
   }
+  const canManageBackfill = backfill.completed_at === null;
 
   return (
     <Box bg="info.solid" borderRadius="full" color="info.contrast" my="1" px="2" py="1">
@@ -114,26 +118,30 @@ const BackfillBanner = ({ dagId }: Props) => {
 
         <Spacer flex="max-content" />
         <ProgressBar size="xs" visibility="visible" />
-        <Button
-          aria-label={backfill.is_paused ? translate("banner.unpause") : translate("banner.pause")}
-          loading={isPausePending || isUnPausePending}
-          onClick={() => {
-            togglePause();
-          }}
-          {...buttonProps}
-        >
-          {backfill.is_paused ? <MdPlayArrow /> : <MdPause />}
-        </Button>
-        <Button
-          aria-label={translate("banner.cancel")}
-          loading={isStopPending}
-          onClick={() => {
-            cancel();
-          }}
-          {...buttonProps}
-        >
-          <MdStop />
-        </Button>
+        {canManageBackfill ? (
+          <>
+            <Button
+              aria-label={backfill.is_paused ? translate("banner.unpause") : translate("banner.pause")}
+              loading={isPausePending || isUnPausePending}
+              onClick={() => {
+                togglePause();
+              }}
+              {...buttonProps}
+            >
+              {backfill.is_paused ? <MdPlayArrow /> : <MdPause />}
+            </Button>
+            <Button
+              aria-label={translate("banner.cancel")}
+              loading={isStopPending}
+              onClick={() => {
+                cancel();
+              }}
+              {...buttonProps}
+            >
+              <MdStop />
+            </Button>
+          </>
+        ) : undefined}
       </HStack>
     </Box>
   );

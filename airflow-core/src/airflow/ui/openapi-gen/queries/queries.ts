@@ -202,7 +202,7 @@ export const useBackfillServiceGetBackfill = <TData = Common.BackfillServiceGetB
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
 * @param data.active
-* @returns BackfillCollectionResponse Successful Response
+* @returns BackfillUiCollectionResponse Successful Response
 * @throws ApiError
 */
 export const useBackfillServiceListBackfillsUi = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, dagId, limit, offset, orderBy }: {
