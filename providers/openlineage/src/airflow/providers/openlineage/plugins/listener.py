@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from concurrent.futures.process import BrokenProcessPool
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
