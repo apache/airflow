@@ -34,8 +34,6 @@ body:
         - "Airflow Core"
         - "Helm chart"
         - "Task SDK"
-    validations:
-      required: true
   - type: input
     attributes:
       label: Apache Airflow version
@@ -251,8 +249,6 @@ body:
         - "1.0.0"
         - "main (development)"
       default: 0
-    validations:
-      required: true
   - type: input
     attributes:
       label: Kubernetes Version
