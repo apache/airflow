@@ -195,9 +195,9 @@ submission. On retry, it reads the ID back and reconnects to the already-running
 resubmitting.
 
 This is the **synchronous path** — the worker holds a slot for the duration of polling. This is
-intentional for teams that prefer sync operators for log observability, org constraints, or
-because a Triggerer is not available. It is not a replacement for deferrable operators; the two
-approaches are complementary.
+a crash-safety net for teams running sync operators for log observability, org constraints, or
+because a Triggerer is not available. Teams with a Triggerer available may also consider
+deferrable operators, which free the worker slot but may come with added complexity.
 
 .. note::
     Crash recovery in cluster mode requires Airflow 3.3+ (``task_state`` support). On earlier
