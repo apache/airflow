@@ -247,6 +247,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._deploy_mode = deploy_mode
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
+        self._is_yarn_cluster_mode = self._is_yarn and self._connection["deploy_mode"] == "cluster"
         self._is_kubernetes = "k8s" in self._connection["master"]
         if self._is_kubernetes and kube_client is None:
             raise RuntimeError(
@@ -900,8 +901,16 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         url = raw if "://" in raw else f"http://{raw}"
         return url.rstrip("/")
 
-    def query_yarn_application_final_status(self, application_id: str) -> str:
-        """GET ``/ws/v1/cluster/apps/{id}`` and return the ``app.finalStatus`` string."""
+    def query_yarn_application_status(self, application_id: str) -> str:
+        """
+        GET ``/ws/v1/cluster/apps/{id}`` and return a synthesized single-string status.
+
+        Active states (NEW, NEW_SAVING, SUBMITTED, ACCEPTED, RUNNING) are returned as-is.
+        Terminal states are collapsed to "SUCCEEDED" or "FAILED":
+        - FINISHED + finalStatus SUCCEEDED → "SUCCEEDED"
+        - FINISHED + any other finalStatus → "FAILED"
+        - FAILED or KILLED → "FAILED"
+        """
         import requests
 
         url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
@@ -917,12 +926,84 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 f"{application_id}: {resp.text[:200]}"
             )
         try:
-            return resp.json()["app"]["finalStatus"]
+            app = resp.json()["app"]
+            state = app["state"]
+            final_status = app["finalStatus"]
         except (ValueError, KeyError, TypeError) as exc:
             raise RuntimeError(
                 f"YARN RM REST API returned unexpected payload for application "
                 f"{application_id}: {resp.text[:200]}"
             ) from exc
+        if state in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}:
+            return state
+        if state == "FINISHED" and final_status == "SUCCEEDED":
+            return "SUCCEEDED"
+        return "FAILED"
+
+    def _start_yarn_application_status_tracking(self, application_id: str) -> None:
+        """
+        Poll the YARN ResourceManager REST API until the application reaches a terminal state.
+
+        Mirrors ``_start_driver_status_tracking`` for Spark standalone. Raises
+        ``RuntimeError`` if the application fails or if too many consecutive RM
+        request failures occur.
+
+        Possible synthesized statuses (from ``query_yarn_application_status``):
+
+        NEW
+            Application has been created but not yet submitted to the scheduler
+        NEW_SAVING
+            Application metadata is being persisted before scheduling
+        SUBMITTED
+            Application has been submitted and is waiting to be scheduled
+        ACCEPTED
+            Application has been accepted by the scheduler and is queued
+        RUNNING
+            Application is actively executing on the cluster
+        SUCCEEDED
+            Application completed successfully (state=FINISHED, finalStatus=SUCCEEDED)
+        FAILED
+            Application terminated unsuccessfully — covers YARN state FAILED, KILLED,
+            or FINISHED with a non-SUCCEEDED finalStatus
+        """
+        missed_status_reports = 0
+        max_missed_status_reports = 10
+        heartbeat_interval = 10
+        poll_count = 0
+        last_status: str | None = None
+
+        while True:
+            time.sleep(self._status_poll_interval)
+            self.log.debug("Polling status of YARN application %s", application_id)
+            try:
+                status = self.query_yarn_application_status(application_id)
+                missed_status_reports = 0
+            except RuntimeError as exc:
+                missed_status_reports += 1
+                if missed_status_reports > max_missed_status_reports:
+                    raise RuntimeError(
+                        f"Giving up polling YARN application {application_id} after "
+                        f"{max_missed_status_reports} consecutive RM REST API failures. "
+                        f"Last error: {exc}"
+                    ) from exc
+                self.log.warning(
+                    "Transient YARN RM REST API failure (%d/%d): %s",
+                    missed_status_reports,
+                    max_missed_status_reports,
+                    exc,
+                )
+                continue
+            poll_count += 1
+            if status != last_status:
+                self.log.info("YARN application %s status: %s", application_id, status)
+                last_status = status
+            elif poll_count % heartbeat_interval == 0:
+                self.log.info("YARN application %s is still %s", application_id, status)
+            if status not in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}:
+                if status != "SUCCEEDED":
+                    raise RuntimeError(f"YARN application {application_id} ended with status: {status}")
+                self.log.info("YARN application %s completed successfully", application_id)
+                return
 
     def kill_yarn_application(self, application_id: str) -> None:
         """PUT ``/ws/v1/cluster/apps/{id}/state`` to kill the application (best-effort)."""

@@ -505,10 +505,11 @@ class TestSparkSubmitOperatorResumable:
     def _make_operator(self, **kwargs):
         return SparkSubmitOperator(task_id="test", dag=self.dag, application="test.jar", **kwargs)
 
-    def _make_hook(self, should_track=False, is_yarn=False, is_kubernetes=False):
+    def _make_hook(self, should_track=False, is_yarn=False, is_yarn_cluster=False, is_kubernetes=False):
         hook = MagicMock()
         hook._should_track_driver_status = should_track
         hook._is_yarn = is_yarn
+        hook._is_yarn_cluster_mode = is_yarn_cluster
         hook._is_kubernetes = is_kubernetes
         hook._connection = {"master": "spark://localhost:7077"}
         return hook
@@ -598,26 +599,35 @@ class TestSparkSubmitOperatorResumable:
         assert polled == ["driver-new"]
 
     @pytest.mark.parametrize(
-        ("is_yarn", "is_kubernetes", "status", "expected_active", "expected_succeeded"),
+        ("is_yarn_cluster", "is_kubernetes", "status", "expected_active", "expected_succeeded"),
         [
+            # Spark standalone cluster mode
             (False, False, "RUNNING", True, False),
             (False, False, "SUBMITTED", True, False),
+            (False, False, "RELAUNCHING", True, False),
+            (False, False, "UNKNOWN", True, False),
             (False, False, "FINISHED", False, True),
             (False, False, "FAILED", False, False),
-            (True, False, "RUNNING", True, False),
-            (True, False, "ACCEPTED", True, False),
+            # YARN cluster mode — synthesized statuses from query_yarn_application_status
             (True, False, "NEW", True, False),
-            (True, False, "FINISHED", False, True),
+            (True, False, "NEW_SAVING", True, False),
+            (True, False, "SUBMITTED", True, False),
+            (True, False, "ACCEPTED", True, False),
+            (True, False, "RUNNING", True, False),
+            (True, False, "SUCCEEDED", False, True),
             (True, False, "FAILED", False, False),
+            # Kubernetes
             (False, True, "Running", True, False),
             (False, True, "Pending", True, False),
             (False, True, "Succeeded", False, True),
             (False, True, "Failed", False, False),
         ],
     )
-    def test_job_status_mappings(self, is_yarn, is_kubernetes, status, expected_active, expected_succeeded):
+    def test_job_status_mappings(
+        self, is_yarn_cluster, is_kubernetes, status, expected_active, expected_succeeded
+    ):
         operator = self._make_operator()
-        operator._hook = self._make_hook(is_yarn=is_yarn, is_kubernetes=is_kubernetes)
+        operator._hook = self._make_hook(is_yarn_cluster=is_yarn_cluster, is_kubernetes=is_kubernetes)
 
         assert operator.is_job_active(status) == expected_active
         assert operator.is_job_succeeded(status) == expected_succeeded
@@ -694,3 +704,105 @@ class TestSparkSubmitOperatorResumable:
 
         assert len(captured_urls) == 1
         assert captured_urls[0].startswith("https://")
+
+    def test_yarn_first_run_persists_app_id_before_polling(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn_cluster=True)
+        operator._hook._conf = {}
+        operator._hook._yarn_application_id = "application_1234_0001"
+        operator._hook.submit.return_value = None
+
+        task_state = FakeTaskState()
+        persisted_before_poll = []
+
+        def track_poll(external_id, context):
+            persisted_before_poll.append(task_state.get("spark_job_id"))
+
+        operator.poll_until_complete = track_poll
+        operator.execute(context={"task_state": task_state})
+
+        assert persisted_before_poll == ["application_1234_0001"]
+
+    def test_yarn_retry_reconnects_to_running_app(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn_cluster=True)
+        task_state = FakeTaskState({"spark_job_id": "application_1234_0001"})
+
+        operator.get_job_status = lambda external_id: "RUNNING"
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_state": task_state})
+
+        operator._hook.submit.assert_not_called()
+        assert polled == ["application_1234_0001"]
+
+    def test_yarn_retry_skips_already_succeeded_app(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn_cluster=True)
+        task_state = FakeTaskState({"spark_job_id": "application_1234_0001"})
+
+        operator.get_job_status = lambda external_id: "SUCCEEDED"
+
+        operator.execute(context={"task_state": task_state})
+
+        operator._hook.submit.assert_not_called()
+
+    def test_yarn_retry_resubmits_after_failed_app(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn_cluster=True)
+        operator._hook._conf = {}
+        operator._hook._yarn_application_id = "application_1234_0002"
+        operator._hook.submit.return_value = None
+        task_state = FakeTaskState({"spark_job_id": "application_1234_0001"})
+
+        operator.get_job_status = lambda external_id: "FAILED"
+        polled = []
+        operator.poll_until_complete = lambda external_id, context: polled.append(external_id)
+
+        operator.execute(context={"task_state": task_state})
+
+        operator._hook.submit.assert_called_once_with("test.jar")
+        assert polled == ["application_1234_0002"]
+
+    def test_yarn_injects_wait_app_completion_false(self):
+        operator = self._make_operator()
+        hook = self._make_hook(is_yarn_cluster=True)
+        hook._conf = {}
+        hook._yarn_application_id = "application_1234_0001"
+        hook.submit.return_value = None
+        operator._hook = hook
+
+        operator.submit_job(context={})
+
+        assert hook._conf.get("spark.yarn.submit.waitAppCompletion") == "false"
+
+    def test_yarn_raises_if_wait_app_completion_true(self):
+        operator = self._make_operator()
+        hook = self._make_hook(is_yarn_cluster=True)
+        hook._conf = {"spark.yarn.submit.waitAppCompletion": "true"}
+        operator._hook = hook
+
+        with pytest.raises(ValueError, match="waitAppCompletion=true"):
+            operator.submit_job(context={})
+
+    def test_yarn_poll_tolerates_transient_resourcemanager_failures(self):
+        operator = self._make_operator()
+        operator._hook = self._make_hook(is_yarn_cluster=True)
+        operator._hook._status_poll_interval = 0
+
+        call_count = 0
+
+        def flaky_status(external_id):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 5:
+                raise RuntimeError("RM temporarily unavailable")
+            return "SUCCEEDED"
+
+        operator.get_job_status = flaky_status
+
+        with mock.patch("time.sleep"):
+            operator.poll_until_complete("application_1234_0001", context={})
+
+        operator._hook._run_post_submit_commands.assert_called_once()
