@@ -19,6 +19,8 @@
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
@@ -30,6 +32,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { IconButton } from "src/components/ui";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
+import { useTimezone } from "src/context/timezone";
 
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
@@ -40,6 +43,9 @@ const spin = keyframes`
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 `;
+
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 export const Calendar = () => {
   const { dagId = "" } = useParams();
@@ -53,14 +59,20 @@ export const Calendar = () => {
 
   const currentDate = dayjs();
 
+  const { selectedTimezone } = useTimezone();
+
   const { data: dag } = useDagServiceGetDagDetails({ dagId });
   const isPartitioned = dag?.timetable_partitioned ?? false;
 
-  const startDate = granularity === "daily" ? selectedDate.startOf("year") : selectedDate.startOf("month");
-  const endDate = granularity === "daily" ? selectedDate.endOf("year") : selectedDate.endOf("month");
+  // Compute the date range in the selected timezone, then convert to UTC for API
+  const tzDate = selectedDate.tz(selectedTimezone, true);
+  const startDate =
+    granularity === "daily" ? tzDate.startOf("year") : tzDate.startOf("month");
+  const endDate =
+    granularity === "daily" ? tzDate.endOf("year") : tzDate.endOf("month");
 
-  const gte = startDate.format("YYYY-MM-DD[T]HH:mm:ss[Z]");
-  const lte = endDate.format("YYYY-MM-DD[T]HH:mm:ss[Z]");
+  const gte = startDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
+  const lte = endDate.utc().format("YYYY-MM-DDTHH:mm:ss.SSS[Z]");
 
   const { data, error, isLoading } = useCalendarServiceGetCalendar(
     {
@@ -74,7 +86,7 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity);
+  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity, selectedTimezone);
 
   if (!data && !isLoading) {
     return (
@@ -226,6 +238,7 @@ export const Calendar = () => {
               data-testid="calendar-daily-view"
               scale={scale}
               selectedYear={selectedDate.year()}
+              timezone={selectedTimezone}
               viewMode={viewMode}
             />
             <CalendarLegend scale={scale} viewMode={viewMode} />
@@ -238,6 +251,7 @@ export const Calendar = () => {
                 scale={scale}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
+                timezone={selectedTimezone}
                 viewMode={viewMode}
               />
             </Box>
