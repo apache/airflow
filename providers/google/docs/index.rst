@@ -129,7 +129,7 @@ PIP package                                 Version required
 ``google-api-python-client``                ``>=2.0.2``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
-``google-cloud-aiplatform[evaluation]``     ``>=1.145.0``
+``google-cloud-aiplatform[evaluation]``     ``>=1.153.1``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
