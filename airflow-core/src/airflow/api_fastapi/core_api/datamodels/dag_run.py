@@ -161,6 +161,12 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return self
 
     def validate_context(self, dag: SerializedDAG) -> dict:
+        if self.partition_key is not None and not dag.timetable.partitioned:
+            raise ValueError(
+                f"DAG '{dag.dag_id}' does not use a partitioned timetable; "
+                "'partition_key' may only be set when the DAG's timetable supports partitions."
+            )
+
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after or timezone.utcnow()
         data_interval = None

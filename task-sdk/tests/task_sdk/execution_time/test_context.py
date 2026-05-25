@@ -500,6 +500,15 @@ class TestOutletEventAccessorPartitionKeys:
         accessor.add_partitions(["us", "eu"])
         assert accessor.partition_keys == {"us", "eu"}
 
+    def test_add_partitions_on_alias_emits_warning(self):
+        alias_accessor = OutletEventAccessor(
+            key=AssetAliasUniqueKey.from_asset_alias(AssetAlias("my_alias"))
+        )
+        with pytest.warns(UserWarning, match="add_partitions\\(\\) has no effect on asset alias"):
+            alias_accessor.add_partitions("us")
+        # The keys are still stored, but the warning signals they won't be propagated.
+        assert "us" in alias_accessor.partition_keys
+
 
 class TestTriggeringAssetEventsAccessor:
     @pytest.fixture(autouse=True)

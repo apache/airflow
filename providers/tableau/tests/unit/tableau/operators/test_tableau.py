@@ -70,7 +70,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -106,7 +106,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
@@ -135,7 +135,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
 
     @patch("airflow.providers.tableau.operators.tableau.TableauHook")
@@ -167,7 +167,7 @@ class TestTableauOperator:
 
         job_id = operator.execute(context={})
 
-        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=False)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
         mock_tableau_hook.wait_for_state.assert_called_once_with(
             job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
@@ -269,6 +269,34 @@ class TestTableauOperator:
 
         with pytest.raises(AirflowException):
             operator.execute({})
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_datasources_incremental(self, mock_tableau_hook):
+        """incremental=True must be forwarded to datasources.refresh()."""
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(
+            blocking_refresh=False, find="ds_2", resource="datasources", incremental=True, **self.kwargs
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2, incremental=True)
+        assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_workbooks_incremental(self, mock_tableau_hook):
+        """incremental=True must be forwarded to workbooks.refresh()."""
+        mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(
+            blocking_refresh=False, find="wb_2", resource="workbooks", incremental=True, **self.kwargs
+        )
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2, incremental=True)
+        assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
     def test_get_resource_id(self):
         """

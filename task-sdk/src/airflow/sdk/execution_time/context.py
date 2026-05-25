@@ -20,6 +20,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from functools import cache
@@ -880,6 +881,14 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
         """Add one or more partition keys to :attr:`partition_keys`."""
         if isinstance(keys, str):
             keys = [keys]
+        if isinstance(self.key, AssetAliasUniqueKey):
+            warnings.warn(
+                "add_partitions() has no effect on asset alias outlet events. "
+                "Partition keys are not propagated through asset aliases; "
+                "use outlet_events[asset].add_partitions() on the target asset directly.",
+                UserWarning,
+                stacklevel=2,
+            )
         self.partition_keys.update(keys)
 
     def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
