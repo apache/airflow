@@ -45,6 +45,7 @@ from airflow.sdk import (
     PartitionMapper,
     ProductMapper,
     StartOfDayMapper,
+    StartOfHourMapper,
     StartOfMonthMapper,
     StartOfQuarterMapper,
     StartOfWeekMapper,
@@ -52,7 +53,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionAtRuntime,
@@ -463,6 +463,7 @@ class _Serializer:
         | StartOfYearMapper,
     ) -> dict[str, Any]:
         return {
+            "timezone": encode_timezone(partition_mapper._timezone),
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }

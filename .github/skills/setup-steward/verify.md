@@ -1,6 +1,3 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
-
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/legal/release-policy.html -->
 
@@ -115,12 +112,21 @@ Check that the entries from
   must never be committed since the content is machine-specific
   absolute paths)
 
-Recommended:
+Recommended (the family patterns the adopter's
+[skills-dir convention](conventions.md) requires):
 
-- The framework-skill symlink patterns (`security-*`,
-  `pr-management-*`, `issue-*`, `setup-isolated-setup-*`,
-  `setup-shared-config-sync`, `list-steward-*`) under both
-  `.claude/skills/` and `.github/skills/` per convention.
+- **Pattern A** — framework-skill symlink patterns
+  (`security-*`, `pr-management-*`, `issue-*`,
+  `setup-isolated-setup-*`, `setup-shared-config-sync`,
+  `list-steward-*`) under `.claude/skills/` only.
+- **Pattern B** — same patterns under **both**
+  `.claude/skills/` and `.github/skills/` (one ignore line
+  per physical symlink).
+- **Pattern D** — same patterns under the **canonical side
+  only** (`.github/skills/` for D.1; `.claude/skills/` for
+  D.2). The symlinked side does not need its own ignore
+  lines because git does not descend into a directory
+  symlink.
 
 - ✗ if `/.apache-steward/` is not gitignored — the snapshot
   is at risk of being accidentally committed.
