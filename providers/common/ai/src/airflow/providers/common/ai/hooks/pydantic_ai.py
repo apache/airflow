@@ -34,9 +34,6 @@ from airflow.providers.common.ai.hooks.base_ai import (
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
-    from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-    from airflow.providers.common.ai.durable.storage import DurableStorage
-
 
 class PydanticAIHook(BaseAIHook):
     """
@@ -74,16 +71,13 @@ class PydanticAIHook(BaseAIHook):
         model_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         # Resolve at runtime so each subclass uses its own default_conn_name.
         # A bare `llm_conn_id: str = default_conn_name` would bind the *base*
         # class value for all subclasses because Python evaluates default
         # argument values at class-definition time.
-        self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
-        self.model_id = model_id
+        resolved_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
+        super().__init__(llm_conn_id=resolved_conn_id, model_id=model_id, **kwargs)
         self._model: Model | None = None
-        self._durable_storage: DurableStorage | None = None
-        self._durable_counter: DurableStepCounter | None = None
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -193,25 +187,26 @@ class PydanticAIHook(BaseAIHook):
         """Convert a :class:`~airflow.providers.common.ai.hooks.base_ai.ToolSpec` to a pydantic-ai ``Tool``."""
         from pydantic_ai.tools import Tool
 
-        return Tool(spec.fn, name=spec.name, description=spec.description)
+        return Tool(
+            spec.fn,
+            name=spec.name,
+            description=spec.description,
+            sequential=spec.sequential,
+        )
 
     def create_agent(self, request: AgentRunRequest) -> Agent[None, Any]:
         """
         Build a pydantic-ai ``Agent`` from *request*.
 
         When :attr:`~AgentRunRequest.durable_context` is set, initialises durable
-        storage and step counter and stores them on the instance for use by
+        storage and step counter and binds them to the returned agent for use by
         :meth:`run_agent`.
 
         :param request: Agent configuration — output type, instructions, toolsets, extra params.
         """
+        storage = counter = None
         if request.durable_context is not None:
             storage, counter = self._init_durable(request.durable_context)
-            self._durable_storage = storage
-            self._durable_counter = counter
-        else:
-            self._durable_storage = None
-            self._durable_counter = None
 
         extra_kwargs = dict(request.agent_params or {})
         if request.toolsets:
@@ -224,22 +219,22 @@ class PydanticAIHook(BaseAIHook):
                 resolved = self._resolve_tools(
                     pipeline_items,
                     request.enable_tool_logging,
-                    self._durable_storage,
-                    self._durable_counter,
+                    storage,
+                    counter,
                 )
                 if resolved:
                     extra_kwargs["tools"] = resolved
 
             if abstract_items:
                 processed: list[Any] = list(abstract_items)
-                if self._durable_storage is not None and self._durable_counter is not None:
+                if storage is not None and counter is not None:
                     from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
                     processed = [
                         CachingToolset(
                             wrapped=ts,
-                            storage=self._durable_storage,
-                            counter=self._durable_counter,
+                            storage=storage,
+                            counter=counter,
                         )
                         for ts in processed
                     ]
@@ -249,12 +244,15 @@ class PydanticAIHook(BaseAIHook):
                     processed = [LoggingToolset(wrapped=ts, logger=self.log) for ts in processed]
                 extra_kwargs["toolsets"] = processed
 
-        return Agent(
+        agent = Agent(
             self.get_model(),
             output_type=request.output_type,
             instructions=request.instructions,
             **extra_kwargs,
         )
+        if storage is not None and counter is not None:
+            self._bind_agent_durable(agent, storage, counter)
+        return agent
 
     def run_agent(self, agent: Agent[None, Any], request: AgentRunRequest) -> AgentRunResult:
         """Run *agent* synchronously for *request* and return a normalized :class:`~airflow.providers.common.ai.hooks.base_ai.AgentRunResult`."""
@@ -266,52 +264,57 @@ class PydanticAIHook(BaseAIHook):
         if request.usage_limits is not None:
             run_kwargs["usage_limits"] = request.usage_limits
 
-        if self._durable_storage is not None and self._durable_counter is not None:
-            from airflow.providers.common.ai.durable.caching_model import CachingModel
+        durable = self._pop_agent_durable(agent)
+        storage, counter = durable if durable else (None, None)
 
-            resolved_model = infer_model(agent.model)
-            caching_model = CachingModel(
-                resolved_model,
-                storage=self._durable_storage,
-                counter=self._durable_counter,
-            )
-            with agent.override(model=caching_model):
+        try:
+            if storage is not None and counter is not None:
+                from airflow.providers.common.ai.durable.caching_model import CachingModel
+
+                resolved_model = infer_model(agent.model)
+                caching_model = CachingModel(
+                    resolved_model,
+                    storage=storage,
+                    counter=counter,
+                )
+                with agent.override(model=caching_model):
+                    result = agent.run_sync(request.prompt, **run_kwargs)
+            else:
                 result = agent.run_sync(request.prompt, **run_kwargs)
-        else:
-            result = agent.run_sync(request.prompt, **run_kwargs)
 
-        usage = result.usage
-        tool_names: list[str] = []
-        for message in result.all_messages():
-            for part in getattr(message, "parts", []):
-                if isinstance(part, ToolCallPart):
-                    tool_names.append(part.tool_name)
+            usage = result.usage
+            tool_names: list[str] = []
+            for message in result.all_messages():
+                for part in getattr(message, "parts", []):
+                    if isinstance(part, ToolCallPart):
+                        tool_names.append(part.tool_name)
 
-        run_result = AgentRunResult(
-            output=result.output,
-            message_history=result.all_messages(),
-            model_name=getattr(result.response, "model_name", None),
-            usage=AgentUsage(
-                requests=usage.requests,
-                tool_calls=usage.tool_calls,
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
-                total_tokens=usage.total_tokens,
-            ),
-            tool_names=tool_names or None,
-        )
-
-        if self._durable_storage is not None:
-            run_result.durable_stats = DurableStats(
-                replayed_model=self._durable_counter.replayed_model,
-                replayed_tool=self._durable_counter.replayed_tool,
-                cached_model=self._durable_counter.cached_model,
-                cached_tool=self._durable_counter.cached_tool,
+            run_result = AgentRunResult(
+                output=result.output,
+                message_history=result.all_messages(),
+                model_name=getattr(result.response, "model_name", None),
+                usage=AgentUsage(
+                    requests=usage.requests,
+                    tool_calls=usage.tool_calls,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    total_tokens=usage.total_tokens,
+                ),
+                tool_names=tool_names or None,
             )
-            self._durable_storage.cleanup()
-            self._durable_storage = None
-            self._durable_counter = None
 
+            if counter is not None:
+                run_result.durable_stats = DurableStats(
+                    replayed_model=counter.replayed_model,
+                    replayed_tool=counter.replayed_tool,
+                    cached_model=counter.cached_model,
+                    cached_tool=counter.cached_tool,
+                )
+        except BaseException:
+            raise
+        else:
+            if storage is not None:
+                storage.cleanup()
         return run_result
 
     def test_connection(self) -> tuple[bool, str]:

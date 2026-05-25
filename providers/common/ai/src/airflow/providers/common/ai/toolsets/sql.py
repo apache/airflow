@@ -31,6 +31,8 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from pydantic_ai.exceptions import ModelRetry
+
 from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -160,24 +162,28 @@ class SQLToolset(BaseToolset):
                 description="List available table names in the database.",
                 parameters=_LIST_TABLES_SCHEMA,
                 fn=self._list_tables,
+                sequential=True,
             ),
             ToolSpec(
                 name="get_schema",
                 description="Get column names and types for a table.",
                 parameters=_GET_SCHEMA_SCHEMA,
                 fn=self._get_schema,
+                sequential=True,
             ),
             ToolSpec(
                 name="query",
                 description="Execute a SQL query and return rows as JSON.",
                 parameters=_QUERY_SCHEMA,
                 fn=self._query,
+                sequential=True,
             ),
             ToolSpec(
                 name="check_query",
                 description="Validate SQL syntax without executing it.",
                 parameters=_CHECK_QUERY_SCHEMA,
                 fn=self._check_query,
+                sequential=True,
             ),
         ]
 
@@ -208,7 +214,7 @@ class SQLToolset(BaseToolset):
             rows = hook.get_records(sql)
         except Exception as e:
             if self._is_retryable_query_error(hook, e):
-                raise ValueError(
+                raise ModelRetry(
                     f"error: {e!s}, Use get_schema and list_tables tools for more details."
                 ) from e
             raise

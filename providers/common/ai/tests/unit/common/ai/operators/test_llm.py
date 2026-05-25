@@ -317,11 +317,8 @@ class TestLLMOperatorMultimodalPromptGuard:
     and self.prompt is not a string -- covering direct-operator construction and the
     native template rendering escape (where a string template renders to a Sequence)."""
 
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
+    @patch("airflow.providers.common.ai.operators.llm.BaseAIHook.get_agent_hook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_get_agent_hook):
         op = LLMOperator(
             task_id="t",
             prompt="placeholder",
@@ -333,4 +330,4 @@ class TestLLMOperatorMultimodalPromptGuard:
         with pytest.raises(TypeError, match="require_approval=True"):
             op.execute(context=_make_context())
 
-        mock_agent.run_sync.assert_not_called()
+        mock_get_agent_hook.assert_not_called()

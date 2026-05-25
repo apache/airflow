@@ -29,6 +29,14 @@ from typing import Any, ClassVar
 
 from airflow.providers.common.compat.sdk import BaseHook
 
+_EMPTY_OBJECT_SCHEMA: dict[str, Any] = {"type": "object", "properties": {}}
+
+# Durable storage/counter pairs keyed by ``id(agent)``.
+# pydantic-ai ``Agent`` is not hashable, so ``WeakKeyDictionary`` cannot be used.
+# ``create_agent`` and ``run_agent`` run synchronously in the same task, so ``id()``
+# is stable until ``_pop_agent_durable`` removes the entry.
+_AGENT_DURABLE: dict[int, tuple[Any, Any]] = {}
+
 
 @dataclass
 class AgentUsage:
@@ -85,12 +93,15 @@ class ToolSpec:
     :param description: Human-readable description used by the LLM to decide when to call this tool.
     :param parameters: JSON Schema ``object`` describing the tool's parameters.
     :param fn: Callable that implements the tool. Must accept keyword arguments matching *parameters*.
+    :param sequential: When ``True``, the backend must not invoke this tool concurrently with others
+        in the same turn (for example when tools share a non-thread-safe connection).
     """
 
     name: str
     description: str
     parameters: dict[str, Any]
     fn: Callable[..., Any]
+    sequential: bool = False
 
 
 @dataclass
@@ -156,6 +167,9 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` resolves the concrete hook
     from the Airflow connection ``conn_type`` (for example ``pydanticai`` or ``pydanticai-bedrock``).
 
+    :param llm_conn_id: Optional connection ID override (subclasses may apply a default).
+    :param model_id: Optional model override; not all backends use this parameter.
+
     Subclasses implement :meth:`get_model`, :meth:`create_agent`, :meth:`run_agent`, and
     :meth:`_tool_spec_to_native`.
 
@@ -168,6 +182,16 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
     supports_toolsets: ClassVar[bool] = False
     supports_durable: ClassVar[bool] = False
     supports_usage_limits: ClassVar[bool] = False
+
+    def __init__(
+        self,
+        llm_conn_id: str | None = None,
+        model_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.llm_conn_id = llm_conn_id
+        self.model_id = model_id
 
     @classmethod
     def get_agent_hook(cls, conn_id: str, *, hook_params: dict[str, Any] | None = None) -> BaseAIHook:
@@ -203,8 +227,9 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         with the model, tools, instructions, and output type from *request*.
 
         When :attr:`AgentRunRequest.durable_context` is set, implementations
-        should call :meth:`_init_durable` and store the returned storage/counter
-        on the instance so that :meth:`run_agent` can use them.
+        should call :meth:`_init_durable` and bind the returned storage/counter
+        to the agent via :meth:`_bind_agent_durable` so that :meth:`run_agent`
+        can retrieve and clean them up.
 
         :param request: All parameters needed to configure the agent.
         :returns: Framework-native agent object, ready to be passed to :meth:`run_agent`.
@@ -215,8 +240,10 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         """
         Execute *agent* for *request* and return a normalized :class:`AgentRunResult`.
 
-        Implementations that store durable state on the instance (set during
-        :meth:`create_agent`) should apply it here and clean up after the run.
+        Implementations with durable execution should pop durable state via
+        :meth:`_pop_agent_durable`, apply it during the run, and call
+        ``storage.cleanup()`` only after a successful run (keep the cache file
+        when the run raises so Airflow retries can replay cached steps).
 
         :param agent: Framework-native agent produced by :meth:`create_agent`.
         :param request: The same request used to create the agent (prompt, usage
@@ -254,6 +281,16 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
         counter = DurableStepCounter()
         return storage, counter
 
+    @staticmethod
+    def _bind_agent_durable(agent: Any, storage: Any, counter: Any) -> None:
+        """Associate *storage* and *counter* with *agent* until :meth:`run_agent` completes."""
+        _AGENT_DURABLE[id(agent)] = (storage, counter)
+
+    @staticmethod
+    def _pop_agent_durable(agent: Any) -> tuple[Any, Any] | None:
+        """Remove and return durable state bound to *agent*, if any."""
+        return _AGENT_DURABLE.pop(id(agent), None)
+
     def _resolve_tools(
         self,
         toolsets: list[Any],
@@ -285,7 +322,14 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
             if isinstance(ts, BaseToolset):
                 specs = ts.as_tools()
             elif inspect.isfunction(ts):
-                specs = [ToolSpec(name=ts.__name__, description=ts.__doc__ or "", parameters={}, fn=ts)]
+                specs = [
+                    ToolSpec(
+                        name=ts.__name__,
+                        description=ts.__doc__ or "",
+                        parameters=_EMPTY_OBJECT_SCHEMA,
+                        fn=ts,
+                    )
+                ]
             else:
                 native.append(ts)
                 continue
@@ -300,6 +344,7 @@ class BaseAIHook(BaseHook, metaclass=ABCMeta):
                     description=spec.description,
                     parameters=spec.parameters,
                     fn=fn,
+                    sequential=spec.sequential,
                 )
                 native.append(self._tool_spec_to_native(adapted))
         return native
