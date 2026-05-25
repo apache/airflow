@@ -107,9 +107,19 @@ convention so authors can forward arbitrary flags to the underlying
       manifest's `source` and is copied verbatim into the ZIP. If
       `main` is split across multiple files, the packer errors and
       asks the author to specify `--source <file>`.
-   2. Runs `go build [forwarded flags] -o <tmpdir>/<binname> <pkg>`.
-   3. Executes the freshly built binary with `--dump-bundle-spec` to
-      obtain `sdk.{language,version}` and the `dags` mapping.
+   2. Runs `go build [forwarded flags] -o <tmpdir>/<binname> <pkg>`
+      to produce the *target artifact*.
+   3. Executes a *host-runnable introspection binary* with
+      `--dump-bundle-spec` to obtain `sdk.{language,version}` and the
+      `dags` mapping. The packer first tries to exec the target
+      artifact directly; if that fails with "exec format error" (the
+      target is built for a different OS/arch than the host), the
+      packer builds a host-arch sidecar from the same package
+      (`go build` with `GOOS`/`GOARCH` unset, written to
+      `<tmpdir>/<binname>.introspect`) and execs that instead. Both
+      binaries are produced from the same source package against the
+      same module graph, so `RegisterDags` records identical dag/task
+      identity regardless of which one is execed.
    4. Writes a deterministic ZIP next to the working directory at
       `<bundleName>.zip`, where `<bundleName>` comes from the
       binary's `BundleInfo.Name` (already exposed via
@@ -120,7 +130,15 @@ convention so authors can forward arbitrary flags to the underlying
    - `--source <path>`: override the auto-detected source file.
    - `--executable <path>`: skip the internal `go build` and pack a
      pre-built binary. Mutually exclusive with `--` build-flag
-     passthrough.
+     passthrough. If the supplied binary is not host-runnable (e.g.
+     the user cross-built a `linux/amd64` binary from a `darwin/arm64`
+     host), the packer still needs to introspect it: it builds a
+     host-arch sidecar from the positional package and execs that for
+     `--dump-bundle-spec`, then appends the resulting footer to the
+     user-supplied binary. If no positional package was passed and
+     the supplied binary is not host-runnable, the packer errors with
+     a message asking for the source package so the sidecar can be
+     built.
    - `--output <path>`: override the default output ZIP path.
 
    Examples:
@@ -220,3 +238,13 @@ convention so authors can forward arbitrary flags to the underlying
   cleaned up after the ZIP is written.
 - `go build` flag passthrough uses the standard `--` separator
   convention so the packer's own flag set stays small and stable.
+- Host-runnable detection is by attempted exec, not by parsing the
+  binary's exec format. The packer runs the candidate introspection
+  binary with `--dump-bundle-spec` and treats the OS's "exec format
+  error" (and the Windows equivalent surfaced by `os/exec`) as the
+  signal to fall back to building a host-arch sidecar. Other exec
+  failures (non-zero exit, malformed JSON, missing flag) are real
+  errors and are surfaced to the user as-is. The Go build cache
+  amortises the sidecar to a link step when host arch is already
+  involved, so there is no measurable overhead when no cross-compile
+  is in play.
