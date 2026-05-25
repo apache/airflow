@@ -672,3 +672,92 @@ class TestStackdriverLoggingHandlerTask:
             f'labels.try_number="{self.ti.try_number}"',
         ]
         assert set(expected_filter) == set(filter_params)
+
+
+class TestStackdriverTaskHandlerExceptionHandling:
+    """Cloud Logging failures must degrade gracefully, not leak internals."""
+
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
+    def test_read_falls_back_when_cloud_logging_unavailable(
+        self, mock_client, mock_get_creds_and_project_id, caplog
+    ):
+        """``read()`` must surface a user-facing message when Cloud Logging raises.
+
+        Without a guard, a gRPC error from ``list_log_entries`` propagates as HTTP 500
+        on the log viewer. The fix degrades gracefully and logs the full traceback for
+        the operator.
+        """
+        from google.api_core import exceptions as gapi_exceptions
+
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+        mock_client.return_value.list_log_entries.side_effect = gapi_exceptions.ServiceUnavailable(
+            "Stackdriver returned an internal error for project secret-project-id"
+        )
+
+        handler = StackdriverTaskHandler()
+        ti = mock.MagicMock()
+        ti.task_id = "t"
+        ti.dag_id = "d"
+        ti.try_number = 1
+        ti.logical_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
+        ti.execution_date = ti.logical_date
+
+        with caplog.at_level(logging.ERROR):
+            logs, metadata = handler.read(ti, try_number=1)
+
+        # The user-facing message must NOT include the project id / internal details.
+        message = logs[0][0][1]
+        assert "Cloud Logging is currently unavailable" in message
+        assert "secret-project-id" not in message
+        assert metadata == [{"end_of_log": True}]
+
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
+    @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
+    def test_read_does_not_leak_internals_in_user_facing_message(
+        self, mock_client, mock_get_creds_and_project_id
+    ):
+        """``read()`` must not propagate gRPC error details into user-visible messages.
+
+        A ``PermissionDenied`` from ``list_log_entries`` typically carries the service
+        account email + the missing IAM permission. The outer guard in ``read()`` must
+        replace it with a generic message so an authenticated user sees no internal
+        identifiers.
+        """
+        from google.api_core import exceptions as gapi_exceptions
+
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+        mock_client.return_value.list_log_entries.side_effect = gapi_exceptions.PermissionDenied(
+            "service account 'sa@project.iam.gserviceaccount.com' lacks logging.logEntries.list"
+        )
+
+        handler = StackdriverTaskHandler()
+        ti = mock.MagicMock()
+        ti.task_id = "t"
+        ti.dag_id = "d"
+        ti.try_number = 1
+        ti.logical_date = mock.MagicMock(isoformat=lambda: "2020-01-01T00:00:00+00:00")
+        ti.execution_date = ti.logical_date
+
+        logs, _ = handler.read(ti, try_number=1)
+
+        message = logs[0][0][1]
+        assert "Cloud Logging is currently unavailable" in message
+        assert "sa@project.iam.gserviceaccount.com" not in message
+        assert "logging.logEntries.list" not in message
+
+    def test_close_swallows_transport_flush_errors(self, capsys):
+        """``close()`` must never raise — even when transport ``flush()`` fails."""
+        handler = StackdriverTaskHandler()
+        broken_transport = mock.MagicMock()
+        broken_transport.flush.side_effect = RuntimeError("flush failed during shutdown")
+        # ``transport`` is a cached_property on ``StackdriverRemoteLogIO``; bypass it.
+        handler.io.__dict__["transport"] = broken_transport
+
+        # Must not raise.
+        handler.close()
+
+        # The failure is surfaced on stderr because the logging machinery may be shutting down.
+        captured = capsys.readouterr()
+        assert "transport flush failed" in captured.err
+        assert "flush failed during shutdown" in captured.err
