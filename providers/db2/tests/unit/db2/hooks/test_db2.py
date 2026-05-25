@@ -99,8 +99,8 @@ class TestDb2Hook:
 
         # Verify connection string contains SSL parameters
         call_args = mock_connect.call_args[0][0]
-        assert "SECURITY=SSL" in call_args
-        assert "SSLClientKeystoredb=/path/to/cert.pem" in call_args
+        assert "SSL=true" in call_args
+        assert "SSLCERT=/path/to/cert.pem" in call_args
 
     @patch("airflow.providers.db2.hooks.db2.Db2Hook.get_connection")
     def test_get_uri(self, mock_get_connection, mock_connection):
