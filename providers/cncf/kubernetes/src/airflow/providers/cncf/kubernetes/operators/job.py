@@ -289,9 +289,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         pods_by_name: dict[str, k8s.V1Pod] = {}
         event_job = event.get("job")
         job_namespace = (
-            event_job.get("metadata", {}).get("namespace")
-            if isinstance(event_job, dict)
-            else None
+            event_job.get("metadata", {}).get("namespace") if isinstance(event_job, dict) else None
         )
         pod_namespace = event.get("pod_namespace") or event.get("namespace") or job_namespace
         unresolved_pods: list[tuple[str, str]] = []
@@ -342,9 +340,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 for pod_name in event.get("pod_names") or []:
                     if pod_name not in pods_by_name:
                         # Pod was reported by the trigger but missing now (e.g. 404)
-                        self.log.warning(
-                            "Skipping log retrieval for pod %s (not found).", pod_name
-                        )
+                        self.log.warning("Skipping log retrieval for pod %s (not found).", pod_name)
                         continue
                     self._write_logs(pods_by_name[pod_name])
 
@@ -470,16 +466,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
         """
         for pod_name, pod in pods_by_name.items():
             try:
-                self.post_complete_action(
-                    pod=pod, remote_pod=pod, context=context, result=None
-                )
+                self.post_complete_action(pod=pod, remote_pod=pod, context=context, result=None)
             except Exception:
                 self.log.warning(
                     "Error while cleaning up monitoring pod %s",
                     pod_name,
                     exc_info=True,
                 )
-        pod_phase = "Succeeded" if event_status == "success" else "Failed" if event_status == "error" else None
+        pod_phase = (
+            "Succeeded" if event_status == "success" else "Failed" if event_status == "error" else None
+        )
         for pod_name, pod_namespace in unresolved_pods or []:
             fallback_pod = k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(name=pod_name, namespace=pod_namespace),

@@ -1289,13 +1289,9 @@ class TestKubernetesJobOperator:
         mock_pod_1 = mock.create_autospec(k8s.V1Pod, instance=True)
         mock_pod_2 = mock.create_autospec(k8s.V1Pod, instance=True)
         mock_get_pods.return_value = [mock_pod_1, mock_pod_2]
-        mock_find_pod.side_effect = (
-            lambda namespace, context: mock.create_autospec(k8s.V1Pod, instance=True)
-        )
+        mock_find_pod.side_effect = lambda namespace, context: mock.create_autospec(k8s.V1Pod, instance=True)
 
-        op = KubernetesJobOperator(
-            task_id="test_task_id", wait_until_job_complete=True, parallelism=2
-        )
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=True, parallelism=2)
         op.execute(context=dict(ti=mock.create_autospec(TaskInstance, instance=True)))
 
         assert mock_post_complete_action.call_count == 2
@@ -1466,9 +1462,7 @@ class TestKubernetesJobOperator:
 
         mock_client.delete_namespaced_job.assert_called_once()
         assert mock_pod_manager.delete_pod.call_count == 2
-        mock_pod_manager.delete_pod.assert_has_calls(
-            [mock.call(pod_1), mock.call(pod_2)], any_order=True
-        )
+        mock_pod_manager.delete_pod.assert_has_calls([mock.call(pod_1), mock.call(pod_2)], any_order=True)
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.post_complete_action"))
