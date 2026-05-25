@@ -42,7 +42,7 @@ combined_player_stats = Asset(uri="file://curated/player-stats/combined.csv", na
 with DAG(
     dag_id="ingest_team_a_player_stats",
     schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
-    tags=["player-stats", "ingestion"],
+    tags=["example", "player-stats", "ingestion"],
 ):
     """Produce hourly partitioned stats for Team A."""
 
@@ -81,7 +81,7 @@ with DAG(
         default_partition_mapper=StartOfHourMapper(),
     ),
     catchup=False,
-    tags=["player-stats", "cleanup"],
+    tags=["example", "player-stats", "cleanup"],
 ):
     """
     Combine hourly partitions from Team A, B and C into a single curated dataset.
@@ -128,7 +128,7 @@ with DAG(
         },
     ),
     catchup=False,
-    tags=["player-stats", "odds"],
+    tags=["example", "player-stats", "odds"],
 ):
     """
     Demonstrate a partition mapper mismatch scenario.
@@ -149,7 +149,7 @@ regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_
 with DAG(
     dag_id="ingest_regional_sales",
     schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
-    tags=["sales", "ingestion"],
+    tags=["example", "sales", "ingestion"],
 ):
     """Produce hourly regional sales data with composite partition keys."""
 
@@ -168,7 +168,7 @@ with DAG(
         default_partition_mapper=ProductMapper(IdentityMapper(), StartOfDayMapper()),
     ),
     catchup=False,
-    tags=["sales", "aggregation"],
+    tags=["example", "sales", "aggregation"],
 ):
     """
     Aggregate regional sales using ProductMapper.
@@ -194,7 +194,7 @@ region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name=
 with DAG(
     dag_id="ingest_region_stats",
     schedule=None,
-    tags=["player-stats", "regional"],
+    tags=["example", "player-stats", "regional"],
 ):
     """
     Ingest player statistics per region.
@@ -247,7 +247,7 @@ with DAG(
     dag_id="summarize_live_region_stats",
     schedule=PartitionedAssetTimetable(assets=Asset.ref(name="live_region_player_stats")),
     catchup=False,
-    tags=["player-stats", "runtime"],
+    tags=["example", "player-stats", "runtime"],
 ):
     """
     Summarize the live region statistics for each runtime-emitted partition.

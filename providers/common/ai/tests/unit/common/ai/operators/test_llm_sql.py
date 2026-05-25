@@ -655,3 +655,29 @@ class TestLLMSQLQueryOperatorApproval:
         result = op.execute_complete({}, generated_output="SELECT 1", event=event)
 
         assert result == "SELECT 1"
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestLLMSQLQueryOperatorMultimodalPromptGuard:
+    """LLMSQLQueryOperator.execute raises before agent.run_sync when require_approval=True
+    and self.prompt is not a string."""
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMSQLQueryOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            require_approval=True,
+        )
+        op.prompt = ["x", object()]
+
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context=_make_context())
+
+        mock_agent.run_sync.assert_not_called()

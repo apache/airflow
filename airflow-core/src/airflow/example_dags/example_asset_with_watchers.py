@@ -33,6 +33,7 @@ with DAG(
     dag_id="example_asset_with_watchers",
     schedule=[asset],
     catchup=False,
+    tags=["example"],
 ):
 
     @task

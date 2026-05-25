@@ -80,12 +80,12 @@ class VaultHook(BaseHook):
 
     :param vault_conn_id: The id of the connection to use
     :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
-        ('approle', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'token', 'userpass')
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
           version defined in connection or ``2`` if not defined in connection.
-    :param role_id: Role ID for ``aws_iam`` Authentication.
+    :param role_id: Role ID for ``approle``, ``aws_iam`` and ``gcp`` Authentication.
     :param region: AWS region for STS API calls (for ``aws_iam`` auth_type).
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
@@ -161,6 +161,10 @@ class VaultHook(BaseHook):
                 role_id = self.connection.extra_dejson.get("role_id")
             if not region:
                 region = self.connection.extra_dejson.get("region")
+
+        if auth_type == "gcp":
+            if not role_id:
+                role_id = self.connection.extra_dejson.get("role_id") or self.connection.login
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
