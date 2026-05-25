@@ -6199,8 +6199,11 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskStatePatchBody'
       responses:
-        '204':
+        '200':
           description: Successful Response
+          content:
+            application/json:
+              schema: {}
         '401':
           content:
             application/json:

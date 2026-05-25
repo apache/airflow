@@ -3989,7 +3989,7 @@ export type PatchTaskStateData = {
     taskId: string;
 };
 
-export type PatchTaskStateResponse = void;
+export type PatchTaskStateResponse = unknown;
 
 export type DeleteTaskStateData = {
     dagId: string;
@@ -7295,7 +7295,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                204: void;
+                200: unknown;
                 /**
                  * Unauthorized
                  */

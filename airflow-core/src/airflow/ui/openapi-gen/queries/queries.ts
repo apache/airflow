@@ -2810,7 +2810,7 @@ export const usePoolServiceBulkPools = <TData = Common.PoolServiceBulkPoolsMutat
 * @param data.key
 * @param data.requestBody
 * @param data.mapIndex
-* @returns void Successful Response
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const useTaskStateServicePatchTaskState = <TData = Common.TaskStateServicePatchTaskStateMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {

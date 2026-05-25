@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -50,7 +50,7 @@ def _get_scope(dag_id: str, dag_run_id: str, task_id: str, map_index: int) -> Ta
     return TaskScope(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
-def _resolve_expires_at(expires_at: datetime | None | str) -> datetime | None:
+def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> datetime | None:
     """
     Resolve the expires_at value from the request body.
 
@@ -61,7 +61,7 @@ def _resolve_expires_at(expires_at: datetime | None | str) -> datetime | None:
     if expires_at == "default":
         days = conf.getint("state_store", "default_retention_days")
         return datetime.now(tz=timezone.utc) + timedelta(days=days)
-    return None
+    return expires_at
 
 
 def _require_ti(dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: SessionDep) -> None:
@@ -191,7 +191,7 @@ def set_task_state(
 
 @task_state_router.patch(
     "/{key:path}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )

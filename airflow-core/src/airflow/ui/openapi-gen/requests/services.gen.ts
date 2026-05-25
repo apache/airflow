@@ -3824,7 +3824,7 @@ export class TaskStateService {
      * @param data.key
      * @param data.requestBody
      * @param data.mapIndex
-     * @returns void Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static patchTaskState(data: PatchTaskStateData): CancelablePromise<PatchTaskStateResponse> {
