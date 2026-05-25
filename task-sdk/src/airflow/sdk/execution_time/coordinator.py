@@ -108,7 +108,7 @@ class BaseCoordinator:
 
 class _CoordinatorSpec(pydantic.BaseModel):
     classpath: str
-    kwargs: dict[str, Any]
+    kwargs: dict[str, Any] = pydantic.Field(default_factory=dict)
 
 
 class _PythonCoordinator(BaseCoordinator):
@@ -153,6 +153,10 @@ class _PythonCoordinator(BaseCoordinator):
 @functools.cache
 def _build_python_coordinator() -> _PythonCoordinator:
     return _PythonCoordinator()
+
+
+class InvalidCoordinatorError(ValueError):
+    """Raised for an invalid coordinator configuration."""
 
 
 @attrs.define(kw_only=True)
@@ -201,8 +205,7 @@ class CoordinatorManager:
                 raise ValueError(f"[sdk] queue_to_coordinator references invalid coordinator key: {key!r}")
         return cls(coordinator_specs=coordinator_specs, queue_to_coordinator=queue_to_coordinator)
 
-    def _for_queue_internal(self, queue: str) -> BaseCoordinator:
-        key = self._queue_to_coordinator[queue]
+    def _find_queue(self, key: str) -> BaseCoordinator:
         with contextlib.suppress(KeyError):
             return self._created_coordinators[key]
         spec = self._coordinator_specs[key]
@@ -216,10 +219,18 @@ class CoordinatorManager:
         If an entry is not registered, a Python coordinator is returned.
         """
         try:
-            coordinator = self._for_queue_internal(queue)
+            key = self._queue_to_coordinator[queue]
         except KeyError:
             log.debug("Queue not configured to a coordinator; defaulting to Python", queue=queue)
             return _build_python_coordinator()
+        try:
+            coordinator = self._find_queue(key)
+        except KeyError:
+            raise InvalidCoordinatorError(f"Queue {queue!r} configured to nonexistent coordinator")
+        except ImportError:
+            raise InvalidCoordinatorError(f"Cannot import coordinator {key!r}")
+        except TypeError:
+            raise InvalidCoordinatorError(f"Cannot instantiate coordinator {key!r}")
         log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
         return coordinator
 
