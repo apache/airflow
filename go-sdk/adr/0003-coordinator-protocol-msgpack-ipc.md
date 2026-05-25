@@ -263,6 +263,13 @@ coordinator mode it talks to the supervisor over the comm socket.
 Both implement the same `sdk.Client` / `sdk.VariableClient` interfaces,
 so user task code is identical between the two modes.
 
+The `(panic recovered → "failed")` step in the diagram is
+`pkg/worker.Worker.runTask`'s existing `defer recover()` block
+(`runner.go:295-311`), which logs the panic and calls
+`reportStateFailed`. Because both modes reuse the same `Worker`,
+this behaviour is identical in go-plugin mode and coordinator mode;
+it is not a coordinator-only invention.
+
 Frame correlation, error envelopes, and request `id` numbering follow
 java-sdk ADR 0003 verbatim. Re-implementing rather than reusing those
 is a deliberate cost of having a separate Go runtime; the validation
