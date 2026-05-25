@@ -17,10 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import (
-    Annotated,
-    Any,
-)
+from typing import Annotated
 
 from fastapi import Path
 from pydantic import BaseModel, Field
@@ -42,25 +39,6 @@ class WorkerApiDocs:
         description="For dynamically mapped tasks the mapping number, -1 if the task is not mapped.",
     )
     state = Path(title="Task State", description="State of the assigned task under execution.")
-
-
-class JsonRpcRequestBase(BaseModel):
-    """Base JSON RPC request model to define just the method."""
-
-    method: Annotated[
-        str,
-        Field(description="Fully qualified python module method name that is called via JSON RPC."),
-    ]
-
-
-class JsonRpcRequest(JsonRpcRequestBase):
-    """JSON RPC request model."""
-
-    jsonrpc: Annotated[str, Field(description="JSON RPC Version", examples=["2.0"])]
-    params: Annotated[
-        dict[str, Any] | None,
-        Field(description="Dictionary of parameters passed to the method."),
-    ]
 
 
 class EdgeJobBase(BaseModel):
