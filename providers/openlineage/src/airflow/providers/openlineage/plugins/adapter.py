@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import traceback
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import yaml
 from openlineage.client import OpenLineageClient, set_producer
@@ -36,6 +36,10 @@ from openlineage.client.facet_v2 import (
 
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
 from airflow.providers.openlineage import conf
+from airflow.providers.openlineage.token_provider import (
+    AirflowConnectionConfigProvider,
+    resolve_airflow_connection_auth,
+)
 from airflow.providers.openlineage.utils.utils import (
     _PRODUCER,
     OpenLineageRedactor,
@@ -103,22 +107,35 @@ class OpenLineageAdapter(LoggingMixin):
         return self._client
 
     def get_openlineage_config(self) -> dict | None:
-        # First, try to read from YAML file
+        # First, try to read from Airflow connection
+        openlineage_config_conn_id = conf.config_conn_id()
+        if openlineage_config_conn_id:
+            config = AirflowConnectionConfigProvider(openlineage_config_conn_id).get_config()
+            resolve_airflow_connection_auth(config=config, config_conn_id=openlineage_config_conn_id)
+            return config
+        self.log.debug("OpenLineage config_conn_id configuration not found.")
+
+        # Second, try to read from YAML file
         openlineage_config_path = conf.config_path(check_legacy_env_var=False)
         if openlineage_config_path:
-            config = self._read_yaml_config(openlineage_config_path)
-            return config
+            yaml_config = self._read_yaml_config(openlineage_config_path)
+            if yaml_config is None:
+                return None
+            resolve_airflow_connection_auth(yaml_config)
+            return yaml_config
         self.log.debug("OpenLineage config_path configuration not found.")
 
-        # Second, try to get transport config
+        # Third, try to get transport config
         transport_config = conf.transport()
         if not transport_config:
             self.log.debug("OpenLineage transport configuration not found.")
             return None
-        return {"transport": transport_config}
+        config = {"transport": transport_config}
+        resolve_airflow_connection_auth(config)
+        return config
 
     @staticmethod
-    def _read_yaml_config(path: str) -> dict | None:
+    def _read_yaml_config(path: str) -> dict[str, Any] | None:
         with open(path) as config_file:
             return yaml.safe_load(config_file)
 
