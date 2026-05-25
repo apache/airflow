@@ -21,12 +21,14 @@
 The hook is wired into per-distribution ``.pre-commit-config.yaml`` files
 (``airflow-core``, ``providers/amazon``, ``providers/common/ai``,
 ``providers/edge3``, ``providers/fab``, ``providers/keycloak``), each
-scoped to the subtree that actually wires a FastAPI app. Provider trees
-that mix client and server code (e.g. edge3's ``cli/`` is a client) are
-scoped to the server-side subfolders only to avoid false positives on
-stdlib HTTP usage in the client. Within those scopes, every
-``HTTPException`` must come from ``fastapi`` (which re-exports the
-Starlette class). Two common mistakes this hook catches:
+scoped to the subtree that actually wires a FastAPI app. In
+``airflow-core`` that includes ``api_fastapi/`` and
+``utils/serve_logs/`` (the worker log-serving FastAPI app). Provider
+trees that mix client and server code (e.g. edge3's ``cli/`` is a
+client) are scoped to the server-side subfolders only to avoid false
+positives on stdlib HTTP usage in the client. Within those scopes,
+every ``HTTPException`` must come from ``fastapi`` (which re-exports
+the Starlette class). Two common mistakes this hook catches:
 
 * ``from starlette.exceptions import HTTPException`` — a different class at
   runtime; ``isinstance(exc, fastapi.HTTPException)`` and

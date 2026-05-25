@@ -156,7 +156,9 @@ repos:
         files: >
           (?x)
           ^src/airflow/api_fastapi/.*\.py$|
-          ^tests/unit/api_fastapi/.*\.py$
+          ^src/airflow/utils/serve_logs/.*\.py$|
+          ^tests/unit/api_fastapi/.*\.py$|
+          ^tests/unit/utils/test_serve_logs\.py$
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
         entry: ../scripts/ci/prek/check_init_in_tests.py
