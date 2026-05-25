@@ -1018,6 +1018,18 @@
           "additionalProperties": false,
           "description": "Schema for DagRun model with minimal required fields needed for Runtime.",
           "properties": {
+            "bundle_version": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bundle Version"
+            },
             "clear_number": {
               "default": 0,
               "title": "Clear Number",
@@ -1981,6 +1993,18 @@
       },
       "additionalProperties": false,
       "properties": {
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
+        },
         "clear_number": {
           "anyOf": [
             {
@@ -4006,6 +4030,18 @@
           "additionalProperties": false,
           "description": "Schema for DagRun model with minimal required fields needed for Runtime.",
           "properties": {
+            "bundle_version": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bundle Version"
+            },
             "clear_number": {
               "anyOf": [
                 {
@@ -5064,6 +5100,18 @@
           "additionalProperties": false,
           "description": "Schema for DagRun model with minimal required fields needed for Runtime.",
           "properties": {
+            "bundle_version": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Bundle Version"
+            },
             "clear_number": {
               "anyOf": [
                 {
