@@ -27,7 +27,7 @@ import subprocess
 import threading
 import time
 import zipfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 from uuid6 import uuid7
@@ -38,6 +38,7 @@ from airflow.sdk.coordinators.java.coordinator import (
     _calculate_classpath,
     _JavaActivitySubprocess,
     _MainJar,
+    _ResourceTracker,
     _start_server,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
@@ -240,9 +241,9 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted = _accept_connections({"comm": server}, mock_proc)
-            assert "comm" in accepted
-            accepted["comm"].close()
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            assert server in accepted
+            accepted[server].close()
         finally:
             server.close()
 
@@ -259,8 +260,8 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted = _accept_connections({"comm": comm_server, "logs": logs_server}, mock_proc)
-            assert set(accepted) == {"comm", "logs"}
+            accepted, _ = _accept_connections({"comm": comm_server, "logs": logs_server}, {}, mock_proc)
+            assert set(accepted) == {comm_server, logs_server}
             for sock in accepted.values():
                 sock.close()
         finally:
@@ -273,7 +274,7 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
         try:
             with pytest.raises(TimeoutError, match="did not connect within timeout"):
-                _accept_connections({"comm": server}, mock_proc, max_wait=0.05)
+                _accept_connections({"comm": server}, {}, mock_proc, max_wait=0.05)
         finally:
             server.close()
 
@@ -285,7 +286,7 @@ class TestAcceptConnections:
         mock_proc.returncode = 1
         try:
             with pytest.raises(RuntimeError, match="process exited with 1"):
-                _accept_connections({"comm": server}, mock_proc)
+                _accept_connections({"comm": server}, {}, mock_proc)
         finally:
             server.close()
 
@@ -301,13 +302,143 @@ class TestAcceptConnections:
         mock_proc.poll.return_value = None
 
         try:
-            accepted = _accept_connections({"comm": server}, mock_proc)
-            accepted["comm"].sendall(b"hello")
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            accepted[server].sendall(b"hello")
             assert client.recv(5) == b"hello"
-            accepted["comm"].close()
+            accepted[server].close()
             client.close()
         finally:
             server.close()
+
+    def test_empty_drains_returns_empty_drained_dict(self):
+        """When drains={} the returned drained mapping must also be empty."""
+        server = _start_server()
+        _, port = server.getsockname()
+        self._connect_after_delay(("127.0.0.1", port))
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        try:
+            _, drained = _accept_connections({"comm": server}, {}, mock_proc)
+            assert drained == {}
+        finally:
+            server.close()
+
+    def test_drain_socket_present_in_drained_dict(self):
+        """The drained dict must be keyed by the drain socket objects."""
+        server = _start_server()
+        drain_r, drain_w = socket.socketpair()
+        _, port = server.getsockname()
+        self._connect_after_delay(("127.0.0.1", port))
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        try:
+            _, drained = _accept_connections({"comm": server}, {"stdout": drain_r}, mock_proc)
+            assert drain_r in drained
+        finally:
+            server.close()
+            drain_r.close()
+            drain_w.close()
+
+    def test_bytes_written_to_drain_socket_are_returned(self):
+        """Bytes written to a drain socket before the connection is accepted
+        must be captured and returned in the drained dict."""
+        server = _start_server()
+        drain_r, drain_w = socket.socketpair()
+        _, port = server.getsockname()
+
+        drain_w.sendall(b"early output\n")
+        self._connect_after_delay(("127.0.0.1", port), delay=0.05)
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        try:
+            _, drained = _accept_connections({"comm": server}, {"stdout": drain_r}, mock_proc)
+            assert drained[drain_r] == b"early output\n"
+        finally:
+            server.close()
+            drain_r.close()
+            drain_w.close()
+
+    def test_accepted_dict_keyed_by_server_socket_object(self):
+        """The returned accepted mapping must use server socket objects as keys,
+        not the string names passed in the servers dict."""
+        server = _start_server()
+        _, port = server.getsockname()
+        self._connect_after_delay(("127.0.0.1", port))
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        try:
+            accepted, _ = _accept_connections({"comm": server}, {}, mock_proc)
+            # Key must be the socket object itself, not the string "comm"
+            assert server in accepted
+            assert "comm" not in accepted
+            accepted[server].close()
+        finally:
+            server.close()
+
+
+class TestResourceTracker:
+    """Unit tests for the _ResourceTracker context manager introduced in this PR.
+
+    _ResourceTracker tracks sockets and Popen objects and ensures they are
+    closed/terminated on context-manager exit, unless explicitly untracked
+    beforehand.
+    """
+
+    def test_track_returns_passed_objects_as_tuple(self):
+        tracker = _ResourceTracker(timeout=0.1)
+        sock = MagicMock(spec=socket.socket)
+        result = tracker.track(sock)
+        assert result == (sock,)
+
+    def test_track_multiple_objects_returns_all(self):
+        tracker = _ResourceTracker(timeout=0.1)
+        sock1 = MagicMock(spec=socket.socket)
+        sock2 = MagicMock(spec=socket.socket)
+        result = tracker.track(sock1, sock2)
+        assert set(result) == {sock1, sock2}
+
+    def test_untrack_returns_objects(self):
+        tracker = _ResourceTracker(timeout=0.1)
+        sock = MagicMock(spec=socket.socket)
+        tracker.track(sock)
+        result = tracker.untrack(sock)
+        assert result == (sock,)
+
+    def test_context_manager_closes_tracked_socket_on_exit(self):
+        sock = MagicMock(spec=socket.socket)
+        with _ResourceTracker(timeout=0.1) as tracker:
+            tracker.track(sock)
+        sock.close.assert_called_once()
+
+    def test_context_manager_terminates_tracked_popen_on_exit(self):
+        proc = MagicMock(spec=subprocess.Popen)
+        with _ResourceTracker(timeout=0.1) as tracker:
+            tracker.track(proc)
+        proc.terminate.assert_called_once()
+
+    def test_untracked_socket_not_closed_on_exit(self):
+        sock = MagicMock(spec=socket.socket)
+        with _ResourceTracker(timeout=0.1) as tracker:
+            tracker.track(sock)
+            tracker.untrack(sock)
+        sock.close.assert_not_called()
+
+    def test_only_remaining_tracked_objects_cleaned_up(self):
+        """After untracking one socket the other must still be closed."""
+        sock_keep = MagicMock(spec=socket.socket)
+        sock_release = MagicMock(spec=socket.socket)
+        with _ResourceTracker(timeout=0.1) as tracker:
+            tracker.track(sock_keep, sock_release)
+            tracker.untrack(sock_release)
+        sock_keep.close.assert_called_once()
+        sock_release.close.assert_not_called()
+
+    def test_untrack_unknown_object_does_not_raise(self):
+        sock = MagicMock(spec=socket.socket)
+        tracker = _ResourceTracker(timeout=0.1)
+        # Untracking something never tracked must be a no-op, not an error
+        tracker.untrack(sock)
 
 
 class TestJavaCoordinatorAttributes:
@@ -375,7 +506,10 @@ class TestJavaCoordinatorExecuteTask:
             ),
             patch(
                 "airflow.sdk.coordinators.java.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -453,7 +587,10 @@ class TestJavaCoordinatorExecuteTask:
             patch("subprocess.Popen", return_value=mock_proc),
             patch(
                 "airflow.sdk.coordinators.java.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -505,7 +642,10 @@ class TestJavaActivitySubprocessStart:
             ) as popen_mock,
             patch(
                 "airflow.sdk.coordinators.java.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -548,7 +688,10 @@ class TestJavaActivitySubprocessStart:
             patch("airflow.sdk.coordinators.java.coordinator.subprocess.Popen") as popen_mock,
             patch(
                 "airflow.sdk.coordinators.java.coordinator._accept_connections",
-                return_value={"comm": comm_sock, "logs": logs_sock},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -579,7 +722,10 @@ class TestJavaActivitySubprocessStart:
             patch("airflow.sdk.coordinators.java.coordinator.subprocess.Popen") as popen_mock,
             patch(
                 "airflow.sdk.coordinators.java.coordinator._accept_connections",
-                return_value={"comm": MagicMock(), "logs": MagicMock()},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers"),
             patch.object(ActivitySubprocess, "_on_child_started") as mock_on_started,
@@ -604,12 +750,15 @@ class TestJavaActivitySubprocessStart:
         assert kwargs["dag_rel_path"] == "dags/test.jar"
 
     def test_register_pipe_readers_called_with_four_sockets(self, jars_root, mock_client):
-        """Both socketpair read-ends and both TCP sockets must be registered."""
+        """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (
             patch("airflow.sdk.coordinators.java.coordinator.subprocess.Popen") as popen_mock,
             patch(
                 "airflow.sdk.coordinators.java.coordinator._accept_connections",
-                return_value={"comm": MagicMock(), "logs": MagicMock()},
+                side_effect=lambda servers, drains, proc, **kw: (
+                    {soc: MagicMock(spec=socket.socket) for soc in servers.values()},
+                    {soc: b"" for soc in drains.values()},
+                ),
             ),
             patch.object(ActivitySubprocess, "_register_pipe_readers") as mock_register,
             patch.object(ActivitySubprocess, "_on_child_started"),
@@ -627,8 +776,4 @@ class TestJavaActivitySubprocessStart:
                 main_class="",
                 subprocess_logs_to_stdout=False,
             )
-
-        mock_register.assert_called_once()
-        args = mock_register.call_args.args
-        # positional: stdout, stderr, comm, logs — all four must be sockets
-        assert len(args) == 4
+        assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]

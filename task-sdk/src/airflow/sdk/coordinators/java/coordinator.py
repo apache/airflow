@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import email
+import itertools
 import os
 import pathlib
 import selectors
@@ -123,14 +124,17 @@ class _MainJar:
 
 def _accept_connections(
     servers: dict[str, socket.socket],
+    drains: dict[str, socket.socket],
     proc: subprocess.Popen,
     *,
     max_wait: float = 10.0,
-) -> dict[str, socket.socket]:
+    drain_size: int = 4096,
+) -> tuple[dict[socket.socket, socket.socket], dict[socket.socket, bytes]]:
     """Block until the Java process connects to servers."""
-    accepted: dict[str, socket.socket] = {}
+    accepted: dict[socket.socket, socket.socket] = {}
+    drained: dict[socket.socket, bytes] = {s: b"" for s in drains.values()}
     with selectors.DefaultSelector() as sel:
-        for key, soc in servers.items():
+        for key, soc in itertools.chain(servers.items(), drains.items()):
             sel.register(soc, selectors.EVENT_READ, data=key)
         deadline = time.monotonic() + max_wait
         while len(accepted) < len(servers):
@@ -144,11 +148,20 @@ def _accept_connections(
                     s.close()
                 raise RuntimeError(f"process exited with {proc.returncode} before connecting")
             for event, _ in sel.select(timeout=min(remaining, 1.0)):
-                log.debug("Accepting child process connection", key=(key := event.data))
-                conn, _ = cast("socket.socket", event.fileobj).accept()
-                sel.unregister(servers[key])
-                accepted[key] = conn
-    return accepted
+                soc = cast("socket.socket", event.fileobj)
+                if soc in drained:
+                    if incoming := soc.recv(drain_size):
+                        log.debug("Draining child process stream", key=event.data)
+                        drained[soc] += incoming
+                    else:
+                        log.warning("Child stream closed before ready!", key=event.data)
+                        sel.unregister(soc)
+                else:
+                    log.debug("Accepting child process connection", key=event.data)
+                    conn, _ = soc.accept()
+                    sel.unregister(soc)
+                    accepted[soc] = conn
+    return accepted, drained
 
 
 class PopenTracker(ProcessTracker):
@@ -256,7 +269,11 @@ class _JavaActivitySubprocess(ActivitySubprocess):
             tracker.track(proc)
             log.info("Starting subprocess", pid=proc.pid)
 
-            socks = _accept_connections({"comm": comm_server, "logs": logs_server}, proc)
+            socks, drained = _accept_connections(
+                {"comm": comm_server, "logs": logs_server},
+                {"stdout": stdout_r, "stderr": stderr_r},
+                proc,
+            )
             tracker.track(*socks.values())
 
             self = cls(
@@ -265,7 +282,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
                 process=PopenTracker(proc),
                 process_log=logger or structlog.get_logger(logger_name="task").bind(),
                 start_time=time.monotonic(),
-                stdin=socks["comm"],
+                stdin=socks[comm_server],
                 subprocess_schema_version=jar.schema_version,
                 comm_server=comm_server,
                 logs_server=logs_server,
@@ -273,7 +290,10 @@ class _JavaActivitySubprocess(ActivitySubprocess):
                 stderr_w=stderr_w,
                 **kwargs,
             )
-            self._register_pipe_readers(*tracker.untrack(stdout_r, stderr_r, socks["comm"], socks["logs"]))
+            self._register_pipe_readers(
+                *tracker.untrack(stdout_r, stderr_r, socks[comm_server], socks[logs_server]),
+                data=drained,
+            )
             self._on_child_started(
                 ti=what,
                 dag_rel_path=dag_rel_path,

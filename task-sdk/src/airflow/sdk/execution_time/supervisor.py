@@ -747,15 +747,24 @@ class WatchedSubprocess:
         )
 
         proc._register_pipe_readers(
-            stdout=read_stdout,
-            stderr=read_stderr,
-            requests=read_requests,
-            logs=read_logs,
+            read_stdout,
+            read_stderr,
+            read_requests,
+            read_logs,
+            data={},
         )
 
         return proc
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+    def _register_pipe_readers(
+        self,
+        stdout: socket,
+        stderr: socket,
+        requests: socket,
+        logs: socket,
+        *,
+        data: dict[socket, bytes],
+    ):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
@@ -775,12 +784,19 @@ class WatchedSubprocess:
         target_loggers = self._get_target_loggers()
 
         self.selector.register(
-            stdout, selectors.EVENT_READ, self._create_log_forwarder(target_loggers, "task.stdout")
+            stdout,
+            selectors.EVENT_READ,
+            self._create_log_forwarder(target_loggers, "task.stdout", data=data.get(stdout, b"")),
         )
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_log_forwarder(target_loggers, "task.stderr", log_level=logging.ERROR),
+            self._create_log_forwarder(
+                target_loggers,
+                "task.stderr",
+                data=data.get(stderr, b""),
+                log_level=logging.ERROR,
+            ),
         )
         self.selector.register(
             logs,
@@ -802,7 +818,14 @@ class WatchedSubprocess:
             target_loggers += (log,)
         return target_loggers
 
-    def _create_log_forwarder(self, loggers, name, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_log_forwarder(
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
+    ) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         loggers = tuple(
             reconfigure_logger(
@@ -812,7 +835,9 @@ class WatchedSubprocess:
             for log in loggers
         )
         return make_buffered_socket_reader(
-            forward_to_log(loggers, logger=name, level=log_level), on_close=self._on_socket_closed
+            forward_to_log(loggers, logger=name, level=log_level),
+            data=data,
+            on_close=self._on_socket_closed,
         )
 
     def _on_socket_closed(self, sock: socket):
@@ -2136,14 +2161,28 @@ def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
 # to a (sync) generator
 def make_buffered_socket_reader(
     gen: Generator[None, bytes | bytearray, None],
+    *,
+    data: bytes = b"",
     on_close: Callable[[socket], None],
     buffer_size: int = 4096,
 ):
-    buffer = bytearray()  # This will hold our accumulated binary data
+    buffer = bytearray(data)  # This will hold our accumulated binary data
     read_buffer = bytearray(buffer_size)  # Temporary buffer for each read
 
     # We need to start up the generator to get it to the point it's at waiting on the yield
     next(gen)
+
+    def process(buffer: bytearray) -> bytearray:
+        # We could have read multiple lines in one go, yield them all
+        while (newline_pos := buffer.find(b"\n")) != -1:
+            line = buffer[: newline_pos + 1]
+            gen.send(line)
+            buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
+        return buffer
+
+    # Flush any complete lines that arrived before the selector was running.
+    with contextlib.suppress(StopIteration):
+        buffer = process(buffer)
 
     def cb(sock: socket):
         nonlocal buffer, read_buffer
@@ -2158,15 +2197,10 @@ def make_buffered_socket_reader(
             return False
 
         buffer.extend(read_buffer[:n_received])
-
-        # We could have read multiple lines in one go, yield them all
-        while (newline_pos := buffer.find(b"\n")) != -1:
-            line = buffer[: newline_pos + 1]
-            try:
-                gen.send(line)
-            except StopIteration:
-                return False
-            buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
+        try:
+            buffer = process(buffer)
+        except StopIteration:
+            return False
 
         return True
 
