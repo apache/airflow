@@ -220,7 +220,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         if self.deferrable:
             if not self.job_id:
-                raise AirflowException("AWS Batch job - job_id was not found")
+                raise ValueError("AWS Batch job - job_id was not found")
 
             # Persist operator links before deferring so they're available in the UI
             # Reuse job description to reduce API calls
@@ -352,7 +352,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         :return: Job description dict
         """
         if not self.job_id:
-            raise AirflowException("AWS Batch job - job_id was not found")
+            raise ValueError("AWS Batch job - job_id was not found")
 
         # Fetch job description (needed for return value and link persistence)
         job_desc = job_description or self.hook.get_job_description(job_id=self.job_id)
@@ -432,7 +432,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         created with ``execution_timeout``.
         """
         if not self.job_id:
-            raise AirflowException("AWS Batch job - job_id was not found")
+            raise ValueError("AWS Batch job - job_id was not found")
 
         # Persist job definition and queue links
         self._persist_links(context)
