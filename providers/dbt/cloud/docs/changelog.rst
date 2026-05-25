@@ -36,6 +36,11 @@ Features
 
 * ``Add to list dbt Cloud job runs with support for filtering by status, ordering, and job_definition_id, and optionally returning only the most recent run via latest_only. (#66150)``
 
+Bug Fixes
+~~~~~~~~~
+
+   * ``Fix deferrable execution_timeout handling in DbtCloudRunJobOperator (#67360)``
+
 Misc
 ~~~~
 
@@ -43,6 +48,9 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare providers release 2026-05-19 (#67137)``
 
 4.8.2
 .....
