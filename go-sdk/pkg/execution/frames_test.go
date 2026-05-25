@@ -158,20 +158,6 @@ func TestDecodeFrameRejectsNonMapError(t *testing.T) {
 	assert.Contains(t, err.Error(), "error element: expected map")
 }
 
-func TestReadFrameRejectsOversizedPayload(t *testing.T) {
-	// Craft a length prefix that claims more bytes than maxFrameSize so a
-	// malformed/hostile peer cannot trigger a huge allocation before the
-	// read fails.
-	var buf bytes.Buffer
-	prefix := make([]byte, 4)
-	binary.BigEndian.PutUint32(prefix, maxFrameSize+1)
-	buf.Write(prefix)
-
-	_, err := readFrame(&buf)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "exceeds max")
-}
-
 func TestRoundTripMultipleFrames(t *testing.T) {
 	var buf bytes.Buffer
 

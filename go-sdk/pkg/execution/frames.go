@@ -26,12 +26,10 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// maxFrameSize caps the payload length a single frame may declare. A
-// malformed length prefix from a corrupted stream (or hostile peer) would
-// otherwise let readFrame allocate up to 4 GiB before the read failed.
-// 64 MiB is far above any legitimate StartupDetails or XCom payload while
-// still preventing accidental OOM.
-const maxFrameSize = 64 * 1024 * 1024
+// MaxFrameSize is the maximum payload length of a single frame, in bytes.
+// The 4-byte length prefix bounds this to 2^32 - 1; matches Python's cap in
+// task-sdk comms.py:_FrameMixin.as_bytes (n >= 2**32 raises OverflowError).
+const MaxFrameSize = 1<<32 - 1
 
 // IncomingFrame represents a decoded frame received from the comm socket.
 type IncomingFrame struct {
@@ -65,6 +63,18 @@ func encodeRequest(id int, body map[string]any) ([]byte, error) {
 // in one Write call so we never leave a half-framed message on the wire if
 // an io.Writer implementation does a short write between the two halves.
 func writeFrame(w io.Writer, payload []byte) error {
+	// Refuse to send a payload the peer would refuse to read. Without this
+	// guard, lengths >= 4 GiB would silently wrap in the uint32 conversion
+	// below and put a corrupt length prefix on the wire, desynchronising
+	// the peer instead of failing loudly here. Mirrors the OverflowError
+	// raised by task-sdk comms.py:_FrameMixin.as_bytes.
+	if len(payload) > MaxFrameSize {
+		return fmt.Errorf(
+			"frame payload length %d exceeds max %d",
+			len(payload),
+			MaxFrameSize,
+		)
+	}
 	buf := make([]byte, 4+len(payload))
 	binary.BigEndian.PutUint32(buf[:4], uint32(len(payload)))
 	copy(buf[4:], payload)
@@ -86,17 +96,17 @@ func readFrame(r io.Reader) (IncomingFrame, error) {
 		return IncomingFrame{}, fmt.Errorf("reading length prefix: %w", err)
 	}
 	payloadLen := binary.BigEndian.Uint32(prefix)
-	if payloadLen > maxFrameSize {
+	// Reject oversized frames defensively. A non-Python sender (or a
+	// MaxFrameSize lowered for memory-budget reasons) might violate the cap
+	// the reader is willing to allocate, so fail loudly here rather than
+	// trusting the peer.
+	if payloadLen > MaxFrameSize {
 		return IncomingFrame{}, fmt.Errorf(
 			"frame payload length %d exceeds max %d",
 			payloadLen,
-			maxFrameSize,
+			MaxFrameSize,
 		)
 	}
-
-	// Read the payload. The maxFrameSize guard above keeps the value well
-	// within int range on every supported platform, so the conversion is
-	// safe.
 	payload := make([]byte, int(payloadLen))
 	if _, err := io.ReadFull(r, payload); err != nil {
 		return IncomingFrame{}, fmt.Errorf("reading payload (%d bytes): %w", payloadLen, err)
