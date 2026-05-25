@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-25T13:30:14.027724
+# This constraints file was automatically generated on 2026-05-25T22:52:56.610476
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -668,7 +668,7 @@ sqlglot==30.8.0
 sqlparse==0.5.5
 sse-starlette==3.4.4
 stack-data==0.6.3
-starlette==1.0.1
+starlette==1.1.0
 statsd==4.0.1
 std-uritemplate==2.0.10
 strictyaml==1.7.3
