@@ -848,7 +848,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return JWTGenerator(
             **get_signing_args(),
             valid_for=expiration_time_in_seconds,
-            audience=conf.get("api", "jwt_audience", fallback="apache-airflow"),
+            audience=conf.get("api_auth", "jwt_audience", fallback="apache-airflow"),
         )
 
     @classmethod
