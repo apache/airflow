@@ -29,7 +29,7 @@ pytest.importorskip("flask_session")
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
 from airflow.providers.databricks.operators.databricks_workflow import (
@@ -39,7 +39,6 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     _flatten_node,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
