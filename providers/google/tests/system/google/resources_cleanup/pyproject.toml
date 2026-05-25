@@ -1,0 +1,75 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "apache-airflow-google-provider-resource-cleanup"
+version = "0.0.1"
+description = "CLI tool to clean up resources created by Apache Airflow Google provider system tests"
+readme = "README.md"
+license = "Apache-2.0"
+# license-files = ["../../../../../../LICENSE", "../../../../../../NOTICE"]
+requires-python = ">=3.10"
+dependencies = [
+    "google-cloud-aiplatform[ray]",
+    "ray",
+    "jinja2",
+]
+
+[project.scripts]
+airflow-google-system-test-cleanup = "airflow_google_provider_resource_cleanup.__main__:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-mock",
+    "pytest-asyncio",
+]
+lint = [
+    "ruff",
+]
+
+[tool.flit.module]
+name = "airflow_google_provider_resource_cleanup"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["../../../unit/google/resources_cleanup"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",        # Pyflakes
+    "I",        # isort
+]
+ignore = []
+
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"
