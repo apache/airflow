@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-21T07:02:47.672727
+# This constraints file was automatically generated on 2026-05-25T08:40:25.444952
 # via `uv sync --resolution highest for the "v3-2-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -49,6 +49,7 @@ adbc-driver-sqlite==1.11.0
 adlfs==2026.5.0
 aenum==3.1.17
 aiobotocore==3.7.0
+aiofile==3.9.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -130,10 +131,11 @@ backports.strenum==1.3.1
 backports.tarfile==1.2.0
 backports.zstd==1.5.0
 bcrypt==5.0.0
+beartype==0.22.9
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.1
-black==26.3.1
+black==26.5.0
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.43.0
@@ -141,6 +143,7 @@ botocore==1.43.0
 cachelib==0.14.0
 cachetools==6.2.6
 cadwyn==6.2.2
+caio==0.9.25
 cassandra-driver==3.30.0
 cattrs==26.1.0
 celery==5.6.3
@@ -154,7 +157,7 @@ ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
-click==8.3.3
+click==8.4.0
 cloudpickle==3.1.1
 cohere==5.21.1
 colorama==0.4.6
@@ -175,7 +178,7 @@ datadog==0.52.1
 datafusion==51.0.0
 db-dtypes==1.6.0
 debugpy==1.8.20
-decorator==5.2.1
+decorator==5.3.0
 defusedxml==0.7.1
 deltalake==1.5.1
 deprecation==2.1.0
@@ -205,6 +208,7 @@ fastapi-cli==0.0.24
 fastapi==0.136.1
 fastavro==1.12.2
 fastjsonschema==2.21.2
+fastmcp-slim==3.3.1
 fastuuid==0.14.0
 filelock==3.29.0
 flask-appbuilder==5.2.0
@@ -219,7 +223,7 @@ gcloud-aio-auth==5.4.4
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.4.0
-genai-prices==0.0.59
+genai-prices==0.0.60
 geomet==1.1.0
 gevent==26.4.0
 gitdb==4.0.12
@@ -229,7 +233,7 @@ google-api-core==2.30.3
 google-api-python-client==2.196.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
-google-auth==2.52.0
+google-auth==2.53.0
 google-cloud-aiplatform==1.148.1
 google-cloud-alloydb==0.9.0
 google-cloud-appengine-logging==1.9.0
@@ -307,7 +311,7 @@ httplib2==0.31.2
 httptools==0.7.1
 httpx-sse==0.4.3
 httpx==0.28.1
-huggingface_hub==1.14.0
+huggingface_hub==1.15.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -336,7 +340,7 @@ isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
-jaraco.functools==4.4.0
+jaraco.functools==4.5.0
 jedi==0.20.0
 jeepney==0.9.0
 jiter==0.14.0
@@ -424,7 +428,7 @@ nh3==0.3.5
 nodeenv==1.10.0
 numpy==2.2.6
 oauthlib==3.3.1
-openai==2.36.0
+openai==2.37.0
 openapi-schema-validator==0.8.1
 openapi-spec-validator==0.8.5
 opencensus-context==0.1.3
@@ -494,6 +498,7 @@ psycopg2-binary==2.9.12
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
+py-key-value-aio==0.4.4
 py-partiql-parser==0.6.3
 py-spy==0.4.2
 py4j==0.10.9.9
@@ -505,9 +510,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.96.1
+pydantic-ai-slim==1.97.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.96.1
+pydantic-graph==1.97.0
 pydantic-settings==2.14.1
 pydantic==2.13.4
 pydantic_core==2.46.4
