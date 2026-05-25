@@ -39,7 +39,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.file_task_handler import (
     convert_list_to_stream,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -92,7 +92,12 @@ class TestFileTaskLogHandler:
             logs, metadata = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_2_PLUS:
+            logs = list(logs)
+            assert logs[1].event == "this message"
+            assert [x.event for x in logs[-3:]] == ["this", "log", "content"]
+            assert metadata == {"end_of_log": False, "log_pos": 3}
+        elif AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].sources == ["this message"]
             assert [x.event for x in logs[-3:]] == ["this", "log", "content"]

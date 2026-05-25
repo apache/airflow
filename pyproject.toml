@@ -18,11 +18,11 @@
 [build-system]
 requires = [
     "hatchling==1.29.0",
-    "packaging==26.1",
-    "pathspec==1.1.0",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.5.20.19",
 ]
 build-backend = "hatchling.build"
 
@@ -551,7 +551,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.7",
+    "uv>=0.11.15",
 ]
 
 [project.urls]
@@ -590,6 +590,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
+external = ["MIG"]
 extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
@@ -600,6 +601,7 @@ extend-select = [
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
+    "B015", # Useless comparison: bare `a == b` is a no-op; prepend `assert` or remove
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
@@ -627,6 +629,7 @@ extend-select = [
     "PLW2101", # Threading lock directly created in with statement has no effect
     "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
     "PLW3301", # Nested {func} calls can be flattened
+    "PLE1205", # Logging format string has too many arguments (extra args are silently dropped)
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -652,6 +655,7 @@ extend-select = [
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
+    "B008", # Do not perform function call in argument defaults (use extend-immutable-calls for FastAPI DI)
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
@@ -661,6 +665,8 @@ extend-select = [
     "RET506", # Unnecessary {branch} after raise statement
     "RET507", # Unnecessary {branch} after continue statement
     "RET508", # Unnecessary {branch} after break statement
+    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
+    "PTH206", # Checks for uses of .split(os.sep)
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
@@ -692,13 +698,23 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
-    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
-    "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
     # In addition, it can't do anything with invalid typing annotations, protected by mypy.
     "PT022",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection uses function calls in argument defaults intentionally.
+# SHA256 is a stateless algorithm descriptor (cryptography library).
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Security",
+    "cryptography.hazmat.primitives.hashes.SHA256",
 ]
 
 [tool.ruff.format]
@@ -794,7 +810,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
-"helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"chart/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
@@ -847,7 +863,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "devel-common/src/sphinx_exts/exampleinclude.py" = ["E402", 'F401', ]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
-"helm-tests/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+"chart/tests/helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
 
 # While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
 # mechanism and whole .pyi is really "type-checking" only
@@ -1053,7 +1069,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
-    "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/chart/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
@@ -1310,7 +1326,7 @@ dev = [
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
-    "apache-airflow-helm-tests",
+    "apache-airflow-helm-chart",
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
@@ -1326,6 +1342,7 @@ dev = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-serialization",
+    "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
@@ -1354,13 +1371,26 @@ leveldb = [
     "plyvel>=1.5.1"
 ]
 
+# Aggregate of every group the CI image installs by default. Single source of
+# truth referenced from the Dockerfiles, the image install script, and the
+# breeze constraints checker. When a provider needs to register a
+# hard-to-install extra (proprietary client, needs system libs, etc.), add a
+# dedicated [dependency-groups] entry above and include it here — no Dockerfile
+# or breeze edits required. See contributing-docs/12_provider_distributions.rst.
+ci-image = [
+    {include-group = "dev"},
+    {include-group = "docs"},
+    {include-group = "docs-gen"},
+    {include-group = "leveldb"},
+]
+
 [tool.uv]
 # Bump this only when the project actually relies on a newer uv feature/fix. It is a
 # minimum contributors must install, NOT the uv CI pins to — keeping it in lockstep
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.11.7"
+required-version = ">=0.11.8"
 no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
@@ -1376,7 +1406,7 @@ apache-airflow-dev = false
 apache-airflow-devel-common = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
-apache-airflow-helm-tests = false
+apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
@@ -1492,12 +1522,24 @@ apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package entries
+
+# Manual overrides (kept outside the auto-generated block above so the
+# update_airflow_pyproject_toml.py script doesn't clobber them).
+# Starlette 1.0.1 carries a Host-header parsing fix that prevents
+# `request.url.path` from diverging from `scope["path"]` when the Host header
+# contains characters invalid per RFC 9110 §7.2. The fix landed too recently
+# to be admitted by the global 4-day cooldown; this override lets the floor
+# bump in `airflow-core/pyproject.toml` resolve.
+# REMOVE BY 2026-05-26 — once 1.0.1 is older than the global 4-day cooldown
+# this override is redundant and should be deleted along with the line below.
+starlette = "6 hours"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1514,7 +1556,7 @@ apache-airflow-dev = false
 apache-airflow-devel-common = false
 apache-airflow-docker-tests = false
 apache-airflow-e2e-tests = false
-apache-airflow-helm-tests = false
+apache-airflow-helm-chart = false
 apache-airflow-kubernetes-tests = false
 apache-airflow-mypy = false
 apache-airflow-providers = false
@@ -1630,12 +1672,18 @@ apache-airflow-shared-providers-discovery = false
 apache-airflow-shared-secrets-backend = false
 apache-airflow-shared-secrets-masker = false
 apache-airflow-shared-serialization = false
+apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 apache-aurflow-docker-stack = false
 # End of automatically generated exclude-newer-package-pip entries
+
+# Manual overrides — see the matching block under
+# `[tool.uv.exclude-newer-package]` above for rationale.
+# REMOVE BY 2026-05-26 along with the matching entry above.
+starlette = "6 hours"
 
 
 [tool.uv.sources]
@@ -1654,7 +1702,7 @@ apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
 apache-airflow-task-sdk-integration-tests = { workspace = true }
-apache-airflow-helm-tests = { workspace = true }
+apache-airflow-helm-chart = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
@@ -1669,6 +1717,7 @@ apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-serialization = { workspace = true }
+apache-airflow-shared-state = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1789,7 +1838,7 @@ members = [
     "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
-    "helm-tests",
+    "chart",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
@@ -1805,6 +1854,7 @@ members = [
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/serialization",
+    "shared/state",
     "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)

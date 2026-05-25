@@ -1119,6 +1119,48 @@ class TestKubernetesJobOperator:
         assert result == return_value
         assert mock_client.return_value.list_namespaced_pod.call_count == successful_try + 1
 
+    @pytest.mark.non_db_test_override
+    @pytest.mark.parametrize(
+        ("unwrap_single", "parallelism", "expected"),
+        [
+            (True, 1, "xcom-result"),
+            (True, 2, ["xcom-result", "xcom-result"]),
+            (False, 1, ["xcom-result"]),
+        ],
+    )
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.extract_xcom"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"), mock.MagicMock())
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"), mock.MagicMock())
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start", mock.MagicMock())
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion", mock.MagicMock())
+    @patch(HOOK_CLASS)
+    def test_execute_xcom_respects_unwrap_single(
+        self,
+        mock_hook,
+        mock_get_pods,
+        mock_extract_xcom,
+        unwrap_single,
+        parallelism,
+        expected,
+    ):
+        mock_hook.return_value.is_job_failed.return_value = None
+        mock_extract_xcom.return_value = "xcom-result"
+        mock_get_pods.return_value = [mock.MagicMock() for _ in range(parallelism)]
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            do_xcom_push=True,
+            get_logs=False,
+            parallelism=parallelism,
+            unwrap_single=unwrap_single,
+        )
+
+        result = op.execute(context=dict(ti=mock.MagicMock()))
+
+        assert result == expected
+
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"), new_callable=mock.PropertyMock)

@@ -29,12 +29,13 @@ from openlineage.client.serde import Serde
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import Stats, hookimpl, timeout, timezone
+from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf, hookimpl, timeout, timezone
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -42,6 +43,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_dag_documentation,
     get_dag_parent_run_facet,
+    get_dag_run_dag_and_task_from_ti,
     get_job_name,
     get_task_documentation,
     get_task_parent_run_facet,
@@ -80,18 +82,32 @@ def _executor_initializer():
     parent's ``Stats.initialize(...)`` call from scheduler startup does not propagate across the
     spawn boundary.
     """
+    log = logging.getLogger(__name__)
     # This initializer is used only on the scheduler
     # We can configure_orm regardless of the Airflow version, as DB access is always allowed from scheduler.
     settings.configure_orm()
+
+    if not AIRFLOW_V_3_2_PLUS:  # Initialize stats only for AF 3.2+
+        return
+
+    # Stats-related errors must not block initialization of executor (this will block DAG event emission).
     try:
         from airflow.observability.metrics import stats_utils
 
-        Stats.initialize(factory=stats_utils.get_stats_factory(Stats))
-    except ImportError:
-        # ``stats_utils`` lives under ``airflow.observability.metrics`` in current Airflow; if the
-        # import path changes or is unavailable, fall through silently — gauge calls will simply
-        # land on ``NoStatsLogger`` as before, which is no worse than current behavior.
-        pass
+        try:
+            Stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=airflow_conf.getboolean("metrics", "legacy_names_on", fallback=True),
+            )
+        except TypeError:
+            # args were changed in #63932, for compat we try to fall back to old way if first one fails
+            Stats.initialize(factory=stats_utils.get_stats_factory(Stats))
+
+    except Exception as err:
+        # Intentional catch-all: stats-related errors must not block DAG event emission.
+        # If any errors are raised it will fall back to NoStatsLogger, which is no worse than before.
+        log.warning("OpenLineage failed to initialize Stats in executor initializer: `%s`", err)
+        log.debug("Exception details:", exc_info=True)
 
 
 def _emit_manual_state_change_event(adapter_method, stats_key, **kwargs):
@@ -125,13 +141,9 @@ class OpenLineageListener:
             task_instance: RuntimeTaskInstance,
         ):
             self.log.debug("OpenLineage listener got notification about task instance start")
-            context = task_instance.get_template_context()
-
-            task = context["task"]
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
-            dagrun = context["dag_run"]
-            dag = context["dag"]
             start_date = task_instance.start_date
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
@@ -155,7 +167,7 @@ class OpenLineageListener:
                 return
 
             self.log.debug("OpenLineage listener got notification about task instance start")
-            task = task_instance.task
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
             start_date = task_instance.start_date if task_instance.start_date else timezone.utcnow()
@@ -163,7 +175,7 @@ class OpenLineageListener:
             if is_ti_rescheduled_already(task_instance):
                 self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
                 return
-            self._on_task_instance_running(task_instance, task.dag, task_instance.dag_run, task, start_date)
+            self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
 
     def _on_task_instance_running(
         self, task_instance: RuntimeTaskInstance | TaskInstance, dag, dagrun, task, start_date: datetime
@@ -230,7 +242,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -262,9 +274,11 @@ class OpenLineageListener:
                     **debug_facet,
                 },
             )
+            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
             Stats.gauge(
-                f"ol.event.size.{event_type}.{operator_name}",
-                len(Serde.to_json(redacted_event).encode("utf-8")),
+                "ol.event.size",
+                event_size,
+                tags={"event_type": event_type, "operator_name": operator_name},
             )
 
         self._execute(on_running, "on_running", use_fork=True)
@@ -287,12 +301,9 @@ class OpenLineageListener:
                 )
                 return
 
-            context = task_instance.get_template_context()
-            task = context["task"]
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
-            dagrun = context["dag_run"]
-            dag = context["dag"]
             self._on_task_instance_success(task_instance, dag, dagrun, task)
 
     else:
@@ -305,10 +316,10 @@ class OpenLineageListener:
             session: Session,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance success")
-            task = task_instance.task
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
-            self._on_task_instance_success(task_instance, task.dag, task_instance.dag_run, task)
+            self._on_task_instance_success(task_instance, dag, dagrun, task)
 
     def _on_task_instance_success(self, task_instance: RuntimeTaskInstance, dag, dagrun, task):
         end_date = timezone.utcnow()
@@ -363,7 +374,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -394,9 +405,11 @@ class OpenLineageListener:
                     **get_airflow_debug_facet(),
                 },
             )
+            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
             Stats.gauge(
-                f"ol.event.size.{event_type}.{operator_name}",
-                len(Serde.to_json(redacted_event).encode("utf-8")),
+                "ol.event.size",
+                event_size,
+                tags={"event_type": event_type, "operator_name": operator_name},
             )
 
         self._execute(on_success, "on_success", use_fork=True)
@@ -427,12 +440,9 @@ class OpenLineageListener:
                 )
                 return
 
-            context = task_instance.get_template_context()
-            task = context["task"]
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
-            dagrun = context["dag_run"]
-            dag = context["dag"]
             self._on_task_instance_failed(task_instance, dag, dagrun, task, error)
     else:
 
@@ -445,10 +455,10 @@ class OpenLineageListener:
             session: Session,
         ) -> None:
             self.log.debug("OpenLineage listener got notification about task instance failure")
-            task = task_instance.task
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
-            self._on_task_instance_failed(task_instance, task.dag, task_instance.dag_run, task, error)
+            self._on_task_instance_failed(task_instance, dag, dagrun, task, error)
 
     def _on_task_instance_failed(
         self,
@@ -510,7 +520,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -542,9 +552,11 @@ class OpenLineageListener:
                     **get_airflow_debug_facet(),
                 },
             )
+            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
             Stats.gauge(
-                f"ol.event.size.{event_type}.{operator_name}",
-                len(Serde.to_json(redacted_event).encode("utf-8")),
+                "ol.event.size",
+                event_size,
+                tags={"event_type": event_type, "operator_name": operator_name},
             )
 
         self._execute(on_failure, "on_failure", use_fork=True)
@@ -567,12 +579,9 @@ class OpenLineageListener:
                 )
                 return
 
-            context = task_instance.get_template_context()
-            task = context["task"]
+            dagrun, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
             if TYPE_CHECKING:
                 assert task
-            dagrun = context["dag_run"]
-            dag = context["dag"]
             self._on_task_instance_skipped(task_instance, dag, dagrun, task)
 
     def _on_task_instance_skipped(
@@ -634,7 +643,7 @@ class OpenLineageListener:
             if not doc:
                 doc, doc_type = get_dag_documentation(dag)
 
-            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+            with Stats.timer("ol.extract", tags={"event_type": event_type, "operator_name": operator_name}):
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun=dagrun,
                     task=task,
@@ -665,9 +674,11 @@ class OpenLineageListener:
                     **get_airflow_debug_facet(),
                 },
             )
+            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
             Stats.gauge(
-                f"ol.event.size.{event_type}.{operator_name}",
-                len(Serde.to_json(redacted_event).encode("utf-8")),
+                "ol.event.size",
+                event_size,
+                tags={"event_type": event_type, "operator_name": operator_name},
             )
 
         self._execute(on_skipped, "on_skipped", use_fork=True)
@@ -844,8 +855,21 @@ class OpenLineageListener:
             if not AIRFLOW_V_3_0_PLUS:
                 configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
-            callable()
-            self.log.debug("Process with current pid finishes after %s", callable_name)
+            try:
+                callable()
+                self.log.debug("Process with current pid finishes after %s", callable_name)
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s process failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+            finally:
+                # os._exit(0) bypasses Python's atexit/stdio flush. Explicitly shut down
+                # logging so buffered records (including any warnings above) are flushed
+                # before the process exits. Without this, the final log lines are silently
+                # dropped, making failures invisible.
+                logging.shutdown()
             os._exit(0)
 
     @property

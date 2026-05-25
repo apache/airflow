@@ -542,6 +542,7 @@ eksctl
 eladkal
 elasticsearch
 emailer
+embedder
 embeddings
 emr
 EmrAddSteps
@@ -784,6 +785,7 @@ hyperparameters
 IaC
 iam
 ibmcloudant
+IdC
 ideation
 idempotence
 idempotency
@@ -814,7 +816,9 @@ ini
 init
 initdb
 initialisation
+initialiser
 initialising
+initializer
 inout
 InsecureClient
 InspectTemplate
@@ -825,6 +829,7 @@ InstanceGroupConfig
 InstanceSelection
 instanceTemplates
 InstanceType
+instanceType
 instantiation
 integrations
 ints
@@ -925,6 +930,7 @@ krb
 Kube
 kube
 kubeconfig
+kubelet
 Kubernetes
 kubernetes
 KubernetesPodOperator
@@ -1028,6 +1034,7 @@ milli
 millis
 milton
 minikube
+misconfiguration
 misconfigured
 Mixin
 mixin
@@ -1118,6 +1125,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OpenAI
 openai
 openapi
 openfaas
@@ -1302,6 +1310,7 @@ Qubole
 qubole
 querybook
 Querybooks
+querybooks
 queryParameters
 queueing
 quicksight
@@ -1388,6 +1397,7 @@ RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
+runTimeoutInMinutes
 runtimes
 SaaS
 sade
@@ -1547,6 +1557,7 @@ Streamable
 strftime
 Stringified
 stringified
+stringify
 Struct
 STS
 subchart
@@ -1597,6 +1608,7 @@ sur
 svg
 symlink
 symlinks
+synthesises
 sys
 sysinfo
 syspath
@@ -1632,6 +1644,7 @@ tbuild
 TCP
 tcp
 tdload
+teamless
 teardown
 teardowns
 templatable
@@ -1742,6 +1755,7 @@ unpaused
 unpausing
 unpredicted
 unsanitized
+unscoped
 untestable
 untransformed
 untrusted

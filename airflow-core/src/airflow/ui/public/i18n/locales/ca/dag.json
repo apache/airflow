@@ -40,9 +40,37 @@
     "parseDuration": "Duració de l'anàlisi:",
     "parsedAt": "Analitzat a:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Ha de completar-se dins de {{interval}} de {{reference}}",
+    "count_one": "{{count}} termini",
+    "count_other": "{{count}} terminis",
+    "referenceType": {
+      "AverageRuntimeDeadline": "durada mitjana d'execució",
+      "DagRunLogicalDateDeadline": "data lògica",
+      "DagRunQueuedAtDeadline": "estona en cua"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Real",
+    "expected": "Esperat",
+    "finishedEarly": "Finalitzat {{duration}} abans del termini",
+    "finishedLate": "Finalitzat {{duration}} després del termini",
+    "label": "Termini",
+    "met": "Complert",
+    "missed": "No complert",
+    "missedCount_one": "{{count}} Termini no complert",
+    "missedCount_other": "{{count}} Terminis no complerts",
+    "mixedCount": "{{missedCount}} No complerts, {{upcomingCount}} Propers",
+    "stillRunning": "Encara s'està executant",
+    "upcoming": "Propers",
+    "upcomingCount_one": "{{count}} Termini proper",
+    "upcomingCount_other": "{{count}} Terminis propers"
+  },
   "extraLinks": "Enllaços addicionals",
   "grid": {
     "buttons": {
+      "newerRuns": "Execucions més recents",
+      "olderRuns": "Execucions més antigues",
       "resetToLatest": "Restablir a l'últim",
       "toggleGroup": "Alternar grup"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "Avançat",
       "dagDocs": "Documentació del Dag"
+    },
+    "status": {
+      "deactivated": "Desactivat"
     }
   },
   "logs": {
@@ -66,12 +97,18 @@
     },
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
+    "search": {
+      "matchCount": "{{current}} de {{total}}",
+      "noMatches": "Sense resultats",
+      "placeholder": "Cercar registres..."
+    },
     "settings": "Configuració dels registres",
     "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
     "warning": "ADVERTIMENT"
   },
   "navigation": {
     "navigation": "Navegació: Shift+{{arrow}}",
+    "openGraphFilters": "Filtres de tasques: Ctrl+Maj+F",
     "toggleGroup": "Alternar grup: Espai"
   },
   "notFound": {
@@ -92,6 +129,10 @@
     "charts": {
       "assetEvent_one": "Esdeveniment d'Asset creat",
       "assetEvent_other": "Esdeveniments d'Asset creats"
+    },
+    "deadlines": {
+      "showAll": "Mostrar tot",
+      "title": "Terminis"
     },
     "failedLogs": {
       "hideLogs": "Amagar registres",
@@ -121,6 +162,16 @@
     },
     "graphDirection": {
       "label": "Direcció del gràfic"
+    },
+    "graphFilters": {
+      "clearFilters": "Esborrar filtres",
+      "durationGte": "Durada mínima (s)",
+      "durationGteHint": "Per a tasques mapejades, mesura l'interval total en totes les instàncies",
+      "mapIndex": "Índex de mapa mín.",
+      "mapIndexHint": "Mostra les tasques mapejades expandides almenys fins a aquest índex",
+      "selectStatus": "Seleccionar estat",
+      "selectTaskGroup": "Seleccionar grup de tasques",
+      "title": "Filtres de tasques"
     },
     "showVersionIndicator": {
       "label": "Mostrar indicador de versió",

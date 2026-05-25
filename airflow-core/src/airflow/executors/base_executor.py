@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pendulum
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -38,6 +38,7 @@ from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -78,7 +79,6 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Event_buffer dict value type
     # Tuple of: state, info
@@ -204,8 +204,10 @@ class BaseExecutor(LoggingMixin):
         return generator
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
-        stats_factory = stats_utils.get_stats_factory(Stats)
-        Stats.initialize(factory=stats_factory)
+        stats.initialize(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -215,7 +217,7 @@ class BaseExecutor(LoggingMixin):
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
-        self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.queued_callbacks: dict[CallbackKey, workloads.ExecuteCallback] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -263,7 +265,7 @@ class BaseExecutor(LoggingMixin):
                     f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
-            self.queued_callbacks[workload.callback.id] = workload
+            self.queued_callbacks[workload.key] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
@@ -295,7 +297,7 @@ class BaseExecutor(LoggingMixin):
 
         return workloads_to_schedule
 
-    def _process_workloads(self, workloads: Sequence[ExecutorWorkload]) -> None:
+    def _process_workloads(self, workload_items: Sequence[ExecutorWorkload]) -> None:
         """
         Process the given workloads.
 
@@ -303,7 +305,7 @@ class BaseExecutor(LoggingMixin):
         the execution of workloads (e.g., queuing them to workers, submitting to
         external systems, etc.).
 
-        :param workloads: List of workloads to process
+        :param workload_items: List of workloads to process
         """
         raise NotImplementedError(f"{type(self).__name__} must implement _process_workloads()")
 
@@ -371,20 +373,20 @@ class BaseExecutor(LoggingMixin):
         else:
             self.log.debug("%s open slots for executor %s", open_slots, name)
 
-        Stats.gauge(
+        stats.gauge(
             open_slots_metric_name,
             value=open_slots,
-            tags={"status": "open", "name": name},
+            tags={"status": "open", "executor_class_name": name},
         )
-        Stats.gauge(
+        stats.gauge(
             queued_tasks_metric_name,
             value=num_queued_tasks,
-            tags={"status": "queued", "name": name},
+            tags={"status": "queued", "executor_class_name": name},
         )
-        Stats.gauge(
+        stats.gauge(
             running_tasks_metric_name,
             value=num_running_tasks,
-            tags={"status": "running", "name": name},
+            tags={"status": "running", "executor_class_name": name},
         )
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, workloads.ExecuteTask]]:
@@ -495,7 +497,7 @@ class BaseExecutor(LoggingMixin):
 
         In case dag_ids is specified it will only return and flush events
         for the given dag_ids. Otherwise, it returns and flushes all events.
-        Note: Callback events (with string keys) are always included regardless of dag_ids filter.
+        Note: Callback events (with CallbackKey keys) are always included regardless of dag_ids filter.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
@@ -506,7 +508,9 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
-                if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
+                if isinstance(key, CallbackKey) or (
+                    isinstance(key, TaskInstanceKey) and key.dag_id in dag_ids
+                ):
                     cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events

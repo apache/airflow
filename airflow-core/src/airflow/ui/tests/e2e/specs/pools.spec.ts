@@ -16,84 +16,94 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from "@playwright/test";
-import { AUTH_FILE } from "playwright.config";
-import { PoolsPage } from "tests/e2e/pages/PoolsPage";
+import { expect, test } from "tests/e2e/fixtures";
+import { uniqueRunId } from "tests/e2e/utils/test-helpers";
 
 test.describe("Pools Page", () => {
   test.setTimeout(60_000);
 
-  let poolsPage: PoolsPage;
-  const testPoolName = `test_pool_${Date.now()}`;
+  let testPoolName: string;
   const testPoolSlots = 10;
   const testPoolDescription = "E2E test pool";
   const updatedSlots = 25;
-  const createDeletePoolName = `test_crud_pool_${Date.now()}`;
-  const createDeletePoolSlots = 5;
+  const createdPoolNames: Array<string> = [];
 
-  test.beforeAll(async ({ browser }) => {
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupPoolsPage = new PoolsPage(page);
+  test.beforeAll(async ({ authenticatedRequest }) => {
+    testPoolName = `test_pool_${uniqueRunId("pool")}`;
 
-    await setupPoolsPage.navigate();
-    await setupPoolsPage.createPool(testPoolName, testPoolSlots, testPoolDescription);
+    const response = await authenticatedRequest.post("/api/v2/pools", {
+      data: {
+        description: testPoolDescription,
+        include_deferred: false,
+        name: testPoolName,
+        slots: testPoolSlots,
+      },
+      headers: { "Content-Type": "application/json" },
+    });
 
-    await context.close();
+    expect([200, 201, 409]).toContain(response.status());
   });
 
-  test.afterAll(async ({ browser }) => {
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
+  test.afterAll(async ({ authenticatedRequest }) => {
+    for (const name of [testPoolName, ...createdPoolNames]) {
+      const response = await authenticatedRequest.delete(`/api/v2/pools/${encodeURIComponent(name)}`);
 
-    await page.request.delete(`/api/v2/pools/${encodeURIComponent(testPoolName)}`);
-    await page.request.delete(`/api/v2/pools/${encodeURIComponent(createDeletePoolName)}`);
-
-    await context.close();
+      if (response.status() !== 404 && !response.ok()) {
+        console.warn(`Pool cleanup failed for ${name}: ${response.status()}`);
+      }
+    }
   });
 
-  test.beforeEach(({ page }) => {
-    poolsPage = new PoolsPage(page);
-  });
-
-  test("verify pools list displays with default_pool", async () => {
+  test("verify pools list displays with default_pool", async ({ poolsPage }) => {
     await poolsPage.navigate();
     await poolsPage.verifyPoolsListDisplays();
   });
 
-  test("verify test pool exists in list", async () => {
+  test("verify test pool exists in list", async ({ poolsPage }) => {
     await poolsPage.navigate();
     await poolsPage.verifyPoolExists(testPoolName);
   });
 
-  test("verify pool slots display correctly", async () => {
+  test("verify pool slots display correctly", async ({ poolsPage }) => {
     await poolsPage.navigate();
     await poolsPage.verifyPoolSlots(testPoolName, testPoolSlots);
   });
 
-  test("edit pool slots", async () => {
+  test("edit pool slots", async ({ poolsPage }) => {
     await poolsPage.navigate();
     await poolsPage.editPoolSlots(testPoolName, updatedSlots);
     await poolsPage.navigate();
     await poolsPage.verifyPoolSlots(testPoolName, updatedSlots);
   });
 
-  test("verify pool usage displays", async () => {
+  test("verify pool usage displays", async ({ poolsPage }) => {
     await poolsPage.navigate();
     await poolsPage.verifyPoolUsageDisplays("default_pool");
   });
 
-  test("create a new pool", async () => {
+  test("create a new pool", async ({ poolsPage }) => {
+    const poolName = `test_crud_pool_${uniqueRunId("crud")}`;
+
+    createdPoolNames.push(poolName);
+
     await poolsPage.navigate();
-    await poolsPage.createPool(createDeletePoolName, createDeletePoolSlots, "Created pool");
+    await poolsPage.createPool(poolName, 5, "Created pool");
     await poolsPage.navigate();
-    await poolsPage.verifyPoolExists(createDeletePoolName);
+    await poolsPage.verifyPoolExists(poolName);
   });
 
-  test("delete pool", async () => {
+  test("delete pool", async ({ poolsPage }) => {
+    const poolName = `test_del_pool_${uniqueRunId("del")}`;
+
+    // Create via API so we have a pool to delete via UI
+    await poolsPage.page.request.post("/api/v2/pools", {
+      data: { description: "To be deleted", include_deferred: false, name: poolName, slots: 5 },
+      headers: { "Content-Type": "application/json" },
+    });
+
     await poolsPage.navigate();
-    await poolsPage.verifyPoolExists(createDeletePoolName);
-    await poolsPage.deletePool(createDeletePoolName);
-    await poolsPage.verifyPoolNotExists(createDeletePoolName);
+    await poolsPage.verifyPoolExists(poolName);
+    await poolsPage.deletePool(poolName);
+    await poolsPage.verifyPoolNotExists(poolName);
   });
 });

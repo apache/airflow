@@ -59,6 +59,11 @@
     "dagVersions": "Dag バージョン",
     "dataIntervalEnd": "データ期間の終了",
     "dataIntervalStart": "データ期間の開始",
+    "durationStats": {
+      "mean": "平均",
+      "mode": "最頻値"
+    },
+    "expectedDuration": "予想所要時間",
     "lastSchedulingDecision": "最終スケジューリング決定時刻",
     "partitionKey": "パーティションキー",
     "queuedAt": "キュー登録時刻",

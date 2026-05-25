@@ -26,6 +26,49 @@
 Changelog
 ---------
 
+7.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Support user-assigned managed identity for Azure VM auth (#66072)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Repair action missing job parameters in 'DatabricksRunNowOperator' (#67055)``
+* ``Preserve Databricks deferrable trigger caller across triggerer restarts (#66965)``
+* ``Fix 'DatabricksWorkflowTaskGroup' leaking TaskGroupContext on internal exception (#66582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky databricks token-expiry test by freezing time_machine (#66660)``
+   * ``Enable plugin tests in test_databricks_workflow.py for Airflow 3.0+ (#66442)``
+
+7.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'access_control_list' to 'DatabricksWorkflowTaskGroup' (#64538)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'task_config' to 'template_fields' for 'DatabricksTaskOperator' (#65858)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+7.13.0
+......
+
 .. note:: **Security fix — TLS verification for Kubernetes TokenRequest API (affects Kubernetes OIDC token federation)**
 
    The Kubernetes TokenRequest API call made during ``federated_k8s`` authentication now verifies the
@@ -43,9 +86,6 @@ Changelog
    **Potentially impacted:** Non-compliant or highly customized Kubernetes distributions that do not
    mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
    please open an issue so support for a configurable CA path can be added.
-
-7.13.0
-......
 
 Features
 ~~~~~~~~

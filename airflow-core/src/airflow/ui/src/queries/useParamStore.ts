@@ -21,7 +21,6 @@ import { create } from "zustand";
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
 export const paramPlaceholder: ParamSpec = {
-  // eslint-disable-next-line unicorn/no-null
   description: null,
   schema: {
     const: undefined,
@@ -80,7 +79,6 @@ const createParamStore = () =>
             updatedParamsDictEntries.push([
               key,
               {
-                // eslint-disable-next-line unicorn/no-null
                 description: baseParam.description ?? null,
                 schema: baseParam.schema,
                 value: parsedConf[key],
@@ -97,7 +95,6 @@ const createParamStore = () =>
             updatedParamsDictEntries.push([
               key,
               {
-                // eslint-disable-next-line unicorn/no-null
                 description: existingParam?.description ?? null,
                 schema: existingParam?.schema ?? paramPlaceholder.schema,
                 value,

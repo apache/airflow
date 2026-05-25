@@ -32,6 +32,8 @@ import type {
 } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
+import { tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+
 type Props = {
   readonly clearSelections: VoidFunction;
   readonly onSuccessConfirm: VoidFunction;
@@ -62,6 +64,7 @@ export const useBulkTaskInstances = ({ clearSelections, onSuccessConfirm }: Prop
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetTaskInstancesKey] }),
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
+      ...tiPerAttemptQueryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
     ]);
 
     const isDelete = Boolean(responseData.delete);

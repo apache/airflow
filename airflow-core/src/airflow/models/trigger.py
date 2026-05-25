@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -146,7 +147,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(kwargs)
+        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -427,7 +428,12 @@ class Trigger(Base):
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
-            select(cls.id).where(cls.assets.any()).order_by(cls.created_date),
+            select(cls.id)
+            .where(
+                cls.assets.any(),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
+            .order_by(cls.created_date),
         ]
 
         # Process each query while avoiding unnecessary queries when capacity is reached

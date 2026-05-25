@@ -25,7 +25,11 @@ import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+} from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
@@ -169,6 +173,39 @@ const parseLogs = ({
     // Handle unclosed groups: their lines are already in result as flat entries
     return result;
   })();
+
+  // Extract TI identity fields from the first structured log line and insert a single preamble
+  // entry after the "Pre Execute" group header (or at position 0 if absent), so they
+  // appear once rather than repeated on every line.
+  const tiContext = extractTIContext(data);
+
+  if (tiContext !== undefined) {
+    let insertAt = 0;
+    let insertGroup: { id: number; level: number; parentId?: number; type: "header" | "line" } | undefined =
+      undefined;
+    const preExecuteIndex = flatEntries.findIndex(
+      (entry) =>
+        entry.group?.type === "header" &&
+        typeof entry.element === "string" &&
+        entry.element.startsWith("Pre Execute"),
+    );
+
+    const preExecuteGroup = preExecuteIndex === -1 ? undefined : flatEntries[preExecuteIndex];
+
+    if (preExecuteGroup?.group !== undefined) {
+      insertAt = preExecuteIndex + 1;
+      insertGroup = {
+        id: preExecuteGroup.group.id,
+        level: preExecuteGroup.group.level,
+        parentId: preExecuteGroup.group.id,
+        type: "line",
+      };
+    }
+    flatEntries.splice(insertAt, 0, {
+      element: renderTIContextPreamble(tiContext, "jsx", "Task Identity"),
+      group: insertGroup,
+    });
+  }
 
   return {
     parsedLogs: flatEntries,

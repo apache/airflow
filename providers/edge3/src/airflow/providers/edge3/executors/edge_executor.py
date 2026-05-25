@@ -225,10 +225,6 @@ class EdgeExecutor(BaseExecutor):
                     "queue": job.queue,
                     "state": str(TaskInstanceState.FAILED),
                 }
-                Stats.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
-                    tags=tags,
-                )
                 Stats.incr("edge_worker.ti.finish", tags=tags)
 
         return bool(lifeless_jobs)

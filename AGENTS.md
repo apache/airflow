@@ -3,6 +3,21 @@
 
 # AGENTS instructions
 
+## Naming
+
+Write **Dag** (title case) in all prose. Keep the all-caps or lowercase
+spelling only when reproducing a literal code token — never rewrite these,
+even inside fenced code blocks:
+
+- Python: the SDK class `DAG` (`from airflow.sdk import DAG`,
+  `dag = DAG("my_dag", ...)`); identifiers like `dag_id`, `dag`, `my_dag`.
+- CLI: `airflow dags list`, `airflow dags test`, etc.
+- Paths and config keys: `dag_processing/`, `dagprocessor`, `get_dag`, etc.
+- Anti-pattern quotes that show the wrong form to teach the rule itself
+  (e.g., `Use "DAG" — always write "Dag"`).
+
+Don't spell out **Directed Acyclic Graph** except for historical context.
+
 ## Environment Setup
 
 - Install prek: `uv tool install prek`
@@ -122,8 +137,11 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
+- Translate domain-layer exceptions to `HTTPException` at FastAPI route boundaries. In `airflow-core/src/airflow/core_api/` route handlers, catch errors raised by domain code (e.g., `ValueError` from `airflow.state.metastore.MetastoreStateBackend` for a missing row or invalid input) and re-raise as `HTTPException` with the right status (`404` for not-found, `400` for invalid input). Otherwise they propagate as `500 Internal Server Error`, leaking internals and misleading clients.
+- Bulk `DELETE`/`UPDATE` in the scheduler loop or any synchronous interval task (e.g. `call_regular_interval` callbacks) must be batched with `LIMIT` and committed between batches — never issue a single unbounded bulk write against a user-driven table. Unbounded bulk writes hold row locks for the entire transaction (blocking concurrent writers) and stall the scheduler main loop. Filter columns used by the cleanup must be indexed. Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
+- Name functions and methods with action verbs: `get_`, `extract_`, `find_`, `compute_`, `build_`, etc. Avoid noun-only names like `_serialize_keys` or `_base_names` — they read as attributes, not callables. Predicates (`is_`, `has_`) are the one exception.
 - Apache License header on all new files (prek enforces this).
-- Newsfragments are only added if a major change or breaking change is applied. This is usually coordinate during review. Please do not add newsfragments per default as in most cases this needs a reversion during review.
+- Newsfragments are only used by distributions whose release process consumes them via towncrier — currently `airflow-core/newsfragments/`, `chart/newsfragments/`, and `dev/mypy/newsfragments/` — and only for major or breaking changes (usually coordinated during review; do not add by default). **Never add newsfragments for `providers/` or `airflow-ctl/`** — those distributions are released from `main` and their release managers regenerate the changelog from `git log`, so per-PR newsfragments are not consumed (see `dev/README_RELEASE_PROVIDERS.md` and `dev/README_RELEASE_AIRFLOWCTL.md`). For a user-visible note in those distributions, edit the changelog directly: `providers/<provider>/docs/changelog.rst` for providers, `airflow-ctl/RELEASE_NOTES.rst` for airflow-ctl. Changes to `task-sdk/` ship in `airflow-core` — use `airflow-core/newsfragments/`.
 
 ## Testing Standards
 
@@ -144,10 +162,12 @@ Write commit messages focused on user impact, not implementation details.
 
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
-- **Bad:** `Initialize DAG bundles in CLI get_dag function`
+- **Bad:** `Initialize Dag bundles in CLI get_dag function`
 
-Add a newsfragment for user-visible changes:
+For `airflow-core` (and `chart/`, `dev/mypy/`) user-visible changes, add a newsfragment in that distribution's `newsfragments/` directory:
 `echo "Brief description" > airflow-core/newsfragments/{PR_NUMBER}.{bugfix|feature|improvement|doc|misc|significant}.rst`
+
+**Do not add newsfragments for `providers/` or `airflow-ctl/`** — their release managers regenerate the changelog from `git log` and do not consume newsfragments. Update the changelog directly when needed: `providers/<provider>/docs/changelog.rst` (see `providers/AGENTS.md`) or `airflow-ctl/RELEASE_NOTES.rst`. Changes to `task-sdk/` use `airflow-core/newsfragments/` since task-sdk ships in airflow-core.
 
 - NEVER add Co-Authored-By with yourself as co-author of the commit. Agents cannot be authors, humans can be, Agents are assistants.
 
@@ -282,6 +302,30 @@ Remind the user to:
 2. Add a brief description of the changes at the top of the body.
 3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
 
+### Golden rule: when a fix is imminent, open the PR, not an issue
+
+If you already know how to fix the problem and you (or the user) are going to
+open the PR shortly, **do not file a GitHub issue first**. Go straight to the
+PR.
+
+- Airflow does not use issues as a changelog, as a parallel bug database, or
+  as a duplicate record of in-flight work. The PR itself is the canonical
+  record — title, description, diff, discussion, and merge all live in one
+  place. An issue that gets closed by a PR a day later is double accounting
+  that carries no information the PR does not already carry.
+- Open issues attract drive-by submissions, often from other agents, that
+  haven't seen the in-flight work. That produces duplicate fixes, low-quality
+  PRs that have to be closed, and wasted reviewer time. Not opening the
+  issue avoids creating that bait in the first place.
+- If you catch yourself drafting an issue body that reads like the PR
+  description you are about to write, that is the signal — skip the issue
+  and open the PR.
+
+The one exception is the case covered by the next section: the PR ships a
+**workaround, mitigation, or partial fix** and the real follow-up work is
+genuinely deferred to a later PR. There, the issue captures work that will
+outlive the PR, so the issue is load-bearing rather than duplicate.
+
 ### Tracking issues for deferred work
 
 When a PR applies a **workaround, version cap, mitigation, or partial fix**
@@ -370,6 +414,25 @@ disclosure rules (the PR body still keeps its own `Generated-by:`
 block under the AI-disclosure checkbox; commit messages still follow
 the no-self-as-co-author rule above). Do not skip the footer to
 shorten a message — attribution applies regardless of message length.
+
+## apache-steward framework
+
+This repo adopts the [`apache/airflow-steward`](https://github.com/apache/airflow-steward)
+framework via the snapshot mechanism. The framework provides the
+`pr-management-*` skills (triage, code-review, stats, mentor); they are
+gitignored symlinks into the `.apache-steward/` snapshot directory.
+
+A fresh clone needs the snapshot populated before any framework skill is
+invocable. Run `/setup-steward` (or follow
+[`.claude/skills/setup-steward/`](.claude/skills/setup-steward/)) to fetch
+it per the committed [`.apache-steward.lock`](.apache-steward.lock). The
+contributor-facing summary of the adoption + setup flow lives in the
+[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-steward).
+
+Adopter-specific modifications to framework-skill workflows live in
+[`.apache-steward-overrides/`](.apache-steward-overrides/) — never edit
+the snapshot directly. Framework changes go via PR to
+[`apache/airflow-steward`](https://github.com/apache/airflow-steward).
 
 ## Boundaries
 
