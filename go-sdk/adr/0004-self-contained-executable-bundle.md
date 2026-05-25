@@ -68,8 +68,8 @@ What the ZIP container costs us:
 - **Inspection requires a different tool than running.** `unzip` to
   inspect, then run; or run, then `unzip` to debug. Two muscle memories.
 
-Native-executable SDKs (Go, Rust, C++, Zig) all produce a single
-self-contained binary by static linking. The binary itself is already
+Native-executable SDKs (Go, Rust, C++, Zig) all produce a single-file
+binary as their primary build output. The binary itself is already
 the only thing that has to land on the worker host to run a task. The
 manifest and the source file are small data the scanner needs but the
 runtime doesn't. Both can ride along in a footer appended to the
@@ -208,9 +208,13 @@ time to avoid map-order non-determinism on the Go side.
 ### Cross-language scope
 
 The bundle spec is language-agnostic by design. Every native-SDK
-language we currently target (Go, Rust, C++, Zig) emits a single
-statically-linked native executable; appending a fixed-format footer
-is a few lines of code in each. The footer layout above is the
+language we currently target (Go, Rust, C++, Zig) emits a single-file
+native executable; appending a fixed-format footer is a few lines of
+code in each. The technique works because the OS loader stops at the
+format-defined end of image (ELF section/segment extents, Mach-O
+`LC_SEGMENT` extents) — it does not depend on the binary being
+statically linked, so dynamically-linked Rust or C++ artefacts on
+Linux take the footer cleanly. The footer layout above is the
 contract every SDK packer implements; the consumer-side scanner reads
 it identically regardless of source language.
 
