@@ -699,7 +699,7 @@ export const ensureUseDagServiceGetLatestRunInfoData = (queryClient: QueryClient
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }), queryFn: () => DagService.getLatestRunInfo({ dagId }) });
 /**
 * Get Dag Run State Counts
-* Return per-DAG DagRun state counts (zero-filled) for the DAG list page.
+* Return per-Dag DagRun state counts (zero-filled) for the Dag list page.
 * @param data The data for the request.
 * @param data.dagIds
 * @param data.runAfterGte

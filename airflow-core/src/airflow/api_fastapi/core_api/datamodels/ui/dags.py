@@ -41,13 +41,13 @@ class DAGWithLatestDagRunsCollectionResponse(BaseModel):
 
 
 class DAGRunStateCountsResponse(BaseModel):
-    """Per-DAG counts of DagRuns grouped by state."""
+    """Per-Dag counts of DagRuns grouped by state."""
 
     dag_id: str
     state_counts: dict[DagRunState, int]
 
 
 class DAGsRunStateCountsCollectionResponse(BaseModel):
-    """Collection of per-DAG DagRun-state counts for the DAG list page."""
+    """Collection of per-Dag DagRun-state counts for the Dag list page."""
 
     dags: list[DAGRunStateCountsResponse]

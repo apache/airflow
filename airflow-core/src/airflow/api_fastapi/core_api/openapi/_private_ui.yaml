@@ -584,7 +584,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag Run State Counts
-      description: Return per-DAG DagRun state counts (zero-filled) for the DAG list
+      description: Return per-Dag DagRun state counts (zero-filled) for the Dag list
         page.
       operationId: get_dag_run_state_counts_ui
       security:
@@ -2178,7 +2178,7 @@ components:
       - dag_id
       - state_counts
       title: DAGRunStateCountsResponse
-      description: Per-DAG counts of DagRuns grouped by state.
+      description: Per-Dag counts of DagRuns grouped by state.
     DAGRunStates:
       properties:
         queued:
@@ -2423,7 +2423,7 @@ components:
       required:
       - dags
       title: DAGsRunStateCountsCollectionResponse
-      description: Collection of per-DAG DagRun-state counts for the DAG list page.
+      description: Collection of per-Dag DagRun-state counts for the Dag list page.
     DagRunState:
       type: string
       enum:

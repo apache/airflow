@@ -699,7 +699,7 @@ export const useDagServiceGetLatestRunInfoSuspense = <TData = Common.DagServiceG
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetLatestRunInfoKeyFn({ dagId }, queryKey), queryFn: () => DagService.getLatestRunInfo({ dagId }) as TData, ...options });
 /**
 * Get Dag Run State Counts
-* Return per-DAG DagRun state counts (zero-filled) for the DAG list page.
+* Return per-Dag DagRun state counts (zero-filled) for the Dag list page.
 * @param data The data for the request.
 * @param data.dagIds
 * @param data.runAfterGte

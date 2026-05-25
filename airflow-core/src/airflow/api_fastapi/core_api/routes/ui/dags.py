@@ -327,7 +327,7 @@ def get_dag_run_state_counts(
     dag_ids: Annotated[list[str], Query(min_length=1)],
     run_after_gte: datetime | None = None,
 ) -> DAGsRunStateCountsCollectionResponse:
-    """Return per-DAG DagRun state counts (zero-filled) for the DAG list page."""
+    """Return per-Dag DagRun state counts (zero-filled) for the Dag list page."""
     permitted_dag_ids = readable_dags_filter.value or set()
     requested_dag_ids = [dag_id for dag_id in dict.fromkeys(dag_ids) if dag_id in permitted_dag_ids]
     counts_by_dag: dict[str, dict[DagRunState, int]] = {
@@ -335,8 +335,6 @@ def get_dag_run_state_counts(
     }
 
     if requested_dag_ids:
-        # Single GROUP BY query — composite Index("dag_id_state", dag_id, _state)
-        # makes this an index-only scan, sub-100ms even with many DAGs/states.
         count_query = (
             select(DagRun.dag_id, DagRun.state, func.count().label("cnt"))
             .where(DagRun.dag_id.in_(requested_dag_ids))
