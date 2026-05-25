@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 import pydantic
+import structlog
 
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.configuration import conf
@@ -64,6 +65,8 @@ __all__ = [
     "get_coordinator_manager",
     "reset_coordinator_manager",
 ]
+
+log = structlog.get_logger(__name__)
 
 
 class BaseCoordinator:
@@ -213,9 +216,12 @@ class CoordinatorManager:
         If an entry is not registered, a Python coordinator is returned.
         """
         try:
-            return self._for_queue_internal(queue)
+            coordinator = self._for_queue_internal(queue)
         except KeyError:
+            log.debug("Queue not configured to a coordinator; defaulting to Python", queue=queue)
             return _build_python_coordinator()
+        log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
+        return coordinator
 
 
 @functools.cache
