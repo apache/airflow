@@ -87,6 +87,34 @@ the prompt string; all other parameters are passed to the operator.
     :end-before: [END howto_decorator_agent]
 
 
+.. _howto/operator:agent-multimodal:
+
+Multimodal prompts
+^^^^^^^^^^^^^^^^^^
+
+The decorated callable may also return a ``Sequence[UserContent]`` -- for
+example, a list mixing strings with ``ImageUrl``, ``BinaryContent``, or other
+pydantic-ai user-content types -- to send vision, audio, or document inputs
+to the model. This mirrors the input types accepted by pydantic-ai's
+``Agent.run_sync``.
+
+.. code-block:: python
+
+    from pydantic_ai.messages import ImageUrl
+
+
+    @task.agent(llm_conn_id="pydanticai_default", system_prompt="You are an image analyst.")
+    def analyze_review(image_url: str):
+        return ["Describe what you see:", ImageUrl(url=image_url)]
+
+.. note::
+
+    Combining a non-string prompt with ``enable_hitl_review=True`` is not
+    currently supported -- the HITL session model stores the prompt as a
+    string, so a ``Sequence`` prompt will raise at the review boundary.
+    Widening HITL review to multimodal prompts is tracked as a follow-up.
+
+
 Structured Output
 -----------------
 
