@@ -91,9 +91,9 @@ bundle directory looks like:
 └── analytics
 ```
 
-(Filenames follow OS conventions: no extension on Linux/macOS, `.exe`
-on Windows. The scanner identifies bundles by the trailer's magic, not
-by the filename.)
+(Filenames have no extension; the scanner identifies bundles by the
+trailer's magic, not by the filename. Windows is not a supported
+bundle target in v1 — see "Out of scope" below.)
 
 ## Decision
 
@@ -179,8 +179,8 @@ step:
    the manifest. (No change.)
 4. **New:** read the source file's bytes; serialise the manifest to
    YAML; append `<source><metadata><trailer>` to `<out>`.
-5. Default output path becomes `<bundleName>` (or `<bundleName>.exe`
-   on Windows), not `<bundleName>.zip`.
+5. Default output path becomes `<bundleName>`, not
+   `<bundleName>.zip`.
 
 Ordering against post-build steps:
 
@@ -189,10 +189,11 @@ Ordering against post-build steps:
   implementations stop at the OS-defined end of the binary) or
   truncates it; do not rely on either.
 - **Code-sign:** must run *after* append on platforms whose signature
-  covers the entire file (Linux dm-verity, macOS post-Big-Sur for
-  certain notarisation flows, Windows Authenticode). The signature
-  then attests to the footer's contents along with the binary, which
-  is the property we want.
+  covers the entire file (Linux dm-verity, macOS `codesign` for
+  post-Big-Sur notarisation flows). The signature then attests to the
+  footer's contents along with the binary, which is the property we
+  want. Windows Authenticode is incompatible with this layout; see
+  "Out of scope" below.
 - **Compressors (UPX, etc.):** unsupported. UPX rewrites the file end
   to end, destroying the trailer. Bundle binaries should not be
   compressor-wrapped; this matches typical production deployment
@@ -275,9 +276,23 @@ the spec.
 ### Out of scope
 
 - Signed checksums in the footer. We rely on platform code-signing
-  (Authenticode, codesign, dm-verity) for tamper detection. A
-  bundle-level checksum could be added in a future `footer_ver` if
-  signing-free tamper detection becomes a requirement.
+  (macOS `codesign`, Linux dm-verity) for tamper detection on the
+  supported targets. A bundle-level checksum could be added in a
+  future `footer_ver` if signing-free tamper detection becomes a
+  requirement.
+- **Windows as a bundle target.** Windows PE Authenticode stores the
+  signature in the certificate table referenced from the Optional
+  Header, and Microsoft's `EnableCertPaddingCheck` hardening
+  (MS13-098) rejects extra bytes past the signature. Appending the
+  bundle footer in either order relative to `signtool` produces a
+  binary that strict-mode verification rejects, so the
+  footer-after-EOF layout cannot honestly claim Windows support.
+  Supporting Windows would require a different on-disk layout (for
+  example, storing the source and manifest in a dedicated PE resource
+  section so they are inside the signed image) and is tracked
+  separately. The packer should refuse `GOOS=windows` builds in v1
+  with a clear error rather than silently producing an unsignable
+  artefact.
 - Multiple source files. Only the root file (the file containing
   `func main()`) is embedded. DAGs split across multiple source
   files keep the rest of their sources outside the bundle; the UI
