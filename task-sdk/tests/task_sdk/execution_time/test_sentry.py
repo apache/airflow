@@ -323,3 +323,47 @@ class TestSentryHook:
             mock_sentry_sdk.capture_exception.assert_called()
         else:
             mock_sentry_sdk.capture_exception.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("failing_step", "expected_event"),
+        [
+            ("prepare_to_enrich_errors", "sentry_prepare_failed"),
+            ("add_tagging", "sentry_enrichment_failed"),
+            ("add_breadcrumbs", "sentry_enrichment_failed"),
+        ],
+    )
+    def test_enrich_errors_isolates_instrumentation_from_task_run(
+        self,
+        mock_supervisor_comms,
+        mock_sentry_sdk,
+        sentry,
+        dag_run,
+        task_instance,
+        failing_step,
+        expected_event,
+    ):
+        """An instrumentation failure must not prevent the wrapped task from running.
+
+        ``prepare_to_enrich_errors`` / ``add_tagging`` / ``add_breadcrumbs`` failures used to
+        propagate as task failures (the wrapped ``run()`` never executed). They are now isolated
+        so instrumentation is best-effort: the failure is logged as a warning and the task runs.
+        """
+        mock_supervisor_comms.send.return_value = TaskBreadcrumbsResult.model_construct(
+            breadcrumbs=[TASK_DATA],
+        )
+        ran = {"value": False}
+
+        def fake_run(ti, context, log):
+            ran["value"] = True
+            return STATE, None, None
+
+        log = mock.Mock()
+        with mock.patch.object(sentry, failing_step, side_effect=RuntimeError("instrumentation broken")):
+            wrapped = sentry.enrich_errors(fake_run)
+            run_return = wrapped(task_instance, {"dag_run": dag_run}, log)
+
+        assert ran["value"] is True, f"wrapped run() must execute even when {failing_step} raises"
+        assert run_return == (STATE, None, None)
+        # The instrumentation failure is surfaced as a structured warning, not a task failure.
+        warning_events = [c for c in log.warning.mock_calls if c.args and c.args[0] == expected_event]
+        assert len(warning_events) == 1
