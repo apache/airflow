@@ -36,7 +36,9 @@ class TestS3ToFTPOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_key")
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.check_for_key", return_value=True)
     @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.NamedTemporaryFile")
-    def test_execute(self, mock_local_tmp_file, mock_check_for_key, mock_s3_hook_get_key, mock_ftp_hook_store_file):
+    def test_execute(
+        self, mock_local_tmp_file, mock_check_for_key, mock_s3_hook_get_key, mock_ftp_hook_store_file
+    ):
         operator = S3ToFTPOperator(task_id=TASK_ID, s3_bucket=BUCKET, s3_key=S3_KEY, ftp_path=FTP_PATH)
         operator.execute(None)
 
