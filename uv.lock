@@ -6042,6 +6042,7 @@ dependencies = [
     { name = "apache-airflow-providers-common-sql" },
     { name = "mysql-connector-python" },
     { name = "mysqlclient", marker = "sys_platform != 'darwin'" },
+    { name = "pymysql" },
 ]
 
 [package.optional-dependencies]
@@ -6092,6 +6093,7 @@ requires-dist = [
     { name = "mysql-connector-python", marker = "python_full_version < '3.12'", specifier = ">=9.1.0" },
     { name = "mysql-connector-python", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0,!=9.7.0" },
     { name = "mysqlclient", marker = "sys_platform != 'darwin'", specifier = ">=2.2.5" },
+    { name = "pymysql", specifier = ">=1.0.3,<1.2" },
 ]
 provides-extras = ["mysql-connector-python", "amazon", "openlineage", "presto", "trino", "vertica"]
 
