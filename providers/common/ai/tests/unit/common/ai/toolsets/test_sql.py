@@ -22,6 +22,7 @@ import sqlite3
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from pydantic_ai.exceptions import ModelRetry
 
 from airflow.providers.common.ai.hooks.base_ai import BaseToolset, ToolSpec
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -94,6 +95,11 @@ class TestSQLToolsetAsTools:
         assert "table_name" in specs["get_schema"].parameters["properties"]
         assert "sql" in specs["query"].parameters["properties"]
         assert "sql" in specs["check_query"].parameters["properties"]
+
+    def test_tools_are_sequential(self):
+        ts = SQLToolset("pg_default")
+        for spec in ts.as_tools():
+            assert spec.sequential is True
 
 
 class TestSQLToolsetListTables:
@@ -174,7 +180,7 @@ class TestSQLToolsetQuery:
         ts._hook.conn_type = "sqlite"
         ts._hook.get_records.side_effect = sqlite3.OperationalError("no such column: nonexistent")
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ModelRetry) as exc_info:
             ts._query("SELECT id, nonexistent FROM users")
 
         assert "nonexistent" in exc_info.value.args[0]
@@ -187,7 +193,7 @@ class TestSQLToolsetQuery:
         ts._hook.conn_type = "sqlite"
         ts._hook.get_records.side_effect = sqlite3.OperationalError("no such table: missing_table")
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ModelRetry) as exc_info:
             ts._query("SELECT foo FROM x")
 
         assert "get_schema" in exc_info.value.args[0]
@@ -249,7 +255,7 @@ class TestSQLToolsetQuery:
                 "airflow.providers.common.ai.toolsets.sql._SQLALCHEMY_RETRYABLE_EXCEPTIONS",
                 (ProgrammingError,),
             ),
-            pytest.raises(ValueError),
+            pytest.raises(ModelRetry),
         ):
             ts._query("SELECT id, missing FROM users")
 

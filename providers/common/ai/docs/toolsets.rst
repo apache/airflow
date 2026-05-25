@@ -81,11 +81,16 @@ context.
 
 This approach gives you direct control over the agent lifecycle — you can
 build and run multiple agents in a single task, or combine results from
-several runs. The tradeoff is that you lose
-the durable execution (step-level caching with retry replay), HITL review
-integration, and the automatic tool call logging and routing that
-``AgentOperator`` provides via
-:class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset`.
+several runs. The tradeoff is that you lose the durable execution
+(step-level caching with retry replay), HITL review integration, and
+automatic tool call logging that
+:class:`~airflow.providers.common.ai.operators.agent.AgentOperator` provides
+via the agent hook (:class:`~airflow.providers.common.ai.hooks.base_ai.BaseAIHook`):
+callable-level logging and caching for
+:class:`~airflow.providers.common.ai.hooks.base_ai.BaseToolset` tools and plain
+callables, and :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` /
+:class:`~airflow.providers.common.ai.durable.caching_toolset.CachingToolset`
+wrapping for pydantic-ai ``AbstractToolset`` items.
 
 
 ``HookToolset``
