@@ -885,7 +885,7 @@ def test_celery_tasks_registered_on_import():
         )
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="CallbackKey dataclass requires Airflow 3.3+")
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
 @pytest.mark.parametrize(
     ("callback_data", "expected_queue"),
     [
