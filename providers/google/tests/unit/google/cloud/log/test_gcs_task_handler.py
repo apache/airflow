@@ -190,17 +190,23 @@ class TestGCSRemoteLogIO:
         result = gcs_remote_log_io.write(new_log_content, remote_log_location)
 
         # verify
-        assert result == upload_success
-
-        # verify the content that was uploaded
-        if upload_success:
-            call_args = mock_blob.from_string.return_value.upload_from_string.call_args
-            if call_args:
-                uploaded_content = call_args[0][0]
-                if old_log_exists and not old_log_read_error:
-                    assert uploaded_content == f"{old_log_content}\n{new_log_content}"
-                else:
-                    assert uploaded_content == new_log_content
+        # If reading the existing blob failed for a reason other than "not found", the
+        # handler now fails closed (returns False without uploading) rather than overwriting
+        # the existing blob with only the new content. The 404 case still proceeds to upload.
+        if old_log_read_error is not None:
+            assert result is False
+            mock_blob.from_string.return_value.upload_from_string.assert_not_called()
+        else:
+            assert result == upload_success
+            # verify the content that was uploaded
+            if upload_success:
+                call_args = mock_blob.from_string.return_value.upload_from_string.call_args
+                if call_args:
+                    uploaded_content = call_args[0][0]
+                    if old_log_exists:
+                        assert uploaded_content == f"{old_log_content}\n{new_log_content}"
+                    else:
+                        assert uploaded_content == new_log_content
 
     @pytest.mark.parametrize(
         "is_stream_method",
