@@ -135,15 +135,33 @@ class ConfiguredSentry(NoopSentry):
 
         Wrap :func:`airflow.sdk.execution_time.task_runner.run` to support task
         specific tags and breadcrumbs.
+
+        Sentry instrumentation is best-effort: ``prepare_to_enrich_errors``,
+        ``add_tagging`` and ``add_breadcrumbs`` are isolated from the wrapped
+        ``run(...)`` call so an instrumentation failure cannot block task
+        execution or surface as a task failure. The wrapped ``run`` still
+        runs inside ``sentry_sdk.new_scope`` and its exceptions are captured
+        and re-raised — that part is unchanged.
         """
 
         @functools.wraps(run)
         def wrapped_run(ti: RuntimeTaskInstance, context: Context, log: Logger) -> RunReturn:
-            self.prepare_to_enrich_errors(ti.sentry_integration)
+            try:
+                self.prepare_to_enrich_errors(ti.sentry_integration)
+            except Exception:
+                log.warning("sentry_prepare_failed", exc_info=True)
+
             with sentry_sdk.new_scope():
                 try:
                     self.add_tagging(context["dag_run"], ti)
+                except Exception:
+                    log.warning("sentry_add_tagging_failed", exc_info=True)
+                try:
                     self.add_breadcrumbs(ti)
+                except Exception:
+                    log.warning("sentry_add_breadcrumbs_failed", exc_info=True)
+
+                try:
                     return run(ti, context, log)
                 except Exception as e:
                     sentry_sdk.capture_exception(e)
