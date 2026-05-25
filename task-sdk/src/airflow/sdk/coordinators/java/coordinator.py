@@ -63,20 +63,26 @@ def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
     return os.pathsep.join(jars)
 
 
-def _read_jar_metadata(path: pathlib.Path) -> tuple[str, str]:
-    try:
-        with zipfile.ZipFile(path) as zf:
-            try:
-                manifest_info = zf.getinfo("META-INF/MANIFEST.MF")
-            except KeyError:
-                log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
-                return "", ""
-            with zf.open(manifest_info) as f:
-                manifest = email.message_from_binary_file(f)
-        return manifest["Main-Class"], manifest["Airflow-SDK-Supervisor-Schema-Version"]
-    except zipfile.BadZipFile:
-        log.exception("Cannot read JAR; ignored", path=path)
-        return "", ""
+@attrs.define
+class _JarMetadata:
+    main_class: str
+    schema_version: str
+
+    @classmethod
+    def from_jar(cls, path: pathlib.Path) -> Self | None:
+        try:
+            with zipfile.ZipFile(path) as zf:
+                try:
+                    manifest_info = zf.getinfo("META-INF/MANIFEST.MF")
+                except KeyError:
+                    log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
+                    return None
+                with zf.open(manifest_info) as f:
+                    manifest = email.message_from_binary_file(f)
+            return cls(manifest["Main-Class"], manifest["Airflow-Supervisor-Schema-Version"])
+        except zipfile.BadZipFile:
+            log.exception("Cannot read JAR; ignored", path=path)
+            return None
 
 
 def _validate_schema_version(instance, _, value) -> str:
@@ -90,19 +96,27 @@ class _MainJar:
     schema_version: str = attrs.field(validator=_validate_schema_version)
 
     @classmethod
-    def find(cls, jars_root: Sequence[pathlib.Path]) -> Self:
-        for root in jars_root:
-            log.debug("Finding Main-Class JAR in directory", dir=root)
+    def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> Self:
+        for root in roots:
+            log.debug("Finding Main-Class in directory", dir=root)
             for p in root.iterdir():
                 if p.suffix != ".jar":
                     continue
-                main_class, schema_version = _read_jar_metadata(p)
-                if not main_class:
+                if (metadata := _JarMetadata.from_jar(p)) is None:
                     continue
-                log.debug("JAR located with Main-Class metadata set", path=p, main_class=main_class)
-                return cls(p, main_class, schema_version)
-        resolved_paths = os.pathsep.join(os.fspath(p.resolve()) for p in jars_root)
-        raise FileNotFoundError(f"cannot find main class in {resolved_paths}")
+                if not metadata.main_class:
+                    continue
+                if main_class and metadata.main_class != main_class:
+                    continue
+                log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
+                if not metadata.schema_version:
+                    raise ValueError("JAR with Main-Class found without Airflow-Supervisor-Schema-Version")
+                return cls(p, metadata.main_class, metadata.schema_version)
+        if main_class:
+            tp = "cannot find a JAR with Main-Class matching {0} in {1}"
+        else:
+            tp = "cannot find a JAR with Main-Class metadata in {1}"
+        raise FileNotFoundError(tp.format(main_class, os.pathsep.join(os.fspath(p.resolve()) for p in roots)))
 
 
 def _accept_connections(
@@ -180,9 +194,10 @@ class _JavaActivitySubprocess(ActivitySubprocess):
         java_executable: str,
         jvm_args: list[str],
         jars_root: Sequence[pathlib.Path],
+        main_class: str,
         **kwargs,
     ) -> Self:
-        jar = _MainJar.find(jars_root)
+        jar = _MainJar.find(jars_root, main_class)
 
         comm_server = _start_server()
         logs_server = _start_server()
@@ -267,15 +282,28 @@ class JavaCoordinator(BaseCoordinator):
             },
         }
 
-    :param java_executable: Path to the ``java`` binary (defaults to ``"java"``,
-        which relies on ``$PATH``).
+    :param java_executable: Path to the ``java`` command (defaults to
+        ``"java"``, which relies on ``$PATH``).
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
     :param jars_root: A list of directories scanned for JAR bundles.
+    :param main_class: Explicit entry point to execute with *java_executable*.
+
+    If *main_class* is not explicitly set, JavaCoordinator scans *jars_root* to
+    find an executable JAR (one with Main-Class set in its metadata). If more
+    than one executable JAR is found, it may be nondeterministic which one ends
+    up being executed.
+
+    A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
+    available to specify the wire schema version. The JAR containing the Java
+    SDK automatically sets this, so you don't generally need to do anything if
+    dependency JARs are deployed as-is. If you repackage the dependencies,
+    however, you must also reproduce the metadata entry in one of the JARs.
     """
 
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
     jars_root: list[pathlib.Path] = attrs.field(converter=_convert_jars_root, factory=list)
+    main_class: str = ""
 
     def execute_task(
         self,
@@ -300,6 +328,7 @@ class JavaCoordinator(BaseCoordinator):
             java_executable=self.java_executable,
             jvm_args=self.jvm_args,
             jars_root=self.jars_root,
+            main_class=self.main_class,
         )
         exit_code = process.wait()
         return self.ExecutionResult(exit_code, process.final_state)

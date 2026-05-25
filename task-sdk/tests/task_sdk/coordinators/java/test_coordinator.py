@@ -80,7 +80,7 @@ def _make_jar(
     if main_class:
         lines.append(f"Main-Class: {main_class}")
     if schema_version:
-        lines.append(f"Airflow-SDK-Supervisor-Schema-Version: {schema_version}")
+        lines.append(f"Airflow-Supervisor-Schema-Version: {schema_version}")
     manifest = "\n".join(lines) + "\n\n"
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("META-INF/MANIFEST.MF", manifest)
@@ -160,36 +160,65 @@ class TestCalculateClasspath:
 
 class TestMainJar:
     def test_returns_main_class_from_jar(self, tmp_path):
-        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
-        assert _MainJar.find([tmp_path]) == _MainJar(tmp_path.joinpath("app.jar"), "com.example.Main", None)
+        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16")
+        assert _MainJar.find([tmp_path], "") == _MainJar(
+            tmp_path.joinpath("app.jar"), "com.example.Main", "2026-06-16"
+        )
 
     def test_no_jars_raises_file_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match=re.escape(str(tmp_path.resolve()))):
-            _MainJar.find([tmp_path])
+            _MainJar.find([tmp_path], "")
 
     def test_jar_without_main_class_not_returned(self, tmp_path):
         _make_jar(tmp_path.joinpath("app.jar"), main_class=None)
         with pytest.raises(FileNotFoundError):
-            _MainJar.find([tmp_path])
+            _MainJar.find([tmp_path], "")
+
+    def test_jar_with_main_class_but_no_schema_version_raises(self, tmp_path):
+        """A JAR with Main-Class but no Airflow-Supervisor-Schema-Version must raise ValueError."""
+        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
+        with pytest.raises(ValueError, match="Airflow-Supervisor-Schema-Version"):
+            _MainJar.find([tmp_path], "")
 
     def test_non_jar_files_skipped(self, tmp_path):
         tmp_path.joinpath("readme.txt").write_bytes(b"not a jar")
-        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main")
-        assert _MainJar.find([tmp_path]) == _MainJar(tmp_path.joinpath("app.jar"), "com.example.Main", None)
+        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16")
+        assert _MainJar.find([tmp_path], "") == _MainJar(
+            tmp_path.joinpath("app.jar"), "com.example.Main", "2026-06-16"
+        )
 
     def test_first_jar_missing_main_class_falls_through_to_second(self, tmp_path):
         # Alphabetically: a.jar (no Main-Class), b.jar (has Main-Class).
         _make_jar(tmp_path.joinpath("a.jar"), main_class=None)
-        _make_jar(tmp_path.joinpath("b.jar"), main_class="com.example.Fallback")
-        assert _MainJar.find([tmp_path]) == _MainJar(tmp_path.joinpath("b.jar"), "com.example.Fallback", None)
+        _make_jar(tmp_path.joinpath("b.jar"), main_class="com.example.Fallback", schema_version="2026-06-16")
+        assert _MainJar.find([tmp_path], "") == _MainJar(
+            tmp_path.joinpath("b.jar"), "com.example.Fallback", "2026-06-16"
+        )
 
     def test_fully_qualified_class_name_preserved(self, tmp_path):
-        _make_jar(tmp_path.joinpath("app.jar"), main_class="org.apache.airflow.sdk.java.TaskRunner")
-        assert _MainJar.find([tmp_path]) == _MainJar(
+        _make_jar(
+            tmp_path.joinpath("app.jar"),
+            main_class="org.apache.airflow.sdk.java.TaskRunner",
+            schema_version="2026-06-16",
+        )
+        assert _MainJar.find([tmp_path], "") == _MainJar(
             path=tmp_path.joinpath("app.jar"),
             main_class="org.apache.airflow.sdk.java.TaskRunner",
-            schema_version=None,
+            schema_version="2026-06-16",
         )
+
+    def test_find_by_explicit_main_class(self, tmp_path):
+        """When a main_class filter is given, only the matching JAR is returned."""
+        _make_jar(tmp_path.joinpath("a.jar"), main_class="com.example.Alpha", schema_version="2026-06-16")
+        _make_jar(tmp_path.joinpath("b.jar"), main_class="com.example.Beta", schema_version="2026-06-16")
+        result = _MainJar.find([tmp_path], "com.example.Beta")
+        assert result.main_class == "com.example.Beta"
+
+    def test_find_by_explicit_main_class_not_present_raises(self, tmp_path):
+        """When no JAR matches the main_class filter, FileNotFoundError is raised."""
+        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16")
+        with pytest.raises(FileNotFoundError, match="com.example.Missing"):
+            _MainJar.find([tmp_path], "com.example.Missing")
 
 
 class TestAcceptConnections:
@@ -301,7 +330,7 @@ class TestJavaCoordinatorAttributes:
 
 @pytest.fixture
 def jars_root(tmp_path):
-    _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner")
+    _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner", schema_version="2026-06-16")
     return tmp_path
 
 
@@ -490,6 +519,7 @@ class TestJavaActivitySubprocessStart:
                 java_executable=java_executable,
                 jvm_args=jvm_args or [],
                 jars_root=[jars_root],
+                main_class="",
                 subprocess_logs_to_stdout=False,
             )
 
@@ -533,6 +563,7 @@ class TestJavaActivitySubprocessStart:
                 java_executable="java",
                 jvm_args=[],
                 jars_root=[jars_root],
+                main_class="",
                 subprocess_logs_to_stdout=False,
             )
 
@@ -563,6 +594,7 @@ class TestJavaActivitySubprocessStart:
                 java_executable="java",
                 jvm_args=[],
                 jars_root=[jars_root],
+                main_class="",
                 subprocess_logs_to_stdout=False,
             )
 
@@ -592,6 +624,7 @@ class TestJavaActivitySubprocessStart:
                 java_executable="java",
                 jvm_args=[],
                 jars_root=[jars_root],
+                main_class="",
                 subprocess_logs_to_stdout=False,
             )
 
