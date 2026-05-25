@@ -8579,7 +8579,7 @@ export const $DAGRunStateCountsResponse = {
     type: 'object',
     required: ['dag_id', 'state_counts'],
     title: 'DAGRunStateCountsResponse',
-    description: 'Per-DAG counts of DagRuns grouped by state.'
+    description: 'Per-Dag counts of DagRuns grouped by state.'
 } as const;
 
 export const $DAGRunStates = {
@@ -8923,7 +8923,7 @@ export const $DAGsRunStateCountsCollectionResponse = {
     type: 'object',
     required: ['dags'],
     title: 'DAGsRunStateCountsCollectionResponse',
-    description: 'Collection of per-DAG DagRun-state counts for the DAG list page.'
+    description: 'Collection of per-Dag DagRun-state counts for the Dag list page.'
 } as const;
 
 export const $DagRunStatsResponse = {

@@ -2158,7 +2158,7 @@ export type DAGRunLightResponse = {
 };
 
 /**
- * Per-DAG counts of DagRuns grouped by state.
+ * Per-Dag counts of DagRuns grouped by state.
  */
 export type DAGRunStateCountsResponse = {
     dag_id: string;
@@ -2234,7 +2234,7 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
- * Collection of per-DAG DagRun-state counts for the DAG list page.
+ * Collection of per-Dag DagRun-state counts for the Dag list page.
  */
 export type DAGsRunStateCountsCollectionResponse = {
     dags: Array<DAGRunStateCountsResponse>;
