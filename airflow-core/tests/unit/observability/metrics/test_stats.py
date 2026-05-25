@@ -39,6 +39,19 @@ class InvalidCustomStatsd:
 
 
 class TestStats:
+    @pytest.mark.parametrize(
+        ("metrics_config", "expected"),
+        [
+            pytest.param({}, False, id="disabled"),
+            pytest.param({("metrics", "statsd_on"): "True"}, True, id="statsd"),
+            pytest.param({("metrics", "statsd_datadog_enabled"): "True"}, True, id="datadog"),
+            pytest.param({("metrics", "otel_on"): "True"}, True, id="otel"),
+        ],
+    )
+    def test_is_metrics_enabled(self, metrics_config, expected):
+        with conf_vars(metrics_config):
+            assert stats_utils.is_metrics_enabled() is expected
+
     def test_load_invalid_custom_stats_client(self):
         with conf_vars(
             {

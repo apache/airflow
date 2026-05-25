@@ -556,9 +556,30 @@ metrics:
     legacy_name: "-"
     name_variables: ["status"]
 
+  - name: "api.requests"
+    description: "Number of completed REST API requests. Metric with api_surface, method, route,
+    and status_family tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "api.request.errors"
+    description: "Number of REST API requests that resulted in server-side failures (5xx). Metric
+    with api_surface, method, and route tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Timers
   # ==========
+  - name: "api.request.duration"
+    description: "Milliseconds taken to complete a REST API request. Metric with api_surface,
+    method, and route tagging."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.dependency-check"
     description: "Milliseconds taken to check Dag dependencies"
     type: "timer"
