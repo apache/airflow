@@ -960,10 +960,8 @@ components:
           - type: 'null'
           title: Version
         version_data:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
+          additionalProperties: true
+          type: object
           title: Version Data
       type: object
       required:

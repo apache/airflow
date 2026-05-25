@@ -118,12 +118,11 @@ def test_callback_key_is_not_a_string():
     assert not isinstance(key, str)
 
 
-def test_state_class_for_key_falls_back_to_callback_state():
-    """state_class_for_key should fall back to CallbackState for non-TaskInstanceKey types."""
-    from airflow.utils.state import CallbackState
+def test_state_class_for_key_raises_on_unknown_type():
+    """state_class_for_key should raise TypeError for unrecognized key types."""
 
-    result = state_class_for_key("bare-string-is-not-a-key")  # type: ignore[arg-type]
-    assert result is CallbackState
+    with pytest.raises(TypeError, match="Unknown workload key type"):
+        state_class_for_key("bare-string-is-not-a-key")  # type: ignore[arg-type]
 
 
 def test_callback_dto_key_returns_callback_key_instance():
