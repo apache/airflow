@@ -665,19 +665,6 @@ class TestJavaActivitySubprocessStart:
 
         return proc, popen_mock
 
-    def test_stdout_write_socket_stored_for_cleanup(self, jars_root, mock_client):
-        proc, _ = self._start_with_mocks(jars_root, mock_client)
-        # _stdout_w must be stored so wait() can close it
-        assert proc._stdout_w is not None
-
-    def test_stderr_write_socket_stored_for_cleanup(self, jars_root, mock_client):
-        proc, _ = self._start_with_mocks(jars_root, mock_client)
-        assert proc._stderr_w is not None
-
-    def test_stdout_and_stderr_write_sockets_are_distinct(self, jars_root, mock_client):
-        proc, _ = self._start_with_mocks(jars_root, mock_client)
-        assert proc._stdout_w is not proc._stderr_w
-
     def test_stdin_is_comm_socket(self, jars_root, mock_client):
         """stdin (used by send_msg) must be the accepted comm socket."""
         ti = _make_ti()

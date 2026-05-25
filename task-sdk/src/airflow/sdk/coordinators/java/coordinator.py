@@ -225,12 +225,6 @@ class _JavaActivitySubprocess(ActivitySubprocess):
     _comm_server: socket.socket
     _logs_server: socket.socket
 
-    # Keep track of channels used to pipe subprocess stdout and stderr so we can
-    # close them on exit. The "read" side is handled by _register_pipe_readers
-    # callbacks so we don't need to worry about them.
-    _stdout_w: socket.socket
-    _stderr_w: socket.socket
-
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -263,10 +257,12 @@ class _JavaActivitySubprocess(ActivitySubprocess):
                     "--comm={0[0]}:{0[1]}".format(comm_server.getsockname()),
                     "--logs={0[0]}:{0[1]}".format(logs_server.getsockname()),
                 ],
-                stdout=stdout_w.makefile("wb", buffering=0).fileno(),
-                stderr=stderr_w.makefile("wb", buffering=0).fileno(),
+                stdout=stdout_w.fileno(),
+                stderr=stderr_w.fileno(),
             )
             tracker.track(proc)
+            for soc in tracker.untrack(stdout_w, stderr_w):
+                soc.close()
             log.info("Starting subprocess", pid=proc.pid)
 
             socks, drained = _accept_connections(
@@ -286,8 +282,6 @@ class _JavaActivitySubprocess(ActivitySubprocess):
                 subprocess_schema_version=jar.schema_version,
                 comm_server=comm_server,
                 logs_server=logs_server,
-                stdout_w=stdout_w,
-                stderr_w=stderr_w,
                 **kwargs,
             )
             self._register_pipe_readers(
@@ -309,7 +303,7 @@ class _JavaActivitySubprocess(ActivitySubprocess):
 
     def wait(self) -> int:
         code = super().wait()
-        self._close_unused_sockets(self._comm_server, self._logs_server, self._stdout_w, self._stderr_w)
+        self._close_unused_sockets(self._comm_server, self._logs_server)
         return code
 
 
